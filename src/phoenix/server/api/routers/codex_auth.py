@@ -50,6 +50,29 @@ class CodexDeviceAuthorizationResponse(BaseModel):
     interval: int = Field(description="Minimum seconds to wait between token requests.")
 
 
+class CodexTokenRequest(BaseModel):
+    """RFC 6749 §4.1.3 / RFC 8628 §3.4 token request, form-encoded.
+
+    ``device_code`` is required for the device-code grant and ``refresh_token`` for
+    the refresh grant.
+    """
+
+    # Typed as ``str`` so an unknown grant is answered with the RFC 6749 §5.2
+    # ``unsupported_grant_type`` error rather than a 422; the enum in the schema
+    # still tells generated clients which values are accepted.
+    grant_type: str = Field(
+        json_schema_extra={"enum": [DEVICE_CODE_GRANT_TYPE, REFRESH_TOKEN_GRANT_TYPE]},
+    )
+    device_code: str | None = Field(
+        default=None,
+        description="The ``device_code`` from ``/device_authorization``.",
+    )
+    refresh_token: str | None = Field(
+        default=None,
+        description="Single-use refresh token from an earlier token response.",
+    )
+
+
 class CodexTokenResponse(BaseModel):
     """RFC 6749 §5.1 token response, plus the ChatGPT ``account_id`` extension parameter.
 
@@ -172,9 +195,7 @@ def create_codex_auth_router(authentication_enabled: bool) -> APIRouter:
         },
     )
     async def token(
-        grant_type: Annotated[str, Form()],
-        device_code: Annotated[str | None, Form()] = None,
-        refresh_token: Annotated[str | None, Form()] = None,
+        request_body: Annotated[CodexTokenRequest, Form()],
     ) -> CodexTokenResponse | JSONResponse:
         """Complete or refresh a ChatGPT sign-in (RFC 8628 §3.4, RFC 6749 §6).
 
@@ -183,10 +204,10 @@ def create_codex_auth_router(authentication_enabled: bool) -> APIRouter:
         ``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh
         tokens are single-use.
         """
-        if grant_type == DEVICE_CODE_GRANT_TYPE:
-            if not device_code:
+        if request_body.grant_type == DEVICE_CODE_GRANT_TYPE:
+            if not request_body.device_code:
                 return _token_error("invalid_request", "device_code is required.")
-            decoded = codex.decode_device_code(device_code)
+            decoded = codex.decode_device_code(request_body.device_code)
             if decoded is None:
                 return _token_error("invalid_grant", "Unrecognized device_code.")
             device_auth_id, user_code = decoded
@@ -205,12 +226,14 @@ def create_codex_auth_router(authentication_enabled: bool) -> APIRouter:
                     "The user has not finished signing in.",
                 )
             return _token_response(tokens)
-        if grant_type == REFRESH_TOKEN_GRANT_TYPE:
-            if not refresh_token:
+        if request_body.grant_type == REFRESH_TOKEN_GRANT_TYPE:
+            if not request_body.refresh_token:
                 return _token_error("invalid_request", "refresh_token is required.")
             try:
                 async with codex.http_client() as client:
-                    tokens = await codex.refresh_tokens(client, refresh_token=refresh_token)
+                    tokens = await codex.refresh_tokens(
+                        client, refresh_token=request_body.refresh_token
+                    )
             except codex.CodexAuthError as exc:
                 return _upstream_token_error(exc)
             return _token_response(tokens)

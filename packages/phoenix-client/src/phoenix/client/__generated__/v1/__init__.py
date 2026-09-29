@@ -74,12 +74,6 @@ class AssistantMessageMetadataUsageTokens(TypedDict):
     total: int
 
 
-class BodyCodexToken(TypedDict):
-    grant_type: str
-    device_code: NotRequired[str]
-    refresh_token: NotRequired[str]
-
-
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -156,6 +150,12 @@ class CodexTokenErrorResponse(TypedDict):
         "temporarily_unavailable",
     ]
     error_description: NotRequired[str]
+
+
+class CodexTokenRequest(TypedDict):
+    grant_type: Literal["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"]
+    device_code: NotRequired[str]
+    refresh_token: NotRequired[str]
 
 
 class CodexTokenResponse(TypedDict):

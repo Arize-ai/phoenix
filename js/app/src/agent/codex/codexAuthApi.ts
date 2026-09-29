@@ -1,9 +1,5 @@
 /**
  * Browser side of the ChatGPT (Codex subscription) sign-in.
- *
- * Experimental. Every token lives in this browser; the server routes under
- * `/codex` relay the OAuth 2.0 Device Authorization Grant (RFC 8628) to
- * `auth.openai.com`, which the browser cannot call directly because of CORS.
  */
 
 import type { components, paths } from "@phoenix/api/__generated__/v1";
@@ -24,7 +20,7 @@ export type CodexDeviceAuthorization =
 type CodexTokenResponse = components["schemas"]["CodexTokenResponse"];
 type CodexTokenErrorResponse = components["schemas"]["CodexTokenErrorResponse"];
 type CodexTokenErrorCode = CodexTokenErrorResponse["error"];
-type CodexTokenRequest = components["schemas"]["Body_codexToken"];
+type CodexTokenRequest = components["schemas"]["CodexTokenRequest"];
 
 const REFRESH_LEEWAY_MS = 5 * 60 * 1000;
 

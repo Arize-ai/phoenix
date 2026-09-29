@@ -2279,15 +2279,6 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Body_codexToken */
-        Body_codexToken: {
-            /** Grant Type */
-            grant_type: string;
-            /** Device Code */
-            device_code?: string | null;
-            /** Refresh Token */
-            refresh_token?: string | null;
-        };
         /** BuiltInModelProvider */
         BuiltInModelProvider: {
             /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
@@ -2631,6 +2622,30 @@ export interface components {
             error: "authorization_pending" | "expired_token" | "access_denied" | "invalid_grant" | "invalid_request" | "unsupported_grant_type" | "temporarily_unavailable";
             /** Error Description */
             error_description?: string | null;
+        };
+        /**
+         * CodexTokenRequest
+         * @description RFC 6749 §4.1.3 / RFC 8628 §3.4 token request, form-encoded.
+         *
+         *     ``device_code`` is required for the device-code grant and ``refresh_token`` for
+         *     the refresh grant.
+         */
+        CodexTokenRequest: {
+            /**
+             * Grant Type
+             * @enum {string}
+             */
+            grant_type: "urn:ietf:params:oauth:grant-type:device_code" | "refresh_token";
+            /**
+             * Device Code
+             * @description The ``device_code`` from ``/device_authorization``.
+             */
+            device_code?: string | null;
+            /**
+             * Refresh Token
+             * @description Single-use refresh token from an earlier token response.
+             */
+            refresh_token?: string | null;
         };
         /**
          * CodexTokenResponse
@@ -14123,7 +14138,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_codexToken"];
+                "application/x-www-form-urlencoded": components["schemas"]["CodexTokenRequest"];
             };
         };
         responses: {
