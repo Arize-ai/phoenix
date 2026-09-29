@@ -1956,9 +1956,9 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
             )
         )
     await consumer._executor.evaluate_and_annotate(duplicate, duplicate_hydrated)
-    (replacement,) = await _session_annotations(db)
-    assert replacement.id == annotation.id
-    assert events.get_nowait() == ProjectSessionAnnotationInsertEvent((annotation.id,))
+    (kept,) = await _session_annotations(db)
+    assert kept.id == annotation.id
+    assert kept.explanation == "looks good"
     assert events.empty()
 
 

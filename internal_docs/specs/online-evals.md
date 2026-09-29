@@ -371,9 +371,9 @@ already distinguishes automated annotations from human ones at the data level, s
 gap is UI treatment and traceability back to the specific project evaluator and run — not captured
 today (there is no FK from an annotation to a project evaluator).
 
-Re-evaluation maps onto an existing mechanism: the annotation tables enforce
+When re-evaluation lands, it can map onto an existing mechanism: the annotation tables enforce
 `UniqueConstraint(name, <target>_rowid, identifier)`, so writing with a stable `identifier` gives
-upsert/override for free — a later run replaces its own prior annotation. Deriving that
+upsert/override for free — a later run would replace its own prior annotation. Deriving that
 `identifier` takes care, because `<target>_rowid` is the *attachment* artifact, not the source.
 When the annotation lands on the artifact it evaluated, keying `identifier` on the project
 evaluator configuration is enough. But when a span-level judgment is hoisted onto its enclosing
@@ -389,7 +389,7 @@ preserved for audit not by the annotation row (overwritten) but by the run recor
 
 ## Run Records and Audit
 
-The upsert-by-`identifier` mechanism in [Output](#output) would overwrite a prior annotation, but
+v1 does not overwrite: online evals keep the first annotation written under an `identifier`, and
 each work unit publishes at most once, so a project evaluator writes its annotations for a target
 at most once. SESSION filter and sampling declines are durable terminal
 work-unit states, but other decisions that produce *no* annotation (including span filter/sample

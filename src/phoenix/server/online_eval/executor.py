@@ -1,7 +1,7 @@
 """Execution glue for claimed online-eval work units: configuration-first hydration,
 target context assembly, evaluator invocation, and idempotent annotation writes.
-Publication runs through the coordinator, which fences the claim in the transaction that
-writes the annotations; every lifecycle transition, including completion, stays with the
+Publication runs through the coordinator, which fences the claim, writes the annotations,
+and finishes the unit in one transaction; every other lifecycle transition stays with the
 coordinator and its caller.
 """
 
@@ -578,7 +578,6 @@ class _EvaluationTargetSpec:
         | type[models.TraceAnnotation]
     )
     unique_by: tuple[str, ...]
-    on_conflict: OnConflict
     insert_event: Callable[[tuple[int, ...]], DmlEvent]
 
 
@@ -589,7 +588,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="span_rowid",
         annotation_table=models.SpanAnnotation,
         unique_by=("name", "span_rowid", "identifier"),
-        on_conflict=OnConflict.DO_NOTHING,
         insert_event=SpanAnnotationInsertEvent,
     ),
     "SESSION": _EvaluationTargetSpec(
@@ -598,7 +596,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="project_session_id",
         annotation_table=models.ProjectSessionAnnotation,
         unique_by=("name", "project_session_id", "identifier"),
-        on_conflict=OnConflict.DO_UPDATE,
         insert_event=ProjectSessionAnnotationInsertEvent,
     ),
     "TRACE": _EvaluationTargetSpec(
@@ -607,7 +604,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="trace_rowid",
         annotation_table=models.TraceAnnotation,
         unique_by=("name", "trace_rowid", "identifier"),
-        on_conflict=OnConflict.DO_UPDATE,
         insert_event=TraceAnnotationInsertEvent,
     ),
 }
@@ -1103,10 +1099,8 @@ class OnlineEvalExecutor:
     ) -> None:
         """Run the eval, then publish successful results as target annotations under
         the hydrated configuration's identifier and finish the work unit in the same
-        transaction. Span results are first-write-wins; session results replace a prior
-        attempt so the annotation stays paired with its coverage. Raises before writing
-        unless the evaluator returns one complete, error-free result set. No DB session
-        is open while the evaluator runs."""
+        transaction. Raises before writing unless the evaluator returns one complete,
+        error-free result set. No DB session is open while the evaluator runs."""
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
@@ -1215,7 +1209,7 @@ class OnlineEvalExecutor:
                             table=target_spec.annotation_table,
                             dialect=self._db.dialect,
                             unique_by=target_spec.unique_by,
-                            on_conflict=target_spec.on_conflict,
+                            on_conflict=OnConflict.DO_NOTHING,
                         ).returning(target_spec.annotation_table.id)
                     )
                 ).all()
@@ -1228,8 +1222,6 @@ class OnlineEvalExecutor:
                     claimed_by=unit.claimed_by,
                     write=_write_annotations,
                 )
-            # Span duplicates return no id and need no cache invalidation. Session
-            # replacements return their id because the annotation genuinely changed.
             if self._event_queue is not None and inserted_ids:
                 self._event_queue.put(target_spec.insert_event(tuple(inserted_ids)))
         if not records:
