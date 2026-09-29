@@ -7,14 +7,18 @@ import { authFetch } from "@phoenix/authFetch";
 import type { AgentStore, CodexAuth } from "@phoenix/store/agentStore";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
+const AUTHORIZATION_URL_PATH = "/codex/authorization_url" satisfies keyof paths;
 const DEVICE_AUTHORIZATION_PATH =
   "/codex/device_authorization" satisfies keyof paths;
 const TOKEN_PATH = "/codex/token" satisfies keyof paths;
 const MODELS_PATH = "/codex/models" satisfies keyof paths;
 
+const AUTHORIZATION_CODE_GRANT_TYPE = "authorization_code";
 const DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
 const REFRESH_TOKEN_GRANT_TYPE = "refresh_token";
 
+export type CodexBrowserAuthorization =
+  components["schemas"]["CodexAuthorizationUrlResponse"];
 export type CodexDeviceAuthorization =
   components["schemas"]["CodexDeviceAuthorizationResponse"];
 type CodexTokenResponse = components["schemas"]["CodexTokenResponse"];
@@ -118,6 +122,67 @@ export function toCodexAuth(tokens: CodexTokenResponse): CodexAuth {
     accountId: tokens.account_id,
     expiresAt: readJwtExpiresAt(tokens.access_token),
   };
+}
+
+export function startCodexBrowserAuthorization(): Promise<CodexBrowserAuthorization> {
+  return postJson<CodexBrowserAuthorization>(AUTHORIZATION_URL_PATH, {});
+}
+
+export type CodexRedirectParseResult =
+  | { ok: true; code: string }
+  | { ok: false; reason: "not_a_redirect" | "missing_code" | "state_mismatch" };
+
+/**
+ * Reads the authorization code out of what the user pasted: the full redirect
+ * URL from the dead `localhost:1455` tab, or just its `code` value.
+ */
+export function parseCodexRedirect(
+  pasted: string,
+  authorization: Pick<CodexBrowserAuthorization, "redirect_uri" | "state">
+): CodexRedirectParseResult {
+  const input = pasted.trim();
+  if (!input) {
+    return { ok: false, reason: "missing_code" };
+  }
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    // Not a URL: treat the paste as a bare authorization code.
+    return /^[A-Za-z0-9._~-]+$/.test(input)
+      ? { ok: true, code: input }
+      : { ok: false, reason: "not_a_redirect" };
+  }
+  const expected = new URL(authorization.redirect_uri);
+  if (url.host !== expected.host || url.pathname !== expected.pathname) {
+    return { ok: false, reason: "not_a_redirect" };
+  }
+  const state = url.searchParams.get("state");
+  if (state !== null && state !== authorization.state) {
+    return { ok: false, reason: "state_mismatch" };
+  }
+  const code = url.searchParams.get("code");
+  if (!code) {
+    return { ok: false, reason: "missing_code" };
+  }
+  return { ok: true, code };
+}
+
+/** RFC 6749 §4.1.3: exchange the pasted authorization code for tokens. */
+export async function completeCodexBrowserAuthorization({
+  code,
+  authorization,
+}: {
+  code: string;
+  authorization: CodexBrowserAuthorization;
+}): Promise<CodexAuth> {
+  const tokens = await postTokenRequest({
+    grant_type: AUTHORIZATION_CODE_GRANT_TYPE,
+    code,
+    code_verifier: authorization.code_verifier,
+    redirect_uri: authorization.redirect_uri,
+  });
+  return toCodexAuth(tokens);
 }
 
 export function startCodexDeviceAuthorization(): Promise<CodexDeviceAuthorization> {

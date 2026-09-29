@@ -119,6 +119,40 @@ def _client(handler: Any) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
 
+class TestBrowserFlow:
+    def test_start_is_pure_and_binds_the_challenge_to_the_verifier(self) -> None:
+        started = codex.start_browser_auth()
+        url = httpx.URL(started.authorization_url)
+        assert str(url.copy_with(query=None)) == codex.CODEX_AUTHORIZE_URL
+        assert url.params["response_type"] == "code"
+        assert url.params["client_id"] == codex.CODEX_CLIENT_ID
+        assert url.params["redirect_uri"] == started.redirect_uri
+        assert url.params["state"] == started.state
+        assert url.params["code_challenge"] == codex.pkce_challenge(started.code_verifier)
+        assert url.params["id_token_add_organizations"] == "true"
+        assert codex.start_browser_auth().state != started.state
+
+    async def test_exchange_posts_the_verifier(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/oauth/token"
+            form = dict(pair.split("=", 1) for pair in request.content.decode().split("&"))
+            assert form["grant_type"] == "authorization_code"
+            assert form["code"] == "code_1"
+            assert form["code_verifier"] == "ver_1"
+            assert form["redirect_uri"] == "http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
+            assert form["client_id"] == codex.CODEX_CLIENT_ID
+            return httpx.Response(200, json={"access_token": ACCESS_TOKEN, "refresh_token": "rt_1"})
+
+        async with _client(handler) as client:
+            tokens = await codex.exchange_authorization_code(
+                client,
+                code="code_1",
+                code_verifier="ver_1",
+                redirect_uri=codex.CODEX_BROWSER_REDIRECT_URI,
+            )
+        assert tokens.account_id == "acct_123"
+
+
 class TestDeviceFlow:
     async def test_start(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:

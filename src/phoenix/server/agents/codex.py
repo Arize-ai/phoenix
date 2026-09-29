@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
+import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
+from urllib.parse import urlencode
 
 import httpx
 from pydantic import SecretStr
@@ -14,6 +17,12 @@ CODEX_ACCESS_TOKEN_SECRET_KEY: Literal["OPENAI_CODEX_ACCESS_TOKEN"] = "OPENAI_CO
 CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CODEX_AUTH_ISSUER = "https://auth.openai.com"
 CODEX_DEVICE_VERIFICATION_URL = f"{CODEX_AUTH_ISSUER}/codex/device"
+CODEX_AUTHORIZE_URL = f"{CODEX_AUTH_ISSUER}/oauth/authorize"
+# The public Codex client's registration pins its redirect URI to the Codex CLI's
+# local callback. Nothing listens there during a Phoenix sign-in; the user copies
+# the redirected URL back into Phoenix instead.
+CODEX_BROWSER_REDIRECT_URI = "http://localhost:1455/auth/callback"
+CODEX_SCOPE = "openid profile email offline_access"
 CODEX_BACKEND_URL = "https://chatgpt.com/backend-api/codex"
 # The models endpoint 404s without a client_version and hides every model whose
 # minimum Codex CLI version is newer than the one sent. A far-future version
@@ -34,6 +43,14 @@ class CodexDeviceAuthStart:
     user_code: str
     interval_seconds: int
     verification_url: str
+
+
+@dataclass(frozen=True)
+class CodexBrowserAuthStart:
+    authorization_url: str
+    state: str
+    code_verifier: str
+    redirect_uri: str
 
 
 @dataclass(frozen=True)
@@ -75,6 +92,36 @@ def decode_device_code(device_code: str) -> tuple[str, str] | None:
     if not device_auth_id or not user_code:
         return None
     return device_auth_id, user_code
+
+
+def pkce_challenge(code_verifier: str) -> str:
+    """RFC 7636 §4.2 ``S256`` challenge."""
+    digest = hashlib.sha256(code_verifier.encode()).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+
+def start_browser_auth() -> CodexBrowserAuthStart:
+    """Mint a PKCE pair and the authorize URL for the authorization-code grant."""
+    state = secrets.token_urlsafe(16)
+    code_verifier = secrets.token_urlsafe(32)
+    params = {
+        "response_type": "code",
+        "client_id": CODEX_CLIENT_ID,
+        "redirect_uri": CODEX_BROWSER_REDIRECT_URI,
+        "scope": CODEX_SCOPE,
+        "state": state,
+        "code_challenge": pkce_challenge(code_verifier),
+        "code_challenge_method": "S256",
+        # Without this the id_token can omit the account id for multi-org accounts.
+        "id_token_add_organizations": "true",
+        "codex_cli_simplified_flow": "true",
+    }
+    return CodexBrowserAuthStart(
+        authorization_url=f"{CODEX_AUTHORIZE_URL}?{urlencode(params)}",
+        state=state,
+        code_verifier=code_verifier,
+        redirect_uri=CODEX_BROWSER_REDIRECT_URI,
+    )
 
 
 def resolve_codex_access_token(request_credentials: Mapping[str, SecretStr]) -> SecretStr | None:
@@ -215,6 +262,25 @@ async def poll_device_auth(
             "code": authorization_code,
             "code_verifier": code_verifier,
             "redirect_uri": f"{CODEX_AUTH_ISSUER}/deviceauth/callback",
+            "client_id": CODEX_CLIENT_ID,
+        },
+    )
+
+
+async def exchange_authorization_code(
+    client: httpx.AsyncClient,
+    *,
+    code: str,
+    code_verifier: str,
+    redirect_uri: str,
+) -> CodexTokens:
+    return await _post_token_form(
+        client,
+        {
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": code_verifier,
+            "redirect_uri": redirect_uri,
             "client_id": CODEX_CLIENT_ID,
         },
     )

@@ -1901,6 +1901,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/codex/authorization_url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Authorization Url
+         * @description Start a ChatGPT browser sign-in (authorization code with PKCE, RFC 7636).
+         *
+         *     Open ``authorization_url``. After signing in the user is redirected to
+         *     ``redirect_uri``, where nothing is listening; have them paste that URL back,
+         *     check its ``state``, and send its ``code`` with ``code_verifier`` to ``/token``.
+         */
+        post: operations["codexAuthorizationUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/codex/device_authorization": {
         parameters: {
             query?: never;
@@ -1934,8 +1958,10 @@ export interface paths {
         put?: never;
         /**
          * Token
-         * @description Complete or refresh a ChatGPT sign-in (RFC 8628 §3.4, RFC 6749 §6).
+         * @description Complete or refresh a ChatGPT sign-in (RFC 6749 §4.1.3 and §6, RFC 8628 §3.4).
          *
+         *     Exchange a browser sign-in with ``grant_type=authorization_code``, the ``code``
+         *     from the pasted redirect, and the ``code_verifier`` from ``/authorization_url``.
          *     Poll with ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and the
          *     ``device_code`` from ``/device_authorization`` until the response is no longer
          *     ``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh
@@ -2554,6 +2580,35 @@ export interface components {
             evaluatorNodeId?: string | null;
         };
         /**
+         * CodexAuthorizationUrlResponse
+         * @description Everything the browser needs to run the authorization-code grant with PKCE.
+         *
+         *     Phoenix mints the verifier so the flow also works in non-secure contexts, where
+         *     the browser has no ``crypto.subtle``; it is returned once and never stored.
+         */
+        CodexAuthorizationUrlResponse: {
+            /**
+             * Authorization Url
+             * @description Send the user here to sign in.
+             */
+            authorization_url: string;
+            /**
+             * State
+             * @description Must match the ``state`` on the redirect the user pastes back.
+             */
+            state: string;
+            /**
+             * Code Verifier
+             * @description RFC 7636 verifier to present with the authorization code.
+             */
+            code_verifier: string;
+            /**
+             * Redirect Uri
+             * @description Where OpenAI sends the user afterwards; nothing listens there.
+             */
+            redirect_uri: string;
+        };
+        /**
          * CodexDeviceAuthorizationResponse
          * @description RFC 8628 §3.2 device authorization response.
          */
@@ -2627,15 +2682,31 @@ export interface components {
          * CodexTokenRequest
          * @description RFC 6749 §4.1.3 / RFC 8628 §3.4 token request, form-encoded.
          *
-         *     ``device_code`` is required for the device-code grant and ``refresh_token`` for
-         *     the refresh grant.
+         *     ``code`` and ``code_verifier`` are required for the authorization-code grant,
+         *     ``device_code`` for the device-code grant, and ``refresh_token`` for the
+         *     refresh grant.
          */
         CodexTokenRequest: {
             /**
              * Grant Type
              * @enum {string}
              */
-            grant_type: "urn:ietf:params:oauth:grant-type:device_code" | "refresh_token";
+            grant_type: "authorization_code" | "urn:ietf:params:oauth:grant-type:device_code" | "refresh_token";
+            /**
+             * Code
+             * @description Authorization code from the ``code`` query parameter of the redirect.
+             */
+            code?: string | null;
+            /**
+             * Code Verifier
+             * @description The ``code_verifier`` from ``/authorization_url``.
+             */
+            code_verifier?: string | null;
+            /**
+             * Redirect Uri
+             * @description The ``redirect_uri`` from ``/authorization_url``; defaults to it when omitted.
+             */
+            redirect_uri?: string | null;
             /**
              * Device Code
              * @description The ``device_code`` from ``/device_authorization``.
@@ -14073,6 +14144,44 @@ export interface operations {
             };
             /** @description Insufficient Storage */
             507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    codexAuthorizationUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexAuthorizationUrlResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

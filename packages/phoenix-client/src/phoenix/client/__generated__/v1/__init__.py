@@ -118,6 +118,13 @@ class CodeEvaluatorUIContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CodexAuthorizationUrlResponse(TypedDict):
+    authorization_url: str
+    state: str
+    code_verifier: str
+    redirect_uri: str
+
+
 class CodexDeviceAuthorizationResponse(TypedDict):
     device_code: str
     user_code: str
@@ -153,7 +160,12 @@ class CodexTokenErrorResponse(TypedDict):
 
 
 class CodexTokenRequest(TypedDict):
-    grant_type: Literal["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"]
+    grant_type: Literal[
+        "authorization_code", "urn:ietf:params:oauth:grant-type:device_code", "refresh_token"
+    ]
+    code: NotRequired[str]
+    code_verifier: NotRequired[str]
+    redirect_uri: NotRequired[str]
     device_code: NotRequired[str]
     refresh_token: NotRequired[str]
 

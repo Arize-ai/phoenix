@@ -10233,6 +10233,48 @@
         }
       }
     },
+    "/codex/authorization_url": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Authorization Url",
+        "description": "Start a ChatGPT browser sign-in (authorization code with PKCE, RFC 7636).\n\nOpen ``authorization_url``. After signing in the user is redirected to\n``redirect_uri``, where nothing is listening; have them paste that URL back,\ncheck its ``state``, and send its ``code`` with ``code_verifier`` to ``/token``.",
+        "operationId": "codexAuthorizationUrl",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexAuthorizationUrlResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/codex/device_authorization": {
       "post": {
         "tags": [
@@ -10291,7 +10333,7 @@
           "chat"
         ],
         "summary": "Token",
-        "description": "Complete or refresh a ChatGPT sign-in (RFC 8628 \u00a73.4, RFC 6749 \u00a76).\n\nPoll with ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and the\n``device_code`` from ``/device_authorization`` until the response is no longer\n``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh\ntokens are single-use.",
+        "description": "Complete or refresh a ChatGPT sign-in (RFC 6749 \u00a74.1.3 and \u00a76, RFC 8628 \u00a73.4).\n\nExchange a browser sign-in with ``grant_type=authorization_code``, the ``code``\nfrom the pasted redirect, and the ``code_verifier`` from ``/authorization_url``.\nPoll with ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and the\n``device_code`` from ``/device_authorization`` until the response is no longer\n``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh\ntokens are single-use.",
         "operationId": "codexToken",
         "requestBody": {
           "content": {
@@ -11726,6 +11768,39 @@
         ],
         "title": "CodeEvaluatorUIContext"
       },
+      "CodexAuthorizationUrlResponse": {
+        "properties": {
+          "authorization_url": {
+            "type": "string",
+            "title": "Authorization Url",
+            "description": "Send the user here to sign in."
+          },
+          "state": {
+            "type": "string",
+            "title": "State",
+            "description": "Must match the ``state`` on the redirect the user pastes back."
+          },
+          "code_verifier": {
+            "type": "string",
+            "title": "Code Verifier",
+            "description": "RFC 7636 verifier to present with the authorization code."
+          },
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri",
+            "description": "Where OpenAI sends the user afterwards; nothing listens there."
+          }
+        },
+        "type": "object",
+        "required": [
+          "authorization_url",
+          "state",
+          "code_verifier",
+          "redirect_uri"
+        ],
+        "title": "CodexAuthorizationUrlResponse",
+        "description": "Everything the browser needs to run the authorization-code grant with PKCE.\n\nPhoenix mints the verifier so the flow also works in non-secure contexts, where\nthe browser has no ``crypto.subtle``; it is returned once and never stored."
+      },
       "CodexDeviceAuthorizationResponse": {
         "properties": {
           "device_code": {
@@ -11855,10 +11930,47 @@
           "grant_type": {
             "type": "string",
             "enum": [
+              "authorization_code",
               "urn:ietf:params:oauth:grant-type:device_code",
               "refresh_token"
             ],
             "title": "Grant Type"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "Authorization code from the ``code`` query parameter of the redirect."
+          },
+          "code_verifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Verifier",
+            "description": "The ``code_verifier`` from ``/authorization_url``."
+          },
+          "redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uri",
+            "description": "The ``redirect_uri`` from ``/authorization_url``; defaults to it when omitted."
           },
           "device_code": {
             "anyOf": [
@@ -11890,7 +12002,7 @@
           "grant_type"
         ],
         "title": "CodexTokenRequest",
-        "description": "RFC 6749 \u00a74.1.3 / RFC 8628 \u00a73.4 token request, form-encoded.\n\n``device_code`` is required for the device-code grant and ``refresh_token`` for\nthe refresh grant."
+        "description": "RFC 6749 \u00a74.1.3 / RFC 8628 \u00a73.4 token request, form-encoded.\n\n``code`` and ``code_verifier`` are required for the authorization-code grant,\n``device_code`` for the device-code grant, and ``refresh_token`` for the\nrefresh grant."
       },
       "CodexTokenResponse": {
         "properties": {
