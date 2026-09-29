@@ -3229,7 +3229,7 @@ export interface components {
              * @default true
              */
             enabled?: boolean;
-            /** @description Required when evaluator is a new LLM evaluator. Null lets a code binding inherit the definition's mapping. */
+            /** @description Null uses the evaluator's mapping. LLM evaluators have none, so template variables bind to context keys of the same name. */
             input_mapping?: components["schemas"]["InputMapping"] | null;
             /**
              * Evaluation Delay Seconds
@@ -5105,7 +5105,7 @@ export interface components {
             filter_condition?: string;
             /** Enabled */
             enabled?: boolean;
-            /** @description Omit to preserve. Null restores inheritance for code bindings. */
+            /** @description Omit to preserve. Null clears the binding's mapping, so the evaluator's applies. */
             input_mapping?: components["schemas"]["InputMapping"] | null;
             /**
              * Evaluation Delay Seconds
@@ -5361,7 +5361,7 @@ export interface components {
             filter_condition: string;
             /** Enabled */
             enabled: boolean;
-            /** @description The binding's input mapping; null means a code binding inherits the evaluator's mapping. */
+            /** @description The binding's own input mapping; null means the evaluator's mapping applies (LLM evaluators have none). */
             input_mapping: components["schemas"]["InputMapping"] | null;
             /**
              * Evaluation Delay Seconds
