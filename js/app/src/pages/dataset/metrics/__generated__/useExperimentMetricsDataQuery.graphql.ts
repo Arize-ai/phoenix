@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc7eb94b6e4fdc81d582b2fef31c8029>>
+ * @generated SignedSource<<2eace430a6e9cda389edc55955622eb0>>
  * @lightSyntaxTransform
  */
 
@@ -57,14 +57,15 @@ v3 = {
   "name": "id",
   "storageKey": null
 },
-v4 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "tokens",
-    "storageKey": null
-  },
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "tokens",
+  "storageKey": null
+},
+v5 = [
+  (v4/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -73,7 +74,7 @@ v4 = [
     "storageKey": null
   }
 ],
-v5 = [
+v6 = [
   (v3/*:: as any*/),
   {
     "alias": null,
@@ -150,7 +151,7 @@ v5 = [
         "kind": "LinkedField",
         "name": "prompt",
         "plural": false,
-        "selections": (v4/*:: as any*/),
+        "selections": (v5/*:: as any*/),
         "storageKey": null
       },
       {
@@ -160,7 +161,7 @@ v5 = [
         "kind": "LinkedField",
         "name": "completion",
         "plural": false,
-        "selections": (v4/*:: as any*/),
+        "selections": (v5/*:: as any*/),
         "storageKey": null
       },
       {
@@ -170,23 +171,60 @@ v5 = [
         "kind": "LinkedField",
         "name": "total",
         "plural": false,
-        "selections": (v4/*:: as any*/),
+        "selections": (v5/*:: as any*/),
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "SpanCostDetailSummaryEntry",
+    "kind": "LinkedField",
+    "name": "costDetailSummaryEntries",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "tokenType",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "isPrompt",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "CostBreakdown",
+        "kind": "LinkedField",
+        "name": "value",
+        "plural": false,
+        "selections": [
+          (v4/*:: as any*/)
+        ],
         "storageKey": null
       }
     ],
     "storageKey": null
   }
 ],
-v6 = [
+v7 = [
   {
     "kind": "InlineDataFragmentSpread",
     "name": "useExperimentMetricsData_experiment",
-    "selections": (v5/*:: as any*/),
+    "selections": (v6/*:: as any*/),
     "args": null,
     "argumentDefinitions": ([]/*:: as any*/)
   }
 ],
-v7 = [
+v8 = [
   {
     "kind": "Variable",
     "name": "first",
@@ -221,12 +259,12 @@ return {
                 "kind": "LinkedField",
                 "name": "baselineExperiment",
                 "plural": false,
-                "selections": (v6/*:: as any*/),
+                "selections": (v7/*:: as any*/),
                 "storageKey": null
               },
               {
                 "alias": "metricsExperiments",
-                "args": (v7/*:: as any*/),
+                "args": (v8/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -247,7 +285,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v6/*:: as any*/),
+                        "selections": (v7/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -301,12 +339,12 @@ return {
                 "kind": "LinkedField",
                 "name": "baselineExperiment",
                 "plural": false,
-                "selections": (v5/*:: as any*/),
+                "selections": (v6/*:: as any*/),
                 "storageKey": null
               },
               {
                 "alias": "metricsExperiments",
-                "args": (v7/*:: as any*/),
+                "args": (v8/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -327,7 +365,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v5/*:: as any*/),
+                        "selections": (v6/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -347,12 +385,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c2e5ffc009c7ad3a489cd73b22eeaa24",
+    "cacheID": "fbe2e539a723994eca06144d200bb088",
     "id": null,
     "metadata": {},
     "name": "useExperimentMetricsDataQuery",
     "operationKind": "query",
-    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
+    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      tokens\n    }\n  }\n}\n"
   }
 };
 })();
