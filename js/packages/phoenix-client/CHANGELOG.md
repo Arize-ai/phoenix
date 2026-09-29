@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.15.0
+
+### Minor Changes
+
+- 5b37f12: Add `upsertPromptVersionTag` and `deletePromptVersionTag` helpers to the `prompts` subpath for creating, moving, and deleting prompt-scoped version tags.
+
 ## 7.14.0
 
 ### Minor Changes
