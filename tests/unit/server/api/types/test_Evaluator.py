@@ -2504,7 +2504,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
     async def test_series_honors_bin_interval_alongside_single_unit_bins(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        # Both widths in one request share a data loader, so each must load its own bins.
+        # Requesting both widths at once checks that the data loader keeps them apart.
         window_start = _test_data["window_start"]
         resp = await gql_client.execute(
             """query ($id: ID!, $timeRange: TimeRange!) {

@@ -21,7 +21,7 @@ FIXED_LENGTH_TIME_BIN_UNIT_SECONDS: dict[str, int] = {
     "day": 86400,
     "week": 604800,
 }
-"""Units with a fixed length in seconds, the only units that support multi-unit bins."""
+"""Seconds in each fixed-length unit. Only these units allow multi-unit bins."""
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
@@ -34,13 +34,9 @@ def multi_unit_time_bin_params(
     """
     Return `(width_seconds, shift_seconds)` for bins `interval` units wide.
 
-    A timestamp `t` (in Unix seconds) falls in the bin that starts at
-    `floor((t + shift_seconds) / width_seconds) * width_seconds - shift_seconds`.
-    Bins count from the Unix epoch in the frame shifted by the UTC offset, so
-    they align to local clock boundaries (5-minute bins start at :00, :05, ...;
-    3-hour bins at 00:00, 03:00, ... local time). The epoch is a Thursday, so
-    week bins count from the Monday before it (1969-12-29) instead, which keeps
-    them starting on Monday like single-week bins.
+    A Unix timestamp `t` falls in the bin that starts at
+    `floor((t + shift) / width) * width - shift`. Bins follow local clock time
+    (5-minute bins start at :00, :05, ...), and week bins start on Monday.
 
     Examples:
         >>> multi_unit_time_bin_params("minute", 5, 0)
@@ -55,6 +51,7 @@ def multi_unit_time_bin_params(
     if unit not in FIXED_LENGTH_TIME_BIN_UNIT_SECONDS:
         raise ValueError(f"multi-unit bins require a fixed-length unit, got {unit!r}")
     width_seconds = interval * FIXED_LENGTH_TIME_BIN_UNIT_SECONDS[unit]
+    # The epoch is a Thursday, so count weeks from the Monday before it.
     origin_seconds = -3 * FIXED_LENGTH_TIME_BIN_UNIT_SECONDS["day"] if unit == "week" else 0
     return width_seconds, utc_offset_minutes * 60 - origin_seconds
 
@@ -189,8 +186,7 @@ def get_timestamp_range(
                            the correct stride boundaries in local time. Positive values
                            are east of UTC, negative values are west of UTC.
         interval: The number of stride units between timestamps. Values above 1
-                  require a fixed-length stride (minute, hour, day, or week) and
-                  align as described in `multi_unit_time_bin_params`.
+                  require a minute, hour, day, or week stride.
 
     Returns:
         Iterator of datetime objects in UTC timezone, spaced at the specified stride
@@ -213,7 +209,7 @@ def get_timestamp_range(
         [datetime.datetime(2024, 1, 8, 0, 0, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 15, 0, 0, tzinfo=datetime.timezone.utc)]
 
-        >>> # A 5-minute interval rounds down to the enclosing 5-minute boundary
+        >>> # 5-minute bins start on a 5-minute boundary
         >>> start = datetime(2024, 1, 1, 12, 7, 30, tzinfo=timezone.utc)
         >>> end = datetime(2024, 1, 1, 12, 20, 0, tzinfo=timezone.utc)
         >>> list(get_timestamp_range(start, end, "minute", interval=5))
@@ -234,7 +230,7 @@ def get_timestamp_range(
         width_seconds, shift_seconds = multi_unit_time_bin_params(
             stride, interval, utc_offset_minutes
         )
-        # Floor to whole seconds first, as the SQL bucketing does.
+        # Drop sub-second precision, as the SQL does.
         start_seconds = (start_time - _EPOCH) // timedelta(seconds=1)
         first_seconds = (start_seconds + shift_seconds) // width_seconds * width_seconds
         t = _EPOCH + timedelta(seconds=first_seconds - shift_seconds)

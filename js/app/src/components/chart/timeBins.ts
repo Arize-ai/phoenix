@@ -17,7 +17,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
  * @param params - time bin parameters
  * @param params.binStartMs - bin start in epoch milliseconds
  * @param params.scale - scale used to query the chart data
- * @param params.interval - bin width in `scale` units used to query the chart
+ * @param params.interval - bin width in `scale` units
  * @param params.utcOffsetMinutes - fixed UTC offset used to query the chart
  */
 export function getTimeBinRange({
