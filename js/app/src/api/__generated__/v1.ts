@@ -3336,7 +3336,7 @@ export interface components {
             description: string | null;
             /**
              * Sequence Number
-             * @description The 1-based sequence number of the experiment within its dataset, in creation order (the oldest experiment is 1), matching the number shown in the UI
+             * @description The 1-based sequence number of the experiment within its dataset, in creation order.
              */
             sequence_number: number;
             /**
