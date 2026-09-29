@@ -63,7 +63,7 @@ class Experiment(V1RoutesBaseModel):
     description: Optional[str] = Field(description="The description of the experiment")
     sequence_number: int = Field(
         description="The 1-based sequence number of the experiment within its dataset, in "
-        "creation order (the oldest experiment is 1), matching the number shown in the UI"
+        "creation order."
     )
     repetitions: int = Field(description="Number of times the experiment is repeated", gt=0)
     metadata: dict[str, Any] = Field(description="Metadata of the experiment")
