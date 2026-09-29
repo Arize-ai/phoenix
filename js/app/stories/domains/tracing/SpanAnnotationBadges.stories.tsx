@@ -137,22 +137,3 @@ export const Configs: Story = {
     />
   ),
 };
-
-/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: Story = {
-  tags: ["!dev", "!autodocs"],
-  render: () => (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {[draftSummaries, finalSummaries, retrieveSummaries].map(
-        (summaries, index) => (
-          <div key={index} style={{ width: 300 }}>
-            <SpanAnnotationBadges
-              summaries={summaries}
-              annotationConfigsByName={annotationConfigsByName}
-            />
-          </div>
-        )
-      )}
-    </div>
-  ),
-};

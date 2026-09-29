@@ -351,14 +351,3 @@ export const InTooltip: Story = {
     </div>
   ),
 };
-
-/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: Story = {
-  tags: ["!dev", "!autodocs"],
-  parameters: {
-    layout: "padded",
-    width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
-    thumbnail: { scale: 0.5 },
-  },
-  render: () => <SpanPreviewCard {...draft} />,
-};

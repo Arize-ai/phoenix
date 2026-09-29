@@ -135,21 +135,3 @@ export const ContentLength: Story = {
     </div>
   ),
 };
-
-/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: Story = {
-  tags: ["!dev", "!autodocs"],
-  render: () => (
-    <div style={stackStyle}>
-      <AnnotationSummaryBadge
-        summary={labeled("hallucination", "hallucinated", 1)}
-        annotationConfig={hallucination}
-      />
-      <AnnotationSummaryBadge
-        summary={scored("faithfulness", 0.97)}
-        annotationConfig={faithfulness}
-      />
-      <AnnotationSummaryBadge summary={labeled("tone", "formal", null)} />
-    </div>
-  ),
-};
