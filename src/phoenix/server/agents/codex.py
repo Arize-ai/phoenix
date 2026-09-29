@@ -1,27 +1,3 @@
-"""ChatGPT/Codex subscription auth for the PXI server agent.
-
-Experimental. A user signs in to their ChatGPT account from the browser with
-the OAuth *device code* flow of the public Codex CLI client. The resulting
-token bundle lives only in the browser; the access token rides each chat
-request as a ``credentials`` entry and is never
-persisted or traced server-side. The server's role in the login is limited to
-stateless pass-through calls to ``auth.openai.com`` (the browser cannot call
-them directly because of CORS) and, at turn time, wiring the token into
-``pydantic_ai``'s ``OpenAICodexProvider``.
-
-The device flow mirrors ``codex-rs/login/src/device_code_auth.rs``:
-
-1. ``POST /api/accounts/deviceauth/usercode`` → ``device_auth_id``, ``user_code``.
-2. The user opens ``https://auth.openai.com/codex/device`` and enters the code.
-3. ``POST /api/accounts/deviceauth/token`` is polled; 403/404 mean *pending*,
-   2xx returns an ``authorization_code`` plus its PKCE ``code_verifier``.
-4. The code is exchanged at ``/oauth/token`` with redirect URI
-   ``https://auth.openai.com/deviceauth/callback``.
-
-The account must have "Enable device code authorization for Codex" turned on
-in ChatGPT's security settings (a workspace admin setting on team accounts).
-"""
-
 from __future__ import annotations
 
 import base64
@@ -35,8 +11,6 @@ from pydantic import SecretStr
 
 CODEX_ACCESS_TOKEN_SECRET_KEY: Literal["OPENAI_CODEX_ACCESS_TOKEN"] = "OPENAI_CODEX_ACCESS_TOKEN"
 
-# The public Codex CLI client. Its registration is what makes the device flow
-# (and the pinned localhost redirect of the PKCE flow) work.
 CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CODEX_AUTH_ISSUER = "https://auth.openai.com"
 CODEX_DEVICE_VERIFICATION_URL = f"{CODEX_AUTH_ISSUER}/codex/device"

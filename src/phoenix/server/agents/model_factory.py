@@ -10,6 +10,8 @@ from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic import SecretStr, ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
+from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.providers.openai_codex import OpenAICodexCredentials, OpenAICodexProvider
 from pydantic_ai.settings import ModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import assert_never
@@ -18,7 +20,7 @@ from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     ModelProvider,
 )
-from phoenix.server.agents.codex import resolve_codex_access_token
+from phoenix.server.agents.codex import account_id_from_token, resolve_codex_access_token
 from phoenix.server.agents.exceptions import (
     ProviderConfigError,
     ProviderCredentialsError,
@@ -85,11 +87,6 @@ def _build_openai_codex_model(
     one: a mid-turn 401 surfaces as an error instead of a server-side refresh
     that would invalidate the browser's single-use refresh token.
     """
-    from pydantic_ai.models.openai import OpenAIResponsesModel
-    from pydantic_ai.providers.openai_codex import OpenAICodexCredentials, OpenAICodexProvider
-
-    from phoenix.server.agents.codex import account_id_from_token
-
     access_token = resolve_codex_access_token(request_credentials)
     if access_token is None:
         raise ProviderCredentialsError(
@@ -110,7 +107,7 @@ def _build_openai_codex_model(
                 account_id=account_id,
             )
         )
-    return cast("PydanticAIModel", OpenAIResponsesModel(model_name, provider=codex_provider))
+    return OpenAIResponsesModel(model_name, provider=codex_provider)
 
 
 def azure_endpoint_to_base_url(azure_endpoint: str) -> str:
@@ -213,11 +210,7 @@ async def build_model(
     tracer_provider: TracerProvider | None = None,
     request_credentials: Mapping[str, SecretStr] | None = None,
 ) -> OpenInferenceModelWrapper:
-    """Build a ``pydantic_ai`` model.
-
-    ``request_credentials`` are the client-held credentials riding the request;
-    only providers that authenticate per user consult them.
-    """
+    """Build a ``pydantic_ai`` model."""
     if isinstance(model, CustomProviderModelSelection):
         async with db() as session:
             provider = await get_custom_provider(session, model.provider_id)

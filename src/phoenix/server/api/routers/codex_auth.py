@@ -1,11 +1,3 @@
-"""Stateless pass-through routes for the ChatGPT/Codex device-code login.
-
-Experimental (see ``phoenix.server.agents.codex``). The browser drives the
-flow and holds every token; these routes only relay calls the browser cannot
-make itself (CORS) and never store anything. They sit behind the same guards
-as the agent routes.
-"""
-
 from __future__ import annotations
 
 from typing import Literal

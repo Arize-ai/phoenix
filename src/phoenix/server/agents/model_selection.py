@@ -41,11 +41,8 @@ class BuiltInProviderModelSelection(BaseModel):
 
 
 class CodexSubscriptionModelSelection(BaseModel):
-    """Chat against OpenAI's Codex backend with the user's ChatGPT subscription.
-
-    Experimental. There is no server-side credential: the browser signs in
-    (see ``phoenix.server.agents.codex``) and sends its access token on each
-    request as the ``OPENAI_CODEX_ACCESS_TOKEN`` credential.
+    """
+    Chat against OpenAI's Codex backend with the user's ChatGPT subscription.
     """
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
