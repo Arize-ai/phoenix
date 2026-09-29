@@ -7,12 +7,14 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.helpers import evaluator_service
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 _PROJECT_EVALUATOR_FIELDS = """
 id
 name
+updatedAt
 filterCondition
 samplingRate
 evaluationTarget
@@ -476,7 +478,8 @@ async def test_add_project_code_evaluator_rejects_missing_evaluator(
     )
 
     assert result.errors
-    assert result.errors[0].message == "CODE evaluator not found"
+    assert result.errors[0].message.startswith("Code evaluator with id ")
+    assert result.errors[0].message.endswith(" not found")
     assert await _project_evaluator_count(db) == project_evaluator_count_before
 
 
@@ -848,7 +851,7 @@ async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
-    error_message = "samplingRate must be between 0.0 and 1.0"
+    error_message = "The sampling rate must be between 0 and 1"
 
     create_code_input = _code_create_input(project, sandbox_config)
     create_code_input["samplingRate"] = 1.5
@@ -907,7 +910,7 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
-    error_message = "evaluationDelaySeconds must be at least 10 seconds"
+    error_message = "The evaluation delay must be at least 10 seconds"
 
     create_code_input = _code_create_input(project, sandbox_config)
     create_code_input["evaluationTarget"] = "SESSION"
@@ -978,7 +981,7 @@ async def test_evaluation_delay_rejected_for_span_project_evaluators(
 ) -> None:
     project = await _add_project(db)
     error_message = (
-        "evaluationDelaySeconds is not accepted for SPAN evaluators: span scheduling "
+        "An evaluation delay is not accepted for SPAN evaluators: span scheduling "
         "does not honor an evaluation delay"
     )
 
@@ -1050,7 +1053,7 @@ async def test_evaluation_target_change_rejected_from_creation(
 
     assert update_result.errors
     assert update_result.errors[0].message == (
-        "evaluationTarget is fixed at project evaluator creation"
+        "The evaluation target is fixed when the project evaluator is created"
     )
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
@@ -1111,6 +1114,73 @@ async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(
         "A project evaluator with this name already exists for this project"
     )
     assert await _row_counts(db) == before
+
+
+async def test_create_rejects_invalid_llm_output_config_as_client_error(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    create_input = _llm_input(project, name="empty-label", text="Evaluate {{input}}")
+    create_input["outputConfigs"][0]["categorical"]["values"][0]["label"] = ""
+    before = await _row_counts(db)
+    result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+
+    assert result.errors
+    assert "Label must be non-empty" in result.errors[0].message
+    assert await _row_counts(db) == before
+
+
+async def test_update_refuses_sandbox_validated_against_superseded_source(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = await _add_project(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    async with db() as session:
+        project_evaluator = await session.get(
+            models.ProjectEvaluator, int(GlobalID.from_id(created["id"]).node_id)
+        )
+        assert project_evaluator is not None
+        evaluator_id = project_evaluator.evaluator_id
+
+    async def deploy_while_validating(*args: Any, **kwargs: Any) -> int:
+        # Another request deploys a version while this one waits on the sandbox.
+        async with db() as session:
+            session.add(
+                models.CodeEvaluatorVersion(
+                    code_evaluator_id=evaluator_id,
+                    source_code="def evaluate(output):\n    return {'score': 0.5}",
+                )
+            )
+        return sandbox_config.id
+
+    monkeypatch.setattr(
+        evaluator_service, "validate_code_evaluator_sandbox_config", deploy_while_validating
+    )
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": create_input["name"],
+                "samplingRate": create_input["samplingRate"],
+                "evaluationTarget": create_input["evaluationTarget"],
+                "filterCondition": create_input["filterCondition"],
+                "sandboxConfigId": create_input["sandboxConfigId"],
+            }
+        },
+    )
+
+    assert result.errors
+    assert result.errors[0].message == (
+        "The evaluator version changed during sandbox validation; retry."
+    )
 
 
 async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
