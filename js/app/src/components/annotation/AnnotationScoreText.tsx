@@ -21,7 +21,7 @@ const directionCSS = css`
     padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
     border-radius: var(--global-rounding-small);
   }
-  // XS text sits inside one-line pills, so its chip is trimmed to fit them
+  // XS text sits inside one-line badges, so its chip is trimmed to fit them
   &[data-direction][data-size="XS"] {
     padding: 0 var(--global-dimension-size-50);
     border-radius: var(--global-rounding-xsmall);

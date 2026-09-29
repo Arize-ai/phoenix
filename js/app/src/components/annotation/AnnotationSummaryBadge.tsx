@@ -26,7 +26,7 @@ const badgeCSS = css(
        Only a badge wider than the row itself truncates, to the row. */
     flex: none;
     max-width: 100%;
-    /* The chip sits inside the pill's right end, one pixel from its edge */
+    /* The chip sits inside the badge's right end, one pixel from its edge */
     padding: 0 1px 0 var(--global-dimension-size-75);
     color: var(--global-text-color-700);
     font-size: var(--global-font-size-xs);
@@ -60,13 +60,13 @@ export interface AnnotationSummaryBadgeProps {
 
 /**
  * The large annotation label at a size that fits one short line: a neutral
- * outlined pill with the annotation's word-color swatch and name, then its
+ * outlined badge with the annotation's word-color swatch and name, then its
  * most common label, or its mean score, in the tinted chip of
  * `AnnotationScoreText`. Only the chip carries the verdict, so a line of
  * these stays quiet and an unfavorable result stands out. Made for dense
  * surfaces such as trace tree rows.
  *
- * The pill is not interactive; put it inside a tooltip or popover trigger
+ * The badge is not interactive; put it inside a tooltip or popover trigger
  * when details are wanted.
  */
 export function AnnotationSummaryBadge({

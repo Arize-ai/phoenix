@@ -28,7 +28,7 @@ type OverflowState = FirstLine & {
 
 const overflowRowCSS = css`
   // The "+N" badge's type and inset, and the room reserved for it, match the
-  // items it follows: annotation pills by default, one-line badges at "S"
+  // items it follows: annotation labels by default, one-line badges at "S"
   --overflow-row-badge-font-size: var(--global-font-size-s);
   --overflow-row-badge-padding-x: var(--global-dimension-size-100);
   --overflow-row-badge-reserve: var(--global-dimension-size-600);
@@ -357,7 +357,7 @@ export function OverflowRow({
   isExpanded?: boolean;
   /**
    * The size of the items, which the "+N" badge matches: `M` for annotation
-   * pills, `S` for one-line badges.
+   * labels, `S` for one-line badges.
    * @default "M"
    */
   size?: "S" | "M";
