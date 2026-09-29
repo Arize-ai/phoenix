@@ -1,7 +1,7 @@
 """REST project evaluator bindings: checks that only the unit harness can drive cheaply."""
 
 from secrets import token_hex
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 from sqlalchemy import func, select
@@ -14,7 +14,7 @@ from phoenix.server.types import DbSessionFactory
 _MAPPING = {"literal_mapping": {}, "path_mapping": {"output": "output"}}
 
 
-def _llm_binding_body(name: str, custom_provider_id: str) -> dict[str, Any]:
+def _llm_binding_body(name: str, custom_provider_id: Optional[str]) -> dict[str, Any]:
     return {
         "name": name,
         "evaluation_target": "SESSION",
@@ -127,6 +127,27 @@ async def test_llm_create_checks_the_custom_provider(
     )
     assert missing.status_code == 404, missing.text
     assert await _binding_count(db, project.id) == 0
+
+
+async def test_llm_create_without_input_mapping_stores_null(
+    httpx_client: httpx.AsyncClient, db: DbSessionFactory
+) -> None:
+    """An LLM evaluator has no mapping of its own, so null binds variables by name."""
+    project = await _project(db)
+    body = _llm_binding_body("unmapped", None)
+    del body["input_mapping"]
+    response = await httpx_client.post(
+        f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators", json=body
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["data"]["input_mapping"] is None
+    async with db() as session:
+        stored = await session.scalar(
+            select(models.ProjectEvaluator.input_mapping).where(
+                models.ProjectEvaluator.project_id == project.id
+            )
+        )
+    assert stored is None
 
 
 async def test_referencing_a_missing_code_evaluator_is_not_found(

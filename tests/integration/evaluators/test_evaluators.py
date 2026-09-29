@@ -185,7 +185,9 @@ def test_llm_creation_patch_and_prompt_retention(
     evaluator = f"v1/evaluators/{binding['evaluator_id']}"
     definition = client.get(evaluator).json()["data"]
     assert definition["prompt_version"]["model_name"] == "gpt-4o-mini"
-    assert client.patch(item, json={"input_mapping": None}).status_code == 422
+    response = client.patch(item, json={"input_mapping": None})
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["input_mapping"] is None
     response = client.patch(item, json={"evaluation_delay_seconds": 30})
     assert response.status_code == 200, response.text
     response = client.patch(item, json={"evaluation_delay_seconds": None})
