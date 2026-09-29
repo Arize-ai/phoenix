@@ -248,6 +248,15 @@ export const UNASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
   minServerVersion: [17, 16, 0],
 };
 
+export const CREATE_PROMPT_CUSTOM_PROVIDER: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "custom_provider_id",
+  parameterLocation: "body",
+  route: "POST /v1/prompts",
+  minServerVersion: [21, 0, 0],
+  description: "Prompt versions that target a custom model provider",
+};
+
 export const AGENT_SESSION_CREATE: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -342,6 +351,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   SET_PROJECT_ANNOTATION_CONFIGS,
   ASSIGN_PROJECT_ANNOTATION_CONFIG,
   UNASSIGN_PROJECT_ANNOTATION_CONFIG,
+  CREATE_PROMPT_CUSTOM_PROVIDER,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
   AGENT_SESSION_GET,

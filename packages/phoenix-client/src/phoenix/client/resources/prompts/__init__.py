@@ -9,6 +9,7 @@ from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_CUSTOM_PROVIDER,
     CREATE_PROMPT_VERSION_METADATA,
     DELETE_PROMPT,
     PATCH_PROMPT,
@@ -188,6 +189,8 @@ class Prompts:
             prompt["metadata"] = prompt_metadata
         if version.metadata:
             self._guard.require(CREATE_PROMPT_VERSION_METADATA)
+        if version.custom_provider_id is not None:
+            self._guard.require(CREATE_PROMPT_CUSTOM_PROVIDER)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
@@ -572,6 +575,8 @@ class AsyncPrompts:
             prompt["metadata"] = prompt_metadata
         if version.metadata:
             await self._guard.require(CREATE_PROMPT_VERSION_METADATA)
+        if version.custom_provider_id is not None:
+            await self._guard.require(CREATE_PROMPT_CUSTOM_PROVIDER)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
