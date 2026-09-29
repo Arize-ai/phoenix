@@ -209,8 +209,11 @@ ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
 ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
     namespace="phoenix",
     name="online_eval_result_watermark_lag_seconds",
-    documentation="Largest gap between entity activity and a successful result watermark, "
-    f"over work units completed in the past {_TERMINAL_METRICS_WINDOW}",
+    documentation="Largest time by which a session's or trace's latest span postdates the "
+    "content its completed evaluation covered, over work units completed in the past "
+    f"{_TERMINAL_METRICS_WINDOW}. A large value means spans keep arriving after the evaluation "
+    "delay has passed, so the delay may be shorter than the quiet gaps in those sessions or "
+    "traces",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_SWEEP_ATTEMPTS = Counter(
