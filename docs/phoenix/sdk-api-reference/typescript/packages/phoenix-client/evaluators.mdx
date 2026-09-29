@@ -257,7 +257,7 @@ await createProjectEvaluator({
 - `filterCondition` is written in the filter language of the target: a span filter for `SPAN`, a trace filter for `TRACE`, and a session filter for `SESSION`. A filter that does not compile is rejected with `422`.
 - `samplingRate` is the fraction of matching records to evaluate, between 0 and 1.
 - `evaluationDelaySeconds` applies to `TRACE` and `SESSION` targets only. It must be at least 10 seconds and defaults to 300 seconds. `SPAN` targets reject a delay and report `evaluation_delay_seconds` as `0`.
-- `inputMapping` is required for a new LLM evaluator. A code evaluator may omit it to use the evaluator's own mapping.
+- `inputMapping` may be omitted to use the evaluator's own mapping. LLM evaluators have none, so their template variables bind to record fields of the same name.
 - A binding is enabled unless you pass `enabled: false`.
 
 ## Update And Delete Project Bindings
