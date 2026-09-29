@@ -3,6 +3,7 @@ from .evaluators import (
     EvaluatorOutputConfig,
     EvaluatorType,
     Language,
+    ProjectEvaluatorInput,
 )
 from .prompts import PromptVersion
 from .sentinels import NOT_GIVEN, NotGiven
@@ -14,5 +15,6 @@ __all__ = [
     "EvaluatorType",
     "Language",
     "NotGiven",
+    "ProjectEvaluatorInput",
     "PromptVersion",
 ]
