@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-  ExpandableContent,
   Flex,
   Heading,
   Icon,
@@ -49,14 +48,13 @@ import type { projectEvaluatorGalleryModalQuery as ProjectEvaluatorGalleryModalQ
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
-import type { ProjectEvaluatorGallerySelection } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import {
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
   type CodeProjectEvaluatorDetails,
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { useProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
@@ -134,6 +132,16 @@ type CustomEvaluator = {
 type GalleryItem =
   | { kind: "custom"; evaluator: CustomEvaluator }
   | { kind: "template"; template: ProjectEvaluatorTemplate };
+
+/**
+ * The card the gallery shows. Resolved against the loaded gallery, so an
+ * unavailable category, template, or evaluator falls back to the first card.
+ */
+type GallerySelection =
+  | { kind: "default" }
+  | { kind: "category"; category: EvaluatorCategory }
+  | { kind: "template"; templateName: string }
+  | { kind: "evaluator"; evaluatorId: string };
 
 const projectEvaluatorGalleryModalQuery = graphql`
   query projectEvaluatorGalleryModalQuery($projectId: ID!) {
@@ -250,18 +258,16 @@ function getGalleryItemSection(item: GalleryItem): GallerySection {
 /**
  * The gallery itself, as a fullscreen modal over the evaluator list.
  *
- * Selection lives in component state because browsing the modal is not
- * navigation. `initialSelection` lets entry points open directly to a card.
+ * Being open is a route, so the modal is linkable and closes with the browser's
+ * back button. Which card is selected lives in component state because browsing
+ * within the modal is not navigation; `initialCategory` lets entry points open
+ * on a category.
  */
 export function ProjectEvaluatorGalleryModal({
-  creationPaths,
-  newLlmFromTemplatePath,
-  initialSelection,
+  initialCategory,
   onClose,
 }: {
-  creationPaths: ProjectEvaluatorCreationPaths;
-  newLlmFromTemplatePath: (templateName: string) => string;
-  initialSelection: ProjectEvaluatorGallerySelection;
+  initialCategory?: EvaluatorCategory;
   onClose: () => void;
 }) {
   return (
@@ -286,11 +292,7 @@ export function ProjectEvaluatorGalleryModal({
               <div css={galleryContainerCSS}>
                 <ErrorBoundary fallback={EvaluatorGalleryError}>
                   <Suspense fallback={<EvaluatorGallerySkeleton />}>
-                    <EvaluatorGallery
-                      creationPaths={creationPaths}
-                      newLlmFromTemplatePath={newLlmFromTemplatePath}
-                      initialSelection={initialSelection}
-                    />
+                    <EvaluatorGallery initialCategory={initialCategory} />
                   </Suspense>
                 </ErrorBoundary>
               </div>
@@ -304,15 +306,12 @@ export function ProjectEvaluatorGalleryModal({
 
 // oxlint-disable-next-line complexity
 function EvaluatorGallery({
-  creationPaths,
-  newLlmFromTemplatePath,
-  initialSelection,
+  initialCategory,
 }: {
-  creationPaths: ProjectEvaluatorCreationPaths;
-  newLlmFromTemplatePath: (templateName: string) => string;
-  initialSelection: ProjectEvaluatorGallerySelection;
+  initialCategory?: EvaluatorCategory;
 }) {
   const navigate = useNavigate();
+  const creationPaths = useProjectEvaluatorCreationPaths();
   const { projectId } = useParams();
   if (!projectId) {
     throw new Error("projectId is required");
@@ -385,7 +384,11 @@ function EvaluatorGallery({
     ),
     count: templatesByCategory.get(category)?.length ?? 0,
   }));
-  const [selection, setSelection] = useState(initialSelection);
+  const [selection, setSelection] = useState<GallerySelection>(() =>
+    initialCategory
+      ? { kind: "category", category: initialCategory }
+      : { kind: "default" }
+  );
   const requestedTemplateName =
     selection.kind === "template" ? selection.templateName : undefined;
   const requestedEvaluatorId =
@@ -563,7 +566,7 @@ function EvaluatorGallery({
         className="project-evaluator-gallery__categories"
         aria-label="Evaluator gallery navigation"
       >
-        <EvaluatorGalleryAddMenu creationPaths={creationPaths} />
+        <EvaluatorGalleryAddMenu />
         <div className="project-evaluator-gallery__category-scroll-region">
           <ListBox
             aria-label="Evaluator gallery sections"
@@ -612,7 +615,7 @@ function EvaluatorGallery({
       >
         <div className="project-evaluator-gallery__template-controls">
           <div className="project-evaluator-gallery__compact-add-evaluator-menu">
-            <EvaluatorGalleryAddMenu creationPaths={creationPaths} />
+            <EvaluatorGalleryAddMenu />
           </div>
           <Select
             aria-label="Evaluator gallery section"
@@ -686,7 +689,7 @@ function EvaluatorGallery({
               return;
             }
             if (item?.kind === "template") {
-              navigate(newLlmFromTemplatePath(item.template.name));
+              navigate(creationPaths.newLlmFromTemplate(item.template.name));
             }
           }}
         >
@@ -848,7 +851,9 @@ function EvaluatorGallery({
           <EvaluatorTemplateDetails
             template={selectedItem.template}
             onUseTemplate={() =>
-              navigate(newLlmFromTemplatePath(selectedItem.template.name))
+              navigate(
+                creationPaths.newLlmFromTemplate(selectedItem.template.name)
+              )
             }
           />
         ) : (
@@ -861,18 +866,13 @@ function EvaluatorGallery({
   );
 }
 
-function EvaluatorGalleryAddMenu({
-  creationPaths,
-}: {
-  creationPaths: ProjectEvaluatorCreationPaths;
-}) {
+function EvaluatorGalleryAddMenu() {
   return (
     <AddProjectEvaluatorMenu
       size="M"
       buttonClassName="project-evaluator-gallery__add-evaluator-button"
       buttonLabel="Add Custom Evaluator"
       shouldShowGalleryLink={false}
-      creationPaths={creationPaths}
     />
   );
 }
@@ -1151,7 +1151,7 @@ function LlmCustomEvaluatorDetails({
           ]
         : [];
   return (
-    <Flex direction="column" gap="size-300" height="100%">
+    <Flex direction="column" gap="size-300" minHeight="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
@@ -1173,7 +1173,7 @@ function CodeCustomEvaluatorDetails({
   onDuplicateEvaluator: () => void;
 }) {
   return (
-    <Flex direction="column" gap="size-300" height="100%">
+    <Flex direction="column" gap="size-300" minHeight="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
@@ -1182,17 +1182,11 @@ function CodeCustomEvaluatorDetails({
           Code
         </Text>
         <div css={codePreviewWellCSS}>
-          <ExpandableContent
-            height={CODE_PREVIEW_COLLAPSED_HEIGHT}
-            expandedBehavior="grow"
-            overlayBackgroundColor="var(--global-background-color-100)"
-          >
-            {evaluator.language === "PYTHON" ? (
-              <PythonBlockWithCopy value={evaluator.sourceCode} />
-            ) : (
-              <TypeScriptBlockWithCopy value={evaluator.sourceCode} />
-            )}
-          </ExpandableContent>
+          {evaluator.language === "PYTHON" ? (
+            <PythonBlockWithCopy value={evaluator.sourceCode} />
+          ) : (
+            <TypeScriptBlockWithCopy value={evaluator.sourceCode} />
+          )}
         </div>
       </Flex>
       <EvaluatorDetailsAction
@@ -1220,24 +1214,18 @@ function EvaluatorPromptPreview({
         Prompt
       </Text>
       <div css={[detailsSectionWellCSS, promptPreviewWellCSS]}>
-        <ExpandableContent
-          height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
-          expandedBehavior="grow"
-          overlayBackgroundColor="var(--global-color-gray-100)"
-        >
-          <Flex direction="column" gap="size-150">
-            {messages.map((message) => (
-              <Flex key={message.id} direction="column" gap="size-25">
-                <Text size="XS" color="text-500" weight="heavy">
-                  {capitalize(message.role)}
-                </Text>
-                <Text size="S" css={promptPreviewMessageCSS}>
-                  {message.content}
-                </Text>
-              </Flex>
-            ))}
-          </Flex>
-        </ExpandableContent>
+        <Flex direction="column" gap="size-150">
+          {messages.map((message) => (
+            <Flex key={message.id} direction="column" gap="size-25">
+              <Text size="XS" color="text-500" weight="heavy">
+                {capitalize(message.role)}
+              </Text>
+              <Text size="S" css={promptPreviewMessageCSS}>
+                {message.content}
+              </Text>
+            </Flex>
+          ))}
+        </Flex>
       </div>
     </Flex>
   );
@@ -1256,15 +1244,15 @@ function EvaluatorDetailsAction({
   };
 }) {
   return (
-    <Flex direction="column" gap="size-100" css={stickyUseTemplateFooterCSS}>
-      <Button variant="primary" onPress={onPress}>
-        {children}
-      </Button>
+    <Flex direction="row" gap="size-100" css={stickyUseTemplateFooterCSS}>
       {secondaryAction ? (
         <Button onPress={secondaryAction.onPress}>
           {secondaryAction.label}
         </Button>
       ) : null}
+      <Button variant="primary" onPress={onPress}>
+        {children}
+      </Button>
     </Flex>
   );
 }
@@ -1280,7 +1268,7 @@ function EvaluatorTemplateDetails({
   const messages = getProjectEvaluatorTemplateMessages(template);
   const category = getGalleryCategory(template.category);
   return (
-    <Flex direction="column" gap="size-300" height="100%">
+    <Flex direction="column" gap="size-300" minHeight="100%">
       <Flex direction="column" gap="size-50">
         <Flex direction="column" gap="size-25">
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -1316,24 +1304,25 @@ function EvaluatorTemplateDetails({
   );
 }
 
-// Bleeds out to the edges of the details column's own padding/gap (both
-// `var(--global-dimension-size-200)`) and re-adds that same space as padding
-// inside this element's own background, so nothing scrolls behind it.
+// `margin-top: auto` rests the footer at the bottom of the column when the
+// details are short. The side and bottom margins bleed out to the column's
+// padding and re-add it inside this element's own background, so nothing
+// scrolls behind it.
 const stickyUseTemplateFooterCSS = css`
   position: sticky;
   bottom: calc(-1 * var(--project-evaluator-gallery-column-padding));
   z-index: 1;
-  margin: calc(-1 * var(--global-dimension-size-200))
-    calc(-1 * var(--project-evaluator-gallery-column-padding))
+  margin: auto calc(-1 * var(--project-evaluator-gallery-column-padding))
     calc(-1 * var(--project-evaluator-gallery-column-padding));
   padding: var(--global-dimension-size-200)
     var(--project-evaluator-gallery-column-padding)
     var(--project-evaluator-gallery-column-padding);
   background-color: var(--global-background-color-default);
-`;
 
-const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
-const CODE_PREVIEW_COLLAPSED_HEIGHT = 240;
+  & > * {
+    flex: 1 1 0;
+  }
+`;
 
 const detailsSectionWellCSS = css`
   background-color: var(--global-background-color-100);

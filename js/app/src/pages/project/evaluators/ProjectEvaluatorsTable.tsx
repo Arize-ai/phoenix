@@ -60,6 +60,7 @@ import {
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
+import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
@@ -91,7 +92,6 @@ import {
   formatEvaluationTargetPlural,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { getProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
@@ -469,6 +469,20 @@ export function ProjectEvaluatorsTable({
         size: 40,
       }),
       {
+        id: "enabled",
+        header: "enabled",
+        size: 90,
+        cell: ({ row }) => (
+          <StopPropagation>
+            <ProjectEvaluatorEnabledSwitch
+              projectEvaluatorId={row.original.id}
+              name={row.original.name}
+              enabled={row.original.enabled}
+            />
+          </StopPropagation>
+        ),
+      },
+      {
         header: "name",
         size: 200,
         accessorKey: "name",
@@ -483,7 +497,10 @@ export function ProjectEvaluatorsTable({
         header: "status",
         size: 130,
         cell: ({ row }) => (
-          <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
+          <ProjectEvaluatorStatusCell
+            enabled={row.original.enabled}
+            runSummary={row.original.runSummary}
+          />
         ),
       },
       {
@@ -660,20 +677,6 @@ export function ProjectEvaluatorsTable({
         cell: TimestampCell,
       },
       {
-        id: "enabled",
-        header: "enabled",
-        size: 90,
-        cell: ({ row }) => (
-          <StopPropagation>
-            <ProjectEvaluatorEnabledSwitch
-              projectEvaluatorId={row.original.id}
-              name={row.original.name}
-              enabled={row.original.enabled}
-            />
-          </StopPropagation>
-        ),
-      },
-      {
         id: ACTIONS_COLUMN_ID,
         header: "actions",
         size: 150,
@@ -751,8 +754,8 @@ export function ProjectEvaluatorsTable({
     data: tableData,
     state: {
       columnPinning: {
-        ...CHECKBOX_COLUMN_PINNING,
-        right: ["enabled", ACTIONS_COLUMN_ID],
+        left: [...CHECKBOX_COLUMN_PINNING.left, "enabled"],
+        right: [ACTIONS_COLUMN_ID],
       },
       columnSizing,
       columnVisibility,

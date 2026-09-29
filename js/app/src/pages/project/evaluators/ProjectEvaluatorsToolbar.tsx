@@ -2,12 +2,11 @@ import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { ColumnSelector, orderColumns } from "@phoenix/components/table";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 /**
  * The selectable columns of {@link ProjectEvaluatorsTable}, in their natural
  * order. The pinned enabled and actions columns are excluded: they stay put
- * on the table's right edge.
+ * on the table's edges.
  */
 const PROJECT_EVALUATOR_COLUMNS = [
   { id: "name", label: "name", isVisibilityToggleDisabled: true },
@@ -66,7 +65,6 @@ export function ProjectEvaluatorsToolbar({
   filter: string;
   onFilterChange: (filter: string) => void;
 }) {
-  const paths = useProjectEvaluatorPaths();
   return (
     <View
       padding="size-100"
@@ -88,7 +86,7 @@ export function ProjectEvaluatorsToolbar({
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <ProjectEvaluatorsColumnSelector />
-          <AddProjectEvaluatorMenu size="M" creationPaths={paths.creation} />
+          <AddProjectEvaluatorMenu size="M" />
         </Flex>
       </Flex>
     </View>

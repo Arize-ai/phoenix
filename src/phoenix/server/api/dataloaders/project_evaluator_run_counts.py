@@ -37,7 +37,7 @@ _DROPPED = "DROPPED"
 class ProjectEvaluatorRunCounts:
     """How much evaluation work a project evaluator has produced, and when.
 
-    Counts cover every evaluation grain and reach back only as far as the online-eval
+    Counts cover every evaluation target and reach back only as far as the online-eval
     retention window, after which completed work is reaped.
     """
 
@@ -91,7 +91,7 @@ async def _load_run_counts(
     project_evaluator_ids: list[ProjectEvaluatorId],
     intervals: list[Interval],
 ) -> dict[Key, ProjectEvaluatorRunCounts]:
-    # (key, outcome) -> [count, latest], summed over statuses and grains.
+    # (key, outcome) -> [count, latest], summed over statuses and evaluation targets.
     totals: dict[tuple[Key, str], list[Any]] = {}
     async for row in await session.stream(_status_stmt(project_evaluator_ids, intervals)):
         project_evaluator_id, status = row[0], row[1]
@@ -184,13 +184,13 @@ def _status_stmt(
     project_evaluator_ids: list[ProjectEvaluatorId],
     intervals: list[Interval],
 ) -> sa.CompoundSelect[Any]:
-    """Per grain, evaluator, and status, a count and newest time for each interval.
+    """Per evaluation target, evaluator, and status, a count and newest time for each interval.
 
     Row layout: ``(project_evaluator_id, status, count_0, latest_0, count_1, ...)``.
-    A status can appear once per grain; the caller sums them.
+    A status can appear once per evaluation target; the caller sums them.
     """
 
-    def grain(model: _WorkUnitModel) -> sa.Select[Any]:
+    def status_counts(model: _WorkUnitModel) -> sa.Select[Any]:
         aggregates: list[sa.ColumnElement[Any]] = []
         for i, (start, end) in enumerate(intervals):
             conditions = _in_range(model, start, end)
@@ -206,7 +206,7 @@ def _status_stmt(
         return (
             sa.select(
                 model.project_evaluator_id.label("project_evaluator_id"),
-                # The grains' status enums differ; read every one as plain text.
+                # The targets' status enums differ; read every one as plain text.
                 sa.type_coerce(model.status, sa.String).label("status"),
                 *aggregates,
             )
@@ -214,7 +214,7 @@ def _status_stmt(
             .group_by(model.project_evaluator_id, model.status)
         )
 
-    return sa.union_all(*(grain(model) for model in _WORK_UNIT_MODELS))
+    return sa.union_all(*(status_counts(model) for model in _WORK_UNIT_MODELS))
 
 
 def _last_error_stmt(
@@ -222,7 +222,7 @@ def _last_error_stmt(
     start: Optional[datetime],
     end: Optional[datetime],
 ) -> sa.CompoundSelect[Any]:
-    """Each evaluator's newest failure per grain, with its error.
+    """Each evaluator's newest failure per evaluation target, with its error.
 
     Restricted to FAILED units: a unit that errored transiently and later succeeded
     keeps its error string (claim and complete never clear it), so the newest error
@@ -230,11 +230,11 @@ def _last_error_stmt(
 
     Each lookup walks the evaluator's partial failures index newest-first and stops
     at the first match, so an evaluator's successes are never read — however many
-    there are, and even when it has never failed. The caller keeps the newest of the
-    grains.
+    there are, and even when it has never failed. The caller keeps the newest across
+    evaluation targets.
     """
 
-    def grain(model: _WorkUnitModel) -> sa.Select[Any]:
+    def newest_failure(model: _WorkUnitModel) -> sa.Select[Any]:
         candidate = aliased(model)
         newest_failure_id = (
             sa.select(candidate.id)
@@ -256,4 +256,4 @@ def _last_error_stmt(
             .where(models.ProjectEvaluator.id.in_(project_evaluator_ids))
         )
 
-    return sa.union_all(*(grain(model) for model in _WORK_UNIT_MODELS))
+    return sa.union_all(*(newest_failure(model) for model in _WORK_UNIT_MODELS))

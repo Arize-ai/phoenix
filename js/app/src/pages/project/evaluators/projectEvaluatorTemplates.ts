@@ -65,6 +65,15 @@ export const PROJECT_EVALUATOR_CATEGORIES = Object.entries(
   ...details,
 }));
 
+/** The category a URL param names, or undefined for anything else. */
+export function parseProjectEvaluatorCategory(
+  value: string | null
+): EvaluatorCategory | undefined {
+  return PROJECT_EVALUATOR_CATEGORIES.find(
+    (category) => category.value === value
+  )?.value;
+}
+
 export function getProjectEvaluatorTemplateCategoryLabel(
   category: EvaluatorCategory | null
 ): string {

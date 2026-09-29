@@ -17,6 +17,7 @@ import {
   ChartPanelStrip,
 } from "@phoenix/components/chart";
 import { Badge } from "@phoenix/components/core/badge";
+import { useProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import type {
   ProjectEvaluatorStats_projectEvaluator$data,
@@ -36,7 +37,6 @@ import {
   getAnnotationLevel,
   getProjectEvaluatorStatus,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { useProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /** Matches the height of the metric chart strips above the tables. */
@@ -64,6 +64,7 @@ export function ProjectEvaluatorStats({
     graphql`
       fragment ProjectEvaluatorStats_projectEvaluator on ProjectEvaluator {
         createdAt
+        enabled
         evaluationTarget
         project {
           id
@@ -151,8 +152,8 @@ function ProjectEvaluatorActivityPanel({
 }: {
   projectEvaluator: ProjectEvaluatorStats_projectEvaluator$data;
 }) {
-  const { runSummary } = projectEvaluator;
-  const status = getProjectEvaluatorStatus({ runSummary });
+  const { enabled, runSummary } = projectEvaluator;
+  const status = getProjectEvaluatorStatus({ enabled, runSummary });
   const { shortDateFormatter, fullTimeFormatter } = useTimeFormatters();
   return (
     <ChartPanel

@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 import {
@@ -14,14 +13,14 @@ import {
 } from "@phoenix/components";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
-  dropOtherGrainEntityPathMappings,
+  dropOtherRecordKindPathMappings,
   formatEvaluationTarget,
   hasEvaluationDelay,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   toProjectEvaluatorSamplingFraction,
-  type ProjectEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorRecordKind,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
@@ -44,27 +43,19 @@ import {
 } from "@phoenix/pages/project/TraceFilterConditionField";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-/**
- * The target, sampling, delay, and filter fields wired to a scope object.
- * `children` renders additional fields at the end of the first row, after
- * every setting the scope persists.
- */
+/** The target, sampling, delay, and filter fields wired to a scope object. */
 export const ProjectEvaluatorScopeFieldGroup = ({
   projectId,
   scope,
   onScopeChange,
   onFilterValidityChange,
   isTargetDisabled = false,
-  fillSampling = false,
-  children,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onFilterValidityChange?: (isValid: boolean) => void;
   isTargetDisabled?: boolean;
-  fillSampling?: boolean;
-  children?: ReactNode;
 }) => {
   const isDelayedTarget = hasEvaluationDelay(scope.targetType);
   const evaluatorStore = useEvaluatorStoreInstance();
@@ -72,13 +63,15 @@ export const ProjectEvaluatorScopeFieldGroup = ({
     if (targetType === scope.targetType) {
       return;
     }
-    const grain = toEvaluatorMappingSourceGrain(targetType);
-    if (grain !== toEvaluatorMappingSourceGrain(scope.targetType)) {
+    const recordKind = toEvaluatorRecordKind(targetType);
+    if (recordKind !== toEvaluatorRecordKind(scope.targetType)) {
       const state = evaluatorStore.getState();
-      state.setEvaluatorMappingSourceGrain(grain);
+      state.setEvaluatorRecordKind(recordKind);
       state.setPathMapping(
-        dropOtherGrainEntityPathMappings(state.evaluator.inputMapping, grain)
-          .pathMapping
+        dropOtherRecordKindPathMappings(
+          state.evaluator.inputMapping,
+          recordKind
+        ).pathMapping
       );
     }
     onScopeChange(withProjectEvaluatorTarget({ scope, targetType }));
@@ -94,7 +87,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         <ProjectEvaluatorSamplingField
           // A filled slider takes the whole row, which would wrap the delay
           // field onto a line of its own.
-          fill={fillSampling && !isDelayedTarget}
+          fill={!isDelayedTarget}
           value={scope.samplingRate}
           onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
         />
@@ -106,7 +99,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
             }
           />
         ) : null}
-        {children}
       </Flex>
       {isDelayedTarget ? (
         <Text size="XS" color="text-500">
@@ -357,7 +349,7 @@ const ProjectEvaluatorFilterField = ({
 
 type ProjectEvaluatorFilterField = {
   /** The filter language the field parses, which also picks its editor. */
-  language: ProjectEvaluatorMappingSourceGrain;
+  language: ProjectEvaluatorRecordKind;
   label: string;
   placeholder: string;
   /** What an empty condition evaluates, said in the records' own noun. */

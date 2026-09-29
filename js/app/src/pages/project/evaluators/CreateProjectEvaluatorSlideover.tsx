@@ -10,7 +10,7 @@ import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
@@ -40,7 +40,7 @@ import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
@@ -136,10 +136,13 @@ function getProjectEvaluatorCreationTitle(
 export const CreateProjectEvaluatorSlideover = ({
   projectId,
   creationMode,
+  onCreated,
   ...props
 }: {
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
+  /** Called once the evaluator exists, in place of `onOpenChange(false)`. */
+  onCreated: () => void;
 } & Omit<ModalOverlayProps, "children">) => (
   <ProjectEvaluatorSlideover
     {...props}
@@ -148,6 +151,7 @@ export const CreateProjectEvaluatorSlideover = ({
     {(close, registerDirtyCheck) => (
       <CreateProjectEvaluatorDialogForMode
         onClose={close}
+        onCreated={onCreated}
         projectId={projectId}
         creationMode={creationMode}
         registerDirtyCheck={registerDirtyCheck}
@@ -187,11 +191,13 @@ function CreateProjectEvaluatorDialogForMode(
 
 const CreateProjectEvaluatorDialog = ({
   onClose,
+  onCreated,
   projectId,
   creationMode,
   registerDirtyCheck,
 }: {
   onClose: () => void;
+  onCreated: () => void;
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
@@ -234,7 +240,7 @@ const CreateProjectEvaluatorDialog = ({
           createDefaultFreeformOutputConfig(""),
         ],
         evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-          toEvaluatorMappingSourceGrain(scope.targetType)
+          toEvaluatorRecordKind(scope.targetType)
         ),
       } satisfies EvaluatorStoreProps;
     }
@@ -279,13 +285,13 @@ const CreateProjectEvaluatorDialog = ({
             ? [{ ...outputConfigs[0], name: defaultEvaluatorName }]
             : [],
       evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-        toEvaluatorMappingSourceGrain(scope.targetType)
+        toEvaluatorRecordKind(scope.targetType)
       ),
     } satisfies EvaluatorStoreProps;
   })();
 
   const finishCreation = () => {
-    onClose();
+    onCreated();
     notifySuccess({ title: "Evaluator created" });
   };
 
@@ -642,11 +648,7 @@ const ScratchLlmDialogContent = ({
         />
       }
       formRightPanel={
-        <ProjectEvaluatorScopePanel
-          projectId={projectId}
-          scope={scope}
-          showScopeFields={false}
-        />
+        <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
       }
     />
   );

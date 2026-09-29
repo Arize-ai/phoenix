@@ -16,10 +16,10 @@ import {
 } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
+import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
 import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import type { ProjectEvaluatorResultAnnotation } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 /**
@@ -80,7 +80,20 @@ const SPARKLINE_MIN_RANGE_FRACTION = 0.2;
  * carry the judgement, and painting the whole history in a status color
  * would restate one number's sign across the entire window.
  */
-const SPARKLINE_COLOR = "var(--global-text-color-700)";
+const SPARKLINE_COLOR = "var(--global-text-color-900)";
+
+/**
+ * Well under the line, so where there is data reads as context beneath the
+ * steps rather than as a second series.
+ */
+const SPARKLINE_COVERAGE_COLOR = "var(--global-text-color-300)";
+
+/**
+ * Whether the sparkline carries a coverage strip along its baseline, one cell
+ * per bin, filled where the bin has data. Design review chose steps over the
+ * strip; flip this off to fall back to shaded steps with no strip.
+ */
+const SPARKLINE_SHOW_COVERAGE = true;
 
 const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
   null
@@ -273,6 +286,8 @@ function AnnotationMeanScoreView({
         minRange={sparkMinRange}
         maxWidth={SPARKLINE_MAX_WIDTH}
         color={SPARKLINE_COLOR}
+        showCoverage={SPARKLINE_SHOW_COVERAGE}
+        coverageColor={SPARKLINE_COVERAGE_COLOR}
         aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
         renderPointDetail={({ start, end }) => {
           // The point may cover several bins merged to fit the width: the
