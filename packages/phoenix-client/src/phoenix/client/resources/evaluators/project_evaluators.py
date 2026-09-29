@@ -191,8 +191,9 @@ class ProjectEvaluators:
                 to be evaluated.
             enabled (bool): Whether the binding is active. Defaults to enabled.
             input_mapping (v1.InputMapping): How record fields map onto evaluator
-                arguments. Required for LLM evaluators; code and referenced
-                evaluators may omit it to use the shared definition's mapping.
+                arguments. Omit it to use the shared definition's mapping. LLM
+                evaluators have none, so their template variables bind to record
+                fields of the same name.
             evaluation_delay_seconds (int): For TRACE and SESSION targets, how
                 long the trace or session must be quiet before it is evaluated.
                 Defaults to the server's setting for the target. Rejected for
@@ -321,8 +322,7 @@ class ProjectEvaluators:
                 the evaluation target.
             enabled (bool): Enable or disable the binding.
             input_mapping (Optional[v1.InputMapping]): A new input mapping, or
-                ``None`` to use the shared definition's mapping again. Code
-                evaluators can be reset this way; LLM evaluators need a mapping.
+                ``None`` to use the shared definition's mapping again.
             evaluation_delay_seconds (Optional[int]): A new quiet-period delay for
                 TRACE and SESSION targets, or ``None`` to restore the server's
                 default. Rejected for SPAN targets.
@@ -490,8 +490,9 @@ class AsyncProjectEvaluators:
                 to be evaluated.
             enabled (bool): Whether the binding is active. Defaults to enabled.
             input_mapping (v1.InputMapping): How record fields map onto evaluator
-                arguments. Required for LLM evaluators; code and referenced
-                evaluators may omit it to use the shared definition's mapping.
+                arguments. Omit it to use the shared definition's mapping. LLM
+                evaluators have none, so their template variables bind to record
+                fields of the same name.
             evaluation_delay_seconds (int): For TRACE and SESSION targets, how
                 long the trace or session must be quiet before it is evaluated.
                 Defaults to the server's setting for the target. Rejected for
@@ -599,8 +600,7 @@ class AsyncProjectEvaluators:
                 the evaluation target.
             enabled (bool): Enable or disable the binding.
             input_mapping (Optional[v1.InputMapping]): A new input mapping, or
-                ``None`` to use the shared definition's mapping again. Code
-                evaluators can be reset this way; LLM evaluators need a mapping.
+                ``None`` to use the shared definition's mapping again.
             evaluation_delay_seconds (Optional[int]): A new quiet-period delay for
                 TRACE and SESSION targets, or ``None`` to restore the server's
                 default. Rejected for SPAN targets.
