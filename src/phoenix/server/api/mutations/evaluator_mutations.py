@@ -42,6 +42,11 @@ from phoenix.server.api.helpers.evaluator_management import (
     raise_on_uninferable_evaluate_signature,
     validate_code_evaluator_sandbox_config,
 )
+from phoenix.server.api.helpers.evaluator_prompt_source import (
+    EditCurrentPrompt,
+    FromPromptVersion,
+    NewPrompt,
+)
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
 )
@@ -407,10 +412,15 @@ class EvaluatorMutationMixin:
     async def create_project_llm_evaluator(
         self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
+        content = _prompt_version_from_input(input.prompt_version)
         command = evaluator_service.CreateProjectLLMEvaluatorInput(
             project_id=input.project_id,
             name=input.name,
-            prompt_version=_prompt_version_from_input(input.prompt_version),
+            prompt_source=(
+                FromPromptVersion(prompt_version_id=input.prompt_version_id, content=content)
+                if input.prompt_version_id
+                else NewPrompt(content=content)
+            ),
             output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
@@ -420,7 +430,6 @@ class EvaluatorMutationMixin:
             sampling_rate=input.sampling_rate,
             evaluation_target=input.evaluation_target.value,
             description=input.description,
-            prompt_version_id=input.prompt_version_id,
             filter_condition=input.filter_condition,
             enabled=input.enabled,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
@@ -438,10 +447,15 @@ class EvaluatorMutationMixin:
     async def update_project_llm_evaluator(
         self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
+        content = _prompt_version_from_input(input.prompt_version)
         command = evaluator_service.UpdateProjectLLMEvaluatorInput(
             project_evaluator_id=input.project_evaluator_id,
             name=input.name,
-            prompt_version=_prompt_version_from_input(input.prompt_version),
+            prompt_source=(
+                FromPromptVersion(prompt_version_id=input.prompt_version_id, content=content)
+                if input.prompt_version_id
+                else EditCurrentPrompt(content=content)
+            ),
             output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
@@ -453,7 +467,6 @@ class EvaluatorMutationMixin:
             filter_condition=input.filter_condition,
             enabled=input.enabled,
             description=input.description,
-            prompt_version_id=input.prompt_version_id,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
