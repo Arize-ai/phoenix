@@ -17,6 +17,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import evaluator_service as service
+from phoenix.server.api.helpers.evaluator_prompt_source import FromPromptVersion
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
 from phoenix.server.api.routers.v1.evaluator_common import (
     EvaluatorOutputConfig,
@@ -400,7 +401,10 @@ async def patch_evaluator(
             )
         else:
             if "prompt_version_id" in fields:
-                values["prompt_version_id"] = GlobalID.from_id(body.prompt_version_id)
+                del values["prompt_version_id"]
+                values["prompt_source"] = FromPromptVersion(
+                    prompt_version_id=GlobalID.from_id(body.prompt_version_id)
+                )
             await service.patch_llm_evaluator(
                 evaluator_service_context(request),
                 GlobalID.from_id(evaluator_id),
