@@ -104,6 +104,18 @@ def _provider_global_id(kind: str) -> str:
     return str(GlobalID("SandboxProvider", kind))
 
 
+_SCORE_OUTPUT_CONFIGS: list[dict[str, object]] = [
+    {
+        "continuous": {
+            "name": "score",
+            "optimizationDirection": "NONE",
+            "lowerBound": 0,
+            "upperBound": 1,
+        }
+    }
+]
+
+
 def _create_code_evaluator_input(
     *,
     sandbox_config_id: int,
@@ -118,16 +130,7 @@ def _create_code_evaluator_input(
         "sourceCode": source_code,
         "sandboxConfigId": _config_global_id(sandbox_config_id),
         "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-        "outputConfigs": [
-            {
-                "continuous": {
-                    "name": "score",
-                    "optimizationDirection": "NONE",
-                    "lowerBound": 0,
-                    "upperBound": 1,
-                }
-            }
-        ],
+        "outputConfigs": _SCORE_OUTPUT_CONFIGS,
     }
 
 
@@ -1490,6 +1493,7 @@ class TestCreateCodeEvaluatorSandboxStrictness:
                     "language": "PYTHON",
                     "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
                     "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": _SCORE_OUTPUT_CONFIGS,
                 }
             },
         )
@@ -1517,6 +1521,7 @@ class TestCreateCodeEvaluatorSandboxStrictness:
                     "sourceCode": ("function evaluate({ output }) { return { score: 1.0 }; }"),
                     "sandboxConfigId": _config_global_id(sandbox_config.id),
                     "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": _SCORE_OUTPUT_CONFIGS,
                 }
             },
         )
@@ -1524,13 +1529,13 @@ class TestCreateCodeEvaluatorSandboxStrictness:
         joined = "\n".join(err.message for err in result.errors)
         assert "Evaluator language does not match sandbox config language" in joined
 
-    async def test_missing_sandbox_config_row_returns_bad_request_with_id(
+    async def test_missing_sandbox_config_row_returns_not_found_with_id(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
         # Reference an id that no row exists for; the resolver raises
-        # BadRequest("Sandbox config not found: <id>") — stricter than patch's
+        # NotFound("Sandbox config not found: <id>") — stricter than patch's
         # silent no-op, matching evaluators.py:853 runtime semantics.
         absent_id = str(GlobalID("SandboxConfig", "999999"))
         result = await gql_client.execute(
@@ -1542,9 +1547,63 @@ class TestCreateCodeEvaluatorSandboxStrictness:
                     "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
                     "sandboxConfigId": absent_id,
                     "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": _SCORE_OUTPUT_CONFIGS,
                 }
             },
         )
-        assert result.errors, "Expected BadRequest when sandbox config row is missing"
+        assert result.errors, "Expected NotFound when sandbox config row is missing"
         joined = "\n".join(err.message for err in result.errors)
         assert "Sandbox config not found" in joined
+
+
+class TestCodeEvaluatorOutputConfigsRequired:
+    """A code evaluator definition keeps at least one output config."""
+
+    @pytest.mark.parametrize("output_configs", [[], None], ids=["empty", "omitted"])
+    async def test_create_rejects_missing_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+        output_configs: list[Any] | None,
+    ) -> None:
+        name = f"no-outputs-{token_hex(4)}"
+        create_input = _create_code_evaluator_input(sandbox_config_id=sandbox_config.id, name=name)
+        create_input["outputConfigs"] = output_configs
+
+        result = await gql_client.execute(_CREATE_CODE_EVALUATOR, variables={"input": create_input})
+
+        assert result.errors
+        assert result.errors[0].message == "At least one output config is required."
+        async with db() as session:
+            created = await session.scalar(
+                select(models.CodeEvaluator).where(models.CodeEvaluator.name == Identifier(name))
+            )
+        assert created is None
+
+    async def test_patch_rejects_empty_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        created = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={"input": _create_code_evaluator_input(sandbox_config_id=sandbox_config.id)},
+        )
+        assert created.data and not created.errors
+        evaluator_gid = created.data["createCodeEvaluator"]["evaluator"]["id"]
+
+        result = await gql_client.execute(
+            _PATCH_CODE_EVALUATOR,
+            variables={"input": {"id": evaluator_gid, "outputConfigs": []}},
+        )
+
+        assert result.errors
+        assert result.errors[0].message == "At least one output config is required."
+        async with db() as session:
+            row = await session.get(
+                models.CodeEvaluator, int(GlobalID.from_id(evaluator_gid).node_id)
+            )
+        assert row is not None
+        assert [config.name for config in row.output_configs] == ["score"]

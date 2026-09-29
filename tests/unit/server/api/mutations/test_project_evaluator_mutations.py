@@ -147,6 +147,7 @@ def _code_create_input(
         "language": "PYTHON",
         "sandboxConfigId": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
         "evaluatorInputMapping": _mapping(output="value"),
+        "outputConfigs": [{"continuous": {"name": "score", "optimizationDirection": "MAXIMIZE"}}],
         "samplingRate": 0.5,
         "evaluationTarget": "SPAN",
         "inputMapping": None,
@@ -1091,6 +1092,62 @@ async def test_update_code_evaluator_rejects_explicit_null_source_code(
     )
     assert result.errors
     assert result.errors[0].message == "source_code cannot be set to null"
+
+
+@pytest.mark.parametrize("output_configs", [[], None], ids=["empty", "omitted"])
+async def test_create_code_evaluator_requires_output_configs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    output_configs: Optional[list[Any]],
+) -> None:
+    project = await _add_project(db)
+    before = await _row_counts(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_input["outputConfigs"] = output_configs
+
+    result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+
+    assert result.errors
+    assert result.errors[0].message == "At least one output config is required."
+    assert await _row_counts(db) == before
+
+
+async def test_update_code_evaluator_rejects_empty_output_configs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    evaluator = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": evaluator["id"],
+                "name": evaluator["name"],
+                "outputConfigs": [],
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+            }
+        },
+    )
+
+    assert result.errors
+    assert result.errors[0].message == "At least one output config is required."
+    async with db() as session:
+        code_evaluator = await session.get(
+            models.CodeEvaluator, int(GlobalID.from_id(evaluator["evaluator"]["id"]).node_id)
+        )
+    assert code_evaluator is not None
+    assert [config.name for config in code_evaluator.output_configs] == ["score"]
 
 
 async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(

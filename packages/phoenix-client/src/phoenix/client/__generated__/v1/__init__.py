@@ -118,6 +118,18 @@ class CodeEvaluatorUIContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CodeEvaluatorVersion(TypedDict):
+    id: str
+    evaluator_id: str
+    source_code: str
+    created_at: str
+
+
+class CodeEvaluatorVersionsResponseBody(TypedDict):
+    data: Sequence[CodeEvaluatorVersion]
+    next_cursor: Optional[str]
+
+
 class CreateApiKeyRequestBody(TypedDict):
     data: ApiKeyData
 
@@ -180,6 +192,18 @@ class CreatedApiKey(TypedDict):
     key: str
     description: NotRequired[str]
     expires_at: NotRequired[str]
+
+
+class CreatedCodeEvaluatorVersion(TypedDict):
+    id: str
+    evaluator_id: str
+    source_code: str
+    created_at: str
+    was_created: bool
+
+
+class CreatedCodeEvaluatorVersionResponseBody(TypedDict):
+    data: CreatedCodeEvaluatorVersion
 
 
 class CustomModelProvider(TypedDict):
@@ -342,6 +366,11 @@ class GetExperimentResponseBody(TypedDict):
 class GraphQLContext(TypedDict):
     type: Literal["graphql"]
     mutationsEnabled: bool
+
+
+class InputMapping(TypedDict):
+    literal_mapping: Mapping[str, Any]
+    path_mapping: Mapping[str, str]
 
 
 class InsertedSessionAnnotation(TypedDict):
@@ -1725,6 +1754,31 @@ class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
+class PatchCodeEvaluatorRequest(TypedDict):
+    type: Literal["code"]
+    name: NotRequired[str]
+    description: NotRequired[str]
+    sandbox_config_id: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class PatchLLMEvaluatorRequest(TypedDict):
+    type: Literal["llm"]
+    name: NotRequired[str]
+    description: NotRequired[str]
+    prompt_version_id: NotRequired[str]
+    output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
+
+
 class PatchPromptResponseBody(TypedDict):
     data: Prompt
 
@@ -2024,6 +2078,42 @@ class ChatCompletion(TypedDict):
     object: NotRequired[Literal["chat.completion"]]
 
 
+class CodeEvaluatorDefinition(TypedDict):
+    type: Literal["code"]
+    id: str
+    name: str
+    description: Optional[str]
+    language: Literal["PYTHON", "TYPESCRIPT"]
+    sandbox_config_id: Optional[str]
+    input_mapping: Optional[InputMapping]
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+    current_version_id: Optional[str]
+    source_code: Optional[str]
+
+
+class CodeEvaluatorVersionRequest(TypedDict):
+    source_code: str
+    expected_current_version_id: NotRequired[str]
+    description: NotRequired[str]
+    sandbox_config_id: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class CompactAgentSessionRequestBody(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
 
@@ -2036,6 +2126,23 @@ class CreateAgentSessionRequestBody(TypedDict):
 
 class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class CreateCodeEvaluatorRequest(TypedDict):
+    type: Literal["code"]
+    name: str
+    source_code: str
+    language: Literal["PYTHON", "TYPESCRIPT"]
+    sandbox_config_id: str
+    input_mapping: InputMapping
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+    description: NotRequired[str]
 
 
 class CreateSpansRequestBody(TypedDict):
@@ -2386,6 +2493,25 @@ class GetPromptVersionsResponseBody(TypedDict):
 
 class ListAgentSessionMessagesResponseBody(TypedDict):
     data: Sequence[PhoenixUIMessage]
+    next_cursor: Optional[str]
+
+
+class LLMEvaluatorDefinition(TypedDict):
+    type: Literal["llm"]
+    id: str
+    name: str
+    description: Optional[str]
+    prompt_id: str
+    prompt_version: Optional[PromptVersion]
+    output_configs: Sequence[CategoricalAnnotationConfigData]
+
+
+class EvaluatorDefinitionResponseBody(TypedDict):
+    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition]
+
+
+class EvaluatorDefinitionsResponseBody(TypedDict):
+    data: Sequence[Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition]]
     next_cursor: Optional[str]
 
 
