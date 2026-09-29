@@ -100,7 +100,7 @@ The `createPrompt` function can be used to create a prompt in Phoenix for versio
 ```ts
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
-const version = createPrompt({
+const version = await createPrompt({
   name: "my-prompt",
   description: "test-description",
   version: promptVersion({
@@ -122,6 +122,26 @@ const version = createPrompt({
 
 Prompts that are pushed to Phoenix are versioned and can be tagged.
 
+### Targeting a Custom Provider
+
+Pass `customProviderId` to send a version to a custom model provider configured in Phoenix. `modelProvider` still selects the invocation parameter format, so the provider's SDK must be able to serve it; Phoenix refuses an incompatible provider with 422 and an unknown one with 404.
+
+```ts
+import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
+
+await createPrompt({
+  name: "my-prompt",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-4o-mini",
+    customProviderId: "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+    template: [{ role: "user", content: "{{ question }}" }],
+  }),
+});
+```
+
+Creating a version with `customProviderId` requires Phoenix server `21.0.0` or newer. `createPrompt` checks the server version first and throws against an older server, which would ignore the field and silently store the version with the built-in provider. Versions without it are not checked.
+
 ### Pulling a Prompt from Phoenix
 
 The `getPrompt` function can be used to pull a prompt from Phoenix based on some Prompt Identifier and returns it in the Phoenix SDK Prompt type.
@@ -129,14 +149,16 @@ The `getPrompt` function can be used to pull a prompt from Phoenix based on some
 ```ts
 import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-const prompt = await getPrompt({ name: "my-prompt" });
+const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 // ^ you now have a strongly-typed prompt object, in the Phoenix SDK Prompt type
 
-const promptByTag = await getPrompt({ tag: "production", name: "my-prompt" });
+const promptByTag = await getPrompt({
+  prompt: { tag: "production", name: "my-prompt" },
+});
 // ^ you can optionally specify a tag to filter by
 
 const promptByVersionId = await getPrompt({
-  versionId: "1234567890",
+  prompt: { versionId: "1234567890" },
 });
 // ^ you can optionally specify a prompt version Id to filter by
 ```
@@ -161,7 +183,7 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
 
-const prompt = await getPrompt({ name: "my-prompt" });
+const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 const promptAsAI = toSDK({
   sdk: "ai",
   // ^ the SDK you want to convert the prompt to, supported SDKs are listed above
