@@ -96,6 +96,11 @@ const tableCSS = css`
     max-width: 16ch;
     vertical-align: middle;
   }
+  /* Plain and missing values take the tinted chips' inset, so every value
+     in a column ends at the same edge */
+  .span-preview-annotation__value:not([data-direction]) {
+    padding-inline: var(--global-dimension-size-100);
+  }
   .span-preview-annotation__value[data-unrecorded] {
     color: var(--global-text-color-300);
   }
@@ -256,9 +261,8 @@ export function SpanPreviewAnnotations({
 
 /**
  * A label or score in the tinted chip of the large annotation label, or a
- * muted dash when the annotation did not record it. Every value keeps the
- * chip's inset, so tinted, plain and missing values line up down a column;
- * a dash is not a result, so it is never tinted.
+ * muted dash when the annotation did not record it. A dash is not a result,
+ * so it is never tinted.
  */
 function AnnotationValue({
   children,
@@ -278,7 +282,6 @@ function AnnotationValue({
       fontFamily={fontFamily}
       className="span-preview-annotation__value"
       title={title ?? undefined}
-      reserveInset
       positiveOptimization={children == null ? null : positiveOptimization}
       data-unrecorded={children == null || undefined}
     >

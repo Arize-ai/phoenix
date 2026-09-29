@@ -86,7 +86,6 @@ export function AnnotationSummaryBadge({
         <AnnotationScoreText
           elementType="span"
           size="XS"
-          density="compact"
           fontFamily={label != null ? "default" : "mono"}
           className="annotation-summary-badge__value"
           positiveOptimization={getAnnotationSummaryPositiveOptimization({
