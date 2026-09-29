@@ -2680,9 +2680,7 @@ class TestGetEnvPlaygroundTimeoutSeconds:
         assert get_env_playground_timeout_seconds() == 300
 
     @pytest.mark.parametrize("value", ["0", "-5"])
-    def test_non_positive_values_raise(
-        self, monkeypatch: pytest.MonkeyPatch, value: str
-    ) -> None:
+    def test_non_positive_values_raise(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
         """Test that zero and negative values are rejected."""
         monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
         with pytest.raises(ValueError, match="must be positive"):
