@@ -74,6 +74,12 @@ class AssistantMessageMetadataUsageTokens(TypedDict):
     total: int
 
 
+class BodyCodexToken(TypedDict):
+    grant_type: str
+    device_code: NotRequired[str]
+    refresh_token: NotRequired[str]
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -118,29 +124,20 @@ class CodeEvaluatorUIContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
-class CodexDeviceAuthPollRequestBody(TypedDict):
-    deviceAuthId: str
-    userCode: str
-
-
-class CodexDeviceAuthStartResponseBody(TypedDict):
-    deviceAuthId: str
-    userCode: str
-    intervalSeconds: int
-    verificationUrl: str
-    expiresInSeconds: NotRequired[int]
+class CodexDeviceAuthorizationResponse(TypedDict):
+    device_code: str
+    user_code: str
+    verification_uri: str
+    expires_in: int
+    interval: int
 
 
 class CodexModelsRequestBody(TypedDict):
-    accessToken: str
+    access_token: str
 
 
 class CodexModelsResponseBody(TypedDict):
     models: Sequence[str]
-
-
-class CodexRefreshRequestBody(TypedDict):
-    refreshToken: str
 
 
 class CodexSubscriptionModelSelection(TypedDict):
@@ -148,11 +145,25 @@ class CodexSubscriptionModelSelection(TypedDict):
     modelName: str
 
 
-class CodexTokenBundle(TypedDict):
-    accessToken: str
-    refreshToken: str
-    accountId: str
-    idToken: NotRequired[str]
+class CodexTokenErrorResponse(TypedDict):
+    error: Literal[
+        "authorization_pending",
+        "expired_token",
+        "access_denied",
+        "invalid_grant",
+        "invalid_request",
+        "unsupported_grant_type",
+        "temporarily_unavailable",
+    ]
+    error_description: NotRequired[str]
+
+
+class CodexTokenResponse(TypedDict):
+    access_token: str
+    refresh_token: str
+    account_id: str
+    token_type: NotRequired[Literal["Bearer"]]
+    id_token: NotRequired[str]
 
 
 class CreateApiKeyRequestBody(TypedDict):
@@ -1513,11 +1524,6 @@ class ChatCompletionUsage(TypedDict):
     completion_tokens: int
     total_tokens: int
     prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
-
-
-class CodexDeviceAuthPollResponseBody(TypedDict):
-    status: Literal["pending", "complete"]
-    tokens: NotRequired[CodexTokenBundle]
 
 
 class ContinuousAnnotationConfigData(TypedDict):

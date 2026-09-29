@@ -10233,21 +10233,21 @@
         }
       }
     },
-    "/v1/codex/device_auth": {
+    "/codex/device_authorization": {
       "post": {
         "tags": [
           "chat"
         ],
-        "summary": "Start Device Auth",
-        "description": "Begin a ChatGPT device-code sign-in for the public Codex client.",
-        "operationId": "startCodexDeviceAuth",
+        "summary": "Device Authorization",
+        "description": "Start a ChatGPT device-code sign-in (RFC 8628 \u00a73.1).\n\nPhoenix supplies the public Codex ``client_id``, so the request carries no body.",
+        "operationId": "codexDeviceAuthorization",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CodexDeviceAuthStartResponseBody"
+                  "$ref": "#/components/schemas/CodexDeviceAuthorizationResponse"
                 }
               }
             }
@@ -10285,19 +10285,19 @@
         }
       }
     },
-    "/v1/codex/device_auth/poll": {
+    "/codex/token": {
       "post": {
         "tags": [
           "chat"
         ],
-        "summary": "Poll Device Auth",
-        "description": "One poll of a device-code sign-in. Completes with the token bundle.",
-        "operationId": "pollCodexDeviceAuth",
+        "summary": "Token",
+        "description": "Complete or refresh a ChatGPT sign-in (RFC 8628 \u00a73.4, RFC 6749 \u00a76).\n\nPoll with ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and the\n``device_code`` from ``/device_authorization`` until the response is no longer\n``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh\ntokens are single-use.",
+        "operationId": "codexToken",
         "requestBody": {
           "content": {
-            "application/json": {
+            "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/CodexDeviceAuthPollRequestBody"
+                "$ref": "#/components/schemas/Body_codexToken"
               }
             }
           },
@@ -10309,7 +10309,27 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CodexDeviceAuthPollResponseBody"
+                  "$ref": "#/components/schemas/CodexTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "``authorization_pending`` until the user finishes signing in; ``invalid_grant`` for a rejected, expired, or spent grant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexTokenErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenAI was unreachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexTokenErrorResponse"
                 }
               }
             }
@@ -10326,16 +10346,6 @@
           },
           "403": {
             "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
             "content": {
               "text/plain": {
                 "schema": {
@@ -10357,85 +10367,13 @@
         }
       }
     },
-    "/v1/codex/refresh": {
-      "post": {
-        "tags": [
-          "chat"
-        ],
-        "summary": "Refresh",
-        "description": "Rotate the browser's refresh token. Refresh tokens are single-use.",
-        "operationId": "refreshCodexTokens",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CodexRefreshRequestBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodexTokenBundle"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/codex/models": {
+    "/codex/models": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "List Models",
-        "description": "Models the signed-in ChatGPT subscription can use.",
+        "description": "Models the signed-in ChatGPT subscription can use.\n\nA POST so the access token travels in the body: the ``Authorization`` header\nalready carries the Phoenix session.",
         "operationId": "listCodexModels",
         "requestBody": {
           "content": {
@@ -11138,6 +11076,41 @@
         ],
         "title": "AssistantMessageMetadataUsageTokens"
       },
+      "Body_codexToken": {
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "title": "Grant Type"
+          },
+          "device_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Code"
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_type"
+        ],
+        "title": "Body_codexToken"
+      },
       "BuiltInModelProvider": {
         "properties": {
           "provider": {
@@ -11788,99 +11761,56 @@
         ],
         "title": "CodeEvaluatorUIContext"
       },
-      "CodexDeviceAuthPollRequestBody": {
+      "CodexDeviceAuthorizationResponse": {
         "properties": {
-          "deviceAuthId": {
+          "device_code": {
             "type": "string",
-            "title": "Deviceauthid"
+            "title": "Device Code",
+            "description": "Opaque handle to present to the token endpoint while polling."
           },
-          "userCode": {
+          "user_code": {
             "type": "string",
-            "title": "Usercode"
-          }
-        },
-        "type": "object",
-        "required": [
-          "deviceAuthId",
-          "userCode"
-        ],
-        "title": "CodexDeviceAuthPollRequestBody"
-      },
-      "CodexDeviceAuthPollResponseBody": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "complete"
-            ],
-            "title": "Status"
+            "title": "User Code",
+            "description": "Short code the user types at ``verification_uri``."
           },
-          "tokens": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CodexTokenBundle"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "status"
-        ],
-        "title": "CodexDeviceAuthPollResponseBody"
-      },
-      "CodexDeviceAuthStartResponseBody": {
-        "properties": {
-          "deviceAuthId": {
+          "verification_uri": {
             "type": "string",
-            "title": "Deviceauthid"
+            "title": "Verification Uri"
           },
-          "userCode": {
-            "type": "string",
-            "title": "Usercode",
-            "description": "One-time code the user types at ``verificationUrl``."
-          },
-          "intervalSeconds": {
+          "expires_in": {
             "type": "integer",
-            "title": "Intervalseconds",
-            "description": "Suggested polling interval."
+            "title": "Expires In",
+            "description": "Lifetime of ``device_code`` and ``user_code`` in seconds."
           },
-          "verificationUrl": {
-            "type": "string",
-            "title": "Verificationurl"
-          },
-          "expiresInSeconds": {
+          "interval": {
             "type": "integer",
-            "title": "Expiresinseconds",
-            "description": "The user code expires roughly this long after it was issued.",
-            "default": 900
+            "title": "Interval",
+            "description": "Minimum seconds to wait between token requests."
           }
         },
         "type": "object",
         "required": [
-          "deviceAuthId",
-          "userCode",
-          "intervalSeconds",
-          "verificationUrl"
+          "device_code",
+          "user_code",
+          "verification_uri",
+          "expires_in",
+          "interval"
         ],
-        "title": "CodexDeviceAuthStartResponseBody"
+        "title": "CodexDeviceAuthorizationResponse",
+        "description": "RFC 8628 \u00a73.2 device authorization response."
       },
       "CodexModelsRequestBody": {
         "properties": {
-          "accessToken": {
+          "access_token": {
             "type": "string",
             "format": "password",
-            "title": "Accesstoken",
+            "title": "Access Token",
             "writeOnly": true
           }
         },
         "type": "object",
         "required": [
-          "accessToken"
+          "access_token"
         ],
         "title": "CodexModelsRequestBody"
       },
@@ -11900,21 +11830,6 @@
           "models"
         ],
         "title": "CodexModelsResponseBody"
-      },
-      "CodexRefreshRequestBody": {
-        "properties": {
-          "refreshToken": {
-            "type": "string",
-            "format": "password",
-            "title": "Refreshtoken",
-            "writeOnly": true
-          }
-        },
-        "type": "object",
-        "required": [
-          "refreshToken"
-        ],
-        "title": "CodexRefreshRequestBody"
       },
       "CodexSubscriptionModelSelection": {
         "properties": {
@@ -11936,17 +11851,22 @@
         "title": "CodexSubscriptionModelSelection",
         "description": "Chat against OpenAI's Codex backend with the user's ChatGPT subscription."
       },
-      "CodexTokenBundle": {
+      "CodexTokenErrorResponse": {
         "properties": {
-          "accessToken": {
+          "error": {
             "type": "string",
-            "title": "Accesstoken"
+            "enum": [
+              "authorization_pending",
+              "expired_token",
+              "access_denied",
+              "invalid_grant",
+              "invalid_request",
+              "unsupported_grant_type",
+              "temporarily_unavailable"
+            ],
+            "title": "Error"
           },
-          "refreshToken": {
-            "type": "string",
-            "title": "Refreshtoken"
-          },
-          "idToken": {
+          "error_description": {
             "anyOf": [
               {
                 "type": "string"
@@ -11955,21 +11875,58 @@
                 "type": "null"
               }
             ],
-            "title": "Idtoken"
-          },
-          "accountId": {
-            "type": "string",
-            "title": "Accountid"
+            "title": "Error Description"
           }
         },
         "type": "object",
         "required": [
-          "accessToken",
-          "refreshToken",
-          "accountId"
+          "error"
         ],
-        "title": "CodexTokenBundle",
-        "description": "The browser-held credential set. Returned once; never stored server-side."
+        "title": "CodexTokenErrorResponse",
+        "description": "RFC 6749 \u00a75.2 / RFC 8628 \u00a73.5 token error response."
+      },
+      "CodexTokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "const": "Bearer",
+            "title": "Token Type",
+            "default": "Bearer"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Single-use: replace the stored bundle on refresh."
+          },
+          "id_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Token"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id",
+            "description": "ChatGPT account the tokens belong to."
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "account_id"
+        ],
+        "title": "CodexTokenResponse",
+        "description": "RFC 6749 \u00a75.1 token response, plus the ChatGPT ``account_id`` extension parameter.\n\nReturned once per grant; the server keeps no copy."
       },
       "CompactAgentSessionRequestBody": {
         "properties": {

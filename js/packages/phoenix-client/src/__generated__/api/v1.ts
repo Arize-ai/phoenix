@@ -1901,7 +1901,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/codex/device_auth": {
+    "/codex/device_authorization": {
         parameters: {
             query?: never;
             header?: never;
@@ -1911,17 +1911,19 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start Device Auth
-         * @description Begin a ChatGPT device-code sign-in for the public Codex client.
+         * Device Authorization
+         * @description Start a ChatGPT device-code sign-in (RFC 8628 §3.1).
+         *
+         *     Phoenix supplies the public Codex ``client_id``, so the request carries no body.
          */
-        post: operations["startCodexDeviceAuth"];
+        post: operations["codexDeviceAuthorization"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/codex/device_auth/poll": {
+    "/codex/token": {
         parameters: {
             query?: never;
             header?: never;
@@ -1931,37 +1933,22 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Poll Device Auth
-         * @description One poll of a device-code sign-in. Completes with the token bundle.
+         * Token
+         * @description Complete or refresh a ChatGPT sign-in (RFC 8628 §3.4, RFC 6749 §6).
+         *
+         *     Poll with ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and the
+         *     ``device_code`` from ``/device_authorization`` until the response is no longer
+         *     ``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh
+         *     tokens are single-use.
          */
-        post: operations["pollCodexDeviceAuth"];
+        post: operations["codexToken"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/codex/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Refresh
-         * @description Rotate the browser's refresh token. Refresh tokens are single-use.
-         */
-        post: operations["refreshCodexTokens"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/codex/models": {
+    "/codex/models": {
         parameters: {
             query?: never;
             header?: never;
@@ -1973,6 +1960,9 @@ export interface paths {
         /**
          * List Models
          * @description Models the signed-in ChatGPT subscription can use.
+         *
+         *     A POST so the access token travels in the body: the ``Authorization`` header
+         *     already carries the Phoenix session.
          */
         post: operations["listCodexModels"];
         delete?: never;
@@ -2289,6 +2279,15 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Body_codexToken */
+        Body_codexToken: {
+            /** Grant Type */
+            grant_type: string;
+            /** Device Code */
+            device_code?: string | null;
+            /** Refresh Token */
+            refresh_token?: string | null;
+        };
         /** BuiltInModelProvider */
         BuiltInModelProvider: {
             /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
@@ -2563,52 +2562,41 @@ export interface components {
             /** Evaluatornodeid */
             evaluatorNodeId?: string | null;
         };
-        /** CodexDeviceAuthPollRequestBody */
-        CodexDeviceAuthPollRequestBody: {
-            /** Deviceauthid */
-            deviceAuthId: string;
-            /** Usercode */
-            userCode: string;
-        };
-        /** CodexDeviceAuthPollResponseBody */
-        CodexDeviceAuthPollResponseBody: {
+        /**
+         * CodexDeviceAuthorizationResponse
+         * @description RFC 8628 §3.2 device authorization response.
+         */
+        CodexDeviceAuthorizationResponse: {
             /**
-             * Status
-             * @enum {string}
+             * Device Code
+             * @description Opaque handle to present to the token endpoint while polling.
              */
-            status: "pending" | "complete";
-            tokens?: components["schemas"]["CodexTokenBundle"] | null;
-        };
-        /** CodexDeviceAuthStartResponseBody */
-        CodexDeviceAuthStartResponseBody: {
-            /** Deviceauthid */
-            deviceAuthId: string;
+            device_code: string;
             /**
-             * Usercode
-             * @description One-time code the user types at ``verificationUrl``.
+             * User Code
+             * @description Short code the user types at ``verification_uri``.
              */
-            userCode: string;
+            user_code: string;
+            /** Verification Uri */
+            verification_uri: string;
             /**
-             * Intervalseconds
-             * @description Suggested polling interval.
+             * Expires In
+             * @description Lifetime of ``device_code`` and ``user_code`` in seconds.
              */
-            intervalSeconds: number;
-            /** Verificationurl */
-            verificationUrl: string;
+            expires_in: number;
             /**
-             * Expiresinseconds
-             * @description The user code expires roughly this long after it was issued.
-             * @default 900
+             * Interval
+             * @description Minimum seconds to wait between token requests.
              */
-            expiresInSeconds?: number;
+            interval: number;
         };
         /** CodexModelsRequestBody */
         CodexModelsRequestBody: {
             /**
-             * Accesstoken
+             * Access Token
              * Format: password
              */
-            accessToken: string;
+            access_token: string;
         };
         /** CodexModelsResponseBody */
         CodexModelsResponseBody: {
@@ -2617,14 +2605,6 @@ export interface components {
              * @description Model slugs the subscription can use.
              */
             models: string[];
-        };
-        /** CodexRefreshRequestBody */
-        CodexRefreshRequestBody: {
-            /**
-             * Refreshtoken
-             * Format: password
-             */
-            refreshToken: string;
         };
         /**
          * CodexSubscriptionModelSelection
@@ -2640,18 +2620,45 @@ export interface components {
             modelName: string;
         };
         /**
-         * CodexTokenBundle
-         * @description The browser-held credential set. Returned once; never stored server-side.
+         * CodexTokenErrorResponse
+         * @description RFC 6749 §5.2 / RFC 8628 §3.5 token error response.
          */
-        CodexTokenBundle: {
-            /** Accesstoken */
-            accessToken: string;
-            /** Refreshtoken */
-            refreshToken: string;
-            /** Idtoken */
-            idToken?: string | null;
-            /** Accountid */
-            accountId: string;
+        CodexTokenErrorResponse: {
+            /**
+             * Error
+             * @enum {string}
+             */
+            error: "authorization_pending" | "expired_token" | "access_denied" | "invalid_grant" | "invalid_request" | "unsupported_grant_type" | "temporarily_unavailable";
+            /** Error Description */
+            error_description?: string | null;
+        };
+        /**
+         * CodexTokenResponse
+         * @description RFC 6749 §5.1 token response, plus the ChatGPT ``account_id`` extension parameter.
+         *
+         *     Returned once per grant; the server keeps no copy.
+         */
+        CodexTokenResponse: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Token Type
+             * @default Bearer
+             * @constant
+             */
+            token_type?: "Bearer";
+            /**
+             * Refresh Token
+             * @description Single-use: replace the stored bundle on refresh.
+             */
+            refresh_token: string;
+            /** Id Token */
+            id_token?: string | null;
+            /**
+             * Account Id
+             * @description ChatGPT account the tokens belong to.
+             */
+            account_id: string;
         };
         /**
          * CompactAgentSessionRequestBody
@@ -14060,7 +14067,7 @@ export interface operations {
             };
         };
     };
-    startCodexDeviceAuth: {
+    codexDeviceAuthorization: {
         parameters: {
             query?: never;
             header?: never;
@@ -14075,7 +14082,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CodexDeviceAuthStartResponseBody"];
+                    "application/json": components["schemas"]["CodexDeviceAuthorizationResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -14107,7 +14114,7 @@ export interface operations {
             };
         };
     };
-    pollCodexDeviceAuth: {
+    codexToken: {
         parameters: {
             query?: never;
             header?: never;
@@ -14116,7 +14123,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CodexDeviceAuthPollRequestBody"];
+                "application/x-www-form-urlencoded": components["schemas"]["Body_codexToken"];
             };
         };
         responses: {
@@ -14126,7 +14133,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CodexDeviceAuthPollResponseBody"];
+                    "application/json": components["schemas"]["CodexTokenResponse"];
+                };
+            };
+            /** @description ``authorization_pending`` until the user finishes signing in; ``invalid_grant`` for a rejected, expired, or spent grant. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexTokenErrorResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -14156,73 +14172,13 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Bad Gateway */
+            /** @description OpenAI was unreachable. */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
-                };
-            };
-        };
-    };
-    refreshCodexTokens: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CodexRefreshRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CodexTokenBundle"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
+                    "application/json": components["schemas"]["CodexTokenErrorResponse"];
                 };
             };
         };

@@ -14,9 +14,9 @@ import { useNotifySuccess } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import {
-  type CodexDeviceAuthStart,
-  pollCodexDeviceAuth,
-  startCodexDeviceAuth,
+  type CodexDeviceAuthorization,
+  pollCodexDeviceAuthorization,
+  startCodexDeviceAuthorization,
 } from "../../agent/codex/codexAuthApi";
 
 const settingBodyCSS = css`
@@ -40,7 +40,7 @@ const userCodeCSS = css`
 type DeviceFlowState =
   | { status: "idle" }
   | { status: "starting" }
-  | { status: "waiting"; start: CodexDeviceAuthStart; startedAt: number }
+  | { status: "waiting"; start: CodexDeviceAuthorization; startedAt: number }
   | { status: "error"; message: string };
 
 /**
@@ -59,7 +59,7 @@ export function AgentCodexSettings() {
       return () => {};
     }
     const { start, startedAt } = flow;
-    const expiresAt = startedAt + (start.expiresInSeconds ?? 15 * 60) * 1000;
+    const expiresAt = startedAt + start.expires_in * 1000;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const tick = async () => {
@@ -74,10 +74,7 @@ export function AgentCodexSettings() {
         return;
       }
       try {
-        const auth = await pollCodexDeviceAuth({
-          deviceAuthId: start.deviceAuthId,
-          userCode: start.userCode,
-        });
+        const auth = await pollCodexDeviceAuthorization(start.device_code);
         if (cancelled) {
           return;
         }
@@ -103,9 +100,9 @@ export function AgentCodexSettings() {
         }
         return;
       }
-      timer = setTimeout(tick, Math.max(1, start.intervalSeconds) * 1000);
+      timer = setTimeout(tick, Math.max(1, start.interval) * 1000);
     };
-    timer = setTimeout(tick, Math.max(1, start.intervalSeconds) * 1000);
+    timer = setTimeout(tick, Math.max(1, start.interval) * 1000);
     return () => {
       cancelled = true;
       if (timer) {
@@ -117,9 +114,9 @@ export function AgentCodexSettings() {
   const startFlow = async () => {
     setFlow({ status: "starting" });
     try {
-      const start = await startCodexDeviceAuth();
+      const start = await startCodexDeviceAuthorization();
       setFlow({ status: "waiting", start, startedAt: Date.now() });
-      window.open(start.verificationUrl, "_blank", "noopener,noreferrer");
+      window.open(start.verification_uri, "_blank", "noopener,noreferrer");
     } catch (error) {
       setFlow({
         status: "error",
@@ -166,13 +163,13 @@ export function AgentCodexSettings() {
           <Flex direction="column" gap="size-100">
             <Text>
               Enter this code at{" "}
-              <ExternalLink href={flow.start.verificationUrl}>
-                {flow.start.verificationUrl}
+              <ExternalLink href={flow.start.verification_uri}>
+                {flow.start.verification_uri}
               </ExternalLink>
               , then return here. Waiting for sign-in…
             </Text>
             <div>
-              <span css={userCodeCSS}>{flow.start.userCode}</span>
+              <span css={userCodeCSS}>{flow.start.user_code}</span>
             </div>
             <Text color="text-500" size="S">
               Your ChatGPT account must have &ldquo;Enable device code

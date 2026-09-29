@@ -44,6 +44,39 @@ class CodexTokens:
     account_id: str
 
 
+def encode_device_code(*, device_auth_id: str, user_code: str) -> str:
+    """Pack OpenAI's two-part device handle into one opaque RFC 8628 ``device_code``.
+
+    OpenAI's device-auth token exchange wants both the ``device_auth_id`` and the
+    ``user_code`` back, whereas RFC 8628 hands the client a single ``device_code``.
+    Packing both keeps the public contract standard and the client ignorant of the
+    upstream shape.
+    """
+    payload = json.dumps(
+        {"device_auth_id": device_auth_id, "user_code": user_code},
+        separators=(",", ":"),
+    ).encode()
+    return base64.urlsafe_b64encode(payload).rstrip(b"=").decode()
+
+
+def decode_device_code(device_code: str) -> tuple[str, str] | None:
+    """Inverse of :func:`encode_device_code`; ``None`` if the code is not one of ours."""
+    padded = device_code + "=" * (-len(device_code) % 4)
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    device_auth_id = payload.get("device_auth_id")
+    user_code = payload.get("user_code")
+    if not isinstance(device_auth_id, str) or not isinstance(user_code, str):
+        return None
+    if not device_auth_id or not user_code:
+        return None
+    return device_auth_id, user_code
+
+
 def resolve_codex_access_token(request_credentials: Mapping[str, SecretStr]) -> SecretStr | None:
     token = request_credentials.get(CODEX_ACCESS_TOKEN_SECRET_KEY)
     if token is not None and token.get_secret_value():

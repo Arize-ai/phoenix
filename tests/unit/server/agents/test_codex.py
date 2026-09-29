@@ -37,6 +37,25 @@ class TestAccountId:
         assert codex.account_id_from_token("x.!!!.y") is None
 
 
+class TestDeviceCode:
+    def test_round_trip(self) -> None:
+        code = codex.encode_device_code(device_auth_id="dev_1", user_code="ABCD-EFGH")
+        assert "=" not in code
+        assert codex.decode_device_code(code) == ("dev_1", "ABCD-EFGH")
+
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "not-base64!",
+            base64.urlsafe_b64encode(b"[]").decode(),
+            base64.urlsafe_b64encode(b'{"device_auth_id": "dev_1"}').decode(),
+            base64.urlsafe_b64encode(b'{"device_auth_id": "", "user_code": "X"}').decode(),
+        ],
+    )
+    def test_rejects_foreign_codes(self, code: str) -> None:
+        assert codex.decode_device_code(code) is None
+
+
 class TestBuildCodexModel:
     async def test_requires_request_credential(
         self,
