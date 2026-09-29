@@ -201,11 +201,18 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
+            # Discovery: try structured output first, fall back to tool calling only
+            # on a genuine capability-mismatch signal. Rate-limit and transient
+            # errors propagate so the outer RateLimiter can retry and so a
+            # transient failure never silently downgrades the request to a path
+            # without server-side schema enforcement.
             try:
                 return self._generate_with_structured_output(prompt, schema, **kwargs)
             except Exception as structured_error:
+                if not _is_capability_mismatch(structured_error):
+                    raise
                 logger.debug(
-                    f"Structured output failed for {self.client.model}, falling back to tool "
+                    f"Structured output rejected by {self.client.model}, falling back to tool "
                     f"calling: {structured_error}"
                 )
                 try:
@@ -213,7 +220,8 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 except Exception as tool_error:
                     raise ValueError(
                         f"Google GenAI model {self.client.model} failed with both structured "
-                        f"output and tool calling. Tool calling error: {tool_error}"
+                        f"output and tool calling. Structured output error: {structured_error}. "
+                        f"Tool calling error: {tool_error}"
                     ) from tool_error
 
         else:
@@ -239,11 +247,14 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
+            # Same capability-mismatch-only fallback as the sync path above.
             try:
                 return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
             except Exception as structured_error:
+                if not _is_capability_mismatch(structured_error):
+                    raise
                 logger.debug(
-                    f"Structured output failed for {self.client.model}, falling back to tool "
+                    f"Structured output rejected by {self.client.model}, falling back to tool "
                     f"calling: {structured_error}"
                 )
                 try:
@@ -251,7 +262,8 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 except Exception as tool_error:
                     raise ValueError(
                         f"Google GenAI model {self.client.model} failed with both structured "
-                        f"output and tool calling. Tool calling error: {tool_error}"
+                        f"output and tool calling. Structured output error: {structured_error}. "
+                        f"Tool calling error: {tool_error}"
                     ) from tool_error
 
         else:
@@ -547,3 +559,29 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                     raise GoogleGenAIRateLimitError(str(error)) from error
         except ImportError:
             pass
+
+
+def _is_capability_mismatch(error: Exception) -> bool:
+    """Whether the GenAI API rejected the request itself, so ``AUTO`` may retry it.
+
+    A 4xx means the structured-output request was not accepted, which is the only
+    signal ``AUTO`` mode falls back on. Rate limits (429) and server-side
+    failures are transient and must propagate instead: re-sending the same
+    request as a tool call would bypass the server-side schema enforcement of
+    the structured-output path and defeat the outer ``RateLimiter``.
+    """
+    try:
+        from google.genai.errors import APIError
+    except ImportError:
+        return False
+
+    if not isinstance(error, APIError):
+        return False
+    code = getattr(error, "code", None)
+    if code is None:
+        return getattr(error, "status", "") == "INVALID_ARGUMENT"
+    try:
+        code = int(code)
+    except (TypeError, ValueError):
+        return False
+    return 400 <= code < 500 and code != 429
