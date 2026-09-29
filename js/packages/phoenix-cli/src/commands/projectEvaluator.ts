@@ -16,7 +16,7 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, InvalidArgumentError } from "../exitCodes";
+import { ExitCode } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { parseNumberOption, parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
@@ -91,8 +91,8 @@ interface ProjectEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
   /**
    * `--input-mapping <json>`: JSON object with `literal_mapping` and
    * `path_mapping` keys mapping record fields onto evaluator arguments.
-   * Required for a new LLM evaluator; omit it for a code evaluator to use the
-   * shared definition's mapping.
+   * Omit it to use the shared definition's mapping. LLM evaluators have none,
+   * so their template variables bind to record fields of the same name.
    */
   inputMapping?: string;
   /**
@@ -147,7 +147,7 @@ interface ProjectEvaluatorCreateOptions extends ProjectEvaluatorFieldOptions {
 interface ProjectEvaluatorUpdateOptions extends ProjectEvaluatorFieldOptions {
   /**
    * `--inherit-input-mapping`: Drop the binding's input mapping and use the
-   * shared definition's mapping again. Code evaluators only.
+   * shared definition's mapping again.
    *
    * @example true
    */
@@ -439,11 +439,6 @@ async function projectEvaluatorCreateHandler(
           });
 
     const evaluator = resolveEvaluatorInput(options);
-    if (evaluator.type === "llm" && inputMapping === undefined) {
-      throw new InvalidArgumentError(
-        "--input-mapping is required when --evaluator or --evaluator-file creates an LLM evaluator"
-      );
-    }
 
     const client = createClientOrExit(options);
 
@@ -666,7 +661,7 @@ function addSchedulingOptions(command: Command): Command {
     .option(
       "--input-mapping <json>",
       creating
-        ? 'JSON object with "literal_mapping" and "path_mapping" keys (required for a new LLM evaluator; omit for code to use the definition\'s)'
+        ? 'JSON object with "literal_mapping" and "path_mapping" keys (omit to use the definition\'s)'
         : 'JSON object with "literal_mapping" and "path_mapping" keys that replaces the binding\'s mapping'
     )
     .option(
@@ -781,7 +776,7 @@ export function createProjectEvaluatorCreateCommand(): Command {
         "  # Evaluate a quarter of LLM spans with an existing evaluator\n" +
         "  px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition \"span_kind == 'LLM'\"\n\n" +
         "  # Evaluate whole sessions ten minutes after they go quiet\n" +
-        '  px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-file resolution.json --input-mapping \'{"literal_mapping":{},"path_mapping":{"output":"output"}}\' --evaluation-delay-seconds 600\n\n' +
+        '  px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-file resolution.json --input-mapping \'{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}\' --evaluation-delay-seconds 600\n\n' +
         "  # Capture the new binding ID (agent-friendly)\n" +
         "  px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 1 --evaluator-id Q29kZUV2YWx1YXRvcjox --format raw --no-progress | jq -r '.id'\n"
     )
@@ -806,7 +801,7 @@ export function createProjectEvaluatorUpdateCommand(): Command {
         .argument("<project-evaluator-id>", "Project evaluator ID")
         .option(
           "--inherit-input-mapping",
-          "Drop the binding's input mapping and use the definition's (code evaluators)"
+          "Drop the binding's input mapping and use the definition's"
         )
         .option(
           "--default-evaluation-delay",

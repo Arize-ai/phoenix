@@ -758,22 +758,22 @@ Bind an evaluator to a project so it runs on incoming traces, creating the evalu
 
 ```bash
 px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition "span_kind == 'LLM'"
-px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-file resolution.json --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' --evaluation-delay-seconds 600
+px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-file resolution.json --input-mapping '{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}' --evaluation-delay-seconds 600
 ```
 
-| Option                           | Description                                                                                                                     | Default  |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `--name <name>`                  | Binding name, unique within the project (required)                                                                              | —        |
-| `--evaluation-target <target>`   | `SPAN`, `TRACE`, or `SESSION` (required)                                                                                        | —        |
-| `--sampling-rate <number>`       | Fraction of matching records to evaluate, 0 to 1 (required)                                                                     | —        |
-| `--evaluator-id <id>`            | Bind an existing code evaluator                                                                                                 | —        |
-| `--evaluator <json>`             | Inline JSON for a new evaluator with `type` of `llm` or `code`; a code evaluator needs at least one `output_configs` entry      | —        |
-| `--evaluator-file <path>`        | Read the new evaluator JSON from a file                                                                                         | —        |
-| `--filter-condition <expr>`      | Filter expression records must match, in the language of the evaluation target                                                  | —        |
-| `--disabled`                     | Create the binding paused                                                                                                       | —        |
-| `--input-mapping <json>`         | JSON object with `literal_mapping` and `path_mapping` (required for a new LLM evaluator; omit for code to use the definition's) | —        |
-| `--evaluation-delay-seconds <n>` | For `TRACE` and `SESSION` targets, quiet period before evaluation (rejected for `SPAN`)                                         | server   |
-| `--format <format>`              | `pretty`, `json`, or `raw`                                                                                                      | `pretty` |
+| Option                           | Description                                                                                                                | Default  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `--name <name>`                  | Binding name, unique within the project (required)                                                                         | —        |
+| `--evaluation-target <target>`   | `SPAN`, `TRACE`, or `SESSION` (required)                                                                                   | —        |
+| `--sampling-rate <number>`       | Fraction of matching records to evaluate, 0 to 1 (required)                                                                | —        |
+| `--evaluator-id <id>`            | Bind an existing code evaluator                                                                                            | —        |
+| `--evaluator <json>`             | Inline JSON for a new evaluator with `type` of `llm` or `code`; a code evaluator needs at least one `output_configs` entry | —        |
+| `--evaluator-file <path>`        | Read the new evaluator JSON from a file                                                                                    | —        |
+| `--filter-condition <expr>`      | Filter expression records must match, in the language of the evaluation target                                             | —        |
+| `--disabled`                     | Create the binding paused                                                                                                  | —        |
+| `--input-mapping <json>`         | JSON object with `literal_mapping` and `path_mapping` (omit to use the definition's; LLM evaluators have none)             | —        |
+| `--evaluation-delay-seconds <n>` | For `TRACE` and `SESSION` targets, quiet period before evaluation (rejected for `SPAN`)                                    | server   |
+| `--format <format>`              | `pretty`, `json`, or `raw`                                                                                                 | `pretty` |
 
 ---
 
@@ -786,7 +786,7 @@ px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled
 px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --sampling-rate 0.5 --filter-condition "span_kind == 'LLM'"
 ```
 
-Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disabled`, `--input-mapping`, and `--evaluation-delay-seconds`. The evaluation target cannot change. `--inherit-input-mapping` drops the binding's mapping so a code evaluator uses the definition's again, and `--default-evaluation-delay` restores the server's default delay for the target.
+Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disabled`, `--input-mapping`, and `--evaluation-delay-seconds`. The evaluation target cannot change. `--inherit-input-mapping` drops the binding's mapping so the evaluator uses the definition's again, and `--default-evaluation-delay` restores the server's default delay for the target.
 
 ---
 

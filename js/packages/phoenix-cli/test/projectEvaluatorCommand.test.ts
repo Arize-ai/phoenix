@@ -638,10 +638,18 @@ describe("project evaluator create local checks", () => {
     "1",
   ];
 
-  it("requires --input-mapping for a new LLM evaluator", async () => {
-    const state = trackCreate();
-    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    mockProcessExit();
+  it("creates a new LLM evaluator without --input-mapping", async () => {
+    const captured: { body?: unknown } = {};
+    mock.server.use(
+      http.post(
+        "/v1/projects/{project_identifier}/evaluators",
+        async ({ request, response }) => {
+          captured.body = await request.clone().json();
+          return response(201).json({ data: BINDING });
+        }
+      )
+    );
+    captureCliOutput();
     const evaluator = {
       type: "llm",
       description: "resolution",
@@ -659,26 +667,22 @@ describe("project evaluator create local checks", () => {
       ],
     };
 
-    await expect(
-      createProjectEvaluatorCommand().parseAsync(
-        [
-          ...base,
-          "--evaluation-target",
-          "SESSION",
-          "--evaluator",
-          JSON.stringify(evaluator),
-          "--format",
-          "raw",
-          ...BASE_ARGS,
-        ],
-        { from: "user" }
-      )
-    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+    await createProjectEvaluatorCommand().parseAsync(
+      [
+        ...base,
+        "--evaluation-target",
+        "SESSION",
+        "--evaluator",
+        JSON.stringify(evaluator),
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
 
-    expect(state.called).toBe(false);
-    const envelope = JSON.parse(String(stderrSpy.mock.calls[0]?.[0]));
-    expect(envelope.code).toBe("INVALID_ARGUMENT");
-    expect(envelope.error).toContain("--input-mapping");
+    expect(captured.body).toMatchObject({ evaluator });
+    expect(captured.body).not.toHaveProperty("input_mapping");
   });
 
   it("rejects an evaluation delay on a SPAN evaluator", async () => {
