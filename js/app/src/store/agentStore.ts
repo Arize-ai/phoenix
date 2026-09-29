@@ -36,9 +36,7 @@ import type { ModelConfig } from "./playground/types";
 /**
  * The assistant's model configuration. Extends the playground's
  * {@link ModelConfig} with the ChatGPT (Codex) subscription flag, which only
- * the assistant can use: the turn then runs on the browser's ChatGPT sign-in
- * rather than on server-side OpenAI credentials, and `provider` is `OPENAI`
- * for display purposes.
+ * the assistant can use.
  */
 export type AgentModelConfig = ModelConfig & {
   codexSubscription?: boolean;
