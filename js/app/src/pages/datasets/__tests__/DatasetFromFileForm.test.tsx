@@ -22,8 +22,34 @@ function exportedCsv(ids: string[]): File {
   const text = ["id,node_id,input.question,output.answer,splits", ...rows].join(
     "\n"
   );
-  const file = new File([text + "\n"], "exported.csv", { type: "text/csv" });
-  // jsdom's File has no stream(); parseCSVFile reads through it.
+  return withStream(
+    new File([text + "\n"], "exported.csv", { type: "text/csv" }),
+    text
+  );
+}
+
+/** Mirrors `GET /v1/datasets/{id}/jsonl` (`_get_content_jsonl`). */
+function exportedJsonl(ids: string[]): File {
+  const text = ids
+    .map((id, i) =>
+      JSON.stringify({
+        id,
+        node_id: nodeId(i + 1),
+        input: { question: `question ${i}` },
+        output: { answer: `answer ${i}` },
+        metadata: {},
+        splits: ["train"],
+      })
+    )
+    .join("\n");
+  return withStream(
+    new File([text + "\n"], "exported.jsonl", { type: "application/jsonl" }),
+    text
+  );
+}
+
+// jsdom's File has no stream(); the file parsers read through it.
+function withStream(file: File, text: string): File {
   Object.defineProperty(file, "stream", {
     value: () => new Response(text + "\n").body,
   });
@@ -50,7 +76,7 @@ function findSelectButton(container: HTMLElement, label: string) {
   return button;
 }
 
-describe("DatasetFromFileForm (create mode) re-uploading an exported CSV", () => {
+describe("DatasetFromFileForm (create mode) re-uploading an export", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -105,19 +131,34 @@ describe("DatasetFromFileForm (create mode) re-uploading an exported CSV", () =>
 
   it.each([
     {
-      scenario: "id column holds Phoenix DatasetExample node IDs",
-      ids: [nodeId(1), nodeId(2), nodeId(3)],
+      scenario: "CSV id column holds Phoenix DatasetExample node IDs",
+      file: () => exportedCsv([nodeId(1), nodeId(2), nodeId(3)]),
       expectedExampleId: "None",
     },
     {
-      scenario: "id column holds plain external IDs",
-      ids: ["ext-1", "ext-2", "ext-3"],
+      scenario: "CSV id column holds plain external IDs",
+      file: () => exportedCsv(["ext-1", "ext-2", "ext-3"]),
+      expectedExampleId: "id",
+    },
+    {
+      scenario: "CSV id column mixes external and node IDs",
+      file: () => exportedCsv(["ext-1", nodeId(2), "ext-3"]),
+      expectedExampleId: "None",
+    },
+    {
+      scenario: "JSONL id field holds Phoenix DatasetExample node IDs",
+      file: () => exportedJsonl([nodeId(1), nodeId(2), nodeId(3)]),
+      expectedExampleId: "None",
+    },
+    {
+      scenario: "JSONL id field holds plain external IDs",
+      file: () => exportedJsonl(["ext-1", "ext-2", "ext-3"]),
       expectedExampleId: "id",
     },
   ])(
     "auto-selects Example ID = $expectedExampleId when the $scenario",
-    async ({ ids, expectedExampleId }) => {
-      await renderAndSelect(exportedCsv(ids));
+    async ({ file, expectedExampleId }) => {
+      await renderAndSelect(file());
       expect(
         findSelectButton(container, EXAMPLE_ID_LABEL).textContent
       ).toContain(expectedExampleId);
