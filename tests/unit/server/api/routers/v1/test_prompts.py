@@ -40,7 +40,7 @@ from phoenix.db.types.prompts import (
     ToolCallFunction,
     ToolResultContentPart,
 )
-from phoenix.server.api.routers.v1.prompts import PromptVersionData
+from phoenix.server.api.routers.v1.prompt_models import PromptVersionData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
