@@ -1,12 +1,11 @@
 ---
-title: "Arize Phoenix for Agents"
-sidebarTitle: "Connect Your Coding Agent"
+title: "Connect Your Coding Agent"
 description: Connect your coding agent to Phoenix so it can instrument your app, read the traces that come back, and act on what it finds.
 ---
 
 import AgentAssistedOnboardingPrereq from "../../../snippets/agent-assisted-onboarding-prereq.mdx";
 
-Connect Claude Code, Codex, Cursor, or any other coding agent to Phoenix. It can add tracing to your app, read the traces that come back, and act on what it finds. You ask in plain language:
+Works with Claude Code, Codex, Cursor, or any other coding agent. You ask in plain language:
 
 ```text
 Show me the latest traces in my default project and summarize any errors
@@ -15,10 +14,6 @@ Show me the latest traces in my default project and summarize any errors
 ```text
 Pull my rag-pipeline prompt and suggest improvements based on recent trace failures
 ```
-
-<Note>
-This connects your coding agent **to** Phoenix. To have Phoenix **record your coding agent's own work** as traces (its turns, tool calls, and token costs), see [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code).
-</Note>
 
 <AgentAssistedOnboardingPrereq />
 
@@ -198,3 +193,6 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
   </Accordion>
 </AccordionGroup>
 
+## Learn more
+
+- [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code): have Phoenix record your coding agent's own turns, tool calls, and token costs.
