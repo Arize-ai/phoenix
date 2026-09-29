@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<659e12275a9cf1a4dfc7114e550f485b>>
+ * @generated SignedSource<<eca592c411f9748329f206d0abadc25e>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,14 @@
 import { ReaderInlineDataFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_failures$data = {
-  readonly failedRunCount: number;
+  readonly failureSummary: {
+    readonly droppedCount: number;
+    readonly evaluatedCount: number;
+    readonly failedCount: number;
+    readonly failureRate: number | null;
+    readonly lastError: string | null;
+    readonly lastFailedAt: string | null;
+  };
   readonly " $fragmentType": "ProjectEvaluatorsTable_failures";
 };
 export type ProjectEvaluatorsTable_failures$key = {
@@ -23,6 +30,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_failures"
 };
 
-(node as any).hash = "136f0042705670415b3ae6e903102472";
+(node as any).hash = "6b3253d4dfc3cc92279871bc01d815f5";
 
 export default node;

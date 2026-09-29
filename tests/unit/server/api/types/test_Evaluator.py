@@ -2094,25 +2094,26 @@ async def test_project_evaluator_run_summary_reports_error_when_failure_is_newes
     assert run_summary["lastError"] == "credentials expired"
 
 
-async def test_project_evaluator_failed_run_count_is_scoped_to_the_time_range(
+async def test_project_evaluator_failure_summary_is_scoped_to_the_time_range(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """Only failures given up on within [start, end) count; successes, other
-    evaluators' failures, and failures outside the range do not."""
+    """Only work finished within [start, end) counts, and the last error is the
+    newest one in range even when a newer one falls just outside it."""
     now = datetime.now(timezone.utc)
     start, end = now - timedelta(hours=24), now - timedelta(hours=1)
     fingerprint = token_hex(8)
-    # (status, updated_at, belongs to the evaluator under test)
+    # (status, updated_at, error, belongs to the evaluator under test)
     units = [
-        ("FAILED", start, True),  # start is inclusive
-        ("EXPIRED", now - timedelta(hours=12), True),
-        ("FAILED", now - timedelta(hours=2), True),
-        ("DONE", now - timedelta(hours=2), True),
-        ("SUPERSEDED", now - timedelta(hours=2), True),
-        ("FAILED", start - timedelta(seconds=1), True),
-        ("FAILED", end, True),  # end is exclusive
-        ("FAILED", now - timedelta(hours=2), False),
+        ("FAILED", start, "oldest", True),  # start is inclusive
+        ("EXPIRED", now - timedelta(hours=12), "middle", True),
+        ("FAILED", now - timedelta(hours=2), "newest in range", True),
+        ("DONE", now - timedelta(hours=3), None, True),
+        ("DONE", start - timedelta(seconds=1), None, True),
+        ("SUPERSEDED", now - timedelta(hours=2), None, True),
+        ("FAILED", start - timedelta(seconds=1), "before", True),
+        ("FAILED", end, "after", True),  # end is exclusive
+        ("FAILED", now - timedelta(hours=2), "other", False),
     ]
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
@@ -2159,9 +2160,10 @@ async def test_project_evaluator_failed_run_count_is_scoped_to_the_time_range(
                     config_fingerprint=fingerprint,
                     evaluated_through=now,
                     status=status,
+                    error=error,
                     updated_at=updated_at,
                 )
-                for trace, (status, updated_at, is_own) in zip(traces, units)
+                for trace, (status, updated_at, error, is_own) in zip(traces, units)
             ]
         )
         await session.flush()
@@ -2171,8 +2173,23 @@ async def test_project_evaluator_failed_run_count_is_scoped_to_the_time_range(
         """query ($id: ID!, $timeRange: TimeRange!) {
             node(id: $id) {
                 ... on ProjectEvaluator {
-                    failedRunCount(timeRange: $timeRange)
-                    unbounded: failedRunCount(timeRange: {})
+                    failureSummary(timeRange: $timeRange) {
+                        failedCount
+                        evaluatedCount
+                        failureRate
+                        lastFailedAt
+                        lastError
+                    }
+                    unbounded: failureSummary(timeRange: {}) {
+                        failedCount
+                        evaluatedCount
+                        lastError
+                    }
+                    runSummary {
+                        failedCount
+                        evaluatedCount
+                        lastError
+                    }
                 }
             }
         }""",
@@ -2183,8 +2200,17 @@ async def test_project_evaluator_failed_run_count_is_scoped_to_the_time_range(
     )
 
     assert not response.errors and response.data
-    assert response.data["node"]["failedRunCount"] == 3
-    assert response.data["node"]["unbounded"] == 5
+    summary = response.data["node"]["failureSummary"]
+    assert summary["failedCount"] == 3
+    assert summary["evaluatedCount"] == 1
+    assert summary["failureRate"] == pytest.approx(3 / 4)
+    assert datetime.fromisoformat(summary["lastFailedAt"]) == now - timedelta(hours=2)
+    assert summary["lastError"] == "newest in range"
+    unbounded = response.data["node"]["unbounded"]
+    assert (unbounded["failedCount"], unbounded["evaluatedCount"]) == (5, 2)
+    assert unbounded["lastError"] == "after"
+    # The status column's all-time summary shares the batch with the ranged one.
+    assert response.data["node"]["runSummary"] == unbounded
 
 
 async def test_project_evaluator_trace_project_resolves_to_its_dedicated_project(

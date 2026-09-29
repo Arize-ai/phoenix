@@ -69,6 +69,7 @@ import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/eval
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import {
   EvaluatorScoreWindowProvider,
   ProjectEvaluatorMeanScoreCell,
@@ -98,8 +99,6 @@ const PAGE_SIZE = 30;
 const COLUMN_LABELS: Partial<Record<string, string>> = {
   meanScore: "mean score",
 };
-
-const failureCountFormatter = new Intl.NumberFormat();
 
 const scrollableAreaCSS = css`
   flex: 1 1 auto;
@@ -220,7 +219,14 @@ const readRow = (
       fragment ProjectEvaluatorsTable_failures on ProjectEvaluator
       @inline
       @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
-        failedRunCount(timeRange: $timeRange)
+        failureSummary(timeRange: $timeRange) {
+          failedCount
+          evaluatedCount
+          droppedCount
+          failureRate
+          lastFailedAt
+          lastError
+        }
       }
     `,
     row
@@ -481,18 +487,15 @@ export function ProjectEvaluatorsTable({
         ),
       },
       {
-        id: "recentFailures",
-        header: "recent failures",
-        size: 120,
+        id: "failures",
+        header: "failure rate",
+        size: 110,
         meta: { textAlign: "right" },
-        cell: ({ row }) => {
-          const count = row.original.failedRunCount;
-          return (
-            <Text color={count > 0 ? "danger" : undefined}>
-              {failureCountFormatter.format(count)}
-            </Text>
-          );
-        },
+        cell: ({ row }) => (
+          <ProjectEvaluatorFailuresCell
+            failureSummary={row.original.failureSummary}
+          />
+        ),
       },
       {
         id: "kind",

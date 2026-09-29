@@ -3703,9 +3703,9 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
-  Evaluations this evaluator gave up on within the time range, placed in time by when they were given up on. Failures older than the online evaluation retention window are reaped, so a longer range counts no further back than that.
+  Failures and completions within the time range, placed in time by when each evaluation finished or was given up on. Work older than the online evaluation retention window is reaped, so a longer range counts no further back than that.
   """
-  failedRunCount(timeRange: TimeRange!): Int!
+  failureSummary(timeRange: TimeRange!): ProjectEvaluatorFailureSummary!
 
   """
   Distribution of this evaluator's primary output over all annotated targets in range. Spans and traces filter on trace start time; sessions on session start time. Uses the latest annotation per target and name across annotation identifiers.
@@ -3767,6 +3767,32 @@ type ProjectEvaluatorEdge {
 
   """The item at the end of the edge"""
   node: ProjectEvaluator!
+}
+
+type ProjectEvaluatorFailureSummary {
+  """Evaluations given up on within the range."""
+  failedCount: Int!
+
+  """Evaluations that produced an annotation within the range."""
+  evaluatedCount: Int!
+
+  """
+  Evaluations shed from the backlog within the range. They are not failures and do not count toward the failure rate.
+  """
+  droppedCount: Int!
+
+  """
+  When the newest failure in the range was given up on, or null if none was.
+  """
+  lastFailedAt: DateTime
+
+  """
+  The error of the newest failure in the range, or null if none was recorded.
+  """
+  lastError: String
+
+  """Share of completed evaluations that failed, or null if none completed."""
+  failureRate: Float
 }
 
 """The filter key and value for project evaluator connections"""
