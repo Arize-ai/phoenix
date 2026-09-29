@@ -157,3 +157,45 @@ GET_SPANS_ORDER = ParameterRequirement(
     route="GET /v1/projects/{id}/spans",
     min_server_version=Version(20, 16, 0),
 )
+
+GET_EVALUATOR = RouteRequirement(
+    method="GET",
+    path="/v1/evaluators/{evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+PATCH_EVALUATOR = RouteRequirement(
+    method="PATCH",
+    path="/v1/evaluators/{evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+CREATE_EVALUATOR_VERSION = RouteRequirement(
+    method="POST",
+    path="/v1/evaluators/{evaluator_id}/versions",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_EVALUATORS = RouteRequirement(
+    method="GET",
+    path="/v1/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_EVALUATOR_VERSIONS = RouteRequirement(
+    method="GET",
+    path="/v1/evaluators/{evaluator_id}/versions",
+    min_server_version=Version(21, 0, 0),
+)
+
+CREATE_EVALUATOR = RouteRequirement(
+    method="POST",
+    path="/v1/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_EVALUATOR = RouteRequirement(
+    method="DELETE",
+    path="/v1/evaluators/{evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
