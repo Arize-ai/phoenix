@@ -1103,6 +1103,21 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("wraps the highlighted slash command at either end of the list", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/c" });
+    await writeInput({ stdin, input: UP_ARROW });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /compact");
+
+    await writeInput({ stdin, input: DOWN_ARROW });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /clear");
+    unmount();
+  });
+
   it("runs the highlighted slash command after navigating", async () => {
     const client: PxiChatClient = { sendMessage: async () => null };
     const { lastFrame, stdin, unmount } = render(

@@ -2003,10 +2003,9 @@ export function PxiApp({
       const offset = key.upArrow ? -1 : 1;
       setCommandHintSelection({
         draftValue: draft.value,
-        index: Math.min(
-          Math.max(selectedCommandHintIndex + offset, 0),
-          commandHints.length - 1
-        ),
+        index:
+          (selectedCommandHintIndex + offset + commandHints.length) %
+          commandHints.length,
       });
       return;
     }
