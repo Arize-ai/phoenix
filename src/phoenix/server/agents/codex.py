@@ -45,9 +45,6 @@ class CodexTokens:
 
 
 def resolve_codex_access_token(request_credentials: Mapping[str, SecretStr]) -> SecretStr | None:
-    """No workspace-secret or environment fallback, unlike the GitHub token: a
-    subscription token is personal, and OpenAI's guidance is not to pool or share it.
-    """
     token = request_credentials.get(CODEX_ACCESS_TOKEN_SECRET_KEY)
     if token is not None and token.get_secret_value():
         return token
@@ -69,18 +66,15 @@ def jwt_payload(token: str) -> dict[str, Any] | None:
 
 
 def account_id_from_token(token: str) -> str | None:
-    """Codex nests the id under the ``https://api.openai.com/auth`` claim; older
-    token shapes carry it top-level."""
+    """Codex nests the account id under the ``https://api.openai.com/auth`` claim."""
     payload = jwt_payload(token)
     if payload is None:
         return None
     auth = payload.get("https://api.openai.com/auth")
-    if isinstance(auth, dict) and isinstance(auth.get("chatgpt_account_id"), str):
-        return str(auth["chatgpt_account_id"])
-    for key in ("chatgpt_account_id", "account_id"):
-        if isinstance(payload.get(key), str):
-            return str(payload[key])
-    return None
+    if not isinstance(auth, dict):
+        return None
+    account_id = auth.get("chatgpt_account_id")
+    return account_id if isinstance(account_id, str) else None
 
 
 def _tokens_from_response(data: Mapping[str, Any]) -> CodexTokens:

@@ -28,9 +28,9 @@ class TestAccountId:
     def test_nested_claim(self) -> None:
         assert codex.account_id_from_token(ACCESS_TOKEN) == "acct_123"
 
-    def test_top_level_fallbacks(self) -> None:
-        assert codex.account_id_from_token(_jwt({"chatgpt_account_id": "a"})) == "a"
-        assert codex.account_id_from_token(_jwt({"account_id": "b"})) == "b"
+    def test_top_level_ids_are_ignored(self) -> None:
+        assert codex.account_id_from_token(_jwt({"chatgpt_account_id": "a"})) is None
+        assert codex.account_id_from_token(_jwt({"account_id": "b"})) is None
 
     def test_malformed(self) -> None:
         assert codex.account_id_from_token("not-a-jwt") is None
