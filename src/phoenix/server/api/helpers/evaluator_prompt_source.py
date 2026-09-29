@@ -27,10 +27,11 @@ class NewPrompt:
 
 @dataclass(frozen=True)
 class FromPromptVersion:
-    """Start from an existing version; content that differs is appended to its prompt."""
+    """Start from an existing version; content that differs is appended to its prompt.
+    Without content, the version is pinned as it is."""
 
     prompt_version_id: GlobalID
-    content: models.PromptVersion
+    content: Optional[models.PromptVersion] = None
 
 
 @dataclass(frozen=True)
@@ -60,11 +61,15 @@ async def pin_prompt_version(
     session: AsyncSession,
     *,
     base: Optional[models.PromptVersion],
-    content: models.PromptVersion,
+    content: Optional[models.PromptVersion],
     prompt_id: int,
 ) -> models.PromptVersion:
-    """Return base when the content is identical to it; otherwise append the content to
-    the prompt and return it."""
+    """Return base when there is no content or the content is identical to it; otherwise
+    append the content to the prompt and return it."""
+    if content is None:
+        if base is None:
+            raise NotFound("Prompt version not found")
+        return base
     if base is not None and base.has_identical_content(content):
         return base
     content.prompt_id = prompt_id

@@ -43,7 +43,6 @@ from phoenix.server.api.helpers.evaluator_management import (
 )
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     CreatePromptSource,
-    EditCurrentPrompt,
     FromPromptVersion,
     UpdatePromptSource,
     get_prompt_version,
@@ -243,7 +242,8 @@ async def create_project_llm_evaluator(
 
     user_id = context.user_id
     source = input.prompt_source
-    source.content.user_id = user_id
+    if source.content is not None:
+        source.content.user_id = user_id
 
     try:
         async with context.db() as session:
@@ -251,7 +251,8 @@ async def create_project_llm_evaluator(
                 session, project_id, input.project_id
             )
             evaluator_name = await generate_unique_evaluator_name(session, name)
-            await validate_custom_provider(session, source.content)
+            if source.content is not None:
+                await validate_custom_provider(session, source.content)
 
             if isinstance(source, FromPromptVersion):
                 base = await get_prompt_version(session, source.prompt_version_id)
@@ -340,7 +341,8 @@ async def update_project_llm_evaluator(
         raise BadRequest(str(error))
 
     user_id = context.user_id
-    input.prompt_source.content.user_id = user_id
+    if input.prompt_source.content is not None:
+        input.prompt_source.content.user_id = user_id
 
     try:
         async with context.db() as session:
@@ -1147,13 +1149,15 @@ async def _update_llm_definition(
     session: AsyncSession,
     evaluator: models.LLMEvaluator,
     *,
-    prompt_source: UpdatePromptSource,
+    prompt_source: Optional[UpdatePromptSource],
     output_configs: list[CategoricalOutputConfig],
     description: Optional[str],
     name: Identifier,
     user_id: int | None,
     shared_evaluator_changed: bool = False,
-) -> None:
+) -> models.PromptVersion:
+    """Apply a definition edit and return the prompt version the evaluator now pins.
+    Without a prompt source the current pin is kept."""
     base: Optional[models.PromptVersion] = None
     if isinstance(prompt_source, FromPromptVersion):
         base = await get_prompt_version(session, prompt_source.prompt_version_id)
@@ -1168,9 +1172,11 @@ async def _update_llm_definition(
         )
 
     target_prompt_id = base.prompt_id if base is not None else evaluator.prompt_id
-    await validate_custom_provider(session, prompt_source.content)
+    content = prompt_source.content if prompt_source is not None else None
+    if content is not None:
+        await validate_custom_provider(session, content)
     prompt_version = await pin_prompt_version(
-        session, base=base, content=prompt_source.content, prompt_id=target_prompt_id
+        session, base=base, content=content, prompt_id=target_prompt_id
     )
     if prompt_version is not base:
         shared_evaluator_changed = True
@@ -1213,14 +1219,14 @@ async def _update_llm_definition(
     if shared_evaluator_changed:
         evaluator.user_id = user_id
         evaluator.updated_at = datetime.now(timezone.utc)
+    return prompt_version
 
 
 @dataclass(kw_only=True)
 class LLMEvaluatorPatch:
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
-    prompt_version: Optional[models.PromptVersion] = UNSET
-    prompt_version_id: Optional[GlobalID] = UNSET
+    prompt_source: Optional[UpdatePromptSource] = None
     output_configs: Optional[list[OutputConfigType]] = UNSET
 
 
@@ -1240,38 +1246,14 @@ async def patch_llm_evaluator(
                 raise NotFound(f"LLM evaluator not found: {evaluator_id}")
             if patch.name is not UNSET:
                 row.name = IdentifierModel.model_validate(patch.name)
-            prompt_version = patch.prompt_version
-            if prompt_version is UNSET:
-                if patch.prompt_version_id is not UNSET and patch.prompt_version_id is not None:
-                    version_id = from_global_id_with_expected_type(
-                        patch.prompt_version_id, "PromptVersion"
-                    )
-                    prompt_version = await session.get(models.PromptVersion, version_id)
-                else:
-                    prompt_version = await session.scalar(
-                        select(models.PromptVersion)
-                        .join(
-                            models.PromptVersionTag,
-                            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
-                        )
-                        .where(models.PromptVersionTag.id == row.prompt_version_tag_id)
-                    )
-            if prompt_version is None:
-                raise NotFound("Prompt version not found")
             configs = row.output_configs if patch.output_configs is UNSET else patch.output_configs
             output_configs = LLMEvaluatorOutputConfigs.model_validate({"configs": configs}).configs
-            if patch.prompt_version is not UNSET:
-                prompt_version.user_id = context.user_id
-            await _update_llm_definition(
+            if patch.prompt_source is not None and patch.prompt_source.content is not None:
+                patch.prompt_source.content.user_id = context.user_id
+            prompt_version = await _update_llm_definition(
                 session,
                 row,
-                prompt_source=(
-                    FromPromptVersion(
-                        prompt_version_id=patch.prompt_version_id, content=prompt_version
-                    )
-                    if patch.prompt_version_id is not UNSET and patch.prompt_version_id is not None
-                    else EditCurrentPrompt(content=prompt_version)
-                ),
+                prompt_source=patch.prompt_source,
                 output_configs=output_configs,
                 description=patch.description,
                 name=row.name,
