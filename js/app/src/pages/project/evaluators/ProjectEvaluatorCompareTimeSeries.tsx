@@ -170,25 +170,21 @@ export function ProjectEvaluatorCompareTimeSeries({
   const comparison = useFragment(comparisonFragment, comparisonRef);
   const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
   const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
+  const toSide = (
+    key: CompareSide["key"],
+    evaluator: typeof evaluatorA
+  ): CompareSide => ({
+    key,
+    name: evaluator.name,
+    color: EVALUATOR_COMPARE_COLORS[key],
+    annotationName: comparison[key].annotationName,
+    config: toAnnotationOptimizationConfig(
+      evaluator.evaluator.outputConfigs[0] ?? {}
+    ),
+  });
   const sides: [CompareSide, CompareSide] = [
-    {
-      key: "a",
-      name: evaluatorA.name,
-      color: EVALUATOR_COMPARE_COLORS.a,
-      annotationName: comparison.a.annotationName,
-      config: toAnnotationOptimizationConfig(
-        evaluatorA.evaluator.outputConfigs[0] ?? {}
-      ),
-    },
-    {
-      key: "b",
-      name: evaluatorB.name,
-      color: EVALUATOR_COMPARE_COLORS.b,
-      annotationName: comparison.b.annotationName,
-      config: toAnnotationOptimizationConfig(
-        evaluatorB.evaluator.outputConfigs[0] ?? {}
-      ),
-    },
+    toSide("a", evaluatorA),
+    toSide("b", evaluatorB),
   ];
   return (
     <div css={panelCSS}>
@@ -402,27 +398,20 @@ function ProjectEvaluatorCompareTimeSeriesChart({
     views,
     requested: searchParams.get(VIEW_PARAM),
   });
-  const seriesBySide = { a: seriesA, b: seriesB };
-  // A side only draws in the views its own results support.
-  const visibleSides = sides.filter((side) =>
-    seriesBySide[side.key]?.views.includes(view)
-  );
-  const labelSegmentsBySide = Object.fromEntries(
-    sides.map((side) => [
-      side.key,
-      getCompareLabelSegments({
-        labels: seriesBySide[side.key]?.labels ?? [],
+  const groups = sides.map((side) => {
+    const series = side.key === "a" ? seriesA : seriesB;
+    return {
+      ...side,
+      series,
+      segments: getCompareLabelSegments({
+        labels: series?.labels ?? [],
         hue: EVALUATOR_COMPARE_HUES[side.key],
-        direction: side.config?.optimizationDirection,
-        scoresByLabel: new Map(
-          (side.config?.values ?? []).map(({ label, score }) => [
-            label ?? "",
-            score,
-          ])
-        ),
+        config: side.config,
       }),
-    ])
-  ) as Record<CompareSide["key"], ReturnType<typeof getCompareLabelSegments>>;
+      // A side only draws in the views its own results support.
+      isVisible: series?.views.includes(view) ?? false,
+    };
+  });
 
   return (
     <TimeSeriesCard
@@ -454,19 +443,15 @@ function ProjectEvaluatorCompareTimeSeriesChart({
         >
           {({ chartProps }) => (
             <AnnotationMetricsGroupedChart
-              groups={sides.map((side) => ({
-                key: side.key,
-                name: side.name,
-                color: side.color,
-                series: seriesBySide[side.key],
-                segments: labelSegmentsBySide[side.key],
+              groups={groups.map((group) => ({
+                ...group,
                 scoreAxisProps: {
-                  domain: getScoreDomain(side.config),
-                  style: { ...compactYAxisProps.style, fill: side.color },
+                  domain: getScoreDomain(group.config),
+                  style: { ...compactYAxisProps.style, fill: group.color },
                 },
                 getMeanScoreOptimization: (meanScore) =>
                   getPositiveOptimizationFromConfig({
-                    config: side.config,
+                    config: group.config,
                     score: meanScore,
                   }),
               }))}
@@ -502,7 +487,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
         css={compareChartFooterCSS}
         className="evaluator-time-series__legend"
       >
-        {sides.map((side) => (
+        {groups.map((side) => (
           <div
             key={side.key}
             className="evaluator-time-series__legend-side"
@@ -525,8 +510,8 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 </Text>
               ) : null}
             </div>
-            {view === "labels" && visibleSides.includes(side)
-              ? labelSegmentsBySide[side.key].map((segment) => (
+            {view === "labels" && side.isVisible
+              ? side.segments.map((segment) => (
                   <div
                     key={segment.index}
                     className="evaluator-time-series__legend-item"

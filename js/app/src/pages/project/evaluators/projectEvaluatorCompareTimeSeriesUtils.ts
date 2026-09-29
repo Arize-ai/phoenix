@@ -1,3 +1,4 @@
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import type { AnnotationLabelSegment } from "@phoenix/components/chart/AnnotationMetricsChart";
 import type {
   AnnotationMetricsSeries,
@@ -6,6 +7,7 @@ import type {
 
 import {
   type EvaluatorCompareHue,
+  getConfiguredScores,
   getLabelOptimalities,
   getLabelOptimalityColor,
   getPositionalOptimalities,
@@ -65,16 +67,16 @@ export function getLabelDisplayOrder({
 export function getCompareLabelSegments({
   labels,
   hue,
-  direction,
-  scoresByLabel,
+  config,
 }: {
   /** The side's series labels; segment indexes point into this array. */
   labels: ReadonlyArray<string>;
   hue: EvaluatorCompareHue;
-  direction: string | null | undefined;
-  /** Configured labels in configured order, with their mapped scores. */
-  scoresByLabel: ReadonlyMap<string, number | null>;
+  config: AnnotationOptimizationConfig | undefined;
 }): AnnotationLabelSegment[] {
+  const scoresByLabel = new Map(
+    (config?.values ?? []).map(({ label, score }) => [label ?? "", score])
+  );
   const indexByLabel = new Map(labels.map((label, index) => [label, index]));
   const ordered = getLabelDisplayOrder({
     labels,
@@ -82,9 +84,9 @@ export function getCompareLabelSegments({
   });
   const optimalities =
     getLabelOptimalities({
-      direction,
+      direction: config?.optimizationDirection,
       scores: ordered.map((label) => scoresByLabel.get(label)),
-      referenceScores: Array.from(scoresByLabel.values()),
+      referenceScores: getConfiguredScores(config),
     }) ?? getPositionalOptimalities(ordered.length);
   const segments = ordered.map((label, order) => ({
     label,

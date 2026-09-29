@@ -58,11 +58,14 @@ describe("getCompareLabelSegments", () => {
     const segments = getCompareLabelSegments({
       labels: ["fail", "unknown", "pass"],
       hue: "blue",
-      direction: "MAXIMIZE",
-      scoresByLabel: new Map([
-        ["pass", 1],
-        ["fail", 0],
-      ]),
+      config: {
+        annotationType: "CATEGORICAL",
+        optimizationDirection: "MAXIMIZE",
+        values: [
+          { label: "pass", score: 1 },
+          { label: "fail", score: 0 },
+        ],
+      },
     });
     expect(segments).toEqual([
       { label: "pass", index: 2, color: "var(--global-color-blue-900)" },
@@ -75,8 +78,7 @@ describe("getCompareLabelSegments", () => {
     const segments = getCompareLabelSegments({
       labels: ["y", "x"],
       hue: "purple",
-      direction: "NONE",
-      scoresByLabel: new Map(),
+      config: { annotationType: "CATEGORICAL", optimizationDirection: "NONE" },
     });
     expect(segments).toEqual([
       { label: "x", index: 1, color: "var(--global-color-purple-900)" },

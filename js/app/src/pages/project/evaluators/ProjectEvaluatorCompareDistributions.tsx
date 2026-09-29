@@ -43,7 +43,6 @@ import {
   defaultXAxisProps,
 } from "@phoenix/components/chart";
 import type { AnnotationMetricsView } from "@phoenix/components/chart/annotationMetricsUtils";
-import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 import {
   formatFloat,
   formatInt,
@@ -54,9 +53,9 @@ import type { ProjectEvaluatorCompareDistributions_comparison$key } from "./__ge
 import type { ProjectEvaluatorCompareDistributions_evaluator$key } from "./__generated__/ProjectEvaluatorCompareDistributions_evaluator.graphql";
 import type { ProjectEvaluatorCompareDistributions_side$key } from "./__generated__/ProjectEvaluatorCompareDistributions_side.graphql";
 import {
-  EVALUATOR_COMPARE_COLORS,
   EVALUATOR_COMPARE_HUES,
   type EvaluatorCompareHue,
+  getConfiguredScores,
   getLabelOptimalityColor,
   getPositionalOptimalities,
   NEUTRAL_LABEL_COLOR,
@@ -229,46 +228,25 @@ export function ProjectEvaluatorCompareDistributions({
     projectEvaluatorDistributionSideFragment,
     isOverlap ? comparison.b.sharedDistribution : evaluatorB.distribution
   );
-  const sides = [
-    {
-      side: sideA,
-      id: evaluatorA.id,
-      name: evaluatorA.name,
-      color: EVALUATOR_COMPARE_COLORS.a,
-      hue: EVALUATOR_COMPARE_HUES.a,
-      direction:
-        evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
-      referenceScores: getConfiguredScores(
-        evaluatorA.evaluator.outputConfigs[0]
-      ),
-      optimizationConfig: toAnnotationOptimizationConfig(
-        evaluatorA.evaluator.outputConfigs[0] ?? {}
-      ),
-    },
-    {
-      side: sideB,
-      id: evaluatorB.id,
-      name: evaluatorB.name,
-      color: EVALUATOR_COMPARE_COLORS.b,
-      hue: EVALUATOR_COMPARE_HUES.b,
-      direction:
-        evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
-      referenceScores: getConfiguredScores(
-        evaluatorB.evaluator.outputConfigs[0]
-      ),
-      optimizationConfig: toAnnotationOptimizationConfig(
-        evaluatorB.evaluator.outputConfigs[0] ?? {}
-      ),
-    },
-  ].map((item) => {
-    const { side } = item;
-    const param = `distributionView.${item.id}`;
+  const sides = (
+    [
+      ["a", evaluatorA, sideA],
+      ["b", evaluatorB, sideB],
+    ] as const
+  ).map(([key, evaluator, side]) => {
+    const param = `distributionView.${evaluator.id}`;
     const view = getDistributionView({
       side,
       requested: searchParams.get(param),
     });
     return {
-      ...item,
+      side,
+      id: evaluator.id,
+      name: evaluator.name,
+      hue: EVALUATOR_COMPARE_HUES[key],
+      optimizationConfig: toAnnotationOptimizationConfig(
+        evaluator.evaluator.outputConfigs[0] ?? {}
+      ),
       param,
       view,
       rows: getDistributionRows({ side, view }),
@@ -318,7 +296,6 @@ export function ProjectEvaluatorCompareDistributions({
             <DistributionChart
               key={item.id}
               {...item}
-              evaluatedCount={item.side.evaluatedCount}
               maximum={maximum}
               target={target}
               scope={scope}
@@ -416,25 +393,6 @@ const projectEvaluatorDistributionSideFragment = graphql`
   }
 `;
 
-/**
- * The scores an evaluator's output config pins down: its label scores, or its
- * score bounds. Lets bar shading rank a result on the evaluator's whole scale
- * even when only one value appears in range.
- */
-function getConfiguredScores(
-  config:
-    | {
-        readonly values?: ReadonlyArray<{ readonly score: number | null }>;
-        readonly lowerBound?: number | null;
-        readonly upperBound?: number | null;
-      }
-    | undefined
-): ReadonlyArray<number | null | undefined> {
-  if (config == null) return [];
-  if (config.values) return config.values.map(({ score }) => score);
-  return [config.lowerBound, config.upperBound];
-}
-
 type CategoryTickProps = {
   x?: number | string;
   y?: number | string;
@@ -485,14 +443,10 @@ const categoryTickCSS = css`
 function DistributionChart({
   side,
   name,
-  color,
   hue,
   view,
   rows: unorderedRows,
-  direction,
-  referenceScores,
   optimizationConfig,
-  evaluatedCount,
   maximum,
   target,
   scope,
@@ -500,20 +454,20 @@ function DistributionChart({
 }: {
   side: DistributionSide;
   name: string;
-  color: string;
   hue: EvaluatorCompareHue;
   view: AnnotationMetricsView;
   rows: DistributionChartRow[];
-  direction: EvaluatorOptimizationDirection | null;
-  /** The evaluator's configured scores, ranking shades on its own scale. */
-  referenceScores: ReadonlyArray<number | null | undefined>;
   optimizationConfig: AnnotationOptimizationConfig | undefined;
-  evaluatedCount: number;
   maximum: number;
   target: string;
   scope: DistributionScope;
   onViewChange: (view: AnnotationMetricsView) => void;
 }) {
+  const direction = optimizationConfig?.optimizationDirection;
+  const referenceScores = getConfiguredScores(optimizationConfig);
+  // Bars are always shades of the evaluator's hue, ranked by optimization
+  // direction when there is one. Without one, scores shade by value (higher
+  // stronger) and labels step through the shades in display order.
   const { rows, optimalities } =
     view === "labels"
       ? orderLabelRowsByOptimality({
@@ -525,23 +479,11 @@ function DistributionChart({
           rows: unorderedRows,
           optimalities: getScoreRowOptimalities({
             rows: unorderedRows,
-            direction,
+            direction: direction === "MINIMIZE" ? "MINIMIZE" : "MAXIMIZE",
             referenceScores,
           }),
         };
-  // Bars are always shades of the evaluator's hue, ranked by optimization
-  // direction when there is one. Without one, labels step through the shades
-  // in display order and scores by value, higher scores stronger.
-  const shades =
-    optimalities ??
-    (view === "scores"
-      ? getScoreRowOptimalities({
-          rows,
-          direction: "MAXIMIZE",
-          referenceScores,
-        })
-      : null) ??
-    getPositionalOptimalities(rows.length);
+  const shades = optimalities ?? getPositionalOptimalities(rows.length);
   const getFill = (row: DistributionChartRow, index: number) =>
     row.isOther
       ? NEUTRAL_LABEL_COLOR
@@ -594,7 +536,7 @@ function DistributionChart({
           <ChartEmptyStateOverlay
             isEmpty={chartedCount === 0}
             message={
-              evaluatedCount === 0
+              side.evaluatedCount === 0
                 ? scope === "overlap"
                   ? `No ${target} evaluated by both in this time range`
                   : `No ${target} evaluated in this time range`
@@ -687,7 +629,6 @@ function DistributionChart({
                 <Bar
                   dataKey="count"
                   name={name}
-                  fill={color}
                   isAnimationActive={false}
                   maxBarSize={40}
                   radius={[3, 3, 0, 0]}

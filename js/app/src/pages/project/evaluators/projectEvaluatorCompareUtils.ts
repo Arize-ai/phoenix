@@ -1,3 +1,4 @@
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import type { ConfusionMatrixDatum } from "@phoenix/components/chart";
 import {
   formatEvaluationTargetPlural,
@@ -6,19 +7,36 @@ import {
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 import { formatInt } from "@phoenix/utils/numberFormatUtils";
 
-export const EVALUATOR_COMPARE_COLORS = {
-  a: "var(--global-color-blue-700)",
-  b: "var(--global-color-purple-700)",
-} as const;
-
-/** A palette hue with 100–1400 steps in the global color tokens. */
-export type EvaluatorCompareHue = "blue" | "purple";
-
-/** The hue each side shades its labels with; its evaluator color is step 700. */
+/**
+ * The palette hue each side draws in (a hue with 100–1400 steps in the global
+ * color tokens): step 700 is the evaluator's color, and its labels shade
+ * across the steps.
+ */
 export const EVALUATOR_COMPARE_HUES = {
   a: "blue",
   b: "purple",
-} as const satisfies Record<"a" | "b", EvaluatorCompareHue>;
+} as const;
+
+export type EvaluatorCompareHue =
+  (typeof EVALUATOR_COMPARE_HUES)[keyof typeof EVALUATOR_COMPARE_HUES];
+
+export const EVALUATOR_COMPARE_COLORS = {
+  a: `var(--global-color-${EVALUATOR_COMPARE_HUES.a}-700)`,
+  b: `var(--global-color-${EVALUATOR_COMPARE_HUES.b}-700)`,
+} as const;
+
+/**
+ * The scores an evaluator's output config pins down: its label scores, or its
+ * score bounds. Lets shading rank a result on the evaluator's whole scale
+ * even when only one value appears in range.
+ */
+export function getConfiguredScores(
+  config: AnnotationOptimizationConfig | undefined
+): ReadonlyArray<number | null | undefined> {
+  if (config == null) return [];
+  if (config.values) return config.values.map(({ score }) => score);
+  return [config.lowerBound, config.upperBound];
+}
 
 export function toConfusionMatrixData({
   matrix,
