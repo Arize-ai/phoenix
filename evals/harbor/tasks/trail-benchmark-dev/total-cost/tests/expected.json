@@ -1,0 +1,5 @@
+{
+  "reference": "$16.00",
+  "notes": "The exact value is $16.0022; accept any rounding of it.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; Phoenix project costSummary.total.cost"
+}

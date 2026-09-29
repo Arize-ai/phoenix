@@ -268,7 +268,7 @@ Continuous score in the range `0.0` to `1.0` (matches the weighted average of th
 | Environment variables | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` — set each as a **secret reference** to a key in [Settings → Secrets](/docs/phoenix/settings/secrets). Drop a juror entirely if you don't want to provision that provider's key. |
 
 <Warning>
-The jury makes **N API calls per example** — one per juror — and pays the full install cost for every provider SDK on cold start. `arize-phoenix-evals` alone pulls `pydantic` and `httpx`; each provider SDK adds another 10–40 MB. Bump the sandbox configuration's **Timeout** to comfortably cover N round-trips plus the install, and reuse the same configuration across runs so the provider can warm-cache it.
+The jury makes **N API calls per example** — one per juror — and pays the full install cost for every provider SDK on cold start. `arize-phoenix-evals` alone pulls `pydantic`; each provider SDK adds another 10–40 MB. Bump the sandbox configuration's **Timeout** to comfortably cover N round-trips plus the install, and reuse the same configuration across runs so the provider can warm-cache it.
 
 The model IDs above (`gpt-4o-mini`, `claude-haiku-4-5`, `gemini-2.5-flash`) are reasonable defaults at the time of writing — swap them for the latest stable IDs from the provider's docs.
 </Warning>

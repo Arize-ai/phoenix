@@ -404,8 +404,9 @@ def _load_source(
     annotations: bool,
     scores_on_trace: bool,
     mapper: IdMapper,
+    project: str | None = None,
 ) -> None:
-    _, project = SOURCES[source]
+    project = project or SOURCES[source][1]
     _ensure_project(client, project)
 
     n_traces = n_spans = n_span_annos = n_trace_annos = 0
@@ -507,6 +508,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="post trace-level TRAIL scores as TRACE annotations instead of "
         "annotations on the root span (the default).",
     )
+    p.add_argument(
+        "--project",
+        default=None,
+        help="Phoenix project to load into (default: trail-gaia / trail-swebench per source)",
+    )
     p.add_argument("--verbose", "-v", action="store_true")
     return p
 
@@ -532,6 +538,7 @@ def main(argv: list[str] | None = None) -> int:
             shift_to_now=args.shift_to_now,
             annotations=args.annotations,
             scores_on_trace=args.scores_on_trace,
+            project=args.project,
             mapper=mapper,
         )
     return 0

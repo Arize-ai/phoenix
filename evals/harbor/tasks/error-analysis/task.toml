@@ -7,16 +7,15 @@ name = "arize/phoenix-error-analysis"
 description = "PXI open-codes a project's traces into notes, then axial-codes them into per-dimension annotation configs, through the agent session chat route"
 keywords = ["pxi", "agent_session_chat", "error_analysis"]
 
+[metadata]
+fixture = "error-analysis"
+
 [environment]
 os = "linux"
 cpus = 2
 memory_mb = 4096
-# The task itself needs nothing from outside: every host is added at a narrower level.
-# Each agent entry in the job file (or --allow-agent-host) names its own LLM provider,
-# which applies during agent.run() only; the job's environment.extra_allowed_hosts (or
-# --allow-environment-host) carries the docs hosts. Keeping hosts out of this file keeps
-# the task digest, and so the Phoenix dataset version, stable across providers and
-# operators.
+# Add hosts in the job or agent configuration to keep this task's dataset version stable
+# across providers and operators.
 network_mode = "allowlist"
 build_timeout_sec = 1200.0
 
@@ -24,9 +23,18 @@ build_timeout_sec = 1200.0
 ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
 OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
 
-# The verifier's LLM judge (error_analysis_checks.judge) calls its provider, and the
-# agent-phase hosts do not carry over to verification. Nothing the verifier does needs
-# sealing, so it runs with public network access rather than a second allowlist.
+# Start Phoenix as root so it can read the fixture before the unprivileged agent runs.
+[environment.healthcheck]
+command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
+timeout_sec = 180.0
+retries = 2
+
+# Prevent the agent from reading /data/phoenix.db directly.
+[agent]
+user = "agent"
+
+# The verifier needs public access because agent host allowances do not apply during
+# verification and its LLM judge calls an external provider.
 [verifier]
 network_mode = "public"
 

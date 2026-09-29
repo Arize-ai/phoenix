@@ -16,3 +16,13 @@ export function clampNumber({
 }): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * Whether a value is a number above zero. Usage and cost values are absent,
+ * zero or positive, so this is the one test for "there is something here".
+ */
+export function isPositiveNumber(
+  value: number | null | undefined
+): value is number {
+  return typeof value === "number" && value > 0;
+}

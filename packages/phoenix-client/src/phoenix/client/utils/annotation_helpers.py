@@ -526,19 +526,20 @@ def _chunk_annotations_dataframe(
     """
 
     annotations = []
-    for idx, row in dataframe.iterrows():  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+    for idx, raw_row in dataframe.iterrows():  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
         try:
+            row: "pd.Series[Any]" = raw_row.dropna()  # pyright: ignore[reportUnknownMemberType]
             row_name = annotation_name
             if row_name is None:
-                if "name" in row and bool(row.loc["name"]):  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                    row_name = str(row.loc["name"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                elif "annotation_name" in row and bool(row.loc["annotation_name"]):  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                    row_name = str(row.loc["annotation_name"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                if "name" in row and bool(row.loc["name"]):
+                    row_name = str(row.loc["name"]).strip()
+                elif "annotation_name" in row and bool(row.loc["annotation_name"]):
+                    row_name = str(row.loc["annotation_name"]).strip()
             assert row_name
 
             row_annotator_kind = annotator_kind or (
-                str(row.loc["annotator_kind"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "annotator_kind" in row and bool(row.loc["annotator_kind"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                str(row.loc["annotator_kind"]).strip()
+                if "annotator_kind" in row and bool(row.loc["annotator_kind"])
                 else None
             )
 
@@ -573,30 +574,30 @@ def _chunk_annotations_dataframe(
                     raise ValueError(f"Row {idx}: Missing required ID columns: {missing_ids}")
 
             label = (
-                str(row.loc["label"]).strip() if "label" in row and bool(row.loc["label"]) else None  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                str(row.loc["label"]).strip() if "label" in row and bool(row.loc["label"]) else None
             )
             score = None
-            if "score" in row and row.loc["score"] is not None:  # pyright: ignore[reportUnknownMemberType]
+            if "score" in row and row.loc["score"] is not None:
                 try:
-                    score = float(row.loc["score"])  # pyright: ignore[reportUnknownArgumentType,reportArgumentType,reportUnknownMemberType]
+                    score = float(row.loc["score"])
                 except (ValueError, TypeError):
                     raise TypeError(
-                        f"Score value '{row.loc['score']}' cannot be converted to float"  # pyright: ignore[reportUnknownMemberType]
+                        f"Score value '{row.loc['score']}' cannot be converted to float"
                     )
             explanation = (
-                str(row.loc["explanation"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "explanation" in row and bool(row.loc["explanation"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                str(row.loc["explanation"]).strip()
+                if "explanation" in row and bool(row.loc["explanation"])
                 else None
             )
             metadata = cast(
                 dict[str, Any],
-                dict(row.loc["metadata"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "metadata" in row and bool(row.loc["metadata"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                dict(row.loc["metadata"])
+                if "metadata" in row and bool(row.loc["metadata"])
                 else None,
             )
             identifier = (
-                str(row.loc["identifier"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "identifier" in row and bool(row.loc["identifier"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                str(row.loc["identifier"]).strip()
+                if "identifier" in row and bool(row.loc["identifier"])
                 else None
             )
 

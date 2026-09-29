@@ -225,6 +225,7 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+            assert playground_project_id is not None
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (

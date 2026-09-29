@@ -6,10 +6,10 @@
 import type { useCategoryChartColors } from "@phoenix/components/chart";
 import {
   compareTokenTypes,
-  getRemainderTokenType,
-  getTokenDetailColor,
-  getTokenDetailFallbackColors,
-  getTokenDetailLabel,
+  getTokenDetailLabelForKind,
+  getTokenDetailSeriesColors,
+  getTokenDetailValuesWithRemainder,
+  getTokenKind,
   TOKEN_DETAIL_EPSILON,
 } from "@phoenix/utils/tokenDetailUtils";
 
@@ -95,8 +95,7 @@ export function getModelTokenDetailDataKey({
   isPrompt: boolean;
   tokenType: string;
 }) {
-  const tokenKind = isPrompt ? "prompt" : "completion";
-  return `${TOKEN_DETAIL_DATA_KEY_PREFIX}${tokenKind}:${encodeURIComponent(tokenType)}`;
+  return `${TOKEN_DETAIL_DATA_KEY_PREFIX}${getTokenKind({ isPrompt })}:${encodeURIComponent(tokenType)}`;
 }
 
 /**
@@ -115,25 +114,21 @@ export function getModelTokenDetailLabel({
   allSeries: ReadonlyArray<ModelTokenDetailSeries>;
   series: ModelTokenDetailSeries;
 }) {
-  const label = getTokenDetailLabel(series.tokenType);
-  const isTokenTypeUsedByBothKinds = allSeries.some(
-    (candidate) =>
-      candidate.tokenType === series.tokenType &&
-      candidate.isPrompt !== series.isPrompt
-  );
-  if (!isTokenTypeUsedByBothKinds) {
-    return label;
-  }
-  return `${series.isPrompt ? "Prompt" : "Completion"} ${label.toLowerCase()}`;
+  return getTokenDetailLabelForKind({
+    ...series,
+    isUsedByBothKinds: allSeries.some(
+      (candidate) =>
+        candidate.tokenType === series.tokenType &&
+        candidate.isPrompt !== series.isPrompt
+    ),
+  });
 }
 
 /**
- * Assigns every series in a model chart a distinct color.
- *
- * A token type carries one semantic color, but prompt and completion usage of
- * that type are separate series here, so the second one has to give up the
- * semantic color; sharing it would render the two as a single continuous block
- * with indistinguishable legend swatches.
+ * Assigns every series in a model chart a distinct color, keyed by data key.
+ * Prompt and completion usage of one token type are separate series here, so
+ * the second gives up the type's semantic color; see
+ * `getTokenDetailSeriesColors`.
  *
  * @param params - Color assignment context.
  * @param params.colors - Theme-aware categorical chart colors.
@@ -147,25 +142,13 @@ export function getModelTokenDetailColors({
   colors: ReturnType<typeof useCategoryChartColors>;
   series: ReadonlyArray<ModelTokenDetailSeries>;
 }) {
-  const fallbackColors = getTokenDetailFallbackColors(colors);
-  const takenColors = new Set<string>();
-  const claimColor = (preferredColor: string) => {
-    const color = takenColors.has(preferredColor)
-      ? (fallbackColors.find((candidate) => !takenColors.has(candidate)) ??
-        preferredColor)
-      : preferredColor;
-    takenColors.add(color);
-    return color;
-  };
-
-  return new Map(
-    series.map((candidate, index) => [
-      candidate.dataKey,
-      claimColor(
-        getTokenDetailColor({ colors, index, tokenType: candidate.tokenType })
-      ),
-    ])
-  );
+  return getTokenDetailSeriesColors({
+    colors,
+    series: series.map(({ dataKey, tokenType }) => ({
+      key: dataKey,
+      tokenType,
+    })),
+  });
 }
 
 /**
@@ -296,8 +279,8 @@ function recordTokenDetailValue({
  * Builds stacked model chart data for either token counts or costs.
  *
  * Detail rows refine the authoritative prompt and completion summaries but
- * may be incomplete for historical spans. Any positive remainder is assigned
- * to Input or Output so each rendered stack still matches its summary total.
+ * may be incomplete for historical spans, so each side goes through
+ * `getTokenDetailValuesWithRemainder` and every stack matches its total.
  *
  * @param params - Chart transformation input.
  * @param params.metric - Whether to project token counts or costs.
@@ -317,30 +300,24 @@ export function buildModelTokenDetailChartData({
       model: model.name,
       total: model.costSummary.total[metric] ?? 0,
     };
-    const detailTotals = { prompt: 0, completion: 0 };
-
-    model.costDetailSummaryEntries.forEach((detail) => {
-      const value = detail.value[metric] ?? 0;
-      const tokenKind = detail.isPrompt ? "prompt" : "completion";
-      detailTotals[tokenKind] += value;
-      recordTokenDetailValue({
-        chartDatum,
-        isPrompt: detail.isPrompt,
-        seriesByDataKey,
-        tokenType: detail.tokenType,
-        value,
-      });
-    });
-
     ([true, false] as const).forEach((isPrompt) => {
-      const tokenKind = isPrompt ? "prompt" : "completion";
-      recordTokenDetailValue({
-        chartDatum,
+      const values = getTokenDetailValuesWithRemainder({
+        details: Object.fromEntries(
+          model.costDetailSummaryEntries
+            .filter((detail) => detail.isPrompt === isPrompt)
+            .map((detail) => [detail.tokenType, detail.value[metric]])
+        ),
+        sideTotal: model.costSummary[getTokenKind({ isPrompt })][metric] ?? 0,
         isPrompt,
-        seriesByDataKey,
-        tokenType: getRemainderTokenType(isPrompt),
-        value:
-          (model.costSummary[tokenKind][metric] ?? 0) - detailTotals[tokenKind],
+      });
+      Object.entries(values).forEach(([tokenType, value]) => {
+        recordTokenDetailValue({
+          chartDatum,
+          isPrompt,
+          seriesByDataKey,
+          tokenType,
+          value,
+        });
       });
     });
 

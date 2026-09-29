@@ -283,12 +283,12 @@ examples:
   # tool-agnostic. Variants cover both summary-level and per-run reads.
 
   - id: footprint-three-axis-read
-    # quarantined regression -> dev (2026-08-25): since the browser-action
-    # meta-tools landed, the agent loads the right skills but then drifts to
-    # an execute_browser_action script (which cannot read GraphQL) and gives
-    # up, instead of running the bash phoenix-gql read the skill prescribes.
-    # Reproduced in CI runs 32749407419 + 32865446008 and locally. Real
-    # agent deficiency to investigate, not flake.
+    # Quarantined regression -> dev (2026-08-25). The original failures ran
+    # without bash after the session-persistence migration; attributing them
+    # to production-agent behavior was unsupported. The harness now exposes
+    # both bash and MCP reads. Keep dev-only until the three-axis contract
+    # is verified across supported reads; these bash substrings alone cannot
+    # assess MCP reads or query execution beyond the deferred-action boundary.
     splits: [dev]
     input:
       contexts:
@@ -411,22 +411,23 @@ examples:
         - role: user
           content: What's the average relevance score on my last experiment?
     expected:
-      forbidden_tool_call_args:
+      tools:
+        required: [load_skill]
+      tool_call_args:
         load_skill:
           skill_name: experiments
     metadata:
-      negative: true
-      category: negative_closed_form_read
+      category: experiment_result_read
       difficulty: tricky
-      polarity: negative
+      polarity: positive
       annotation:
         agreement: medium
         n_opinions: 3
         notes: >-
-          Single closed-form statistic answerable with a direct phoenix-gql
-          read; does not need the experiments authoring/iteration methodology.
-          Medium because it mentions an experiment, which sits near the trigger
-          boundary.
+          Reading an experiment score triggers the shipped experiments skill,
+          even for one aggregate. Keep the historical example ID for continuity.
+          DATASET_CONTEXT_INSTRUCTIONS requires the methodology before reading
+          experiment results; this case previously contradicted that policy.
 
   - id: negative-tell-me-about-dataset
     splits: [regression]

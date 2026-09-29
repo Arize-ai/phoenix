@@ -852,6 +852,131 @@ class TestDatasetExperimentsResolver:
         assert response.data == {"node": {"experiments": {"edges": edges}}}
 
 
+class TestDatasetExperimentsSortAndSequenceFilter:
+    QUERY = """
+      query ($datasetId: ID!, $sequenceNumbers: [Int!], $sort: ExperimentSort) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(sequenceNumbers: $sequenceNumbers, sort: $sort) {
+              edges {
+                node {
+                  sequenceNumber
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def test_defaults_to_newest_first(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=4)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+        assert not response.errors
+        assert response.data is not None
+        sequence_numbers = [
+            edge["node"]["sequenceNumber"] for edge in response.data["node"]["experiments"]["edges"]
+        ]
+        assert sequence_numbers == [4, 3, 2, 1]
+
+    async def test_sort_by_sequence_number_ascending(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=4)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sort": {"col": "sequenceNumber", "dir": "asc"},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        sequence_numbers = [
+            edge["node"]["sequenceNumber"] for edge in response.data["node"]["experiments"]["edges"]
+        ]
+        assert sequence_numbers == [1, 2, 3, 4]
+
+    async def test_filter_by_sequence_numbers_returns_only_requested(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=7)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sequenceNumbers": [2, 5],
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        # Default newest-first ordering, and the sequenceNumber field reads the
+        # true per-dataset ordinal (not a 1..n recount over the filtered subset).
+        assert response.data["node"]["experiments"]["edges"] == [
+            {"node": {"sequenceNumber": 5, "name": "experiment-5"}},
+            {"node": {"sequenceNumber": 2, "name": "experiment-2"}},
+        ]
+
+    async def test_filter_by_sequence_numbers_composes_with_sort(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=7)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sequenceNumbers": [5, 2],
+                "sort": {"col": "sequenceNumber", "dir": "asc"},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"]["experiments"]["edges"] == [
+            {"node": {"sequenceNumber": 2, "name": "experiment-2"}},
+            {"node": {"sequenceNumber": 5, "name": "experiment-5"}},
+        ]
+
+    async def test_filter_by_sequence_numbers_matches_visible_ordinal_with_ephemeral(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        # An ephemeral experiment is created first but excluded by default, so the
+        # visible sequence numbers run 1..3 over the persisted experiments. The
+        # filter must resolve against that same visible ordinal.
+        dataset_id, _ = await _create_dataset_with_experiments(
+            db,
+            experiment_count=3,
+            create_ephemeral_experiment_first=True,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sequenceNumbers": [2],
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"]["experiments"]["edges"] == [
+            {"node": {"sequenceNumber": 2, "name": "experiment-2"}},
+        ]
+
+
 class TestDatasetBaselineExperimentResolver:
     QUERY = """
       query ($datasetId: ID!) {

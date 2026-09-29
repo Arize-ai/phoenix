@@ -10,6 +10,11 @@ import type { setDatasetExampleSplitsToolBatchMutation } from "./__generated__/s
 import { fetchSplitsByNames } from "./listSplits";
 import type { SetDatasetExampleSplitsInput } from "./types";
 
+/**
+ * Returns each example's full `datasetSplits` (as `AssignExamplesToSplitMenu`
+ * does) so the split chips in the examples table update from the normalized
+ * store without a refetch.
+ */
 const mutation = graphql`
   mutation setDatasetExampleSplitsToolBatchMutation(
     $input: SetDatasetExamplesSplitsInput!
@@ -17,6 +22,11 @@ const mutation = graphql`
     setDatasetExamplesSplits(input: $input) {
       examples {
         id
+        datasetSplits {
+          id
+          name
+          color
+        }
       }
     }
   }

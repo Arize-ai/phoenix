@@ -68,7 +68,7 @@ jobs:
         # `exclude-newer` from `[tool.uv]` and skips yanked/pre-releases.
         run: |
           pins=$(printf 'strawberry-graphql\npydantic-monty\n' \
-            | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.10)
+            | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.11)
           echo "$pins"
           while IFS='=' read -r name _ version; do
             [ -n "$name" ] || continue

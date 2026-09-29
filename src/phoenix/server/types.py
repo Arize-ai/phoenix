@@ -71,7 +71,7 @@ class DbSessionFactory:
 
         Do not rely on read-your-writes: against a Postgres replica this can be
         arbitrarily stale. Without a read engine it falls back to the writer's,
-        whose pool then serialises it with writes.
+        whose pool then serializes it with writes.
         """
         return self._read_db()
 

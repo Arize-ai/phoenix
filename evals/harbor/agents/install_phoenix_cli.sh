@@ -6,6 +6,6 @@ BIN_DIR="${3:-/usr/local/bin}"
 
 mkdir -p "$INSTALL_DIR" "$BIN_DIR"
 tar -xzf "$ARCHIVE" -C "$INSTALL_DIR"
-for bin in phoenix-cli px pxi; do
+for bin in phoenix-cli px; do
   ln -sf "$INSTALL_DIR/node_modules/.bin/$bin" "$BIN_DIR/$bin"
 done

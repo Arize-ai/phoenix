@@ -7,6 +7,7 @@ from phoenix.evals.llm.prompts import (
     FStringFormatter,
     Message,
     MessageRole,
+    MessageTemplate,
     MustacheFormatter,
     PromptTemplate,
     Template,
@@ -402,6 +403,31 @@ class TestPromptTemplate:
         assert template.template == messages
         assert set(template.variables) == {"role", "text"}
 
+    def test_message_list_accepts_role_aliases(self) -> None:
+        """A message list accepts the same role aliases the adapters do."""
+        messages = [
+            {"role": "developer", "content": "sys"},
+            {"role": "human", "content": "q"},
+            {"role": "ai", "content": "a"},
+            {"role": "model", "content": "b"},
+        ]
+        rendered = PromptTemplate(template=messages).render({})
+        assert [m["role"] for m in rendered] == [
+            MessageRole.DEVELOPER,
+            MessageRole.USER,
+            MessageRole.AI,
+            MessageRole.AI,
+        ]
+
+    def test_message_list_rejects_unknown_role(self) -> None:
+        with pytest.raises(ValueError, match="Unknown message role"):
+            PromptTemplate(template=[{"role": "wizard", "content": "hi"}])
+
+    def test_message_template_non_string_role_raises_value_error(self) -> None:
+        """A non-string, non-enum role is a clean ValueError, not a later AttributeError."""
+        with pytest.raises(ValueError):
+            MessageTemplate(role=None, content="hi")  # type: ignore[arg-type]
+
     def test_string_template_rendering(self) -> None:
         """Test rendering a string template."""
         template = PromptTemplate(template="Hello {name}, welcome to {place}")
@@ -722,8 +748,8 @@ class TestNormalizeRole:
             ("model", MessageRole.AI),
             ("Model", MessageRole.AI),
             ("system", MessageRole.SYSTEM),
-            ("developer", MessageRole.SYSTEM),
-            ("Developer", MessageRole.SYSTEM),
+            ("developer", MessageRole.DEVELOPER),
+            ("Developer", MessageRole.DEVELOPER),
         ],
     )
     def test_string_aliases_map_to_canonical_role(self, alias: str, expected: MessageRole) -> None:

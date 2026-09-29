@@ -140,7 +140,7 @@ class DocumentAnnotationMutationMixin:
                         "Cannot overwrite document annotation owned by another user."
                     )
 
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             stmt = insert_on_conflict(
                 *records,
                 dialect=dialect,

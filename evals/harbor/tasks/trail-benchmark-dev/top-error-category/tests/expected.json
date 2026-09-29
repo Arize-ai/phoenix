@@ -1,0 +1,5 @@
+{
+  "reference": "Formatting Errors",
+  "notes": "Any phrasing that names formatting errors matches.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; 124 trail_error annotations, next is Instruction Non-compliance at 65"
+}

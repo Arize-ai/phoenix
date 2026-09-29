@@ -285,6 +285,24 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
+        sql="SELECT time_fmt_datetime(time_trunc(time_parse(start_time), 'day')) AS bucket FROM spans GROUP BY bucket",
+        expect=AdmissionOutcome.ADMIT,
+        note="time_trunc is SQLite's date_trunc, from the bundled sqlean time extension",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT time_sub(time_parse(end_time), time_parse(start_time)) / 1e6 AS ms FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="time_sub parses to a node class of its own, so it is admitted by class rather than by name",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT time_sub(end_time, start_time) FROM spans",
+        expect=AdmissionOutcome.FUNCTION_NOT_ALLOWED,
+        note="time_sub is a SQLite extension function; PostgreSQL subtracts timestamps directly",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
         sql="SELECT to_char(start_time, 'YYYY-MM') FROM spans",
         expect=AdmissionOutcome.ADMIT,
         note="to_char is PostgreSQL's format spelling and parses to the same TimeToStr class as SQLite strftime",

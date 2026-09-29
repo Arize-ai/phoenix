@@ -34,10 +34,50 @@ jobs:
         with:
           filters: |
             e2e:
+              # The Python backend the suite runs against, plus the
+              # inputs `uv sync --extra container` resolves from: the
+              # dependency set, the lockfile and the interpreter pin.
+              # packages/* are uv workspace members that get installed
+              # from source, but the server never imports them (they are
+              # a re-export bridge for `pip install arize-phoenix`), and
+              # any dependency change they cause shows up in uv.lock.
               - "src/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              - ".python-version"
+              # The app under test.
               - "js/app/**"
-              - "js/packages/**"
+              # phoenix-client and phoenix-testing regenerate their API
+              # types from this schema in `prebuild`, so it feeds the
+              # app's dependency build even though it lives outside js/.
+              - "schemas/openapi.json"
+              # Only the workspace packages the app actually builds
+              # against, i.e. the closure of
+              # `pnpm --filter 'phoenix-ui^...' run build` (see the
+              # `pretest:e2e` script in js/app/package.json):
+              # phoenix-client and phoenix-evals, plus their transitive
+              # workspace deps phoenix-config, phoenix-otel and
+              # phoenix-testing. phoenix-cli and phoenix-mcp are
+              # downstream consumers of the workspace, not inputs to the
+              # app build, so changes there must not trigger e2e. Add a
+              # package here if the app ever starts depending on it.
+              - "js/packages/phoenix-client/**"
+              - "js/packages/phoenix-config/**"
+              - "js/packages/phoenix-evals/**"
+              - "js/packages/phoenix-otel/**"
+              - "js/packages/phoenix-testing/**"
+              # Workspace-level config that changes how the app's
+              # dependencies are resolved, installed or compiled.
+              # .pnpmfile.cjs rewrites resolution via a readPackage hook,
+              # so it changes what gets installed without touching any
+              # package.json.
+              - "js/package.json"
               - "js/pnpm-lock.yaml"
+              - "js/pnpm-workspace.yaml"
+              - "js/.npmrc"
+              - "js/.pnpmfile.cjs"
+              - "js/tsconfig.base.json"
+              - "js/tsconfig.base.esm.json"
               - ".github/workflows/playwright.yaml"
 
 
@@ -53,6 +93,7 @@ jobs:
       # We're skipping WebKit because of recurring issues with caching,
       # despite always installing it on cache-hit.
       CI_PLAYWRIGHT_SKIP_WEBKIT: true
+      CI_PLAYWRIGHT_SKIP_FIREFOX: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
     strategy:
       fail-fast: true
       matrix:

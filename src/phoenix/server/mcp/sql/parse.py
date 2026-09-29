@@ -146,6 +146,7 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
     repaired = _strip_sqlite_index_hints(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_interval_arithmetic(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_ilike(repaired, dialect=dialect)
+    repaired = _repair_sqlite_time_trunc(repaired, dialect=dialect)
     return _fold_unquoted_identifiers(repaired, dialect=dialect)
 
 
@@ -631,6 +632,28 @@ def _rewrite_sqlite_ilike(
         if node.args.get("negate"):
             like.set("negate", True)
         node.replace(like)
+    return root
+
+
+def _repair_sqlite_time_trunc(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """Rebuild ``time_trunc(t, 'hour')`` as the plain call SQLite runs.
+
+    The parser models it as ``TimeTrunc`` and degrades the quoted field to a
+    bare word, so it would render as ``TIME_TRUNC(t, HOUR)`` and SQLite would
+    look for a column named HOUR. The sqlean function takes the field as a
+    string, or a duration as a number.
+    """
+    if dialect != "sqlite":
+        return root
+    for node in reversed(list(root.find_all(exp.TimeTrunc))):
+        unit = node.args.get("unit")
+        if not isinstance(unit, exp.Var):
+            continue
+        name = unit.name
+        literal = exp.Literal.number(name) if name.isdigit() else exp.Literal.string(name.lower())
+        node.replace(exp.Anonymous(this="time_trunc", expressions=[node.this.copy(), literal]))
     return root
 
 

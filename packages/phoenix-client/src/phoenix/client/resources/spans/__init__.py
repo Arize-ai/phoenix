@@ -31,6 +31,8 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
     GET_SPANS_BY_ATTRIBUTE,
     GET_SPANS_FILTERS,
+    GET_SPANS_ORDER,
+    GET_SPANS_SORT,
     GET_SPANS_SPAN_IDS,
     GET_SPANS_TRACE_IDS,
 )
@@ -43,6 +45,8 @@ logger = logging.getLogger(__name__)
 
 _AttributeValue: TypeAlias = Union[str, int, float, bool]
 _Attributes: TypeAlias = dict[str, _AttributeValue]
+SpanSort: TypeAlias = Literal["id", "start_time"]
+SortOrder: TypeAlias = Literal["asc", "desc"]
 
 
 def _serialize_attribute_value(v: _AttributeValue) -> str:
@@ -501,6 +505,8 @@ class Spans:
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
         attributes: Optional[_Attributes] = None,
+        sort: Optional[SpanSort] = None,
+        order: Optional[SortOrder] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -533,6 +539,12 @@ class Spans:
                 To match a stored string whose contents look like a number or boolean
                 (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
                 Requires Phoenix server >= 14.9.0.
+            sort (Optional[Literal["id", "start_time"]]): Which field orders the
+                result. The default, ``"id"``, is insertion order;
+                ``"start_time"`` is when each span started, with ties broken by id.
+                Requires Phoenix server >= 20.16.0.
+            order (Optional[Literal["asc", "desc"]]): Sort direction. The
+                default is ``"desc"``, newest first. Requires Phoenix server >= 20.16.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -551,6 +563,10 @@ class Spans:
             self._guard.require(GET_SPANS_FILTERS)
         if attributes:
             self._guard.require(GET_SPANS_BY_ATTRIBUTE)
+        if sort:
+            self._guard.require(GET_SPANS_SORT)
+        if order:
+            self._guard.require(GET_SPANS_ORDER)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -583,6 +599,10 @@ class Spans:
                 )
             if attributes:
                 params["attribute"] = _serialize_attributes(attributes)
+            if sort:
+                params["sort"] = sort
+            if order:
+                params["order"] = order
             if cursor:
                 params["cursor"] = cursor
 
@@ -1799,6 +1819,8 @@ class AsyncSpans:
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
         attributes: Optional[_Attributes] = None,
+        sort: Optional[SpanSort] = None,
+        order: Optional[SortOrder] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -1831,6 +1853,12 @@ class AsyncSpans:
                 To match a stored string whose contents look like a number or boolean
                 (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
                 Requires Phoenix server >= 14.9.0.
+            sort (Optional[Literal["id", "start_time"]]): Which field orders the
+                result. The default, ``"id"``, is insertion order;
+                ``"start_time"`` is when each span started, with ties broken by id.
+                Requires Phoenix server >= 20.16.0.
+            order (Optional[Literal["asc", "desc"]]): Sort direction. The
+                default is ``"desc"``, newest first. Requires Phoenix server >= 20.16.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -1849,6 +1877,10 @@ class AsyncSpans:
             await self._guard.require(GET_SPANS_FILTERS)
         if attributes:
             await self._guard.require(GET_SPANS_BY_ATTRIBUTE)
+        if sort:
+            await self._guard.require(GET_SPANS_SORT)
+        if order:
+            await self._guard.require(GET_SPANS_ORDER)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1881,6 +1913,10 @@ class AsyncSpans:
                 )
             if attributes:
                 params["attribute"] = _serialize_attributes(attributes)
+            if sort:
+                params["sort"] = sort
+            if order:
+                params["order"] = order
             if cursor:
                 params["cursor"] = cursor
 

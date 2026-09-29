@@ -580,10 +580,9 @@ class TestListProjectTraces:
         assert trace_data["token_count_total"] == 150
 
 
-#: Trace durations in microseconds, one per inserted trace. Sub-millisecond parts
-#: differ from the rounded `latency_ms` the database emits, and the last two agree
-#: once rounded so the row id has to break the tie.
-_DURATIONS_US = (60_234_567, 120_245_678, 180_267_900, 240_279_011, 300_279_040, 300_279_010)
+#: Trace durations in microseconds, one per inserted trace. The last two are
+#: equal so the row id has to break the tie.
+_DURATIONS_US = (60_234_567, 120_245_678, 180_267_900, 240_279_011, 300_279_040, 300_279_040)
 
 
 async def _insert_traces_out_of_order(db: DbSessionFactory) -> models.Project:

@@ -37,7 +37,7 @@ from phoenix.server.types import (
 from phoenix.version import __version__ as phoenix_version
 from tests.unit.conftest import (
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -150,7 +150,7 @@ async def test_the_agents_own_server_adds_the_pxi_skills(
     db: DbSessionFactory,
 ) -> None:
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -195,7 +195,7 @@ async def test_shared_monty_runtime_is_torn_down_after_the_mcp_server_drains(
     order: list[str] = []
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -247,7 +247,7 @@ async def test_app_starts_up_when_monty_runtime_probe_raises(
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -277,7 +277,7 @@ async def test_monty_runtime_is_probed_for_evaluators_when_code_mode_is_disabled
     )
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -306,7 +306,7 @@ async def test_mcp_server_not_mounted_by_default(
     """Without the env flag, no MCP app is built or mounted."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -326,7 +326,7 @@ class TestAgentMCPServerIsIndependentOfTheMount:
     @staticmethod
     async def _create_app(db: DbSessionFactory) -> FastAPI:
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_dml_event_handler())
             await stack.enter_async_context(patch_grpc_server())
             return create_app(
                 db=db,
@@ -398,7 +398,7 @@ async def test_mcp_code_mode_replaces_tool_surface(
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -494,7 +494,7 @@ async def test_mcp_server_mounts_and_lifespan_starts(
     # so the generated tools are the ones under test.
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -628,7 +628,7 @@ class TestMcpCors:
     ) -> AsyncIterator[ASGIApp]:
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_dml_event_handler())
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
                 db=db,

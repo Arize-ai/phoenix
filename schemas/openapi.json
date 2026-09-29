@@ -5599,10 +5599,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Span Global ID)",
+              "description": "Pagination cursor: the next_cursor of a previous response with the same sort",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Span Global ID)"
+            "description": "Pagination cursor: the next_cursor of a previous response with the same sort"
           },
           {
             "name": "limit",
@@ -5617,6 +5617,38 @@
               "title": "Limit"
             },
             "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "id",
+                "start_time"
+              ],
+              "type": "string",
+              "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id.",
+              "default": "id",
+              "title": "Sort"
+            },
+            "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction",
+              "default": "desc",
+              "title": "Order"
+            },
+            "description": "Sort direction"
           },
           {
             "name": "start_time",
@@ -12052,7 +12084,7 @@
             },
             "type": "array",
             "title": "Example Ids",
-            "description": "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
+            "description": "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
           }
         },
         "type": "object",
@@ -21842,7 +21874,7 @@
             },
             "type": "array",
             "title": "Add Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
           },
           "remove_example_ids": {
             "items": {
@@ -21850,7 +21882,7 @@
             },
             "type": "array",
             "title": "Remove Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to remove from the split."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
           }
         },
         "type": "object",

@@ -1,0 +1,112 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Storybook/Writing a story" />
+
+# Writing a story
+
+The full conventions live in the `phoenix-storybook` skill. This page is the
+short version: where a story goes, what it must carry, and the handful of rules
+that most often get missed.
+
+## Where it goes
+
+Three roots, and the title determines the path.
+
+- **`Design System/<Subject>/…`** — anything used across the whole interface.
+  The membership test is breadth of use, not simplicity: `Table` belongs here
+  even though it is large, and a one-off card does not even though it is small.
+- **`Domains/<Surface>/…`** — components tied to one product surface, named as
+  a user would name it: `Tracing`, `Experiments`, `Playground`, `PXI`, `Cost`.
+- **`Storybook/…`** — documentation of Storybook itself, like this page.
+
+Content is grouped by **subject**, never by abstraction tier. There is no
+foundations / components / patterns split, because it scatters everything a
+reader needs for one subject across three distant roots — working on tables
+would mean visiting the table tokens, the table components, and the table
+composition guidance in three separate places. Tier is a property of an entry,
+not an organizing axis.
+
+Within a subject, ordering is deliberate: an `Overview` page first, component
+stories next, composition guidance last.
+
+## The file path mirrors the title
+
+`Design System/Overlays/Popover` lives at
+`stories/design-system/overlays/Popover.stories.tsx`. Directories are the
+kebab-case slug of the leading title segments; the file keeps the component's
+own casing. `pnpm lint:storybook` enforces this, so a title and its location
+cannot drift apart. Never put an ampersand in a title segment — it becomes a
+directory name, and `&` is hostile to globs and shell commands.
+
+## Tag it
+
+Exactly one value from each required axis. See [Tags](?path=/docs/storybook-tags--docs).
+
+## Rules most often missed
+
+**Render production, never a lookalike.** Reuse the real component, its real
+types, and its real providers. Mock only the narrow external boundary needed to
+put it in a given state. If an example needs UI that production does not have,
+do not write the story — a Storybook page that shows a proposal reads as
+documentation and is a false claim about the app.
+
+**Once a component ships, render it rather than re-specify it.** A story that
+hand-assembles the same config the production call site passes is a second
+source of truth, and the two drift silently.
+
+**Match production even where production is a one-off.** If one instance of a
+pattern is genuinely different, leave it different. Uniformity the app does not
+have is a fiction, and it hides the variation a reader came to check.
+
+**Prefer one scannable story to many sidebar entries.** Scrolling beats
+navigating. Render several instances together when comparison is the point, and
+collapse a large set of small like items into one labeled gallery. The limit:
+this groups like items of one kind — a kitchen-sink page of unrelated
+components duplicates every component's own story and rots.
+
+**Every sidebar entry shows something no other entry shows.** A file's Docs
+page renders all of its stories, so a file with a single story would show it
+twice. Tag a lone story `!dev`: the Docs page becomes the file's one entry, and
+the sidebar draws it as a single leaf. `pnpm lint:storybook` enforces this.
+
+**Open layered content and keep it open.** A tooltip, popover, menu, or dialog
+story is about the content, not the launch. Hold it open through the
+component's real controlled state, and put dismissal behavior in a separate
+interaction story.
+
+**Cover content length.** Empty, one character, typical, and long enough to
+expose wrapping or truncation. For lists: zero, one, typical, enough to
+overflow, and an atypically large but valid count.
+
+**Compose for both themes.** Pick `themeLayout: "row"` or `"column"`
+deliberately so the story stays legible when the `Both` toolbar mode renders
+light and dark at once.
+
+## Give it a thumbnail
+
+A subject's `Overview` page shows each component as a card. The card's
+picture comes from a story named exactly `Thumbnail`, which renders inside a
+fixed 320×200 frame:
+
+```tsx
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => <Card title="Card">…</Card>,
+};
+```
+
+- **Author it to fit the frame.** It is a picture, not a demo: one
+  representative state, compact content, overlays opened on mount.
+- **Tag it `!dev` and `!autodocs`.** It stays out of the sidebar and the docs
+  page; `pnpm lint:storybook` enforces both.
+- **Wrong size at 1:1?** `parameters: { thumbnail: { scale: 0.5 } }` lays the
+  frame out twice as large and photographs it at half the pixel density, so a
+  drawer or table fits; a scale above 1 enlarges a small component.
+- **Show overlays open.** Prefer the component's `defaultOpen` or `isOpen`.
+  Without one, a `play` function that clicks the trigger works. For a
+  hover-only surface, `thumbnail: { hover: "link" }` names the role the
+  generator hovers with a real pointer; a `play` hover does not open React
+  Aria tooltips.
+- **Regenerate, never edit, the images.** With this worktree's Storybook
+  running, `pnpm storybook:thumbnails [title-prefix]` writes
+  `<Name>.thumbnail.light.webp` and `.dark.webp` beside the story file.
