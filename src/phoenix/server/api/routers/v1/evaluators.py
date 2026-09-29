@@ -1,7 +1,7 @@
 """Read and update shared evaluator definitions and immutable code versions."""
 
 from collections.abc import Mapping
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import ConfigDict, Field
@@ -17,6 +17,7 @@ from phoenix.db.helpers import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import evaluator_service as service
 from phoenix.server.api.helpers.evaluator_prompt_source import (
@@ -45,11 +46,12 @@ from phoenix.server.api.routers.v1.problem_details import ProblemDetailsRoute
 from phoenix.server.api.routers.v1.utils import PaginatedResponseBody, ResponseBody
 from phoenix.server.authorization import is_not_locked
 
-EvaluatorType = Literal["llm", "code"]
+EvaluatorType = Literal["llm", "code", "builtin"]
 
 _EVALUATOR_KIND_BY_TYPE: Mapping[EvaluatorType, models.EvaluatorKind] = {
     "llm": "LLM",
     "code": "CODE",
+    "builtin": "BUILTIN",
 }
 _TYPENAME_BY_KIND: Mapping[models.EvaluatorKind, str] = {
     "LLM": "LLMEvaluator",
@@ -200,8 +202,19 @@ class LLMEvaluatorDefinition(V1RoutesBaseModel):
     output_configs: list[CategoricalAnnotationConfigData]
 
 
+class BuiltInEvaluatorDefinition(V1RoutesBaseModel):
+    type: Literal["builtin"]
+    id: str
+    name: Identifier
+    description: Optional[str]
+    key: str
+    input_schema: dict[str, Any]
+    output_configs: list[EvaluatorOutputConfig]
+
+
 EvaluatorDefinition = Annotated[
-    Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition], Field(discriminator="type")
+    Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition],
+    Field(discriminator="type"),
 ]
 
 
@@ -249,6 +262,27 @@ def _code_evaluator_definition(
     )
 
 
+def _builtin_evaluator_definition(
+    evaluator_id: str, builtin: models.BuiltinEvaluator
+) -> BuiltInEvaluatorDefinition:
+    """Build a built-in definition from its row; the rest comes from the in-memory
+    registry entry its key names, not the database, so there is nothing to batch beyond
+    the row itself."""
+    evaluator_class = get_builtin_evaluator_by_key(builtin.key)
+    if evaluator_class is None:
+        raise NotFound(f"Built-in evaluator class not found for key: {builtin.key}")
+    instance = evaluator_class()
+    return BuiltInEvaluatorDefinition(
+        type="builtin",
+        id=evaluator_id,
+        name=Identifier(evaluator_class.name),
+        description=evaluator_class.description,
+        key=builtin.key,
+        input_schema=instance.input_schema,
+        output_configs=output_configs_from_db(list(instance.output_configs)),
+    )
+
+
 def _llm_evaluator_definition(
     evaluator_id: str,
     llm: models.LLMEvaluator,
@@ -288,6 +322,12 @@ async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> Eva
     would otherwise report a fresh write as missing or stale.
     """
     global_id = parse_global_id(evaluator_id)
+    if global_id.type_name == "BuiltInEvaluator":
+        row_id = decode_global_id(evaluator_id, "BuiltInEvaluator")
+        builtin = await session.get(models.BuiltinEvaluator, row_id)
+        if builtin is None:
+            raise NotFound(f"Evaluator not found: {evaluator_id}")
+        return _builtin_evaluator_definition(evaluator_id, builtin)
     if global_id.type_name == "CodeEvaluator":
         row_id = decode_global_id(evaluator_id, "CodeEvaluator")
         pair = await code_evaluator_with_latest_version(session, row_id)
@@ -310,11 +350,13 @@ async def _evaluator_definitions_page(
 ) -> list[EvaluatorDefinition]:
     """Build a page of definitions in a fixed number of queries, independent of page size:
     the LLM rows and their prompt versions (tagged and, separately, untagged) each batched
-    in one statement, and the code rows and their latest versions likewise. `rows` is
-    (id, kind) as listed by `get_evaluators`, in the page's own order, which the result
-    preserves."""
+    in one statement, the code rows and their latest versions likewise, and the built-in
+    rows in one statement of their own (the rest of a built-in definition comes from the
+    in-memory registry, not the database). `rows` is (id, kind) as listed by
+    `get_evaluators`, in the page's own order, which the result preserves."""
     llm_ids = [row_id for row_id, kind in rows if kind == "LLM"]
     code_ids = [row_id for row_id, kind in rows if kind == "CODE"]
+    builtin_ids = [row_id for row_id, kind in rows if kind == "BUILTIN"]
 
     llm_by_id: dict[int, models.LLMEvaluator] = {}
     if llm_ids:
@@ -378,6 +420,19 @@ async def _evaluator_definitions_page(
         }
     latest_code_versions = await latest_code_evaluator_versions_by_evaluator_id(code_ids, session)
 
+    builtin_by_id: dict[int, models.BuiltinEvaluator] = {}
+    if builtin_ids:
+        builtin_by_id = {
+            row.id: row
+            for row in (
+                await session.scalars(
+                    select(models.BuiltinEvaluator).where(
+                        models.BuiltinEvaluator.id.in_(builtin_ids)
+                    )
+                )
+            ).all()
+        }
+
     definitions: list[EvaluatorDefinition] = []
     for row_id, kind in rows:
         evaluator_id = encode_global_id(_TYPENAME_BY_KIND[kind], row_id)
@@ -388,6 +443,11 @@ async def _evaluator_definitions_page(
             definitions.append(
                 _code_evaluator_definition(evaluator_id, code_row, latest_code_versions.get(row_id))
             )
+        elif kind == "BUILTIN":
+            builtin_row = builtin_by_id.get(row_id)
+            if builtin_row is None:
+                raise NotFound(f"Evaluator not found: {evaluator_id}")
+            definitions.append(_builtin_evaluator_definition(evaluator_id, builtin_row))
         else:
             llm = llm_by_id.get(row_id)
             if llm is None:
@@ -514,7 +574,10 @@ async def create_evaluator(
     responses=evaluator_error_responses([404, 422]),
 )
 async def get_evaluator(request: Request, evaluator_id: str) -> EvaluatorDefinitionResponseBody:
-    """Read a definition, including its current code or the prompt version it runs."""
+    """Read a definition, including its current code or the prompt version it runs.
+
+    Built-in definitions are read-only.
+    """
     with evaluator_api_errors():
         async with request.app.state.db.read() as session:
             return EvaluatorDefinitionResponseBody(
