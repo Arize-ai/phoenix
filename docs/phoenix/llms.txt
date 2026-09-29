@@ -326,6 +326,10 @@
 - [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
 - [Prompt Flow Tracing](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing): Send traces from Azure Prompt Flow
 
+### Vector Databases
+
+- [Qdrant](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant): Trace staged Qdrant hybrid search to isolate retrieval and selection issues across dense, sparse, and RRF fusion
+
 ### Evaluation Integrations
 
 - [Harbor](https://arize.com/docs/phoenix/integrations/evaluation-integrations/harbor): Record Harbor agent benchmarks as Phoenix experiments with rewards, infrastructure status, and ATIF traces

@@ -912,6 +912,13 @@
             ]
           },
           {
+            "group": "Vector Databases",
+            "icon": "database",
+            "pages": [
+              "docs/phoenix/integrations/vector-databases/qdrant"
+            ]
+          },
+          {
             "group": "Sandboxes",
             "icon": "cube",
             "pages": [

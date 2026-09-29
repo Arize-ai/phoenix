@@ -245,6 +245,12 @@ Normalize and convert data across other instrumentation libraries by adding span
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/nvidia-color.png" height="14"> | [NVIDIA NeMo](https://arize.com/docs/phoenix/integrations/python/nvidia)                                 | NVIDIA NeMo Agent Toolkit for enterprise agents                | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/nvidia)                                    |
 |                                                                                                  | [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite)                                  | Multi-agent LLM workflow framework with visual builder         | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/graphite)                                  |
 
+### Vector Databases
+
+| Integration                                                                         | Description                                          | Docs                                                                                    |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Qdrant](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant)       | Staged hybrid search tracing with dense, sparse, RRF | [Integration Guide](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant) |
+
 ## Sandboxes
 
 Run Phoenix [code evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators) in hosted sandbox providers for kernel-level isolation and runtime dependency installation.
