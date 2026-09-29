@@ -56,17 +56,18 @@ export type CustomProviderRef = {
 };
 
 export type ModelMenuValue = {
-  /**
-   * Built-in provider of the selection. Wider than the catalog's
-   * `GenerativeProviderKey`: the assistant's ChatGPT (Codex) provider has no
-   * catalog entry and is offered by the agent model menu alone.
-   */
-  provider: ModelProvider;
+  provider: GenerativeProviderKey;
   modelName: string;
   /**
    * Reference to custom provider if using one
    */
   customProvider?: CustomProviderRef;
+  /**
+   * Assistant only: the model runs on the user's ChatGPT (Codex) subscription
+   * with a browser-held token rather than on the `provider`'s server-side
+   * credentials. `provider` is then `OPENAI`, for display purposes.
+   */
+  codexSubscription?: boolean;
 };
 
 /**

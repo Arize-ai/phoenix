@@ -20,11 +20,7 @@ export function AgentCodexSignInBanner({
   modelMenuValue: ModelMenuValue;
 }) {
   const isSignedIn = useAgentContext((state) => state.codexAuth != null);
-  if (
-    modelMenuValue.customProvider ||
-    modelMenuValue.provider !== "OPENAI_CODEX" ||
-    isSignedIn
-  ) {
+  if (!modelMenuValue.codexSubscription || isSignedIn) {
     return null;
   }
   return (

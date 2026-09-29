@@ -62,7 +62,6 @@ export function getInvocationFamilyForProvider(
 ): InvocationFamily {
   switch (provider) {
     case "OPENAI":
-    case "OPENAI_CODEX":
     case "AZURE_OPENAI":
     case "DEEPSEEK":
     case "XAI":

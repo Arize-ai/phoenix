@@ -1,7 +1,6 @@
 // TODO: Pull from GenerativeProviderKey in gql schema
 declare type ModelProvider =
   | "OPENAI"
-  | "OPENAI_CODEX"
   | "AZURE_OPENAI"
   | "ANTHROPIC"
   | "GOOGLE"

@@ -229,7 +229,6 @@ export const detectToolCallProvider = (
 
 type ProviderToToolCallMap = {
   OPENAI: OpenAIToolCall;
-  OPENAI_CODEX: OpenAIToolCall;
   AZURE_OPENAI: OpenAIToolCall;
   DEEPSEEK: OpenAIToolCall;
   XAI: OpenAIToolCall;
@@ -289,7 +288,6 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-    case "OPENAI_CODEX":
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":

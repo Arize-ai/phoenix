@@ -108,14 +108,6 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
-    OPENAI_CODEX: [
-      [
-        "return tools as they are for codex",
-        "OPENAI_CODEX",
-        [{ test: "test" }],
-        [{ test: "test" }],
-      ],
-    ],
     DEEPSEEK: [
       [
         "return tools as they are for deepseek",

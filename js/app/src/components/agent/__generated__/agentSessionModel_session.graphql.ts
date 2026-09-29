@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5afc03035775a0a1ec5368ec108bc5ad>>
+ * @generated SignedSource<<cd009cb6b5a4f0e66c2ec01cb8daa922>>
  * @lightSyntaxTransform
  */
 
@@ -8,13 +8,16 @@
 // @ts-nocheck
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "OPENAI_CODEX" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 import { FragmentRefs } from "relay-runtime";
 export type agentSessionModel_session$data = {
   readonly model: {
     readonly __typename: "AgentBuiltinProviderModelSelection";
     readonly modelName: string;
     readonly provider: ModelProvider;
+  } | {
+    readonly __typename: "AgentCodexModelSelection";
+    readonly modelName: string;
   } | {
     readonly __typename: "AgentCustomProviderModelSelection";
     readonly modelName: string;
@@ -36,6 +39,6 @@ const node: ReaderInlineDataFragment = {
   "name": "agentSessionModel_session"
 };
 
-(node as any).hash = "c175ed7c5f56f2a1075b6c5905e0ae79";
+(node as any).hash = "c31ba74c02beffed9719fff87a218669";
 
 export default node;

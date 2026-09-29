@@ -113,6 +113,11 @@ export type PlaygroundError = {
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
+  /**
+   * Assistant only: run on the user's ChatGPT (Codex) subscription instead of
+   * the provider's server-side credentials. See `ModelMenuValue`.
+   */
+  codexSubscription?: boolean;
   baseUrl?: string | null;
   endpoint?: string | null;
   /**

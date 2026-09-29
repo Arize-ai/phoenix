@@ -28,6 +28,7 @@ from phoenix.server.agents.exceptions import (
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
     BuiltInProviderModelSelection,
+    CodexSubscriptionModelSelection,
     CustomProviderModelSelection,
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
@@ -155,10 +156,6 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
     before building a model for a built-in provider."""
     if provider is ModelProvider.OPENAI:
         return ("OPENAI_API_KEY",)
-    if provider is ModelProvider.OPENAI_CODEX:
-        # Subscription auth: the token comes from the request, never from
-        # secrets or the environment.
-        return ()
     if provider is ModelProvider.AZURE_OPENAI:
         return ("AZURE_OPENAI_API_KEY",)
     if provider is ModelProvider.ANTHROPIC:
@@ -239,6 +236,10 @@ async def build_model(
         pydantic_ai_model = _get_pydantic_ai_model_from_builtin_provider(
             model,
             credentials=credentials,
+        )
+    elif isinstance(model, CodexSubscriptionModelSelection):
+        pydantic_ai_model = _build_openai_codex_model(
+            model_name=model.model_name,
             request_credentials=request_credentials or {},
         )
     else:
@@ -417,7 +418,6 @@ def _get_pydantic_ai_model_from_builtin_provider(
     params: BuiltInProviderModelSelection,
     *,
     credentials: Mapping[str, str | None],
-    request_credentials: Mapping[str, SecretStr] | None = None,
 ) -> "PydanticAIModel":
     from openai import AsyncOpenAI
     from pydantic_ai.models.anthropic import AnthropicModel
@@ -447,11 +447,6 @@ def _get_pydantic_ai_model_from_builtin_provider(
             model_name=params.model_name,
             provider=openai_provider,
             openai_api_type="responses",
-        )
-    if params.provider == ModelProvider.OPENAI_CODEX:
-        return _build_openai_codex_model(
-            model_name=params.model_name,
-            request_credentials=request_credentials or {},
         )
     if params.provider == ModelProvider.AZURE_OPENAI:
         api_key = _first_credential(credentials, "AZURE_OPENAI_API_KEY")

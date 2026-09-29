@@ -143,6 +143,11 @@ class CodexRefreshRequestBody(TypedDict):
     refreshToken: str
 
 
+class CodexSubscriptionModelSelection(TypedDict):
+    providerType: Literal["codex"]
+    modelName: str
+
+
 class CodexTokenBundle(TypedDict):
     accessToken: str
     refreshToken: str
@@ -1436,7 +1441,6 @@ class AssistantMessageMetadataUsage(TypedDict):
 class BuiltInModelProvider(TypedDict):
     provider: Literal[
         "OPENAI",
-        "OPENAI_CODEX",
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",
@@ -1461,7 +1465,6 @@ class BuiltInProviderModelSelection(TypedDict):
     providerType: Literal["builtin"]
     provider: Literal[
         "OPENAI",
-        "OPENAI_CODEX",
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",
@@ -2041,7 +2044,9 @@ class AgentSessionData(TypedDict):
     created_at: str
     updated_at: str
     is_ephemeral: bool
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     is_active: bool
     last_message_id: NotRequired[str]
 
@@ -2060,12 +2065,16 @@ class ChatCompletion(TypedDict):
 
 
 class CompactAgentSessionRequestBody(TypedDict):
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     credentials: NotRequired[Sequence[ChatRequestCredential]]
 
 
 class CreateAgentSessionRequestBody(TypedDict):
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     title: NotRequired[str]
     is_ephemeral: NotRequired[bool]
 
@@ -2145,7 +2154,9 @@ class LegacyChatRegenerateMessage(TypedDict):
     trigger: Literal["regenerate-message"]
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
@@ -2177,7 +2188,9 @@ class LegacyChatRegenerateMessage(TypedDict):
 class LegacyChatSubmitMessage(TypedDict):
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     trigger: NotRequired[Literal["submit-message"]]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
@@ -2213,7 +2226,13 @@ class MessageMetadata(TypedDict):
 
 class PatchAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
-    model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
+    model: NotRequired[
+        Union[
+            CustomProviderModelSelection,
+            BuiltInProviderModelSelection,
+            CodexSubscriptionModelSelection,
+        ]
+    ]
 
 
 class PatchAgentSessionResponseBody(TypedDict):
@@ -2278,7 +2297,9 @@ class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
 
 class ChatRequestBody(TypedDict):
     headless: bool
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     id: str
     contexts: NotRequired[
         Sequence[
@@ -2339,7 +2360,6 @@ class PromptChatTemplate(TypedDict):
 class PromptVersionData(TypedDict):
     model_provider: Literal[
         "OPENAI",
-        "OPENAI_CODEX",
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",

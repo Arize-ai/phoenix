@@ -409,7 +409,6 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-    case "OPENAI_CODEX":
     case "DEEPSEEK":
     case "XAI":
     case "OLLAMA":
@@ -449,7 +448,6 @@ export type LlmProviderMessage = z.infer<typeof llmProviderMessageSchema>;
 
 type ProviderToMessageMap = {
   OPENAI: OpenAIMessage;
-  OPENAI_CODEX: OpenAIMessage;
   AZURE_OPENAI: OpenAIMessage;
   DEEPSEEK: OpenAIMessage;
   XAI: OpenAIMessage;

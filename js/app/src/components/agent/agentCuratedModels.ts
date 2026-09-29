@@ -51,7 +51,7 @@ export function getCuratedBuiltInModels(
 export function isAgentCuratedModelSelection(
   model: ModelMenuValue | null | undefined
 ): boolean {
-  if (!model || model.customProvider) {
+  if (!model || model.customProvider || model.codexSubscription) {
     return false;
   }
   return isAgentCuratedBuiltInModel({

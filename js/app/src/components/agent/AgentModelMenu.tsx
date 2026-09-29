@@ -59,7 +59,7 @@ function AgentModelItem({
 }) {
   return (
     <MenuItem
-      id={`${model.customProvider?.id ?? model.provider}:${model.modelName}`}
+      id={`${model.customProvider?.id ?? (model.codexSubscription ? "codex" : model.provider)}:${model.modelName}`}
       textValue={model.modelName}
       onAction={() => {
         onChange?.(model);
@@ -89,8 +89,8 @@ function CodexModelMenuSection({
         <MenuSectionTitle title="ChatGPT subscription" />
         {models.map((modelName) => (
           <AgentModelItem
-            key={`OPENAI_CODEX:${modelName}`}
-            model={{ provider: "OPENAI_CODEX", modelName }}
+            key={`codex:${modelName}`}
+            model={{ provider: "OPENAI", modelName, codexSubscription: true }}
             onChange={onChange}
           />
         ))}

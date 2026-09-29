@@ -63,6 +63,7 @@ function AssistantModelSetting() {
     ...(defaultModelConfig.customProvider && {
       customProvider: defaultModelConfig.customProvider,
     }),
+    ...(defaultModelConfig.codexSubscription && { codexSubscription: true }),
   };
   const isRecommendedModel = isAgentCuratedModelSelection(selectedModel);
   const handleModelChange = (model: ModelMenuValue) => {
@@ -72,6 +73,7 @@ function AssistantModelSetting() {
       provider: model.provider,
       modelName: model.modelName,
       customProvider: model.customProvider ?? null,
+      codexSubscription: model.codexSubscription ?? false,
     });
   };
   return (

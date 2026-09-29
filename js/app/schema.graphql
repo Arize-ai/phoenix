@@ -98,6 +98,17 @@ input AgentBuiltinProviderModelSelectionInput {
   modelName: String!
 }
 
+"""
+A ChatGPT (Codex) subscription selection. The browser signs in and sends its token on each request; no server-side provider is involved.
+"""
+type AgentCodexModelSelection {
+  modelName: String!
+}
+
+input AgentCodexModelSelectionInput {
+  modelName: String!
+}
+
 type AgentCustomProviderModelSelection {
   providerId: ID!
   modelName: String!
@@ -112,11 +123,12 @@ type AgentGithubEnabled {
   enabled: Boolean!
 }
 
-union AgentModelSelection = AgentCustomProviderModelSelection | AgentBuiltinProviderModelSelection
+union AgentModelSelection = AgentCustomProviderModelSelection | AgentBuiltinProviderModelSelection | AgentCodexModelSelection
 
 input AgentModelSelectionInput @oneOf {
   custom: AgentCustomProviderModelSelectionInput
   builtin: AgentBuiltinProviderModelSelectionInput
+  codex: AgentCodexModelSelectionInput
 }
 
 type AgentSession implements Node {
@@ -2607,7 +2619,6 @@ interface ModelInterface {
 
 enum ModelProvider {
   OPENAI
-  OPENAI_CODEX
   AZURE_OPENAI
   ANTHROPIC
   GOOGLE

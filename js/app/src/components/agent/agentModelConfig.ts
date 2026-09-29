@@ -21,6 +21,7 @@ const AGENT_MODEL_CONFIG_SCHEMA = z.object({
   provider: modelProviderSchema,
   model: z.string(),
   customProviderId: z.string().optional(),
+  codexSubscription: z.boolean().optional(),
 });
 
 export type AgentModelConfig = z.infer<typeof AGENT_MODEL_CONFIG_SCHEMA>;
@@ -38,6 +39,7 @@ export function toAgentModelConfig(model: ModelMenuValue): AgentModelConfig {
     provider: model.provider,
     model: model.modelName,
     customProviderId: model.customProvider?.id,
+    ...(model.codexSubscription && { codexSubscription: true }),
   };
 }
 
@@ -52,6 +54,7 @@ export function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
     ...(config.customProviderId && {
       customProvider: { id: config.customProviderId, name: "" },
     }),
+    ...(config.codexSubscription && { codexSubscription: true }),
   };
 }
 

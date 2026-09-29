@@ -9,7 +9,6 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 export function isModelProvider(provider: string): provider is ModelProvider {
   return (
     provider === "OPENAI" ||
-    provider === "OPENAI_CODEX" ||
     provider === "AZURE_OPENAI" ||
     provider === "ANTHROPIC" ||
     provider === "GOOGLE" ||
@@ -42,8 +41,6 @@ export function getProviderName(provider: ModelProvider): string {
   switch (provider) {
     case "OPENAI":
       return "OpenAI";
-    case "OPENAI_CODEX":
-      return "ChatGPT (Codex)";
     case "AZURE_OPENAI":
       return "Azure OpenAI";
     case "ANTHROPIC":
@@ -89,7 +86,6 @@ export function getProviderName(provider: ModelProvider): string {
 export function getSemConvProvider(provider: ModelProvider): string {
   switch (provider) {
     case "OPENAI":
-    case "OPENAI_CODEX":
       return LLMProvider.OPENAI.toString();
     case "AZURE_OPENAI":
       return LLMProvider.AZURE.toString();

@@ -8,7 +8,7 @@ from pydantic import SecretStr
 
 from phoenix.server.agents import codex
 from phoenix.server.agents.model_factory import build_model
-from phoenix.server.agents.model_selection import BuiltInProviderModelSelection
+from phoenix.server.agents.model_selection import CodexSubscriptionModelSelection
 from phoenix.server.types import DbSessionFactory
 
 
@@ -45,9 +45,8 @@ class TestBuildCodexModel:
     ) -> None:
         # The API key must never be used as a fallback for subscription auth.
         monkeypatch.setenv("OPENAI_API_KEY", "sk-should-not-be-used")
-        params = BuiltInProviderModelSelection(
-            provider_type="builtin",
-            provider="OPENAI_CODEX",
+        params = CodexSubscriptionModelSelection(
+            provider_type="codex",
             model_name="gpt-5.4",
         )
         with pytest.raises(Exception) as exc_info:
@@ -58,9 +57,8 @@ class TestBuildCodexModel:
         self,
         db: DbSessionFactory,
     ) -> None:
-        params = BuiltInProviderModelSelection(
-            provider_type="builtin",
-            provider="OPENAI_CODEX",
+        params = CodexSubscriptionModelSelection(
+            provider_type="codex",
             model_name="gpt-5.4",
         )
         model = await build_model(
@@ -82,9 +80,8 @@ class TestBuildCodexModel:
         self,
         db: DbSessionFactory,
     ) -> None:
-        params = BuiltInProviderModelSelection(
-            provider_type="builtin",
-            provider="OPENAI_CODEX",
+        params = CodexSubscriptionModelSelection(
+            provider_type="codex",
             model_name="gpt-5.4",
         )
         with pytest.raises(Exception) as exc_info:

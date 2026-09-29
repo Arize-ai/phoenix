@@ -73,6 +73,7 @@ export function useAgentChatPanelState({
       ...(activeModelConfig.customProvider && {
         customProvider: activeModelConfig.customProvider,
       }),
+      ...(activeModelConfig.codexSubscription && { codexSubscription: true }),
     }),
     [activeModelConfig]
   );
@@ -84,6 +85,7 @@ export function useAgentChatPanelState({
         provider: model.provider,
         modelName: model.modelName,
         customProvider: model.customProvider ?? null,
+        codexSubscription: model.codexSubscription ?? false,
       };
       if (!sessionId || sessionId === DRAFT_SESSION_ID) {
         setDefaultModelConfig(nextConfig);
@@ -98,11 +100,16 @@ export function useAgentChatPanelState({
               providerId: selection.providerId,
               modelName: selection.modelName,
             }
-          : {
-              __typename: "AgentBuiltinProviderModelSelection" as const,
-              provider: selection.provider,
-              modelName: selection.modelName,
-            };
+          : selection.providerType === "codex"
+            ? {
+                __typename: "AgentCodexModelSelection" as const,
+                modelName: selection.modelName,
+              }
+            : {
+                __typename: "AgentBuiltinProviderModelSelection" as const,
+                provider: selection.provider,
+                modelName: selection.modelName,
+              };
       commitModelChange({
         variables: {
           input: {

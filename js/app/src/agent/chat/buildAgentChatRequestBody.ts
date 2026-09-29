@@ -71,10 +71,7 @@ type ChatRequestCredential = components["schemas"]["ChatRequestCredential"];
 export function isCodexModelSelection(
   modelSelection: AgentModelSelection
 ): boolean {
-  return (
-    modelSelection.providerType === "builtin" &&
-    modelSelection.provider === "OPENAI_CODEX"
-  );
+  return modelSelection.providerType === "codex";
 }
 
 /**

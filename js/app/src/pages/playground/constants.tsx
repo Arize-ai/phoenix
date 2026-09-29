@@ -28,7 +28,6 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   AZURE_OPENAI: [],
   ANTHROPIC: ["claude"],
   OPENAI: ["gpt", "o1"],
-  OPENAI_CODEX: [],
   GOOGLE: ["gemini"],
   DEEPSEEK: ["deepseek"],
   XAI: ["grok"],

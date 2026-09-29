@@ -90,7 +90,6 @@ export function ChatMessageToolCallsEditor({
   const toolCallsJSONSchema = useMemo((): JSONSchema7 | null => {
     switch (instance.model.provider) {
       case "OPENAI":
-      case "OPENAI_CODEX":
       case "AZURE_OPENAI":
       case "DEEPSEEK":
       case "XAI":

@@ -34,6 +34,9 @@ const agentSessionModelFragment = graphql`
         providerId
         modelName
       }
+      ... on AgentCodexModelSelection {
+        modelName
+      }
     }
   }
 `;
@@ -94,6 +97,14 @@ export function resolvePersistedAgentModel({
       invocationParameters: getDefaultInvocationConfig(provider),
     };
   }
+  if (model.__typename === "AgentCodexModelSelection") {
+    return {
+      provider: "OPENAI",
+      modelName: model.modelName,
+      codexSubscription: true,
+      invocationParameters: getDefaultInvocationConfig("OPENAI"),
+    };
+  }
   return {
     provider: model.provider,
     modelName: model.modelName,
@@ -117,6 +128,12 @@ export function toAgentModelSelection(
       modelName: config.modelName ?? "",
     };
   }
+  if (config.codexSubscription) {
+    return {
+      providerType: "codex",
+      modelName: config.modelName ?? "",
+    };
+  }
   return {
     providerType: "builtin",
     provider: config.provider,
@@ -133,6 +150,9 @@ export function toAgentModelSelectionInput(model: AgentModelSelection) {
         modelName: model.modelName,
       },
     };
+  }
+  if (model.providerType === "codex") {
+    return { codex: { modelName: model.modelName } };
   }
   return {
     builtin: {

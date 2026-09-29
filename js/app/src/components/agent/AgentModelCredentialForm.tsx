@@ -43,7 +43,7 @@ export function useAgentModelCredentialStatus(value: ModelMenuValue | null) {
     { fetchKey, fetchPolicy: "store-and-network" }
   );
 
-  if (!value || value.customProvider) {
+  if (!value || value.customProvider || value.codexSubscription) {
     return {
       missingCredentialsProvider: null,
       refreshCredentialStatus: () => setFetchKey((key) => key + 1),

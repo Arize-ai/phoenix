@@ -745,8 +745,7 @@ describe("buildAgentChatRequestBody codex credentials", () => {
     const codexTurn = buildAgentChatRequestBody({
       ...baseOptions,
       modelSelection: {
-        providerType: "builtin",
-        provider: "OPENAI_CODEX",
+        providerType: "codex",
         modelName: "gpt-5.4",
       },
     });
@@ -780,8 +779,7 @@ describe("buildAgentChatRequestBody codex credentials", () => {
       ...baseOptions,
       codexAccessToken: null,
       modelSelection: {
-        providerType: "builtin",
-        provider: "OPENAI_CODEX",
+        providerType: "codex",
         modelName: "gpt-5.4",
       },
     });
@@ -794,8 +792,7 @@ describe("buildAgentChatRequestBody codex credentials", () => {
       agentsConfig: { ...agentsConfig, githubEnabled: true },
       integrationCredentials: { GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_personal" },
       modelSelection: {
-        providerType: "builtin",
-        provider: "OPENAI_CODEX",
+        providerType: "codex",
         modelName: "gpt-5.4",
       },
     });

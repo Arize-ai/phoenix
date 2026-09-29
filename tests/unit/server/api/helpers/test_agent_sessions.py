@@ -4,10 +4,12 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.models import CODEX_SUBSCRIPTION_MODEL_PROVIDER
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.exceptions import ProviderNotFoundError
 from phoenix.server.agents.model_selection import (
     BuiltInProviderModelSelection,
+    CodexSubscriptionModelSelection,
     CustomProviderModelSelection,
 )
 from phoenix.server.api.helpers.agent_sessions import (
@@ -97,6 +99,14 @@ async def test_resolve_model_routing_maps_each_selection_variant(
         assert builtin_routing.model_name == "gpt-5.5"
         assert builtin_routing.custom_provider_id is None
 
+        codex_routing = await resolve_model_routing(
+            session,
+            CodexSubscriptionModelSelection(provider_type="codex", model_name="gpt-5.4"),
+        )
+        assert codex_routing.model_provider == CODEX_SUBSCRIPTION_MODEL_PROVIDER
+        assert codex_routing.model_name == "gpt-5.4"
+        assert codex_routing.custom_provider_id is None
+
 
 async def test_resolve_model_routing_rejects_nonexistent_custom_provider(
     db: DbSessionFactory,
@@ -159,6 +169,27 @@ async def test_set_session_model_transitions_between_routing_modes(
             provider_type="builtin",
             provider=ModelProvider.AZURE_OPENAI,
             model_name="gpt-5.5",
+        )
+
+        effective = await set_session_model(
+            session,
+            agent_session=agent_session,
+            model=CodexSubscriptionModelSelection(provider_type="codex", model_name="gpt-5.4"),
+        )
+        await session.flush()
+        assert agent_session.model_provider == CODEX_SUBSCRIPTION_MODEL_PROVIDER
+        assert agent_session.custom_provider_id is None
+        assert effective == CodexSubscriptionModelSelection(
+            provider_type="codex", model_name="gpt-5.4"
+        )
+
+    # The Codex marker survives a round trip through the routing column.
+    async with db() as session:
+        reloaded = await session.get(models.AgentSession, agent_session_id)
+        assert reloaded is not None
+        assert reloaded.model_provider == CODEX_SUBSCRIPTION_MODEL_PROVIDER
+        assert get_agent_session_model(reloaded) == CodexSubscriptionModelSelection(
+            provider_type="codex", model_name="gpt-5.4"
         )
 
 

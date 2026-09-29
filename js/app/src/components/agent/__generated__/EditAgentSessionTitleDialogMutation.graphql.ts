@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a702e1c6b7b72aaa8350633acaafd1b7>>
+ * @generated SignedSource<<748c7c61496a05d3efc5bdd06c79f7df>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "OPENAI_CODEX" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type PatchAgentSessionInput = {
   id: string;
   model?: AgentModelSelectionInput | null;
@@ -17,9 +17,15 @@ export type PatchAgentSessionInput = {
 };
 export type AgentModelSelectionInput = {
   builtin?: never;
+  codex?: never;
   custom: AgentCustomProviderModelSelectionInput;
 } | {
   builtin: AgentBuiltinProviderModelSelectionInput;
+  codex?: never;
+  custom?: never;
+} | {
+  builtin?: never;
+  codex: AgentCodexModelSelectionInput;
   custom?: never;
 };
 export type AgentCustomProviderModelSelectionInput = {
@@ -29,6 +35,9 @@ export type AgentCustomProviderModelSelectionInput = {
 export type AgentBuiltinProviderModelSelectionInput = {
   modelName: string;
   provider: ModelProvider;
+};
+export type AgentCodexModelSelectionInput = {
+  modelName: string;
 };
 export type EditAgentSessionTitleDialogMutation$variables = {
   input: PatchAgentSessionInput;
