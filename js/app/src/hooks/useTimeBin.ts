@@ -56,8 +56,7 @@ export function useTimeBinScale({
 }
 
 /**
- * A time bin width: `interval` whole units of `scale`. Matches the `scale` and
- * `interval` fields of the GraphQL `TimeBinConfig` input.
+ * A bin width of `interval` × `scale`, as sent in `TimeBinConfig`.
  */
 export type TimeBinSpec = {
   scale: TimeBinScale;
@@ -65,10 +64,7 @@ export type TimeBinSpec = {
 };
 
 /**
- * Multiples of each scale that read as natural clock intervals, smallest
- * first. The server accepts multiples of fixed-length scales only. Day
- * multiples stop short of 7, since the server counts day bins from the Unix
- * epoch (a Thursday) while week bins start on Monday.
+ * Natural multiples of each scale, smallest first.
  */
 const TIME_BIN_INTERVALS: Record<TimeBinScale, ReadonlyArray<number>> = {
   MINUTE: [1, 2, 5, 10, 15, 30],
@@ -87,9 +83,8 @@ const FIXED_TIME_BIN_SCALE_MS: Partial<Record<TimeBinScale, number>> = {
 };
 
 /**
- * Given a time range, returns the scale {@link getTimeBinScale} picks and the
- * smallest natural multiple of it that splits the range into about `maxBins`
- * bins or fewer. Falls back to the largest multiple when none fits.
+ * Picks the scale from {@link getTimeBinScale} and the smallest interval that
+ * keeps the range within `maxBins` bins, or the largest interval if none does.
  */
 export function getTimeBinSpec({
   timeRange,

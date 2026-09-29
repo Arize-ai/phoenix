@@ -103,7 +103,7 @@ export function getCompareLabelSegments({
 }
 
 /**
- * The most bins the paired label bars stay full width at: two 10px bars and
- * the 2px gap between them need 22px per bin, and the chart sits in half a row.
+ * The most bins whose pairs of bars still fit at full width in the half-width
+ * chart.
  */
 export const MAX_COMPARE_TIME_BINS = 20;

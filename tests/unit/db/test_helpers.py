@@ -384,8 +384,7 @@ class TestDateTrunc:
         interval: int,
         utc_offset_minutes: int,
     ) -> None:
-        """Every SQL bucket must be the generated bin start that contains the timestamp,
-        or empty-bin filling would misalign or duplicate bins."""
+        """Each SQL bucket is the generated bin start that contains the timestamp."""
         range_start = datetime(2024, 2, 26, 13, 7, 41, 123456, tzinfo=timezone.utc)
         range_end = range_start + timedelta(days=45)
         bin_starts = list(

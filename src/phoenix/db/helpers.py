@@ -500,10 +500,7 @@ def date_trunc(
             Negative values represent time zones behind UTC (e.g., -300 for UTC-5).
             Defaults to 0 (no offset).
         interval: The bucket width as a multiple of `field`. Defaults to 1. Values
-            above 1 require a fixed-length field (minute, hour, day, or week) and
-            bucket by Unix-epoch arithmetic in the offset-shifted frame, aligned as
-            described in `phoenix.datetime_utils.multi_unit_time_bin_params`, which
-            `get_timestamp_range` shares so that generated empty bins line up.
+            above 1 require a minute, hour, day, or week field.
 
     Returns:
         A SQL column expression representing the truncated datetime in UTC.
@@ -545,8 +542,7 @@ def date_trunc(
         to_timestamp(floor((EXTRACT(epoch FROM start_time) + 19800) / CAST(300 AS NUMERIC))
         * 300 - 19800)
 
-        The same on SQLite, where `%` truncates toward zero, so the remainder is
-        normalized before subtracting it:
+        The same on SQLite:
 
         >>> expr = date_trunc(SupportedSQLDialect.SQLITE, "minute", source, 330, 5)
         >>> print(expr.compile(dialect=sqlite.dialect(), compile_kwargs=kw))
@@ -584,19 +580,13 @@ def _multi_unit_date_trunc(
     utc_offset_minutes: int,
     interval: int,
 ) -> SQLColumnExpression[datetime]:
-    """
-    Bucket `source` into bins `interval` units of `field` wide by Unix-epoch
-    arithmetic: `floor((epoch + shift) / width) * width - shift`, with the width
-    and shift from `multi_unit_time_bin_params`. Sub-second precision is dropped
-    by the floor. SQLite renders the result as 'YYYY-MM-DD HH:MM:SS', like the
-    single-unit path.
-    """
+    """Bucket `source` into bins `interval` units of `field` wide."""
     width, shift = multi_unit_time_bin_params(field, interval, utc_offset_minutes)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         seconds = sa.extract("epoch", source) + shift
         return sa.func.to_timestamp(sa.func.floor(seconds / width) * width - shift)
     elif dialect is SupportedSQLDialect.SQLITE:
-        # time_to_unix floors to whole seconds.
+        # SQLite's `%` can be negative, so normalize the remainder before subtracting it.
         seconds = func.time_to_unix(func.time_parse(source)) + shift
         floored = seconds - (seconds % width + width) % width
         return func.time_fmt_datetime(func.time_unix(floored - shift))

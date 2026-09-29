@@ -5392,7 +5392,7 @@ input TimeBinConfig {
   utcOffsetMinutes: Int! = 0
 
   """
-  The width of each time bin as a whole number of scale units, from 1 to 1000. Values above 1 are supported for MINUTE, HOUR, DAY, and WEEK only. Multi-unit bins align to local clock boundaries after applying utcOffsetMinutes (for example, 5-minute bins start at :00, :05, and so on), and multi-week bins start on a Monday.
+  Number of scale units per bin, from 1 to 1000. Values above 1 are allowed for MINUTE, HOUR, DAY, and WEEK. Bins follow local clock time (for example, 5-minute bins start at :00, :05, ...), and week bins start on Monday.
   """
   interval: Int! = 1
 }

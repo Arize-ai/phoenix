@@ -65,8 +65,8 @@ type TimeRangeChartBrushProps = {
    */
   scale?: TimeBinScale;
   /**
-   * Must match the `timeBinConfig.interval` used to query the chart, so a
-   * clicked bin spans the same number of `scale` units. Defaults to 1.
+   * Must match the `timeBinConfig.interval` used to query the chart. Defaults
+   * to 1.
    */
   interval?: number;
 };
@@ -178,7 +178,7 @@ function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
  * @param params - completed gesture parameters
  * @param params.selection - snapped timestamps and clamped pointer positions
  * @param params.scale - chart query scale, if bin clicking is enabled
- * @param params.interval - chart query bin width in `scale` units
+ * @param params.interval - bin width in `scale` units
  * @param params.utcOffsetMinutes - fixed UTC offset used for chart binning
  * @param params.clickMaxDragPx - maximum pointer movement treated as a click
  */

@@ -40,22 +40,17 @@ class TimeBinConfig:
     interval: int = strawberry.field(
         default=1,
         description=(
-            "The width of each time bin as a whole number of scale units, from 1 to "
-            f"{MAX_TIME_BIN_INTERVAL}. Values above 1 are supported for MINUTE, HOUR, DAY, "
-            "and WEEK only. Multi-unit bins align to local clock boundaries after applying "
-            "utcOffsetMinutes (for example, 5-minute bins start at :00, :05, and so on), "
-            "and multi-week bins start on a Monday."
+            f"Number of scale units per bin, from 1 to {MAX_TIME_BIN_INTERVAL}. Values above "
+            "1 are allowed for MINUTE, HOUR, DAY, and WEEK. Bins follow local clock time "
+            "(for example, 5-minute bins start at :00, :05, ...), and week bins start on "
+            "Monday."
         ),
     )
 
 
 @dataclass(frozen=True)
 class TimeBucketSpec:
-    """
-    A validated time binning: bins `interval` units of `unit` wide, aligned in
-    the frame shifted by `utc_offset_minutes`. Bucketing in SQL (`truncate`) and
-    generating the bin starts (`timestamps`) share this spec so the two agree.
-    """
+    """Validated time bin settings: bins `interval` units of `unit` wide, in local time."""
 
     unit: TimeBinUnit = "hour"
     interval: int = 1
