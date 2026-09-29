@@ -17,9 +17,11 @@ import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import type { AgentPosition } from "@phoenix/store/agentStore";
-import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
-import type { ModelConfig } from "@phoenix/store/playground/types";
+import {
+  type AgentModelConfig,
+  type AgentPosition,
+  DRAFT_SESSION_ID,
+} from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { agentSessionModelSessionQuery } from "./__generated__/agentSessionModelSessionQuery.graphql";
@@ -479,7 +481,7 @@ function AgentChatController({
    * The session's persisted model resolved from its Relay record; absent for
    * draft surfaces, which render the default model config instead.
    */
-  sessionModelConfig?: ModelConfig;
+  sessionModelConfig?: AgentModelConfig;
 }) {
   const {
     menuValue,

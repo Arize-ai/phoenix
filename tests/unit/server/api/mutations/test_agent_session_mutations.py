@@ -13,6 +13,7 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     TextUIPart,
 )
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
@@ -707,7 +708,7 @@ async def test_create_agent_session_creates_empty_owned_session(
         assert agent_session.user_id is None
         assert agent_session.title == ""
         assert agent_session.is_ephemeral is False
-        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_provider is ModelProvider.OPENAI
         assert agent_session.model_name == "gpt-test"
         assert agent_session.custom_provider_id is None
         assert (await session.scalars(select(models.AgentSessionMessage))).all() == []
@@ -916,7 +917,7 @@ async def test_patch_agent_session_model_moves_the_session(
     async with db() as session:
         refreshed = await session.scalar(select(models.AgentSession))
         assert refreshed is not None
-        assert refreshed.model_provider.value == "ANTHROPIC"
+        assert refreshed.model_provider is ModelProvider.ANTHROPIC
         assert refreshed.model_name == "claude-opus-4-6"
 
 

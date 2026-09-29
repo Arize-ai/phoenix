@@ -8,6 +8,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.models import CODEX_SUBSCRIPTION_MODEL_PROVIDER
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.agent_helpers import CanAccessAgentSession
 from phoenix.server.api.context import Context
@@ -146,7 +147,10 @@ class AgentSession(Node):
                 (self.id, models.AgentSession.custom_provider_id),
             ]
         )
-        assert isinstance(model_provider, ModelProvider)
+        assert (
+            isinstance(model_provider, ModelProvider)
+            or model_provider == CODEX_SUBSCRIPTION_MODEL_PROVIDER
+        )
         assert isinstance(model_name, str)
         assert custom_provider_id is None or isinstance(custom_provider_id, int)
         routing = AgentModelRouting(

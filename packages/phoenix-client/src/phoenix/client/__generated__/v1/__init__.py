@@ -109,13 +109,73 @@ class ChatCompletionUsagePromptTokensDetails(TypedDict):
 
 
 class ChatRequestCredential(TypedDict):
-    key: Literal["GITHUB_PERSONAL_ACCESS_TOKEN"]
+    key: Literal["GITHUB_PERSONAL_ACCESS_TOKEN", "OPENAI_CODEX_ACCESS_TOKEN"]
     value: str
 
 
 class CodeEvaluatorUIContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
+
+
+class CodexAuthorizationUrlResponse(TypedDict):
+    authorization_url: str
+    state: str
+    code_verifier: str
+    redirect_uri: str
+
+
+class CodexDeviceAuthorizationResponse(TypedDict):
+    device_code: str
+    user_code: str
+    verification_uri: str
+    expires_in: int
+    interval: int
+
+
+class CodexModelsRequestBody(TypedDict):
+    access_token: str
+
+
+class CodexModelsResponseBody(TypedDict):
+    models: Sequence[str]
+
+
+class CodexSubscriptionModelSelection(TypedDict):
+    providerType: Literal["codex"]
+    modelName: str
+
+
+class CodexTokenErrorResponse(TypedDict):
+    error: Literal[
+        "authorization_pending",
+        "expired_token",
+        "access_denied",
+        "invalid_grant",
+        "invalid_request",
+        "unsupported_grant_type",
+        "temporarily_unavailable",
+    ]
+    error_description: NotRequired[str]
+
+
+class CodexTokenRequest(TypedDict):
+    grant_type: Literal[
+        "authorization_code", "urn:ietf:params:oauth:grant-type:device_code", "refresh_token"
+    ]
+    code: NotRequired[str]
+    code_verifier: NotRequired[str]
+    redirect_uri: NotRequired[str]
+    device_code: NotRequired[str]
+    refresh_token: NotRequired[str]
+
+
+class CodexTokenResponse(TypedDict):
+    access_token: str
+    refresh_token: str
+    account_id: str
+    token_type: NotRequired[Literal["Bearer"]]
+    id_token: NotRequired[str]
 
 
 class CreateApiKeyRequestBody(TypedDict):
@@ -2002,7 +2062,9 @@ class AgentSessionData(TypedDict):
     created_at: str
     updated_at: str
     is_ephemeral: bool
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     is_active: bool
     last_message_id: NotRequired[str]
 
@@ -2021,11 +2083,16 @@ class ChatCompletion(TypedDict):
 
 
 class CompactAgentSessionRequestBody(TypedDict):
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
+    credentials: NotRequired[Sequence[ChatRequestCredential]]
 
 
 class CreateAgentSessionRequestBody(TypedDict):
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     title: NotRequired[str]
     is_ephemeral: NotRequired[bool]
 
@@ -2105,7 +2172,9 @@ class LegacyChatRegenerateMessage(TypedDict):
     trigger: Literal["regenerate-message"]
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
@@ -2137,7 +2206,9 @@ class LegacyChatRegenerateMessage(TypedDict):
 class LegacyChatSubmitMessage(TypedDict):
     id: str
     messages: Sequence[LegacyAssistantMetadataUIMessage]
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     trigger: NotRequired[Literal["submit-message"]]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
@@ -2173,7 +2244,13 @@ class MessageMetadata(TypedDict):
 
 class PatchAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
-    model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
+    model: NotRequired[
+        Union[
+            CustomProviderModelSelection,
+            BuiltInProviderModelSelection,
+            CodexSubscriptionModelSelection,
+        ]
+    ]
 
 
 class PatchAgentSessionResponseBody(TypedDict):
@@ -2238,7 +2315,9 @@ class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
 
 class ChatRequestBody(TypedDict):
     headless: bool
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    model: Union[
+        CustomProviderModelSelection, BuiltInProviderModelSelection, CodexSubscriptionModelSelection
+    ]
     id: str
     contexts: NotRequired[
         Sequence[

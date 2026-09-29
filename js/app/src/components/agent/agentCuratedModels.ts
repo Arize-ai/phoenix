@@ -1,14 +1,13 @@
-import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
+import type { AgentModelMenuValue } from "./agentModelTypes";
 
 export type AgentBuiltInModelSelection = {
-  provider: GenerativeProviderKey;
+  provider: ModelProvider;
   modelName: string;
 };
 
 export type AgentPlaygroundModel = {
   readonly name: string;
-  readonly providerKey: GenerativeProviderKey;
+  readonly providerKey: ModelProvider;
 };
 
 export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentBuiltInModelSelection[] =
@@ -50,9 +49,9 @@ export function getCuratedBuiltInModels(
 }
 
 export function isAgentCuratedModelSelection(
-  model: ModelMenuValue | null | undefined
+  model: AgentModelMenuValue | null | undefined
 ): boolean {
-  if (!model || model.customProvider) {
+  if (!model || model.customProvider || model.codexSubscription) {
     return false;
   }
   return isAgentCuratedBuiltInModel({

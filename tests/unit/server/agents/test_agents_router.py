@@ -3630,7 +3630,7 @@ async def test_create_session_route_creates_a_temporary_session(
         assert agent_session.user_id is None
         assert agent_session.project_name == get_env_phoenix_agents_assistant_project_name()
         assert agent_session.is_ephemeral is True
-        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_provider is ModelProvider.OPENAI
         assert agent_session.model_name == "gpt-test"
         assert agent_session.custom_provider_id is None
 
@@ -3732,7 +3732,7 @@ async def test_chat_runs_on_the_sessions_persisted_model_without_rewriting_it(
     async with db() as session:
         agent_session = await session.get(models.AgentSession, int(global_id.node_id))
         assert agent_session is not None
-        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_provider is ModelProvider.OPENAI
         assert agent_session.model_name == "gpt-test"
         assert agent_session.custom_provider_id is None
 
@@ -3767,7 +3767,7 @@ async def test_patch_session_route_moves_the_session_to_the_new_model(
     async with db() as session:
         agent_session = await session.get(models.AgentSession, int(global_id.node_id))
         assert agent_session is not None
-        assert agent_session.model_provider.value == "ANTHROPIC"
+        assert agent_session.model_provider is ModelProvider.ANTHROPIC
         assert agent_session.model_name == "claude-opus-4-6"
 
     # The session now answers to the new assertion, and no longer to the old.
@@ -3805,7 +3805,7 @@ async def test_patch_session_route_rejects_a_deleted_custom_provider(
     async with db() as session:
         agent_session = await session.get(models.AgentSession, int(global_id.node_id))
         assert agent_session is not None
-        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_provider is ModelProvider.OPENAI
         assert agent_session.model_name == "gpt-test"
 
 
@@ -3837,7 +3837,7 @@ async def test_patch_session_route_model_change_is_rejected_while_a_turn_holds_t
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
-        assert stored.model_provider.value == "OPENAI"
+        assert stored.model_provider is ModelProvider.OPENAI
         assert stored.model_name == "gpt-test"
         assert stored.heartbeat_at is not None
 
@@ -3868,7 +3868,7 @@ async def test_patch_session_route_ignores_a_stale_session_lock(
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
-        assert stored.model_provider.value == "ANTHROPIC"
+        assert stored.model_provider is ModelProvider.ANTHROPIC
         assert stored.model_name == "claude-opus-4-6"
 
 
@@ -3892,7 +3892,7 @@ async def test_patch_session_route_updates_the_title(
         assert stored is not None
         assert stored.title == "Renamed session"
         # An update that does not name the model leaves it unchanged.
-        assert stored.model_provider.value == "OPENAI"
+        assert stored.model_provider is ModelProvider.OPENAI
         assert stored.model_name == "gpt-test"
 
 
@@ -3930,7 +3930,7 @@ async def test_patch_session_route_rejects_explicit_null_fields(
     async with db() as session:
         stored = await session.scalar(select(models.AgentSession))
         assert stored is not None
-        assert stored.model_provider.value == "OPENAI"
+        assert stored.model_provider is ModelProvider.OPENAI
 
 
 async def test_compact_rejects_a_request_asserting_a_model_the_session_is_not_on(
@@ -4010,7 +4010,7 @@ async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
     async with db() as session:
         agent_session = await session.get(models.AgentSession, int(global_id.node_id))
         assert agent_session is not None
-        assert agent_session.model_provider.value == "OPENAI"
+        assert agent_session.model_provider is ModelProvider.OPENAI
         assert agent_session.model_name == "gpt-test"
         assert agent_session.custom_provider_id is None
         # The rejected send claimed the turn lock to read the model under it,

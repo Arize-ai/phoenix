@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a71476ce514c42979ba2cc74735042fe>>
+ * @generated SignedSource<<cd009cb6b5a4f0e66c2ec01cb8daa922>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,9 @@ export type agentSessionModel_session$data = {
     readonly __typename: "AgentBuiltinProviderModelSelection";
     readonly modelName: string;
     readonly provider: ModelProvider;
+  } | {
+    readonly __typename: "AgentCodexModelSelection";
+    readonly modelName: string;
   } | {
     readonly __typename: "AgentCustomProviderModelSelection";
     readonly modelName: string;
@@ -36,6 +39,6 @@ const node: ReaderInlineDataFragment = {
   "name": "agentSessionModel_session"
 };
 
-(node as any).hash = "c175ed7c5f56f2a1075b6c5905e0ae79";
+(node as any).hash = "c31ba74c02beffed9719fff87a218669";
 
 export default node;

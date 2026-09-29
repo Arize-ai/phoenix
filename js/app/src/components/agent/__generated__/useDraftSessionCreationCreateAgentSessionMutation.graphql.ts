@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c06c6d0668b1cf2d63442d77366e3595>>
+ * @generated SignedSource<<26d14ad8cccbfcdb6000862221b13c6e>>
  * @lightSyntaxTransform
  */
 
@@ -17,9 +17,15 @@ export type CreateAgentSessionInput = {
 };
 export type AgentModelSelectionInput = {
   builtin?: never;
+  codex?: never;
   custom: AgentCustomProviderModelSelectionInput;
 } | {
   builtin: AgentBuiltinProviderModelSelectionInput;
+  codex?: never;
+  custom?: never;
+} | {
+  builtin?: never;
+  codex: AgentCodexModelSelectionInput;
   custom?: never;
 };
 export type AgentCustomProviderModelSelectionInput = {
@@ -29,6 +35,9 @@ export type AgentCustomProviderModelSelectionInput = {
 export type AgentBuiltinProviderModelSelectionInput = {
   modelName: string;
   provider: ModelProvider;
+};
+export type AgentCodexModelSelectionInput = {
+  modelName: string;
 };
 export type useDraftSessionCreationCreateAgentSessionMutation$variables = {
   connections: ReadonlyArray<string>;
@@ -189,6 +198,14 @@ v13 = {
       ],
       "type": "AgentCustomProviderModelSelection",
       "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v12/*:: as any*/)
+      ],
+      "type": "AgentCodexModelSelection",
+      "abstractKey": null
     }
   ],
   "storageKey": null
@@ -340,12 +357,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a0fd7d24b668a972bf7ca669425983d9",
+    "cacheID": "0797b61596067f3592ee0d6caf2486b4",
     "id": null,
     "metadata": {},
     "name": "useDraftSessionCreationCreateAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useDraftSessionCreationCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "mutation useDraftSessionCreationCreateAgentSessionMutation(\n  $input: CreateAgentSessionInput!\n) {\n  createAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n    ... on AgentCodexModelSelection {\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

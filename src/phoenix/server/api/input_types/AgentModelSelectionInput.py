@@ -19,7 +19,13 @@ class AgentBuiltinProviderModelSelectionInput:
     model_name: str
 
 
+@strawberry.input
+class AgentCodexModelSelectionInput:
+    model_name: str
+
+
 @strawberry.input(one_of=True)
 class AgentModelSelectionInput:
     custom: Optional[AgentCustomProviderModelSelectionInput] = UNSET
     builtin: Optional[AgentBuiltinProviderModelSelectionInput] = UNSET
+    codex: Optional[AgentCodexModelSelectionInput] = UNSET

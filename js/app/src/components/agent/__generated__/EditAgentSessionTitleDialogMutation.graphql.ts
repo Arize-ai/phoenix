@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f639d2fa292236009e3de95b58164110>>
+ * @generated SignedSource<<748c7c61496a05d3efc5bdd06c79f7df>>
  * @lightSyntaxTransform
  */
 
@@ -17,9 +17,15 @@ export type PatchAgentSessionInput = {
 };
 export type AgentModelSelectionInput = {
   builtin?: never;
+  codex?: never;
   custom: AgentCustomProviderModelSelectionInput;
 } | {
   builtin: AgentBuiltinProviderModelSelectionInput;
+  codex?: never;
+  custom?: never;
+} | {
+  builtin?: never;
+  codex: AgentCodexModelSelectionInput;
   custom?: never;
 };
 export type AgentCustomProviderModelSelectionInput = {
@@ -29,6 +35,9 @@ export type AgentCustomProviderModelSelectionInput = {
 export type AgentBuiltinProviderModelSelectionInput = {
   modelName: string;
   provider: ModelProvider;
+};
+export type AgentCodexModelSelectionInput = {
+  modelName: string;
 };
 export type EditAgentSessionTitleDialogMutation$variables = {
   input: PatchAgentSessionInput;

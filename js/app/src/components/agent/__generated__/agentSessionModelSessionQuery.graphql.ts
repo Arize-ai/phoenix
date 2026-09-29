@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a99bb66ea73b807cae66205ab176783a>>
+ * @generated SignedSource<<8581b9898c626c0a8c884960cb0f0ed3>>
  * @lightSyntaxTransform
  */
 
@@ -103,6 +103,14 @@ v5 = [
         ],
         "type": "AgentCustomProviderModelSelection",
         "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v4/*:: as any*/)
+        ],
+        "type": "AgentCodexModelSelection",
+        "abstractKey": null
       }
     ],
     "storageKey": null
@@ -174,12 +182,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8b4aa487112b6c2d68be979d6261d7bc",
+    "cacheID": "63e56d399219ca2fc8b462d4c88db71a",
     "id": null,
     "metadata": {},
     "name": "agentSessionModelSessionQuery",
     "operationKind": "query",
-    "text": "query agentSessionModelSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      ...agentSessionModel_session\n    }\n    id\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "query agentSessionModelSessionQuery(\n  $id: ID!\n) {\n  agentSession: node(id: $id) {\n    __typename\n    ... on AgentSession {\n      id\n      ...agentSessionModel_session\n    }\n    id\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n    ... on AgentCodexModelSelection {\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4e38dc6f3b76dd68accd9e221cb0b8a>>
+ * @generated SignedSource<<6bc5d5b41bcf92afedeb923c5d90be4b>>
  * @lightSyntaxTransform
  */
 
@@ -17,9 +17,15 @@ export type PatchAgentSessionInput = {
 };
 export type AgentModelSelectionInput = {
   builtin?: never;
+  codex?: never;
   custom: AgentCustomProviderModelSelectionInput;
 } | {
   builtin: AgentBuiltinProviderModelSelectionInput;
+  codex?: never;
+  custom?: never;
+} | {
+  builtin?: never;
+  codex: AgentCodexModelSelectionInput;
   custom?: never;
 };
 export type AgentCustomProviderModelSelectionInput = {
@@ -29,6 +35,9 @@ export type AgentCustomProviderModelSelectionInput = {
 export type AgentBuiltinProviderModelSelectionInput = {
   modelName: string;
   provider: ModelProvider;
+};
+export type AgentCodexModelSelectionInput = {
+  modelName: string;
 };
 export type useAgentChatPanelStatePatchAgentSessionMutation$variables = {
   input: PatchAgentSessionInput;
@@ -49,6 +58,9 @@ export type useAgentChatPanelStatePatchAgentSessionMutation$rawResponse = {
         readonly __typename: "AgentBuiltinProviderModelSelection";
         readonly modelName: string;
         readonly provider: ModelProvider;
+      } | {
+        readonly __typename: "AgentCodexModelSelection";
+        readonly modelName: string;
       } | {
         readonly __typename: "AgentCustomProviderModelSelection";
         readonly modelName: string;
@@ -138,6 +150,14 @@ v4 = {
       ],
       "type": "AgentCustomProviderModelSelection",
       "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v3/*:: as any*/)
+      ],
+      "type": "AgentCodexModelSelection",
+      "abstractKey": null
     }
   ],
   "storageKey": null
@@ -218,12 +238,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cbd47e1cd326914b88a81a1aadaeb775",
+    "cacheID": "86bdc58b2ce02677b46ec6d24545843b",
     "id": null,
     "metadata": {},
     "name": "useAgentChatPanelStatePatchAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentChatPanelStatePatchAgentSessionMutation(\n  $input: PatchAgentSessionInput!\n) {\n  patchAgentSession(input: $input) {\n    agentSession {\n      id\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "mutation useAgentChatPanelStatePatchAgentSessionMutation(\n  $input: PatchAgentSessionInput!\n) {\n  patchAgentSession(input: $input) {\n    agentSession {\n      id\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n    ... on AgentCodexModelSelection {\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

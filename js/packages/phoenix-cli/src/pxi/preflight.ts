@@ -152,6 +152,9 @@ function getModelLabel({
   if (modelSelection.providerType === "custom") {
     return `custom:${modelSelection.providerId}/${modelSelection.modelName}`;
   }
+  if (modelSelection.providerType === "codex") {
+    return `codex/${modelSelection.modelName}`;
+  }
   return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
 
@@ -395,6 +398,13 @@ export function validatePxiModelSelection({
     return;
   }
 
+  if (modelSelection.providerType === "codex") {
+    // The ChatGPT sign-in lives in the browser; the CLI has no token to send.
+    throw new InvalidArgumentError(
+      `This session runs on a ChatGPT (Codex) subscription, which only the Phoenix UI can sign in to. Choose a model from a built-in or custom provider instead.`
+    );
+  }
+
   const provider = data.modelProviders.find(
     (candidate) => candidate.key === modelSelection.provider
   );
@@ -503,6 +513,13 @@ export function isSameModelSelection(
       a.modelName === b.modelName
     );
   }
+  if (a.providerType === "codex" || b.providerType === "codex") {
+    return (
+      a.providerType === "codex" &&
+      b.providerType === "codex" &&
+      a.modelName === b.modelName
+    );
+  }
   return a.provider === b.provider && a.modelName === b.modelName;
 }
 
@@ -568,7 +585,9 @@ export function formatPxiRuntimeError({
   const nextAction =
     modelSelection.providerType === "custom"
       ? "Check the custom provider configuration in Phoenix Settings > AI Providers."
-      : `Configure ${modelSelection.provider} credentials in Phoenix Settings > AI Providers, set the required environment variables on the Phoenix server, or choose a different model.`;
+      : modelSelection.providerType === "codex"
+        ? "ChatGPT (Codex) subscription sessions can only be used from the Phoenix UI. Choose a different model."
+        : `Configure ${modelSelection.provider} credentials in Phoenix Settings > AI Providers, set the required environment variables on the Phoenix server, or choose a different model.`;
   return new Error(
     `PXI request failed for ${getModelLabel({ modelSelection })}: ${message} ${nextAction}`
   );

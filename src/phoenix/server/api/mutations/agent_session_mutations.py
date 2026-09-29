@@ -21,6 +21,7 @@ from phoenix.server.agents.model_selection import (
 )
 from phoenix.server.agents.model_selection import (
     BuiltInProviderModelSelection,
+    CodexSubscriptionModelSelection,
     CustomProviderModelSelection,
 )
 from phoenix.server.agents.session_titles import (
@@ -387,6 +388,11 @@ def _to_model_selection(input: AgentModelSelectionInput) -> AgentModelSelectionM
             provider_type="builtin",
             provider=input.builtin.provider,
             model_name=input.builtin.model_name,
+        )
+    if input.codex is not UNSET and input.codex is not None:
+        return CodexSubscriptionModelSelection(
+            provider_type="codex",
+            model_name=input.codex.model_name,
         )
     raise ValueError("Exactly one model selection must be provided.")
 

@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, Union, cast
 
 import orjson
 import sqlalchemy as sa
@@ -325,6 +325,44 @@ class _ModelProvider(TypeDecorator[ModelProvider]):
 
     def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[ModelProvider]:
         return None if value is None else ModelProvider(value)
+
+
+CODEX_SUBSCRIPTION_MODEL_PROVIDER: Literal["OPENAI_CODEX"] = "OPENAI_CODEX"
+"""``agent_sessions.model_provider`` value for a ChatGPT (Codex) subscription session.
+
+Deliberately not a ``ModelProvider`` member: the subscription is an
+assistant-only route to OpenAI's Codex backend with a browser-held token and
+has no place in the playground, prompts, or the provider catalog. It shares the
+routing column with the built-in enum values, so the column type accepts both.
+"""
+
+AgentSessionModelProvider: TypeAlias = Union[ModelProvider, Literal["OPENAI_CODEX"]]
+
+
+class _AgentSessionModelProvider(TypeDecorator[AgentSessionModelProvider]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(
+        self, value: Optional[AgentSessionModelProvider], _: Dialect
+    ) -> Optional[str]:
+        if value is None:
+            return None
+        if value == CODEX_SUBSCRIPTION_MODEL_PROVIDER:
+            return CODEX_SUBSCRIPTION_MODEL_PROVIDER
+        if isinstance(value, str):
+            return ModelProvider(value).value
+        return value.value
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[AgentSessionModelProvider]:
+        if value is None:
+            return None
+        if value == CODEX_SUBSCRIPTION_MODEL_PROVIDER:
+            return CODEX_SUBSCRIPTION_MODEL_PROVIDER
+        return ModelProvider(value)
 
 
 class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
@@ -3400,7 +3438,9 @@ class AgentSession(HasId):
         nullable=True,  # sessions may be created while auth is disabled
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
-    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider, nullable=False)
+    model_provider: Mapped[AgentSessionModelProvider] = mapped_column(
+        _AgentSessionModelProvider, nullable=False
+    )
     model_name: Mapped[str] = mapped_column(String, nullable=False)
     custom_provider_id: Mapped[Optional[int]] = mapped_column(
         # SET NULL turns a deleted custom provider's sessions into builtin

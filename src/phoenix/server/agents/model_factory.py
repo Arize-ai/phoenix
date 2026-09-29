@@ -8,8 +8,10 @@ from typing import Any, Callable, Literal, Protocol, cast
 
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
+from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.providers.openai_codex import OpenAICodexCredentials, OpenAICodexProvider
 from pydantic_ai.settings import ModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import assert_never
@@ -18,6 +20,7 @@ from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     ModelProvider,
 )
+from phoenix.server.agents.codex import account_id_from_token, resolve_codex_access_token
 from phoenix.server.agents.exceptions import (
     ProviderConfigError,
     ProviderCredentialsError,
@@ -27,6 +30,7 @@ from phoenix.server.agents.exceptions import (
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
     BuiltInProviderModelSelection,
+    CodexSubscriptionModelSelection,
     CustomProviderModelSelection,
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
@@ -72,6 +76,34 @@ def _build_openai_model(
     # does not recognise ``Never``-returning calls. Keep both.
     assert_never(openai_api_type)
     raise ValueError(f"Unsupported OpenAI API type: {openai_api_type}")
+
+
+def _build_openai_codex_model(
+    *,
+    model_name: str,
+    request_credentials: Mapping[str, SecretStr],
+) -> "PydanticAIModel":
+    access_token = resolve_codex_access_token(request_credentials)
+    if access_token is None:
+        raise ProviderCredentialsError(
+            "This chat uses a ChatGPT subscription, but this browser is not signed in to "
+            "ChatGPT. Sign in under Settings > Assistant, or pick another model."
+        )
+    token = access_token.get_secret_value()
+    account_id = account_id_from_token(token)
+    if not account_id:
+        raise ProviderCredentialsError(
+            "The ChatGPT token does not carry an account id. Sign in to ChatGPT again."
+        )
+    with without_env_vars("OPENAI_*"):
+        codex_provider = OpenAICodexProvider(
+            OpenAICodexCredentials(
+                access_token=token,
+                refresh_token="",
+                account_id=account_id,
+            )
+        )
+    return OpenAIResponsesModel(model_name, provider=codex_provider)
 
 
 def azure_endpoint_to_base_url(azure_endpoint: str) -> str:
@@ -172,6 +204,7 @@ async def build_model(
     db: DbSessionFactory,
     decrypt: Callable[[bytes], bytes],
     tracer_provider: TracerProvider | None = None,
+    request_credentials: Mapping[str, SecretStr] | None = None,
 ) -> OpenInferenceModelWrapper:
     """Build a ``pydantic_ai`` model."""
     if isinstance(model, CustomProviderModelSelection):
@@ -192,6 +225,11 @@ async def build_model(
         pydantic_ai_model = _get_pydantic_ai_model_from_builtin_provider(
             model,
             credentials=credentials,
+        )
+    elif isinstance(model, CodexSubscriptionModelSelection):
+        pydantic_ai_model = _build_openai_codex_model(
+            model_name=model.model_name,
+            request_credentials=request_credentials or {},
         )
     else:
         # See ``_build_openai_model`` for why ``assert_never`` and ``raise``

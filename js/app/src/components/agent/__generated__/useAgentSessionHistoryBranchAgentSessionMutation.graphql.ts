@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e565de80a7b379b9b7bcdc5967b5e401>>
+ * @generated SignedSource<<6a40b0c655092e4afe38126b31ce4c3a>>
  * @lightSyntaxTransform
  */
 
@@ -180,6 +180,14 @@ v14 = {
       ],
       "type": "AgentCustomProviderModelSelection",
       "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v13/*:: as any*/)
+      ],
+      "type": "AgentCodexModelSelection",
+      "abstractKey": null
     }
   ],
   "storageKey": null
@@ -333,12 +341,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a87bffea0bb7eb44c75052208d574ebe",
+    "cacheID": "0e3a2b3ff08bec1dd02df040c6f98026",
     "id": null,
     "metadata": {},
     "name": "useAgentSessionHistoryBranchAgentSessionMutation",
     "operationKind": "mutation",
-    "text": "mutation useAgentSessionHistoryBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n  }\n}\n"
+    "text": "mutation useAgentSessionHistoryBranchAgentSessionMutation(\n  $input: BranchAgentSessionInput!\n) {\n  branchAgentSession(input: $input) {\n    agentSession {\n      id\n      title\n      ...EditAgentSessionTitleDialog_session\n      isTemporary: isEphemeral\n      createdAt\n      updatedAt\n      firstInput\n      latestOutput\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      messages\n      ...agentSessionModel_session\n    }\n  }\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment agentSessionModel_session on AgentSession {\n  model {\n    __typename\n    ... on AgentBuiltinProviderModelSelection {\n      provider\n      modelName\n    }\n    ... on AgentCustomProviderModelSelection {\n      providerId\n      modelName\n    }\n    ... on AgentCodexModelSelection {\n      modelName\n    }\n  }\n}\n"
   }
 };
 })();

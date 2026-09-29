@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { modelProviderSchema } from "@phoenix/utils/generativeUtils";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
+
+import type { AgentModelMenuValue } from "./agentModelTypes";
 
 const BASE_AGENT_MODEL_STORAGE_KEY =
   "__experimental__arize-phoenix-agent-config";
@@ -21,37 +22,44 @@ const AGENT_MODEL_CONFIG_SCHEMA = z.object({
   provider: modelProviderSchema,
   model: z.string(),
   customProviderId: z.string().optional(),
+  codexSubscription: z.boolean().optional(),
 });
 
 export type AgentModelConfig = z.infer<typeof AGENT_MODEL_CONFIG_SCHEMA>;
 
-export const DEFAULT_MODEL_MENU_VALUE: ModelMenuValue = {
+export const DEFAULT_MODEL_MENU_VALUE: AgentModelMenuValue = {
   provider: "ANTHROPIC",
   modelName: "claude-opus-4-6",
 };
 
 /**
- * Converts a {@link ModelMenuValue} to the shape persisted in localStorage.
+ * Converts an {@link AgentModelMenuValue} to the shape persisted in localStorage.
  */
-export function toAgentModelConfig(model: ModelMenuValue): AgentModelConfig {
+export function toAgentModelConfig(
+  model: AgentModelMenuValue
+): AgentModelConfig {
   return {
     provider: model.provider,
     model: model.modelName,
     customProviderId: model.customProvider?.id,
+    ...(model.codexSubscription && { codexSubscription: true }),
   };
 }
 
 /**
- * Converts a persisted {@link AgentModelConfig} back into a {@link ModelMenuValue}
+ * Converts a persisted {@link AgentModelConfig} back into an {@link AgentModelMenuValue}
  * for the model selector UI.
  */
-export function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
+export function toModelMenuValue(
+  config: AgentModelConfig
+): AgentModelMenuValue {
   return {
     provider: config.provider,
     modelName: config.model,
     ...(config.customProviderId && {
       customProvider: { id: config.customProviderId, name: "" },
     }),
+    ...(config.codexSubscription && { codexSubscription: true }),
   };
 }
 

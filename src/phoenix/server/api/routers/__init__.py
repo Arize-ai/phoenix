@@ -4,6 +4,7 @@ from .agents import (
     create_agents_router,
 )
 from .auth import create_auth_router
+from .codex_auth import create_codex_auth_router
 from .legacy_agents import create_legacy_agents_router
 from .oauth2 import router as oauth2_router
 from .oauth2_authorization_server import oauth2_router as oauth2_as_router
@@ -14,6 +15,7 @@ __all__ = [
     "AgentSessionConflict",
     "agent_session_conflict_handler",
     "create_agents_router",
+    "create_codex_auth_router",
     "create_legacy_agents_router",
     "create_auth_router",
     "create_v1_router",

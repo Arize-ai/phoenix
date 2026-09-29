@@ -40,13 +40,26 @@ class BuiltInProviderModelSelection(BaseModel):
     model_name: str
 
 
+class CodexSubscriptionModelSelection(BaseModel):
+    """
+    Chat against OpenAI's Codex backend with the user's ChatGPT subscription.
+    """
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    provider_type: Literal["codex"]
+    model_name: str
+
+
 # TypeAliasType (rather than a plain ``Annotated`` alias) makes pydantic emit the
 # union as a named ``AgentModelSelection`` schema component instead of inlining
 # the ``oneOf`` at every use site, so generated clients can reference it by name.
 AgentModelSelection = TypeAliasType(
     "AgentModelSelection",
     Annotated[
-        CustomProviderModelSelection | BuiltInProviderModelSelection,
+        CustomProviderModelSelection
+        | BuiltInProviderModelSelection
+        | CodexSubscriptionModelSelection,
         Field(discriminator="provider_type"),
     ],
 )

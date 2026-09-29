@@ -7,12 +7,17 @@ from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.db.models import GenerativeModelSDK
+from phoenix.db.models import (
+    CODEX_SUBSCRIPTION_MODEL_PROVIDER,
+    AgentSessionModelProvider,
+    GenerativeModelSDK,
+)
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.exceptions import ProviderNotFoundError
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
     BuiltInProviderModelSelection,
+    CodexSubscriptionModelSelection,
     CustomProviderModelSelection,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -61,7 +66,7 @@ def model_provider_from_generative_model_sdk(
 class AgentModelRouting(NamedTuple):
     """Values for the three model-routing columns on ``agent_sessions``."""
 
-    model_provider: ModelProvider
+    model_provider: AgentSessionModelProvider
     model_name: str
     custom_provider_id: Optional[int]
 
@@ -110,6 +115,12 @@ async def resolve_model_routing(
             model_name=model.model_name,
             custom_provider_id=None,
         )
+    if isinstance(model, CodexSubscriptionModelSelection):
+        return AgentModelRouting(
+            model_provider=CODEX_SUBSCRIPTION_MODEL_PROVIDER,
+            model_name=model.model_name,
+            custom_provider_id=None,
+        )
     assert_never(model)
 
 
@@ -148,6 +159,11 @@ def model_selection_from_routing(routing: AgentModelRouting) -> AgentModelSelect
                     str(routing.custom_provider_id),
                 )
             ),
+            model_name=routing.model_name,
+        )
+    if routing.model_provider == CODEX_SUBSCRIPTION_MODEL_PROVIDER:
+        return CodexSubscriptionModelSelection(
+            provider_type="codex",
             model_name=routing.model_name,
         )
     return BuiltInProviderModelSelection(

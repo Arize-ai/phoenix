@@ -230,6 +230,9 @@ function getModelLabel({
   if (modelSelection.providerType === "custom") {
     return `custom:${modelSelection.providerId}/${modelSelection.modelName}`;
   }
+  if (modelSelection.providerType === "codex") {
+    return `codex/${modelSelection.modelName}`;
+  }
   return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
 

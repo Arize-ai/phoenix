@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { useCallback, useMemo } from "react";
 import { MenuSection } from "react-aria-components";
 
+import { useCodexModels } from "@phoenix/agent/codex/useCodexModels";
 import {
   Button,
   Flex,
@@ -14,10 +15,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import type {
-  ModelMenuProps,
-  ModelMenuValue,
-} from "@phoenix/components/generative/ModelMenu";
+import type { ModelMenuProps } from "@phoenix/components/generative/ModelMenu";
 import { ProviderModelMenuItems } from "@phoenix/components/generative/ModelMenu";
 import {
   getModelsByProvider,
@@ -33,6 +31,7 @@ import {
   getCuratedBuiltInModels,
   isAgentCuratedBuiltInModel,
 } from "./agentCuratedModels";
+import type { AgentModelMenuValue } from "./agentModelTypes";
 
 const menuWidthCSS = css`
   min-width: 350px;
@@ -53,12 +52,12 @@ function AgentModelItem({
   model,
   onChange,
 }: {
-  model: ModelMenuValue;
-  onChange?: (model: ModelMenuValue) => void;
+  model: AgentModelMenuValue;
+  onChange?: (model: AgentModelMenuValue) => void;
 }) {
   return (
     <MenuItem
-      id={`${model.customProvider?.id ?? model.provider}:${model.modelName}`}
+      id={`${model.customProvider?.id ?? (model.codexSubscription ? "codex" : model.provider)}:${model.modelName}`}
       textValue={model.modelName}
       onAction={() => {
         onChange?.(model);
@@ -72,6 +71,42 @@ function AgentModelItem({
   );
 }
 
+function CodexModelMenuSection({
+  onChange,
+}: {
+  onChange?: (model: AgentModelMenuValue) => void;
+}) {
+  const isSignedIn = useAgentContext((state) => state.codexAuth != null);
+  const { models, isLoading, error } = useCodexModels();
+  if (!isSignedIn) {
+    return null;
+  }
+  return (
+    <>
+      <MenuSection>
+        <MenuSectionTitle title="ChatGPT subscription" />
+        {models.map((modelName) => (
+          <AgentModelItem
+            key={`codex:${modelName}`}
+            model={{ provider: "OPENAI", modelName, codexSubscription: true }}
+            onChange={onChange}
+          />
+        ))}
+        {models.length === 0 ? (
+          <MenuItem id="codex:status" textValue="ChatGPT models" isDisabled>
+            <Text color="text-500">
+              {isLoading
+                ? "Loading models…"
+                : (error ?? "No models available for this subscription")}
+            </Text>
+          </MenuItem>
+        ) : null}
+      </MenuSection>
+      <Separator />
+    </>
+  );
+}
+
 function CuratedAndOtherModelMenuSections({
   curatedBuiltInModels,
   modelsByProvider,
@@ -79,14 +114,15 @@ function CuratedAndOtherModelMenuSections({
   modelProviders,
   onChange,
 }: {
-  curatedBuiltInModels: ModelMenuValue[];
+  curatedBuiltInModels: AgentModelMenuValue[];
   modelsByProvider: Map<string, string[]>;
   customProviders: CustomProviderInfo[];
   modelProviders: readonly ModelProviderInfo[];
-  onChange?: (model: ModelMenuValue) => void;
+  onChange?: (model: AgentModelMenuValue) => void;
 }) {
   return (
     <>
+      <CodexModelMenuSection onChange={onChange} />
       <MenuSection>
         <MenuSectionTitle title="Recommended" />
         {curatedBuiltInModels.map((model) => (
@@ -125,7 +161,9 @@ export function AgentModelMenu({
   shouldFlip,
   variant = "default",
   limitToCuratedModels = true,
-}: Omit<ModelMenuProps, "isDisabled"> & {
+}: Omit<ModelMenuProps, "isDisabled" | "value" | "onChange"> & {
+  value?: AgentModelMenuValue | null;
+  onChange?: (model: AgentModelMenuValue) => void;
   limitToCuratedModels?: boolean;
 }) {
   const isDisabled = useAgentContext((state) =>
@@ -144,7 +182,7 @@ export function AgentModelMenu({
   );
 
   const handleModelChange = useCallback(
-    (model: ModelMenuValue) => {
+    (model: AgentModelMenuValue) => {
       if (model.provider === "AWS" && awsBedrockModelPrefix) {
         onChange?.({
           ...model,
@@ -204,13 +242,16 @@ export function AgentModelMenu({
       >
         <Menu css={menuWidthCSS}>
           {limitToCuratedModels ? (
-            curatedBuiltInModels.map((model) => (
-              <AgentModelItem
-                key={`${model.provider}:${model.modelName}`}
-                model={model}
-                onChange={handleModelChange}
-              />
-            ))
+            <>
+              <CodexModelMenuSection onChange={handleModelChange} />
+              {curatedBuiltInModels.map((model) => (
+                <AgentModelItem
+                  key={`${model.provider}:${model.modelName}`}
+                  model={model}
+                  onChange={handleModelChange}
+                />
+              ))}
+            </>
           ) : (
             <CuratedAndOtherModelMenuSections
               curatedBuiltInModels={curatedBuiltInModels}

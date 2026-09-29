@@ -1,8 +1,9 @@
 import { Alert, Flex, Text } from "@phoenix/components";
 import { SystemSettingsWarning } from "@phoenix/components/agent";
+import { AgentCodexSettings } from "@phoenix/components/agent/AgentCodexSettings";
 import { isAgentCuratedModelSelection } from "@phoenix/components/agent/agentCuratedModels";
 import { AgentModelMenu } from "@phoenix/components/agent/AgentModelMenu";
-import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import type { AgentModelMenuValue } from "@phoenix/components/agent/agentModelTypes";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
@@ -56,21 +57,23 @@ function AssistantModelSetting() {
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
   );
-  const selectedModel: ModelMenuValue = {
+  const selectedModel: AgentModelMenuValue = {
     provider: defaultModelConfig.provider,
     modelName: defaultModelConfig.modelName ?? "",
     ...(defaultModelConfig.customProvider && {
       customProvider: defaultModelConfig.customProvider,
     }),
+    ...(defaultModelConfig.codexSubscription && { codexSubscription: true }),
   };
   const isRecommendedModel = isAgentCuratedModelSelection(selectedModel);
-  const handleModelChange = (model: ModelMenuValue) => {
+  const handleModelChange = (model: AgentModelMenuValue) => {
     const { defaultModelConfig: current } = store.getState();
     setDefaultModelConfig({
       ...current,
       provider: model.provider,
       modelName: model.modelName,
       customProvider: model.customProvider ?? null,
+      codexSubscription: model.codexSubscription ?? false,
     });
   };
   return (
@@ -175,6 +178,7 @@ export function SettingsAgentsGeneralTab() {
         <ul css={settingsRowsCSS}>
           <AssistantAgentEnabledSetting />
           <AssistantModelSetting />
+          <AgentCodexSettings />
           <AssistantFabModeSetting />
           <AssistantTemporaryChatSetting />
         </ul>

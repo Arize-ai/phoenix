@@ -793,6 +793,14 @@ class CompactAgentSessionRequestBody(V1RoutesBaseModel):
             "with HTTP 409 and code ``agent_session_model_stale``."
         ),
     )
+    credentials: list[ChatRequestCredential] = Field(
+        default_factory=list,
+        description=(
+            "Client-held credentials the summary model needs, as on the chat "
+            "route (e.g. the ChatGPT subscription token for Codex sessions). "
+            "Never persisted."
+        ),
+    )
 
 
 class CompactAgentSessionResponseBody(ResponseBody[PhoenixUIMessage]):
@@ -3021,6 +3029,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 session_model,
                 db=db_session_factory,
                 decrypt=request.app.state.decrypt,
+                request_credentials={
+                    credential.key: credential.value for credential in request_body.credentials
+                },
             )
             summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
             summary = await summarize_messages_for_compaction(
@@ -3270,6 +3281,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     db=db_session_factory,
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
+                    request_credentials={
+                        credential.key: credential.value for credential in body.credentials
+                    },
                 )
             except AgentError as exc:
                 raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc

@@ -1901,6 +1901,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/codex/authorization_url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Authorization Url
+         * @description Start a ChatGPT browser sign-in (authorization code with PKCE, RFC 7636).
+         *
+         *     Open ``authorization_url``. After signing in the user is redirected to
+         *     ``redirect_uri``, where nothing is listening; have them paste that URL back,
+         *     check its ``state``, and send its ``code`` with ``code_verifier`` to ``/token``.
+         */
+        post: operations["codexAuthorizationUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/codex/device_authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Device Authorization
+         * @description Start a ChatGPT device-code sign-in (RFC 8628 §3.1).
+         *
+         *     Phoenix supplies the public Codex ``client_id``, so the request carries no body.
+         */
+        post: operations["codexDeviceAuthorization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/codex/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Token
+         * @description Complete or refresh a ChatGPT sign-in (RFC 6749 §4.1.3 and §6, RFC 8628 §3.4).
+         *
+         *     Exchange a browser sign-in with ``grant_type=authorization_code``, the ``code``
+         *     from the pasted redirect, and the ``code_verifier`` from ``/authorization_url``.
+         *     Poll with ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and the
+         *     ``device_code`` from ``/device_authorization`` until the response is no longer
+         *     ``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh
+         *     tokens are single-use.
+         */
+        post: operations["codexToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/codex/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * List Models
+         * @description Models the signed-in ChatGPT subscription can use.
+         *
+         *     A POST so the access token travels in the body: the ``Authorization`` header
+         *     already carries the Phoenix session.
+         */
+        post: operations["listCodexModels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/arize_phoenix_version": {
         parameters: {
             query?: never;
@@ -1960,7 +2056,7 @@ export interface components {
         AddDatasetLabelToDatasetResponseBody: {
             data: components["schemas"]["DatasetLabel"];
         };
-        AgentModelSelection: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+        AgentModelSelection: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"] | components["schemas"]["CodexSubscriptionModelSelection"];
         /**
          * AgentSessionConflictError
          * @description Body of every HTTP 409 returned by the agent session routes.
@@ -2464,9 +2560,9 @@ export interface components {
             /**
              * Key
              * @description The credential's secret-key name.
-             * @constant
+             * @enum {string}
              */
-            key: "GITHUB_PERSONAL_ACCESS_TOKEN";
+            key: "GITHUB_PERSONAL_ACCESS_TOKEN" | "OPENAI_CODEX_ACCESS_TOKEN";
             /**
              * Value
              * Format: password
@@ -2484,12 +2580,184 @@ export interface components {
             evaluatorNodeId?: string | null;
         };
         /**
+         * CodexAuthorizationUrlResponse
+         * @description Everything the browser needs to run the authorization-code grant with PKCE.
+         *
+         *     Phoenix mints the verifier so the flow also works in non-secure contexts, where
+         *     the browser has no ``crypto.subtle``; it is returned once and never stored.
+         */
+        CodexAuthorizationUrlResponse: {
+            /**
+             * Authorization Url
+             * @description Send the user here to sign in.
+             */
+            authorization_url: string;
+            /**
+             * State
+             * @description Must match the ``state`` on the redirect the user pastes back.
+             */
+            state: string;
+            /**
+             * Code Verifier
+             * @description RFC 7636 verifier to present with the authorization code.
+             */
+            code_verifier: string;
+            /**
+             * Redirect Uri
+             * @description Where OpenAI sends the user afterwards; nothing listens there.
+             */
+            redirect_uri: string;
+        };
+        /**
+         * CodexDeviceAuthorizationResponse
+         * @description RFC 8628 §3.2 device authorization response.
+         */
+        CodexDeviceAuthorizationResponse: {
+            /**
+             * Device Code
+             * @description Opaque handle to present to the token endpoint while polling.
+             */
+            device_code: string;
+            /**
+             * User Code
+             * @description Short code the user types at ``verification_uri``.
+             */
+            user_code: string;
+            /** Verification Uri */
+            verification_uri: string;
+            /**
+             * Expires In
+             * @description Lifetime of ``device_code`` and ``user_code`` in seconds.
+             */
+            expires_in: number;
+            /**
+             * Interval
+             * @description Minimum seconds to wait between token requests.
+             */
+            interval: number;
+        };
+        /** CodexModelsRequestBody */
+        CodexModelsRequestBody: {
+            /**
+             * Access Token
+             * Format: password
+             */
+            access_token: string;
+        };
+        /** CodexModelsResponseBody */
+        CodexModelsResponseBody: {
+            /**
+             * Models
+             * @description Model slugs the subscription can use.
+             */
+            models: string[];
+        };
+        /**
+         * CodexSubscriptionModelSelection
+         * @description Chat against OpenAI's Codex backend with the user's ChatGPT subscription.
+         */
+        CodexSubscriptionModelSelection: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            providerType: "codex";
+            /** Modelname */
+            modelName: string;
+        };
+        /**
+         * CodexTokenErrorResponse
+         * @description RFC 6749 §5.2 / RFC 8628 §3.5 token error response.
+         */
+        CodexTokenErrorResponse: {
+            /**
+             * Error
+             * @enum {string}
+             */
+            error: "authorization_pending" | "expired_token" | "access_denied" | "invalid_grant" | "invalid_request" | "unsupported_grant_type" | "temporarily_unavailable";
+            /** Error Description */
+            error_description?: string | null;
+        };
+        /**
+         * CodexTokenRequest
+         * @description RFC 6749 §4.1.3 / RFC 8628 §3.4 token request, form-encoded.
+         *
+         *     ``code`` and ``code_verifier`` are required for the authorization-code grant,
+         *     ``device_code`` for the device-code grant, and ``refresh_token`` for the
+         *     refresh grant.
+         */
+        CodexTokenRequest: {
+            /**
+             * Grant Type
+             * @enum {string}
+             */
+            grant_type: "authorization_code" | "urn:ietf:params:oauth:grant-type:device_code" | "refresh_token";
+            /**
+             * Code
+             * @description Authorization code from the ``code`` query parameter of the redirect.
+             */
+            code?: string | null;
+            /**
+             * Code Verifier
+             * @description The ``code_verifier`` from ``/authorization_url``.
+             */
+            code_verifier?: string | null;
+            /**
+             * Redirect Uri
+             * @description The ``redirect_uri`` from ``/authorization_url``; defaults to it when omitted.
+             */
+            redirect_uri?: string | null;
+            /**
+             * Device Code
+             * @description The ``device_code`` from ``/device_authorization``.
+             */
+            device_code?: string | null;
+            /**
+             * Refresh Token
+             * @description Single-use refresh token from an earlier token response.
+             */
+            refresh_token?: string | null;
+        };
+        /**
+         * CodexTokenResponse
+         * @description RFC 6749 §5.1 token response, plus the ChatGPT ``account_id`` extension parameter.
+         *
+         *     Returned once per grant; the server keeps no copy.
+         */
+        CodexTokenResponse: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Token Type
+             * @default Bearer
+             * @constant
+             */
+            token_type?: "Bearer";
+            /**
+             * Refresh Token
+             * @description Single-use: replace the stored bundle on refresh.
+             */
+            refresh_token: string;
+            /** Id Token */
+            id_token?: string | null;
+            /**
+             * Account Id
+             * @description ChatGPT account the tokens belong to.
+             */
+            account_id: string;
+        };
+        /**
          * CompactAgentSessionRequestBody
          * @description Request a model-generated checkpoint for a persisted conversation.
          */
         CompactAgentSessionRequestBody: {
             /** @description The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. */
             model: components["schemas"]["AgentModelSelection"];
+            /**
+             * Credentials
+             * @description Client-held credentials the summary model needs, as on the chat route (e.g. the ChatGPT subscription token for Codex sessions). Never persisted.
+             */
+            credentials?: components["schemas"]["ChatRequestCredential"][];
         };
         /**
          * CompactAgentSessionResponseBody
@@ -13889,6 +14157,220 @@ export interface operations {
             };
             /** @description Insufficient Storage */
             507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    codexAuthorizationUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexAuthorizationUrlResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    codexDeviceAuthorization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexDeviceAuthorizationResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    codexToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["CodexTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexTokenResponse"];
+                };
+            };
+            /** @description ``authorization_pending`` until the user finishes signing in; ``invalid_grant`` for a rejected, expired, or spent grant. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexTokenErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description OpenAI was unreachable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexTokenErrorResponse"];
+                };
+            };
+        };
+    };
+    listCodexModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodexModelsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexModelsResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -3,11 +3,11 @@ import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
-import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ProviderServerCredentialsPanel } from "@phoenix/components/generative";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
 import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCredentialFormQuery.graphql";
+import type { AgentModelMenuValue } from "./agentModelTypes";
 
 const credentialFormCSS = css`
   box-sizing: border-box;
@@ -23,7 +23,9 @@ const credentialFormCSS = css`
 type AgentModelCredentialProvider =
   AgentModelCredentialFormQuery["response"]["modelProviders"][number];
 
-export function useAgentModelCredentialStatus(value: ModelMenuValue | null) {
+export function useAgentModelCredentialStatus(
+  value: AgentModelMenuValue | null
+) {
   const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<AgentModelCredentialFormQuery>(
     graphql`
@@ -43,7 +45,7 @@ export function useAgentModelCredentialStatus(value: ModelMenuValue | null) {
     { fetchKey, fetchPolicy: "store-and-network" }
   );
 
-  if (!value || value.customProvider) {
+  if (!value || value.customProvider || value.codexSubscription) {
     return {
       missingCredentialsProvider: null,
       refreshCredentialStatus: () => setFetchKey((key) => key + 1),

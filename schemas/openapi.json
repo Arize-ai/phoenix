@@ -10302,6 +10302,254 @@
         }
       }
     },
+    "/codex/authorization_url": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Authorization Url",
+        "description": "Start a ChatGPT browser sign-in (authorization code with PKCE, RFC 7636).\n\nOpen ``authorization_url``. After signing in the user is redirected to\n``redirect_uri``, where nothing is listening; have them paste that URL back,\ncheck its ``state``, and send its ``code`` with ``code_verifier`` to ``/token``.",
+        "operationId": "codexAuthorizationUrl",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexAuthorizationUrlResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codex/device_authorization": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Device Authorization",
+        "description": "Start a ChatGPT device-code sign-in (RFC 8628 \u00a73.1).\n\nPhoenix supplies the public Codex ``client_id``, so the request carries no body.",
+        "operationId": "codexDeviceAuthorization",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexDeviceAuthorizationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codex/token": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Token",
+        "description": "Complete or refresh a ChatGPT sign-in (RFC 6749 \u00a74.1.3 and \u00a76, RFC 8628 \u00a73.4).\n\nExchange a browser sign-in with ``grant_type=authorization_code``, the ``code``\nfrom the pasted redirect, and the ``code_verifier`` from ``/authorization_url``.\nPoll with ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and the\n``device_code`` from ``/device_authorization`` until the response is no longer\n``authorization_pending``. Refresh with ``grant_type=refresh_token``; refresh\ntokens are single-use.",
+        "operationId": "codexToken",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/CodexTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "``authorization_pending`` until the user finishes signing in; ``invalid_grant`` for a rejected, expired, or spent grant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexTokenErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenAI was unreachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexTokenErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/codex/models": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "List Models",
+        "description": "Models the signed-in ChatGPT subscription can use.\n\nA POST so the access token travels in the body: the ``Authorization`` header\nalready carries the Phoenix session.",
+        "operationId": "listCodexModels",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodexModelsRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexModelsResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/arize_phoenix_version": {
       "get": {
         "summary": "Version",
@@ -10372,12 +10620,16 @@
           },
           {
             "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+          },
+          {
+            "$ref": "#/components/schemas/CodexSubscriptionModelSelection"
           }
         ],
         "discriminator": {
           "propertyName": "providerType",
           "mapping": {
             "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+            "codex": "#/components/schemas/CodexSubscriptionModelSelection",
             "custom": "#/components/schemas/CustomProviderModelSelection"
           }
         }
@@ -11537,7 +11789,10 @@
         "properties": {
           "key": {
             "type": "string",
-            "const": "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "enum": [
+              "GITHUB_PERSONAL_ACCESS_TOKEN",
+              "OPENAI_CODEX_ACCESS_TOKEN"
+            ],
             "title": "Key",
             "description": "The credential's secret-key name."
           },
@@ -11582,11 +11837,298 @@
         ],
         "title": "CodeEvaluatorUIContext"
       },
+      "CodexAuthorizationUrlResponse": {
+        "properties": {
+          "authorization_url": {
+            "type": "string",
+            "title": "Authorization Url",
+            "description": "Send the user here to sign in."
+          },
+          "state": {
+            "type": "string",
+            "title": "State",
+            "description": "Must match the ``state`` on the redirect the user pastes back."
+          },
+          "code_verifier": {
+            "type": "string",
+            "title": "Code Verifier",
+            "description": "RFC 7636 verifier to present with the authorization code."
+          },
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri",
+            "description": "Where OpenAI sends the user afterwards; nothing listens there."
+          }
+        },
+        "type": "object",
+        "required": [
+          "authorization_url",
+          "state",
+          "code_verifier",
+          "redirect_uri"
+        ],
+        "title": "CodexAuthorizationUrlResponse",
+        "description": "Everything the browser needs to run the authorization-code grant with PKCE.\n\nPhoenix mints the verifier so the flow also works in non-secure contexts, where\nthe browser has no ``crypto.subtle``; it is returned once and never stored."
+      },
+      "CodexDeviceAuthorizationResponse": {
+        "properties": {
+          "device_code": {
+            "type": "string",
+            "title": "Device Code",
+            "description": "Opaque handle to present to the token endpoint while polling."
+          },
+          "user_code": {
+            "type": "string",
+            "title": "User Code",
+            "description": "Short code the user types at ``verification_uri``."
+          },
+          "verification_uri": {
+            "type": "string",
+            "title": "Verification Uri"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Lifetime of ``device_code`` and ``user_code`` in seconds."
+          },
+          "interval": {
+            "type": "integer",
+            "title": "Interval",
+            "description": "Minimum seconds to wait between token requests."
+          }
+        },
+        "type": "object",
+        "required": [
+          "device_code",
+          "user_code",
+          "verification_uri",
+          "expires_in",
+          "interval"
+        ],
+        "title": "CodexDeviceAuthorizationResponse",
+        "description": "RFC 8628 \u00a73.2 device authorization response."
+      },
+      "CodexModelsRequestBody": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "format": "password",
+            "title": "Access Token",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "title": "CodexModelsRequestBody"
+      },
+      "CodexModelsResponseBody": {
+        "properties": {
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models",
+            "description": "Model slugs the subscription can use."
+          }
+        },
+        "type": "object",
+        "required": [
+          "models"
+        ],
+        "title": "CodexModelsResponseBody"
+      },
+      "CodexSubscriptionModelSelection": {
+        "properties": {
+          "providerType": {
+            "type": "string",
+            "const": "codex",
+            "title": "Providertype"
+          },
+          "modelName": {
+            "type": "string",
+            "title": "Modelname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providerType",
+          "modelName"
+        ],
+        "title": "CodexSubscriptionModelSelection",
+        "description": "Chat against OpenAI's Codex backend with the user's ChatGPT subscription."
+      },
+      "CodexTokenErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "authorization_pending",
+              "expired_token",
+              "access_denied",
+              "invalid_grant",
+              "invalid_request",
+              "unsupported_grant_type",
+              "temporarily_unavailable"
+            ],
+            "title": "Error"
+          },
+          "error_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "CodexTokenErrorResponse",
+        "description": "RFC 6749 \u00a75.2 / RFC 8628 \u00a73.5 token error response."
+      },
+      "CodexTokenRequest": {
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "enum": [
+              "authorization_code",
+              "urn:ietf:params:oauth:grant-type:device_code",
+              "refresh_token"
+            ],
+            "title": "Grant Type"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "Authorization code from the ``code`` query parameter of the redirect."
+          },
+          "code_verifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Verifier",
+            "description": "The ``code_verifier`` from ``/authorization_url``."
+          },
+          "redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uri",
+            "description": "The ``redirect_uri`` from ``/authorization_url``; defaults to it when omitted."
+          },
+          "device_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Code",
+            "description": "The ``device_code`` from ``/device_authorization``."
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token",
+            "description": "Single-use refresh token from an earlier token response."
+          }
+        },
+        "type": "object",
+        "required": [
+          "grant_type"
+        ],
+        "title": "CodexTokenRequest",
+        "description": "RFC 6749 \u00a74.1.3 / RFC 8628 \u00a73.4 token request, form-encoded.\n\n``code`` and ``code_verifier`` are required for the authorization-code grant,\n``device_code`` for the device-code grant, and ``refresh_token`` for the\nrefresh grant."
+      },
+      "CodexTokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "const": "Bearer",
+            "title": "Token Type",
+            "default": "Bearer"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Single-use: replace the stored bundle on refresh."
+          },
+          "id_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Token"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id",
+            "description": "ChatGPT account the tokens belong to."
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "account_id"
+        ],
+        "title": "CodexTokenResponse",
+        "description": "RFC 6749 \u00a75.1 token response, plus the ChatGPT ``account_id`` extension parameter.\n\nReturned once per grant; the server keeps no copy."
+      },
       "CompactAgentSessionRequestBody": {
         "properties": {
           "model": {
             "$ref": "#/components/schemas/AgentModelSelection",
             "description": "The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``."
+          },
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/ChatRequestCredential"
+            },
+            "type": "array",
+            "title": "Credentials",
+            "description": "Client-held credentials the summary model needs, as on the chat route (e.g. the ChatGPT subscription token for Codex sessions). Never persisted."
           }
         },
         "type": "object",

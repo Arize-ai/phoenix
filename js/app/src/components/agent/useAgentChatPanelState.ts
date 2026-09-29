@@ -2,12 +2,14 @@ import { useCallback, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { DRAFT_SESSION_ID } from "@phoenix/store/agentStore";
-import type { ModelConfig } from "@phoenix/store/playground/types";
+import {
+  type AgentModelConfig,
+  DRAFT_SESSION_ID,
+} from "@phoenix/store/agentStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import type { ModelMenuValue } from "../generative/ModelMenu";
 import type { useAgentChatPanelStatePatchAgentSessionMutation } from "./__generated__/useAgentChatPanelStatePatchAgentSessionMutation.graphql";
+import type { AgentModelMenuValue } from "./agentModelTypes";
 import {
   toAgentModelSelection,
   toAgentModelSelectionInput,
@@ -46,7 +48,7 @@ export function useAgentChatPanelState({
   sessionModelConfig,
 }: {
   sessionId?: string | null;
-  sessionModelConfig?: ModelConfig;
+  sessionModelConfig?: AgentModelConfig;
 } = {}) {
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
@@ -66,24 +68,26 @@ export function useAgentChatPanelState({
       patchAgentSessionMutation
     );
 
-  const menuValue: ModelMenuValue = useMemo(
+  const menuValue: AgentModelMenuValue = useMemo(
     () => ({
       provider: activeModelConfig.provider,
       modelName: activeModelConfig.modelName ?? "",
       ...(activeModelConfig.customProvider && {
         customProvider: activeModelConfig.customProvider,
       }),
+      ...(activeModelConfig.codexSubscription && { codexSubscription: true }),
     }),
     [activeModelConfig]
   );
 
   const handleModelChange = useCallback(
-    (model: ModelMenuValue) => {
+    (model: AgentModelMenuValue) => {
       const nextConfig = {
         ...activeModelConfig,
         provider: model.provider,
         modelName: model.modelName,
         customProvider: model.customProvider ?? null,
+        codexSubscription: model.codexSubscription ?? false,
       };
       if (!sessionId || sessionId === DRAFT_SESSION_ID) {
         setDefaultModelConfig(nextConfig);
@@ -98,11 +102,16 @@ export function useAgentChatPanelState({
               providerId: selection.providerId,
               modelName: selection.modelName,
             }
-          : {
-              __typename: "AgentBuiltinProviderModelSelection" as const,
-              provider: selection.provider,
-              modelName: selection.modelName,
-            };
+          : selection.providerType === "codex"
+            ? {
+                __typename: "AgentCodexModelSelection" as const,
+                modelName: selection.modelName,
+              }
+            : {
+                __typename: "AgentBuiltinProviderModelSelection" as const,
+                provider: selection.provider,
+                modelName: selection.modelName,
+              };
       commitModelChange({
         variables: {
           input: {
