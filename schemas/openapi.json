@@ -11934,7 +11934,7 @@
           "modelName"
         ],
         "title": "CodexSubscriptionModelSelection",
-        "description": "Chat against OpenAI's Codex backend with the user's ChatGPT subscription.\n\nExperimental. There is no server-side credential: the browser signs in\n(see ``phoenix.server.agents.codex``) and sends its access token on each\nrequest as the ``OPENAI_CODEX_ACCESS_TOKEN`` credential."
+        "description": "Chat against OpenAI's Codex backend with the user's ChatGPT subscription."
       },
       "CodexTokenBundle": {
         "properties": {
