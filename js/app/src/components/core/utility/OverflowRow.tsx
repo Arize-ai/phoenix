@@ -27,7 +27,6 @@ type OverflowState = FirstLine & {
 };
 
 const overflowRowCSS = css`
-  // The "+N" badge and the room reserved for it scale with the item size
   --overflow-row-badge-font-size: var(--global-font-size-s);
   --overflow-row-badge-padding-x: var(--global-dimension-size-100);
   --overflow-row-badge-reserve: var(--global-dimension-size-600);

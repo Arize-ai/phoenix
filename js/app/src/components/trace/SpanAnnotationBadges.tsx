@@ -11,11 +11,7 @@ export type SpanAnnotationBadgesProps = {
   className?: string;
 };
 
-/**
- * A trace tree row's annotation badges on one line, unfavorable first.
- * Badges that do not fit collapse into a "+N" popover, so a narrow tree still
- * shows the result that flagged the span. Renders nothing without summaries.
- */
+/** Renders nothing without summaries, so unannotated rows add no layout. */
 export function SpanAnnotationBadges({
   summaries,
   annotationConfigsByName,

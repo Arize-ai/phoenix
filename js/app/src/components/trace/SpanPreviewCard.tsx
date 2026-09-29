@@ -42,7 +42,7 @@ const cardCSS = css`
     gap: var(--global-dimension-size-200);
     white-space: nowrap;
   }
-  /* Dividers between sections run to the tooltip's edges while content keeps its inset */
+  /* Dividers run to the tooltip's edges; content keeps its inset */
   .span-preview__header ~ * + * {
     margin-inline: calc(-1 * var(--rich-tooltip-padding-x, 0px));
     padding-inline: var(--rich-tooltip-padding-x, 0px);
@@ -61,11 +61,7 @@ export type SpanPreviewCardProps = {
   metricsDetails?: TokenDetailsBreakdownProps | null;
 };
 
-/**
- * The content of a trace tree row's preview: header, timing, annotations,
- * then tokens and cost. Pure, so every state renders from plain data;
- * `SpanPreviewTooltip` loads the details and passes them in.
- */
+/** The content of a trace tree row's preview; `SpanPreviewTooltip` loads its details. */
 export function SpanPreviewCard({
   span,
   annotationConfigsByName,
@@ -105,12 +101,6 @@ export function SpanPreviewCard({
   );
 }
 
-/**
- * One line: when the span started and ended on the left, and how long that
- * took on the right. Every span has these, so a tool or chain span without
- * tokens still has a preview worth opening. Times stop at the second: the
- * latency beside them carries the finer resolution.
- */
 function SpanTimingDetails({
   startTime,
   endTime,

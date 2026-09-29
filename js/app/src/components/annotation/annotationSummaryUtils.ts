@@ -19,7 +19,6 @@ export function getAnnotationSummaryPositiveOptimization({
   });
 }
 
-/** The most frequent label, or `null` when no annotation has a label. */
 export function getAnnotationSummaryTopLabel(
   summary: Pick<AnnotationSummary, "labelFractions">
 ): string | null {

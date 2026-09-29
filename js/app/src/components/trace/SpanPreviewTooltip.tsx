@@ -19,7 +19,6 @@ import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "./TokenDetailsBreakdown";
  */
 const DETAILS_SETTLE_MS = 150;
 
-/** The preview's lazy details, annotations and token breakdown, in one round trip. */
 const SpanPreviewTooltipDetailsQuery = graphql`
   query SpanPreviewTooltipDetailsQuery($nodeId: ID!) {
     node(id: $nodeId) {
@@ -58,8 +57,8 @@ export type SpanPreviewTooltipProps = Pick<
 >;
 
 /**
- * The trace tree row's tooltip: a {@link SpanPreviewCard} that loads its own
- * details.
+ * A trace tree row's tooltip: a {@link SpanPreviewCard} that loads its own
+ * details once the tooltip settles.
  *
  * @remarks
  * Render it as the tooltip of a `TooltipTrigger` around the row, which
@@ -68,10 +67,6 @@ export type SpanPreviewTooltipProps = Pick<
  * the preview holds one horizontal position as the pointer moves down the
  * tree whatever the nesting, and the arrow and the row's hover fill, which
  * reaches that same edge, tie the two together.
- *
- * The card renders at once from the row's data. Details are fetched only
- * once the tooltip has stayed open a moment, so scrubbing down the tree
- * fetches nothing for the rows the pointer passes over.
  */
 export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
   return (
@@ -88,7 +83,6 @@ export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
   );
 }
 
-/** Row data until the tooltip settles, then the loaded details. */
 function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
   const hasSettled = useSettled(DETAILS_SETTLE_MS);
   const placeholder = <SpanPreviewCard {...props} />;

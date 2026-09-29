@@ -18,15 +18,12 @@ import {
 } from "@phoenix/components/core/utility/Truncate";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-/** One annotation behind a summary, as the preview's lazy details query returns it. */
 export type SpanPreviewAnnotation = {
   readonly name: string;
   readonly explanation?: string | null;
-  /** ISO timestamp; the newest annotation of each name supplies the explanation. */
   readonly createdAt: string;
 };
 
-/* Mirrors the token breakdown table beneath it in the preview */
 const tableCSS = css`
   width: 100%;
   border-collapse: collapse;
@@ -91,7 +88,7 @@ const tableCSS = css`
   .span-preview-annotation__value[data-unrecorded] {
     color: var(--global-text-color-300);
   }
-  /* Aligns with the name: swatch width plus gap */
+  /* Swatch width plus gap, so the caption aligns with the name */
   .span-preview-annotation__explanation td {
     padding-top: var(--global-dimension-size-25);
     padding-left: calc(8px + var(--global-dimension-size-100));
@@ -105,11 +102,7 @@ export type SpanPreviewAnnotationsProps = {
   annotations?: readonly SpanPreviewAnnotation[] | null;
 };
 
-/**
- * The span preview's annotations table: label and score per annotation name,
- * unfavorable first, each with its latest explanation. Values come from the
- * tree row's summaries, so the table renders before the details load.
- */
+/** Values come from the row's summaries, so the table renders before details load. */
 export function SpanPreviewAnnotations({
   summaries,
   annotationConfigsByName,
@@ -239,7 +232,6 @@ export function SpanPreviewAnnotations({
   );
 }
 
-/** A label or score, or a muted untinted dash when the annotation lacks one. */
 function AnnotationValue({
   children,
   positiveOptimization,

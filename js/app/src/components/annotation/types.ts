@@ -25,12 +25,10 @@ export interface Annotation {
 
 export type AnnotationTargetType = "span" | "trace" | "session";
 
-/** One annotation name's aggregate on a span, trace or session. */
 export type AnnotationSummary = {
   name: string;
   meanScore?: number | null;
   labelFractions: readonly { label: string; fraction: number }[];
-  /** Number of annotations with this name. */
   count?: number | null;
 };
 

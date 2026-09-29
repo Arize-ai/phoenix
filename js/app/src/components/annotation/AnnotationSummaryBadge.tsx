@@ -49,16 +49,10 @@ const badgeCSS = css(
 
 export interface AnnotationSummaryBadgeProps {
   summary: AnnotationSummary;
-  /** Decides whether the value is tinted favorable or unfavorable; omit for a plain value. */
   annotationConfig?: AnnotationOptimizationConfig;
 }
 
-/**
- * A one-line annotation label for dense surfaces such as trace tree rows.
- * It shows the summary's most common label, else its mean score, and only
- * the value is tinted, so unfavorable results stand out in a quiet row.
- * Not interactive; wrap it in a trigger for details.
- */
+/** Shows the summary's most common label, falling back to its mean score. */
 export function AnnotationSummaryBadge({
   summary,
   annotationConfig,
