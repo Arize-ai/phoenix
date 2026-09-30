@@ -443,7 +443,7 @@ px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py --expected-
 px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
 ```
 
-Errors carry the server's explanation. In `raw`/`json` mode they are a `{error, code, status, reason, existing_id}` JSON envelope on stderr: `reason` is the server's stable code (`already_exists`, `validation_error`, `conflict`, `not_found`, `invalid_argument`) and `existing_id` names the resource holding a taken name. Invalid flags exit `3`, rejected credentials exit `4`.
+Errors carry the server's explanation and exit `1` for any of these — not found, a name clash, a validation error, and so on; only invalid flags (`3`) and rejected credentials (`4`) get their own codes. In `raw`/`json` mode they are a `{error, code, status, reason, existing_id}` JSON envelope on stderr: `reason` is the server's stable code (`already_exists`, `validation_error`, `conflict`, `not_found`, `invalid_argument`) and `existing_id` names the resource holding a taken name. `--if-not-exists` on `create` sidesteps the name-clash case rather than requiring a stderr parse.
 
 ## GraphQL
 
