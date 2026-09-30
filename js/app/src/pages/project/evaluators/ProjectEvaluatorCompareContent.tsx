@@ -72,7 +72,7 @@ export function ProjectEvaluatorCompareContent({
                 evaluatedByBoth
                 onlyA
                 onlyB
-                eligible
+                totalInRange
               }
               ...ProjectEvaluatorCompareTargets_comparison
               ...ProjectEvaluatorCompareStats_comparison

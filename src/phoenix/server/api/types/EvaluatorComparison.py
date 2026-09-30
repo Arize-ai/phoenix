@@ -34,15 +34,8 @@ class EvaluatorComparisonCoverage:
     )
     only_a: int = strawberry.field(description="Entities in range evaluated only by evaluator A.")
     only_b: int = strawberry.field(description="Entities in range evaluated only by evaluator B.")
-    eligible: Optional[int] = strawberry.field(
-        description=(
-            "Entities in range that either evaluator could have run on, plus any entity with "
-            "a result from either. An evaluator can run on an entity that matches its current "
-            "filter condition and arrived after the evaluator was created: a span at its "
-            "start time, a trace or session at its last span ingestion. Sampling is not "
-            "applied. At least evaluatedByBoth + onlyA + onlyB. Null when either "
-            "evaluator's filter condition does not compile."
-        )
+    total_in_range: int = strawberry.field(
+        description="All entities of the compared evaluation target in the project and time range."
     )
 
 

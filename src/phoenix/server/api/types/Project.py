@@ -11,7 +11,7 @@ import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import Select, case, desc, distinct, func, or_, select, union
+from sqlalchemy import Select, case, desc, distinct, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
@@ -46,7 +46,6 @@ from phoenix.server.api.helpers.evaluator_comparison import (
 from phoenix.server.api.helpers.evaluator_results import (
     EVALUATOR_RESULT_LEVELS,
     evaluator_annotation_rows,
-    evaluator_eligible_entity_ids,
     latest_evaluator_annotations,
     primary_result_annotation,
 )
@@ -2609,19 +2608,18 @@ class Project(Node):
         binning_a = make_side_binning(name_a, config_a, threshold_a)
         binning_b = make_side_binning(name_b, config_b, threshold_b)
 
-        pairs_stmt, coverage_stmt, eligible_stmt = _evaluator_comparison_stmts(
+        pairs_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
             project_rowid=self.id,
             evaluation_target=evaluation_target,
             name_a=name_a,
             name_b=name_b,
             time_range=time_range,
-            project_evaluators=(record_a, record_b),
         )
 
         accumulator = ComparisonAccumulator(binning_a, binning_b)
         evaluated_by_both = only_a = only_b = 0
         async with info.context.db.read() as session:
-            eligible = None if eligible_stmt is None else await session.scalar(eligible_stmt) or 0
+            total_in_range = await session.scalar(total_stmt) or 0
             for has_a, has_b, entity_count in await session.execute(coverage_stmt):
                 if has_a and has_b:
                     evaluated_by_both = entity_count
@@ -2639,7 +2637,7 @@ class Project(Node):
                 evaluated_by_both=evaluated_by_both,
                 only_a=only_a,
                 only_b=only_b,
-                eligible=eligible,
+                total_in_range=total_in_range,
             ),
             result=result,
             record_a=record_a,
@@ -3056,19 +3054,16 @@ def _evaluator_comparison_stmts(
     name_a: str,
     name_b: str,
     time_range: TimeRange,
-    project_evaluators: tuple[models.ProjectEvaluator, models.ProjectEvaluator],
-) -> tuple[Select[Any], Select[Any], Optional[Select[Any]]]:
-    """Build the pair, coverage, and eligible-entity statements for one evaluation target.
+) -> tuple[Select[Any], Select[Any], Select[Any]]:
+    """Build the pair, coverage, and total-entity statements for one evaluation target.
 
     The pair statement yields one row per entity annotated under both names in
     range — (label_a, score_a, label_b, score_b) — deduplicating
     multiple annotation identifiers per (entity, name) to the most recently
     updated. Rows are selected by annotation name alone, whichever source
     wrote them. The coverage statement counts entities grouped by which names
-    annotated them. The eligible statement counts entities in range that
-    either evaluator could have run on, plus any entity annotated under either
-    name, so coverage never exceeds it; it is None when either evaluator's
-    filter condition does not compile.
+    annotated them, and the total statement counts all entities of that target
+    in the project and range.
     """
     level = EVALUATOR_RESULT_LEVELS.get(evaluation_target)
     if level is None:
@@ -3084,21 +3079,16 @@ def _evaluator_comparison_stmts(
             time_range=time_range,
         )
 
-    eligible: Optional[Select[Any]]
-    try:
-        eligible_ids = [
-            evaluator_eligible_entity_ids(project_evaluator, time_range=time_range)
-            for project_evaluator in project_evaluators
-        ]
-    except Exception:
-        # A stored filter can stop compiling when the filter language changes;
-        # online evaluation skips such an evaluator, so nothing is eligible to count.
-        eligible = None
-    else:
-        eligible_union = union(*eligible_ids, annotation_rows(level.entity_id)).subquery(
-            "comparison_eligible"
+    total = select(func.count(level.entity.id))
+    if level.joins_trace:
+        total = total.join_from(
+            level.entity, models.Trace, onclause=models.Span.trace_rowid == models.Trace.id
         )
-        eligible = select(func.count()).select_from(eligible_union)
+    total = total.where(level.project_col == project_rowid).where(
+        time_range.start <= level.time_col
+    )
+    if time_range.end:
+        total = total.where(level.time_col < time_range.end)
 
     is_a_flag = case((level.annotation.name == name_a, 1), else_=0)
     is_b_flag = case((level.annotation.name == name_b, 1), else_=0)
@@ -3133,7 +3123,7 @@ def _evaluator_comparison_stmts(
         .having(func.max(case((is_a, 1), else_=0)) == 1)
         .having(func.max(case((~is_a, 1), else_=0)) == 1)
     )
-    return pairs, coverage, eligible
+    return pairs, coverage, total
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

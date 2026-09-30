@@ -11,9 +11,6 @@ from phoenix.db.types.annotation_configs import OutputConfigType, as_output_conf
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.session_filters import get_filtered_session_rowids_subquery
-from phoenix.server.trace_filters import get_filtered_trace_rowids_subquery
-from phoenix.trace.dsl.filter import SpanFilter
 
 
 def primary_result_annotation(
@@ -151,65 +148,3 @@ def latest_evaluator_annotations(
         .where(annotated.c.row_number == 1)
         .subquery("latest_evaluator_annotations")
     )
-
-
-def evaluator_eligible_entity_ids(
-    project_evaluator: models.ProjectEvaluator,
-    *,
-    time_range: TimeRange,
-) -> Select[tuple[int]]:
-    """Select the entities in range a project evaluator could have run on.
-
-    An entity qualifies when it matches the evaluator's current filter condition
-    and arrived after the evaluator was created. Online evaluation offers an
-    evaluator only entities that arrive after it exists; spans carry no arrival
-    time, so a span arrives at its start time, and traces and sessions at their
-    last span ingestion. Sampling is not applied, since it cannot be expressed
-    in SQL. Raises when the filter condition does not compile.
-    """
-    if time_range.start is None:
-        raise BadRequest("Start time is required")
-    evaluation_target = project_evaluator.evaluation_target
-    level = EVALUATOR_RESULT_LEVELS.get(evaluation_target)
-    if level is None:
-        raise BadRequest(f"Unsupported evaluation target: {evaluation_target}")
-    condition = project_evaluator.filter_condition
-    project_rowid = project_evaluator.project_id
-    created_at = project_evaluator.created_at
-    stmt: Select[tuple[int]] = select(level.entity.id)
-    if level.joins_trace:
-        stmt = stmt.join_from(
-            level.entity, models.Trace, onclause=models.Span.trace_rowid == models.Trace.id
-        )
-    stmt = stmt.where(level.project_col == project_rowid).where(time_range.start <= level.time_col)
-    if time_range.end:
-        stmt = stmt.where(level.time_col < time_range.end)
-    if evaluation_target == "SPAN":
-        return SpanFilter(condition)(stmt.where(models.Span.start_time >= created_at))
-    if evaluation_target == "TRACE":
-        stmt = stmt.where(models.Trace.last_span_ingested_at >= created_at)
-        if condition:
-            stmt = stmt.where(
-                models.Trace.id.in_(
-                    get_filtered_trace_rowids_subquery(
-                        condition,
-                        [project_rowid],
-                        start_time=time_range.start,
-                        end_time=time_range.end,
-                    )
-                )
-            )
-        return stmt
-    stmt = stmt.where(models.ProjectSession.last_span_ingested_at >= created_at)
-    if condition:
-        stmt = stmt.where(
-            models.ProjectSession.id.in_(
-                get_filtered_session_rowids_subquery(
-                    condition,
-                    [project_rowid],
-                    start_time=time_range.start,
-                    end_time=time_range.end,
-                )
-            )
-        )
-    return stmt

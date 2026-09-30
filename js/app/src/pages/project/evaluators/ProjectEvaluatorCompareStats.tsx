@@ -152,7 +152,7 @@ export function ProjectEvaluatorCompareStats({
           evaluatedByBoth
           onlyA
           onlyB
-          eligible
+          totalInRange
         }
         populationSize
         a {
@@ -176,14 +176,6 @@ export function ProjectEvaluatorCompareStats({
     comparison.evaluationTarget
   );
   const kappaGloss = getKappaGloss(statistics.cohensKappa);
-  const { eligible } = coverage;
-  const getShareOfEligible = (count: number) =>
-    eligible == null || eligible === 0 ? null : count / eligible;
-  const evaluatedByBothShareOfEligible = getShareOfEligible(
-    coverage.evaluatedByBoth
-  );
-  const onlyAShareOfEligible = getShareOfEligible(coverage.onlyA);
-  const onlyBShareOfEligible = getShareOfEligible(coverage.onlyB);
   const capitalizedTargets =
     evaluationTargetsPlural.charAt(0).toUpperCase() +
     evaluationTargetsPlural.slice(1);
@@ -291,26 +283,19 @@ export function ProjectEvaluatorCompareStats({
                 </StatHelp>
               }
             >
-              <StatValueWithDetail
-                value={formatInt(coverage.evaluatedByBoth)}
-                detail={
-                  evaluatedByBothShareOfEligible == null
-                    ? null
-                    : formatNullableRate(evaluatedByBothShareOfEligible)
-                }
-              />
+              <Text size="S">{formatInt(coverage.evaluatedByBoth)}</Text>
             </StatField>
             <StatField
-              label={`eligible ${evaluationTargetsPlural}`}
+              label={`${evaluationTargetsPlural} in range`}
               help={
                 <StatHelp>
                   {[
-                    `${capitalizedTargets} that match an evaluator's filter and arrived after that evaluator was created.`,
+                    `All ${evaluationTargetsPlural} in the time range, evaluated or not.`,
                   ]}
                 </StatHelp>
               }
             >
-              <Text size="S">{formatNullableInt(eligible)}</Text>
+              <Text size="S">{formatInt(coverage.totalInRange)}</Text>
             </StatField>
             <StatField
               help={
@@ -329,14 +314,7 @@ export function ProjectEvaluatorCompareStats({
                 </div>
               }
             >
-              <StatValueWithDetail
-                value={formatInt(coverage.onlyA)}
-                detail={
-                  onlyAShareOfEligible == null
-                    ? null
-                    : formatNullableRate(onlyAShareOfEligible)
-                }
-              />
+              <Text size="S">{formatInt(coverage.onlyA)}</Text>
             </StatField>
             <StatField
               help={
@@ -355,14 +333,7 @@ export function ProjectEvaluatorCompareStats({
                 </div>
               }
             >
-              <StatValueWithDetail
-                value={formatInt(coverage.onlyB)}
-                detail={
-                  onlyBShareOfEligible == null
-                    ? null
-                    : formatNullableRate(onlyBShareOfEligible)
-                }
-              />
+              <Text size="S">{formatInt(coverage.onlyB)}</Text>
             </StatField>
           </StatFieldList>
         </View>
