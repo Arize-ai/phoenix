@@ -821,17 +821,6 @@ async def create_prompt_version_tag(
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
             raise HTTPException(404)
-        existing_tag = await session.scalar(
-            select(models.PromptVersionTag).where(
-                models.PromptVersionTag.prompt_id == prompt_id,
-                models.PromptVersionTag.name == request_body.name,
-            )
-        )
-        if existing_tag is not None:
-            try:
-                await validate_prompt_version_tag_move(session, existing_tag, id_)
-            except Conflict as error:
-                raise HTTPException(409, str(error)) from error
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         values = dict(
             name=request_body.name,
@@ -840,15 +829,55 @@ async def create_prompt_version_tag(
             prompt_version_id=id_,
             user_id=user_id,
         )
-        await session.execute(
+
+        async def move_and_update(tag: models.PromptVersionTag) -> None:
+            try:
+                await validate_prompt_version_tag_move(session, tag, id_)
+            except Conflict as error:
+                raise HTTPException(409, str(error)) from error
+            await session.execute(
+                insert_on_conflict(
+                    values,
+                    dialect=dialect,
+                    table=models.PromptVersionTag,
+                    unique_by=("name", "prompt_id"),
+                    on_conflict=OnConflict.DO_UPDATE,
+                )
+            )
+
+        existing_tag = await session.scalar(
+            select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_id == prompt_id,
+                models.PromptVersionTag.name == request_body.name,
+            )
+        )
+        if existing_tag is not None:
+            await move_and_update(existing_tag)
+            return None
+        # No tag existed a moment ago. Insert one, but if a tag with this name and prompt
+        # appeared in the interim -- created by another request between the SELECT above and
+        # this insert -- go back through the same check before updating it, rather than
+        # overwriting whatever it now protects.
+        inserted_id = await session.scalar(
             insert_on_conflict(
                 values,
                 dialect=dialect,
                 table=models.PromptVersionTag,
                 unique_by=("name", "prompt_id"),
-                on_conflict=OnConflict.DO_UPDATE,
+                on_conflict=OnConflict.DO_NOTHING,
+            ).returning(models.PromptVersionTag.id)
+        )
+        if inserted_id is not None:
+            return None
+        existing_tag = await session.scalar(
+            select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_id == prompt_id,
+                models.PromptVersionTag.name == request_body.name,
             )
         )
+        if existing_tag is None:
+            raise HTTPException(404)
+        await move_and_update(existing_tag)
     return None
 
 
