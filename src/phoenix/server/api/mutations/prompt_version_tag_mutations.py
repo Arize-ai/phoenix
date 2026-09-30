@@ -3,7 +3,6 @@ from typing import Optional
 import strawberry
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -14,8 +13,8 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompt_version_tags import (
+    upsert_prompt_version_tag,
     validate_prompt_version_tag_delete,
-    validate_prompt_version_tag_move,
 )
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -120,41 +119,3 @@ class PromptVersionTagMutationMixin:
                 prompt=Prompt(id=prompt.id, db_record=prompt),
                 query=Query(),
             )
-
-
-async def upsert_prompt_version_tag(
-    session: AsyncSession,
-    prompt_id: int,
-    prompt_version_id: int,
-    name: Identifier,
-    description: Optional[str] = None,
-    user_id: Optional[int] = None,
-) -> models.PromptVersionTag:
-    """Create or retarget a tag within the caller's transaction.
-
-    A tag that an LLM evaluator runs through only moves to a version the evaluator can run;
-    otherwise Conflict is raised and nothing changes.
-    """
-    existing_tag = await session.scalar(
-        select(models.PromptVersionTag).where(
-            models.PromptVersionTag.prompt_id == prompt_id,
-            models.PromptVersionTag.name == name,
-        )
-    )
-
-    if existing_tag:
-        await validate_prompt_version_tag_move(session, existing_tag, prompt_version_id)
-        existing_tag.prompt_version_id = prompt_version_id
-        if description is not None:
-            existing_tag.description = description
-        return existing_tag
-    else:
-        new_tag = models.PromptVersionTag(
-            name=name,
-            description=description,
-            prompt_id=prompt_id,
-            prompt_version_id=prompt_version_id,
-            user_id=user_id,
-        )
-        session.add(new_tag)
-        return new_tag
