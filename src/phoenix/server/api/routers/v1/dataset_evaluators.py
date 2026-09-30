@@ -1,6 +1,6 @@
 """Manage dataset-specific bindings to shared LLM, code, and built-in evaluators."""
 
-from typing import Annotated, Literal, Optional, Union
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import ConfigDict, Field, model_validator
@@ -19,19 +19,16 @@ from phoenix.server.api.helpers import dataset_evaluator_service as service
 from phoenix.server.api.routers.v1.evaluator_common import (
     EvaluatorOutputConfig,
     EvaluatorRequest,
-    ExistingEvaluator,
-    NewCodeEvaluator,
-    NewLLMEvaluator,
     decode_global_id,
     encode_global_id,
     evaluator_api_errors,
     evaluator_error_responses,
     evaluator_service_context,
-    new_llm_prompt_source,
     output_configs_from_db,
     output_configs_to_db,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.problem_details import ProblemDetailsRoute
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -41,7 +38,13 @@ from phoenix.server.authorization import is_not_locked
 
 
 class CreateDatasetEvaluatorRequest(EvaluatorRequest):
-    name: Identifier
+    name: Identifier = Field(description="Unique among this dataset's evaluators.")
+    evaluator_id: str = Field(
+        description=(
+            "GlobalID of the LLM, code, or built-in evaluator definition to run. Create a "
+            "definition through POST /v1/evaluators first."
+        )
+    )
     input_mapping: InputMapping
     description: Optional[str] = Field(
         default=None, description="Binding override. Null inherits the shared description."
@@ -54,10 +57,6 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
             "an LLM binding's configs must be categorical and match the prompt's tool schema."
         ),
     )
-    evaluator: Annotated[
-        Union[NewLLMEvaluator, NewCodeEvaluator, ExistingEvaluator],
-        Field(discriminator="type"),
-    ]
 
 
 class PatchDatasetEvaluatorRequest(EvaluatorRequest):
@@ -83,21 +82,6 @@ class PatchDatasetEvaluatorRequest(EvaluatorRequest):
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
         return self
-
-
-class DeleteDatasetEvaluatorsRequestBody(V1RoutesBaseModel):
-    dataset_evaluator_ids: list[str] = Field(
-        min_length=1,
-        max_length=1000,
-        description="GlobalIDs of the bindings to delete. Missing bindings are ignored.",
-    )
-    delete_associated_prompt: bool = Field(
-        default=False,
-        description=(
-            "Also delete each LLM evaluator's prompt when no other evaluator references it. "
-            "This includes prompts adopted through prompt_version_id, so it is off by default."
-        ),
-    )
 
 
 class DatasetEvaluator(V1RoutesBaseModel):
@@ -131,7 +115,7 @@ class DatasetEvaluatorsResponseBody(PaginatedResponseBody[DatasetEvaluator]):
     pass
 
 
-router = APIRouter(tags=["evaluators"])
+router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
 
 
 def _binding_response(
@@ -191,12 +175,13 @@ async def _written_dataset_evaluator(
 async def create_dataset_evaluator(
     request: Request, dataset_identifier: str, body: CreateDatasetEvaluatorRequest
 ) -> DatasetEvaluatorResponseBody:
-    """Create a definition and binding atomically, or bind an existing code or built-in evaluator.
+    """Bind an existing evaluator definition to a dataset.
 
     The dataset identifier is decoded as a GlobalID first and otherwise treated as a name.
     Binding descriptions and output configurations override the shared definition; null
-    inherits it. Input mappings are always dataset-specific. This registers an evaluator and
-    does not run an experiment.
+    inherits it. Input mappings are always dataset-specific. A name the dataset already uses
+    is refused with 409 `already_exists` and that binding's `existing_id`. This registers an
+    evaluator and does not run an experiment.
     """
     with evaluator_api_errors():
         # The writer sees a dataset created just before this request; a replica may not.
@@ -204,69 +189,49 @@ async def create_dataset_evaluator(
             dataset = await get_dataset_by_identifier(session, dataset_identifier)
             dataset_id = GlobalID("Dataset", str(dataset.id))
         context = evaluator_service_context(request)
-        definition = body.evaluator
         configs = (
             output_configs_to_db(body.output_configs) if body.output_configs is not None else None
         )
-        if isinstance(definition, NewLLMEvaluator):
-            row = await service.create_dataset_llm_evaluator(
+        evaluator_id = GlobalID.from_id(body.evaluator_id)
+        row: models.DatasetEvaluators
+        if evaluator_id.type_name == "LLMEvaluator":
+            row = await service.create_dataset_llm_binding(
                 context,
-                service.CreateDatasetLLMEvaluatorInput(
+                service.CreateDatasetLLMBindingInput(
                     dataset_id=dataset_id,
-                    name=body.name,
-                    input_mapping=body.input_mapping,
-                    description=definition.description,
-                    prompt_source=new_llm_prompt_source(definition),
-                    output_configs=output_configs_to_db(definition.output_configs),
-                    binding_description=body.description,
-                    binding_output_configs=configs,
-                ),
-            )
-        elif isinstance(definition, NewCodeEvaluator):
-            row = await service.create_dataset_inline_code_evaluator(
-                context,
-                service.CreateDatasetInlineCodeEvaluatorInput(
-                    dataset_id=dataset_id,
+                    evaluator_id=evaluator_id,
                     name=body.name,
                     input_mapping=body.input_mapping,
                     description=body.description,
                     output_configs=configs,
-                    evaluator_description=definition.description,
-                    evaluator_output_configs=output_configs_to_db(definition.output_configs),
-                    evaluator_input_mapping=definition.input_mapping,
-                    source_code=definition.source_code,
-                    language=definition.language,
-                    sandbox_config_id=GlobalID.from_id(definition.sandbox_config_id),
+                ),
+            )
+        elif evaluator_id.type_name == "CodeEvaluator":
+            row = await service.create_dataset_code_evaluator(
+                context,
+                service.CreateDatasetCodeEvaluatorInput(
+                    dataset_id=dataset_id,
+                    name=body.name,
+                    evaluator_id=evaluator_id,
+                    input_mapping=body.input_mapping,
+                    description=body.description,
+                    output_configs=configs,
+                ),
+            )
+        elif evaluator_id.type_name == "BuiltInEvaluator":
+            row = await service.create_dataset_builtin_evaluator(
+                context,
+                service.CreateDatasetBuiltinEvaluatorInput(
+                    dataset_id=dataset_id,
+                    name=body.name,
+                    evaluator_id=evaluator_id,
+                    input_mapping=body.input_mapping,
+                    description=body.description,
+                    output_configs=configs,
                 ),
             )
         else:
-            evaluator_id = GlobalID.from_id(definition.evaluator_id)
-            if evaluator_id.type_name == "CodeEvaluator":
-                row = await service.create_dataset_code_evaluator(
-                    context,
-                    service.CreateDatasetCodeEvaluatorInput(
-                        dataset_id=dataset_id,
-                        name=body.name,
-                        evaluator_id=evaluator_id,
-                        input_mapping=body.input_mapping,
-                        description=body.description,
-                        output_configs=configs,
-                    ),
-                )
-            elif evaluator_id.type_name == "BuiltInEvaluator":
-                row = await service.create_dataset_builtin_evaluator(
-                    context,
-                    service.CreateDatasetBuiltinEvaluatorInput(
-                        dataset_id=dataset_id,
-                        name=body.name,
-                        evaluator_id=evaluator_id,
-                        input_mapping=body.input_mapping,
-                        description=body.description,
-                        output_configs=configs,
-                    ),
-                )
-            else:
-                raise BadRequest("References must identify a code or built-in evaluator")
+            raise BadRequest(f"Not an evaluator id: {body.evaluator_id}")
         return DatasetEvaluatorResponseBody(
             data=await _written_dataset_evaluator(
                 request, encode_global_id("DatasetEvaluator", row.id)
@@ -373,58 +338,48 @@ async def patch_dataset_evaluator(
     response_model_exclude_defaults=True,
     responses=evaluator_error_responses([422]),
 )
-async def delete_dataset_evaluator(
-    request: Request,
-    dataset_evaluator_id: str,
-    delete_associated_prompt: bool = Query(
-        default=False,
-        description=(
-            "Also delete the LLM evaluator's prompt when no other evaluator references it. "
-            "This includes prompts adopted through prompt_version_id, so it is off by default."
-        ),
-    ),
-) -> Response:
-    """Delete a binding and its evaluator trace project. Missing bindings are ignored.
+async def delete_dataset_evaluator(request: Request, dataset_evaluator_id: str) -> Response:
+    """Delete a binding; a missing binding is ignored.
 
-    A definition no other binding references is deleted with its last binding; built-in
-    definitions are never deleted.
+    The evaluator definition, its prompt, and the binding's trace project are kept: delete a
+    definition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.
     """
     with evaluator_api_errors():
-        await service.delete_dataset_evaluators(
-            evaluator_service_context(request),
-            service.DeleteDatasetEvaluatorsInput(
-                dataset_evaluator_ids=[GlobalID.from_id(dataset_evaluator_id)],
-                delete_associated_prompt=delete_associated_prompt,
-            ),
+        await service.detach_dataset_evaluators(
+            evaluator_service_context(request), [GlobalID.from_id(dataset_evaluator_id)]
         )
         return Response(status_code=204)
 
 
-@router.post(
-    "/dataset_evaluators/delete",
+@router.delete(
+    "/datasets/{dataset_identifier}/evaluators",
     operation_id="deleteDatasetEvaluators",
     status_code=204,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     response_model_exclude_defaults=True,
-    responses=evaluator_error_responses([422]),
+    responses=evaluator_error_responses([404, 422]),
 )
 async def delete_dataset_evaluators(
-    request: Request, body: DeleteDatasetEvaluatorsRequestBody
+    request: Request,
+    dataset_identifier: str,
+    dataset_evaluator_id: list[str] = Query(
+        min_length=1,
+        max_length=1000,
+        description="GlobalIDs of this dataset's bindings to delete; repeat for each.",
+    ),
 ) -> Response:
-    """Delete up to 1000 bindings atomically; the whole batch is validated before any change.
+    """Delete up to 1000 of a dataset's bindings in one transaction.
 
-    Definitions no remaining binding references are deleted with the batch; built-in
-    definitions are never deleted. Missing bindings are ignored for idempotency.
+    Missing bindings are ignored; a binding of another dataset is refused with 422 before
+    any change. Definitions, prompts, and trace projects are kept.
     """
     with evaluator_api_errors():
-        await service.delete_dataset_evaluators(
+        async with request.app.state.db() as session:
+            dataset = await get_dataset_by_identifier(session, dataset_identifier)
+        await service.detach_dataset_evaluators(
             evaluator_service_context(request),
-            service.DeleteDatasetEvaluatorsInput(
-                dataset_evaluator_ids=[
-                    GlobalID.from_id(value) for value in body.dataset_evaluator_ids
-                ],
-                delete_associated_prompt=body.delete_associated_prompt,
-            ),
+            [GlobalID.from_id(value) for value in dataset_evaluator_id],
+            dataset_id=GlobalID("Dataset", str(dataset.id)),
         )
         return Response(status_code=204)

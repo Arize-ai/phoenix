@@ -4180,7 +4180,7 @@
           "evaluators"
         ],
         "summary": "Create Dataset Evaluator",
-        "description": "Create a definition and binding atomically, or bind an existing code or built-in evaluator.\n\nThe dataset identifier is decoded as a GlobalID first and otherwise treated as a name.\nBinding descriptions and output configurations override the shared definition; null\ninherits it. Input mappings are always dataset-specific. This registers an evaluator and\ndoes not run an experiment.",
+        "description": "Bind an existing evaluator definition to a dataset.\n\nThe dataset identifier is decoded as a GlobalID first and otherwise treated as a name.\nBinding descriptions and output configurations override the shared definition; null\ninherits it. Input mappings are always dataset-specific. A name the dataset already uses\nis refused with 409 `already_exists` and that binding's `existing_id`. This registers an\nevaluator and does not run an experiment.",
         "operationId": "createDatasetEvaluator",
         "parameters": [
           {
@@ -4322,6 +4322,76 @@
                 }
               }
             }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Dataset Evaluators",
+        "description": "Delete up to 1000 of a dataset's bindings in one transaction.\n\nMissing bindings are ignored; a binding of another dataset is refused with 422 before\nany change. Definitions, prompts, and trace projects are kept.",
+        "operationId": "deleteDatasetEvaluators",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Identifier"
+            }
+          },
+          {
+            "name": "dataset_evaluator_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 1000,
+              "description": "GlobalIDs of this dataset's bindings to delete; repeat for each.",
+              "title": "Dataset Evaluator Id"
+            },
+            "description": "GlobalIDs of this dataset's bindings to delete; repeat for each."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "403": {
             "content": {
@@ -4514,7 +4584,7 @@
           "evaluators"
         ],
         "summary": "Delete Dataset Evaluator",
-        "description": "Delete a binding and its evaluator trace project. Missing bindings are ignored.\n\nA definition no other binding references is deleted with its last binding; built-in\ndefinitions are never deleted.",
+        "description": "Delete a binding; a missing binding is ignored.\n\nThe evaluator definition, its prompt, and the binding's trace project are kept: delete a\ndefinition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.",
         "operationId": "deleteDatasetEvaluator",
         "parameters": [
           {
@@ -4525,18 +4595,6 @@
               "type": "string",
               "title": "Dataset Evaluator Id"
             }
-          },
-          {
-            "name": "delete_associated_prompt",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "Also delete the LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default.",
-              "default": false,
-              "title": "Delete Associated Prompt"
-            },
-            "description": "Also delete the LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default."
           }
         ],
         "responses": {
@@ -4552,51 +4610,6 @@
               }
             },
             "description": "Forbidden"
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/dataset_evaluators/delete": {
-      "post": {
-        "tags": [
-          "evaluators"
-        ],
-        "summary": "Delete Dataset Evaluators",
-        "description": "Delete up to 1000 bindings atomically; the whole batch is validated before any change.\n\nDefinitions no remaining binding references are deleted with the batch; built-in\ndefinitions are never deleted. Missing bindings are ignored for idempotency.",
-        "operationId": "deleteDatasetEvaluators",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteDatasetEvaluatorsRequestBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
           },
           "422": {
             "description": "Unprocessable Entity",
@@ -13600,7 +13613,13 @@
       "CreateDatasetEvaluatorRequest": {
         "properties": {
           "name": {
-            "$ref": "#/components/schemas/Identifier"
+            "$ref": "#/components/schemas/Identifier",
+            "description": "Unique among this dataset's evaluators."
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id",
+            "description": "GlobalID of the LLM, code, or built-in evaluator definition to run. Create a definition through POST /v1/evaluators first."
           },
           "input_mapping": {
             "$ref": "#/components/schemas/InputMapping"
@@ -13650,36 +13669,14 @@
             ],
             "title": "Output Configs",
             "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema."
-          },
-          "evaluator": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/NewLLMEvaluator"
-              },
-              {
-                "$ref": "#/components/schemas/NewCodeEvaluator"
-              },
-              {
-                "$ref": "#/components/schemas/ExistingEvaluator"
-              }
-            ],
-            "title": "Evaluator",
-            "discriminator": {
-              "propertyName": "type",
-              "mapping": {
-                "code": "#/components/schemas/NewCodeEvaluator",
-                "llm": "#/components/schemas/NewLLMEvaluator",
-                "reference": "#/components/schemas/ExistingEvaluator"
-              }
-            }
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "name",
-          "input_mapping",
-          "evaluator"
+          "evaluator_id",
+          "input_mapping"
         ],
         "title": "CreateDatasetEvaluatorRequest"
       },
@@ -15033,31 +15030,6 @@
         ],
         "title": "DeleteAnnotationConfigResponseBody"
       },
-      "DeleteDatasetEvaluatorsRequestBody": {
-        "properties": {
-          "dataset_evaluator_ids": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 1000,
-            "minItems": 1,
-            "title": "Dataset Evaluator Ids",
-            "description": "GlobalIDs of the bindings to delete. Missing bindings are ignored."
-          },
-          "delete_associated_prompt": {
-            "type": "boolean",
-            "title": "Delete Associated Prompt",
-            "description": "Also delete each LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default.",
-            "default": false
-          }
-        },
-        "type": "object",
-        "required": [
-          "dataset_evaluator_ids"
-        ],
-        "title": "DeleteDatasetEvaluatorsRequestBody"
-      },
       "DeleteSessionsRequestBody": {
         "properties": {
           "session_identifiers": {
@@ -15591,28 +15563,6 @@
           "next_cursor"
         ],
         "title": "EvaluatorDefinitionsResponseBody"
-      },
-      "ExistingEvaluator": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "reference",
-            "title": "Type"
-          },
-          "evaluator_id": {
-            "type": "string",
-            "title": "Evaluator Id",
-            "description": "GlobalID of an existing evaluator definition. Datasets accept code and built-in evaluators; projects accept code evaluators. LLM definitions belong to the binding that created them and cannot be referenced."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "evaluator_id"
-        ],
-        "title": "ExistingEvaluator",
-        "description": "Attach an evaluator definition that already exists instead of creating one."
       },
       "Experiment": {
         "properties": {
@@ -17886,137 +17836,6 @@
           "META"
         ],
         "title": "ModelProvider"
-      },
-      "NewCodeEvaluator": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "code",
-            "title": "Type"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "source_code": {
-            "type": "string",
-            "title": "Source Code"
-          },
-          "language": {
-            "$ref": "#/components/schemas/LanguageName"
-          },
-          "sandbox_config_id": {
-            "type": "string",
-            "title": "Sandbox Config Id"
-          },
-          "input_mapping": {
-            "$ref": "#/components/schemas/InputMapping"
-          },
-          "output_configs": {
-            "items": {
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
-                },
-                {
-                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
-                },
-                {
-                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
-                }
-              ],
-              "discriminator": {
-                "propertyName": "type",
-                "mapping": {
-                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
-                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
-                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
-                }
-              }
-            },
-            "type": "array",
-            "minItems": 1,
-            "title": "Output Configs",
-            "description": "Outputs the code produces."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "source_code",
-          "language",
-          "sandbox_config_id",
-          "input_mapping",
-          "output_configs"
-        ],
-        "title": "NewCodeEvaluator"
-      },
-      "NewLLMEvaluator": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "llm",
-            "title": "Type"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Must equal the description of the prompt's tool function."
-          },
-          "prompt_version": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PromptVersionData"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Chat prompt content for a new prompt created for this evaluator. Content only: a version id inside this object is rejected. Exactly one of prompt_version and prompt_version_id is required."
-          },
-          "prompt_version_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Prompt Version Id",
-            "description": "GlobalID of an existing prompt version for the evaluator to run; the evaluator attaches to that version's prompt. New content for an existing prompt is created through the prompts API first. Exactly one of prompt_version and prompt_version_id is required."
-          },
-          "output_configs": {
-            "items": {
-              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
-            },
-            "type": "array",
-            "minItems": 1,
-            "title": "Output Configs"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "output_configs"
-        ],
-        "title": "NewLLMEvaluator"
       },
       "OAuth2User": {
         "properties": {
