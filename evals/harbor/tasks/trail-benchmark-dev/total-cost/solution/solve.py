@@ -5,6 +5,6 @@ import sys
 
 sys.path.insert(0, "/opt/verifier")
 
-from evals.harbor.verifiers.phoenix_api import span_costs, write_answer
+from evals.harbor.verifiers.phoenix_api import span_costs
 
-write_answer(f"${sum(span_costs('research-assistant').values()):.2f}")
+print(f"${sum(span_costs('research-assistant').values()):.2f}")

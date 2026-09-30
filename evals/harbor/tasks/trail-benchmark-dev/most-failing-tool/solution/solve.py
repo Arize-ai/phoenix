@@ -7,7 +7,7 @@ sys.path.insert(0, "/opt/verifier")
 
 from collections import Counter
 
-from evals.harbor.verifiers.phoenix_api import project_spans, write_answer
+from evals.harbor.verifiers.phoenix_api import project_spans
 
 failures = Counter(
     span["name"]
@@ -15,4 +15,4 @@ failures = Counter(
     if span["span_kind"].upper() == "TOOL" and span["status_code"] == "ERROR"
 )
 top = max(failures.values())
-write_answer(", ".join(sorted(name for name, count in failures.items() if count == top)))
+print(", ".join(sorted(name for name, count in failures.items() if count == top)))
