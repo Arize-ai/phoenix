@@ -802,11 +802,17 @@ class TestConcurrentWrites:
         state = await _state(db, pinned.evaluator.id)
         assert state.tag_target == other_prompt.id
         async with db() as session:
-            # Point the evaluator back at its own prompt so the fixtures can tear down; the
-            # edit this test simulates committed for real, the refused move never wrote.
+            # Point the evaluator and its tag back at their own prompt so the fixtures can
+            # tear down; the edit this test simulates committed for real, the refused move
+            # never wrote. A tag still naming another prompt would block that prompt's
+            # delete, since an evaluator still references the tag.
             evaluator = await session.get(models.LLMEvaluator, pinned.evaluator.id)
             assert evaluator is not None
             evaluator.prompt_id = pinned.prompt.id
+            tag = await session.get(models.PromptVersionTag, pinned.tag.id)
+            assert tag is not None
+            tag.prompt_id = pinned.prompt.id
+            tag.prompt_version_id = pinned.pinned_version.id
 
     @pytest.mark.parametrize("binding", ["project", "dataset"])
     async def test_edit_behind_a_tag_move_reads_the_moved_tag(
