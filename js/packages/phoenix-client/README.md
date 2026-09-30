@@ -874,7 +874,9 @@ await updateEvaluator({
   evaluatorId: "TExNRXZhbHVhdG9yOjE=",
   patch: {
     type: "llm",
-    prompt: { selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" } },
+    prompt: {
+      selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+    },
   },
 });
 ```
