@@ -11,6 +11,8 @@ MAX_ATTEMPTS = 3
 LIVE_EVAL_WORK_STATUSES = ("PENDING", "RUNNING", "ERROR")
 _SHARED_TERMINAL_STATUSES = ("DONE", "FAILED", "EXPIRED", "SUPERSEDED")
 TERMINAL_EVAL_WORK_STATUSES = (*_SHARED_TERMINAL_STATUSES, "DROPPED")
+# Given up on: the terminal statuses the user is owed an error for.
+FAILED_EVAL_WORK_STATUSES = ("FAILED", "EXPIRED")
 EVAL_WORK_STATUSES = (*LIVE_EVAL_WORK_STATUSES, *TERMINAL_EVAL_WORK_STATUSES)
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
@@ -59,3 +61,8 @@ def terminal_eval_work_index_predicate() -> str:
 def terminal_eval_session_work_index_predicate() -> str:
     """SQL text selecting session work that reached an outcome."""
     return _status_in(TERMINAL_EVAL_SESSION_WORK_STATUSES)
+
+
+def failed_eval_work_index_predicate() -> str:
+    """SQL text selecting work that was given up on, for every evaluation target."""
+    return _status_in(FAILED_EVAL_WORK_STATUSES)
