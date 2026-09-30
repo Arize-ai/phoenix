@@ -35,7 +35,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     raise_on_uninferable_evaluate_signature,
-    release_evaluator_prompt_label,
+    release_llm_evaluator_prompt,
     validate_code_evaluator_sandbox_config,
     validate_project_evaluator_filter,
     validate_project_evaluator_project,
@@ -1078,11 +1078,9 @@ async def delete_llm_evaluator(context: EvaluatorServiceContext, evaluator_id: G
         prompt_id, tag_id = row.prompt_id, row.prompt_version_tag_id
         await session.delete(row)
         await session.flush()
-        if tag_id is not None:
-            await session.execute(
-                delete(models.PromptVersionTag).where(models.PromptVersionTag.id == tag_id)
-            )
-        await release_evaluator_prompt_label(session, prompt_id)
+        await release_llm_evaluator_prompt(
+            session, prompt_version_tag_id=tag_id, prompt_id=prompt_id
+        )
 
 
 async def _refuse_bound_evaluator(
