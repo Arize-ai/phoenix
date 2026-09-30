@@ -7711,6 +7711,13 @@ export interface components {
             /** Errortext */
             errorText: string;
         };
+        /** BindingCounts */
+        BindingCounts: {
+            /** Project */
+            project: number;
+            /** Dataset */
+            dataset: number;
+        };
         /**
          * PhoenixToolCallCallbackProviderMetadata
          * @description Shape of the ``phoenix`` namespace the browser returns in
@@ -7766,12 +7773,12 @@ export interface components {
         ProblemDetail: {
             /**
              * Type
-             * @default about:blank
+             * @description urn:phoenix:problem:<code>, e.g. urn:phoenix:problem:conflict.
              */
-            type?: string;
+            type: string;
             /**
              * Title
-             * @description The HTTP status phrase.
+             * @description A fixed title for `code`, e.g. 'Already exists'.
              */
             title: string;
             /** Status */
@@ -7783,12 +7790,18 @@ export interface components {
             detail: string;
             /**
              * Code
-             * @enum {string}
+             * @description Stable machine-readable code: validation_error, invalid_argument, not_found, already_exists, conflict, forbidden, insufficient_storage, or error. A future code is additive; treat one you don't recognize by `status`.
              */
-            code: "validation_error" | "invalid_argument" | "not_found" | "already_exists" | "conflict" | "forbidden" | "insufficient_storage" | "error";
+            code: string;
+            /**
+             * Reason
+             * @description A finer condition under `code`, e.g. still_bound or version_mismatch. New reasons may appear; treat one you don't recognize by `code`.
+             * @default null
+             */
+            reason?: string | null;
             /**
              * Errors
-             * @description Every invalid input, for validation errors.
+             * @description Every invalid input, for validation_error.
              * @default null
              */
             errors?: components["schemas"]["ProblemFieldError"][] | null;
@@ -7798,17 +7811,34 @@ export interface components {
              * @default null
              */
             existing_id?: string | null;
+            /**
+             * Current Version Id
+             * @description For version_mismatch: the GlobalID of the version actually current, or null when the evaluator has none yet. Re-read the evaluator and reconcile before retrying; don't replace the expected version blindly.
+             * @default null
+             */
+            current_version_id?: string | null;
+            /**
+             * @description For still_bound: how many project and dataset bindings still refuse the delete.
+             * @default null
+             */
+            binding_counts?: components["schemas"]["BindingCounts"] | null;
+            /**
+             * Dataset Evaluator Ids
+             * @description For incompatible_override: GlobalIDs of the dataset bindings whose output overrides no longer fit the evaluator's prompt.
+             * @default null
+             */
+            dataset_evaluator_ids?: string[] | null;
         };
         /** ProblemFieldError */
         ProblemFieldError: {
             /**
              * Field
-             * @description Dotted path of the offending input, e.g. body.name.
+             * @description Normalized dotted path of the offending input: body, query, or path, followed by the field's own path (array indices are numeric segments). Discriminated-union tags and validator wrapper names are stripped, e.g. body.name rather than body.code.name.
              */
             field: string;
             /**
              * Code
-             * @description Machine-readable reason, e.g. missing or string_pattern.
+             * @description One of missing, unknown_field, wrong_type, pattern, too_short, too_long, out_of_range, invalid_choice, or invalid.
              */
             code: string;
             /** Message */
@@ -9913,7 +9943,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -9955,7 +9985,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10022,7 +10052,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10069,7 +10099,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Conflict */
@@ -10122,7 +10152,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10192,7 +10222,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10254,7 +10284,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10324,7 +10354,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
