@@ -6,9 +6,9 @@ sidebarTitle: "Explore traces"
 
 Use Observe after Phoenix receives traces from your app. Open a project to find slow, failed, or costly requests, inspect spans and sessions, and review metrics over time. Use PXI when you want help investigating, or fetch trace data in code when you need analysis outside Phoenix.
 
-## Choose an investigation path
+## Ways to investigate trace data
 
-Use PXI for guided investigation, the UI for manual inspection, and code or CLI access when you need trace data outside Phoenix.
+Use PXI for guided investigation, the UI for manual inspection, a coding agent when you want help working from trace evidence, and code or CLI access when you need trace data outside Phoenix.
 
 <Tabs>
   <Tab title="By PXI">
@@ -58,19 +58,19 @@ Use PXI for guided investigation, the UI for manual inspection, and code or CLI 
     3. Choose **Spans** for one operation, **Traces** for a full request, **Sessions** for a conversation, or **Metrics** for trends.
     4. Open a row to inspect inputs, outputs, attributes, errors, timing, token counts, cost, and annotations.
   </Tab>
-  <Tab title="By code">
+  <Tab title="By coding agent">
+    1. Give the agent access to Phoenix through MCP, the CLI, or Phoenix skills.
+    2. Ask it to inspect the traces, spans, sessions, or metrics related to the issue.
+    3. Ask it to summarize the evidence, debug code, add evals, or write notes.
+
+    See [Coding agents](/docs/phoenix/integrations/developer-tools/coding-agents), [Remote MCP](/docs/phoenix/integrations/remote-mcp), or [Export trace data](/docs/phoenix/observe/export-trace-data#retrieve-traces-with-the-cli).
+  </Tab>
+  <Tab title="By code or CLI">
     1. Choose how you want to fetch data. Use the CLI for terminal work, or use the Phoenix client, REST API, or GraphQL API from a script or notebook.
     2. Fetch spans or traces from the project you want to inspect.
     3. Use the result for analysis, evals, CI checks, exports, or debugging.
 
     Start with [Export trace data](/docs/phoenix/observe/export-trace-data), which covers Phoenix client exports and CLI retrieval.
-  </Tab>
-  <Tab title="By coding agent">
-    1. Give the agent access to Phoenix through the CLI, MCP, or Phoenix skills.
-    2. Ask it to fetch the traces, spans, or sessions related to the issue it is fixing.
-    3. Have it use the trace evidence while changing code, adding evals, or writing a debugging note.
-
-    See [Coding agents](/docs/phoenix/integrations/developer-tools/coding-agents), [Remote MCP](/docs/phoenix/integrations/remote-mcp), or [Export trace data](/docs/phoenix/observe/export-trace-data#retrieve-traces-with-the-cli).
   </Tab>
 </Tabs>
 
@@ -169,6 +169,10 @@ Open a span, trace, or session row when you need the evidence behind a behavior.
 
 Use **Attributes** when you need the exact OpenInference fields Phoenix received. Use **Annotations** when you need human feedback, evaluator labels, or reviewer notes attached to the row.
 
+## Share direct links
+
+Use redirect URLs when you need to link from a runbook, dashboard, CI job, or issue to a Phoenix project, trace, span, session, prompt tag, or dataset example. See [Share links to Phoenix resources](/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls) for the supported URL patterns.
+
 ## Investigate a failure
 
 1. Start in **Metrics** if you see a spike in latency, cost, errors, or low annotation scores.
@@ -176,6 +180,8 @@ Use **Attributes** when you need the exact OpenInference fields Phoenix received
 3. Open a row and check the root span, failed child spans, slow spans, tool calls, and annotations.
 4. Ask PXI a focused question, or export the trace data when you need notebook analysis, CI checks, or a coding-agent handoff.
 5. Save useful failures as dataset examples when you want to run experiments or regression tests.
+
+When the same failure pattern repeats, save examples to a [dataset](/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets) or add an [evaluator](/docs/phoenix/evaluation/llm-evals) so Phoenix can track it over time.
 
 <Frame caption="Use Metrics to spot a spike, then open the traces behind it">
   <img

@@ -120,6 +120,16 @@ Choose the setup path that matches how you configure tracing. Each path sets the
 
 Projects work by setting the OpenInference project resource attribute. Phoenix uses that project name to group traces. For OTLP over HTTP, the `x-project-name` header can override the resource attribute.
 
+### Project settings
+
+Project Settings lets you add a **description**, choose **gradient colors**, set the **default project tab**, and assign a **data retention policy**.
+
+The Project Settings page also includes an annotation summary that lists each annotation name in the project. From the summary, an admin can bulk-delete every annotation with a given name across the project. You can scope the delete to a time range when you only want to remove annotations created during that period.
+
+<Warning>
+Bulk deletion is destructive and cannot be undone. When authentication is enabled, only admins can bulk-delete annotations. To remove one annotation instead, use the per-row delete action in the table view under the `Annotations` tab.
+</Warning>
+
 ### Switch projects in a notebook
 
 Most applications should send traces to one project. In a notebook, you can temporarily associate spans with another project. This is useful when you want evaluation traces to go to a separate project.

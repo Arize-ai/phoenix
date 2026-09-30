@@ -133,7 +133,12 @@
               "docs/phoenix/tracing/how-to-tracing/filter-expressions",
               "docs/phoenix/observe/view-metrics-and-dashboards",
               "docs/phoenix/observe/export-trace-data",
-              "docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls"
+              {
+                "group": "Advanced",
+                "pages": [
+                  "docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls"
+                ]
+              }
             ]
           },
           {
@@ -1748,6 +1753,14 @@
       "destination": "/docs/phoenix/observe/export-trace-data#retrieve-traces-with-the-cli"
     },
     {
+      "source": "/docs/phoenix/tracing/llm-traces/projects",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions#projects"
+    },
+    {
+      "source": "/docs/phoenix/tracing/llm-traces/sessions",
+      "destination": "/docs/phoenix/observe/explore-traces#start-from-a-project"
+    },
+    {
       "source": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
       "destination": "/docs/phoenix/integrations/evaluation-integrations/importing-atif-trajectories"
     },
@@ -1778,10 +1791,6 @@
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans",
       "destination": "/docs/phoenix/tracing/how-to-tracing/advanced"
-    },
-    {
-      "source": "/docs/phoenix/tracing/features-tracing/how-to-annotate-traces",
-      "destination": "/docs/phoenix/tracing/llm-traces/how-to-annotate-traces"
     },
     {
       "source": "/docs/phoenix/integrations/platforms/cloudflare-ai-gateway",
@@ -2713,7 +2722,7 @@
     },
     {
       "source": "/docs/phoenix/how-to/extract-data-from-spans",
-      "destination": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans"
+      "destination": "/docs/phoenix/observe/export-trace-data"
     },
     {
       "source": "/docs/phoenix/integrations/cleanlab",

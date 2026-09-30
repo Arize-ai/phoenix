@@ -35,8 +35,6 @@
 
 ### Core Concepts
 
-- [Projects](https://arize.com/docs/phoenix/tracing/llm-traces/projects): Organize traces by environment, application, or team
-- [Sessions](https://arize.com/docs/phoenix/tracing/llm-traces/sessions): Group related traces into multi-turn conversational sessions
 - [Annotating Traces](https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces): Attach feedback, labels, and scores to traces for quality tracking
 
 ### Observe
