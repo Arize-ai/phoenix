@@ -958,7 +958,7 @@ async def create_project_evaluator(
                 enabled=body.enabled,
                 input_mapping=body.input_mapping,
                 evaluation_delay_seconds=body.evaluation_delay_seconds,
-                evaluator_id=GlobalID.from_id(body.evaluator_id),
+                evaluator_id=parse_global_id(body.evaluator_id),
             ),
         )
         return ProjectEvaluatorResponseBody(
@@ -1041,7 +1041,7 @@ async def patch_project_evaluator(
     with evaluator_api_errors():
         await service.patch_project_evaluator(
             evaluator_service_context(request),
-            GlobalID.from_id(project_evaluator_id),
+            parse_global_id(project_evaluator_id),
             service.ProjectEvaluatorPatch(
                 **{name: getattr(body, name) for name in body.model_fields_set}
             ),
@@ -1068,7 +1068,7 @@ async def delete_project_evaluator(request: Request, project_evaluator_id: str) 
     """
     with evaluator_api_errors():
         await service.detach_project_evaluators(
-            evaluator_service_context(request), [GlobalID.from_id(project_evaluator_id)]
+            evaluator_service_context(request), [parse_global_id(project_evaluator_id)]
         )
         return Response(status_code=204)
 
@@ -1101,7 +1101,7 @@ async def delete_project_evaluators(
             project = await get_project_by_identifier(session, project_identifier)
         await service.detach_project_evaluators(
             evaluator_service_context(request),
-            [GlobalID.from_id(value) for value in project_evaluator_id],
+            [parse_global_id(value) for value in project_evaluator_id],
             project_id=GlobalID("Project", str(project.id)),
         )
         return Response(status_code=204)
