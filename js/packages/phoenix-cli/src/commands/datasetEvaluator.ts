@@ -21,12 +21,7 @@ import { writeError, writeOutput, writeProgress } from "../io";
 import { parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
 import { exitWithError, requireValidLimitOrExit } from "./evaluatorErrors";
-import {
-  parseJsonArrayFlag,
-  parseJsonObjectFlag,
-  readInlineOrFile,
-  requireCodeEvaluatorOutputConfigs,
-} from "./evaluatorInputs";
+import { parseJsonArrayFlag, parseJsonObjectFlag } from "./evaluatorInputs";
 import {
   formatDatasetEvaluatorOutput,
   formatDatasetEvaluatorsOutput,
@@ -38,7 +33,6 @@ type CreateRequest = componentsV1["schemas"]["CreateDatasetEvaluatorRequest"];
 type PatchRequest = componentsV1["schemas"]["PatchDatasetEvaluatorRequest"];
 type InputMapping = componentsV1["schemas"]["InputMapping"];
 type OutputConfig = NonNullable<CreateRequest["output_configs"]>[number];
-type EvaluatorInput = CreateRequest["evaluator"];
 
 /**
  * Options for `px dataset evaluator list <dataset-identifier>`.
@@ -91,31 +85,16 @@ interface DatasetEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
 }
 
 /**
- * Options for `px dataset evaluator create <dataset-identifier>`. Exactly one
- * of `--evaluator-id`, `--evaluator`, or `--evaluator-file` selects the
- * evaluator.
+ * Options for `px dataset evaluator create <dataset-identifier>`.
  */
 interface DatasetEvaluatorCreateOptions extends DatasetEvaluatorFieldOptions {
   /**
-   * `--evaluator-id <id>`: Bind an existing code or built-in evaluator.
+   * `--evaluator-id <id>`: The LLM, code, or built-in evaluator definition to
+   * bind. Required; create a definition with `px evaluator create`.
    *
    * @example "Q29kZUV2YWx1YXRvcjoy"
    */
   evaluatorId?: string;
-  /**
-   * `--evaluator <json>`: Inline JSON for a new LLM or code evaluator, with a
-   * `type` of `llm` or `code`. A new LLM evaluator names its prompt source
-   * with either `prompt_version` (content for a new prompt) or
-   * `prompt_version_id` (an existing version), not both. A new code evaluator
-   * carries at least one entry in `output_configs`.
-   */
-  evaluator?: string;
-  /**
-   * `--evaluator-file <path>`: Read the new evaluator JSON from a file.
-   *
-   * @example "./toxicity-evaluator.json"
-   */
-  evaluatorFile?: string;
 }
 
 /**
@@ -143,13 +122,13 @@ interface DatasetEvaluatorUpdateOptions extends DatasetEvaluatorFieldOptions {
  */
 interface DatasetEvaluatorDeleteOptions extends DeleteOptions {
   /**
-   * `--delete-prompt`: Also delete the prompt of an LLM evaluator that is
-   * deleted along with the binding. Off by default so that a prompt adopted
-   * from the prompt hub survives the binding.
+   * `--dataset <dataset-identifier>`: The dataset the bindings belong to.
+   * Required when deleting more than one binding, which happens in one
+   * transaction.
    *
-   * @example true
+   * @example "golden-questions"
    */
-  deletePrompt?: boolean;
+  dataset?: string;
 }
 
 function createClientOrExit(
@@ -255,39 +234,6 @@ async function datasetEvaluatorGetHandler(
 }
 
 /**
- * Resolve the evaluator to bind from whichever flag the caller supplied.
- * Exactly one of the three forms must be present.
- */
-function resolveEvaluatorInput(
-  options: DatasetEvaluatorCreateOptions
-): EvaluatorInput | undefined {
-  const supplied = [
-    options.evaluatorId,
-    options.evaluator,
-    options.evaluatorFile,
-  ].filter((value) => value !== undefined).length;
-  if (supplied !== 1) {
-    return undefined;
-  }
-  if (options.evaluatorId !== undefined) {
-    return { type: "reference", evaluator_id: options.evaluatorId };
-  }
-  const flag =
-    options.evaluator !== undefined ? "--evaluator" : "--evaluator-file";
-  const evaluator = parseJsonObjectFlag<EvaluatorInput>({
-    flag,
-    value: readInlineOrFile({
-      inline: options.evaluator,
-      inlineFlag: "--evaluator",
-      file: options.evaluatorFile,
-      fileFlag: "--evaluator-file",
-    }),
-  });
-  requireCodeEvaluatorOutputConfigs({ flag, evaluator });
-  return evaluator;
-}
-
-/**
  * Handler for `dataset evaluator create`
  */
 async function datasetEvaluatorCreateHandler(
@@ -301,7 +247,16 @@ async function datasetEvaluatorCreateHandler(
       format: options.format,
       message: "Missing required flag --name",
       code: "INVALID_ARGUMENT",
-      hint: `px dataset evaluator create ${datasetIdentifier} --name <name> --input-mapping <json> --evaluator-id <id>`,
+      hint: `px dataset evaluator create ${datasetIdentifier} --name <name> --evaluator-id <id> --input-mapping <json>`,
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  if (!options.evaluatorId) {
+    writeStructuredError({
+      format: options.format,
+      message: "Missing required flag --evaluator-id",
+      code: "INVALID_ARGUMENT",
+      hint: `px dataset evaluator create ${datasetIdentifier} --name ${options.name} --evaluator-id <id> --input-mapping <json>  (find ids with: px evaluator list)`,
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
@@ -314,27 +269,7 @@ async function datasetEvaluatorCreateHandler(
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
-  const evaluatorFlags = [
-    options.evaluatorId,
-    options.evaluator,
-    options.evaluatorFile,
-  ].filter((value) => value !== undefined).length;
-  if (evaluatorFlags !== 1) {
-    writeStructuredError({
-      format: options.format,
-      message:
-        "Specify exactly one of --evaluator-id, --evaluator, or --evaluator-file",
-      code: "INVALID_ARGUMENT",
-      hint: `px dataset evaluator create ${datasetIdentifier} --name ${options.name} --input-mapping <json> --evaluator-id <id>`,
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-
   try {
-    const evaluator = resolveEvaluatorInput(options);
-    if (evaluator === undefined) {
-      throw new Error("Could not resolve the evaluator to bind");
-    }
     const inputMapping = parseJsonObjectFlag<InputMapping>({
       flag: "--input-mapping",
       value: options.inputMapping,
@@ -361,8 +296,8 @@ async function datasetEvaluatorCreateHandler(
       client,
       dataset: datasetRef(datasetIdentifier),
       name: options.name,
+      evaluatorId: options.evaluatorId,
       inputMapping,
-      evaluator,
       ...(options.description !== undefined && {
         description: options.description,
       }),
@@ -499,6 +434,15 @@ async function datasetEvaluatorDeleteHandler(
   datasetEvaluatorIds: string[],
   options: DatasetEvaluatorDeleteOptions
 ): Promise<void> {
+  if (datasetEvaluatorIds.length > 1 && !options.dataset) {
+    writeStructuredError({
+      format: undefined,
+      message: "Deleting several bindings needs --dataset",
+      code: "INVALID_ARGUMENT",
+      hint: `px dataset evaluator delete ${datasetEvaluatorIds.join(" ")} --dataset <dataset-identifier> --yes`,
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
   try {
     assertDeletesEnabled();
 
@@ -509,22 +453,20 @@ async function datasetEvaluatorDeleteHandler(
         ? `dataset evaluator ${datasetEvaluatorIds[0]}`
         : `${datasetEvaluatorIds.length} dataset evaluators`;
     await confirmOrExit({
-      message: `Delete ${noun}? This removes the binding and its evaluator traces, and the evaluator itself if nothing else uses it. This cannot be undone.`,
+      message: `Delete ${noun}? Only the binding is removed; its evaluator, prompt, and trace project are kept. This cannot be undone.`,
       yes: options.yes,
     });
 
-    const deleteAssociatedPrompt = Boolean(options.deletePrompt);
     if (datasetEvaluatorIds.length === 1) {
       await deleteDatasetEvaluator({
         client,
         datasetEvaluatorId: datasetEvaluatorIds[0]!,
-        deleteAssociatedPrompt,
       });
     } else {
       await deleteDatasetEvaluators({
         client,
+        dataset: datasetRef(options.dataset ?? ""),
         datasetEvaluatorIds,
-        deleteAssociatedPrompt,
       });
     }
 
@@ -609,20 +551,12 @@ export function createDatasetEvaluatorCreateCommand(): Command {
     addBindingFieldOptions(
       new Command("create")
         .description(
-          "Bind an evaluator to a dataset, creating the evaluator if needed. Requires Phoenix server >= 21.0.0."
+          "Bind an existing evaluator definition to a dataset. Create definitions with px evaluator create. Requires Phoenix server >= 21.0.0."
         )
         .argument("<dataset-identifier>", "Dataset name or ID")
         .option(
           "--evaluator-id <id>",
-          "Bind an existing code or built-in evaluator"
-        )
-        .option(
-          "--evaluator <json>",
-          'Inline JSON for a new evaluator with "type": "llm" or "code" (LLM: give "prompt_version" or "prompt_version_id", not both; code: at least one "output_configs" entry)'
-        )
-        .option(
-          "--evaluator-file <path>",
-          "Read the new evaluator JSON from a file"
+          "The LLM, code, or built-in evaluator to bind (required)"
         )
     )
   )
@@ -631,8 +565,9 @@ export function createDatasetEvaluatorCreateCommand(): Command {
       "\nExamples:\n" +
         "  # Bind an existing evaluator\n" +
         '  px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping \'{"literal_mapping":{},"path_mapping":{"output":"output"}}\'\n\n' +
-        "  # Create a new LLM evaluator from a JSON file and bind it\n" +
-        '  px dataset evaluator create golden-questions --name toxicity --evaluator-file toxicity.json --input-mapping \'{"literal_mapping":{},"path_mapping":{"output":"output"}}\'\n\n' +
+        "  # Create an LLM evaluator, then bind it\n" +
+        "  px evaluator create --type llm --name toxicity --prompt-version-id <id> --output-configs <json> --format raw --no-progress | jq -r '.id'\n" +
+        '  px dataset evaluator create golden-questions --name toxicity --evaluator-id <evaluator-id> --input-mapping \'{"literal_mapping":{},"path_mapping":{"output":"output"}}\'\n\n' +
         "  # Capture the new binding ID (agent-friendly)\n" +
         "  px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{\"literal_mapping\":{},\"path_mapping\":{}}' --format raw --no-progress | jq -r '.id'\n"
     )
@@ -670,12 +605,12 @@ export function createDatasetEvaluatorUpdateCommand(): Command {
 export function createDatasetEvaluatorDeleteCommand(): Command {
   return new Command("delete")
     .description(
-      "Delete one or more dataset evaluator bindings, and their evaluators once nothing else uses them. Requires Phoenix server >= 21.0.0."
+      "Delete one or more dataset evaluator bindings. Their evaluators, prompts, and trace projects are kept. Requires Phoenix server >= 21.0.0."
     )
     .argument("<dataset-evaluator-id...>", "Dataset evaluator ID(s)")
     .option(
-      "--delete-prompt",
-      "Also delete the prompt of an LLM evaluator deleted with the binding"
+      "--dataset <dataset-identifier>",
+      "Dataset the bindings belong to; required for more than one, deleted in one transaction"
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
@@ -686,8 +621,8 @@ export function createDatasetEvaluatorDeleteCommand(): Command {
       "\nExamples:\n" +
         "  # Detach one binding; deletes are gated by PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true\n" +
         "  px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes\n\n" +
-        "  # Detach several and also drop an LLM evaluator's prompt\n" +
-        "  px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --delete-prompt --yes\n"
+        "  # Detach several in one transaction\n" +
+        "  px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes\n"
     )
     .action(datasetEvaluatorDeleteHandler);
 }
