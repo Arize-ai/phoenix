@@ -310,7 +310,7 @@ async def create_project_llm_evaluator(
             session.add(project_evaluator)
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict("A project evaluator with this name already exists for this project")
+        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
     return project_evaluator
 
@@ -410,7 +410,7 @@ async def update_project_llm_evaluator(
                 session, project_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict("A project evaluator with this name already exists for this project")
+        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
     return project_evaluator
 
@@ -464,7 +464,7 @@ async def add_project_code_evaluator(
             session.add(project_evaluator)
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict("A project evaluator with this name already exists for this project")
+        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
     return project_evaluator
 
@@ -660,7 +660,7 @@ async def create_project_code_evaluator(
             session.add(project_evaluator)
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict("A project evaluator with this name already exists for this project")
+        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
     return project_evaluator
 
@@ -867,7 +867,7 @@ async def update_project_code_evaluator(
                 session, project_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict("A project evaluator with this name already exists for this project")
+        raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
     return project_evaluator
 
@@ -1494,6 +1494,7 @@ async def patch_project_evaluator(
             row = await session.get(models.ProjectEvaluator, row_id)
             if row is None:
                 raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
+            project_rowid = row.project_id
             target = row.evaluation_target
             values: dict[str, Any] = {}
             if patch.name is not UNSET:
@@ -1517,8 +1518,12 @@ async def patch_project_evaluator(
                 )
             if values:
                 row = await _write_project_evaluator(session, row.id, values)
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict("A project evaluator with this name already exists for this project")
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if patch.name is not UNSET and patch.name is not None:
+            raise await _project_binding_name_taken(context, project_rowid, patch.name) from error
+        raise Conflict(
+            "A project evaluator with this name already exists for this project"
+        ) from error
     return row
 
 
