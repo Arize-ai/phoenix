@@ -2288,7 +2288,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/projects/fake-id-{}/evaluators"),
     (422, "PATCH", "v1/project_evaluators/fake-id-{}"),
     (422, "DELETE", "v1/project_evaluators/fake-id-{}"),
-    (422, "POST", "v1/project_evaluators/delete"),
+    (422, "DELETE", "v1/projects/fake-id-{}/evaluators"),
     (422, "PATCH", "v1/evaluators/fake-id-{}"),
     (422, "DELETE", "v1/evaluators/fake-id-{}"),
     (422, "POST", "v1/evaluators/fake-id-{}/versions"),

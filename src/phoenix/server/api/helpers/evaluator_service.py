@@ -469,6 +469,125 @@ async def add_project_code_evaluator(
     return project_evaluator
 
 
+async def add_project_evaluator(
+    context: EvaluatorServiceContext, input: AddProjectCodeEvaluatorInput
+) -> models.ProjectEvaluator:
+    """Bind an existing LLM or code evaluator to a project.
+
+    The evaluator row is locked so a concurrent definition delete sees the binding. A name the
+    project already uses is refused with AlreadyExists naming the binding that holds it.
+    """
+    project_id = _decode_project_id(input.project_id)
+    try:
+        evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
+    except ValueError as error:
+        raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {error}")
+    if evaluator_kind not in ("LLM", "CODE"):
+        raise BadRequest("Projects run LLM and code evaluators")
+    try:
+        name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(str(error))
+    validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
+    validate_project_evaluator_sampling_rate(input.sampling_rate)
+    evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
+        input.evaluation_delay_seconds, input.evaluation_target
+    )
+    evaluator_model = models.LLMEvaluator if evaluator_kind == "LLM" else models.CodeEvaluator
+    try:
+        async with context.db() as session:
+            project = await validate_project_evaluator_project(
+                session, project_id, input.project_id
+            )
+            evaluator = await session.get(evaluator_model, evaluator_id, with_for_update=True)
+            if evaluator is None:
+                raise NotFound(f"Evaluator not found: {input.evaluator_id}")
+            if isinstance(evaluator, models.LLMEvaluator) and (
+                await resolve_evaluator_prompt_version(session, evaluator) is None
+            ):
+                raise NotFound(f"Prompt version not found for evaluator {input.evaluator_id}")
+            project_evaluator = models.ProjectEvaluator(
+                project_id=project_id,
+                evaluator_id=evaluator_id,
+                trace_project=get_trace_project_for_project_evaluator(
+                    project_name=project.name,
+                    project_evaluator_name=name.root,
+                ),
+                name=name,
+                filter_condition=input.filter_condition,
+                sampling_rate=input.sampling_rate,
+                evaluation_target=input.evaluation_target,
+                input_mapping=input.input_mapping,
+                evaluation_delay_seconds=evaluation_delay_seconds,
+                enabled=input.enabled,
+            )
+            session.add(project_evaluator)
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        raise await _project_binding_name_taken(context, project_id, name) from error
+    return project_evaluator
+
+
+def _decode_project_id(project_id: GlobalID) -> int:
+    try:
+        return from_global_id_with_expected_type(project_id, "Project")
+    except ValueError:
+        raise BadRequest(f"Invalid project id: {project_id}")
+
+
+async def _project_binding_name_taken(
+    context: EvaluatorServiceContext, project_id: int, name: Identifier
+) -> Conflict:
+    async with context.db() as session:
+        existing_id = await session.scalar(
+            select(models.ProjectEvaluator.id).where(
+                models.ProjectEvaluator.project_id == project_id,
+                models.ProjectEvaluator.name == name,
+            )
+        )
+    if existing_id is None:
+        return Conflict(f"Could not bind evaluator '{name.root}' because of a conflicting resource")
+    return AlreadyExists(
+        f"A project evaluator named '{name.root}' already exists for this project",
+        existing_id=str(GlobalID("ProjectEvaluator", str(existing_id))),
+    )
+
+
+async def detach_project_evaluators(
+    context: EvaluatorServiceContext,
+    project_evaluator_ids: list[GlobalID],
+    *,
+    project_id: Optional[GlobalID] = None,
+) -> None:
+    """Delete bindings only: their definitions, prompts, and trace projects are kept.
+
+    Missing bindings are ignored. With a project, a binding of another project is refused
+    before any change.
+    """
+    rowids: list[int] = []
+    for global_id in project_evaluator_ids:
+        try:
+            rowids.append(from_global_id_with_expected_type(global_id, "ProjectEvaluator"))
+        except ValueError:
+            raise BadRequest(f"Invalid project evaluator id: {global_id}")
+    async with context.db() as session:
+        if project_id is not None:
+            elsewhere = (
+                await session.scalars(
+                    select(models.ProjectEvaluator.id).where(
+                        models.ProjectEvaluator.id.in_(rowids),
+                        models.ProjectEvaluator.project_id != _decode_project_id(project_id),
+                    )
+                )
+            ).all()
+            if elsewhere:
+                listed = ", ".join(str(GlobalID("ProjectEvaluator", str(i))) for i in elsewhere)
+                raise BadRequest(f"These bindings belong to another project: {listed}")
+        await session.execute(
+            delete(models.ProjectEvaluator).where(models.ProjectEvaluator.id.in_(rowids))
+        )
+
+
 async def create_project_code_evaluator(
     context: EvaluatorServiceContext, input: CreateProjectCodeEvaluatorInput
 ) -> models.ProjectEvaluator:
