@@ -549,6 +549,8 @@ px evaluator create --type code --name exact-match --file evaluator.py --languag
 | `--output-configs <json>`  | JSON array of output configurations, at least one (required)                    | —       |
 | `--if-not-exists`          | Print the evaluator that already holds the name instead of failing              | —       |
 
+A server-side failure on any `px evaluator` command — not found, a name clash, a validation error, and so on — exits `ExitCode.FAILURE` (1); only auth and bad-argument problems get their own codes. To tell these apart, pass `--format raw` or `json` and read `status` and `reason` from the stderr envelope: `reason` is the server's problem code (`not_found`, `conflict`, `already_exists`, `validation_error`, ...). `--if-not-exists` on `create` covers the name-clash case without inspecting the envelope.
+
 ### `px evaluator update <evaluator-id>`
 
 Update a shared evaluator definition. The change applies to every project and dataset that uses the evaluator. Only the flags you pass are sent; omitted fields keep their values.
