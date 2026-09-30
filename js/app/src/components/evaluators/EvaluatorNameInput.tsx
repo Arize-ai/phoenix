@@ -13,6 +13,7 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
+import type { EvaluatorKind } from "@phoenix/types";
 import {
   transformIdentifierInput,
   trimIdentifierSeparators,
@@ -23,6 +24,12 @@ import {
  * The field name used by react-hook-form and as the error key in the validation registry.
  */
 const FIELD_NAME = "name" as const;
+
+const NAME_PLACEHOLDERS: Record<EvaluatorKind, string> = {
+  LLM: "e.g. llm_eval",
+  CODE: "e.g. code_eval",
+  BUILTIN: "e.g. correctness",
+};
 
 /**
  * Whether to use the user-facing name (for dataset evaluators) vs the global name.
@@ -82,7 +89,7 @@ const useEvaluatorNameInputForm = () => {
 };
 
 export const EvaluatorNameInput = ({
-  placeholder = "e.g. code_eval",
+  placeholder,
   description,
   onValueChange,
   ...props
@@ -93,6 +100,7 @@ export const EvaluatorNameInput = ({
 }) => {
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
+  const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   const { control, trigger } = form;
   const hasBlurredRef = useRef(false);
 
@@ -152,7 +160,9 @@ export const EvaluatorNameInput = ({
             finalizeValue={trimIdentifierSeparators}
           >
             <Label>Name</Label>
-            <Input placeholder={placeholder} />
+            <Input
+              placeholder={placeholder ?? NAME_PLACEHOLDERS[evaluatorKind]}
+            />
             {description ? <Text slot="description">{description}</Text> : null}
             <FieldError>{displayedError}</FieldError>
           </TextField>

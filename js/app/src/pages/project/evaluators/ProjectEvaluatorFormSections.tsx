@@ -75,6 +75,7 @@ export const ProjectLlmEvaluatorFormSections = (
         inputMappingSection={
           <ProjectEvaluatorInputMappingSection
             recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
+            evaluatorKind="prompt"
           />
         }
       />
@@ -84,15 +85,23 @@ export const ProjectLlmEvaluatorFormSections = (
 
 const ProjectEvaluatorInputMappingSection = ({
   recordKind,
+  requiredVariables,
+  evaluatorKind,
 }: {
   recordKind: ProjectEvaluatorRecordKind;
+  requiredVariables?: readonly string[];
+  evaluatorKind: "prompt" | "code";
 }) => {
   return (
     <Flex direction="column" gap="size-200" marginTop="size-200">
       <Flex direction="column" gap="size-100">
         <EvaluatorSectionHeader
-          title="Evaluator Inputs"
-          description={`Each input reads a path on the ${recordKind}.`}
+          title={
+            evaluatorKind === "prompt"
+              ? "Map Prompt Variables"
+              : "Input Mapping"
+          }
+          description={`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata use the fields of the same name.`}
         />
         <View
           borderRadius="medium"
@@ -106,6 +115,7 @@ const ProjectEvaluatorInputMappingSection = ({
           <ProjectEvaluatorInputMapping
             key={recordKind}
             recordKind={recordKind}
+            requiredVariables={requiredVariables}
           />
         </View>
       </Flex>
@@ -119,12 +129,14 @@ const ProjectEvaluatorInputMappingSection = ({
  * {@link ProjectLlmEvaluatorFormSections}: name and description, then the
  * scope, then the code authoring fields and the input mapping. When attaching
  * an existing evaluator there is no name to edit, so a summary card of that
- * evaluator stands in for the name and the scope follows it.
+ * evaluator stands in for the name, and the scope and the input mapping
+ * follow it.
  */
 export const ProjectCodeEvaluatorFormSections = ({
   codeEvaluatorName,
   codeDefinition,
   onFieldChange,
+  requiredVariables,
   ...scopeProps
 }: ProjectEvaluatorScopeProps & {
   codeEvaluatorName?: string;
@@ -132,6 +144,8 @@ export const ProjectCodeEvaluatorFormSections = ({
   codeDefinition?: ReactNode;
   /** Fires when the name or description changes. */
   onFieldChange?: () => void;
+  /** The parameters `evaluate` has no default for. */
+  requiredVariables: readonly string[];
 }) => {
   if (codeDefinition == null) {
     return (
@@ -153,6 +167,11 @@ export const ProjectCodeEvaluatorFormSections = ({
           </Flex>
         </View>
         <ProjectEvaluatorScopeSection {...scopeProps} />
+        <ProjectEvaluatorInputMappingSection
+          recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
+          requiredVariables={requiredVariables}
+          evaluatorKind="code"
+        />
       </>
     );
   }
@@ -167,6 +186,8 @@ export const ProjectCodeEvaluatorFormSections = ({
       {codeDefinition}
       <ProjectEvaluatorInputMappingSection
         recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
+        requiredVariables={requiredVariables}
+        evaluatorKind="code"
       />
     </>
   );
