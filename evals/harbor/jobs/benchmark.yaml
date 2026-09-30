@@ -13,15 +13,11 @@ agents:
     model_name: anthropic/claude-fable-5-1
     extra_allowed_hosts: [api.anthropic.com]
     resume_trajectory: true
-    kwargs:
-      version: "2.1.267"
   - name: claude-code-cli
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
     model_name: anthropic/claude-fable-5-1
     extra_allowed_hosts: [api.anthropic.com]
     resume_trajectory: true
-    kwargs:
-      version: "2.1.267"
     skills:
       - .agents/skills/phoenix-cli
       - .agents/skills/phoenix-error-analysis
@@ -29,7 +25,7 @@ agents:
       - .agents/skills/phoenix-tracing
 environment:
   type: daytona
-  extra_allowed_hosts: [downloads.claude.ai, arizeai-433a7140.mintlify.app, arize.com]
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
   # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
   kwargs:
     auto_stop_interval_mins: 30

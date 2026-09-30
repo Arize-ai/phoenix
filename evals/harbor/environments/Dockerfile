@@ -11,11 +11,11 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && apt-get install -y --no-install-recommends ca-certificates curl git jq procps ripgrep \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash agent
-# Codex is preinstalled because Harbor's installer fetches nvm from GitHub, which the
-# allowlist blocks; the job file pins the same version, so Harbor verifies it and skips
-# the install. Claude Code is installed by Harbor at trial start from downloads.claude.ai.
+# Preinstalled because Harbor's installers need hosts that the allowlist blocks
+ARG CLAUDE_CODE_VERSION=2.1.267
 ARG CODEX_VERSION=0.154.0
-RUN npm install -g "@openai/codex@${CODEX_VERSION}"
+RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
+  && chmod 700 /usr/local/lib/node_modules/@anthropic-ai /usr/local/lib/node_modules/@openai
 # Harbor runs the agent and the reference solution from the image's working directory.
 WORKDIR /app
 RUN chown agent:agent /app
