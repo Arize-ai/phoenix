@@ -526,23 +526,28 @@ px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress | jq -r '.sourc
 
 ### `px evaluator create`
 
-Create a code evaluator that nothing binds yet, with its first version. Bind it to a project or dataset afterwards by its `id`. LLM evaluators are created through the binding commands because each one is tied to its own prompt.
+Create an LLM or code evaluator that nothing binds yet. Bind it to a project or dataset afterwards by its `id`. An LLM evaluator runs an existing prompt version, created through the prompts API or the Phoenix UI first; a code evaluator is created with its first version.
 
 ```bash
-px evaluator create --name exact-match --file evaluator.py --language PYTHON \
+px evaluator create --type llm --name correctness --prompt-version-id UHJvbXB0VmVyc2lvbjo3 --description correctness \
+  --output-configs '[{"type":"CATEGORICAL","name":"correctness","optimization_direction":"MAXIMIZE","values":[{"label":"correct","score":1},{"label":"incorrect","score":0}]}]'
+px evaluator create --type code --name exact-match --file evaluator.py --language PYTHON \
   --sandbox-config-id U2FuZGJveENvbmZpZzox --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' \
-  --output-configs '[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]'
+  --output-configs '[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]' --if-not-exists
 ```
 
-| Option                     | Description                                                      | Default |
-| -------------------------- | ---------------------------------------------------------------- | ------- |
-| `--name <name>`            | Name, unique among evaluators (required)                         | —       |
-| `--file <path>`            | Read the source from a file (or `--source-code <text>`)          | —       |
-| `--language <language>`    | `PYTHON` or `TYPESCRIPT` (required)                              | —       |
-| `--sandbox-config-id <id>` | Sandbox configuration to run in (required)                       | —       |
-| `--input-mapping <json>`   | JSON object with `literal_mapping` and `path_mapping` (required) | —       |
-| `--description <text>`     | Description                                                      | —       |
-| `--output-configs <json>`  | JSON array of output configurations, at least one (required)     | —       |
+| Option                     | Description                                                                     | Default |
+| -------------------------- | ------------------------------------------------------------------------------- | ------- |
+| `--type <llm\|code>`       | Kind of evaluator (required)                                                    | —       |
+| `--name <name>`            | Name, unique among evaluators (required)                                        | —       |
+| `--prompt-version-id <id>` | (llm) Prompt version to run (required)                                          | —       |
+| `--file <path>`            | (code) Read the source from a file (or `--source-code <text>`)                  | —       |
+| `--language <language>`    | (code) `PYTHON` or `TYPESCRIPT` (required)                                      | —       |
+| `--sandbox-config-id <id>` | (code) Sandbox configuration to run in (required; see `px sandbox-config list`) | —       |
+| `--input-mapping <json>`   | (code) JSON object with `literal_mapping` and `path_mapping` (required)         | —       |
+| `--description <text>`     | Description (llm: must equal the prompt tool's description)                     | —       |
+| `--output-configs <json>`  | JSON array of output configurations, at least one (required)                    | —       |
+| `--if-not-exists`          | Print the evaluator that already holds the name instead of failing              | —       |
 
 ### `px evaluator update <evaluator-id>`
 
@@ -570,11 +575,22 @@ Prompt content is not edited here. Create a new version of the evaluator's promp
 
 ### `px evaluator delete <evaluator-id>`
 
-Delete a code evaluator that nothing binds, with its version history. An evaluator still bound by a project or dataset is refused; delete those bindings first, or delete the last binding, which removes the evaluator with it. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+Delete an LLM or code evaluator that nothing binds. A code evaluator's version history goes with it; an LLM evaluator's prompt is kept. An evaluator still bound by a project or dataset is refused with a conflict: delete those bindings first. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
 ```bash
 px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
 ```
+
+### `px sandbox-config list`
+
+List the sandbox configurations code evaluators can run in; pass an `id` as `--sandbox-config-id`. Only configurations with `is_usable` accept new code. Provider credentials are never shown.
+
+```bash
+px sandbox-config list --language PYTHON
+px sandbox-config list --language PYTHON --format raw --no-progress | jq -r 'map(select(.is_usable))[0].id'
+```
+
+In `raw`/`json` mode a failed request's error envelope also carries the HTTP `status`, the server's `reason` (for example `already_exists` or `validation_error`), and, for a taken name, the `existing_id` holding it.
 
 ### `px evaluator version list <evaluator-id>`
 

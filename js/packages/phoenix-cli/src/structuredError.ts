@@ -6,7 +6,8 @@ import { writeError } from "./io";
  * human-readable message.
  *
  * Shape:
- *   { error: string, code: string, hint?: string }
+ *   { error: string, code: string, hint?: string, status?: number,
+ *     reason?: string, existing_id?: string }
  *
  * `code` is the `ExitCode` constant *name* (e.g. "INVALID_ARGUMENT", not the
  * numeric code), and `hint` SHOULD be a copy-pasteable command that resolves
@@ -16,6 +17,12 @@ export interface StructuredError {
   error: string;
   code: string;
   hint?: string;
+  /** HTTP status of a failed API request. */
+  status?: number;
+  /** The server's machine-readable reason, e.g. "already_exists". */
+  reason?: string;
+  /** For "already_exists": the GlobalID of the resource that holds the name. */
+  existing_id?: string;
 }
 
 export interface WriteStructuredErrorOptions {
@@ -27,6 +34,10 @@ export interface WriteStructuredErrorOptions {
   code: string;
   /** Optional copy-pasteable resolution hint. */
   hint?: string;
+  /** HTTP status, server reason, and existing resource of a failed API request. */
+  status?: number;
+  reason?: string;
+  existingId?: string;
 }
 
 /**
@@ -39,6 +50,9 @@ export function writeStructuredError({
   message,
   code,
   hint,
+  status,
+  reason,
+  existingId,
 }: WriteStructuredErrorOptions): void {
   const mode = format ?? "pretty";
   if (mode === "json" || mode === "raw") {
@@ -46,6 +60,9 @@ export function writeStructuredError({
       error: message,
       code,
       ...(hint !== undefined && { hint }),
+      ...(status !== undefined && { status }),
+      ...(reason !== undefined && { reason }),
+      ...(existingId !== undefined && { existing_id: existingId }),
     };
     writeError({
       message:
