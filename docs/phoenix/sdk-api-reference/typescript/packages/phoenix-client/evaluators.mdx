@@ -28,7 +28,7 @@ Create a definition first, then bind it by its `id`. One definition can back any
 
 ## Errors
 
-Failed requests throw an `HttpError`. When the server explains the failure, `error.problem` holds its [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: a stable `code` (`validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, `forbidden`, and so on), a human-readable `detail`, and per-field `errors` for validation failures. A name clash is refused with `409`, `code` `already_exists`, and `existing_id` naming the resource that holds the name, so an agent can reuse it instead of retrying.
+Failed requests throw an `HttpError`. When the server explains the failure, `error.problem` holds its [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details. A name clash is refused with `409`, `code` `already_exists`, and `existing_id` naming the resource that holds the name, so an agent can reuse it instead of retrying.
 
 ```ts
 import { HttpError } from "@arizeai/phoenix-client";
@@ -44,6 +44,26 @@ try {
   }
 }
 ```
+
+`problem.type` publishes `code` as `urn:phoenix:problem:<code>`: `validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, `forbidden`, `insufficient_storage`, or `error`. Treat a `code` you don't recognize by `error.status` — new codes are additive.
+
+`problem.reason` is a finer condition under `code`, present on some `conflict` responses. Treat a `reason` you don't recognize by `code` alone. The reasons today, and what to do for each:
+
+- `still_bound` (deleting a definition something still binds): detach the bindings first, then delete.
+- `incompatible_override` (an edit would leave a dataset binding's override outputs unsupported by the prompt it now runs): fix or clear the listed overrides.
+- `version_mismatch` (`expected_current_version_id` didn't match): re-read the evaluator and reconcile before retrying — never blindly resubmit with the version the error reports as current, since another deploy can land before you do.
+- `concurrent_change` (another write touched the same row mid-request): retry the same request unchanged.
+
+The recovery fields on `problem`, present only for the `reason` (or, for `existing_id`, `code`) named:
+
+- `existing_id` (`already_exists`): the GlobalID of the resource holding the name.
+- `current_version_id` (`version_mismatch`): the GlobalID of the version actually current, or `null` when the evaluator has none yet.
+- `binding_counts` (`still_bound`): `{ project: number, dataset: number }`, how many of each kind still refuse the delete.
+- `dataset_evaluator_ids` (`incompatible_override`): GlobalIDs of the dataset bindings whose overrides no longer fit.
+
+`problem.detail` is a human-readable explanation, not meant to be parsed; branch on `code` and `reason`, never on the text of `detail`.
+
+Not every failure is problem details shaped this way. A 401 is a plain-text authentication challenge. An unhandled 500, or a proxy sitting in front of Phoenix, can return a body that isn't JSON at all. In every case `error.status` and `error.statusText` are still the real HTTP status, and `error.problem` is `undefined` when the body didn't parse as one.
 
 ## List And Read Definitions
 

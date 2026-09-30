@@ -231,6 +231,10 @@ const prompt = await phoenix.GET("/v1/prompts/{prompt_identifier}/latest", {
 
 A comprehensive overview of the available endpoints and their parameters is available in the OpenAPI viewer within Phoenix, or in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
 
+### Errors
+
+A failed request throws `HttpError`. Routes that return [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details — including the evaluator, dataset-binding, project-binding, and sandbox-config routes — put the full parsed body on `error.problem`: a stable `code` (published as `urn:phoenix:problem:<code>`; treat one you don't recognize by `error.status`), an optional `reason` for a finer condition under it (e.g. `still_bound` on a delete something still binds — detach first; treat an unrecognized `reason` by `code`), and recovery fields such as `existing_id` or `binding_counts`. `error.problem` is `undefined` for a response that isn't shaped like this — a 401's plain-text challenge, an unhandled 500, a proxy's own error page — and `error.status`/`error.statusText` still carry the real HTTP status either way.
+
 ## Datasets
 
 The `@arizeai/phoenix-client` package allows you to create and manage datasets, which are collections of examples used for experiments and evaluation.
