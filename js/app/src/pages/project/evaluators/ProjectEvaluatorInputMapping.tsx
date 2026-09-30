@@ -1,45 +1,61 @@
-import { Flex } from "@phoenix/components";
+import { Flex, Text } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
-import { EVALUATOR_SLOT_NAMES } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import { getEvaluatorInputPlaceholder } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import { escapeFieldNameForReactHookForm } from "@phoenix/components/evaluators/fieldNameUtils";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import {
   dropOtherRecordKindPathMappings,
+  dropPathsShadowedByLiterals,
   type ProjectEvaluatorRecordKind,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
- * Where an evaluator's three inputs are read from on the record it runs on.
+ * Where the evaluator's declared variables are read from on the record it
+ * runs on.
  *
- * Every evaluator receives the same three: `input`, `output`, and `metadata`.
- * Leaving one alone keeps the value the context already offers under that name;
- * pointing one at a path reads that instead. Everything the record holds is
- * reachable under `metadata`, so nothing about it is off limits.
+ * `input`, `output`, and `metadata` read their matching context fields when
+ * left blank. Other variables need a path unless they are optional code
+ * parameters or already have a saved text binding.
  */
 export const ProjectEvaluatorInputMapping = ({
   recordKind,
+  requiredVariables,
 }: {
   recordKind: ProjectEvaluatorRecordKind;
+  /** Every declared variable when omitted, as for a prompt. */
+  requiredVariables?: readonly string[];
 }) => {
+  const variables = useEvaluatorInputVariables();
   const { control, setValue } = useEvaluatorInputMappingControlsForm({
     pruneEmptyEntries: true,
     // Mounted under a key of the record kind, so switching what the evaluator
     // runs on rebuilds these rows without the previous record kind's paths in
     // them.
     filterInitialMapping: (inputMapping) =>
-      dropOtherRecordKindPathMappings(inputMapping, recordKind),
+      dropPathsShadowedByLiterals(
+        dropOtherRecordKindPathMappings(inputMapping, recordKind)
+      ),
+    declaredVariables: variables,
+    pathsReplaceLiterals: true,
   });
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
+  // The form drops a variable's literal once it has a path, and hides a path
+  // a literal overrides, so a literal here is what the variable reads.
+  const literalMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping.literalMapping
+  );
   return (
     <Flex direction="column" gap="size-200" width="100%">
-      {EVALUATOR_SLOT_NAMES.map((slotName) => (
+      {variables.map((variable) => (
         <SwitchableEvaluatorInput
-          key={slotName}
-          fieldName={slotName}
-          label={slotName}
+          key={variable}
+          fieldName={escapeFieldNameForReactHookForm(variable)}
+          label={variable}
           size="M"
           control={control}
           setValue={setValue}
@@ -60,11 +76,23 @@ export const ProjectEvaluatorInputMapping = ({
               ariaLabel={ariaLabel}
               evaluatorMappingSource={evaluatorMappingSource}
               recordKind={recordKind}
-              slotName={slotName}
+              variableName={variable}
+              placeholder={getEvaluatorInputPlaceholder({
+                variableName: variable,
+                isRequired: requiredVariables?.includes(variable) ?? true,
+                literal: Object.hasOwn(literalMapping, variable)
+                  ? literalMapping[variable]
+                  : undefined,
+              })}
             />
           )}
         />
       ))}
+      {variables.length === 0 && (
+        <Text color="text-500">
+          Add variables to the evaluator to map them here.
+        </Text>
+      )}
     </Flex>
   );
 };
