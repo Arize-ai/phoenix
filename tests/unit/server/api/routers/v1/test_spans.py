@@ -1068,13 +1068,13 @@ async def test_span_search_filter_expression(
 
 
 async def test_span_search_filter_expression_matches_root_spans(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
 ) -> None:
     resp = await httpx_client.get(
-        "v1/projects/search-test/spans", params={"filter": "parent_span is None"}
+        "v1/projects/parent-spans/spans", params={"filter": "parent_span is None"}
     )
     assert resp.is_success
-    assert len(resp.json()["data"]) == 3
+    assert [span["name"] for span in resp.json()["data"]] == ["root-span"]
 
 
 async def test_span_search_filter_expression_combines_with_field_filters(
