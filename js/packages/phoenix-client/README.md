@@ -425,11 +425,10 @@ const sessionTraces = await getTraces({
   sessionId: "my-session-id",
 });
 
-// Filter by error status and latency (requires Phoenix server >= 20.8.0)
+// Filter by error status and latency (requires Phoenix server >= 20.12.0)
 const slowFailures = await getTraces({
   project: { projectName: "my-project" },
-  error: true,
-  minLatencyMs: 1000,
+  filter: "error_count > 0 and latency_ms >= 1000",
 });
 ```
 
@@ -444,9 +443,15 @@ const slowFailures = await getTraces({
 | `cursor`       | `string \| null`               | Pagination cursor                                            |
 | `includeSpans` | `boolean`                      | Include full span details for each trace                     |
 | `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)                       |
+| `filter`       | `string \| null`               | Trace filter expression                                      |
 | `error`        | `boolean \| null`              | Only traces with (`true`) or without (`false`) errored spans |
 | `minLatencyMs` | `number \| null`               | Inclusive lower bound on trace latency (ms)                  |
 | `maxLatencyMs` | `number \| null`               | Inclusive upper bound on trace latency (ms)                  |
+
+`error`, `minLatencyMs`, and `maxLatencyMs` are deprecated but remain supported on
+server >= 20.8.0. Use `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and
+`latency_ms <= N` in `filter` instead. Empty expressions do not filter; invalid
+expressions return HTTP 400. Keep the same expression when requesting the next page.
 
 ### Pagination
 
@@ -791,6 +796,33 @@ await setProjectRetentionPolicy({
 ```
 
 This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
+
+## Secrets
+
+Use the `secrets` entrypoint to atomically create, update, or delete encrypted
+provider credentials. A string value creates or updates a key, while `null`
+deletes it. Duplicate keys use the last occurrence in the batch. The result
+contains only changed key names and never returns secret values.
+
+```ts
+import { upsertOrDeleteSecrets } from "@arizeai/phoenix-client/secrets";
+
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) throw new Error("OPENAI_API_KEY is required");
+
+const result = await upsertOrDeleteSecrets({
+  secrets: [
+    { key: "OPENAI_API_KEY", value: apiKey },
+    { key: "OLD_PROVIDER_API_KEY", value: null },
+  ],
+});
+
+console.log(result.upsertedKeys);
+console.log(result.deletedKeys);
+```
+
+Managing secrets requires an administrator when Phoenix authentication is
+enabled. Avoid logging the request batch or otherwise retaining its values.
 
 ## Examples
 

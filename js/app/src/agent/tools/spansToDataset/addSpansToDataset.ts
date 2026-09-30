@@ -1,5 +1,6 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
@@ -8,12 +9,19 @@ import { commitListDatasets } from "@phoenix/agent/tools/listDatasets";
 
 import type { addSpansToDatasetToolMutation } from "./__generated__/addSpansToDatasetToolMutation.graphql";
 
+/**
+ * Returns the row count and audit fields so the target dataset's header, table
+ * row, and picker entry update from the normalized store; the examples table
+ * (if that dataset is open) refetches via the agent data-change bridge.
+ */
 const mutation = graphql`
   mutation addSpansToDatasetToolMutation($input: AddSpansToDatasetInput!) {
     addSpansToDataset(input: $input) {
       dataset {
         id
         name
+        exampleCount
+        updatedAt
       }
     }
   }
@@ -86,7 +94,12 @@ export async function commitAddSpansToDataset({
   return runDatasetMutation<addSpansToDatasetToolMutation>({
     mutation,
     variables: { input: { datasetId: resolved.id, spanIds } },
-    onSuccess: () =>
-      `Added ${spanIds.length} span(s) to dataset "${resolved.name}".`,
+    onSuccess: (response) => {
+      emitAgentDataChange({
+        entity: "datasetExamples",
+        datasetId: response.addSpansToDataset.dataset.id,
+      });
+      return `Added ${spanIds.length} span(s) to dataset "${resolved.name}".`;
+    },
   });
 }

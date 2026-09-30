@@ -17,7 +17,9 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
     _ToolKwargs,
     _ToolKwargsConversion,
     _ToolResultContentPartConversion,
+    to_chat_messages_and_kwargs,
 )
+from phoenix.client.types.prompts import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
 if TYPE_CHECKING:
@@ -248,3 +250,69 @@ class TestInvocationParametersConversion:
 class _MockFormatter:
     def format(self, _: str, /, *, variables: Mapping[str, str]) -> str:
         return json.dumps(variables)
+
+
+class TestToChatMessagesAndKwargs:
+    def test_str_system_message_formats_variables(self) -> None:
+        pv = v1.PromptVersionData(
+            template={
+                "type": "chat",
+                "messages": [
+                    {"role": "system", "content": "You are {{ persona }}."},
+                    {"role": "user", "content": "Hello {{ persona }}."},
+                ],
+            },
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            model_provider="ANTHROPIC",
+            model_name="claude-3-5-sonnet-20241022",
+            invocation_parameters={
+                "type": "anthropic",
+                "anthropic": {"max_tokens": 100},
+            },
+        )
+        messages, kwargs = to_chat_messages_and_kwargs(pv, variables={"persona": "a pirate"})
+        assert kwargs.get("system") == "You are a pirate."
+        assert messages == [{"role": "user", "content": "Hello a pirate."}]
+
+    def test_multiple_str_system_messages_format_variables(self) -> None:
+        pv = v1.PromptVersionData(
+            template={
+                "type": "chat",
+                "messages": [
+                    {"role": "system", "content": "System 1: {{ var1 }}"},
+                    {"role": "system", "content": "System 2: {{ var2 }}"},
+                    {"role": "user", "content": "User: {{ var1 }}"},
+                ],
+            },
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            model_provider="ANTHROPIC",
+            model_name="claude-3-5-sonnet-20241022",
+            invocation_parameters={
+                "type": "anthropic",
+                "anthropic": {"max_tokens": 100},
+            },
+        )
+        messages, kwargs = to_chat_messages_and_kwargs(
+            pv, variables={"var1": "val1", "var2": "val2"}
+        )
+        assert kwargs.get("system") == [
+            {"type": "text", "text": "System 1: val1"},
+            {"type": "text", "text": "System 2: val2"},
+        ]
+        assert messages == [{"role": "user", "content": "User: val1"}]
+
+    def test_prompt_version_format_anthropic_system_variables(self) -> None:
+        pv = PromptVersion(
+            [
+                v1.PromptMessage(role="system", content="You are {{ persona }}."),
+                v1.PromptMessage(role="user", content="Hello {{ persona }}."),
+            ],
+            model_name="claude-3-5-sonnet-20241022",
+            model_provider="ANTHROPIC",
+            template_format="MUSTACHE",
+        )
+        formatted = pv.format(variables={"persona": "a pirate"}, sdk="anthropic")
+        assert formatted.kwargs.get("system") == "You are a pirate."
+        assert formatted.messages == [{"role": "user", "content": "Hello a pirate."}]

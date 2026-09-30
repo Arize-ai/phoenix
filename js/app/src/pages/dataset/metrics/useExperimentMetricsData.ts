@@ -31,6 +31,13 @@ const experimentMetricsExperimentFragment = graphql`
         cost
       }
     }
+    costDetailSummaryEntries {
+      tokenType
+      isPrompt
+      value {
+        tokens
+      }
+    }
   }
 `;
 
@@ -75,7 +82,35 @@ export type ExperimentMetricsDatum = {
   promptTokens: number | null;
   completionTokens: number | null;
   totalTokens: number | null;
+  promptTokenDetails: ExperimentTokenDetail[];
+  completionTokenDetails: ExperimentTokenDetail[];
 };
+
+type ExperimentTokenDetail = {
+  tokenType: string;
+  tokenCount: number | null;
+};
+
+function getExperimentTokenDetails({
+  costDetailSummaryEntries,
+  isPrompt,
+}: {
+  costDetailSummaryEntries: readonly {
+    tokenType: string;
+    isPrompt: boolean;
+    value: {
+      tokens: number | null;
+    };
+  }[];
+  isPrompt: boolean;
+}): ExperimentTokenDetail[] {
+  return costDetailSummaryEntries
+    .filter((entry) => entry.isPrompt === isPrompt)
+    .map((entry) => ({
+      tokenType: entry.tokenType,
+      tokenCount: entry.value.tokens,
+    }));
+}
 
 function readExperimentMetricsDatum({
   experiment,
@@ -103,6 +138,14 @@ function readExperimentMetricsDatum({
     promptTokens: data.costSummary.prompt.tokens,
     completionTokens: data.costSummary.completion.tokens,
     totalTokens: data.costSummary.total.tokens,
+    promptTokenDetails: getExperimentTokenDetails({
+      costDetailSummaryEntries: data.costDetailSummaryEntries,
+      isPrompt: true,
+    }),
+    completionTokenDetails: getExperimentTokenDetails({
+      costDetailSummaryEntries: data.costDetailSummaryEntries,
+      isPrompt: false,
+    }),
   };
 }
 

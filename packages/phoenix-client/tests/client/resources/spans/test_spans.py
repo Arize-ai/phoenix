@@ -56,6 +56,47 @@ def test_log_document_annotations_dataframe_rejects_invalid_identifiers(
         client.spans.log_document_annotations_dataframe(dataframe=dataframe)
 
 
+@pytest.mark.parametrize("missing", [None, float("nan"), pd.NA, pd.NaT])
+@pytest.mark.parametrize("column", ["label", "score", "explanation", "metadata", "identifier"])
+def test_log_span_annotations_dataframe_omits_missing_cells(column: str, missing: object) -> None:
+    values: dict[str, object] = {
+        "span_id": "span1",
+        "label": "good",
+        "score": 0.0,
+        "explanation": "details",
+        "metadata": {"tags": ["reviewed"]},
+        "identifier": "evaluation-1",
+    }
+    dataframe = pd.DataFrame([{**values, column: missing}])
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    with httpx.Client(transport=httpx.MockTransport(handle), base_url="http://test") as http_client:
+        client = Client(http_client=http_client)
+        client.spans.log_span_annotations_dataframe(
+            dataframe=dataframe, annotation_name="quality", annotator_kind="HUMAN"
+        )
+
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.method == "POST"
+    assert request.url.path == "/v1/span_annotations"
+    assert json.loads(request.content)["data"] == [
+        {
+            "name": "quality",
+            "annotator_kind": "HUMAN",
+            "span_id": "span1",
+            "result": {
+                key: values[key] for key in ("label", "score", "explanation") if key != column
+            },
+            **{key: values[key] for key in ("metadata", "identifier") if key != column},
+        }
+    ]
+
+
 def _make_span(
     *,
     name: str = "test-span",
@@ -500,3 +541,46 @@ class TestGetSpansDataframeRootSpansOnlyDeprecation:
         )
         with pytest.warns(DeprecationWarning, match="root_spans_only is deprecated"):
             await AsyncSpans(client).get_spans_dataframe(root_spans_only=False)
+
+
+class TestGetSpansSort:
+    def test_sort_by_start_time_is_sent(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project", sort="start_time")
+        assert len(spans) == 1
+
+    def test_no_sort_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "sort" not in parse_qs(urlparse(str(request.url)).query)
+            return httpx.Response(200, json={"data": [_make_span()], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_sort_wired_through_async_client(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project", sort="start_time"
+        )
+        assert len(spans) == 1
+
+    def test_order_is_sent(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"], "order": ["asc"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project", sort="start_time", order="asc"
+        )
+        assert len(spans) == 1
+
+    def test_no_order_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "order" not in parse_qs(urlparse(str(request.url)).query)
+            return httpx.Response(200, json={"data": [_make_span()], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1

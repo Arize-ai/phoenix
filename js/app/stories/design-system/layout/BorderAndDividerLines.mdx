@@ -1,0 +1,88 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import * as BorderStories from "./BorderAndDividerLines.stories.tsx";
+
+<Meta of={BorderStories} />
+
+# Lines: border, divider
+
+<Canvas of={BorderStories.BorderVsDivider} />
+
+## Borders
+
+Border tokens define consistent outline styling across the application.
+
+### Color
+
+`--global-border-color-default` resolves to `gray-200` and is the primary semantic
+border color.
+
+Some components (card, menu) repackage this for component-specific border colors.
+
+### Thickness
+
+- `--global-border-size-thin` = `1px`. The default, appropriate for most things.
+- `--global-border-size-thick` = `2px`. For focus states, checkbox/radio borders, etc.
+
+<Canvas of={BorderStories.BorderSizes} />
+
+### Rounding
+
+Five rounding tokens control `border-radius`:
+
+- `--global-rounding-xsmall` — 2px
+- `--global-rounding-small` — 4px (exposed as `BorderRadiusValue: "small"`)
+- `--global-rounding-medium` — 8px (exposed as `BorderRadiusValue: "medium"`)
+- `--global-rounding-large` — 16px
+- `--global-rounding-full` — 9999px (pill shapes)
+
+> **Note:** The `BorderRadiusValue` TypeScript type only exposes `"small"` and
+> `"medium"` to constrain component props. Use CSS vars directly for other values.
+
+<Canvas of={BorderStories.BorderRounding} />
+
+## Dividers
+
+Visual separators that create hierarchy between content sections. Two patterns are available:
+
+1. **`<Divider />` component** — use for inline separation between content
+2. **`fadedDivider*CSS` mixins** — use for container borders on existing elements (toolbars, panels)
+
+### Divider Component
+
+The `<Divider />` component renders a semantic `<hr>` element for inline separation.
+
+- **`solid`** (default) — 1px line using `--global-border-color-default`
+- **`fading`** — gradient that fades to transparent at edges
+
+The `size` prop adds margin on both sides of the line: `xs` 4px, `sm` 8px,
+`md` 16px, and none when omitted.
+
+<Canvas of={BorderStories.DividerVariantsAndSizes} />
+
+`orientation="vertical"` draws the line at the height of its container, with
+`size` adding margin to its left and right.
+
+<Canvas of={BorderStories.DividerVariantsAndOrientations} />
+
+### CSS Mixins (fadedDivider\*CSS)
+
+For applying fading dividers to existing elements (container borders, toolbar edges),
+use the CSS mixins instead of the component. They render a fading 1px gradient
+line on a given edge via `::after`:
+
+- `fadedDividerTopCSS`
+- `fadedDividerBottomCSS`
+- `fadedDividerLeftCSS`
+- `fadedDividerRightCSS`
+
+The element must form a stacking context — `position: relative` is included automatically.
+
+### Fade distance
+
+The fading variant and the mixins share one gradient, whose fade distance is
+`clamp(48px, 15%, 128px)`: the 48px minimum below 320px, 15% of the length up
+to about 850px, and the 128px maximum beyond that. At 300px the fade is held
+at its minimum; at 420px and 800px it is 15% of the length, the second near
+the maximum, where it stops growing.
+
+<Canvas of={BorderStories.FadeWidths} />

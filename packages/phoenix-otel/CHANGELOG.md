@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.1...arize-phoenix-otel-v0.17.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* **otel:** fix register() crash with opentelemetry-exporter-otlp-proto-http 1.45 ([#16549](https://github.com/Arize-ai/phoenix/issues/16549)) ([70c5051](https://github.com/Arize-ai/phoenix/commit/70c5051460a199410145913fe2513799bfeb1eaa))
+
 ## [0.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.0...arize-phoenix-otel-v0.17.1) (2026-08-10)
 
 

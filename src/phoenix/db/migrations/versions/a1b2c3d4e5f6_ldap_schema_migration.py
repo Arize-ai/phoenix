@@ -30,6 +30,8 @@ Create Date: 2026-01-16 14:30:00.000000
 
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -46,6 +48,34 @@ LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"
 NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"
 
 
+@contextmanager
+def _preserve_sqlite_sequence(table_name: str) -> Iterator[None]:
+    """Keep the AUTOINCREMENT high-water mark across a SQLite table rebuild."""
+    connection = op.get_bind()
+    if connection.dialect.name != "sqlite":
+        yield
+        return
+    sequence = connection.execute(
+        sa.text("SELECT seq FROM sqlite_sequence WHERE name = :name"),
+        {"name": table_name},
+    ).scalar()
+    yield
+    if sequence is None:
+        return
+    parameters = {"name": table_name, "sequence": sequence}
+    result = connection.execute(
+        sa.text(
+            "UPDATE sqlite_sequence SET seq = MAX(COALESCE(seq, 0), :sequence) WHERE name = :name"
+        ),
+        parameters,
+    )
+    if not result.rowcount:
+        connection.execute(
+            sa.text("INSERT INTO sqlite_sequence (name, seq) VALUES (:name, :sequence)"),
+            parameters,
+        )
+
+
 def upgrade() -> None:
     """Upgrade to clean LDAP schema with dedicated ldap_unique_id column.
 
@@ -59,11 +89,12 @@ def upgrade() -> None:
     7. Creates new partial unique indexes for proper constraint enforcement
     8. Recreates CHECK constraints with 'LDAP' support and field separation
 
-    Note: All batch_alter_table calls include sqlite_autoincrement=True to fix
-    the autoincrement issue introduced in migration 6a88424799fe.
+    SQLite rebuilds preserve both the AUTOINCREMENT declaration and its counter.
     """
-    # IMPORTANT: sqlite_autoincrement=True fixes broken autoincrement from migration 6a88424799fe
-    with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # Step 1: Drop existing constraints
         batch_op.drop_constraint("valid_auth_method", type_="check")
         batch_op.drop_constraint("local_auth_has_password_no_oauth", type_="check")
@@ -83,7 +114,10 @@ def upgrade() -> None:
         )
 
     # Step 4: Migrate data
-    with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # Migrate LDAP users:
         # - Set auth_method='LDAP'
         # - Copy oauth2_user_id to ldap_unique_id
@@ -118,7 +152,10 @@ def upgrade() -> None:
     #
     # *: LDAP users must have email OR ldap_unique_id (or both).
     #
-    with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # CHECK constraints
         batch_op.create_check_constraint(
             "valid_auth_method",
@@ -198,7 +235,10 @@ def downgrade() -> None:
     op.drop_index("ix_users_ldap_unique_id", "users")
     op.drop_index("ix_users_oauth2_unique", "users")
 
-    with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # Drop new constraints
         batch_op.drop_constraint("non_ldap_auth_has_email", type_="check")
         batch_op.drop_constraint("oauth2_auth_no_ldap_fields", type_="check")
@@ -211,7 +251,10 @@ def downgrade() -> None:
     # Detect database dialect for SQL syntax differences
     dialect = op.get_bind().dialect.name
 
-    with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # Restore LDAP marker, move ldap_unique_id back to oauth2_user_id, revert auth_method
         batch_op.execute(f"""
             UPDATE users
@@ -240,7 +283,10 @@ def downgrade() -> None:
             WHERE email IS NULL
         """)
 
-    with op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # Step 3: Make email NOT NULL again
         batch_op.alter_column(
             "email",

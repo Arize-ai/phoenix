@@ -9,7 +9,10 @@ import {
   DatasetsTableProvider,
   useDatasetsTableContext,
 } from "@phoenix/contexts/DatasetsTableContext";
-import { useLabelFilterSearchParams } from "@phoenix/hooks";
+import {
+  useAgentDataChangeFetchKey,
+  useLabelFilterSearchParams,
+} from "@phoenix/hooks";
 
 import type { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
 import { CreateDatasetButton } from "./CreateDatasetButton";
@@ -28,6 +31,8 @@ const DATASET_COLUMNS = [
   { id: "evaluatorCount", label: "evaluators" },
   { id: "metadata", label: "metadata" },
 ];
+
+const REFRESH_ON = ["datasets", "datasetLabels"] as const;
 
 export function DatasetsPage() {
   return (
@@ -65,7 +70,8 @@ function DatasetsColumnSelector() {
 }
 
 export function DatasetsPageContent() {
-  const [fetchKey, setFetchKey] = useState(0);
+  const [localFetchKey, setLocalFetchKey] = useState(0);
+  const agentFetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
       query DatasetsPageQuery {
@@ -74,14 +80,14 @@ export function DatasetsPageContent() {
     `,
     {},
     {
-      fetchKey: fetchKey,
+      fetchKey: localFetchKey + agentFetchKey,
       fetchPolicy: "store-and-network",
     }
   );
 
   const onDatasetCreated = useCallback(() => {
-    setFetchKey((prev) => prev + 1);
-  }, [setFetchKey]);
+    setLocalFetchKey((prev) => prev + 1);
+  }, []);
 
   const [filter, setFilter] = useState<string>("");
   // The label filter is persisted to the URL so it can be shared and survive

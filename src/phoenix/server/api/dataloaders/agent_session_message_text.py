@@ -22,7 +22,7 @@ class AgentSessionMessageTextDataLoader(DataLoader[Key, Result]):
         self._kind = kind
 
     @cached_property
-    def _subquery(self) -> Select[tuple[int, PhoenixUIMessage, int]]:
+    def _subquery(self) -> Select[int, PhoenixUIMessage, int]:
         message = models.AgentSessionMessage
         if self._kind == "first_input":
             return select(

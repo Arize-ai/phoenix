@@ -2679,7 +2679,7 @@ export interface components {
             };
             /**
              * Example Ids
-             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             * @description Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
              */
             example_ids?: string[];
         };
@@ -3334,6 +3334,11 @@ export interface components {
              * @description The description of the experiment
              */
             description: string | null;
+            /**
+             * Sequence Number
+             * @description The 1-based sequence number of the experiment within its dataset, in creation order.
+             */
+            sequence_number: number;
             /**
              * Repetitions
              * @description Number of times the experiment is repeated
@@ -6716,12 +6721,12 @@ export interface components {
             } | null;
             /**
              * Add Example Ids
-             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
              */
             add_example_ids?: string[];
             /**
              * Remove Example Ids
-             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split.
              */
             remove_example_ids?: string[];
         };
@@ -9383,6 +9388,10 @@ export interface operations {
                 cursor?: string | null;
                 /** @description The max number of experiments to return at a time. */
                 limit?: number;
+                /** @description Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page. */
+                sort_dir?: "asc" | "desc";
+                /** @description When provided, return only the experiments with these 1-based per-dataset sequence numbers. */
+                sequence_numbers?: number[] | null;
             };
             header?: never;
             path: {
@@ -10580,10 +10589,14 @@ export interface operations {
     getSpans: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Span Global ID) */
+                /** @description Pagination cursor: the next_cursor of a previous response with the same sort */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
+                /** @description Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id. */
+                sort?: "id" | "start_time";
+                /** @description Sort direction */
+                order?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */

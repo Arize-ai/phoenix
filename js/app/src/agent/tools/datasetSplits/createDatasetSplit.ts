@@ -1,5 +1,6 @@
 import { commitMutation, graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import type { DatasetWriteApplyResult } from "@phoenix/agent/shared/pendingDatasetWrite";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -8,12 +9,19 @@ import type { createDatasetSplitToolWithExamplesMutation } from "./__generated__
 import { DEFAULT_DATASET_SPLIT_COLOR } from "./constants";
 import type { CreateDatasetSplitInput } from "./types";
 
+/**
+ * The with-examples variant returns each seeded example's `datasetSplits`,
+ * which the examples table renders as split chips. Mounted split lists
+ * refetch through the agent data-change bridge.
+ */
 const createMutation = graphql`
   mutation createDatasetSplitToolMutation($input: CreateDatasetSplitInput!) {
     createDatasetSplit(input: $input) {
       datasetSplit {
         id
         name
+        description
+        color
       }
     }
   }
@@ -27,6 +35,16 @@ const createWithExamplesMutation = graphql`
       datasetSplit {
         id
         name
+        description
+        color
+      }
+      examples {
+        id
+        datasetSplits {
+          id
+          name
+          color
+        }
       }
     }
   }
@@ -57,6 +75,7 @@ export function commitCreateDatasetSplit({
         resolve({ ok: false, error: message });
         return;
       }
+      emitAgentDataChange({ entity: "datasetSplits" });
       resolve({
         ok: true,
         output:

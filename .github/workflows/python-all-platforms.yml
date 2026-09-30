@@ -63,7 +63,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         db: [sqlite, postgresql]
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
         os: [windows-latest, macos-latest, ubuntu-latest]
         exclude:
           - os: windows-latest
@@ -71,18 +71,11 @@ jobs:
           - os: macos-latest
             db: postgresql
           - os: ubuntu-latest
-            py: "3.10"
+            py: "3.11"
             db: sqlite
           - os: ubuntu-latest
-            py: "3.10"
-            db: postgresql
-        include:
-          # 3.11 is the only Python whose dataclasses reject unhashable defaults
-          # such as MappingProxyType, so it needs its own import check.
-          - branch: main
-            db: sqlite
             py: "3.11"
-            os: ubuntu-latest
+            db: postgresql
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -134,16 +127,16 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         db: [sqlite, postgresql]
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
         os: [windows-latest, ubuntu-latest]
         exclude:
           - os: windows-latest
             db: postgresql
           - os: ubuntu-latest
-            py: "3.10"
+            py: "3.11"
             db: sqlite
           - os: ubuntu-latest
-            py: "3.10"
+            py: "3.11"
             db: postgresql
     env:
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
@@ -194,7 +187,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.11", "3.13", "3.14"]
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -221,7 +214,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.11", "3.13", "3.14"]
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -247,7 +240,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

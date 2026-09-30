@@ -57,8 +57,17 @@ vi.mock("../useAvailableAgentSkills", () => ({
 }));
 
 vi.mock("../ChatMessage", () => ({
-  AssistantMessage: ({ message }: { message: AgentUIMessage }) => (
-    <div data-message-id={message.id} />
+  AssistantMessage: ({
+    message,
+    isStreaming,
+  }: {
+    message: AgentUIMessage;
+    isStreaming?: boolean;
+  }) => (
+    <div
+      data-message-id={message.id}
+      data-streaming={isStreaming || undefined}
+    />
   ),
   UserMessage: ({ message }: { message: AgentUIMessage }) => (
     <div data-message-id={message.id} />
@@ -424,6 +433,30 @@ describe("ChatView", () => {
     });
 
     expect(container.textContent).not.toContain("Thinking...");
+  });
+
+  it("animates only the active assistant message while streaming", () => {
+    renderChatView(root, {
+      status: "streaming",
+      chatMessages: messages,
+    });
+
+    expect(
+      container
+        .querySelector('[data-message-id="assistant-message"]')
+        ?.getAttribute("data-streaming")
+    ).toBe("true");
+
+    renderChatView(root, {
+      status: "ready",
+      chatMessages: messages,
+    });
+
+    expect(
+      container
+        .querySelector('[data-message-id="assistant-message"]')
+        ?.getAttribute("data-streaming")
+    ).toBeNull();
   });
 
   it("runs /compact without sending it as a user message", async () => {

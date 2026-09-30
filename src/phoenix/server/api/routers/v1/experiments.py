@@ -1,6 +1,6 @@
 import json
 from random import getrandbits
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import pandas as pd
 import sqlalchemy as sa
@@ -61,6 +61,10 @@ class Experiment(V1RoutesBaseModel):
     )
     name: str = Field(description="The name of the experiment")
     description: Optional[str] = Field(description="The description of the experiment")
+    sequence_number: int = Field(
+        description="The 1-based sequence number of the experiment within its dataset, in "
+        "creation order."
+    )
     repetitions: int = Field(description="Number of times the experiment is repeated", gt=0)
     metadata: dict[str, Any] = Field(description="Metadata of the experiment")
     project_name: Optional[str] = Field(
@@ -74,6 +78,18 @@ class Experiment(V1RoutesBaseModel):
     missing_run_count: int = Field(
         description="Number of missing (not yet executed) runs in the experiment"
     )
+
+
+async def _get_experiment_sequence_number(
+    session: AsyncSession, dataset_id: int, experiment_id: int
+) -> int:
+    count = await session.scalar(
+        select(func.count())
+        .select_from(models.Experiment)
+        .where(models.Experiment.dataset_id == dataset_id)
+        .where(models.Experiment.id <= experiment_id)
+    )
+    return count or 0
 
 
 class CreateExperimentRequestBody(V1RoutesBaseModel):
@@ -230,7 +246,7 @@ async def create_experiment(
         # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
 
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         project_rowid = await session.scalar(
             insert_on_conflict(
                 dict(
@@ -264,6 +280,9 @@ async def create_experiment(
         successful_run_count = 0
         failed_run_count = 0
         missing_run_count = (example_count or 0) * experiment.repetitions
+        sequence_number = await _get_experiment_sequence_number(
+            session, experiment.dataset_id, experiment.id
+        )
     request.state.event_queue.put(ExperimentInsertEvent((experiment.id,)))
     return CreateExperimentResponseBody(
         data=Experiment(
@@ -272,6 +291,7 @@ async def create_experiment(
             dataset_version_id=str(dataset_version_globalid),
             name=experiment.name,
             description=experiment.description,
+            sequence_number=sequence_number,
             repetitions=experiment.repetitions,
             metadata=experiment.metadata_,
             project_name=experiment.project_name,
@@ -364,6 +384,9 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
         missing_run_count = (
             total_expected_runs - (successful_run_count or 0) - (failed_run_count or 0)
         )
+        sequence_number = await _get_experiment_sequence_number(
+            session, experiment.dataset_id, experiment_rowid
+        )
     return GetExperimentResponseBody(
         data=Experiment(
             id=str(experiment_globalid),
@@ -371,6 +394,7 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
             dataset_version_id=str(dataset_version_globalid),
             name=experiment.name,
             description=experiment.description,
+            sequence_number=sequence_number,
             repetitions=experiment.repetitions,
             metadata=experiment.metadata_,
             project_name=experiment.project_name,
@@ -525,6 +549,9 @@ async def update_experiment(
         missing_run_count = (
             total_expected_runs - (successful_run_count or 0) - (failed_run_count or 0)
         )
+        sequence_number = await _get_experiment_sequence_number(
+            session, experiment.dataset_id, experiment_rowid
+        )
     return UpdateExperimentResponseBody(
         data=Experiment(
             id=str(experiment_globalid),
@@ -532,6 +559,7 @@ async def update_experiment(
             dataset_version_id=str(dataset_version_globalid),
             name=experiment.name,
             description=experiment.description,
+            sequence_number=sequence_number,
             repetitions=experiment.repetitions,
             metadata=experiment.metadata_,
             project_name=experiment.project_name,
@@ -786,6 +814,16 @@ async def list_experiments(
     limit: int = Query(
         default=50, description="The max number of experiments to return at a time.", gt=0
     ),
+    sort_dir: Literal["asc", "desc"] = Query(
+        default="desc",
+        description="Order by creation: 'desc' (default) returns newest experiments first, "
+        "'asc' returns oldest first so the lowest sequence numbers are on the first page.",
+    ),
+    sequence_numbers: Optional[list[int]] = Query(
+        default=None,
+        description="When provided, return only the experiments with these 1-based per-dataset "
+        "sequence numbers.",
+    ),
 ) -> ListExperimentsResponseBody:
     try:
         dataset_gid = GlobalID.from_id(dataset_id)
@@ -802,32 +840,52 @@ async def list_experiments(
             status_code=404,
         )
     async with request.app.state.db() as session:
-        query = (
-            select(models.Experiment)
+        sequence_number_subq = (
+            select(
+                models.Experiment.id.label("experiment_id"),
+                func.row_number().over(order_by=models.Experiment.id).label("sequence_number"),
+            )
             .where(models.Experiment.dataset_id == dataset_rowid)
-            .order_by(models.Experiment.id.desc())
+            .subquery()
         )
+        query = select(models.Experiment, sequence_number_subq.c.sequence_number).join(
+            sequence_number_subq,
+            models.Experiment.id == sequence_number_subq.c.experiment_id,
+        )
+        if sort_dir == "asc":
+            query = query.order_by(models.Experiment.id.asc())
+        else:
+            query = query.order_by(models.Experiment.id.desc())
 
         # Handle cursor for pagination
         if cursor:
             try:
                 cursor_gid = GlobalID.from_id(cursor)
                 cursor_rowid = from_global_id_with_expected_type(cursor_gid, "Experiment")
-                query = query.where(models.Experiment.id <= cursor_rowid)
             except (ValueError, Exception):
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",
                     status_code=422,
                 )
+            if sort_dir == "asc":
+                query = query.where(models.Experiment.id >= cursor_rowid)
+            else:
+                query = query.where(models.Experiment.id <= cursor_rowid)
+
+        if sequence_numbers:
+            query = query.where(sequence_number_subq.c.sequence_number.in_(sequence_numbers))
 
         # Overfetch by 1 to determine if there's a next page
         query = query.limit(limit + 1)
 
         result = await session.execute(query)
-        experiments = result.scalars().all()
+        rows = result.all()
 
-        if not experiments:
+        if not rows:
             return ListExperimentsResponseBody(data=[], next_cursor=None)
+
+        experiments = [row[0] for row in rows]
+        sequence_number_by_id = {row[0].id: row[1] for row in rows}
 
         # Get example counts and successful run counts for all experiments in a single query
         experiment_ids = [exp.id for exp in experiments]
@@ -910,6 +968,7 @@ async def list_experiments(
                     ),
                     name=experiment.name,
                     description=experiment.description,
+                    sequence_number=sequence_number_by_id[experiment.id],
                     repetitions=experiment.repetitions,
                     metadata=experiment.metadata_,
                     project_name=experiment.project_name,
@@ -1044,7 +1103,7 @@ async def get_experiment_json(
                 "repetition_number": run.repetition_number,
                 "input": revision.input,
                 "reference_output": revision.output,
-                "output": run.output["task_output"],
+                "output": run.output.get("task_output"),
                 "error": run.error,
                 "latency_ms": run.latency_ms,
                 "start_time": run.start_time.isoformat(),
@@ -1094,10 +1153,9 @@ async def get_experiment_csv(
         )
         records = []
         for run, revision in zip(runs, revisions):
+            task_output = run.output.get("task_output")
             serialized_run_output = (
-                json.dumps(run.output["task_output"])
-                if isinstance(run.output["task_output"], dict)
-                else run.output["task_output"]
+                json.dumps(task_output) if isinstance(task_output, dict) else task_output
             )
             record = {
                 "example_id": str(GlobalID("DatasetExample", str(run.dataset_example_id))),

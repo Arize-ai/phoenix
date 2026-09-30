@@ -20,7 +20,7 @@ Example agent implementations instrumented with [OpenInference](https://github.c
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - `OPENAI_API_KEY` environment variable
 - Phoenix running locally (`phoenix serve` or Docker) for trace collection
 
@@ -33,7 +33,7 @@ cd examples/agents
 pip install -r requirements.txt
 
 # Option 2: uv (recommended)
-uv venv --python 3.10
+uv venv --python 3.11
 source .venv/bin/activate
 uv pip install -r requirements.txt
 

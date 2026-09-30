@@ -3669,6 +3669,43 @@
               "title": "Limit"
             },
             "description": "The max number of experiments to return at a time."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page.",
+              "default": "desc",
+              "title": "Sort Dir"
+            },
+            "description": "Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page."
+          },
+          {
+            "name": "sequence_numbers",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers.",
+              "title": "Sequence Numbers"
+            },
+            "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers."
           }
         ],
         "responses": {
@@ -5599,10 +5636,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Span Global ID)",
+              "description": "Pagination cursor: the next_cursor of a previous response with the same sort",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Span Global ID)"
+            "description": "Pagination cursor: the next_cursor of a previous response with the same sort"
           },
           {
             "name": "limit",
@@ -5617,6 +5654,38 @@
               "title": "Limit"
             },
             "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "id",
+                "start_time"
+              ],
+              "type": "string",
+              "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id.",
+              "default": "id",
+              "title": "Sort"
+            },
+            "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction",
+              "default": "desc",
+              "title": "Order"
+            },
+            "description": "Sort direction"
           },
           {
             "name": "start_time",
@@ -12052,7 +12121,7 @@
             },
             "type": "array",
             "title": "Example Ids",
-            "description": "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
+            "description": "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
           }
         },
         "type": "object",
@@ -13577,6 +13646,11 @@
             "title": "Description",
             "description": "The description of the experiment"
           },
+          "sequence_number": {
+            "type": "integer",
+            "title": "Sequence Number",
+            "description": "The 1-based sequence number of the experiment within its dataset, in creation order."
+          },
           "repetitions": {
             "type": "integer",
             "exclusiveMinimum": 0.0,
@@ -13641,6 +13715,7 @@
           "dataset_version_id",
           "name",
           "description",
+          "sequence_number",
           "repetitions",
           "metadata",
           "project_name",
@@ -21842,7 +21917,7 @@
             },
             "type": "array",
             "title": "Add Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
           },
           "remove_example_ids": {
             "items": {
@@ -21850,7 +21925,7 @@
             },
             "type": "array",
             "title": "Remove Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to remove from the split."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
           }
         },
         "type": "object",
