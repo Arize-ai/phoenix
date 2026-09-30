@@ -4,6 +4,7 @@ import json
 import logging
 import warnings
 from datetime import datetime, timezone, tzinfo
+from io import StringIO
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast, overload
 
 import httpx
@@ -109,6 +110,8 @@ DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 _SPAN_PAGE_SIZE = 100
 _DATAFRAME_PAGE_SIZE = 1000
+_LEGACY_EXPORT_MAX_LIMIT = 1000
+"""Limits up to this are served in one request by the legacy ``POST /v1/spans`` route."""
 _DEFAULT_PROJECT_NAME = "default"
 _ROOT_SPANS_CONDITION = "parent_span is None"
 _ROOT_SPANS_ONLY_DEPRECATION = (
@@ -305,6 +308,17 @@ class Spans:
         if root_spans_only is not None:
             warnings.warn(_ROOT_SPANS_ONLY_DEPRECATION, DeprecationWarning, stacklevel=2)
         query = query if query else SpanQuery()
+        if limit <= _LEGACY_EXPORT_MAX_LIMIT:
+            return self._legacy_spans_dataframe(
+                query=query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+                project_identifier=project_identifier,
+                project_name=project_name,
+                timeout=timeout,
+            )
         condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
         self._guard.require(GET_SPANS_SORT)
         self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
@@ -332,6 +346,45 @@ class Spans:
             if not cursor or not page["data"]:
                 break
         return convert_spans_to_dataframe(spans[:limit], query)
+
+    def _legacy_spans_dataframe(
+        self,
+        *,
+        query: SpanQuery,
+        start_time: Optional[datetime],
+        end_time: Optional[datetime],
+        limit: int,
+        root_spans_only: Optional[bool],
+        project_identifier: Optional[str],
+        project_name: Optional[str],
+        timeout: Optional[int],
+    ) -> "pd.DataFrame":
+        """Export through the legacy ``POST /v1/spans`` route, which answers in one request."""
+        if project_identifier and is_node_id(project_identifier, node_type="Project"):
+            project_response = self._client.get(
+                url=f"v1/projects/{project_identifier}",
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            project_response.raise_for_status()
+            project = cast(v1.GetProjectResponseBody, project_response.json())
+            project_name = project["data"]["name"]
+        elif project_identifier:
+            project_name = project_identifier
+        response = self._client.post(
+            url="v1/spans",
+            headers={"accept": "application/json"},
+            params={"project_name": project_name} if project_name else None,
+            json=_legacy_export_request_body(
+                query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+            ),
+            timeout=timeout,
+        )
+        return _process_span_dataframe(response)
 
     def _resolve_project_id(self, identifier: str, *, timeout: Optional[int]) -> Optional[str]:
         if is_node_id(identifier, node_type="Project"):
@@ -1638,6 +1691,17 @@ class AsyncSpans:
         if root_spans_only is not None:
             warnings.warn(_ROOT_SPANS_ONLY_DEPRECATION, DeprecationWarning, stacklevel=2)
         query = query if query else SpanQuery()
+        if limit <= _LEGACY_EXPORT_MAX_LIMIT:
+            return await self._legacy_spans_dataframe(
+                query=query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+                project_identifier=project_identifier,
+                project_name=project_name,
+                timeout=timeout,
+            )
         condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
         await self._guard.require(GET_SPANS_SORT)
         await self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
@@ -1665,6 +1729,45 @@ class AsyncSpans:
             if not cursor or not page["data"]:
                 break
         return convert_spans_to_dataframe(spans[:limit], query)
+
+    async def _legacy_spans_dataframe(
+        self,
+        *,
+        query: SpanQuery,
+        start_time: Optional[datetime],
+        end_time: Optional[datetime],
+        limit: int,
+        root_spans_only: Optional[bool],
+        project_identifier: Optional[str],
+        project_name: Optional[str],
+        timeout: Optional[int],
+    ) -> "pd.DataFrame":
+        """Export through the legacy ``POST /v1/spans`` route, which answers in one request."""
+        if project_identifier and is_node_id(project_identifier, node_type="Project"):
+            project_response = await self._client.get(
+                url=f"v1/projects/{project_identifier}",
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            project_response.raise_for_status()
+            project = cast(v1.GetProjectResponseBody, project_response.json())
+            project_name = project["data"]["name"]
+        elif project_identifier:
+            project_name = project_identifier
+        response = await self._client.post(
+            url="v1/spans",
+            headers={"accept": "application/json"},
+            params={"project_name": project_name} if project_name else None,
+            json=_legacy_export_request_body(
+                query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+            ),
+            timeout=timeout,
+        )
+        return _process_span_dataframe(response)
 
     async def _resolve_project_id(
         self, identifier: str, *, timeout: Optional[int]
@@ -2897,6 +3000,86 @@ def _normalize_datetime(
     if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
         dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
     return dt.astimezone(timezone.utc)
+
+
+def _legacy_export_request_body(
+    query: SpanQuery,
+    *,
+    start_time: Optional[datetime],
+    end_time: Optional[datetime],
+    limit: int,
+    root_spans_only: Optional[bool],
+) -> dict[str, Any]:
+    """The request body of the legacy ``POST /v1/spans`` route."""
+    return {
+        "queries": [query.to_dict()],
+        "start_time": _to_iso_format(_normalize_datetime(start_time)),
+        "end_time": _to_iso_format(_normalize_datetime(end_time)),
+        "limit": limit,
+        "root_spans_only": root_spans_only,
+    }
+
+
+def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
+    return value.isoformat() if value else None
+
+
+def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
+    """Decode a JSON string into a pandas DataFrame using table schema.
+
+    Args:
+        obj (str): JSON string containing DataFrame data in table schema format.
+
+    Returns:
+        pd.DataFrame: The decoded pandas DataFrame with cleaned index and column names.
+    """
+    import pandas as pd  # pyright: ignore[reportUnusedImport]
+    from pandas.io.json._table_schema import parse_table_schema  # type: ignore
+
+    df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))
+    df.index.names = [x.split("_", 1)[1] or None for x in df.index.names]  # type: ignore
+    return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)  # type: ignore[override,unused-ignore]
+
+
+def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
+    """Processes the httpx response to extract a pandas DataFrame, handling multipart responses.
+
+    Args:
+        response (httpx.Response): The HTTP response containing DataFrame data.
+
+    Returns:
+        pd.DataFrame: The extracted pandas DataFrame, or empty DataFrame if no data.
+
+    Raises:
+        ValueError: If boundary not found in Content-Type header for multipart response.
+    """
+    import pandas as pd
+
+    content_type = response.headers.get("Content-Type")
+    dfs: list["pd.DataFrame"] = []
+    if isinstance(content_type, str) and "multipart/mixed" in content_type:
+        if "boundary=" in content_type:
+            boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
+        else:
+            raise ValueError(
+                "Boundary not found in Content-Type header for multipart/mixed response"
+            )
+        boundary = f"--{boundary_token}"
+        text = response.text
+        while boundary in text:
+            part, text = text.split(boundary, 1)
+            if "Content-Type: application/json" in part:
+                json_string = part.split("\r\n\r\n", 1)[1].strip()
+                df = _decode_df_from_json_string(json_string)
+                dfs.append(df)
+    else:
+        response.raise_for_status()
+        logger.warning("Received non-multipart response when expecting dataframe.")
+
+    if dfs:
+        return dfs[0]  # only passing in one query
+    else:
+        return pd.DataFrame()
 
 
 def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":

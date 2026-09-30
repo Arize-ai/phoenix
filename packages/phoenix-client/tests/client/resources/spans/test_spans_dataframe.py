@@ -1,11 +1,12 @@
+import json
+from datetime import datetime, timezone
 from typing import Any
-from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+import pandas as pd
 import pytest
 
-from phoenix.client.exceptions import PhoenixException
 from phoenix.client.resources.spans import AsyncSpans, Spans
 from phoenix.client.types.spans import SpanQuery
 
@@ -65,6 +66,9 @@ def _span(
 _PROJECT_ID = "UHJvamVjdDox"
 """The node id of ``Project:1``."""
 
+_ABOVE_LEGACY_LIMIT = 1001
+"""The smallest limit that pages through the span list endpoint instead of the legacy route."""
+
 
 def _project_lookup(request: httpx.Request) -> httpx.Response | None:
     """Answer the project-name lookup that precedes the span requests, or None."""
@@ -95,19 +99,19 @@ def _query_params(request: httpx.Request) -> dict[str, list[str]]:
 def test_get_spans_dataframe_paginates_simple_exports() -> None:
     client, requests = _client_returning(
         [
-            {"data": [_span(index) for index in range(100)], "next_cursor": "cursor-1"},
-            {"data": [_span(index) for index in range(100, 150)], "next_cursor": None},
+            {"data": [_span(index) for index in range(1000)], "next_cursor": "cursor-1"},
+            {"data": [_span(index) for index in range(1000, 1500)], "next_cursor": None},
         ]
     )
 
-    dataframe = Spans(client).get_spans_dataframe(project_identifier="my-project", limit=150)
+    dataframe = Spans(client).get_spans_dataframe(project_identifier="my-project", limit=1500)
 
-    assert len(dataframe) == 150
+    assert len(dataframe) == 1500
     assert dataframe.index.name == "context.span_id"
     assert dataframe.iloc[0]["context.span_id"] == "span-0"
     assert "attributes.service" in dataframe.columns
     assert str(dataframe.iloc[0]["start_time"]) == "2024-01-01 00:00:00+00:00"
-    assert [_query_params(r)["limit"] for r in requests] == [["150"], ["50"]]
+    assert [_query_params(r)["limit"] for r in requests] == [["1000"], ["500"]]
     assert "cursor" not in _query_params(requests[0])
     assert _query_params(requests[1])["cursor"] == ["cursor-1"]
 
@@ -132,8 +136,8 @@ def test_get_spans_dataframe_pages_at_most_a_thousand_spans_at_a_time() -> None:
 async def test_async_get_spans_dataframe_paginates_simple_exports() -> None:
     requests: list[httpx.Request] = []
     pages = [
-        {"data": [_span(index) for index in range(100)], "next_cursor": "cursor-1"},
-        {"data": [_span(100)], "next_cursor": None},
+        {"data": [_span(index) for index in range(1000)], "next_cursor": "cursor-1"},
+        {"data": [_span(1000)], "next_cursor": None},
     ]
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -144,12 +148,12 @@ async def test_async_get_spans_dataframe_paginates_simple_exports() -> None:
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
     dataframe = await AsyncSpans(client).get_spans_dataframe(
-        project_identifier="my-project", limit=101
+        project_identifier="my-project", limit=1001
     )
 
-    assert len(dataframe) == 101
+    assert len(dataframe) == 1001
     assert dataframe.index.name == "context.span_id"
-    assert [_query_params(r)["limit"] for r in requests] == [["101"], ["1"]]
+    assert [_query_params(r)["limit"] for r in requests] == [["1000"], ["1"]]
     assert _query_params(requests[1])["cursor"] == ["cursor-1"]
 
 
@@ -158,7 +162,9 @@ def test_get_spans_dataframe_matches_legacy_columns() -> None:
         [{"data": [_span(0, attributes=_SEMANTIC_ATTRIBUTES)], "next_cursor": None}]
     )
 
-    dataframe = Spans(client).get_spans_dataframe(project_identifier="my-project")
+    dataframe = Spans(client).get_spans_dataframe(
+        project_identifier="my-project", limit=_ABOVE_LEGACY_LIMIT
+    )
 
     assert list(dataframe.columns[:10]) == _LEGACY_COLUMNS
     row = dataframe.iloc[0]
@@ -191,7 +197,9 @@ def test_get_spans_dataframe_parses_mixed_timestamp_precision() -> None:
         ]
     )
 
-    dataframe = Spans(client).get_spans_dataframe(project_identifier="my-project")
+    dataframe = Spans(client).get_spans_dataframe(
+        project_identifier="my-project", limit=_ABOVE_LEGACY_LIMIT
+    )
 
     assert str(dataframe.dtypes["start_time"]) == "datetime64[ns, UTC]"
     assert str(dataframe.loc["span-1", "start_time"]) == "2024-01-01 00:00:00.123456+00:00"
@@ -200,7 +208,7 @@ def test_get_spans_dataframe_parses_mixed_timestamp_precision() -> None:
 def test_get_spans_dataframe_asks_the_server_to_sort_by_start_time() -> None:
     client, requests = _client_returning([{"data": [_span(0)], "next_cursor": None}])
 
-    Spans(client).get_spans_dataframe(project_identifier="my-project")
+    Spans(client).get_spans_dataframe(project_identifier="my-project", limit=_ABOVE_LEGACY_LIMIT)
 
     assert _query_params(requests[0])["sort"] == ["start_time"]
 
@@ -208,7 +216,7 @@ def test_get_spans_dataframe_asks_the_server_to_sort_by_start_time() -> None:
 def test_get_spans_dataframe_asks_for_attributes_as_stored() -> None:
     client, requests = _client_returning([{"data": [_span(0)], "next_cursor": None}])
 
-    Spans(client).get_spans_dataframe(project_identifier="my-project")
+    Spans(client).get_spans_dataframe(project_identifier="my-project", limit=_ABOVE_LEGACY_LIMIT)
 
     assert _query_params(requests[0])["attributes_format"] == ["nested"]
 
@@ -216,7 +224,9 @@ def test_get_spans_dataframe_asks_for_attributes_as_stored() -> None:
 def test_get_spans_dataframe_empty_result_keeps_shape() -> None:
     client, _ = _client_returning([{"data": [], "next_cursor": None}])
 
-    dataframe = Spans(client).get_spans_dataframe(project_identifier="my-project")
+    dataframe = Spans(client).get_spans_dataframe(
+        project_identifier="my-project", limit=_ABOVE_LEGACY_LIMIT
+    )
 
     assert dataframe.empty
     assert dataframe.index.name == "context.span_id"
@@ -228,7 +238,9 @@ def test_get_spans_dataframe_sends_the_where_clause_as_a_filter_expression() -> 
     client, requests = _client_returning([{"data": [_span(0)], "next_cursor": None}])
 
     Spans(client).get_spans_dataframe(
-        query=SpanQuery().where("name == 'span-0'"), project_identifier="my-project"
+        query=SpanQuery().where("name == 'span-0'"),
+        project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert _query_params(requests[0])["filter"] == ["name == 'span-0'"]
@@ -238,7 +250,9 @@ def test_get_spans_dataframe_turns_root_spans_only_into_a_filter_expression() ->
     client, requests = _client_returning([{"data": [_span(0)], "next_cursor": None}])
 
     with pytest.warns(DeprecationWarning, match="filter expression"):
-        Spans(client).get_spans_dataframe(project_identifier="my-project", root_spans_only=True)
+        Spans(client).get_spans_dataframe(
+            project_identifier="my-project", root_spans_only=True, limit=_ABOVE_LEGACY_LIMIT
+        )
 
     assert _query_params(requests[0])["filter"] == ["parent_span is None"]
 
@@ -251,6 +265,7 @@ def test_get_spans_dataframe_joins_root_spans_only_with_the_where_clause() -> No
             query=SpanQuery().where("name == 'span-0'"),
             project_identifier="my-project",
             root_spans_only=True,
+            limit=_ABOVE_LEGACY_LIMIT,
         )
 
     assert _query_params(requests[0])["filter"] == ["(name == 'span-0') and parent_span is None"]
@@ -266,7 +281,9 @@ def test_get_spans_dataframe_resolves_the_project_name_through_the_project_list(
         )
 
     client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-    Spans(client).get_spans_dataframe(project_identifier="team/alpha?x#y")
+    Spans(client).get_spans_dataframe(
+        project_identifier="team/alpha?x#y", limit=_ABOVE_LEGACY_LIMIT
+    )
 
     assert [urlparse(str(r.url)).path for r in requests] == [
         "/v1/projects",
@@ -285,7 +302,7 @@ def test_get_spans_dataframe_uses_a_project_id_as_is() -> None:
         return httpx.Response(200, json={"data": [], "next_cursor": None})
 
     client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-    Spans(client).get_spans_dataframe(project_identifier=_PROJECT_ID)
+    Spans(client).get_spans_dataframe(project_identifier=_PROJECT_ID, limit=_ABOVE_LEGACY_LIMIT)
 
     assert [urlparse(str(r.url)).path for r in requests] == [f"/v1/projects/{_PROJECT_ID}/spans"]
 
@@ -298,7 +315,9 @@ def test_get_spans_dataframe_for_an_unknown_project_name_is_empty() -> None:
         return httpx.Response(200, json={"data": [], "next_cursor": None})
 
     client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-    dataframe = Spans(client).get_spans_dataframe(project_identifier="nobody")
+    dataframe = Spans(client).get_spans_dataframe(
+        project_identifier="nobody", limit=_ABOVE_LEGACY_LIMIT
+    )
 
     assert dataframe.empty
     assert list(dataframe.columns) == _LEGACY_COLUMNS
@@ -318,6 +337,7 @@ def test_get_spans_dataframe_select_keeps_only_the_projected_columns() -> None:
     dataframe = Spans(client).get_spans_dataframe(
         query=SpanQuery().select("name", "input.value", "output.value"),
         project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert list(dataframe.columns) == ["name", "input.value", "output.value"]
@@ -333,7 +353,9 @@ def test_get_spans_dataframe_select_computes_latency_and_parses_timestamps() -> 
     client, _ = _client_returning([{"data": [_span(0)], "next_cursor": None}])
 
     dataframe = Spans(client).get_spans_dataframe(
-        query=SpanQuery().select("start_time", "latency_ms"), project_identifier="my-project"
+        query=SpanQuery().select("start_time", "latency_ms"),
+        project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert str(dataframe.dtypes["start_time"]) == "datetime64[ns, UTC]"
@@ -348,6 +370,7 @@ def test_get_spans_dataframe_explode_yields_one_row_per_document() -> None:
     dataframe = Spans(client).get_spans_dataframe(
         query=SpanQuery().explode("retrieval.documents", reference="document.content"),
         project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert dataframe.index.names == ["context.span_id", "document_position"]
@@ -364,6 +387,7 @@ def test_get_spans_dataframe_explode_without_names_flattens_each_document() -> N
     dataframe = Spans(client).get_spans_dataframe(
         query=SpanQuery().select("input.value").explode("retrieval.documents"),
         project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert dataframe["document.content"].to_list() == ["doc a", "doc b"]
@@ -383,6 +407,7 @@ def test_get_spans_dataframe_explode_drops_spans_without_the_array() -> None:
     dataframe = Spans(client).get_spans_dataframe(
         query=SpanQuery().explode("retrieval.documents", reference="document.content"),
         project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert dataframe.index.get_level_values("context.span_id").unique().to_list() == ["span-0"]
@@ -398,6 +423,7 @@ def test_get_spans_dataframe_concat_joins_documents() -> None:
         .select("input.value")
         .concat("retrieval.documents", reference="document.content"),
         project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert list(dataframe.columns) == ["input.value", "reference"]
@@ -416,6 +442,7 @@ def test_get_spans_dataframe_rename_and_index() -> None:
         .rename(**{"input.value": "input"})
         .with_index("trace_id"),
         project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert dataframe.index.name == "context.trace_id"
@@ -427,7 +454,9 @@ def test_get_spans_dataframe_projected_empty_result_keeps_columns() -> None:
     client, _ = _client_returning([{"data": [], "next_cursor": None}])
 
     dataframe = Spans(client).get_spans_dataframe(
-        query=SpanQuery().select("input.value", "output.value"), project_identifier="my-project"
+        query=SpanQuery().select("input.value", "output.value"),
+        project_identifier="my-project",
+        limit=_ABOVE_LEGACY_LIMIT,
     )
 
     assert dataframe.empty
@@ -442,17 +471,114 @@ def test_get_spans_dataframe_rejects_projections_the_endpoint_cannot_serve() -> 
         Spans(client).get_spans_dataframe(
             query=SpanQuery().select("cumulative_token_count.total"),
             project_identifier="my-project",
+            limit=_ABOVE_LEGACY_LIMIT,
         )
 
 
-def test_get_spans_dataframe_raises_on_old_server() -> None:
-    client, requests = _client_returning([{"data": [], "next_cursor": None}])
+def _legacy_export_response(frame: pd.DataFrame) -> httpx.Response:
+    """The multipart body the legacy route answers with, column names prefixed by query index."""
+    prefixed = frame.rename(columns=lambda name: f"0_{name}").rename_axis(f"0_{frame.index.name}")
+    part = f"Content-Type: application/json\r\n\r\n{prefixed.to_json(orient='table')}"
+    return httpx.Response(
+        200,
+        headers={"Content-Type": "multipart/mixed; boundary=frame"},
+        content=f"--frame\r\n{part}\r\n--frame--\r\n".encode(),
+    )
 
-    with patch(
-        "phoenix.client.utils.server_requirements.ServerVersionGuard.require",
-        side_effect=PhoenixException("too old"),
-    ):
-        with pytest.raises(PhoenixException, match="too old"):
-            Spans(client).get_spans_dataframe(project_identifier="my-project")
 
-    assert requests == []
+def _legacy_client(frame: pd.DataFrame) -> tuple[httpx.Client, list[httpx.Request]]:
+    """A client answering the legacy route with ``frame`` and project lookups by id."""
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "GET":
+            return httpx.Response(200, json={"data": {"id": _PROJECT_ID, "name": "resolved"}})
+        return _legacy_export_response(frame)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+    return client, requests
+
+
+_ONE_SPAN = pd.DataFrame(
+    {"name": ["span-0"], "context.span_id": ["span-0"], "attributes.service.name": ["phoenix"]}
+).set_index("context.span_id")
+
+
+def test_get_spans_dataframe_up_to_a_thousand_spans_uses_the_legacy_route() -> None:
+    client, requests = _legacy_client(_ONE_SPAN)
+    query = SpanQuery().where("name == 'span-0'")
+
+    dataframe = Spans(client).get_spans_dataframe(
+        query=query,
+        project_identifier="my-project",
+        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        limit=1000,
+    )
+
+    assert [(r.method, urlparse(str(r.url)).path) for r in requests] == [("POST", "/v1/spans")]
+    assert _query_params(requests[0])["project_name"] == ["my-project"]
+    assert json.loads(requests[0].content) == {
+        "queries": [query.to_dict()],
+        "start_time": "2024-01-01T00:00:00+00:00",
+        "end_time": None,
+        "limit": 1000,
+        "root_spans_only": None,
+    }
+    assert dataframe.index.name == "context.span_id"
+    assert dataframe.loc["span-0", "attributes.service.name"] == "phoenix"
+
+
+def test_get_spans_dataframe_legacy_route_resolves_a_project_id_to_its_name() -> None:
+    client, requests = _legacy_client(_ONE_SPAN)
+
+    Spans(client).get_spans_dataframe(project_identifier=_PROJECT_ID, limit=10)
+
+    assert [(r.method, urlparse(str(r.url)).path) for r in requests] == [
+        ("GET", f"/v1/projects/{_PROJECT_ID}"),
+        ("POST", "/v1/spans"),
+    ]
+    assert _query_params(requests[1])["project_name"] == ["resolved"]
+
+
+@pytest.mark.parametrize(
+    "limit, path",
+    [(1000, "/v1/spans"), (1001, f"/v1/projects/{_PROJECT_ID}/spans")],
+)
+def test_get_spans_dataframe_switches_routes_above_a_thousand_spans(limit: int, path: str) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if lookup := _project_lookup(request):
+            return lookup
+        requests.append(request)
+        if request.method == "POST":
+            return _legacy_export_response(_ONE_SPAN)
+        return httpx.Response(200, json={"data": [_span(0)], "next_cursor": None})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+    dataframe = Spans(client).get_spans_dataframe(project_identifier="my-project", limit=limit)
+
+    assert [urlparse(str(r.url)).path for r in requests] == [path]
+    assert dataframe.index.to_list() == ["span-0"]
+
+
+@pytest.mark.anyio
+async def test_async_get_spans_dataframe_up_to_a_thousand_spans_uses_the_legacy_route() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _legacy_export_response(_ONE_SPAN)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+    with pytest.warns(DeprecationWarning):
+        dataframe = await AsyncSpans(client).get_spans_dataframe(
+            project_name="my-project", root_spans_only=True
+        )
+
+    assert [(r.method, urlparse(str(r.url)).path) for r in requests] == [("POST", "/v1/spans")]
+    assert _query_params(requests[0])["project_name"] == ["my-project"]
+    body = json.loads(requests[0].content)
+    assert (body["limit"], body["root_spans_only"]) == (1000, True)
+    assert dataframe.index.to_list() == ["span-0"]

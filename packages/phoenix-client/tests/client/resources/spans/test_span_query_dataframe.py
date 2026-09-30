@@ -21,6 +21,9 @@ from phoenix.client.types.spans import SpanQuery
 
 SERVER_VERSION = "20.17.0"
 
+ABOVE_LEGACY_LIMIT = 1001
+"""Limits of 1000 or fewer use the legacy route; these tests exercise the span list endpoint."""
+
 
 @dataclass(frozen=True)
 class SpanRow:
@@ -454,11 +457,12 @@ def _export(
     rows: Sequence[SpanRow] = ALL_ROWS,
     filter_results: Optional[dict[str, Sequence[str]]] = None,
     project_name: Optional[str] = "abc",
+    limit: int = ABOVE_LEGACY_LIMIT,
     **kwargs: Any,
 ) -> tuple[pd.DataFrame, FakeSpanListServer]:
     server = FakeSpanListServer(rows, filter_results)
     frame = Spans(server.client()).get_spans_dataframe(
-        query=query, project_name=project_name, **kwargs
+        query=query, project_name=project_name, limit=limit, **kwargs
     )
     return frame, server
 
@@ -552,9 +556,36 @@ def test_select_all_with_nestable_metadata() -> None:
     _assert_same_frame(actual, _select_all_expected(metadata))
 
 
+def _older_filler_rows(project: str, count: int) -> list[SpanRow]:
+    """``count`` spans in ``project`` that started before every row in ``ALL_ROWS``."""
+    return [
+        SpanRow(
+            project=project,
+            trace_id="filler",
+            span_id=f"filler-{position}",
+            parent_id=None,
+            name="filler",
+            span_kind="CHAIN",
+            start_time="2020-01-01T00:00:00+00:00",
+            end_time="2020-01-01T00:00:01+00:00",
+        )
+        for position in range(count)
+    ]
+
+
+def _sent_limits(server: FakeSpanListServer) -> list[list[str]]:
+    return [
+        parse_qs(urlparse(str(request.url)).query)["limit"]
+        for request in server.requests
+        if urlparse(str(request.url)).path.endswith("/spans")
+    ]
+
+
 def test_select_all_on_the_default_project() -> None:
-    actual, _ = _export(SpanQuery(), project_name=None, limit=4)
-    assert actual.index.tolist() == ["171819", "131415", "111213", "91011"]
+    rows = [*ALL_ROWS, *_older_filler_rows("default", 1000)]
+    actual, _ = _export(SpanQuery(), rows=rows, project_name=None, limit=1004)
+    assert len(actual) == 1004
+    assert actual.index.tolist()[:4] == ["171819", "131415", "111213", "91011"]
     assert actual.at["91011", "attributes.llm.output_messages"] == [
         {
             "message.role": "assistant",
@@ -680,19 +711,20 @@ def test_end_time() -> None:
 
 
 def test_limit() -> None:
-    actual, _ = _export(SpanQuery(), limit=2)
-    # Newest-first ordering
-    assert actual.index.tolist() == ["567", "456"]
+    """The limit is applied across pages, newest first, as the legacy export ordered."""
+    rows = [*ALL_ROWS, *_older_filler_rows("abc", 1000)]
+    actual, server = _export(SpanQuery(), rows=rows, limit=1002)
+    assert len(actual) == 1002
+    assert actual.index.tolist()[:2] == ["567", "456"]
+    assert _sent_limits(server) == [["1000"], ["2"]]
 
 
 def test_limit_with_select_statement() -> None:
-    """Newest first by start time, as the legacy export ordered."""
-    actual, _ = _export(SpanQuery().select("context.span_id"), limit=2)
-    expected = pd.DataFrame(
-        {
-            "context.span_id": ["567", "456"],
-        }
-    ).set_index("context.span_id")
+    rows = [*ALL_ROWS, *_older_filler_rows("abc", 1000)]
+    actual, _ = _export(SpanQuery().select("context.span_id"), rows=rows, limit=1002)
+    # the fillers are the oldest, so the two the limit drops are fillers
+    kept = [*(row.span_id for row in ABC_PROJECT_ROWS), *(f"filler-{i}" for i in range(2, 1000))]
+    expected = pd.DataFrame({"context.span_id": kept}).set_index("context.span_id")
     _assert_same_frame(actual, expected)
 
 
