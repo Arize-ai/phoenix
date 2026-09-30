@@ -22,8 +22,8 @@ export function ExperimentsEmpty() {
             },
             {
               kind: "link",
-              label: "Example",
-              href: "https://docs.arize.com/phoenix/cookbook/datasets-and-experiments/summarization",
+              label: "Quickstart",
+              href: "https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments",
             },
             {
               kind: "node",
