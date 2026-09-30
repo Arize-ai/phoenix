@@ -369,12 +369,13 @@ class TestJobStart:
             del kwargs
             raise AssertionError("trace builder called")
 
+        def extract_output(result: TrialResult) -> dict[str, Any]:
+            return {"messages": [{"role": "assistant", "content": f"Done: {result.task_name}"}]}
+
         monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", fail_if_called)
         monkeypatch.setattr(
             "phoenix.client.harbor._plugin.extract_harbor_run_output",
-            lambda result: {
-                "messages": [{"role": "assistant", "content": f"Done: {result.task_name}"}]
-            },
+            extract_output,
         )
         plugin = PhoenixJobPlugin(trace_mode=None)
         job = FakeJob()
