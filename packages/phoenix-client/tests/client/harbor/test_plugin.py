@@ -370,13 +370,21 @@ class TestJobStart:
             raise AssertionError("trace builder called")
 
         monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", fail_if_called)
+        monkeypatch.setattr(
+            "phoenix.client.harbor._plugin.extract_harbor_run_output",
+            lambda result: {
+                "messages": [{"role": "assistant", "content": f"Done: {result.task_name}"}]
+            },
+        )
         plugin = PhoenixJobPlugin(trace_mode=None)
         job = FakeJob()
         await plugin.on_job_start(job)
 
         await require_hook(job.ended_hook)(hook_event(trial_result()))
 
-        assert len(wired.experiments.logged_runs) == 1
+        assert wired.experiments.logged_runs[0]["output"] == {
+            "messages": [{"role": "assistant", "content": "Done: task-a"}]
+        }
 
     async def test_atif_mode_confirms_trace_before_linking_run(
         self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient

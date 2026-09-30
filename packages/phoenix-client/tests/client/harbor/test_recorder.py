@@ -573,7 +573,24 @@ class TestRecordExperimentRun:
             },
         }
 
-        assert PhoenixRecorder.can_reuse_run(cast(Any, existing_run), trial_result=result)
+        assert PhoenixRecorder.can_reuse_run(
+            cast(Any, existing_run),
+            trial_result=result,
+            expected_output={"messages": [{"role": "assistant", "content": "Done"}]},
+        )
+
+    def test_saved_agent_output_is_reused_when_the_trajectory_is_unavailable(self) -> None:
+        result = trial_result()
+        existing_run = {
+            "id": "run-existing",
+            "output": {"messages": [{"role": "assistant", "content": "Done"}]},
+        }
+
+        assert PhoenixRecorder.can_reuse_run(
+            cast(Any, existing_run),
+            trial_result=result,
+            expected_output=None,
+        )
 
     async def test_records_the_planned_repetition_without_rewards(self) -> None:
         experiments = FakeExperiments()
@@ -605,14 +622,14 @@ class TestRecordExperimentRun:
             snapshot=SNAPSHOT,
             experiments=handle,
             trial_result=result,
+            run_output={"messages": [{"role": "assistant", "content": "Done"}]},
         )
 
         (logged,) = experiments.logged_runs
         assert logged["dataset_example_id"] == "node-a"
         assert logged["repetition_number"] == 2
         assert logged["error"] is None
-        assert logged["output"]["harbor_trial_id"] == "trial-id"
-        assert "reward" not in logged["output"]
+        assert logged["output"] == {"messages": [{"role": "assistant", "content": "Done"}]}
 
     @pytest.mark.parametrize(
         "has_verifier_result",
@@ -656,9 +673,13 @@ class TestRecordExperimentRun:
             snapshot=SNAPSHOT,
             experiments=handles,
             trial_result=trial_result(steps=[step_result]),
+            run_output={"messages": [{"role": "assistant", "content": "Partial result"}]},
         )
 
         assert experiments.logged_runs[0]["error"] == "build: StepError: failed"
+        assert experiments.logged_runs[0]["output"] == {
+            "messages": [{"role": "assistant", "content": "Partial result"}]
+        }
 
     async def test_duplicate_conflict_reuses_matching_successful_run(self) -> None:
         request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
@@ -707,6 +728,7 @@ class TestRecordExperimentRun:
             snapshot=SNAPSHOT,
             experiments=handles,
             trial_result=result,
+            run_output={"messages": [{"role": "assistant", "content": "Done"}]},
         )
 
         assert recorded == existing_run
