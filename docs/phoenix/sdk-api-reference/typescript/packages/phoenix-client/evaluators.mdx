@@ -12,6 +12,7 @@ Every helper requires a Phoenix server on 21.0.0 or later. Each one checks the s
   <ul>
     <li><code>src/evaluators/index.ts</code> for the exported helpers</li>
     <li><code>src/types/evaluators.ts</code> for the definition, binding, and patch shapes</li>
+    <li><code>src/errors.ts</code> for <code>HttpError</code> and problem details</li>
   </ul>
 </section>
 
@@ -19,11 +20,30 @@ Every helper requires a Phoenix server on 21.0.0 or later. Each one checks the s
 
 | Kind | How it is created | Dataset bindings | Project bindings | Edit and delete |
 |------|-------------------|------------------|------------------|-----------------|
-| `code` | `createEvaluator`, or inline with a binding | By reference or inline | By reference or inline | `updateEvaluator`, `createCodeEvaluatorVersion`, `deleteEvaluator` |
-| `llm` | Inline with a binding only | Inline only | Inline only | `updateEvaluator`; deleted with its last binding |
+| `llm` | `createEvaluator`, pinned to an existing prompt version | By reference | By reference | `updateEvaluator`, `deleteEvaluator` |
+| `code` | `createEvaluator`, with its first version | By reference | By reference | `updateEvaluator`, `createCodeEvaluatorVersion`, `deleteEvaluator` |
 | `builtin` | Ships with Phoenix | By reference | Not accepted | Never edited or deleted |
 
-An LLM evaluator is tied to its own prompt, so it cannot be referenced by another binding. To run the same prompt elsewhere, create another LLM evaluator from the same prompt version.
+Create a definition first, then bind it by its `id`. One definition can back any number of bindings, and deleting a binding never deletes the definition.
+
+## Errors
+
+Failed requests throw an `HttpError`. When the server explains the failure, `error.problem` holds its [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: a stable `code` (`validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, `forbidden`, and so on), a human-readable `detail`, and per-field `errors` for validation failures. A name clash is refused with `409`, `code` `already_exists`, and `existing_id` naming the resource that holds the name, so an agent can reuse it instead of retrying.
+
+```ts
+import { HttpError } from "@arizeai/phoenix-client";
+import { createEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+try {
+  await createEvaluator({ evaluator });
+} catch (error) {
+  if (error instanceof HttpError && error.problem?.code === "already_exists") {
+    console.log("reusing", error.problem.existing_id);
+  } else {
+    throw error;
+  }
+}
+```
 
 ## List And Read Definitions
 
@@ -40,19 +60,63 @@ for (const evaluator of await getEvaluators({ type: "builtin" })) {
 const evaluator = await getEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
 if (evaluator.type === "code") {
   console.log(evaluator.current_version_id, evaluator.source_code);
+} else if (evaluator.type === "llm") {
+  // `selector.type` is `version` when pinned, or `latest` for an evaluator
+  // that follows the prompt's newest version
+  console.log(evaluator.prompt.selector, evaluator.prompt.resolved_prompt_version_id);
 }
 ```
 
 `getEvaluators` follows pagination to the end. Every item embeds its current code or prompt version, so pass `name` or `limit` when you are looking for one evaluator.
 
+## Create An LLM Evaluator
+
+`createEvaluator` with `type: "llm"` pins an existing prompt version. Create the prompt with `createPrompt` from the [prompts](./prompts) module first.
+
+```ts
+import { createEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+const evaluator = await createEvaluator({
+  evaluator: {
+    type: "llm",
+    name: "toxicity",
+    description: "toxicity",
+    prompt: {
+      selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+    },
+    output_configs: [
+      {
+        type: "CATEGORICAL",
+        name: "toxicity",
+        optimization_direction: "MINIMIZE",
+        values: [
+          { label: "toxic", score: 1 },
+          { label: "clean", score: 0 },
+        ],
+      },
+    ],
+  },
+});
+```
+
+- The `description` must equal the description of the prompt's tool function, and the output configs must be categorical and match that tool.
+- The name must be unique among evaluators; a clash is refused with `409` and `already_exists`.
+
 ## Create A Code Evaluator
 
-`createEvaluator` creates a code evaluator and its first version without binding it. Bind it afterwards by its `id`.
+`createEvaluator` with `type: "code"` creates a code evaluator and its first version. `getSandboxConfigs` lists the sandboxes it can run in; pick one whose `is_usable` is `true`.
 
 ```ts
 import { readFile } from "node:fs/promises";
 
-import { createEvaluator } from "@arizeai/phoenix-client/evaluators";
+import {
+  createEvaluator,
+  getSandboxConfigs,
+} from "@arizeai/phoenix-client/evaluators";
+
+const [sandbox] = (await getSandboxConfigs({ language: "PYTHON" })).filter(
+  (config) => config.is_usable
+);
 
 const evaluator = await createEvaluator({
   evaluator: {
@@ -60,7 +124,7 @@ const evaluator = await createEvaluator({
     name: "exact-match",
     source_code: await readFile("evaluator.py", "utf8"),
     language: "PYTHON",
-    sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+    sandbox_config_id: sandbox.id,
     input_mapping: { literal_mapping: {}, path_mapping: { output: "output" } },
     output_configs: [
       { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
@@ -69,7 +133,7 @@ const evaluator = await createEvaluator({
 });
 ```
 
-`output_configs` needs at least one entry. The name must be unique among evaluators; a clash is refused with `409`.
+`output_configs` needs at least one entry. The name must be unique among evaluators; a clash is refused with `409` and `already_exists`.
 
 ## Deploy A Code Version
 
@@ -115,13 +179,18 @@ await updateEvaluator({
 
 await updateEvaluator({
   evaluatorId: "TExNRXZhbHVhdG9yOjE=",
-  patch: { type: "llm", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+  patch: {
+    type: "llm",
+    prompt: {
+      selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+    },
+  },
 });
 ```
 
 The `patch` is discriminated by `type`, which must match the evaluator, and needs at least one other field. Omitted fields keep their values.
 
-- Prompt content is edited through the [prompts](./prompts) module: create a version with `createPrompt` and pass its `id` as `prompt_version_id`. A version of another prompt moves the evaluator to that prompt.
+- Prompt content is edited through the [prompts](./prompts) module: create a version with `createPrompt` and select it with `prompt: { selector: { type: "version", prompt_version_id } }`. A version of another prompt moves the evaluator to that prompt.
 - An LLM evaluator's `description` must equal the description of its prompt's tool function.
 - An LLM change that would invalidate a dataset binding's output overrides is refused with `409`.
 
@@ -133,53 +202,27 @@ import { deleteEvaluator } from "@arizeai/phoenix-client/evaluators";
 await deleteEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
 ```
 
-`deleteEvaluator` deletes a code evaluator that nothing binds, with its version history. A definition still bound by a project or dataset is refused with `409`. LLM and built-in ids are refused with `422`. A missing evaluator is ignored.
-
-Deleting the last binding of a code or LLM evaluator deletes the definition with it. Built-in evaluators are never deleted.
+`deleteEvaluator` deletes an LLM or code evaluator that nothing binds. A code evaluator goes with its version history; an LLM evaluator goes with the tag that pins its version, and its prompt is kept. A definition still bound by a project or dataset is refused with `409`: delete those bindings first. Built-in ids are refused with `422`. A missing evaluator is ignored.
 
 ## Bind To A Dataset
 
-A dataset binding registers an evaluator to run against the dataset's experiments. It does not run an experiment by itself. Reference an existing code or built-in evaluator, or create an LLM or code evaluator inline.
+A dataset binding registers an existing evaluator definition to run against the dataset's experiments. It does not run an experiment by itself.
 
 ```ts
 import { createDatasetEvaluator } from "@arizeai/phoenix-client/evaluators";
 
-// Attach an existing code or built-in evaluator by reference
 const binding = await createDatasetEvaluator({
   dataset: { datasetName: "golden-questions" },
   name: "exact-match",
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
   inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
-  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
-});
-
-// Create an LLM evaluator that runs an existing prompt version. Its
-// description must equal the description of the prompt's tool function.
-await createDatasetEvaluator({
-  dataset: { datasetName: "golden-questions" },
-  name: "toxicity",
-  inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
-  evaluator: {
-    type: "llm",
-    description: "toxicity",
-    prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
-    output_configs: [
-      {
-        type: "CATEGORICAL",
-        name: "toxicity",
-        optimization_direction: "MINIMIZE",
-        values: [
-          { label: "toxic", score: 1 },
-          { label: "clean", score: 0 },
-        ],
-      },
-    ],
-  },
 });
 ```
 
 - Select the dataset with `datasetName`, `datasetId`, or the shorthand `dataset`, which accepts either.
+- `evaluatorId` names an LLM, code, or built-in definition.
 - The input mapping lives on the binding and is required.
-- A new LLM evaluator gives either `prompt_version` content for a new prompt or the `prompt_version_id` of an existing version, not both.
+- A name the dataset already uses is refused with `409` and `already_exists`.
 
 ## Override A Dataset Binding
 
@@ -219,15 +262,16 @@ import {
 await deleteDatasetEvaluator({ datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox" });
 
 await deleteDatasetEvaluators({
+  dataset: { datasetName: "golden-questions" },
   datasetEvaluatorIds: ["RGF0YXNldEV2YWx1YXRvcjoy", "RGF0YXNldEV2YWx1YXRvcjoz"],
 });
 ```
 
-`deleteDatasetEvaluators` deletes up to 1000 bindings atomically: either every binding is deleted or none is. Missing bindings are ignored, but an ID that is not a dataset evaluator binding fails the whole request. An LLM evaluator's prompt is kept unless you pass `deleteAssociatedPrompt: true`.
+Deleting a binding removes only the binding: its evaluator definition, prompt, and trace project are kept. `deleteDatasetEvaluators` deletes up to 1000 of a dataset's bindings atomically: either every binding is deleted or none is. Missing bindings are ignored, but an ID that is not a binding, or a binding of another dataset, fails the whole request.
 
 ## Run An Evaluator On A Project
 
-A project binding runs an evaluator on the project's incoming traces. Projects accept a reference to an existing code evaluator, or an LLM or code evaluator created inline. Built-in evaluators cannot be bound to a project.
+A project binding runs an existing LLM or code evaluator definition on the project's incoming traces. Built-in evaluators cannot be bound to a project.
 
 ```ts
 import { createProjectEvaluator } from "@arizeai/phoenix-client/evaluators";
@@ -238,7 +282,7 @@ await createProjectEvaluator({
   name: "exact-match",
   evaluationTarget: "SPAN",
   samplingRate: 0.25,
-  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
   filterCondition: "span_kind == 'LLM'",
 });
 
@@ -248,7 +292,7 @@ await createProjectEvaluator({
   name: "trace-exact-match",
   evaluationTarget: "TRACE",
   samplingRate: 1,
-  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
   evaluationDelaySeconds: 600,
 });
 ```
@@ -259,6 +303,7 @@ await createProjectEvaluator({
 - `evaluationDelaySeconds` applies to `TRACE` and `SESSION` targets only. It must be at least 10 seconds and defaults to 300 seconds. `SPAN` targets reject a delay and report `evaluation_delay_seconds` as `0`.
 - `inputMapping` may be omitted to use the evaluator's own mapping. LLM evaluators have none, so their template variables bind to record fields of the same name.
 - A binding is enabled unless you pass `enabled: false`.
+- A name the project already uses is refused with `409` and `already_exists`.
 
 ## Update And Delete Project Bindings
 
@@ -275,12 +320,13 @@ await updateProjectEvaluator({
 });
 
 await deleteProjectEvaluators({
+  project: { projectName: "support-bot" },
   projectEvaluatorIds: ["UHJvamVjdEV2YWx1YXRvcjox"],
 });
 ```
 
-- On update, `input_mapping: null` makes a code binding use the evaluator's mapping again; LLM bindings need a mapping. `evaluation_delay_seconds: null` restores the default delay.
-- `deleteProjectEvaluator` deletes one binding. `deleteProjectEvaluators` deletes up to 1000 atomically, with the same rules as the dataset bulk delete. Each binding's evaluator traces are deleted with it.
+- On update, `input_mapping: null` drops the binding's mapping so the evaluator's applies; LLM evaluators have none, so their template variables bind to record fields of the same name. `evaluation_delay_seconds: null` restores the default delay.
+- `deleteProjectEvaluator` deletes one binding. `deleteProjectEvaluators` deletes up to 1000 of a project's bindings atomically, with the same rules as the dataset bulk delete. The definitions, prompts, and trace projects are kept.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
@@ -292,6 +338,7 @@ await deleteProjectEvaluators({
     <li><code>src/evaluators/deleteEvaluator.ts</code></li>
     <li><code>src/evaluators/getCodeEvaluatorVersions.ts</code></li>
     <li><code>src/evaluators/createCodeEvaluatorVersion.ts</code></li>
+    <li><code>src/evaluators/getSandboxConfigs.ts</code></li>
     <li><code>src/evaluators/createDatasetEvaluator.ts</code></li>
     <li><code>src/evaluators/getDatasetEvaluators.ts</code></li>
     <li><code>src/evaluators/getDatasetEvaluator.ts</code></li>
