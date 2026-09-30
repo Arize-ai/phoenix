@@ -34,7 +34,7 @@ const labeled = (
 const longSummary = labeled(
   "answer-completeness-against-reference",
   "partially-complete-with-omissions",
-  0.5
+  null
 );
 
 const stackStyle: CSSProperties = {
@@ -70,7 +70,7 @@ export const Directions: Story = {
   parameters: { themeLayout: "column" },
   render: () => (
     <OptionGrid
-      rows={[{ label: "Labeled" }, { label: "Scored" }]}
+      rows={[{ label: "Labeled and scored" }, { label: "Scored" }]}
       columns={[
         {
           label: "Favorable",
@@ -88,14 +88,14 @@ export const Directions: Story = {
         },
         {
           label: "Undirected",
-          labeled: labeled("hallucination", "hallucinated", null),
+          labeled: labeled("hallucination", "hallucinated", 1),
           labeledConfig: undirected,
           scored: scored("faithfulness", 0.31),
           scoredConfig: undefined,
         },
       ]}
       renderCell={(row, column) =>
-        row.label === "Labeled" ? (
+        row.label === "Labeled and scored" ? (
           <AnnotationSummaryBadge
             summary={column!.labeled}
             annotationConfig={column!.labeledConfig}
@@ -108,6 +108,35 @@ export const Directions: Story = {
         )
       }
     />
+  ),
+};
+
+export const LabelConsensus: Story = {
+  tags: ["!dev"],
+  render: () => (
+    <div style={stackStyle}>
+      <AnnotationSummaryBadge summary={labeled("tone", "formal", null)} />
+      <AnnotationSummaryBadge
+        summary={{
+          name: "tone",
+          meanScore: null,
+          labelFractions: [
+            { label: "formal", fraction: 2 / 3 },
+            { label: "casual", fraction: 1 / 3 },
+          ],
+        }}
+      />
+      <AnnotationSummaryBadge
+        summary={{
+          name: "tone",
+          meanScore: null,
+          labelFractions: [
+            { label: "formal", fraction: 0.5 },
+            { label: "casual", fraction: 0.5 },
+          ],
+        }}
+      />
+    </div>
   ),
 };
 

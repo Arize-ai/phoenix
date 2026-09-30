@@ -26,6 +26,10 @@ const consensusCSS = css`
 `;
 
 function formatShare(fraction: number) {
+  // Rounding would read a near-unanimous share as "100%", i.e. all agree
+  if (fraction < 1 && fraction > 0.99) {
+    return ">99%";
+  }
   return formatPercentShort(fraction * 100);
 }
 
@@ -48,7 +52,11 @@ export function AnnotationLabelConsensusText({
 }) {
   const consensus = getAnnotationLabelConsensus(summary);
   if (consensus == null) {
-    return fallback;
+    return fallback == null ? null : (
+      <Text size={size} className={className}>
+        {fallback}
+      </Text>
+    );
   }
   if (consensus.kind === "mixed") {
     const breakdown = consensus.labelFractions
