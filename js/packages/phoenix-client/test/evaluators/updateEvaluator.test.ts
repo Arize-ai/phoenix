@@ -60,4 +60,37 @@ describe("updateEvaluator", () => {
       })
     ).rejects.toThrow("At least one field to update must be provided");
   });
+
+  it("refuses a patch whose only field is undefined without calling the server", async () => {
+    await expect(
+      updateEvaluator({
+        client: createTestClient(),
+        evaluatorId: LLM_EVALUATOR_ID,
+        patch: { type: "llm", description: undefined },
+      })
+    ).rejects.toThrow("At least one field to update must be provided");
+  });
+
+  it("sends a patch whose only field is null, since null is a real value", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.patch(
+        "/v1/evaluators/{evaluator_id}",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(200).json({
+            data: { ...llmDefinition, description: null },
+          });
+        }
+      )
+    );
+
+    await updateEvaluator({
+      client: createTestClient(),
+      evaluatorId: LLM_EVALUATOR_ID,
+      patch: { type: "llm", description: null },
+    });
+
+    expect(receivedBody).toEqual({ type: "llm", description: null });
+  });
 });
