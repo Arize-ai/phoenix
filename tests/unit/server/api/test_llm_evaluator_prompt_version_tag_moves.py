@@ -912,7 +912,10 @@ class TestConcurrentWrites:
                 json={"description": "correctness"},
             ),
         )
-        assert response.status_code == 422, response.text
+        assert response.status_code == 409, response.text
+        problem = response.json()
+        assert problem["reason"] == "incompatible_override"
+        assert problem["dataset_evaluator_ids"] == [binding_gid]
         assert (await _state(db, evaluator_id)).tag_target == moved_to_id
         async with db() as session:
             binding = await session.get(
