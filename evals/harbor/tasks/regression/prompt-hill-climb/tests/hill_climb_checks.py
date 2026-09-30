@@ -4,39 +4,28 @@ import base64
 import json
 import os
 import re
-import sqlite3
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-DATA_DIR = Path(os.environ.get("PHOENIX_EVAL_DATA_DIR", "/data"))
+from evals.harbor.verifiers import phoenix_api, verify
+
 AGENT_LOGS_DIR = Path(os.environ.get("PHOENIX_EVAL_AGENT_LOGS_DIR", "/logs/agent"))
 REWARD_PATH = Path(os.environ.get("PHOENIX_EVAL_REWARD_PATH", "/logs/verifier/reward.json"))
 # Survives between steps because every step verifies inside the same container.
 STATE_DIR = Path(os.environ.get("PHOENIX_EVAL_STATE_DIR", "/var/lib/phoenix-eval/state"))
 JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "claude-sonnet-5")
-PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
+QUERIES_DIR = Path(__file__).with_name("queries")
 DATASET_NAME = "banking_saas_dataset_clean"
 
 
-def connect() -> sqlite3.Connection:
-    connection = sqlite3.connect(f"file:{DATA_DIR / 'phoenix.db'}?mode=ro", uri=True)
-    connection.row_factory = sqlite3.Row
-    return connection
+def query(name: str) -> str:
+    return (QUERIES_DIR / f"{name}.graphql").read_text()
 
 
-def global_id(type_name: str, rowid: int) -> str:
-    return base64.b64encode(f"{type_name}:{rowid}".encode()).decode()
-
-
-def loads(value: Any) -> Any:
-    if isinstance(value, (bytes, str)):
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return value
-    return value
+def rowid(node_id: str) -> int:
+    """The database row number inside a relay node id such as ``Experiment:12``."""
+    return int(base64.b64decode(node_id).decode().rsplit(":", 1)[1])
 
 
 # --- the agent's ATIF trajectory -------------------------------------------------
@@ -45,31 +34,15 @@ Trajectory = dict[str, Any]
 
 
 def load_trajectory() -> Trajectory:
-    path = AGENT_LOGS_DIR / "trajectory.json"
-    if not path.exists():
-        return {}
-    loaded = json.loads(path.read_text())
-    return loaded if isinstance(loaded, dict) else {}
-
-
-def agent_steps(trajectory: Trajectory) -> list[dict[str, Any]]:
-    return [s for s in trajectory.get("steps") or [] if s.get("source") == "agent"]
+    return verify.read_trajectory(AGENT_LOGS_DIR / "trajectory.json") or {}
 
 
 def final_reply(trajectory: Trajectory) -> str:
-    for step in reversed(agent_steps(trajectory)):
-        message = step.get("message")
-        if isinstance(message, str) and message:
-            return message
-        if isinstance(message, list):
-            text = "".join(str(p.get("text", "")) for p in message if p.get("type") == "text")
-            if text:
-                return text
-    return ""
+    return verify.final_reply(trajectory)
 
 
 def tool_call_count(trajectory: Trajectory) -> int:
-    return sum(len(step.get("tool_calls") or []) for step in agent_steps(trajectory))
+    return sum(len(step.get("tool_calls") or []) for step in verify.agent_steps(trajectory))
 
 
 # --- the dataset -------------------------------------------------------------------
@@ -77,14 +50,14 @@ def tool_call_count(trajectory: Trajectory) -> int:
 
 @dataclass
 class Example:
-    rowid: int
+    node_id: str
     input: Any
     reference: Any
     metadata: Any
 
     @property
-    def node_id(self) -> str:
-        return global_id("DatasetExample", self.rowid)
+    def rowid(self) -> int:
+        return rowid(self.node_id)
 
     @property
     def reference_text(self) -> str:
@@ -101,70 +74,139 @@ class Example:
         return str(self.input)
 
 
-def dataset_rowid(connection: sqlite3.Connection) -> int:
-    row = connection.execute("SELECT id FROM datasets WHERE name = ?", (DATASET_NAME,)).fetchone()
-    if row is None:
-        raise SystemExit(f"dataset {DATASET_NAME!r} is missing from the fixture")
-    return int(row["id"])
-
-
-def fetch_examples(connection: sqlite3.Connection, dataset_id: int) -> list[Example]:
-    rows = connection.execute(
-        "SELECT e.id, r.input, r.output, r.metadata FROM dataset_examples e"
-        " JOIN dataset_example_revisions r ON r.dataset_example_id = e.id"
-        " WHERE e.dataset_id = ? AND r.id = ("
-        "   SELECT max(id) FROM dataset_example_revisions WHERE dataset_example_id = e.id)"
-        " AND r.revision_kind != 'DELETE' ORDER BY e.id",
-        (dataset_id,),
-    )
-    return [
-        Example(r["id"], loads(r["input"]), loads(r["output"]), loads(r["metadata"])) for r in rows
+def fetch_dataset() -> tuple[str, list[Example]]:
+    """The dataset's node id and its current examples."""
+    dataset = phoenix_api.client().datasets.get_dataset(dataset=DATASET_NAME)
+    examples = [
+        Example(e["node_id"], e["input"], e["output"], e["metadata"]) for e in dataset.examples
     ]
+    return dataset.id, examples
 
 
-# --- evaluators ---------------------------------------------------------------------
+# --- evaluators and experiments -----------------------------------------------------
 
 
 @dataclass
 class BoundEvaluator:
-    rowid: int
+    node_id: str
     name: str
     kind: str
     input_mapping: dict[str, Any]
-    source_code: str | None
-    builtin_key: str | None
+    output_configs: list[dict[str, Any]]
+    evaluator_name: str
+    source_code: str | None = None
     language: str | None = None
-    sandbox_config_rowid: int | None = None
-    output_configs: list[dict[str, Any]] | None = None
+    sandbox_config_id: str | None = None
+
+    @property
+    def builtin_key(self) -> str | None:
+        return self.evaluator_name if self.kind == "BUILTIN" else None
 
 
-def fetch_bound_evaluators(connection: sqlite3.Connection, dataset_id: int) -> list[BoundEvaluator]:
-    rows = connection.execute(
-        "SELECT d.evaluator_id, d.name, e.kind, d.input_mapping, b.key AS builtin_key,"
-        " c.language, c.sandbox_config_id,"
-        " d.output_configs AS bound_output_configs, c.output_configs AS evaluator_output_configs,"
-        " (SELECT source_code FROM code_evaluator_code_versions v"
-        "   WHERE v.code_evaluator_id = e.id ORDER BY v.id DESC LIMIT 1) AS source_code"
-        " FROM dataset_evaluators d JOIN evaluators e ON e.id = d.evaluator_id"
-        " LEFT JOIN builtin_evaluators b ON b.id = e.id"
-        " LEFT JOIN code_evaluators c ON c.id = e.id"
-        " WHERE d.dataset_id = ? ORDER BY d.id",
-        (dataset_id,),
-    )
-    return [
+@dataclass
+class Experiment:
+    node_id: str
+    sequence_number: int
+    name: str
+    description: str | None
+    metadata: dict[str, Any]
+    created_at: str
+    run_count: int
+    error_count: int
+    annotation_count: int
+    scores: dict[str, float | None]  # example node id -> evaluator score
+    latency_ms: float | None
+    cost: float | None
+
+    @property
+    def rowid(self) -> int:
+        return rowid(self.node_id)
+
+    @property
+    def scored_count(self) -> int:
+        return sum(1 for s in self.scores.values() if s is not None)
+
+    @property
+    def pass_count(self) -> int:
+        return sum(1 for s in self.scores.values() if s is not None and s >= 0.5)
+
+    @property
+    def mean_score(self) -> float:
+        scored = [s for s in self.scores.values() if s is not None]
+        return sum(scored) / len(scored) if scored else 0.0
+
+
+def _nodes(connection: dict[str, Any]) -> list[dict[str, Any]]:
+    return [edge["node"] for edge in connection["edges"]]
+
+
+def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Experiment]]:
+    """The evaluators bound to the dataset and every experiment run on it, with each run
+    scored by the first of those evaluators that annotated it."""
+    dataset = phoenix_api.graphql(query("dataset_state"), {"datasetId": dataset_id})["node"]
+    evaluators = [
         BoundEvaluator(
-            r["evaluator_id"],
-            r["name"],
-            r["kind"],
-            loads(r["input_mapping"]) or {},
-            r["source_code"],
-            r["builtin_key"],
-            r["language"],
-            r["sandbox_config_id"],
-            loads(r["bound_output_configs"]) or loads(r["evaluator_output_configs"]) or [],
+            node_id=binding["evaluator"]["id"],
+            name=binding["name"],
+            kind=binding["evaluator"]["kind"],
+            input_mapping=binding["inputMapping"],
+            output_configs=binding["outputConfigs"]
+            or binding["evaluator"].get("outputConfigs")
+            or [],
+            source_code=binding["evaluator"].get("sourceCode"),
+            language=binding["evaluator"].get("language"),
+            sandbox_config_id=(binding["evaluator"].get("sandboxConfig") or {}).get("id"),
+            evaluator_name=binding["evaluator"]["name"],
         )
-        for r in rows
+        for binding in _nodes(dataset["datasetEvaluators"])
     ]
+    evaluator_names = {e.name for e in evaluators}
+    experiments: list[Experiment] = []
+    for node in _nodes(dataset["experiments"]):
+        runs = [r for r in _nodes(node["runs"]) if r["repetitionNumber"] == 1]
+        scores: dict[str, float | None] = {}
+        annotation_count = 0
+        for run in runs:
+            annotations = _nodes(run["annotations"])
+            annotation_count += len(annotations)
+            matching = [
+                a["score"]
+                for a in annotations
+                if a["name"] in evaluator_names and a["score"] is not None
+            ]
+            scores[run["example"]["id"]] = float(matching[-1]) if matching else None
+        total_cost = (node["costSummary"]["total"] or {}).get("cost")
+        experiments.append(
+            Experiment(
+                node_id=node["id"],
+                sequence_number=node["sequenceNumber"],
+                name=node["name"],
+                description=node["description"],
+                metadata=node["metadata"] or {},
+                created_at=node["createdAt"],
+                run_count=len(runs),
+                error_count=sum(1 for r in runs if r["error"]),
+                annotation_count=annotation_count,
+                scores=scores,
+                latency_ms=node["averageRunLatencyMs"],
+                cost=float(total_cost) if total_cost is not None else None,
+            )
+        )
+    experiments.sort(key=lambda x: x.sequence_number)
+    return evaluators, experiments
+
+
+def moved_examples(
+    first: Experiment, last: Experiment
+) -> dict[str, tuple[float | None, float | None]]:
+    return {
+        example_id: (first.scores.get(example_id), last.scores.get(example_id))
+        for example_id in set(first.scores) | set(last.scores)
+        if first.scores.get(example_id) != last.scores.get(example_id)
+    }
+
+
+# --- the evaluator probe -------------------------------------------------------------
 
 
 def probe_cases(example: Example) -> list[tuple[str, str, bool]]:
@@ -184,76 +226,56 @@ def probe_cases(example: Example) -> list[tuple[str, str, bool]]:
     ]
 
 
-def graphql(query: str, variables: dict[str, Any], timeout: float = 300.0) -> dict[str, Any]:
-    request = urllib.request.Request(
-        f"{PHOENIX_URL}/graphql",
-        data=json.dumps({"query": query, "variables": variables}).encode(),
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        payload = json.load(response)
-    if payload.get("errors"):
-        raise RuntimeError(json.dumps(payload["errors"]))
-    data: dict[str, Any] = payload["data"]
-    return data
-
-
-_PREVIEW_MUTATION = """
-mutation Probe($input: EvaluatorPreviewsInput!) {
-  evaluatorPreviews(input: $input) {
-    results { error annotation { score label } }
-  }
-}
-"""
-
-
 def _config_input(config: dict[str, Any]) -> dict[str, Any]:
-    common = {"name": config["name"], "description": config.get("description")}
-    direction = config.get("optimization_direction")
-    if config["type"] == "CATEGORICAL":
-        values = [{"label": v["label"], "score": v.get("score")} for v in config["values"]]
-        return {"categorical": {**common, "optimizationDirection": direction, "values": values}}
-    if config["type"] == "CONTINUOUS":
-        bounds = {"lowerBound": config.get("lower_bound"), "upperBound": config.get("upper_bound")}
-        return {"continuous": {**common, "optimizationDirection": direction, **bounds}}
-    return {"freeform": common}
+    kind = config["__typename"]
+    fields = {k: v for k, v in config.items() if k != "__typename"}
+    if kind == "CategoricalAnnotationConfig":
+        return {"categorical": fields}
+    if kind == "ContinuousAnnotationConfig":
+        return {"continuous": fields}
+    return {"freeform": fields}
 
 
 def _preview_ref(evaluator: BoundEvaluator) -> dict[str, Any]:
-    """Previewing a saved code evaluator by id returns no results (its stored output
-    configs fail the mutation's type filter), so the saved source, sandbox, and configs are
-    sent inline instead. Builtins preview by id."""
+    """Phoenix stores a code evaluator's output configs as annotation configs, and every
+    GraphQL surface, including the by-id preview, filters those out as the wrong type. So
+    the saved source and sandbox are sent inline, with the saved configs when the binding
+    exposes them and otherwise a freeform config, under which Phoenix passes the label and
+    score through unchanged. Builtins preview by id."""
     if evaluator.kind == "CODE":
-        if evaluator.sandbox_config_rowid is None:
+        if evaluator.sandbox_config_id is None:
             raise ValueError("code evaluator has no sandbox configuration")
-        if not evaluator.output_configs:
-            raise ValueError("code evaluator has no output configs, so it cannot emit scores")
+        configs = [_config_input(c) for c in evaluator.output_configs] or [
+            {"freeform": {"name": evaluator.name}}
+        ]
         return {
             "inlineCodeEvaluator": {
                 "name": evaluator.name,
                 "language": evaluator.language or "PYTHON",
                 "sourceCode": evaluator.source_code or "",
-                "sandboxConfigId": global_id("SandboxConfig", evaluator.sandbox_config_rowid),
-                "outputConfigs": [_config_input(c) for c in evaluator.output_configs or []],
+                "sandboxConfigId": evaluator.sandbox_config_id,
+                "outputConfigs": configs,
             }
         }
     if evaluator.kind == "BUILTIN":
-        return {"builtInEvaluatorId": global_id("BuiltInEvaluator", evaluator.rowid)}
+        return {"builtInEvaluatorId": evaluator.node_id}
     raise ValueError(f"cannot preview a {evaluator.kind} evaluator")
 
 
 def preview_scores(evaluator: BoundEvaluator, contexts: list[dict[str, Any]]) -> list[float]:
     """Score each context with the evaluator through Phoenix, on its own sandbox and with
     its own input mapping, exactly as an experiment run would."""
-    mapping = {
-        "pathMapping": evaluator.input_mapping.get("path_mapping") or {},
-        "literalMapping": evaluator.input_mapping.get("literal_mapping") or {},
-    }
     previews = [
-        {"evaluator": _preview_ref(evaluator), "context": context, "inputMapping": mapping}
+        {
+            "evaluator": _preview_ref(evaluator),
+            "context": context,
+            "inputMapping": evaluator.input_mapping,
+        }
         for context in contexts
     ]
-    results = graphql(_PREVIEW_MUTATION, {"input": {"previews": previews}})
+    results = phoenix_api.graphql(
+        query("evaluator_previews"), {"input": {"previews": previews}}, timeout=300.0
+    )
     scores = [_as_score(r) for r in results["evaluatorPreviews"]["results"]]
     if len(scores) != len(contexts):
         raise ValueError(f"{len(contexts)} contexts produced {len(scores)} results")
@@ -316,116 +338,6 @@ def probe_evaluator(
     return False, detail
 
 
-# --- experiments --------------------------------------------------------------------
-
-
-@dataclass
-class Experiment:
-    rowid: int
-    name: str
-    description: str | None
-    metadata: dict[str, Any]
-    created_at: str
-    run_count: int
-    error_count: int
-    scores: dict[int, float | None]  # dataset_example_id -> evaluator score
-    latency_ms: float | None
-    tokens: int | None
-
-    @property
-    def node_id(self) -> str:
-        return global_id("Experiment", self.rowid)
-
-    @property
-    def scored_count(self) -> int:
-        return sum(1 for s in self.scores.values() if s is not None)
-
-    @property
-    def pass_count(self) -> int:
-        return sum(1 for s in self.scores.values() if s is not None and s >= 0.5)
-
-    @property
-    def mean_score(self) -> float:
-        scored = [s for s in self.scores.values() if s is not None]
-        return sum(scored) / len(scored) if scored else 0.0
-
-
-def fetch_experiments(
-    connection: sqlite3.Connection, dataset_id: int, evaluator_names: set[str]
-) -> list[Experiment]:
-    experiments: list[Experiment] = []
-    for r in connection.execute(
-        "SELECT id, name, description, metadata, created_at FROM experiments"
-        " WHERE dataset_id = ? ORDER BY id",
-        (dataset_id,),
-    ):
-        runs = connection.execute(
-            "SELECT id, dataset_example_id, error, start_time, end_time,"
-            " prompt_token_count, completion_token_count FROM experiment_runs"
-            " WHERE experiment_id = ? AND repetition_number = 1",
-            (r["id"],),
-        ).fetchall()
-        scores: dict[int, float | None] = {}
-        for run in runs:
-            score = (
-                connection.execute(
-                    "SELECT score FROM experiment_run_annotations WHERE experiment_run_id = ?"
-                    " AND name IN (%s) AND score IS NOT NULL ORDER BY id DESC LIMIT 1"
-                    % ",".join("?" * len(evaluator_names)),
-                    (run["id"], *evaluator_names),
-                ).fetchone()
-                if evaluator_names
-                else None
-            )
-            scores[run["dataset_example_id"]] = float(score["score"]) if score else None
-        latency = connection.execute(
-            "SELECT avg((julianday(end_time) - julianday(start_time)) * 86400000) AS ms"
-            " FROM experiment_runs WHERE experiment_id = ?",
-            (r["id"],),
-        ).fetchone()["ms"]
-        tokens = connection.execute(
-            "SELECT sum(coalesce(prompt_token_count, 0) + coalesce(completion_token_count, 0)) AS n"
-            " FROM experiment_runs WHERE experiment_id = ?",
-            (r["id"],),
-        ).fetchone()["n"]
-        experiments.append(
-            Experiment(
-                r["id"],
-                r["name"],
-                r["description"],
-                loads(r["metadata"]) or {},
-                str(r["created_at"]),
-                len(runs),
-                sum(1 for run in runs if run["error"]),
-                scores,
-                float(latency) if latency is not None else None,
-                int(tokens) if tokens is not None else None,
-            )
-        )
-    return experiments
-
-
-def annotation_count(connection: sqlite3.Connection, dataset_id: int) -> int:
-    return int(
-        connection.execute(
-            "SELECT count(*) FROM experiment_run_annotations a"
-            " JOIN experiment_runs r ON r.id = a.experiment_run_id"
-            " JOIN experiments x ON x.id = r.experiment_id WHERE x.dataset_id = ?",
-            (dataset_id,),
-        ).fetchone()[0]
-    )
-
-
-def moved_examples(
-    first: Experiment, last: Experiment
-) -> dict[int, tuple[float | None, float | None]]:
-    return {
-        example_id: (first.scores.get(example_id), last.scores.get(example_id))
-        for example_id in set(first.scores) | set(last.scores)
-        if first.scores.get(example_id) != last.scores.get(example_id)
-    }
-
-
 # --- cross-step state -----------------------------------------------------------------
 
 
@@ -476,8 +388,8 @@ _COMPARE_LINK = re.compile(r"/datasets/([A-Za-z0-9=_-]+)/compare\?([^\s)\]>\"']*
 
 def compare_links(text: str) -> list[tuple[str, set[str]]]:
     links: list[tuple[str, set[str]]] = []
-    for dataset_id, query in _COMPARE_LINK.findall(text):
-        links.append((dataset_id, set(re.findall(r"experimentId=([A-Za-z0-9=_-]+)", query))))
+    for dataset_id, query_string in _COMPARE_LINK.findall(text):
+        links.append((dataset_id, set(re.findall(r"experimentId=([A-Za-z0-9=_-]+)", query_string))))
     return links
 
 

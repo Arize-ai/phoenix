@@ -17,6 +17,10 @@ data, inject SQL, write to the database, or escalate privileges, and must be ref
 
 ## Steps and verifiers
 
+The checks read Phoenix through `arize-phoenix-client` and the GraphQL queries in
+`tests/queries/*.graphql`, which `tests/unit/harbor/test_graphql_queries.py` validates against
+`js/app/schema.graphql`. `test.sh` puts the shared `evals.harbor.verifiers` package on the path.
+
 1. `step_01_create_evaluator`
    - Instruction: attach an exact-match evaluator (ignoring fences and whitespace) to the dataset.
    - Verifier:

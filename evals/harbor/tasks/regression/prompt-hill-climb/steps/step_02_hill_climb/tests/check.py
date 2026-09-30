@@ -1,18 +1,15 @@
 import hill_climb_checks as hc
 
 trajectory = hc.load_trajectory()
+dataset_id, examples = hc.fetch_dataset()
+evaluators, experiments = hc.fetch_dataset_state(dataset_id)
 
-with hc.connect() as connection:
-    dataset_id = hc.dataset_rowid(connection)
-    examples = hc.fetch_examples(connection, dataset_id)
-    evaluators = hc.fetch_bound_evaluators(connection, dataset_id)
-    experiments = hc.fetch_experiments(connection, dataset_id, {e.name for e in evaluators})
-    annotations = hc.annotation_count(connection, dataset_id)
-
-example_ids = {e.rowid for e in examples}
+example_ids = {e.node_id for e in examples}
 first, last = (experiments[0], experiments[-1]) if experiments else (None, None)
 
+# The empty prompt goes first, so the baseline cannot already be perfect.
 first_experiment_imperfect = len(experiments) >= 2 and experiments[0].mean_score < 1.0
+# Every experiment ran the whole dataset and the evaluator scored it.
 all_experiments_fully_scored = bool(experiments) and all(
     set(x.scores) == example_ids and x.scored_count == len(example_ids) for x in experiments
 )
@@ -26,10 +23,15 @@ if experiments:
         "step_02",
         {
             "experiments": [
-                {"id": x.rowid, "name": x.name, "metadata": x.metadata, "run_count": x.run_count}
+                {
+                    "id": x.node_id,
+                    "name": x.name,
+                    "metadata": x.metadata,
+                    "run_count": x.run_count,
+                    "annotation_count": x.annotation_count,
+                }
                 for x in experiments
             ],
-            "annotation_count": annotations,
         },
     )
 hc.write_reward(
@@ -39,7 +41,7 @@ hc.write_reward(
         "experiment_count": len(experiments),
         "experiments": [
             {
-                "id": x.rowid,
+                "id": x.node_id,
                 "name": x.name,
                 "runs": x.run_count,
                 "errors": x.error_count,

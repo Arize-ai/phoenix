@@ -1,0 +1,97 @@
+fragment OutputConfig on BuiltInEvaluatorOutputConfig {
+  __typename
+  ... on CategoricalAnnotationConfig {
+    name
+    description
+    optimizationDirection
+    values {
+      label
+      score
+    }
+  }
+  ... on ContinuousAnnotationConfig {
+    name
+    description
+    optimizationDirection
+    lowerBound
+    upperBound
+  }
+  ... on FreeformAnnotationConfig {
+    name
+    description
+  }
+}
+
+query DatasetState($datasetId: ID!) {
+  node(id: $datasetId) {
+    ... on Dataset {
+      datasetEvaluators(first: 50) {
+        edges {
+          node {
+            name
+            inputMapping {
+              pathMapping
+              literalMapping
+            }
+            outputConfigs {
+              ...OutputConfig
+            }
+            evaluator {
+              id
+              name
+              kind
+              ... on CodeEvaluator {
+                language
+                sourceCode
+                sandboxConfig {
+                  id
+                }
+                outputConfigs {
+                  ...OutputConfig
+                }
+              }
+            }
+          }
+        }
+      }
+      experiments(first: 200) {
+        edges {
+          node {
+            id
+            sequenceNumber
+            name
+            description
+            metadata
+            createdAt
+            averageRunLatencyMs
+            costSummary {
+              total {
+                cost
+              }
+            }
+            runs(first: 100) {
+              edges {
+                node {
+                  repetitionNumber
+                  error
+                  example {
+                    id
+                  }
+                  annotations(first: 50) {
+                    edges {
+                      node {
+                        name
+                        score
+                        label
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@ GraphQL, so :func:`span_costs` uses the GraphQL API.
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 from collections import defaultdict
 from typing import Any
@@ -14,7 +15,7 @@ from typing import Any
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 
-PHOENIX_URL = "http://127.0.0.1:6006"
+PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
 ANSWER_PATH = "/app/answer.txt"
 SPAN_LIMIT = 1_000_000  # The client fetches 100 spans per page up to this limit.
 
@@ -45,14 +46,16 @@ def annotation_labels(project: str, name: str) -> list[str]:
     ]
 
 
-def graphql(query: str) -> dict[str, Any]:
+def graphql(
+    query: str, variables: dict[str, Any] | None = None, timeout: float = 60.0
+) -> dict[str, Any]:
     """Return the ``data`` object from a local Phoenix GraphQL query."""
     request = urllib.request.Request(
         f"{PHOENIX_URL}/graphql",
-        data=json.dumps({"query": query}).encode(),
+        data=json.dumps({"query": query, "variables": variables or {}}).encode(),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.load(response)
     if payload.get("errors"):
         raise SystemExit(payload["errors"])

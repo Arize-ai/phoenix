@@ -1,12 +1,8 @@
 import hill_climb_checks as hc
 
 trajectory = hc.load_trajectory()
-
-with hc.connect() as connection:
-    dataset_id = hc.dataset_rowid(connection)
-    examples = hc.fetch_examples(connection, dataset_id)
-    evaluators = hc.fetch_bound_evaluators(connection, dataset_id)
-    experiments = hc.fetch_experiments(connection, dataset_id, set())
+dataset_id, examples = hc.fetch_dataset()
+evaluators, experiments = hc.fetch_dataset_state(dataset_id)
 
 one_evaluator_attached = len(evaluators) == 1
 probe_verdicts = {e.name: hc.probe_evaluator(e, examples) for e in evaluators}
