@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 
 import { Loading, Text } from "@phoenix/components";
@@ -70,15 +70,29 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
  * @param filterInitialMapping - Narrows what the form starts from. The form
  *   reads the store once, so anything it should not carry forward has to be
  *   dropped here rather than after mount.
+ * @param pathsReplaceLiterals - Drops a variable's literal while it has a
+ *   path, for forms that cannot show literals: the server applies a literal
+ *   over a path. Clearing the path restores the literal.
  */
 export const useEvaluatorInputMappingControlsForm = ({
   pruneEmptyEntries = false,
   filterInitialMapping,
+  declaredVariables,
+  pathsReplaceLiterals = false,
 }: {
   pruneEmptyEntries?: boolean;
+  pathsReplaceLiterals?: boolean;
   filterInitialMapping?: (
     inputMapping: EvaluatorInputMappingValue
   ) => EvaluatorInputMappingValue;
+  /**
+   * The variables the evaluator declares. When set, the store only ever holds
+   * entries for these: a path left behind by a variable the evaluator no longer
+   * declares is still resolved when it runs, and fails it if it matches
+   * nothing. The form keeps what was typed, so a variable that comes back
+   * brings its path back with it.
+   */
+  declaredVariables?: readonly string[];
 } = {}) => {
   const store = useEvaluatorStoreInstance();
   // Initialize RHF from the store once. Subscribing this component to the same
@@ -107,24 +121,74 @@ export const useEvaluatorInputMappingControlsForm = ({
     },
     mode: "onChange",
   });
+  // Keyed by content: callers derive the list on every render.
+  const declaredKey =
+    declaredVariables == null ? null : JSON.stringify(declaredVariables);
+  const declaredNames = useMemo(
+    () =>
+      declaredKey == null
+        ? null
+        : new Set<string>(JSON.parse(declaredKey) as string[]),
+    [declaredKey]
+  );
+  const writeToStore = useCallback(
+    ({
+      pathMapping,
+      literalMapping,
+    }: {
+      pathMapping: Record<string, string>;
+      literalMapping: EvaluatorInputMappingValue["literalMapping"];
+    }) => {
+      const { setPathMapping, setLiteralMapping } = store.getState();
+      const write = <T,>(mapping: Record<string, T>) => {
+        const unescaped = unescapeMapping(mapping);
+        const pruned = pruneEmptyEntries ? pruneEmpty(unescaped) : unescaped;
+        return declaredNames
+          ? Object.fromEntries(
+              Object.entries(pruned).filter(([key]) => declaredNames.has(key))
+            )
+          : { ...pruned };
+      };
+      const paths = write(pathMapping ?? {});
+      const literals = write(literalMapping ?? {});
+      setPathMapping(paths);
+      setLiteralMapping(
+        pathsReplaceLiterals
+          ? Object.fromEntries(
+              Object.entries(literals).filter(([key]) => !paths[key])
+            )
+          : literals
+      );
+    },
+    [store, pruneEmptyEntries, declaredNames, pathsReplaceLiterals]
+  );
   const subscribe = form.subscribe;
   useEffect(() => {
     return subscribe({
       formState: { isValid: true, values: true },
-      callback({ values: { pathMapping, literalMapping }, isValid }) {
+      callback({ values, isValid }) {
         if (!isValid) {
           return;
         }
-        const { setPathMapping, setLiteralMapping } = store.getState();
-        const write = <T,>(mapping: Record<string, T>) => {
-          const unescaped = unescapeMapping(mapping);
-          return pruneEmptyEntries ? pruneEmpty(unescaped) : { ...unescaped };
-        };
-        setPathMapping(write(pathMapping));
-        setLiteralMapping(write(literalMapping));
+        writeToStore(values);
       },
     });
-  }, [subscribe, store, pruneEmptyEntries]);
+  }, [subscribe, writeToStore]);
+  // A change to what the evaluator declares rewrites the store even though no
+  // field changed. Mounting does not, so a form nobody touched stays clean.
+  const getValues = form.getValues;
+  const initialDeclaredKeyRef = useRef(declaredKey);
+  const hasDeclaredChangedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !hasDeclaredChangedRef.current &&
+      declaredKey === initialDeclaredKeyRef.current
+    ) {
+      return;
+    }
+    hasDeclaredChangedRef.current = true;
+    writeToStore(getValues());
+  }, [declaredKey, writeToStore, getValues]);
   return form;
 };
 
