@@ -174,6 +174,16 @@ async def test_list_cursor_accepts_item_ids(
     assert foreign.status_code == 422, foreign.text
 
 
+async def test_list_by_name_that_cannot_exist_matches_nothing(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A name filter that no evaluator name could ever equal (it fails the Identifier
+    pattern) is just an empty result, not a 422."""
+    response = await httpx_client.get("v1/evaluators", params={"name": "Exact-Match"})
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == []
+
+
 @pytest.mark.postgres_only
 async def test_version_deploy_rechecks_expected_version_after_a_concurrent_deploy(
     postgresql_engine: AsyncEngine,
