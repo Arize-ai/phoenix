@@ -375,7 +375,7 @@ client.evaluators.project_evaluators.create(
 client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
 ```
 
-Failed requests raise `PhoenixAPIError`, a subclass of `httpx.HTTPStatusError`. When the server explains the failure with [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, `code` is a stable reason (`validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, and so on) and `problem` holds the full body. A name clash is refused with `code == "already_exists"` and `existing_id` naming the resource that holds the name:
+Failed requests raise `PhoenixAPIError`, a subclass of `httpx.HTTPStatusError`. A name clash is refused with `code == "already_exists"` and `existing_id` naming the resource that holds the name:
 
 ```python
 from phoenix.client.exceptions import PhoenixAPIError
@@ -387,6 +387,25 @@ except PhoenixAPIError as error:
         raise
     definition = client.evaluators.get(evaluator_id=error.existing_id)
 ```
+
+### Errors
+
+When the server explains a failure with [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, the full parsed body is on `error.problem`, and `error.code` and `error.reason` are shortcuts to two of its fields:
+
+- `code` is a stable category, published as `urn:phoenix:problem:<code>` on `problem["type"]`: `validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, `forbidden`, `insufficient_storage`, or `error`. Treat a `code` you don't recognize by `error.response.status_code` — new codes are additive.
+- `reason` is a finer condition under `code`, present on some `conflict` responses. Treat a `reason` you don't recognize by `code` alone. The reasons today:
+  - `still_bound` (deleting a definition something still binds): detach the bindings first, then delete.
+  - `incompatible_override` (an edit would leave a dataset binding's override outputs unsupported by the prompt it now runs): fix or clear the listed overrides.
+  - `version_mismatch` (`expected_current_version_id` didn't match): re-read the evaluator and reconcile before retrying — never blindly resubmit with the version the error reports as current, since another deploy can land before you do.
+  - `concurrent_change` (another write touched the same row mid-request): retry the same request unchanged.
+- The recovery fields, present only for the `reason` (or, for `existing_id`, `code`) named:
+  - `existing_id` (`already_exists`): the GlobalID of the resource holding the name.
+  - `current_version_id` (`version_mismatch`): the GlobalID of the version actually current, or `None` when the evaluator has none yet.
+  - `binding_counts` (`still_bound`): `{"project": int, "dataset": int}`, how many of each kind still refuse the delete.
+  - `dataset_evaluator_ids` (`incompatible_override`): GlobalIDs of the dataset bindings whose overrides no longer fit.
+- `detail` is a human-readable explanation, not meant to be parsed; branch on `code` and `reason`, never on the text of `detail`.
+
+Not every failure is problem details shaped this way. A 401 is a plain-text authentication challenge. An unhandled 500, or a proxy sitting in front of Phoenix, can return a body that isn't JSON at all. In every case `error.response.status_code` is still the real HTTP status, and `error.problem` is `None` when the body didn't parse as one.
 
 - **Definitions**: `create_code_version` returns the current version with `was_created=False` when the source is unchanged. Prompt content for an LLM evaluator is edited through `client.prompts`; `update_llm` only records which prompt version runs. `delete` removes an LLM or code evaluator that nothing binds and refuses one that is still bound with 409; an LLM evaluator's prompt is kept. Built-in evaluators are never deleted.
 - **Dataset bindings**: attach an existing LLM, code, or built-in evaluator with `evaluator_id`. `description` and `output_configs` are overrides: omit them on `create`, or pass `None` to `update`, and the binding uses the evaluator's values and follows later changes to them. An `output_configs` override needs at least one config (`[]` is rejected). On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description. Deleting a binding keeps its definition, prompt, and trace project. `delete_many(dataset=..., dataset_evaluator_ids=...)` deletes up to 1000 of a dataset's bindings atomically.
