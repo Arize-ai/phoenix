@@ -24,9 +24,13 @@ import {
   InvalidArgumentError,
 } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
-import { parsePositiveIntOption } from "../optionParsers";
+import { parseFormatOption, parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
-import { describeError, describeFailure } from "./evaluatorErrors";
+import {
+  describeError,
+  describeFailure,
+  validationHint,
+} from "./evaluatorErrors";
 import {
   parseJsonArrayFlag,
   parseJsonObjectFlag,
@@ -360,7 +364,9 @@ async function exitWithError({
     format,
     message: `Error ${verb}: ${await describeError(error)}`,
     code: exitCodeName(exitCode),
-    hint: error instanceof InvalidArgumentError ? error.hint : undefined,
+    hint: error instanceof InvalidArgumentError
+      ? error.hint
+      : validationHint(error),
     ...describeFailure(error),
   });
   process.exit(exitCode);
@@ -956,6 +962,7 @@ function addCommonReadOptions(command: Command): Command {
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
+      parseFormatOption,
       "pretty"
     )
     .option("--no-progress", "Disable progress indicators");
