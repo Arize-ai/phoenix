@@ -5,13 +5,15 @@ from typing import Annotated, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import ConfigDict, Field
-from sqlalchemy import String, cast, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
-from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import code_evaluator_with_latest_version
+from phoenix.db.helpers import (
+    code_evaluator_with_latest_version,
+    latest_code_evaluator_versions_by_evaluator_id,
+)
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
@@ -36,6 +38,7 @@ from phoenix.server.api.routers.v1.evaluator_common import (
     evaluator_service_context,
     output_configs_from_db,
     output_configs_to_db,
+    parse_global_id,
 )
 from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import ProblemDetailsRoute
@@ -62,7 +65,7 @@ def _decode_evaluator_cursor(cursor: str) -> int:
     all kinds share the evaluators table's id space, so the last item's own id works as the
     cursor and next_cursor is typed like the row it points at.
     """
-    global_id = GlobalID.from_id(cursor)
+    global_id = parse_global_id(cursor)
     if global_id.type_name not in _TYPENAME_BY_KIND.values():
         raise BadRequest(f"Invalid evaluator cursor: {cursor}")
     return int(global_id.node_id)
@@ -221,41 +224,44 @@ class CreatedCodeEvaluatorVersionResponseBody(ResponseBody[CreatedCodeEvaluatorV
 router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
 
 
-async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> EvaluatorDefinition:
-    """Build a definition from the given session.
+def _code_evaluator_definition(
+    evaluator_id: str,
+    row: models.CodeEvaluator,
+    version: Optional[models.CodeEvaluatorVersion],
+) -> CodeEvaluatorDefinition:
+    """Build a code definition from its row and latest version, shared by the single-item
+    read and the batched list so the two can't drift."""
+    return CodeEvaluatorDefinition(
+        type="code",
+        id=evaluator_id,
+        name=row.name,
+        description=row.description,
+        language=row.language,
+        sandbox_config_id=encode_global_id("SandboxConfig", row.sandbox_config_id)
+        if row.sandbox_config_id
+        else None,
+        input_mapping=row.input_mapping,
+        output_configs=output_configs_from_db(row.output_configs),
+        current_version_id=encode_global_id("CodeEvaluatorVersion", version.id)
+        if version
+        else None,
+        source_code=version.source_code if version else None,
+    )
 
-    Reads that follow a write must pass a writer session: the read pool may lag behind and
-    would otherwise report a fresh write as missing or stale.
-    """
-    global_id = GlobalID.from_id(evaluator_id)
-    if global_id.type_name == "CodeEvaluator":
-        row_id = decode_global_id(evaluator_id, "CodeEvaluator")
-        pair = await code_evaluator_with_latest_version(session, row_id)
-        if pair is None:
-            raise NotFound(f"Evaluator not found: {evaluator_id}")
-        row, version = pair
-        return CodeEvaluatorDefinition(
-            type="code",
-            id=evaluator_id,
-            name=row.name,
-            description=row.description,
-            language=row.language,
-            sandbox_config_id=encode_global_id("SandboxConfig", row.sandbox_config_id)
-            if row.sandbox_config_id
-            else None,
-            input_mapping=row.input_mapping,
-            output_configs=output_configs_from_db(row.output_configs),
-            current_version_id=encode_global_id("CodeEvaluatorVersion", version.id)
-            if version
-            else None,
-            source_code=version.source_code if version else None,
-        )
-    row_id = decode_global_id(evaluator_id, "LLMEvaluator")
-    llm = await session.get(models.LLMEvaluator, row_id)
-    if llm is None:
-        raise NotFound(f"Evaluator not found: {evaluator_id}")
-    prompt_version = await resolve_evaluator_prompt_version(session, llm)
-    version_id = encode_global_id("PromptVersion", prompt_version.id) if prompt_version else None
+
+def _llm_evaluator_definition(
+    evaluator_id: str,
+    llm: models.LLMEvaluator,
+    prompt_version_id: Optional[int],
+) -> LLMEvaluatorDefinition:
+    """Build an LLM definition from its row and the id of the version it runs (the one its
+    tag pins, or, without a tag, its prompt's newest), shared by the single-item read and the
+    batched list so the two can't drift."""
+    version_id = (
+        encode_global_id("PromptVersion", prompt_version_id)
+        if (prompt_version_id is not None)
+        else None
+    )
     return LLMEvaluatorDefinition(
         type="llm",
         id=evaluator_id,
@@ -273,6 +279,126 @@ async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> Eva
             for config in llm.output_configs
         ],
     )
+
+
+async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> EvaluatorDefinition:
+    """Build a definition from the given session.
+
+    Reads that follow a write must pass a writer session: the read pool may lag behind and
+    would otherwise report a fresh write as missing or stale.
+    """
+    global_id = parse_global_id(evaluator_id)
+    if global_id.type_name == "CodeEvaluator":
+        row_id = decode_global_id(evaluator_id, "CodeEvaluator")
+        pair = await code_evaluator_with_latest_version(session, row_id)
+        if pair is None:
+            raise NotFound(f"Evaluator not found: {evaluator_id}")
+        row, version = pair
+        return _code_evaluator_definition(evaluator_id, row, version)
+    row_id = decode_global_id(evaluator_id, "LLMEvaluator")
+    llm = await session.get(models.LLMEvaluator, row_id)
+    if llm is None:
+        raise NotFound(f"Evaluator not found: {evaluator_id}")
+    prompt_version = await resolve_evaluator_prompt_version(session, llm)
+    return _llm_evaluator_definition(
+        evaluator_id, llm, prompt_version.id if prompt_version else None
+    )
+
+
+async def _evaluator_definitions_page(
+    session: AsyncSession, rows: list[tuple[int, models.EvaluatorKind]]
+) -> list[EvaluatorDefinition]:
+    """Build a page of definitions in a fixed number of queries, independent of page size:
+    the LLM rows and their prompt versions (tagged and, separately, untagged) each batched
+    in one statement, and the code rows and their latest versions likewise. `rows` is
+    (id, kind) as listed by `get_evaluators`, in the page's own order, which the result
+    preserves."""
+    llm_ids = [row_id for row_id, kind in rows if kind == "LLM"]
+    code_ids = [row_id for row_id, kind in rows if kind == "CODE"]
+
+    llm_by_id: dict[int, models.LLMEvaluator] = {}
+    if llm_ids:
+        llm_by_id = {
+            llm.id: llm
+            for llm in (
+                await session.scalars(
+                    select(models.LLMEvaluator).where(models.LLMEvaluator.id.in_(llm_ids))
+                )
+            ).all()
+        }
+
+    tag_ids = {
+        llm.prompt_version_tag_id
+        for llm in llm_by_id.values()
+        if llm.prompt_version_tag_id is not None
+    }
+    tagged_prompt_version_ids: dict[int, int] = {}
+    if tag_ids:
+        tagged_prompt_version_ids = dict(
+            (
+                await session.execute(
+                    select(models.PromptVersionTag.id, models.PromptVersion.id)
+                    .join(
+                        models.PromptVersion,
+                        models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
+                    )
+                    .where(models.PromptVersionTag.id.in_(tag_ids))
+                )
+            )
+            .tuples()
+            .all()
+        )
+
+    untagged_prompt_ids = {
+        llm.prompt_id for llm in llm_by_id.values() if llm.prompt_version_tag_id is None
+    }
+    latest_prompt_version_ids: dict[int, int] = {}
+    if untagged_prompt_ids:
+        latest_prompt_version_ids = dict(
+            (
+                await session.execute(
+                    select(models.PromptVersion.prompt_id, func.max(models.PromptVersion.id))
+                    .where(models.PromptVersion.prompt_id.in_(untagged_prompt_ids))
+                    .group_by(models.PromptVersion.prompt_id)
+                )
+            )
+            .tuples()
+            .all()
+        )
+
+    code_by_id: dict[int, models.CodeEvaluator] = {}
+    if code_ids:
+        code_by_id = {
+            row.id: row
+            for row in (
+                await session.scalars(
+                    select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_ids))
+                )
+            ).all()
+        }
+    latest_code_versions = await latest_code_evaluator_versions_by_evaluator_id(code_ids, session)
+
+    definitions: list[EvaluatorDefinition] = []
+    for row_id, kind in rows:
+        evaluator_id = encode_global_id(_TYPENAME_BY_KIND[kind], row_id)
+        if kind == "CODE":
+            code_row = code_by_id.get(row_id)
+            if code_row is None:
+                raise NotFound(f"Evaluator not found: {evaluator_id}")
+            definitions.append(
+                _code_evaluator_definition(evaluator_id, code_row, latest_code_versions.get(row_id))
+            )
+        else:
+            llm = llm_by_id.get(row_id)
+            if llm is None:
+                raise NotFound(f"Evaluator not found: {evaluator_id}")
+            prompt_version_id = (
+                tagged_prompt_version_ids.get(llm.prompt_version_tag_id)
+                if llm.prompt_version_tag_id is not None
+                else latest_prompt_version_ids.get(llm.prompt_id)
+            )
+            definitions.append(_llm_evaluator_definition(evaluator_id, llm, prompt_version_id))
+    return definitions
 
 
 async def _written_definition(request: Request, evaluator_id: str) -> EvaluatorDefinition:
@@ -321,12 +447,7 @@ async def get_evaluators(
                 if len(rows) > limit
                 else None
             )
-            data = [
-                await _evaluator_definition(
-                    session, encode_global_id(_TYPENAME_BY_KIND[kind], row_id)
-                )
-                for row_id, kind in rows[:limit]
-            ]
+            data = await _evaluator_definitions_page(session, rows[:limit])
         return EvaluatorDefinitionsResponseBody(data=data, next_cursor=next_cursor)
 
 
@@ -359,7 +480,7 @@ async def create_evaluator(
                 service.CreateLLMEvaluatorInput(
                     name=body.name,
                     description=body.description,
-                    prompt_version_id=GlobalID.from_id(body.prompt.selector.prompt_version_id),
+                    prompt_version_id=parse_global_id(body.prompt.selector.prompt_version_id),
                     output_configs=output_configs_to_db(body.output_configs),
                 ),
             )
@@ -373,7 +494,7 @@ async def create_evaluator(
                 description=body.description,
                 source_code=body.source_code,
                 language=body.language,
-                sandbox_config_id=GlobalID.from_id(body.sandbox_config_id),
+                sandbox_config_id=parse_global_id(body.sandbox_config_id),
                 input_mapping=body.input_mapping,
                 output_configs=output_configs_to_db(body.output_configs),
             ),
@@ -432,20 +553,20 @@ async def patch_evaluator(
             values["output_configs"] = output_configs_to_db(body.output_configs)
         if isinstance(body, PatchCodeEvaluatorRequest):
             if "sandbox_config_id" in fields and body.sandbox_config_id is not None:
-                values["sandbox_config_id"] = GlobalID.from_id(body.sandbox_config_id)
+                values["sandbox_config_id"] = parse_global_id(body.sandbox_config_id)
             await service.patch_code_evaluator(
                 evaluator_service_context(request),
-                service.PatchCodeEvaluatorInput(id=GlobalID.from_id(evaluator_id), **values),
+                service.PatchCodeEvaluatorInput(id=parse_global_id(evaluator_id), **values),
             )
         else:
             if "prompt" in fields:
                 del values["prompt"]
                 values["prompt_source"] = FromPromptVersion(
-                    prompt_version_id=GlobalID.from_id(body.prompt.selector.prompt_version_id)
+                    prompt_version_id=parse_global_id(body.prompt.selector.prompt_version_id)
                 )
             await service.patch_llm_evaluator(
                 evaluator_service_context(request),
-                GlobalID.from_id(evaluator_id),
+                parse_global_id(evaluator_id),
                 service.LLMEvaluatorPatch(**values),
             )
         return EvaluatorDefinitionResponseBody(
@@ -467,7 +588,7 @@ async def delete_evaluator(request: Request, evaluator_id: str) -> Response:
     the prompt. Built-in evaluators cannot be deleted.
     """
     with evaluator_api_errors():
-        global_id = GlobalID.from_id(evaluator_id)
+        global_id = parse_global_id(evaluator_id)
         context = evaluator_service_context(request)
         if global_id.type_name == "CodeEvaluator":
             await service.delete_code_evaluator(context, global_id)
@@ -565,7 +686,7 @@ async def create_code_evaluator_version(
             configuration["description"] = body.description
         if "sandbox_config_id" in fields:
             configuration["sandbox_config_id"] = (
-                GlobalID.from_id(body.sandbox_config_id) if body.sandbox_config_id else None
+                parse_global_id(body.sandbox_config_id) if body.sandbox_config_id else None
             )
         if "input_mapping" in fields:
             configuration["input_mapping"] = body.input_mapping
@@ -574,9 +695,9 @@ async def create_code_evaluator_version(
         _, version, was_created = await service.create_code_evaluator_version(
             evaluator_service_context(request),
             service.CreateCodeEvaluatorVersionInput(
-                code_evaluator_id=GlobalID.from_id(evaluator_id),
+                code_evaluator_id=parse_global_id(evaluator_id),
                 source_code=body.source_code,
-                expected_current_version_id=GlobalID.from_id(body.expected_current_version_id)
+                expected_current_version_id=parse_global_id(body.expected_current_version_id)
                 if body.expected_current_version_id
                 else None,
                 **configuration,  # type: ignore[arg-type]

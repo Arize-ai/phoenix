@@ -68,8 +68,14 @@ def output_configs_from_db(configs: list[AnnotationConfigType]) -> list[Evaluato
 
 
 def evaluator_error_responses(status_codes: list[int]) -> Responses:
-    """Declare error responses; every error body is problem details."""
-    return problem_responses(list(status_codes))
+    """Declare error responses; every error body is problem details.
+
+    403 is included unconditionally: the outer /v1 router's auth and role dependencies raise
+    it for every route mounted under it, documented there as plain text, but a route on one
+    of these opted-in routers renders it as problem details like any other error. Declaring
+    it here overrides that plain-text default for this specific route.
+    """
+    return problem_responses([*status_codes, 403])
 
 
 class PromptVersionSelector(V1RoutesBaseModel):
@@ -126,7 +132,12 @@ class EvaluatorRequest(V1RoutesBaseModel):
 
 @contextmanager
 def evaluator_api_errors() -> Iterator[None]:
-    """Translate evaluator service errors to problem details."""
+    """Translate evaluator service errors to problem details.
+
+    Only `BadRequest` and our own domain errors map here; a bare `ValueError` propagates and
+    renders as a 500, since it signals a bug rather than a caller's mistake. Where a value
+    actually comes from the request, the service layer converts it to `BadRequest` itself.
+    """
     try:
         yield
     except NotFound as error:
@@ -136,8 +147,10 @@ def evaluator_api_errors() -> Iterator[None]:
             409, "already_exists", str(error), existing_id=error.existing_id
         ) from error
     except Conflict as error:
-        raise ProblemException(409, "conflict", str(error)) from error
-    except (BadRequest, ValueError) as error:
+        raise ProblemException(
+            409, "conflict", str(error), reason=error.reason, **error.extra
+        ) from error
+    except BadRequest as error:
         raise ProblemException(422, "invalid_argument", str(error)) from error
 
 
@@ -150,9 +163,20 @@ def evaluator_service_context(request: Request) -> service.EvaluatorServiceConte
     )
 
 
+def parse_global_id(value: str) -> GlobalID:
+    """Parse a GlobalID from request input, refusing a malformed value as `BadRequest`."""
+    try:
+        return GlobalID.from_id(value)
+    except ValueError as error:
+        raise BadRequest(f"Invalid id: {value}") from error
+
+
 def decode_global_id(value: str, typename: str) -> int:
-    """Decode an integer GlobalID and validate its node type."""
-    return from_global_id_with_expected_type(GlobalID.from_id(value), typename)
+    """Decode an integer GlobalID and validate its node type, as `BadRequest` on a mismatch."""
+    try:
+        return from_global_id_with_expected_type(parse_global_id(value), typename)
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
 
 
 def encode_global_id(typename: str, row_id: int) -> str:

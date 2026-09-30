@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -49,10 +49,11 @@ UpdatePromptSource = Union[EditCurrentPrompt, FromPromptVersion]
 async def get_prompt_version(
     session: AsyncSession, prompt_version_id: GlobalID
 ) -> models.PromptVersion:
-    version = await session.get(
-        models.PromptVersion,
-        from_global_id_with_expected_type(prompt_version_id, "PromptVersion"),
-    )
+    try:
+        row_id = from_global_id_with_expected_type(prompt_version_id, "PromptVersion")
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+    version = await session.get(models.PromptVersion, row_id)
     if version is None:
         raise NotFound(f"Prompt version not found: {prompt_version_id}")
     return version

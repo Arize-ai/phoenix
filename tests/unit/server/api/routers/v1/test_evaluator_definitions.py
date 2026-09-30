@@ -4,15 +4,30 @@ from typing import Any, cast
 
 import httpx
 import pytest
+import sqlalchemy
 from fastapi import FastAPI
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.api.exceptions import Conflict
 from phoenix.server.api.helpers.evaluator_service import (
     CreateCodeEvaluatorVersionInput,
@@ -20,6 +35,7 @@ from phoenix.server.api.helpers.evaluator_service import (
     create_code_evaluator_version,
 )
 from phoenix.server.api.routers.v1.evaluators import router
+from phoenix.server.api.routers.v1.sandbox_configs import router as sandbox_configs_router
 from phoenix.server.app import _db
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
@@ -243,8 +259,10 @@ async def test_version_deploy_rechecks_expected_version_after_a_concurrent_deplo
         await asyncio.wait_for(asyncio.shield(deploy), timeout=0.5)
     release.set()
     await other
-    with pytest.raises(Conflict):
+    with pytest.raises(Conflict) as excinfo:
         await deploy
+    assert excinfo.value.reason == "version_mismatch"
+    assert excinfo.value.extra["current_version_id"] is not None
 
 
 async def test_create_with_missing_sandbox_is_not_found(httpx_client: httpx.AsyncClient) -> None:
@@ -285,7 +303,7 @@ async def test_writes_require_an_output_config(
         assert response.headers["content-type"] == "application/problem+json"
         problem = response.json()
         assert problem["code"] == "validation_error"
-        assert [error["field"] for error in problem["errors"]] == ["body.code.output_configs"]
+        assert [error["field"] for error in problem["errors"]] == ["body.output_configs"]
 
     async with db() as session:
         evaluator = models.CodeEvaluator(
@@ -366,3 +384,234 @@ async def test_untagged_llm_definition_follows_its_prompts_latest_version(
         "type": "version",
         "prompt_version_id": latest,
     }
+
+
+async def _add_llm_evaluator(
+    session: AsyncSession, name: str, *, tagged: bool
+) -> models.LLMEvaluator:
+    """A minimal LLM evaluator with a real prompt version, tagged (pinned) or not."""
+    version = models.PromptVersion(
+        template_type=PromptTemplateType.CHAT,
+        template_format=PromptTemplateFormat.MUSTACHE,
+        template=PromptChatTemplate(
+            type="chat", messages=[PromptMessage(role="user", content="Judge {{output}}")]
+        ),
+        invocation_parameters=PromptOpenAIInvocationParameters(
+            type="openai", openai=PromptOpenAIInvocationParametersContent()
+        ),
+        model_provider=ModelProvider.OPENAI,
+        model_name="gpt-4",
+        metadata_={},
+    )
+    evaluator = models.LLMEvaluator(
+        name=IdentifierModel.model_validate(name),
+        kind="LLM",
+        output_configs=[
+            CategoricalOutputConfig(
+                type="CATEGORICAL",
+                name="correctness",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                values=[
+                    CategoricalAnnotationValue(label="correct", score=1.0),
+                    CategoricalAnnotationValue(label="incorrect", score=0.0),
+                ],
+            )
+        ],
+        prompt=models.Prompt(
+            name=IdentifierModel.model_validate(f"{name}-prompt"), prompt_versions=[version]
+        ),
+    )
+    session.add(evaluator)
+    await session.flush()
+    if tagged:
+        evaluator.prompt_version_tag = models.PromptVersionTag(
+            name=IdentifierModel.model_validate(f"{name}-tag"),
+            prompt_id=evaluator.prompt_id,
+            prompt_version_id=version.id,
+        )
+        await session.flush()
+    return evaluator
+
+
+def _add_code_evaluator(
+    session: AsyncSession, name: str, sandbox_config: models.SandboxConfig
+) -> models.CodeEvaluator:
+    evaluator = models.CodeEvaluator(
+        name=IdentifierModel.model_validate(name),
+        description=None,
+        metadata_={},
+        language=sandbox_config.language,
+        sandbox_config_id=sandbox_config.id,
+        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        output_configs=[_SCORE],
+        versions=[models.CodeEvaluatorVersion(source_code="def evaluate(output): ...")],
+    )
+    session.add(evaluator)
+    return evaluator
+
+
+async def _add_mixed_page(
+    session: AsyncSession, count: int, sandbox_config: models.SandboxConfig
+) -> None:
+    """`count` evaluators cycling through every kind `get_evaluators` can return: an
+    untagged LLM, a tagged LLM, and a code evaluator with a version."""
+    for i in range(count):
+        stem = f"mixed-{token_hex(4)}-{i}"
+        kind = i % 3
+        if kind == 0:
+            await _add_llm_evaluator(session, stem, tagged=False)
+        elif kind == 1:
+            await _add_llm_evaluator(session, stem, tagged=True)
+        else:
+            _add_code_evaluator(session, stem, sandbox_config)
+    await session.flush()
+
+
+async def _count_queries(coro: Any) -> int:
+    """Run `coro`, counting every statement executed against the engine meanwhile."""
+    count = 0
+
+    def _count(*_args: Any, **_kwargs: Any) -> None:
+        nonlocal count
+        count += 1
+
+    sqlalchemy.event.listen(sqlalchemy.engine.Engine, "before_cursor_execute", _count)
+    try:
+        await coro
+    finally:
+        sqlalchemy.event.remove(sqlalchemy.engine.Engine, "before_cursor_execute", _count)
+    return count
+
+
+async def test_list_batches_queries_independent_of_page_size(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """A page of definitions costs the same fixed number of queries whether it holds 3 rows
+    or 30: the N+1 per-item lookup this replaces would instead grow with page size."""
+    async with db() as session:
+        await _add_mixed_page(session, 30, sandbox_config)
+
+    small = await _count_queries(httpx_client.get("v1/evaluators", params={"limit": 3}))
+    large = await _count_queries(httpx_client.get("v1/evaluators", params={"limit": 30}))
+    assert small == large, (small, large)
+
+
+async def test_list_mixed_page_matches_individual_reads(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """Every kind the batched list assembles (untagged LLM, tagged LLM, code with a version)
+    reads back exactly like the single-item route it shares its conversion with."""
+    async with db() as session:
+        untagged = await _add_llm_evaluator(session, f"untagged-{token_hex(4)}", tagged=False)
+        tagged = await _add_llm_evaluator(session, f"tagged-{token_hex(4)}", tagged=True)
+        code = _add_code_evaluator(session, f"code-{token_hex(4)}", sandbox_config)
+        await session.flush()
+
+    ids = [
+        str(GlobalID("LLMEvaluator", str(untagged.id))),
+        str(GlobalID("LLMEvaluator", str(tagged.id))),
+        str(GlobalID("CodeEvaluator", str(code.id))),
+    ]
+    listing = await httpx_client.get("v1/evaluators", params={"limit": 1000})
+    assert listing.status_code == 200, listing.text
+    by_id = {item["id"]: item for item in listing.json()["data"]}
+    for evaluator_id in ids:
+        single = await httpx_client.get(f"v1/evaluators/{evaluator_id}")
+        assert single.status_code == 200, single.text
+        assert by_id[evaluator_id] == single.json()["data"]
+
+
+async def test_patch_llm_rename_to_taken_name_is_already_exists(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Renaming an LLM evaluator to a name another evaluator already holds is the same
+    already_exists conflict a create would give, not a generic one."""
+    async with db() as session:
+        holder = await _add_llm_evaluator(session, f"holder-{token_hex(4)}", tagged=False)
+        renamer = await _add_llm_evaluator(session, f"renamer-{token_hex(4)}", tagged=False)
+
+    route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(renamer.id))}"
+    response = await httpx_client.patch(route, json={"type": "llm", "name": str(holder.name)})
+    assert response.status_code == 409, response.text
+    problem = response.json()
+    assert problem["code"] == "already_exists"
+    assert problem["existing_id"] == str(GlobalID("LLMEvaluator", str(holder.id)))
+
+
+async def test_patch_code_rename_to_taken_name_is_already_exists(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """Renaming a code evaluator to a name another evaluator already holds is the same
+    already_exists conflict a create would give, not a generic one."""
+    async with db() as session:
+        holder = _add_code_evaluator(session, f"holder-{token_hex(4)}", sandbox_config)
+        renamer = _add_code_evaluator(session, f"renamer-{token_hex(4)}", sandbox_config)
+        await session.flush()
+
+    route = f"v1/evaluators/{GlobalID('CodeEvaluator', str(renamer.id))}"
+    response = await httpx_client.patch(route, json={"type": "code", "name": str(holder.name)})
+    assert response.status_code == 409, response.text
+    problem = response.json()
+    assert problem["code"] == "already_exists"
+    assert problem["existing_id"] == str(GlobalID("CodeEvaluator", str(holder.id)))
+
+
+async def test_delete_still_bound_llm_evaluator_reports_binding_counts(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting an evaluator a dataset binding still references is refused with
+    still_bound and the binding counts, not a bare conflict."""
+    async with db() as session:
+        evaluator = await _add_llm_evaluator(session, f"bound-{token_hex(4)}", tagged=False)
+        dataset = models.Dataset(name=f"bound-{token_hex(4)}", description=None, metadata_={})
+        session.add(dataset)
+        await session.flush()
+        session.add(
+            models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=evaluator.id,
+                name=IdentifierModel.model_validate(f"binding-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name=f"bound-project-{token_hex(4)}"),
+            )
+        )
+        await session.flush()
+
+    route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(evaluator.id))}"
+    response = await httpx_client.delete(route)
+    assert response.status_code == 409, response.text
+    problem = response.json()
+    assert problem["type"] == "urn:phoenix:problem:conflict"
+    assert problem["title"] == "Conflict"
+    assert problem["reason"] == "still_bound"
+    assert problem["binding_counts"] == {"project": 0, "dataset": 1}
+
+
+def test_problem_details_cover_every_declared_error_response() -> None:
+    """Every error status the opted-in routers (evaluators, sandbox_configs) declare must be
+    problem+json referencing ProblemDetail, including the 403 the outer /v1 router otherwise
+    documents as plain text and the 422 FastAPI would otherwise document as HTTPValidationError."""
+    app = FastAPI()
+    app.include_router(router)
+    app.include_router(sandbox_configs_router)
+    schema = app.openapi()
+    checked = 0
+    for path, operations in schema["paths"].items():
+        for method, operation in operations.items():
+            for status, response in operation.get("responses", {}).items():
+                if status.startswith("2"):
+                    continue
+                checked += 1
+                content = response.get("content", {})
+                assert content.get("application/problem+json", {}).get("schema") == {
+                    "$ref": "#/components/schemas/ProblemDetail"
+                }, (path, method, status, content)
+    assert checked > 0

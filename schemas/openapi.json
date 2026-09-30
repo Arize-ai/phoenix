@@ -3641,14 +3641,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "422": {
             "description": "Unprocessable Entity",
@@ -3706,14 +3706,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -3789,14 +3789,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -3875,14 +3875,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -3949,14 +3949,14 @@
             "description": "Successful Response"
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "409": {
             "description": "Conflict",
@@ -4040,14 +4040,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -4111,14 +4111,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -4241,14 +4241,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "422": {
             "description": "Unprocessable Entity",
@@ -24945,6 +24945,24 @@
         "title": "AgentErrorData",
         "type": "object"
       },
+      "BindingCounts": {
+        "properties": {
+          "project": {
+            "title": "Project",
+            "type": "integer"
+          },
+          "dataset": {
+            "title": "Dataset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project",
+          "dataset"
+        ],
+        "title": "BindingCounts",
+        "type": "object"
+      },
       "PhoenixToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
@@ -25047,12 +25065,12 @@
       "ProblemDetail": {
         "properties": {
           "type": {
-            "default": "about:blank",
+            "description": "urn:phoenix:problem:<code>, e.g. urn:phoenix:problem:conflict.",
             "title": "Type",
             "type": "string"
           },
           "title": {
-            "description": "The HTTP status phrase.",
+            "description": "A fixed title for `code`, e.g. 'Already exists'.",
             "title": "Title",
             "type": "string"
           },
@@ -25066,18 +25084,22 @@
             "type": "string"
           },
           "code": {
-            "enum": [
-              "validation_error",
-              "invalid_argument",
-              "not_found",
-              "already_exists",
-              "conflict",
-              "forbidden",
-              "insufficient_storage",
-              "error"
-            ],
+            "description": "Stable machine-readable code: validation_error, invalid_argument, not_found, already_exists, conflict, forbidden, insufficient_storage, or error. A future code is additive; treat one you don't recognize by `status`.",
             "title": "Code",
             "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A finer condition under `code`, e.g. still_bound or version_mismatch. New reasons may appear; treat one you don't recognize by `code`.",
+            "title": "Reason"
           },
           "errors": {
             "anyOf": [
@@ -25092,7 +25114,7 @@
               }
             ],
             "default": null,
-            "description": "Every invalid input, for validation errors.",
+            "description": "Every invalid input, for validation_error.",
             "title": "Errors"
           },
           "existing_id": {
@@ -25107,9 +25129,51 @@
             "default": null,
             "description": "For already_exists: the GlobalID of the resource that holds the name.",
             "title": "Existing Id"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For version_mismatch: the GlobalID of the version actually current, or null when the evaluator has none yet. Re-read the evaluator and reconcile before retrying; don't replace the expected version blindly.",
+            "title": "Current Version Id"
+          },
+          "binding_counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BindingCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For still_bound: how many project and dataset bindings still refuse the delete."
+          },
+          "dataset_evaluator_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For incompatible_override: GlobalIDs of the dataset bindings whose output overrides no longer fit the evaluator's prompt.",
+            "title": "Dataset Evaluator Ids"
           }
         },
         "required": [
+          "type",
           "title",
           "status",
           "detail",
@@ -25121,12 +25185,12 @@
       "ProblemFieldError": {
         "properties": {
           "field": {
-            "description": "Dotted path of the offending input, e.g. body.name.",
+            "description": "Normalized dotted path of the offending input: body, query, or path, followed by the field's own path (array indices are numeric segments). Discriminated-union tags and validator wrapper names are stripped, e.g. body.name rather than body.code.name.",
             "title": "Field",
             "type": "string"
           },
           "code": {
-            "description": "Machine-readable reason, e.g. missing or string_pattern.",
+            "description": "One of missing, unknown_field, wrong_type, pattern, too_short, too_long, out_of_range, invalid_choice, or invalid.",
             "title": "Code",
             "type": "string"
           },

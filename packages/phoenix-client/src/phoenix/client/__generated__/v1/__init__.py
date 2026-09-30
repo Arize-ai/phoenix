@@ -1369,6 +1369,11 @@ class AgentErrorData(TypedDict):
     errorText: str
 
 
+class BindingCounts(TypedDict):
+    project: int
+    dataset: int
+
+
 class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
@@ -2087,22 +2092,17 @@ class AgentErrorChunk(TypedDict):
 
 
 class ProblemDetail(TypedDict):
+    type: str
     title: str
     status: int
     detail: str
-    code: Literal[
-        "validation_error",
-        "invalid_argument",
-        "not_found",
-        "already_exists",
-        "conflict",
-        "forbidden",
-        "insufficient_storage",
-        "error",
-    ]
-    type: NotRequired[str]
+    code: str
+    reason: NotRequired[str]
     errors: NotRequired[Sequence[ProblemFieldError]]
     existing_id: NotRequired[str]
+    current_version_id: NotRequired[str]
+    binding_counts: NotRequired[BindingCounts]
+    dataset_evaluator_ids: NotRequired[Sequence[str]]
 
 
 class TranscriptPersistedChunk(TypedDict):
