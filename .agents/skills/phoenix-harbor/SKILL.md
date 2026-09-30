@@ -23,7 +23,7 @@ Harbor runs agents and verifiers. Phoenix records and compares their results. Do
 Install the client and Harbor in the same Python environment:
 
 ```bash
-pip install "arize-phoenix-client[harbor]"
+uv pip install "arize-phoenix-client[harbor]"
 ```
 
 ## Choose the trace mode
