@@ -176,6 +176,9 @@ export function ProjectEvaluatorCompareStats({
     comparison.evaluationTarget
   );
   const kappaGloss = getKappaGloss(statistics.cohensKappa);
+  // Span evaluators' total counts the traces in range, not the spans.
+  const totalInRangeTargets =
+    comparison.evaluationTarget === "SPAN" ? "traces" : evaluationTargetsPlural;
   const capitalizedTargets =
     evaluationTargetsPlural.charAt(0).toUpperCase() +
     evaluationTargetsPlural.slice(1);
@@ -286,11 +289,11 @@ export function ProjectEvaluatorCompareStats({
               <Text size="S">{formatInt(coverage.evaluatedByBoth)}</Text>
             </StatField>
             <StatField
-              label={`${evaluationTargetsPlural} in range`}
+              label={`${totalInRangeTargets} in range`}
               help={
                 <StatHelp>
                   {[
-                    `All ${evaluationTargetsPlural} in the time range, evaluated or not.`,
+                    `All ${totalInRangeTargets} in the time range, evaluated or not.`,
                   ]}
                 </StatHelp>
               }

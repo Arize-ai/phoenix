@@ -1984,7 +1984,7 @@ type EvaluatorComparisonCoverage {
   onlyB: Int!
 
   """
-  All entities of the compared evaluation target in the project and time range.
+  Traces in the project and time range for span and trace targets, or sessions for session targets. Span targets count traces rather than spans.
   """
   totalInRange: Int!
 }

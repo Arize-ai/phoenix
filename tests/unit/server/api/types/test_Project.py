@@ -7614,7 +7614,8 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 5,
             "onlyA": 1,
             "onlyB": 1,
-            "totalInRange": 7,
+            # Span targets count traces: the in-range spans share one trace.
+            "totalInRange": 1,
         }
         assert comparison["populationSize"] == 4
         side_a = comparison["a"]
@@ -7645,7 +7646,7 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 4,
             "onlyA": 2,
             "onlyB": 0,
-            "totalInRange": 7,
+            "totalInRange": 1,
         }
         assert comparison["populationSize"] == 4
         assert comparison["confusionMatrix"] == [[2, 0], [0, 2]]

@@ -35,7 +35,10 @@ class EvaluatorComparisonCoverage:
     only_a: int = strawberry.field(description="Entities in range evaluated only by evaluator A.")
     only_b: int = strawberry.field(description="Entities in range evaluated only by evaluator B.")
     total_in_range: int = strawberry.field(
-        description="All entities of the compared evaluation target in the project and time range."
+        description=(
+            "Traces in the project and time range for span and trace targets, or sessions "
+            "for session targets. Span targets count traces rather than spans."
+        )
     )
 
 
