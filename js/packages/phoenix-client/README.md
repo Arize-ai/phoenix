@@ -945,6 +945,42 @@ await deleteDatasetEvaluators({
 });
 ```
 
+### Running Evaluators on a Project
+
+A project binding runs an evaluator on incoming traces. It controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the delay. A binding references an existing LLM or code definition by `evaluatorId`; create one first with `createEvaluator`.
+
+```ts
+import {
+  createProjectEvaluator,
+  deleteProjectEvaluator,
+  getProjectEvaluators,
+  updateProjectEvaluator,
+} from "@arizeai/phoenix-client/evaluators";
+
+// Evaluate a quarter of matching LLM spans as they arrive
+const binding = await createProjectEvaluator({
+  project: { projectName: "support-bot" },
+  name: "toxicity",
+  evaluationTarget: "SPAN",
+  samplingRate: 0.25,
+  evaluatorId: "Q29kZUV2YWx1YXRvcjox",
+  filterCondition: "span_kind == 'LLM'",
+});
+
+const bindings = await getProjectEvaluators({
+  project: { projectName: "support-bot" },
+});
+
+// Pause the binding without deleting it
+await updateProjectEvaluator({
+  projectEvaluatorId: binding.id,
+  patch: { enabled: false },
+});
+
+// Deleting a binding keeps its definition, prompt, and trace project
+await deleteProjectEvaluator({ projectEvaluatorId: binding.id });
+```
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:

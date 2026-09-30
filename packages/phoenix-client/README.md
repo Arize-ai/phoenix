@@ -605,6 +605,32 @@ client.evaluators.dataset_evaluators.delete_many(
 )
 ```
 
+Bind existing evaluator definitions to projects to run them on incoming traces. A project binding controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive; `TRACE` and `SESSION` evaluators run once per trace or session after it has been quiet for the delay:
+
+```python
+# Evaluate a quarter of matching LLM spans as they arrive
+binding = client.evaluators.project_evaluators.create(
+    project="support-bot",
+    name="toxicity",
+    evaluation_target="SPAN",
+    sampling_rate=0.25,
+    evaluator_id="Q29kZUV2YWx1YXRvcjox",
+    filter_condition="span_kind == 'LLM'",
+)
+
+for item in client.evaluators.project_evaluators.list(project="support-bot"):
+    print(item["id"], item["name"], item["evaluation_target"], item["enabled"])
+
+# Pause the binding without deleting it
+client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], enabled=False)
+
+# Deleting a binding keeps its evaluator definition, prompt, and trace project
+client.evaluators.project_evaluators.delete(project_evaluator_id=binding["id"])
+client.evaluators.project_evaluators.delete_many(
+    project="support-bot", project_evaluator_ids=["UHJvamVjdEV2YWx1YXRvcjoy"]
+)
+```
+
 ## Documentation
 
 - **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html)** - Complete API reference and guides
