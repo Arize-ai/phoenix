@@ -13,8 +13,11 @@ export const llmDefinition: LLMEvaluatorDefinition = {
   id: LLM_EVALUATOR_ID,
   name: "toxicity",
   description: "toxicity",
-  prompt_id: "UHJvbXB0OjE=",
-  prompt_version: null,
+  prompt: {
+    prompt_id: "UHJvbXB0OjE=",
+    selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+    resolved_prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
+  },
   output_configs: [
     {
       type: "CATEGORICAL",
