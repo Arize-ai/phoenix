@@ -100,7 +100,7 @@ The `createPrompt` function can be used to create a prompt in Phoenix for versio
 ```ts
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
-const version = createPrompt({
+const version = await createPrompt({
   name: "my-prompt",
   description: "test-description",
   version: promptVersion({
@@ -122,6 +122,26 @@ const version = createPrompt({
 
 Prompts that are pushed to Phoenix are versioned and can be tagged.
 
+### Targeting a Custom Provider
+
+Pass `customProviderId` to send a version to a custom model provider configured in Phoenix. `modelProvider` still selects the invocation parameter format, so the provider's SDK must be able to serve it; Phoenix refuses an incompatible provider with 422 and an unknown one with 404.
+
+```ts
+import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
+
+await createPrompt({
+  name: "my-prompt",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-4o-mini",
+    customProviderId: "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+    template: [{ role: "user", content: "{{ question }}" }],
+  }),
+});
+```
+
+Creating a version with `customProviderId` requires Phoenix server `21.0.0` or newer. `createPrompt` checks the server version first and throws against an older server, which would ignore the field and silently store the version with the built-in provider. Versions without it are not checked.
+
 ### Pulling a Prompt from Phoenix
 
 The `getPrompt` function can be used to pull a prompt from Phoenix based on some Prompt Identifier and returns it in the Phoenix SDK Prompt type.
@@ -129,14 +149,16 @@ The `getPrompt` function can be used to pull a prompt from Phoenix based on some
 ```ts
 import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-const prompt = await getPrompt({ name: "my-prompt" });
+const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 // ^ you now have a strongly-typed prompt object, in the Phoenix SDK Prompt type
 
-const promptByTag = await getPrompt({ tag: "production", name: "my-prompt" });
+const promptByTag = await getPrompt({
+  prompt: { tag: "production", name: "my-prompt" },
+});
 // ^ you can optionally specify a tag to filter by
 
 const promptByVersionId = await getPrompt({
-  versionId: "1234567890",
+  prompt: { versionId: "1234567890" },
 });
 // ^ you can optionally specify a prompt version Id to filter by
 ```
@@ -161,7 +183,7 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
 
-const prompt = await getPrompt({ name: "my-prompt" });
+const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 const promptAsAI = toSDK({
   sdk: "ai",
   // ^ the SDK you want to convert the prompt to, supported SDKs are listed above
@@ -208,6 +230,10 @@ const prompt = await phoenix.GET("/v1/prompts/{prompt_identifier}/latest", {
 ```
 
 A comprehensive overview of the available endpoints and their parameters is available in the OpenAPI viewer within Phoenix, or in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
+
+### Errors
+
+A failed request throws `HttpError`. Routes that return [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details — including the evaluator, dataset-binding, project-binding, and sandbox-config routes — put the full parsed body on `error.problem`: a stable `code` (published as `urn:phoenix:problem:<code>`; treat one you don't recognize by `error.status`), an optional `reason` for a finer condition under it (e.g. `still_bound` on a delete something still binds — detach first; treat an unrecognized `reason` by `code`), and recovery fields such as `existing_id` or `binding_counts`. `error.problem` is `undefined` for a response that isn't shaped like this — a 401's plain-text challenge, an unhandled 500, a proxy's own error page — and `error.status`/`error.statusText` still carry the real HTTP status either way.
 
 ## Datasets
 
@@ -828,6 +854,8 @@ enabled. Avoid logging the request batch or otherwise retaining its values.
 
 The `@arizeai/phoenix-client` package provides an `evaluators` export for working with shared evaluator definitions. A definition is shared by every project and dataset that binds it, so an update applies everywhere it is used. These helpers require Phoenix server `21.0.0` or newer.
 
+Creating an LLM evaluator against an existing hub prompt version (`createEvaluator({ evaluator: { type: "llm", prompt: { selector: { type: "version", prompt_version_id } } } })`) adds the `evaluator` label to that prompt and creates a tag that pins the version; the prompt is otherwise unchanged.
+
 ### Listing, Reading, Creating, and Deleting Definitions
 
 ```ts
@@ -975,6 +1003,13 @@ const bindings = await getProjectEvaluators({
 await updateProjectEvaluator({
   projectEvaluatorId: binding.id,
   patch: { enabled: false },
+});
+
+// filter_condition is cleared with "", not null; only input_mapping and
+// evaluation_delay_seconds are reset with null.
+await updateProjectEvaluator({
+  projectEvaluatorId: binding.id,
+  patch: { filter_condition: "" },
 });
 
 // Deleting a binding keeps its definition, prompt, and trace project

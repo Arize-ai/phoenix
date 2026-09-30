@@ -731,11 +731,13 @@ class Evaluators:
             from phoenix.client import Client
             client = Client()
 
-            current = client.evaluators.get(evaluator_id="Q29kZUV2YWx1YXRvcjoy")
+            [current] = client.evaluators.list_code_versions(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy", limit=1
+            )
             version = client.evaluators.create_code_version(
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
                 source_code=open("evaluator.py").read(),
-                expected_current_version_id=current["current_version_id"],
+                expected_current_version_id=current["id"],
             )
             print(version["id"], version["was_created"])
         """  # noqa: E501
@@ -945,7 +947,23 @@ class AsyncEvaluators:
         Raises:
             PhoenixAPIError: If the request fails. The server responds with 409
                 when the name is taken.
-        """
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            definition = await client.evaluators.create_code(
+                name="exact-match",
+                source_code=open("evaluator.py").read(),
+                language="PYTHON",
+                sandbox_config_id="U2FuZGJveENvbmZpZzox",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+                output_configs=[
+                    {"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}
+                ],
+            )
+        """  # noqa: E501
         json_ = _build_create_body(
             name=name,
             source_code=source_code,
@@ -1222,7 +1240,18 @@ class AsyncEvaluators:
 
         Raises:
             PhoenixAPIError: If the request fails.
-        """
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            versions = await client.evaluators.list_code_versions(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy"
+            )
+            for version in versions:
+                print(version["id"], version["created_at"])
+        """  # noqa: E501
         await self._guard.require(LIST_EVALUATOR_VERSIONS)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
         versions: list[v1.CodeEvaluatorVersion] = []
