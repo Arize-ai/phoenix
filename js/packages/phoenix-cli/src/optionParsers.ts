@@ -28,7 +28,7 @@ export function parseFormatOption(value: string): FormatOption {
   writeError({
     message: `Invalid --format: ${value}. Expected one of: ${VALID_FORMATS.join(", ")}.`,
   });
-  process.exit(ExitCode.INVALID_ARGUMENT);
+  return process.exit(ExitCode.INVALID_ARGUMENT);
 }
 
 /**
