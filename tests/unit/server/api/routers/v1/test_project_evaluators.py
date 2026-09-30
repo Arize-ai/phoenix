@@ -173,3 +173,43 @@ async def test_malformed_bulk_delete_id_is_invalid_argument_not_a_crash(
     )
     assert response.status_code == 422, response.text
     assert response.json()["code"] == "invalid_argument"
+
+
+async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    """A well-formed GlobalID of the wrong node type -- not just a malformed one -- is a
+    client error on every id field these routes decode, in the path, the query, and the
+    body, never a raw ValueError leaking as a 500."""
+    wrong_type = str(GlobalID("Dataset", "1"))
+    project = await _project(db)
+    project_route = f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators"
+    body = {
+        "name": f"wrong-type-{token_hex(4)}",
+        "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+        "evaluation_target": "SESSION",
+        "sampling_rate": 0.5,
+    }
+    created = await httpx_client.post(project_route, json=body)
+    assert created.status_code == 201, created.text
+    binding_route = f"v1/project_evaluators/{created.json()['data']['id']}"
+
+    responses = (
+        # path: project_evaluator_id, on every verb that takes one
+        await httpx_client.get(f"v1/project_evaluators/{wrong_type}"),
+        await httpx_client.patch(f"v1/project_evaluators/{wrong_type}", json={"name": "x"}),
+        await httpx_client.delete(f"v1/project_evaluators/{wrong_type}"),
+        # query: the list route's cursor, and the bulk delete's repeated id
+        await httpx_client.get(project_route, params={"cursor": wrong_type}),
+        await httpx_client.delete(project_route, params={"project_evaluator_id": wrong_type}),
+        # body: evaluator_id, on create
+        await httpx_client.post(project_route, json={**body, "evaluator_id": wrong_type}),
+    )
+    for response in responses:
+        assert response.status_code == 422, response.text
+        assert response.json()["code"] == "invalid_argument", response.text
+
+    # none of the refused calls above touched the binding created before them
+    assert (await httpx_client.get(binding_route)).status_code == 200
