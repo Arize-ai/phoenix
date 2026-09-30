@@ -13,6 +13,10 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.prompt_version_tags import (
+    validate_prompt_version_tag_delete,
+    validate_prompt_version_tag_move,
+)
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
@@ -64,19 +68,12 @@ class PromptVersionTagMutationMixin:
                 .join(models.Prompt, models.Prompt.id == models.PromptVersion.prompt_id)
                 .where(models.PromptVersionTag.id == prompt_version_tag_id)
             )
-            result = await session.execute(stmt)
-            if results := result.one_or_none():
-                prompt_version_tag, prompt = results
-
-            if not prompt_version_tag:
+            row = (await session.execute(stmt)).one_or_none()
+            if row is None:
                 raise NotFound(f"PromptVersionTag with ID {input.prompt_version_tag_id} not found")
+            prompt_version_tag, prompt = row
 
-            if not prompt:
-                raise BadRequest(
-                    f"PromptVersionTag with ID {input.prompt_version_tag_id} "
-                    "does not belong to a prompt"
-                )
-
+            await validate_prompt_version_tag_delete(session, prompt_version_tag)
             await session.delete(prompt_version_tag)
             await session.commit()
             return PromptVersionTagMutationPayload(
@@ -133,6 +130,11 @@ async def upsert_prompt_version_tag(
     description: Optional[str] = None,
     user_id: Optional[int] = None,
 ) -> models.PromptVersionTag:
+    """Create or retarget a tag within the caller's transaction.
+
+    A tag that an LLM evaluator runs through only moves to a version the evaluator can run;
+    otherwise Conflict is raised and nothing changes.
+    """
     existing_tag = await session.scalar(
         select(models.PromptVersionTag).where(
             models.PromptVersionTag.prompt_id == prompt_id,
@@ -141,6 +143,7 @@ async def upsert_prompt_version_tag(
     )
 
     if existing_tag:
+        await validate_prompt_version_tag_move(session, existing_tag, prompt_version_id)
         existing_tag.prompt_version_id = prompt_version_id
         if description is not None:
             existing_tag.description = description
