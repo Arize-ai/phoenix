@@ -7315,7 +7315,7 @@ class TestEvaluatorComparison:
                             evaluatedByBoth
                             onlyA
                             onlyB
-                            totalInRange
+                            eligible
                         }
                         populationSize
                         a {
@@ -7614,7 +7614,7 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 5,
             "onlyA": 1,
             "onlyB": 1,
-            "totalInRange": 7,
+            "eligible": 7,
         }
         assert comparison["populationSize"] == 4
         side_a = comparison["a"]
@@ -7645,7 +7645,7 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 4,
             "onlyA": 2,
             "onlyB": 0,
-            "totalInRange": 7,
+            "eligible": 6,
         }
         assert comparison["populationSize"] == 4
         assert comparison["confusionMatrix"] == [[2, 0], [0, 2]]
@@ -7678,7 +7678,7 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 1,
             "onlyA": 0,
             "onlyB": 0,
-            "totalInRange": 1,
+            "eligible": 1,
         }
         # 0.9 flagged (MINIMIZE), 0.2 not flagged.
         assert comparison["confusionMatrix"] == [[0, 1], [0, 0]]
@@ -7812,7 +7812,7 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 3,
             "onlyA": 1,
             "onlyB": 1,
-            "totalInRange": 6,
+            "eligible": 5,
         }
         data = response.data
         for alias in ["evaluatorA", "evaluatorB"]:
@@ -7821,6 +7821,164 @@ class TestEvaluatorComparison:
             assert distribution["evaluatedCount"] == 4
         assert sum(map(sum, comparison["confusionMatrix"])) == 1
         assert data["evaluatorA"]["distribution"]["meanScore"] == pytest.approx(0.4)
+
+    async def _add_eligibility_evaluators(
+        self,
+        session: AsyncSession,
+        ids: dict[str, Any],
+        *,
+        evaluation_target: str,
+        filter_a: str,
+        filter_b: str,
+        created_at: datetime,
+    ) -> tuple[models.Project, models.ProjectEvaluator, models.ProjectEvaluator]:
+        template = await session.get(models.ProjectEvaluator, ids["toxicity"])
+        assert template is not None
+        project = await _add_project(session)
+        evaluators = [
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=template.evaluator_id,
+                name=DbIdentifier(root=name),
+                filter_condition=condition,
+                sampling_rate=1.0,
+                evaluation_target=evaluation_target,
+                created_at=created_at,
+            )
+            for name, condition in [("quality_a", filter_a), ("quality_b", filter_b)]
+        ]
+        session.add_all(evaluators)
+        await session.flush()
+        return project, evaluators[0], evaluators[1]
+
+    async def _coverage(
+        self,
+        gql_client: AsyncGraphQLClient,
+        project: models.Project,
+        evaluator_a: models.ProjectEvaluator,
+        evaluator_b: models.ProjectEvaluator,
+        created_at: datetime,
+    ) -> dict[str, Any]:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "a": str(GlobalID("ProjectEvaluator", str(evaluator_a.id))),
+                "b": str(GlobalID("ProjectEvaluator", str(evaluator_b.id))),
+                "timeRange": {
+                    "start": (created_at - timedelta(hours=1)).isoformat(),
+                    "end": (created_at + timedelta(hours=1)).isoformat(),
+                },
+                "includeDistributions": False,
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        coverage: dict[str, Any] = response.data["node"]["evaluatorComparison"]["coverage"]
+        return coverage
+
+    async def test_eligible_counts_filter_matches_since_creation_and_results(
+        self,
+        _comparison_data: dict[str, Any],
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        created_at = datetime.fromisoformat("2024-03-01T12:00:00+00:00")
+        after = created_at + timedelta(minutes=10)
+        before = created_at - timedelta(minutes=30)
+        async with db() as session:
+            project, evaluator_a, evaluator_b = await self._add_eligibility_evaluators(
+                session,
+                _comparison_data,
+                evaluation_target="SPAN",
+                filter_a="parent_id is None",
+                filter_b="span_kind == 'TOOL'",
+                created_at=created_at,
+            )
+            trace = await _add_trace(session, project, start_time=after)
+            root = await _add_span(session, trace, start_time=after)
+            await _add_span(session, parent_span=root, start_time=after)
+            await _add_span(session, parent_span=root, start_time=after, span_kind="TOOL")
+            second_trace = await _add_trace(session, project, start_time=after)
+            second_root = await _add_span(session, second_trace, start_time=after)
+            child_with_result = await _add_span(session, parent_span=second_root, start_time=after)
+            # Roots that arrived before the evaluators existed: not eligible,
+            # unless one has a result anyway.
+            early_trace = await _add_trace(session, project, start_time=before)
+            await _add_span(session, early_trace, start_time=before)
+            backfilled_trace = await _add_trace(session, project, start_time=before)
+            backfilled_root = await _add_span(session, backfilled_trace, start_time=before)
+            for span in [root, child_with_result, backfilled_root]:
+                session.add(
+                    models.SpanAnnotation(
+                        span_rowid=span.id,
+                        name="quality_a",
+                        label=None,
+                        score=0.5,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="CODE",
+                        identifier="",
+                        source="API",
+                        user_id=None,
+                    )
+                )
+        coverage = await self._coverage(gql_client, project, evaluator_a, evaluator_b, created_at)
+        # A's filter matches the two roots since creation, B's the tool span;
+        # the child and the early root with results count as well. The other
+        # child and the early root without a result do not.
+        assert coverage == {"evaluatedByBoth": 0, "onlyA": 3, "onlyB": 0, "eligible": 5}
+
+    async def test_eligible_traces_arrive_at_last_span_ingestion(
+        self,
+        _comparison_data: dict[str, Any],
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        created_at = datetime.fromisoformat("2024-03-01T12:00:00+00:00")
+        async with db() as session:
+            project, evaluator_a, evaluator_b = await self._add_eligibility_evaluators(
+                session,
+                _comparison_data,
+                evaluation_target="TRACE",
+                filter_a="",
+                filter_b="",
+                created_at=created_at,
+            )
+            # Both start before creation; only the one still receiving spans
+            # afterwards is offered to the evaluators.
+            for ingested_at in [
+                created_at + timedelta(minutes=5),
+                created_at - timedelta(minutes=5),
+            ]:
+                trace = await _add_trace(
+                    session, project, start_time=created_at - timedelta(minutes=30)
+                )
+                trace.last_span_ingested_at = ingested_at
+        coverage = await self._coverage(gql_client, project, evaluator_a, evaluator_b, created_at)
+        assert coverage["eligible"] == 1
+
+    async def test_eligible_is_null_when_a_filter_does_not_compile(
+        self,
+        _comparison_data: dict[str, Any],
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        created_at = datetime.fromisoformat("2024-03-01T12:00:00+00:00")
+        async with db() as session:
+            project, evaluator_a, evaluator_b = await self._add_eligibility_evaluators(
+                session,
+                _comparison_data,
+                evaluation_target="SPAN",
+                filter_a="parent_id is None",
+                filter_b="this is ( not a filter",
+                created_at=created_at,
+            )
+            trace = await _add_trace(session, project, start_time=created_at)
+            await _add_span(session, trace, start_time=created_at)
+        coverage = await self._coverage(gql_client, project, evaluator_a, evaluator_b, created_at)
+        assert coverage["eligible"] is None
 
     async def test_same_evaluator_twice_is_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient

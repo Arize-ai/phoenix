@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<988638adc24cd7406b3b00352f70f12a>>
+ * @generated SignedSource<<d14ff2d81553fb17cf7ca1226111159d>>
  * @lightSyntaxTransform
  */
 
@@ -41,10 +41,10 @@ export type ProjectEvaluatorCompareContentQuery$data = {
     readonly __typename: "Project";
     readonly evaluatorComparison: {
       readonly coverage: {
+        readonly eligible: number | null;
         readonly evaluatedByBoth: number;
         readonly onlyA: number;
         readonly onlyB: number;
-        readonly totalInRange: number;
       };
       readonly evaluationTarget: EvaluationTarget;
       readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_comparison" | "ProjectEvaluatorCompareMatrix_comparison" | "ProjectEvaluatorCompareStats_comparison" | "ProjectEvaluatorCompareTargets_comparison" | "ProjectEvaluatorCompareTimeSeries_comparison">;
@@ -153,7 +153,7 @@ v9 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "totalInRange",
+      "name": "eligible",
       "storageKey": null
     }
   ],
@@ -717,16 +717,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ca65b579d0acb09a0ce0ffe491d5e3c5",
+    "cacheID": "5fee2c11d5cc45f3776ef80e88d25184",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorCompareContentQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          totalInRange\n        }\n        ...ProjectEvaluatorCompareTargets_comparison\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n        ...ProjectEvaluatorCompareDistributions_comparison\n        ...ProjectEvaluatorCompareTimeSeries_comparison\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_comparison on ProjectEvaluatorComparison {\n  coverage {\n    evaluatedByBoth\n  }\n  a {\n    sharedDistribution {\n      ...ProjectEvaluatorCompareDistributions_side\n    }\n  }\n  b {\n    sharedDistribution {\n      ...ProjectEvaluatorCompareDistributions_side\n    }\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6 on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  distribution(timeRange: $timeRange) {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_side on EvaluatorDistribution {\n  threshold\n  evaluatedCount\n  meanScore\n  scoreBinEdges\n  scoreBinCounts\n  scoreValueCounts {\n    score\n    count\n  }\n  labelCounts {\n    label\n    score\n    isOther\n    count\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n  }\n  populationSize\n  a {\n    annotationName\n    labels\n    threshold\n  }\n  b {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    totalInRange\n  }\n  populationSize\n  a {\n    threshold\n  }\n  b {\n    threshold\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n\nfragment ProjectEvaluatorCompareTargets_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  sideA: a {\n    annotationName\n    labels\n    threshold\n  }\n  sideB: b {\n    annotationName\n    labels\n    threshold\n  }\n}\n\nfragment ProjectEvaluatorCompareTimeSeries_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  a {\n    annotationName\n  }\n  b {\n    annotationName\n  }\n}\n"
+    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          eligible\n        }\n        ...ProjectEvaluatorCompareTargets_comparison\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n        ...ProjectEvaluatorCompareDistributions_comparison\n        ...ProjectEvaluatorCompareTimeSeries_comparison\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_comparison on ProjectEvaluatorComparison {\n  coverage {\n    evaluatedByBoth\n  }\n  a {\n    sharedDistribution {\n      ...ProjectEvaluatorCompareDistributions_side\n    }\n  }\n  b {\n    sharedDistribution {\n      ...ProjectEvaluatorCompareDistributions_side\n    }\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6 on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  distribution(timeRange: $timeRange) {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_side on EvaluatorDistribution {\n  threshold\n  evaluatedCount\n  meanScore\n  scoreBinEdges\n  scoreBinCounts\n  scoreValueCounts {\n    score\n    count\n  }\n  labelCounts {\n    label\n    score\n    isOther\n    count\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n  }\n  populationSize\n  a {\n    annotationName\n    labels\n    threshold\n  }\n  b {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    eligible\n  }\n  populationSize\n  a {\n    threshold\n  }\n  b {\n    threshold\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n\nfragment ProjectEvaluatorCompareTargets_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  sideA: a {\n    annotationName\n    labels\n    threshold\n  }\n  sideB: b {\n    annotationName\n    labels\n    threshold\n  }\n}\n\nfragment ProjectEvaluatorCompareTimeSeries_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  a {\n    annotationName\n  }\n  b {\n    annotationName\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e6bccda83cdb66d9fc00b8f1882abcd7";
+(node as any).hash = "8c8dddf23c589a5790bcb4caecc86ff2";
 
 export default node;

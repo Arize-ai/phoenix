@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<757d9f5f7d0c4778286cf572fdce39da>>
+ * @generated SignedSource<<b42da59fbebae9bca4948f4f66102096>>
  * @lightSyntaxTransform
  */
 
@@ -18,10 +18,10 @@ export type ProjectEvaluatorCompareStats_comparison$data = {
     readonly threshold: number | null;
   };
   readonly coverage: {
+    readonly eligible: number | null;
     readonly evaluatedByBoth: number;
     readonly onlyA: number;
     readonly onlyB: number;
-    readonly totalInRange: number;
   };
   readonly evaluationTarget: EvaluationTarget;
   readonly populationSize: number;
@@ -94,7 +94,7 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "totalInRange",
+          "name": "eligible",
           "storageKey": null
         }
       ],
@@ -172,6 +172,6 @@ return {
 };
 })();
 
-(node as any).hash = "e3906cea3f77e906602a4ba101bf683f";
+(node as any).hash = "caad1390b06ece9d1aa303c42271b9c4";
 
 export default node;
