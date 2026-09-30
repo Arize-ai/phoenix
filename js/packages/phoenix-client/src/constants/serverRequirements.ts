@@ -271,6 +271,13 @@ export const AGENT_SESSION_MESSAGES: RouteRequirement = {
   minServerVersion: [20, 0, 0],
 };
 
+export const LIST_SANDBOX_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/sandbox_configs",
+  minServerVersion: [21, 0, 0],
+};
+
 export const LIST_EVALUATORS: RouteRequirement = {
   kind: "route",
   method: "GET",
@@ -362,6 +369,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   AGENT_SESSION_CHAT,
   AGENT_SESSION_MESSAGES,
   LIST_EVALUATORS,
+  LIST_SANDBOX_CONFIGS,
   CREATE_EVALUATOR,
   DELETE_EVALUATOR,
   GET_EVALUATOR,

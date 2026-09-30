@@ -13,8 +13,10 @@ from phoenix.client.constants.server_requirements import (
     GET_EVALUATOR,
     LIST_EVALUATOR_VERSIONS,
     LIST_EVALUATORS,
+    LIST_SANDBOX_CONFIGS,
     PATCH_EVALUATOR,
 )
+from phoenix.client.exceptions import PhoenixAPIError
 from phoenix.client.resources.evaluators import AsyncEvaluators, Evaluators
 
 CODE_ID = "Q29kZUV2YWx1YXRvcjoy"
@@ -35,8 +37,11 @@ def _make_llm_definition(**overrides: object) -> v1.LLMEvaluatorDefinition:
         "id": LLM_ID,
         "name": "toxicity",
         "description": "toxicity",
-        "prompt_id": "UHJvbXB0OjE=",
-        "prompt_version": None,
+        "prompt": {
+            "prompt_id": "UHJvbXB0OjE=",
+            "selector": {"type": "version", "prompt_version_id": "UHJvbXB0VmVyc2lvbjo3"},
+            "resolved_prompt_version_id": "UHJvbXB0VmVyc2lvbjo3",
+        },
         "output_configs": [
             {
                 "type": "CATEGORICAL",
@@ -216,6 +221,66 @@ class TestEvaluatorsCreateAndDelete:
                 output_configs=[SCORE],
             )
 
+    def test_create_llm_pins_an_existing_prompt_version(self) -> None:
+        created = _make_llm_definition()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/v1/evaluators"
+            assert json.loads(request.content) == {
+                "type": "llm",
+                "name": "toxicity",
+                "prompt": {
+                    "selector": {"type": "version", "prompt_version_id": "UHJvbXB0VmVyc2lvbjo3"}
+                },
+                "output_configs": created["output_configs"],
+                "description": "toxicity",
+            }
+            return httpx.Response(201, json={"data": created})
+
+        result = Evaluators(_client(handler)).create_llm(
+            name="toxicity",
+            prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+            output_configs=created["output_configs"],
+            description="toxicity",
+        )
+        assert result == created
+
+    def test_a_taken_name_surfaces_the_existing_id(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                409,
+                json={
+                    "type": "about:blank",
+                    "title": "Conflict",
+                    "status": 409,
+                    "detail": "An evaluator named 'toxicity' already exists",
+                    "code": "already_exists",
+                    "existing_id": LLM_ID,
+                },
+                headers={"content-type": "application/problem+json"},
+            )
+
+        with pytest.raises(PhoenixAPIError) as caught:
+            Evaluators(_client(handler)).create_llm(
+                name="toxicity",
+                prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+                output_configs=_make_llm_definition()["output_configs"],
+            )
+        assert isinstance(caught.value, httpx.HTTPStatusError)
+        assert caught.value.code == "already_exists"
+        assert caught.value.existing_id == LLM_ID
+        assert "already exists" in str(caught.value) and LLM_ID in str(caught.value)
+
+    def test_a_plain_text_error_keeps_its_body(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(401, text="Invalid token")
+
+        with pytest.raises(PhoenixAPIError) as caught:
+            Evaluators(_client(handler)).get(evaluator_id=LLM_ID)
+        assert caught.value.problem is None
+        assert "Invalid token" in str(caught.value)
+
     def test_delete_sends_delete(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
@@ -245,12 +310,14 @@ class TestEvaluatorsUpdateLlm:
         result = Evaluators(_client(handler)).update_llm(evaluator_id=LLM_ID, description="updated")
         assert result == updated
 
-    def test_update_llm_sends_prompt_version_id_and_null_description(self) -> None:
+    def test_update_llm_pins_the_prompt_version_and_sends_null_description(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             assert json.loads(request.content) == {
                 "type": "llm",
                 "description": None,
-                "prompt_version_id": "UHJvbXB0VmVyc2lvbjo3",
+                "prompt": {
+                    "selector": {"type": "version", "prompt_version_id": "UHJvbXB0VmVyc2lvbjo3"}
+                },
             }
             return httpx.Response(200, json={"data": _make_llm_definition()})
 
@@ -398,7 +465,56 @@ class TestEvaluatorsVersions:
             ).create_code_version(evaluator_id=CODE_ID, source_code="x")
 
 
+class TestSandboxConfigs:
+    def test_list_follows_pagination_and_filters_by_language(self) -> None:
+        first = {
+            "id": "U2FuZGJveENvbmZpZzoy",
+            "name": "wasm",
+            "description": None,
+            "language": "PYTHON",
+            "backend_type": "WASM",
+            "is_usable": True,
+        }
+        second = {**first, "id": "U2FuZGJveENvbmZpZzox", "is_usable": False}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/v1/sandbox_configs"
+            assert request.url.params["language"] == "PYTHON"
+            if "cursor" in request.url.params:
+                return httpx.Response(200, json={"data": [second], "next_cursor": None})
+            return httpx.Response(200, json={"data": [first], "next_cursor": "next"})
+
+        assert Evaluators(_client(handler)).list_sandbox_configs(language="PYTHON") == [
+            first,
+            second,
+        ]
+
+    def test_list_calls_guard_before_request(self) -> None:
+        with pytest.raises(_GuardSentinel):
+            Evaluators(
+                _unreachable_client(),
+                _guard=_refusing_guard(LIST_SANDBOX_CONFIGS),  # type: ignore[arg-type]
+            ).list_sandbox_configs()
+
+
 class TestAsyncEvaluators:
+    @pytest.mark.asyncio
+    async def test_create_llm_pins_an_existing_prompt_version(self) -> None:
+        created = _make_llm_definition()
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body["prompt"]["selector"]["prompt_version_id"] == "UHJvbXB0VmVyc2lvbjo3"
+            return httpx.Response(201, json={"data": created})
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = await AsyncEvaluators(client).create_llm(
+            name="toxicity",
+            prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+            output_configs=created["output_configs"],
+        )
+        assert result == created
+
     @pytest.mark.asyncio
     async def test_list_follows_pagination(self) -> None:
         first = _make_llm_definition()

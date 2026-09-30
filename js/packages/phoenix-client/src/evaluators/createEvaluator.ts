@@ -4,51 +4,56 @@ import { createClient } from "../client";
 import { CREATE_EVALUATOR } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type {
-  CodeEvaluatorCreate,
   CodeEvaluatorDefinition,
+  EvaluatorCreate,
+  LLMEvaluatorDefinition,
 } from "../types/evaluators";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
- * Parameters for creating a code evaluator that nothing binds yet.
+ * Parameters for creating an evaluator definition that nothing binds yet.
  */
 export interface CreateEvaluatorParams extends ClientFn {
   /**
-   * The evaluator to create. Only `type: "code"` is accepted; LLM evaluators
-   * are created through the project and dataset binding helpers because each
-   * one is tied to its own prompt.
+   * The evaluator to create. `type: "llm"` pins an existing prompt version,
+   * which is created through the prompts API first; `type: "code"` is created
+   * with its first version.
    */
-  evaluator: CodeEvaluatorCreate;
+  evaluator: EvaluatorCreate;
 }
 
 /**
- * Create a code evaluator with its first version, without binding it.
+ * Create an LLM or code evaluator definition without binding it.
  *
- * The name must be unique among evaluators; the server refuses a clash with
- * 409. Bind the result to a project or dataset afterwards by its `id`.
+ * The name must be unique among evaluators; a clash is refused with 409 and an
+ * `HttpError` whose `problem.code` is `already_exists` and whose
+ * `problem.existing_id` names the evaluator holding the name. Bind the result
+ * to a project or dataset afterwards by its `id`.
  *
  * @param params - The evaluator to create.
- * @param params.evaluator - Name, source, language, sandbox, input mapping, at least one output config, and an optional description.
+ * @param params.evaluator - The definition, discriminated by `type`.
  * @param params.client - An optional Phoenix client instance.
- * @returns The created code evaluator definition.
+ * @returns The created evaluator definition.
  *
  * @requires Phoenix server >= 21.0.0
  *
  * @example
  * ```ts
- * import { readFile } from "node:fs/promises";
  * import { createEvaluator } from "@arizeai/phoenix-client/evaluators";
  *
  * const evaluator = await createEvaluator({
  *   evaluator: {
- *     type: "code",
- *     name: "exact-match",
- *     source_code: await readFile("evaluator.py", "utf8"),
- *     language: "PYTHON",
- *     sandbox_config_id: "U2FuZGJveENvbmZpZzox",
- *     input_mapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+ *     type: "llm",
+ *     name: "correctness",
+ *     description: "correctness",
+ *     prompt: { selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" } },
  *     output_configs: [
- *       { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
+ *       {
+ *         type: "CATEGORICAL",
+ *         name: "correctness",
+ *         optimization_direction: "MAXIMIZE",
+ *         values: [{ label: "correct", score: 1 }, { label: "incorrect", score: 0 }],
+ *       },
  *     ],
  *   },
  * });
@@ -57,7 +62,9 @@ export interface CreateEvaluatorParams extends ClientFn {
 export async function createEvaluator({
   client: _client,
   evaluator,
-}: CreateEvaluatorParams): Promise<CodeEvaluatorDefinition> {
+}: CreateEvaluatorParams): Promise<
+  LLMEvaluatorDefinition | CodeEvaluatorDefinition
+> {
   const client = _client ?? createClient();
   await ensureServerCapability({ client, requirement: CREATE_EVALUATOR });
 
@@ -67,6 +74,5 @@ export async function createEvaluator({
 
   if (error) throw error;
   invariant(data?.data, "Failed to create evaluator");
-  invariant(data.data.type === "code", "Expected a code evaluator");
   return data.data;
 }
