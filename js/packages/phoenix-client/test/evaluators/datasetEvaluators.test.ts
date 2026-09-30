@@ -220,6 +220,39 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
       })
     ).rejects.toThrow("At least one field to update must be provided");
   });
+
+  it("refuses a patch whose only field is undefined without calling the server", async () => {
+    await expect(
+      updateDatasetEvaluator({
+        client: createTestClient(),
+        datasetEvaluatorId: BINDING_ID,
+        patch: { description: undefined },
+      })
+    ).rejects.toThrow("At least one field to update must be provided");
+  });
+
+  it("sends a patch whose only field is null, since null is a real value", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.patch(
+        "/v1/dataset_evaluators/{dataset_evaluator_id}",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(200).json({
+            data: { ...binding, description: null },
+          });
+        }
+      )
+    );
+
+    await updateDatasetEvaluator({
+      client: createTestClient(),
+      datasetEvaluatorId: BINDING_ID,
+      patch: { description: null },
+    });
+
+    expect(receivedBody).toEqual({ description: null });
+  });
 });
 
 describe("deleteDatasetEvaluator and deleteDatasetEvaluators", () => {
