@@ -28,8 +28,11 @@ def project_spans(project: str) -> list[v1.Span]:
     return client().spans.get_spans(project_identifier=project, limit=SPAN_LIMIT)
 
 
-def spans_by_trace(spans: list[v1.Span]) -> dict[str, list[v1.Span]]:
-    traces: dict[str, list[v1.Span]] = defaultdict(list)
+TraceId = str
+
+
+def spans_by_trace(spans: list[v1.Span]) -> dict[TraceId, list[v1.Span]]:
+    traces: dict[TraceId, list[v1.Span]] = defaultdict(list)
     for span in spans:
         traces[span["context"]["trace_id"]].append(span)
     return traces
