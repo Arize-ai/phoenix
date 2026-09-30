@@ -129,6 +129,14 @@ interface DatasetEvaluatorDeleteOptions extends DeleteOptions {
    * @example "golden-questions"
    */
   dataset?: string;
+  /**
+   * `--format <format>`: How a refusal is rendered on stderr. `pretty` (the
+   * default) is human-readable, `raw` and `json` carry the structured error
+   * (`problem_code`, `problem_reason`, `problem`) for scripts and agents.
+   *
+   * @example "raw" // px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --format raw
+   */
+  format?: OutputFormat;
 }
 
 function createClientOrExit(
@@ -436,7 +444,7 @@ async function datasetEvaluatorDeleteHandler(
 ): Promise<void> {
   if (datasetEvaluatorIds.length > 1 && !options.dataset) {
     writeStructuredError({
-      format: undefined,
+      format: options.format,
       message: "Deleting several bindings needs --dataset",
       code: "INVALID_ARGUMENT",
       hint: `px dataset evaluator delete ${datasetEvaluatorIds.join(" ")} --dataset <dataset-identifier> --yes`,
@@ -475,7 +483,11 @@ async function datasetEvaluatorDeleteHandler(
       noProgress: !options.progress,
     });
   } catch (error) {
-    await exitWithError({ verb: "deleting dataset evaluator", error });
+    await exitWithError({
+      verb: "deleting dataset evaluator",
+      error,
+      format: options.format,
+    });
   }
 }
 
@@ -615,6 +627,12 @@ export function createDatasetEvaluatorDeleteCommand(): Command {
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format for a refusal: pretty, json, or raw",
+      parseFormatOption,
+      "pretty"
+    )
     .option("-y, --yes", "Skip confirmation prompt")
     .option("--no-progress", "Disable progress indicators")
     .addHelpText(
