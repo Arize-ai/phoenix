@@ -3651,16 +3651,11 @@
             "description": "Forbidden"
           },
           "422": {
-            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3672,14 +3667,29 @@
           "evaluators"
         ],
         "summary": "Create Evaluator",
-        "description": "Create a code evaluator that nothing binds yet, with its first version.\n\nLLM evaluators are created through the binding routes because each one is tied to its\nown prompt. The name must be unique among evaluators; a clash is refused with 409.",
+        "description": "Create an evaluator definition that nothing binds yet.\n\nAn LLM evaluator runs an existing prompt version; a code evaluator is created with its\nfirst version. The name must be unique among evaluators: a clash is refused with 409\n`already_exists`, whose `existing_id` names the evaluator holding it.",
         "operationId": "createEvaluator",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateCodeEvaluatorRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateLLMEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCodeEvaluatorRequest"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "llm": "#/components/schemas/CreateLLMEvaluatorRequest",
+                    "code": "#/components/schemas/CreateCodeEvaluatorRequest"
+                  }
+                },
+                "title": "Body"
               }
             }
           }
@@ -3706,49 +3716,44 @@
             "description": "Forbidden"
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "409": {
+            "description": "Conflict",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Conflict"
+            }
           },
           "422": {
-            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
           },
           "507": {
+            "description": "Insufficient Storage",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Insufficient Storage"
+            }
           }
         }
       }
@@ -3794,26 +3799,21 @@
             "description": "Forbidden"
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
-            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3885,49 +3885,44 @@
             "description": "Forbidden"
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "409": {
+            "description": "Conflict",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Conflict"
+            }
           },
           "422": {
-            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
           },
           "507": {
+            "description": "Insufficient Storage",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Insufficient Storage"
+            }
           }
         }
       },
@@ -3936,7 +3931,7 @@
           "evaluators"
         ],
         "summary": "Delete Evaluator",
-        "description": "Delete a code evaluator that nothing binds, with its version history.\n\nA definition still bound by a project or dataset is refused with 409; delete those\nbindings first, or delete the last binding, which removes the definition with it. LLM\nevaluators are owned by their bindings and are deleted with the last one; built-in\nevaluators are never deleted. A missing evaluator is ignored.",
+        "description": "Delete a definition that nothing binds; a missing evaluator is ignored.\n\nA definition still bound by a project or dataset is refused with 409; delete those\nbindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps\nthe prompt. Built-in evaluators cannot be deleted.",
         "operationId": "deleteEvaluator",
         "parameters": [
           {
@@ -3964,26 +3959,21 @@
             "description": "Forbidden"
           },
           "409": {
+            "description": "Conflict",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Conflict"
+            }
           },
           "422": {
-            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4060,26 +4050,21 @@
             "description": "Forbidden"
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
-            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4136,49 +4121,44 @@
             "description": "Forbidden"
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "409": {
+            "description": "Conflict",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Conflict"
+            }
           },
           "422": {
-            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "description": "Unprocessable Entity",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              },
-              "text/plain": {
-                "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
           },
           "507": {
+            "description": "Insufficient Storage",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Insufficient Storage"
+            }
           },
           "200": {
             "description": "Source matches the current version",
@@ -4186,6 +4166,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreatedCodeEvaluatorVersionResponseBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandbox_configs": {
+      "get": {
+        "tags": [
+          "sandbox_configs"
+        ],
+        "summary": "Get Sandbox Configs",
+        "description": "List sandbox configurations, newest first. Provider credentials are not returned.",
+        "operationId": "getSandboxConfigs",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LanguageName"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return configurations for this language only.",
+              "title": "Language"
+            },
+            "description": "Return configurations for this language only."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxConfigsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -13306,6 +13376,52 @@
         ],
         "title": "CreateExperimentRunResponseBodyData"
       },
+      "CreateLLMEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "Unique among evaluators."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries."
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/LLMEvaluatorPromptInput",
+            "description": "The prompt version to run. Create the prompt and its version through the prompts API first."
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "prompt",
+          "output_configs"
+        ],
+        "title": "CreateLLMEvaluatorRequest"
+      },
       "CreateProjectRequestBody": {
         "properties": {
           "name": {
@@ -16088,21 +16204,8 @@
             "title": "Description",
             "description": "Equals the description of the prompt's tool function."
           },
-          "prompt_id": {
-            "type": "string",
-            "title": "Prompt Id",
-            "description": "GlobalID of the prompt whose versions this evaluator runs."
-          },
-          "prompt_version": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PromptVersion"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The version the evaluator currently runs; its id is what patch accepts."
+          "prompt": {
+            "$ref": "#/components/schemas/LLMEvaluatorPrompt"
           },
           "output_configs": {
             "items": {
@@ -16118,11 +16221,71 @@
           "id",
           "name",
           "description",
-          "prompt_id",
-          "prompt_version",
+          "prompt",
           "output_configs"
         ],
         "title": "LLMEvaluatorDefinition"
+      },
+      "LLMEvaluatorPrompt": {
+        "properties": {
+          "prompt_id": {
+            "type": "string",
+            "title": "Prompt Id",
+            "description": "GlobalID of the prompt whose version the evaluator runs."
+          },
+          "selector": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionSelector"
+              },
+              {
+                "$ref": "#/components/schemas/LatestPromptVersionSelector"
+              }
+            ],
+            "title": "Selector",
+            "description": "How the version is chosen. version: pinned to one version. latest: the prompt's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "latest": "#/components/schemas/LatestPromptVersionSelector",
+                "version": "#/components/schemas/PromptVersionSelector"
+              }
+            }
+          },
+          "resolved_prompt_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Prompt Version Id",
+            "description": "GlobalID of the version the evaluator runs now; null if the prompt has none."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_id",
+          "selector",
+          "resolved_prompt_version_id"
+        ],
+        "title": "LLMEvaluatorPrompt"
+      },
+      "LLMEvaluatorPromptInput": {
+        "properties": {
+          "selector": {
+            "$ref": "#/components/schemas/PromptVersionSelector",
+            "description": "Which prompt version to run."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selector"
+        ],
+        "title": "LLMEvaluatorPromptInput"
       },
       "LanguageName": {
         "type": "string",
@@ -16130,6 +16293,20 @@
           "PYTHON",
           "TYPESCRIPT"
         ]
+      },
+      "LatestPromptVersionSelector": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "latest",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "LatestPromptVersionSelector"
       },
       "LegacyAssistantMessageMetadata": {
         "properties": {
@@ -17675,10 +17852,9 @@
             "title": "Description",
             "description": "Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries."
           },
-          "prompt_version_id": {
-            "type": "string",
-            "title": "Prompt Version Id",
-            "description": "GlobalID of the prompt version to run. New prompt content is created through the prompts API; a version from another prompt moves the evaluator to that prompt."
+          "prompt": {
+            "$ref": "#/components/schemas/LLMEvaluatorPromptInput",
+            "description": "Move the evaluator to another prompt version. Omit to keep it."
           },
           "output_configs": {
             "items": {
@@ -20334,6 +20510,26 @@
         "title": "PromptVersionData",
         "description": "Prompt content shared by prompt and evaluator APIs."
       },
+      "PromptVersionSelector": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "version",
+            "title": "Type"
+          },
+          "prompt_version_id": {
+            "type": "string",
+            "title": "Prompt Version Id",
+            "description": "GlobalID of the prompt version the evaluator runs. Prompt content is created through the prompts API; a version of another prompt moves the evaluator to it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "prompt_version_id"
+        ],
+        "title": "PromptVersionSelector"
+      },
       "PromptVersionTag": {
         "properties": {
           "name": {
@@ -20659,6 +20855,79 @@
           "data"
         ],
         "title": "ResponseBody[UpsertOrDeleteSecretsResult]"
+      },
+      "SandboxConfig": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "GlobalID to pass as a code evaluator's sandbox_config_id."
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageName"
+          },
+          "backend_type": {
+            "type": "string",
+            "title": "Backend Type"
+          },
+          "is_usable": {
+            "type": "boolean",
+            "title": "Is Usable",
+            "description": "Whether code evaluators can be created or deployed in it now: the configuration and its provider are both enabled."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "language",
+          "backend_type",
+          "is_usable"
+        ],
+        "title": "SandboxConfig"
+      },
+      "SandboxConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SandboxConfig"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SandboxConfigsResponseBody"
       },
       "SecretKeyValue": {
         "properties": {
@@ -24773,6 +25042,105 @@
           "toolExecutionEnvironment"
         ],
         "title": "PhoenixToolCallProviderMetadata",
+        "type": "object"
+      },
+      "ProblemDetail": {
+        "properties": {
+          "type": {
+            "default": "about:blank",
+            "title": "Type",
+            "type": "string"
+          },
+          "title": {
+            "description": "The HTTP status phrase.",
+            "title": "Title",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "detail": {
+            "description": "What went wrong and, where possible, how to fix it.",
+            "title": "Detail",
+            "type": "string"
+          },
+          "code": {
+            "enum": [
+              "validation_error",
+              "invalid_argument",
+              "not_found",
+              "already_exists",
+              "conflict",
+              "forbidden",
+              "insufficient_storage",
+              "error"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProblemFieldError"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Every invalid input, for validation errors.",
+            "title": "Errors"
+          },
+          "existing_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For already_exists: the GlobalID of the resource that holds the name.",
+            "title": "Existing Id"
+          }
+        },
+        "required": [
+          "title",
+          "status",
+          "detail",
+          "code"
+        ],
+        "title": "ProblemDetail",
+        "type": "object"
+      },
+      "ProblemFieldError": {
+        "properties": {
+          "field": {
+            "description": "Dotted path of the offending input, e.g. body.name.",
+            "title": "Field",
+            "type": "string"
+          },
+          "code": {
+            "description": "Machine-readable reason, e.g. missing or string_pattern.",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "code",
+          "message"
+        ],
+        "title": "ProblemFieldError",
         "type": "object"
       },
       "SessionSummaryChunk": {

@@ -51,6 +51,17 @@ class Conflict(CustomGraphQLError):
     """
 
 
+class AlreadyExists(Conflict):
+    """
+    A conflict because another resource already holds a unique name; `existing_id` is that
+    resource's GlobalID when it is known.
+    """
+
+    def __init__(self, message: str, *, existing_id: Optional[str] = None) -> None:
+        super().__init__(message)
+        self.existing_id = existing_id
+
+
 _GENERIC_MASK_MESSAGE = "an unexpected error occurred"
 
 
