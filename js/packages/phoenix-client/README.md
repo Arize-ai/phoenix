@@ -850,6 +850,8 @@ enabled. Avoid logging the request batch or otherwise retaining its values.
 
 The `@arizeai/phoenix-client` package provides an `evaluators` export for working with shared evaluator definitions. A definition is shared by every project and dataset that binds it, so an update applies everywhere it is used. These helpers require Phoenix server `21.0.0` or newer.
 
+Creating an LLM evaluator against an existing hub prompt version (`createEvaluator({ evaluator: { type: "llm", prompt: { selector: { type: "version", prompt_version_id } } } })`) adds the `evaluator` label to that prompt and creates a tag that pins the version; the prompt is otherwise unchanged.
+
 ### Listing, Reading, Creating, and Deleting Definitions
 
 ```ts
@@ -997,6 +999,13 @@ const bindings = await getProjectEvaluators({
 await updateProjectEvaluator({
   projectEvaluatorId: binding.id,
   patch: { enabled: false },
+});
+
+// filter_condition is cleared with "", not null; only input_mapping and
+// evaluation_delay_seconds are reset with null.
+await updateProjectEvaluator({
+  projectEvaluatorId: binding.id,
+  patch: { filter_condition: "" },
 });
 
 // Deleting a binding keeps its definition, prompt, and trace project
