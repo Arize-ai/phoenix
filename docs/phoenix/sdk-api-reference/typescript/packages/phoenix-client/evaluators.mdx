@@ -101,6 +101,7 @@ const evaluator = await createEvaluator({
 
 - The `description` must equal the description of the prompt's tool function, and the output configs must be categorical and match that tool.
 - The name must be unique among evaluators; a clash is refused with `409` and `already_exists`.
+- Creating the evaluator adds the `evaluator` label to the prompt and creates a tag that pins the version; the prompt is otherwise unchanged.
 
 ## Create A Code Evaluator
 
@@ -325,7 +326,7 @@ await deleteProjectEvaluators({
 });
 ```
 
-- On update, `input_mapping: null` drops the binding's mapping so the evaluator's applies; LLM evaluators have none, so their template variables bind to record fields of the same name. `evaluation_delay_seconds: null` restores the default delay.
+- On update, `input_mapping: null` drops the binding's mapping so the evaluator's applies; LLM evaluators have none, so their template variables bind to record fields of the same name. `evaluation_delay_seconds: null` restores the default delay. `filter_condition` is cleared with `""`, not `null`.
 - `deleteProjectEvaluator` deletes one binding. `deleteProjectEvaluators` deletes up to 1000 of a project's bindings atomically, with the same rules as the dataset bulk delete. The definitions, prompts, and trace projects are kept.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">

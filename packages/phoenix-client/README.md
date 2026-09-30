@@ -576,7 +576,9 @@ sandbox = next(
     c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]
 )
 
-# Create an LLM evaluator that runs an existing prompt version
+# Create an LLM evaluator that runs an existing prompt version. This adds the
+# "evaluator" label to the prompt and creates a tag that pins the version;
+# the prompt is otherwise unchanged.
 judge = client.evaluators.create_llm(
     name="correctness",
     prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
@@ -641,6 +643,10 @@ for item in client.evaluators.project_evaluators.list(project="support-bot"):
 
 # Pause the binding without deleting it
 client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], enabled=False)
+
+# filter_condition is cleared with "", not None; only input_mapping and
+# evaluation_delay_seconds are reset with None.
+client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], filter_condition="")
 
 # Deleting a binding keeps its evaluator definition, prompt, and trace project
 client.evaluators.project_evaluators.delete(project_evaluator_id=binding["id"])

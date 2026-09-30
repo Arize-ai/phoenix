@@ -306,7 +306,9 @@ from phoenix.client import Client
 
 client = Client()
 
-# Create an LLM evaluator that runs an existing prompt version
+# Create an LLM evaluator that runs an existing prompt version. This adds the
+# "evaluator" label to the prompt and creates a tag that pins the version;
+# the prompt is otherwise unchanged.
 judge = client.evaluators.create_llm(
     name="toxicity",
     prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
@@ -388,7 +390,7 @@ except PhoenixAPIError as error:
 
 - **Definitions**: `create_code_version` returns the current version with `was_created=False` when the source is unchanged. Prompt content for an LLM evaluator is edited through `client.prompts`; `update_llm` only records which prompt version runs. `delete` removes an LLM or code evaluator that nothing binds and refuses one that is still bound with 409; an LLM evaluator's prompt is kept. Built-in evaluators are never deleted.
 - **Dataset bindings**: attach an existing LLM, code, or built-in evaluator with `evaluator_id`. `description` and `output_configs` are overrides: omit them on `create`, or pass `None` to `update`, and the binding uses the evaluator's values and follows later changes to them. An `output_configs` override needs at least one config (`[]` is rejected). On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description. Deleting a binding keeps its definition, prompt, and trace project. `delete_many(dataset=..., dataset_evaluator_ids=...)` deletes up to 1000 of a dataset's bindings atomically.
-- **Project bindings**: attach an existing LLM or code evaluator with `evaluator_id`. `evaluation_target` is `SPAN`, `TRACE`, or `SESSION` and cannot change later. `filter_condition` is written in the target's filter language (span, trace, or session). `evaluation_delay_seconds` applies to `TRACE` and `SESSION` only: at least 10 seconds, 300 by default. `SPAN` targets reject a delay and evaluate spans as they arrive. `delete_many(project=..., project_evaluator_ids=...)` deletes up to 1000 of a project's bindings atomically.
+- **Project bindings**: attach an existing LLM or code evaluator with `evaluator_id`. `evaluation_target` is `SPAN`, `TRACE`, or `SESSION` and cannot change later. `filter_condition` is written in the target's filter language (span, trace, or session); `update` clears it with `""`, not `None`. `evaluation_delay_seconds` applies to `TRACE` and `SESSION` only: at least 10 seconds, 300 by default. `SPAN` targets reject a delay and evaluate spans as they arrive. `delete_many(project=..., project_evaluator_ids=...)` deletes up to 1000 of a project's bindings atomically.
 
 ## Sessions
 
