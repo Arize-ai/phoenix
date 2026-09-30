@@ -649,6 +649,7 @@ jobs:
             src/phoenix/
             evals/
             packages/phoenix-evals/
+            scripts/prompts/
             tests/unit/
             tests/conftest.py
             tests/__generated__/
