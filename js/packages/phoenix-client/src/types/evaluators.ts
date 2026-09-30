@@ -104,3 +104,37 @@ export type EvaluatorInputMapping = components["schemas"]["InputMapping"];
  */
 export type EvaluatorOutputConfig =
   CodeEvaluatorDefinition["output_configs"][number];
+
+/**
+ * A binding between a dataset and an evaluator, as returned by the Phoenix
+ * REST API.
+ */
+export type DatasetEvaluator = components["schemas"]["DatasetEvaluator"];
+
+/**
+ * Fields that can change on a dataset binding. Omitted fields keep their
+ * current values.
+ */
+export type DatasetEvaluatorPatch =
+  components["schemas"]["PatchDatasetEvaluatorRequest"];
+
+/**
+ * Identifies a dataset by ID or by name. The server accepts either in the
+ * `dataset_identifier` path parameter.
+ */
+export type DatasetIdentifier =
+  | { dataset: string }
+  | { datasetId: string }
+  | { datasetName: string };
+
+/**
+ * Resolves a {@link DatasetIdentifier} to the string the REST
+ * `dataset_identifier` path parameter expects.
+ */
+export function resolveDatasetIdentifier(
+  identifier: DatasetIdentifier
+): string {
+  if ("dataset" in identifier) return identifier.dataset;
+  if ("datasetId" in identifier) return identifier.datasetId;
+  return identifier.datasetName;
+}

@@ -840,7 +840,7 @@ import {
   getEvaluators,
 } from "@arizeai/phoenix-client/evaluators";
 
-// `type` is "llm" or "code"; `name` and `limit` keep the list small
+// `type` is "llm", "code", or "builtin"; `name` and `limit` keep the list small
 for (const evaluator of await getEvaluators({ type: "code", limit: 20 })) {
   console.log(evaluator.id, evaluator.name);
 }
@@ -905,6 +905,44 @@ const version = await createCodeEvaluatorVersion({
   configuration: { output_configs: [{ type: "FREEFORM", name: "notes" }] },
 });
 console.log(version.id, version.was_created);
+```
+
+### Binding Evaluators to Datasets
+
+A dataset binding registers an existing evaluator definition to run against the dataset's experiments. It carries its own name and input mapping and may override the definition's description and output configurations. Creating a binding does not run an experiment. Create LLM and code definitions with `createEvaluator` first, or bind a built-in evaluator by ID; one definition can back many bindings.
+
+```ts
+import {
+  createDatasetEvaluator,
+  deleteDatasetEvaluator,
+  deleteDatasetEvaluators,
+  getDatasetEvaluators,
+  updateDatasetEvaluator,
+} from "@arizeai/phoenix-client/evaluators";
+
+// The dataset can be selected by name or ID
+const binding = await createDatasetEvaluator({
+  dataset: { datasetName: "golden-questions" },
+  name: "exact-match",
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+});
+
+const bindings = await getDatasetEvaluators({
+  dataset: { datasetName: "golden-questions" },
+});
+
+await updateDatasetEvaluator({
+  datasetEvaluatorId: binding.id,
+  patch: { name: "nightly-exact-match" },
+});
+
+// Deleting a binding keeps its definition, prompt, and trace project
+await deleteDatasetEvaluator({ datasetEvaluatorId: binding.id });
+await deleteDatasetEvaluators({
+  dataset: { datasetName: "golden-questions" },
+  datasetEvaluatorIds: bindings.map((item) => item.id),
+});
 ```
 
 ## Examples

@@ -20,7 +20,8 @@ export interface GetEvaluatorParams extends ClientFn {
  * Read a shared evaluator definition by ID.
  *
  * Definitions are shared by every project and dataset binding that references
- * them. Inspect the returned `type` to tell LLM and code evaluators apart.
+ * them. Inspect the returned `type` to tell LLM, code, and built-in evaluators
+ * apart.
  *
  * @param params - The evaluator to read.
  * @param params.evaluatorId - The evaluator GlobalID.

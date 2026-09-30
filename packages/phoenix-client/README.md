@@ -522,7 +522,7 @@ from phoenix.client import Client
 
 client = Client()
 
-# List definitions; `type` is "llm" or "code"
+# List definitions; `type` is "llm", "code", or "builtin"
 for definition in client.evaluators.list(type="code", limit=20):
     print(definition["id"], definition["name"])
 
@@ -578,6 +578,32 @@ client.evaluators.delete(evaluator_id=definition["id"])
 ```
 
 Errors from these methods raise `phoenix.client.exceptions.PhoenixAPIError`, an `httpx.HTTPStatusError`. `problem` is the full parsed error body when the server sent one (`None` for a plain-text 401 challenge, an unhandled 500, or a proxy's own error page); `code` and `reason` are shortcuts to its fields. A taken name has `code == "already_exists"` and `existing_id` naming the evaluator that holds it; a still-bound delete has `code == "conflict"`, `reason == "still_bound"`, and `problem["binding_counts"]`. Treat a `code` or `reason` you don't recognize by `response.status_code`.
+
+Bind evaluators to datasets. A binding registers an existing definition to run against the dataset's experiments and carries its own name and input mapping; it does not run an experiment by itself. Create LLM and code definitions with `create_llm` and `create_code` first, then bind them, or bind a built-in evaluator by ID:
+
+```python
+# Bind a definition to a dataset by name or ID; one definition can back many bindings
+binding = client.evaluators.dataset_evaluators.create(
+    dataset="golden-questions",
+    name="exact-match",
+    evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+)
+
+for item in client.evaluators.dataset_evaluators.list(dataset="golden-questions"):
+    print(item["id"], item["name"], item["evaluator_type"])
+
+client.evaluators.dataset_evaluators.update(
+    dataset_evaluator_id=binding["id"],
+    name="nightly-exact-match",
+)
+
+# Deleting a binding keeps its definition, prompt, and trace project
+client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
+client.evaluators.dataset_evaluators.delete_many(
+    dataset="golden-questions", dataset_evaluator_ids=["RGF0YXNldEV2YWx1YXRvcjoy"]
+)
+```
 
 ## Documentation
 
