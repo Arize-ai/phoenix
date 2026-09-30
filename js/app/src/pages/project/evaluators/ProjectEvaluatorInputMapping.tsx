@@ -29,18 +29,20 @@ export const ProjectEvaluatorInputMapping = ({
   requiredVariables?: readonly string[];
 }) => {
   const variables = useEvaluatorInputVariables();
-  const { control, setValue } = useEvaluatorInputMappingControlsForm({
-    pruneEmptyEntries: true,
-    // Mounted under a key of the record kind, so switching what the evaluator
-    // runs on rebuilds these rows without the previous record kind's paths in
-    // them.
-    filterInitialMapping: (inputMapping) =>
-      dropPathsShadowedByLiterals(
-        dropOtherRecordKindPathMappings(inputMapping, recordKind)
-      ),
-    declaredVariables: variables,
-    pathsReplaceLiterals: true,
-  });
+  const { control, getValues, setValue } = useEvaluatorInputMappingControlsForm(
+    {
+      pruneEmptyEntries: true,
+      // Mounted under a key of the record kind, so switching what the evaluator
+      // runs on rebuilds these rows without the previous record kind's paths in
+      // them.
+      filterInitialMapping: (inputMapping) =>
+        dropPathsShadowedByLiterals(
+          dropOtherRecordKindPathMappings(inputMapping, recordKind)
+        ),
+      declaredVariables: variables,
+      pathsReplaceLiterals: true,
+    }
+  );
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
@@ -58,6 +60,7 @@ export const ProjectEvaluatorInputMapping = ({
           label={variable}
           size="M"
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={[]}
           allowsLiteral={false}

@@ -296,6 +296,7 @@ async def evaluator_experiment_job_id(db: DbSessionFactory) -> int:
             )
         )
         await session.commit()
+    assert isinstance(experiment_id, int)
     return experiment_id
 
 
@@ -402,6 +403,7 @@ async def llm_evaluator_experiment_job_id(db: DbSessionFactory) -> int:
             )
         )
         await session.commit()
+    assert isinstance(experiment_id, int)
     return experiment_id
 
 
