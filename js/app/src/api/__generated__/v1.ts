@@ -10687,7 +10687,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10740,7 +10740,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10808,7 +10808,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10857,7 +10857,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -10904,7 +10904,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -10948,7 +10948,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
