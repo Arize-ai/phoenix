@@ -295,6 +295,7 @@ def test_llm_definition_from_dataset(
     response = definition_client.patch(route, json={"type": "llm", "description": "inconsistent"})
     assert response.status_code == 422
     assert response.json()["code"] == "invalid_argument"
+    assert "PATCH prompt" in response.json()["detail"]
     assert definition_client.get(route).json()["data"]["description"] == "correctness"
     result = _graphql(
         _app,
