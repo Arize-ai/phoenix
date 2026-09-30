@@ -123,30 +123,16 @@ describe("dataset evaluator create", () => {
     expect(captured.identifier).toBe("golden-questions");
     expect(captured.body).toEqual({
       name: "exact-match",
+      evaluator_id: "Q29kZUV2YWx1YXRvcjoy",
       input_mapping: INPUT_MAPPING,
-      evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
     });
     const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(BINDING);
   });
 
-  it("passes an inline --evaluator and overrides through", async () => {
+  it("passes overrides through", async () => {
     const captured = captureCreate();
     captureCliOutput();
-    const evaluator = {
-      type: "code",
-      source_code: "def evaluate(output: str) -> float:\n    return 1.0\n",
-      language: "PYTHON",
-      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
-      input_mapping: INPUT_MAPPING,
-      output_configs: [
-        {
-          type: "CONTINUOUS",
-          name: "score",
-          optimization_direction: "MAXIMIZE",
-        },
-      ],
-    };
 
     await createDatasetEvaluatorCommand().parseAsync(
       [
@@ -154,8 +140,8 @@ describe("dataset evaluator create", () => {
         "golden-questions",
         "--name",
         "exact-match",
-        "--evaluator",
-        JSON.stringify(evaluator),
+        "--evaluator-id",
+        "Q29kZUV2YWx1YXRvcjoy",
         "--input-mapping",
         JSON.stringify(INPUT_MAPPING),
         "--description",
@@ -169,14 +155,14 @@ describe("dataset evaluator create", () => {
 
     expect(captured.body).toEqual({
       name: "exact-match",
+      evaluator_id: "Q29kZUV2YWx1YXRvcjoy",
       input_mapping: INPUT_MAPPING,
-      evaluator,
       description: "override",
       output_configs: [{ type: "FREEFORM", name: "notes" }],
     });
   });
 
-  it("exits INVALID_ARGUMENT without an evaluator source and never calls the server", async () => {
+  it("exits INVALID_ARGUMENT without --evaluator-id and never calls the server", async () => {
     const captured = captureCreate();
     vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = mockProcessExit();
@@ -199,53 +185,6 @@ describe("dataset evaluator create", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     expect(captured.count).toBe(0);
   });
-
-  it.each([
-    ["omits", {}],
-    ["empties", { output_configs: [] }],
-  ])(
-    "exits INVALID_ARGUMENT when an inline code evaluator %s its output configs",
-    async (_, outputs) => {
-      const captured = captureCreate();
-      const io = captureCliOutput();
-      const exitSpy = mockProcessExit();
-      const evaluator = {
-        type: "code",
-        source_code: "def evaluate(output: str) -> float:\n    return 1.0\n",
-        language: "PYTHON",
-        sandbox_config_id: "U2FuZGJveENvbmZpZzox",
-        input_mapping: INPUT_MAPPING,
-        ...outputs,
-      };
-
-      await expect(
-        createDatasetEvaluatorCommand().parseAsync(
-          [
-            "create",
-            "golden-questions",
-            "--name",
-            "exact-match",
-            "--evaluator",
-            JSON.stringify(evaluator),
-            "--input-mapping",
-            JSON.stringify(INPUT_MAPPING),
-            "--format",
-            "raw",
-            ...BASE_ARGS,
-          ],
-          { from: "user" }
-        )
-      ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
-
-      expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-      expect(captured.count).toBe(0);
-      const parsed = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
-      expect(parsed.code).toBe("INVALID_ARGUMENT");
-      expect(parsed.error).toContain(
-        "A new code evaluator in --evaluator needs at least one output config"
-      );
-    }
-  );
 
   it("rejects an empty --output-configs override before any request", async () => {
     const requests = recordRequests(mock.server);
@@ -428,17 +367,15 @@ describe("dataset evaluator delete", () => {
     }
   });
 
-  it("DELETEs a single binding and keeps the prompt by default", async () => {
+  it("DELETEs a single binding and sends no other options", async () => {
     let receivedId: string | undefined;
-    let receivedFlag: string | null = null;
+    let receivedQuery: string | undefined;
     mock.server.use(
       http.delete(
         "/v1/dataset_evaluators/{dataset_evaluator_id}",
         ({ params, request, response }) => {
           receivedId = params.dataset_evaluator_id;
-          receivedFlag = new URL(request.url).searchParams.get(
-            "delete_associated_prompt"
-          );
+          receivedQuery = new URL(request.url).search;
           return response(204).empty();
         }
       )
@@ -451,16 +388,20 @@ describe("dataset evaluator delete", () => {
     );
 
     expect(receivedId).toBe(BINDING_ID);
-    expect(receivedFlag).toBe("false");
+    expect(receivedQuery).toBe("");
   });
 
-  it("POSTs several ids to the bulk endpoint and forwards --delete-prompt", async () => {
-    let receivedBody: unknown;
+  it("DELETEs several ids from the dataset's collection", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
     mock.server.use(
-      http.post(
-        "/v1/dataset_evaluators/delete",
-        async ({ request, response }) => {
-          receivedBody = await request.clone().json();
+      http.delete(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        ({ params, request, response }) => {
+          receivedIdentifier = params.dataset_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "dataset_evaluator_id"
+          );
           return response(204).empty();
         }
       )
@@ -468,14 +409,36 @@ describe("dataset evaluator delete", () => {
     captureCliOutput();
 
     await createDatasetEvaluatorCommand().parseAsync(
-      ["delete", "a", "b", "--delete-prompt", "--yes", ...BASE_ARGS],
+      [
+        "delete",
+        "a",
+        "b",
+        "--dataset",
+        "golden-questions",
+        "--yes",
+        ...BASE_ARGS,
+      ],
       { from: "user" }
     );
 
-    expect(receivedBody).toEqual({
-      dataset_evaluator_ids: ["a", "b"],
-      delete_associated_prompt: true,
-    });
+    expect(receivedIdentifier).toBe("golden-questions");
+    expect(receivedIds).toEqual(["a", "b"]);
+  });
+
+  it("requires --dataset to delete several ids", async () => {
+    const requests = recordRequests(mock.server);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        ["delete", "a", "b", "--yes", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(requests).toEqual([]);
   });
 
   it("exits INVALID_ARGUMENT when deletes are not enabled", async () => {

@@ -469,20 +469,17 @@ px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format json
 
 ### `px dataset evaluator create <dataset-identifier>`
 
-Bind an evaluator to a dataset, creating the evaluator if needed. A binding registers the evaluator to run against the dataset's experiments; it does not run an experiment. Exactly one of `--evaluator-id`, `--evaluator`, or `--evaluator-file` selects the evaluator. Existing code and built-in evaluators are bound by ID; LLM evaluators are created with the binding because each one is tied to its own prompt. A new LLM evaluator names its prompt source with either `prompt_version` (content for a new prompt) or `prompt_version_id` (an existing version), not both, and its `description` must equal the description of its prompt's tool function.
+Bind an existing evaluator definition to a dataset. A binding registers the evaluator to run against the dataset's experiments; it does not run an experiment. Create LLM and code definitions with `px evaluator create` first, or bind a built-in evaluator by ID; one definition can back many bindings. A name the dataset already uses is refused with a conflict whose envelope carries `existing_id`.
 
 ```bash
 px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
-px dataset evaluator create golden-questions --name toxicity --evaluator-file toxicity.json --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
 ```
 
 | Option                    | Description                                                                                                                           | Default  |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | `--name <name>`           | Binding name, unique within the dataset (required)                                                                                    | —        |
 | `--input-mapping <json>`  | JSON object with `literal_mapping` and `path_mapping` (required)                                                                      | —        |
-| `--evaluator-id <id>`     | Bind an existing code or built-in evaluator                                                                                           | —        |
-| `--evaluator <json>`      | Inline JSON for a new evaluator with `type` of `llm` or `code`; a code evaluator needs at least one `output_configs` entry            | —        |
-| `--evaluator-file <path>` | Read the new evaluator JSON from a file                                                                                               | —        |
+| `--evaluator-id <id>`     | The LLM, code, or built-in evaluator to bind (required)                                                                               | —        |
 | `--description <text>`    | Description override for this binding; for LLM evaluators it must equal the prompt tool's description                                 | —        |
 | `--output-configs <json>` | JSON array of at least one output configuration that overrides the definition's (LLM evaluators: must match the prompt's tool schema) | —        |
 | `--format <format>`       | `pretty`, `json`, or `raw`                                                                                                            | `pretty` |
@@ -504,17 +501,17 @@ Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as 
 
 ### `px dataset evaluator delete <dataset-evaluator-id...>`
 
-Delete one or more bindings and their evaluator traces. The shared definition is deleted once nothing else references it; an LLM evaluator's prompt is kept unless `--delete-prompt` is passed. Several IDs are deleted atomically. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+Delete one or more bindings. Only the bindings go: their evaluator definitions, prompts, and trace projects are kept. Several IDs need `--dataset` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
 ```bash
 px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
-px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --delete-prompt --yes
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes
 ```
 
-| Option            | Description                                                         | Default |
-| ----------------- | ------------------------------------------------------------------- | ------- |
-| `--delete-prompt` | Also delete the prompt of an LLM evaluator deleted with the binding | —       |
-| `-y, --yes`       | Skip the confirmation prompt                                        | —       |
+| Option                           | Description                                                   | Default |
+| -------------------------------- | ------------------------------------------------------------- | ------- |
+| `--dataset <dataset-identifier>` | Dataset the bindings belong to; required for more than one ID | —       |
+| `-y, --yes`                      | Skip the confirmation prompt                                  | —       |
 
 ---
 

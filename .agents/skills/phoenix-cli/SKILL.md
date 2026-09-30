@@ -459,23 +459,21 @@ Errors carry the server's explanation and exit `1` for any of these — not foun
 
 ### Dataset bindings
 
-Attach evaluators to a dataset so experiments on it are scored. Ids are `DatasetEvaluator:…` GlobalIDs; the dataset is a name or GlobalID. Code and built-in evaluators attach by id; an LLM evaluator is created with the binding from an existing prompt version (`prompt_version_id`) or inline prompt content, never both.
+Attach evaluators to a dataset so experiments on it are scored. Ids are `DatasetEvaluator:…` GlobalIDs; the dataset is a name or GlobalID. A binding references an existing definition by `--evaluator-id`; create LLM and code definitions with `px evaluator create` first. A taken name fails with `already_exists` and the envelope's `existing_id`.
 
 ```bash
 px dataset evaluator list golden-questions --format raw --no-progress | jq '.[] | {id, name, evaluator_id}'
 px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format raw --no-progress
 
-# attach an existing code or built-in evaluator
+# attach an existing LLM, code, or built-in evaluator
 px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
-
-# create an LLM evaluator from an existing prompt version and attach it; the JSON is the REST evaluator object
-px dataset evaluator create golden-questions --name toxicity --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' --evaluator '{"type":"llm","description":"toxicity","prompt_version_id":"UHJvbXB0VmVyc2lvbjo3","output_configs":[{"type":"CATEGORICAL","name":"toxicity","optimization_direction":"MINIMIZE","values":[{"label":"toxic","score":1},{"label":"clean","score":0}]}]}'
 
 # change binding overrides only; --inherit-* flags send null to fall back to the definition
 px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Exact match on answer" --inherit-output-configs
 
-# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; the definition goes when nothing else uses it
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; the definition, prompt, and trace project are kept
 px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes
 ```
 
 ## GraphQL
