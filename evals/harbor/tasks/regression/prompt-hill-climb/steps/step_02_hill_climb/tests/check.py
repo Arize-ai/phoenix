@@ -12,15 +12,15 @@ with hc.connect() as connection:
 example_ids = {e.rowid for e in examples}
 first, last = (experiments[0], experiments[-1]) if experiments else (None, None)
 
-# The empty prompt goes first, so the baseline cannot already be perfect.
-baseline_ok = len(experiments) >= 2 and experiments[0].mean_score < 1.0
-# Every experiment ran the whole dataset and the evaluator scored it.
-complete_ok = bool(experiments) and all(
+first_experiment_imperfect = len(experiments) >= 2 and experiments[0].mean_score < 1.0
+all_experiments_fully_scored = bool(experiments) and all(
     set(x.scores) == example_ids and x.scored_count == len(example_ids) for x in experiments
 )
-last_ok = last is not None and last.error_count == 0 and last.pass_count == len(example_ids)
+last_experiment_passes_all = (
+    last is not None and last.error_count == 0 and last.pass_count == len(example_ids)
+)
 
-passed = baseline_ok and complete_ok and last_ok
+passed = first_experiment_imperfect and all_experiments_fully_scored and last_experiment_passes_all
 if experiments:
     hc.save_state(
         "step_02",
@@ -48,9 +48,9 @@ hc.write_reward(
             for x in experiments
         ],
     },
-    baseline_ok=baseline_ok,
-    complete_ok=complete_ok,
-    last_ok=last_ok,
+    first_experiment_imperfect=first_experiment_imperfect,
+    all_experiments_fully_scored=all_experiments_fully_scored,
+    last_experiment_passes_all=last_experiment_passes_all,
     first_score=first.mean_score if first else 0.0,
     last_score=last.mean_score if last else 0.0,
     best_score=max((x.mean_score for x in experiments), default=0.0),

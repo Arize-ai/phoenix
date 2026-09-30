@@ -16,26 +16,26 @@ moved = hc.moved_examples(first, last)
 
 # Read-only apart from the note: the same experiments, runs, and scores as after step 2.
 prior = {x["id"]: x for x in before.get("experiments", [])}
-read_only_ok = (
+no_new_experiments_or_scores = (
     bool(prior)
     and [x.rowid for x in experiments] == list(prior)
     and all(x.run_count == prior[x.rowid]["run_count"] for x in experiments)
     and annotations == before.get("annotation_count")
 )
 
-pair_ok = all(
+reply_names_both_experiments = all(
     x.name in reply or x.node_id in reply or f"#{x.rowid}" in reply for x in (first, last)
 )
 
 links = hc.compare_links(reply)
-link_ok = any(
+reply_links_comparison_view = any(
     dataset == hc.global_id("Dataset", dataset_id) and ids == {first.node_id, last.node_id}
     for dataset, ids in links
 )
 
 before_metadata = prior.get(last.rowid, {}).get("metadata", {}) if prior else {}
 added = hc.metadata_additions(before_metadata, last.metadata)
-note_ok = (
+learning_recorded_on_last_experiment = (
     hc.metadata_preserved(before_metadata, last.metadata)
     and added != "{}"
     and hc.has_timestamp(added)
@@ -75,7 +75,7 @@ verdict = hc.judge(
         "verdict_given (true if the reply says whether the change helped), rationale (one sentence)."
     ),
 )
-judge_ok = bool(
+judge_accepts_comparison = bool(
     verdict
     and not verdict.get("error")
     and verdict.get("quality_stated") is True
@@ -87,7 +87,13 @@ judge_ok = bool(
     and verdict.get("verdict_given") is True
 )
 
-passed = read_only_ok and pair_ok and link_ok and note_ok and judge_ok
+passed = (
+    no_new_experiments_or_scores
+    and reply_names_both_experiments
+    and reply_links_comparison_view
+    and learning_recorded_on_last_experiment
+    and judge_accepts_comparison
+)
 hc.write_reward(
     float(passed),
     details={
@@ -96,11 +102,11 @@ hc.write_reward(
         "last": {"id": last.rowid, "name": last.name, "passed": last.pass_count},
         "moved_example_ids": sorted(moved),
     },
-    read_only_ok=read_only_ok,
-    pair_ok=pair_ok,
-    link_ok=link_ok,
-    note_ok=note_ok,
-    judge_ok=judge_ok,
+    no_new_experiments_or_scores=no_new_experiments_or_scores,
+    reply_names_both_experiments=reply_names_both_experiments,
+    reply_links_comparison_view=reply_links_comparison_view,
+    learning_recorded_on_last_experiment=learning_recorded_on_last_experiment,
+    judge_accepts_comparison=judge_accepts_comparison,
     links=[[d, sorted(ids)] for d, ids in links],
     metadata_added=added,
     judge=verdict,

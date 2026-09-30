@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import asyncio
 import base64
-import inspect
 import json
 import os
 import re
 import sqlite3
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any, Callable
 
 DATA_DIR = Path(os.environ.get("PHOENIX_EVAL_DATA_DIR", "/data"))
 AGENT_LOGS_DIR = Path(os.environ.get("PHOENIX_EVAL_AGENT_LOGS_DIR", "/logs/agent"))
@@ -17,6 +16,7 @@ REWARD_PATH = Path(os.environ.get("PHOENIX_EVAL_REWARD_PATH", "/logs/verifier/re
 # Survives between steps because every step verifies inside the same container.
 STATE_DIR = Path(os.environ.get("PHOENIX_EVAL_STATE_DIR", "/var/lib/phoenix-eval/state"))
 JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "claude-sonnet-5")
+PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
 DATASET_NAME = "banking_saas_dataset_clean"
 
 
@@ -133,15 +133,21 @@ class BoundEvaluator:
     input_mapping: dict[str, Any]
     source_code: str | None
     builtin_key: str | None
+    language: str | None = None
+    sandbox_config_rowid: int | None = None
+    output_configs: list[dict[str, Any]] | None = None
 
 
 def fetch_bound_evaluators(connection: sqlite3.Connection, dataset_id: int) -> list[BoundEvaluator]:
     rows = connection.execute(
         "SELECT d.evaluator_id, d.name, e.kind, d.input_mapping, b.key AS builtin_key,"
+        " c.language, c.sandbox_config_id,"
+        " d.output_configs AS bound_output_configs, c.output_configs AS evaluator_output_configs,"
         " (SELECT source_code FROM code_evaluator_code_versions v"
         "   WHERE v.code_evaluator_id = e.id ORDER BY v.id DESC LIMIT 1) AS source_code"
         " FROM dataset_evaluators d JOIN evaluators e ON e.id = d.evaluator_id"
         " LEFT JOIN builtin_evaluators b ON b.id = e.id"
+        " LEFT JOIN code_evaluators c ON c.id = e.id"
         " WHERE d.dataset_id = ? ORDER BY d.id",
         (dataset_id,),
     )
@@ -153,6 +159,9 @@ def fetch_bound_evaluators(connection: sqlite3.Connection, dataset_id: int) -> l
             loads(r["input_mapping"]) or {},
             r["source_code"],
             r["builtin_key"],
+            r["language"],
+            r["sandbox_config_id"],
+            loads(r["bound_output_configs"]) or loads(r["evaluator_output_configs"]) or [],
         )
         for r in rows
     ]
@@ -175,69 +184,106 @@ def probe_cases(example: Example) -> list[tuple[str, str, bool]]:
     ]
 
 
-def _apply_input_mapping(mapping: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    from jsonpath_ng import parse as parse_jsonpath
-
-    result: dict[str, Any] = {}
-    for key, path in (mapping.get("path_mapping") or {}).items():
-        matches = parse_jsonpath(path).find(context)
-        if len(matches) == 1:
-            result[key] = matches[0].value
-        elif matches:
-            result[key] = [m.value for m in matches]
-    result.update(mapping.get("literal_mapping") or {})
-    return result
-
-
-def _call_code_evaluator(source: str, mapping: dict[str, Any], context: dict[str, Any]) -> float:
-    namespace: dict[str, Any] = {}
-    exec(source, namespace)  # noqa: S102 - the agent's own evaluator, run as Phoenix would
-    evaluate = namespace.get("evaluate")
-    if not callable(evaluate):
-        raise ValueError("no top-level evaluate() function")
-    available = {**context, **_apply_input_mapping(mapping, context)}
-    parameters = inspect.signature(evaluate).parameters
-    kwargs = {name: available[name] for name in parameters if name in available}
-    result = evaluate(**kwargs)
-    if inspect.isawaitable(result):
-        result = asyncio.run(_resolve(result))
-    return _as_score(result)
+def graphql(query: str, variables: dict[str, Any], timeout: float = 300.0) -> dict[str, Any]:
+    request = urllib.request.Request(
+        f"{PHOENIX_URL}/graphql",
+        data=json.dumps({"query": query, "variables": variables}).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        payload = json.load(response)
+    if payload.get("errors"):
+        raise RuntimeError(json.dumps(payload["errors"]))
+    data: dict[str, Any] = payload["data"]
+    return data
 
 
-async def _resolve(value: Awaitable[Any]) -> Any:
-    return await value
+_PREVIEW_MUTATION = """
+mutation Probe($input: EvaluatorPreviewsInput!) {
+  evaluatorPreviews(input: $input) {
+    results { error annotation { score label } }
+  }
+}
+"""
 
 
-def _as_score(result: Any) -> float:
-    if isinstance(result, bool):
-        return float(result)
-    if isinstance(result, (int, float)):
-        return float(result)
-    if isinstance(result, dict):
-        if isinstance(result.get("score"), (int, float)):
-            return float(result["score"])
-        label = str(result.get("label", "")).lower()
-        if label in {"pass", "true", "correct", "match", "yes"}:
-            return 1.0
-        if label in {"fail", "false", "incorrect", "mismatch", "no"}:
-            return 0.0
+def _config_input(config: dict[str, Any]) -> dict[str, Any]:
+    common = {"name": config["name"], "description": config.get("description")}
+    direction = config.get("optimization_direction")
+    if config["type"] == "CATEGORICAL":
+        values = [{"label": v["label"], "score": v.get("score")} for v in config["values"]]
+        return {"categorical": {**common, "optimizationDirection": direction, "values": values}}
+    if config["type"] == "CONTINUOUS":
+        bounds = {"lowerBound": config.get("lower_bound"), "upperBound": config.get("upper_bound")}
+        return {"continuous": {**common, "optimizationDirection": direction, **bounds}}
+    return {"freeform": common}
+
+
+def _preview_ref(evaluator: BoundEvaluator) -> dict[str, Any]:
+    """Previewing a saved code evaluator by id returns no results (its stored output
+    configs fail the mutation's type filter), so the saved source, sandbox, and configs are
+    sent inline instead. Builtins preview by id."""
+    if evaluator.kind == "CODE":
+        if evaluator.sandbox_config_rowid is None:
+            raise ValueError("code evaluator has no sandbox configuration")
+        if not evaluator.output_configs:
+            raise ValueError("code evaluator has no output configs, so it cannot emit scores")
+        return {
+            "inlineCodeEvaluator": {
+                "name": evaluator.name,
+                "language": evaluator.language or "PYTHON",
+                "sourceCode": evaluator.source_code or "",
+                "sandboxConfigId": global_id("SandboxConfig", evaluator.sandbox_config_rowid),
+                "outputConfigs": [_config_input(c) for c in evaluator.output_configs or []],
+            }
+        }
+    if evaluator.kind == "BUILTIN":
+        return {"builtInEvaluatorId": global_id("BuiltInEvaluator", evaluator.rowid)}
+    raise ValueError(f"cannot preview a {evaluator.kind} evaluator")
+
+
+def preview_scores(evaluator: BoundEvaluator, contexts: list[dict[str, Any]]) -> list[float]:
+    """Score each context with the evaluator through Phoenix, on its own sandbox and with
+    its own input mapping, exactly as an experiment run would."""
+    mapping = {
+        "pathMapping": evaluator.input_mapping.get("path_mapping") or {},
+        "literalMapping": evaluator.input_mapping.get("literal_mapping") or {},
+    }
+    previews = [
+        {"evaluator": _preview_ref(evaluator), "context": context, "inputMapping": mapping}
+        for context in contexts
+    ]
+    results = graphql(_PREVIEW_MUTATION, {"input": {"previews": previews}})
+    scores = [_as_score(r) for r in results["evaluatorPreviews"]["results"]]
+    if len(scores) != len(contexts):
+        raise ValueError(f"{len(contexts)} contexts produced {len(scores)} results")
+    return scores
+
+
+def _as_score(result: dict[str, Any]) -> float:
+    if result.get("error"):
+        raise ValueError(result["error"])
+    annotation = result.get("annotation") or {}
+    if isinstance(annotation.get("score"), (int, float)):
+        return float(annotation["score"])
+    label = str(annotation.get("label") or "").lower()
+    if label in {"pass", "true", "correct", "match", "yes"}:
+        return 1.0
+    if label in {"fail", "false", "incorrect", "mismatch", "no"}:
+        return 0.0
     raise ValueError(f"unrecognized evaluator result {result!r}")
-
-
-def _builtin_exact_match(mapping: dict[str, Any], context: dict[str, Any]) -> float:
-    inputs = _apply_input_mapping(mapping, context)
-    expected, actual = str(inputs.get("expected", "")), str(inputs.get("actual", ""))
-    return float(bool(expected) and expected == actual)
 
 
 def probe_evaluator(
     evaluator: BoundEvaluator, examples: list[Example]
 ) -> tuple[bool, dict[str, Any]]:
-    """Run the evaluator the way the experiment runner would, over two output shapes: a
-    bare string (SDK tasks) and a chat-messages dict (playground runs). It passes when
-    every probe agrees with expectation under at least one shape."""
-    if evaluator.kind == "LLM":
-        return False, {"reason": "an LLM judge is not an exact-match check"}
+    """Run the evaluator through Phoenix's preview mutation over two output shapes: a bare
+    string (SDK tasks) and a chat-messages dict (playground runs). It passes when every
+    probe agrees with expectation under at least one shape."""
+    if evaluator.kind not in {"CODE", "BUILTIN"}:
+        return False, {"reason": f"a {evaluator.kind} evaluator is not an exact-match check"}
+    if evaluator.kind == "BUILTIN" and evaluator.builtin_key != "exact_match":
+        return False, {"reason": f"builtin {evaluator.builtin_key!r} cannot check exact match"}
     shapes: dict[str, Callable[[str], Any]] = {
         "text": lambda text: text,
         "messages": lambda text: {"messages": [{"role": "assistant", "content": text}]},
@@ -246,27 +292,22 @@ def probe_evaluator(
     for shape_name, shape in shapes.items():
         failures: list[str] = []
         for example in examples:
-            for label, text, expected in probe_cases(example):
-                context = {
+            cases = probe_cases(example)
+            contexts = [
+                {
                     "input": example.input,
                     "reference": example.reference,
                     "output": shape(text),
                     "metadata": example.metadata,
                 }
-                try:
-                    if evaluator.kind == "CODE":
-                        score = _call_code_evaluator(
-                            evaluator.source_code or "", evaluator.input_mapping, context
-                        )
-                    elif evaluator.builtin_key == "exact_match":
-                        score = _builtin_exact_match(evaluator.input_mapping, context)
-                    else:
-                        return False, {
-                            "reason": f"builtin {evaluator.builtin_key!r} cannot check exact match"
-                        }
-                except Exception as exc:  # noqa: BLE001
-                    failures.append(f"{example.rowid}/{label}: {type(exc).__name__}: {exc}")
-                    continue
+                for _, text, _ in cases
+            ]
+            try:
+                scores = preview_scores(evaluator, contexts)
+            except Exception as exc:  # noqa: BLE001
+                failures.append(f"{example.rowid}: {type(exc).__name__}: {str(exc)[:200]}")
+                continue
+            for (label, _, expected), score in zip(cases, scores):
                 if (score >= 0.5) != expected:
                     failures.append(f"{example.rowid}/{label}: score {score}")
         detail[shape_name] = failures[:10]
