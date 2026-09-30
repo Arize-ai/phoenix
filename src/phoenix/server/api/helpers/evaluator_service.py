@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Optional, cast
+from typing import Any, Optional, Union, cast
 
 from pydantic import ValidationError
 from sqlalchemy import delete, func, select, update
@@ -26,7 +26,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
-from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluator_management import (
     ensure_evaluator_prompt_label,
     garbage_collect_evaluators,
@@ -35,6 +35,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     raise_on_uninferable_evaluate_signature,
+    release_evaluator_prompt_label,
     validate_code_evaluator_sandbox_config,
     validate_project_evaluator_filter,
     validate_project_evaluator_project,
@@ -47,6 +48,7 @@ from phoenix.server.api.helpers.evaluator_prompt_source import (
     UpdatePromptSource,
     get_prompt_version,
     pin_prompt_version,
+    resolve_evaluator_prompt_version,
 )
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
@@ -987,8 +989,120 @@ async def create_code_evaluator(
                 )
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-        raise Conflict(f"An evaluator named '{input.name}' already exists") from error
+        raise await _name_taken(context, input.name) from error
     return row
+
+
+_TYPENAME_BY_KIND = {"LLM": "LLMEvaluator", "CODE": "CodeEvaluator", "BUILTIN": "BuiltInEvaluator"}
+
+
+async def _name_taken(context: EvaluatorServiceContext, name: Union[str, Identifier]) -> Conflict:
+    """The error for a create whose name another evaluator already holds."""
+    name = name.root if isinstance(name, Identifier) else name
+    async with context.db() as session:
+        existing = (
+            await session.execute(
+                select(models.Evaluator.id, models.Evaluator.kind).where(
+                    models.Evaluator.name == IdentifierModel.model_validate(name)
+                )
+            )
+        ).one_or_none()
+    if existing is None:
+        return Conflict(f"Could not create evaluator '{name}' because of a conflicting resource")
+    row_id, kind = existing
+    return AlreadyExists(
+        f"An evaluator named '{name}' already exists",
+        existing_id=str(GlobalID(_TYPENAME_BY_KIND[kind], str(row_id))),
+    )
+
+
+@dataclass(kw_only=True)
+class CreateLLMEvaluatorInput:
+    name: Identifier
+    prompt_version_id: GlobalID
+    output_configs: list[OutputConfigType]
+    description: Optional[str] = None
+
+
+async def create_llm_evaluator(
+    context: EvaluatorServiceContext, input: CreateLLMEvaluatorInput
+) -> models.LLMEvaluator:
+    """Create a standalone LLM definition that runs an existing prompt version, pinned by
+    a tag the evaluator owns; nothing binds it yet."""
+    try:
+        name = IdentifierModel.model_validate(input.name)
+        require_categorical_output_configs(input.output_configs)
+        output_configs = list(
+            LLMEvaluatorOutputConfigs.model_validate({"configs": input.output_configs}).configs
+        )
+    except (ValueError, ValidationError) as error:
+        raise BadRequest(str(error))
+    try:
+        async with context.db() as session:
+            version = await get_prompt_version(session, input.prompt_version_id)
+            evaluator = models.LLMEvaluator(
+                name=name,
+                description=input.description,
+                kind="LLM",
+                output_configs=output_configs,
+                user_id=context.user_id,
+                prompt_id=version.prompt_id,
+            )
+            try:
+                validate_consistent_llm_evaluator_and_prompt_version(version, evaluator)
+            except ValueError as error:
+                raise BadRequest(str(error))
+            session.add(evaluator)
+            await session.flush()
+            await ensure_evaluator_prompt_label(session, version.prompt_id)
+            evaluator.prompt_version_tag = models.PromptVersionTag(
+                name=IdentifierModel.model_validate(f"{name.root}-evaluator-{token_hex(4)}"),
+                prompt_id=version.prompt_id,
+                prompt_version_id=version.id,
+            )
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        raise await _name_taken(context, input.name) from error
+    return evaluator
+
+
+async def delete_llm_evaluator(context: EvaluatorServiceContext, evaluator_id: GlobalID) -> None:
+    """Delete an LLM definition nothing binds, with the tag that pins its version; the
+    prompt is kept. A bound definition is refused with Conflict."""
+    row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
+    async with context.db() as session:
+        row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
+        if row is None:
+            return
+        await _refuse_bound_evaluator(session, row_id, evaluator_id)
+        prompt_id, tag_id = row.prompt_id, row.prompt_version_tag_id
+        await session.delete(row)
+        await session.flush()
+        if tag_id is not None:
+            await session.execute(
+                delete(models.PromptVersionTag).where(models.PromptVersionTag.id == tag_id)
+            )
+        await release_evaluator_prompt_label(session, prompt_id)
+
+
+async def _refuse_bound_evaluator(
+    session: AsyncSession, row_id: int, evaluator_id: GlobalID
+) -> None:
+    project_bindings = await session.scalar(
+        select(func.count(models.ProjectEvaluator.id)).where(
+            models.ProjectEvaluator.evaluator_id == row_id
+        )
+    )
+    dataset_bindings = await session.scalar(
+        select(func.count(models.DatasetEvaluators.id)).where(
+            models.DatasetEvaluators.evaluator_id == row_id
+        )
+    )
+    if project_bindings or dataset_bindings:
+        raise Conflict(
+            f"Evaluator {evaluator_id} is still bound by {project_bindings} project and "
+            f"{dataset_bindings} dataset bindings; delete those bindings first"
+        )
 
 
 async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: GlobalID) -> None:
@@ -998,21 +1112,7 @@ async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: 
         row = await session.get(models.CodeEvaluator, row_id, with_for_update=True)
         if row is None:
             return
-        project_bindings = await session.scalar(
-            select(func.count(models.ProjectEvaluator.id)).where(
-                models.ProjectEvaluator.evaluator_id == row_id
-            )
-        )
-        dataset_bindings = await session.scalar(
-            select(func.count(models.DatasetEvaluators.id)).where(
-                models.DatasetEvaluators.evaluator_id == row_id
-            )
-        )
-        if project_bindings or dataset_bindings:
-            raise Conflict(
-                f"Evaluator {evaluator_id} is still bound by {project_bindings} project and "
-                f"{dataset_bindings} dataset bindings; delete those bindings first"
-            )
+        await _refuse_bound_evaluator(session, row_id, evaluator_id)
         await session.delete(row)
 
 
@@ -1156,20 +1256,15 @@ async def _update_llm_definition(
     user_id: int | None,
     shared_evaluator_changed: bool = False,
 ) -> models.PromptVersion:
-    """Apply a definition edit and return the prompt version the evaluator now pins.
-    Without a prompt source the current pin is kept."""
+    """Apply a definition edit and return the prompt version the evaluator now runs.
+    Without a prompt source the evaluator keeps running what it runs: its pinned version,
+    or, for an evaluator without a pin, its prompt's newest version, which stays unpinned."""
     base: Optional[models.PromptVersion] = None
+    keeps_following_latest = prompt_source is None and evaluator.prompt_version_tag_id is None
     if isinstance(prompt_source, FromPromptVersion):
         base = await get_prompt_version(session, prompt_source.prompt_version_id)
-    elif evaluator.prompt_version_tag_id is not None:
-        base = await session.scalar(
-            select(models.PromptVersion)
-            .join(
-                models.PromptVersionTag,
-                models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
-            )
-            .where(models.PromptVersionTag.id == evaluator.prompt_version_tag_id)
-        )
+    elif evaluator.prompt_version_tag_id is not None or keeps_following_latest:
+        base = await resolve_evaluator_prompt_version(session, evaluator)
 
     target_prompt_id = base.prompt_id if base is not None else evaluator.prompt_id
     content = prompt_source.content if prompt_source is not None else None
@@ -1195,14 +1290,14 @@ async def _update_llm_definition(
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
     except ValueError as error:
         raise BadRequest(str(error))
-    if evaluator.prompt_version_tag_id is None:
+    if evaluator.prompt_version_tag_id is None and not keeps_following_latest:
         evaluator.prompt_version_tag = models.PromptVersionTag(
             name=IdentifierModel.model_validate(f"{name}-evaluator-{token_hex(4)}"),
             prompt_id=target_prompt_id,
             prompt_version_id=final_prompt_version_id,
         )
         shared_evaluator_changed = True
-    else:
+    elif evaluator.prompt_version_tag_id is not None:
         prompt_version_tag = await session.get(
             models.PromptVersionTag, evaluator.prompt_version_tag_id
         )

@@ -5,6 +5,7 @@ from typing import Any, cast
 import httpx
 import pytest
 from fastapi import FastAPI
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
 from strawberry.relay import GlobalID
 
@@ -58,7 +59,13 @@ def test_evaluator_definition_schema() -> None:
         assert "evaluator_version_id" not in schemas[name]["properties"], name
     assert "evaluator_id" not in schemas["LLMEvaluatorDefinition"]["properties"]
     assert "evaluator_id" in schemas["CodeEvaluatorVersion"]["required"]
-    assert "prompt_id" in schemas["LLMEvaluatorDefinition"]["required"]
+    assert "prompt" in schemas["LLMEvaluatorDefinition"]["required"]
+    assert set(schemas["LLMEvaluatorPrompt"]["required"]) == {
+        "prompt_id",
+        "selector",
+        "resolved_prompt_version_id",
+    }
+    assert "prompt_version" not in schemas["LLMEvaluatorDefinition"]["properties"]
 
     assert (
         schemas["LLMEvaluatorDefinition"]["properties"]["output_configs"]["items"]
@@ -79,10 +86,16 @@ def test_evaluator_definition_schema() -> None:
         "#/components/schemas/FreeformAnnotationConfigData",
     }
 
-    prompt_schema = schemas["LLMEvaluatorDefinition"]["properties"]["prompt_version"]
-    assert {"$ref": "#/components/schemas/PromptVersion"} in prompt_schema["anyOf"]
-    assert "prompt_version" not in schemas["PatchLLMEvaluatorRequest"]["properties"]
-    assert "prompt_version_id" in schemas["PatchLLMEvaluatorRequest"]["properties"]
+    selector = schemas["LLMEvaluatorPrompt"]["properties"]["selector"]
+    assert {option["$ref"] for option in selector["oneOf"]} == {
+        "#/components/schemas/PromptVersionSelector",
+        "#/components/schemas/LatestPromptVersionSelector",
+    }
+    for name in ("PatchLLMEvaluatorRequest", "CreateLLMEvaluatorRequest"):
+        prompt = schemas[name]["properties"]["prompt"]
+        assert prompt["$ref"] == "#/components/schemas/LLMEvaluatorPromptInput", name
+    selector_input = schemas["LLMEvaluatorPromptInput"]["properties"]["selector"]
+    assert selector_input["$ref"] == "#/components/schemas/PromptVersionSelector"
     for name in ("PatchLLMEvaluatorRequest", "PatchCodeEvaluatorRequest"):
         assert schemas[name]["minProperties"] == 2, name
 
@@ -109,9 +122,8 @@ def test_evaluator_definition_schema() -> None:
         assert request["properties"]["output_configs"]["minItems"] == 1
 
     unprocessable = paths["/evaluators/{evaluator_id}"]["patch"]["responses"]["422"]["content"]
-    assert set(unprocessable) == {"application/json", "text/plain"}
-    assert unprocessable["application/json"]["schema"] == {
-        "$ref": "#/components/schemas/HTTPValidationError"
+    assert unprocessable == {
+        "application/problem+json": {"schema": {"$ref": "#/components/schemas/ProblemDetail"}}
     }
 
 
@@ -260,7 +272,10 @@ async def test_writes_require_an_output_config(
     for body in ({**create_body, "output_configs": []}, create_body):
         response = await httpx_client.post("v1/evaluators", json=body)
         assert response.status_code == 422, response.text
-        assert response.json()["detail"][0]["loc"] == ["body", "output_configs"]
+        assert response.headers["content-type"] == "application/problem+json"
+        problem = response.json()
+        assert problem["code"] == "validation_error"
+        assert [error["field"] for error in problem["errors"]] == ["body.code.output_configs"]
 
     async with db() as session:
         evaluator = models.CodeEvaluator(
@@ -281,7 +296,7 @@ async def test_writes_require_an_output_config(
         f"v1/evaluators/{evaluator_id}", json={"type": "code", "output_configs": []}
     )
     assert patch.status_code == 422, patch.text
-    assert patch.json()["detail"][0]["loc"][-1] == "output_configs"
+    assert patch.json()["errors"][0]["field"].endswith("output_configs")
     deploy = await httpx_client.post(
         f"v1/evaluators/{evaluator_id}/versions",
         json={
@@ -290,9 +305,54 @@ async def test_writes_require_an_output_config(
         },
     )
     assert deploy.status_code == 422, deploy.text
-    assert deploy.json()["detail"][0]["loc"] == ["body", "output_configs"]
+    assert [error["field"] for error in deploy.json()["errors"]] == ["body.output_configs"]
 
     kept = await httpx_client.get(f"v1/evaluators/{evaluator_id}")
     assert kept.status_code == 200, kept.text
     assert [config["name"] for config in kept.json()["data"]["output_configs"]] == ["score"]
     assert kept.json()["data"]["source_code"] == "def evaluate(output): ..."
+
+
+async def test_untagged_llm_definition_follows_its_prompts_latest_version(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    """An evaluator without a pin reads as latest, stays unpinned across edits that leave its
+    prompt alone, and is pinned once a version is selected."""
+    route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(correctness_llm_evaluator.id))}"
+    async with db() as session:
+        latest_id = await session.scalar(
+            select(models.PromptVersion.id)
+            .where(models.PromptVersion.prompt_id == correctness_llm_evaluator.prompt_id)
+            .order_by(models.PromptVersion.id.desc())
+            .limit(1)
+        )
+    latest = str(GlobalID("PromptVersion", str(latest_id)))
+
+    response = await httpx_client.get(route)
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["prompt"]["selector"] == {"type": "latest"}
+    assert response.json()["data"]["prompt"]["resolved_prompt_version_id"] == latest
+
+    renamed = f"renamed-{token_hex(4)}"
+    response = await httpx_client.patch(route, json={"type": "llm", "name": renamed})
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["name"] == renamed
+    assert response.json()["data"]["prompt"]["selector"] == {"type": "latest"}
+    async with db() as session:
+        row = await session.get(models.LLMEvaluator, correctness_llm_evaluator.id)
+        assert row is not None and row.prompt_version_tag_id is None
+
+    response = await httpx_client.patch(
+        route,
+        json={
+            "type": "llm",
+            "prompt": {"selector": {"type": "version", "prompt_version_id": latest}},
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["prompt"]["selector"] == {
+        "type": "version",
+        "prompt_version_id": latest,
+    }

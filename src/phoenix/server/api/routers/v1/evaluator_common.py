@@ -1,9 +1,8 @@
 """Shared request models and adapters for evaluator REST endpoints."""
 
 from contextlib import contextmanager
-from typing import Annotated, Any, Iterator, Sequence, Union
+from typing import Annotated, Any, Iterator, Literal, Optional, Sequence, Union
 
-from fastapi import HTTPException
 from pydantic import ConfigDict, Field, field_validator
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -16,7 +15,7 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
-from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers import evaluator_service as service
 from phoenix.server.api.routers.v1.annotation_config_models import (
     CategoricalAnnotationConfigData,
@@ -24,8 +23,9 @@ from phoenix.server.api.routers.v1.annotation_config_models import (
     FreeformAnnotationConfigData,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.problem_details import ProblemException, problem_responses
 from phoenix.server.api.routers.v1.prompt_models import PromptVersionData
-from phoenix.server.api.routers.v1.utils import Responses, add_errors_to_responses
+from phoenix.server.api.routers.v1.utils import Responses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 EvaluatorOutputConfig = Annotated[
@@ -68,22 +68,44 @@ def output_configs_from_db(configs: list[AnnotationConfigType]) -> list[Evaluato
 
 
 def evaluator_error_responses(status_codes: list[int]) -> Responses:
-    """Declare error responses; 422 carries JSON for request-shape errors and text otherwise."""
-    responses = add_errors_to_responses(list(status_codes))
-    if 422 in responses:
-        responses[422] = {
-            "description": (
-                "Request bodies that fail schema validation return FastAPI's JSON error "
-                "detail; domain validation failures return a plain-text message."
-            ),
-            "content": {
-                "application/json": {
-                    "schema": {"$ref": "#/components/schemas/HTTPValidationError"}
-                },
-                "text/plain": {"schema": {"type": "string"}},
-            },
-        }
-    return responses
+    """Declare error responses; every error body is problem details."""
+    return problem_responses(list(status_codes))
+
+
+class PromptVersionSelector(V1RoutesBaseModel):
+    type: Literal["version"]
+    prompt_version_id: str = Field(
+        description=(
+            "GlobalID of the prompt version the evaluator runs. Prompt content is created "
+            "through the prompts API; a version of another prompt moves the evaluator to it."
+        )
+    )
+
+
+class LatestPromptVersionSelector(V1RoutesBaseModel):
+    type: Literal["latest"]
+
+
+class LLMEvaluatorPromptInput(V1RoutesBaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    selector: PromptVersionSelector = Field(description="Which prompt version to run.")
+
+
+class LLMEvaluatorPrompt(V1RoutesBaseModel):
+    prompt_id: str = Field(description="GlobalID of the prompt whose version the evaluator runs.")
+    selector: Annotated[
+        Union[PromptVersionSelector, LatestPromptVersionSelector], Field(discriminator="type")
+    ] = Field(
+        description=(
+            "How the version is chosen. version: pinned to one version. latest: the prompt's "
+            "newest version, for evaluators whose pin was removed; writes accept version only. "
+            "Treat an unrecognized type as not pinned."
+        )
+    )
+    resolved_prompt_version_id: Optional[str] = Field(
+        description="GlobalID of the version the evaluator runs now; null if the prompt has none."
+    )
 
 
 class EvaluatorRequest(V1RoutesBaseModel):
@@ -104,15 +126,19 @@ class EvaluatorRequest(V1RoutesBaseModel):
 
 @contextmanager
 def evaluator_api_errors() -> Iterator[None]:
-    """Translate evaluator service errors to REST status codes."""
+    """Translate evaluator service errors to problem details."""
     try:
         yield
     except NotFound as error:
-        raise HTTPException(404, str(error)) from error
+        raise ProblemException(404, "not_found", str(error)) from error
+    except AlreadyExists as error:
+        raise ProblemException(
+            409, "already_exists", str(error), existing_id=error.existing_id
+        ) from error
     except Conflict as error:
-        raise HTTPException(409, str(error)) from error
+        raise ProblemException(409, "conflict", str(error)) from error
     except (BadRequest, ValueError) as error:
-        raise HTTPException(422, str(error)) from error
+        raise ProblemException(422, "invalid_argument", str(error)) from error
 
 
 def evaluator_service_context(request: Request) -> service.EvaluatorServiceContext:

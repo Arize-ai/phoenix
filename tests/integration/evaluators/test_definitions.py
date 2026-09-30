@@ -238,6 +238,16 @@ def llm_definition(definition_dataset: str, _app: _AppInfo) -> dict[str, Any]:
     return binding
 
 
+def _version_content(client: httpx.Client, prompt_version_id: str) -> dict[str, Any]:
+    response = client.get(f"v1/prompt_versions/{prompt_version_id}")
+    assert response.status_code == 200, response.text
+    return {key: value for key, value in response.json()["data"].items() if key != "id"}
+
+
+def _pin(prompt_version_id: str) -> dict[str, Any]:
+    return {"selector": {"type": "version", "prompt_version_id": prompt_version_id}}
+
+
 def test_llm_definition_from_dataset(
     definition_client: httpx.Client, llm_definition: dict[str, Any], _app: _AppInfo
 ) -> None:
@@ -246,37 +256,45 @@ def test_llm_definition_from_dataset(
     assert response.status_code == 200, response.text
     before = response.json()["data"]
     assert before["type"] == "llm"
-    prompt_body = {key: value for key, value in before["prompt_version"].items() if key != "id"}
+    pinned = before["prompt"]["resolved_prompt_version_id"]
+    assert before["prompt"]["selector"] == {"type": "version", "prompt_version_id": pinned}
+    prompt_body = _version_content(definition_client, pinned)
     prompt_body["model_name"] = "gpt-4.1-mini"
     response = definition_client.post(
-        f"v1/prompts/{before['prompt_id']}/versions", json={"version": prompt_body}
+        f"v1/prompts/{before['prompt']['prompt_id']}/versions", json={"version": prompt_body}
     )
     assert response.status_code == 201, response.text
     new_version_id = response.json()["data"]["id"]
-    assert new_version_id != before["prompt_version"]["id"]
+    assert new_version_id != pinned
     response = definition_client.patch(
         route,
         json={
             "type": "llm",
-            "prompt_version_id": new_version_id,
+            "prompt": _pin(new_version_id),
             "output_configs": before["output_configs"],
         },
     )
     assert response.status_code == 200, response.text
     after = response.json()["data"]
-    assert after["prompt_version"]["id"] == new_version_id
-    assert after["prompt_id"] == before["prompt_id"]
-    response = definition_client.patch(
-        route, json={"type": "llm", "prompt_version_id": new_version_id}
-    )
+    assert after["prompt"] == {
+        "prompt_id": before["prompt"]["prompt_id"],
+        "selector": {"type": "version", "prompt_version_id": new_version_id},
+        "resolved_prompt_version_id": new_version_id,
+    }
+    response = definition_client.patch(route, json={"type": "llm", "prompt": _pin(new_version_id)})
     assert response.status_code == 200, response.text
-    assert response.json()["data"]["prompt_version"]["id"] == new_version_id
-    response = definition_client.patch(
-        route, json={"type": "llm", "prompt_version": before["prompt_version"]}
-    )
-    assert response.status_code == 422, response.text
+    assert response.json()["data"]["prompt"] == after["prompt"]
+    for body in (
+        {"type": "llm", "prompt_version_id": new_version_id},
+        {"type": "llm", "prompt": None},
+        {"type": "llm", "prompt": {"selector": {"type": "latest"}}},
+    ):
+        response = definition_client.patch(route, json=body)
+        assert response.status_code == 422, response.text
+        assert response.json()["code"] == "validation_error"
     response = definition_client.patch(route, json={"type": "llm", "description": "inconsistent"})
     assert response.status_code == 422
+    assert response.json()["code"] == "invalid_argument"
     assert definition_client.get(route).json()["data"]["description"] == "correctness"
     result = _graphql(
         _app,
@@ -285,7 +303,7 @@ def test_llm_definition_from_dataset(
     """,
         {"id": llm_definition["id"]},
     )
-    assert result["node"]["evaluator"]["promptVersion"]["id"] == after["prompt_version"]["id"]
+    assert result["node"]["evaluator"]["promptVersion"]["id"] == new_version_id
 
 
 def test_llm_definition_missing_custom_provider(
@@ -296,9 +314,9 @@ def test_llm_definition_missing_custom_provider(
     assert response.status_code == 200, response.text
     before = response.json()["data"]
     provider_id = str(GlobalID("GenerativeModelCustomProvider", str(2**31 - 1)))
-    content = {key: value for key, value in before["prompt_version"].items() if key != "id"}
+    content = _version_content(definition_client, before["prompt"]["resolved_prompt_version_id"])
     response = definition_client.post(
-        f"v1/prompts/{before['prompt_id']}/versions",
+        f"v1/prompts/{before['prompt']['prompt_id']}/versions",
         json={"version": {**content, "custom_provider_id": provider_id}},
     )
     assert response.status_code == 404, response.text
@@ -313,28 +331,123 @@ def test_llm_definition_reuses_regular_prompt_version(
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
     response = definition_client.get(route)
     assert response.status_code == 200, response.text
-    original_prompt_id = response.json()["data"]["prompt_id"]
-    prompt_body = {
-        key: value
-        for key, value in response.json()["data"]["prompt_version"].items()
-        if key != "id"
-    }
+    original = response.json()["data"]["prompt"]
+    prompt_body = _version_content(definition_client, original["resolved_prompt_version_id"])
     prompt_body["description"] = "Shared evaluation prompt"
     response = definition_client.post(
         "v1/prompts",
         json={"prompt": {"name": f"shared-prompt-{token_hex(8)}"}, "version": prompt_body},
     )
     assert response.status_code == 200, response.text
-    prompt_data = response.json()["data"]
-    prompt_version_id = prompt_data["id"]
+    prompt_version_id = response.json()["data"]["id"]
     response = definition_client.patch(
-        route, json={"type": "llm", "prompt_version_id": prompt_version_id}
+        route, json={"type": "llm", "prompt": _pin(prompt_version_id)}
     )
     assert response.status_code == 200, response.text
-    assert response.json()["data"]["prompt_version"] == prompt_data
-    assert response.json()["data"]["prompt_id"] != original_prompt_id
-    response = definition_client.get(route)
-    assert response.json()["data"]["prompt_version"] == prompt_data
+    moved = response.json()["data"]["prompt"]
+    assert moved["resolved_prompt_version_id"] == prompt_version_id
+    assert moved["prompt_id"] != original["prompt_id"]
+    assert definition_client.get(route).json()["data"]["prompt"] == moved
+
+
+def _judge_prompt_version(client: httpx.Client, prompt_name: str) -> str:
+    response = client.post(
+        "v1/prompts",
+        json={
+            "prompt": {"name": prompt_name},
+            "version": {
+                "model_provider": "OPENAI",
+                "model_name": "gpt-4o-mini",
+                "template_type": "CHAT",
+                "template_format": "MUSTACHE",
+                "template": {
+                    "type": "chat",
+                    "messages": [
+                        {"role": "user", "content": [{"type": "text", "text": "Judge {{output}}"}]}
+                    ],
+                },
+                "invocation_parameters": {"type": "openai", "openai": {"temperature": 0}},
+                "tools": {
+                    "type": "tools",
+                    "tools": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "correctness",
+                                "description": "correctness",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "label": {
+                                            "type": "string",
+                                            "enum": ["correct", "incorrect"],
+                                            "description": "correctness",
+                                        }
+                                    },
+                                    "required": ["label"],
+                                },
+                            },
+                        }
+                    ],
+                    "tool_choice": {"type": "specific_function", "function_name": "correctness"},
+                },
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    version_id: str = response.json()["data"]["id"]
+    return version_id
+
+
+def _llm_body(name: str, prompt_version_id: str) -> dict[str, Any]:
+    return {
+        "type": "llm",
+        "name": name,
+        "description": "correctness",
+        "prompt": _pin(prompt_version_id),
+        "output_configs": [
+            {
+                "type": "CATEGORICAL",
+                "name": "correctness",
+                "optimization_direction": "MAXIMIZE",
+                "values": [{"label": "correct", "score": 1}, {"label": "incorrect", "score": 0}],
+            }
+        ],
+    }
+
+
+def test_standalone_llm_definition_lifecycle(definition_client: httpx.Client) -> None:
+    prompt_name = f"judge-{token_hex(8)}"
+    version_id = _judge_prompt_version(definition_client, prompt_name)
+    name = f"standalone-llm-{token_hex(8)}"
+    response = definition_client.post("v1/evaluators", json=_llm_body(name, version_id))
+    assert response.status_code == 201, response.text
+    created = response.json()["data"]
+    assert created["type"] == "llm" and created["name"] == name
+    assert created["prompt"]["selector"] == {"type": "version", "prompt_version_id": version_id}
+    assert created["prompt"]["resolved_prompt_version_id"] == version_id
+    route = f"v1/evaluators/{created['id']}"
+
+    response = definition_client.post("v1/evaluators", json=_llm_body(name, version_id))
+    assert response.status_code == 409, response.text
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["code"] == "already_exists"
+    assert response.json()["existing_id"] == created["id"]
+
+    mismatched = _llm_body(f"{name}-mismatch", version_id)
+    mismatched["description"] = "something else"
+    response = definition_client.post("v1/evaluators", json=mismatched)
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "invalid_argument"
+
+    tags = definition_client.get(f"v1/prompt_versions/{version_id}/tags").json()["data"]
+    assert len(tags) == 1
+
+    assert definition_client.delete(route).status_code == 204
+    assert definition_client.get(route).status_code == 404
+    assert definition_client.get(f"v1/prompt_versions/{version_id}/tags").json()["data"] == []
+    assert definition_client.get(f"v1/prompt_versions/{version_id}").status_code == 200
+    assert definition_client.delete(route).status_code == 204
 
 
 @pytest.fixture
@@ -464,11 +577,28 @@ def test_bound_code_definition_cannot_be_deleted(
     assert definition_client.get(route).status_code == 200
 
 
-def test_delete_rejects_non_code_definitions(
+def test_bound_llm_definition_cannot_be_deleted(
     definition_client: httpx.Client, llm_definition: dict[str, Any]
 ) -> None:
-    assert (
-        definition_client.delete(f"v1/evaluators/{llm_definition['evaluator']['id']}").status_code
-        == 422
-    )
-    assert definition_client.delete("v1/evaluators/bad-id").status_code == 422
+    route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
+    response = definition_client.delete(route)
+    assert response.status_code == 409, response.text
+    assert response.json()["code"] == "conflict"
+    assert definition_client.get(route).status_code == 200
+
+
+def test_delete_rejects_malformed_ids(definition_client: httpx.Client) -> None:
+    response = definition_client.delete("v1/evaluators/bad-id")
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "invalid_argument"
+
+
+def test_sandbox_configs_are_discoverable(
+    definition_client: httpx.Client, sandbox_config_id: str
+) -> None:
+    response = definition_client.get("v1/sandbox_configs", params={"language": "PYTHON"})
+    assert response.status_code == 200, response.text
+    configs = {config["id"]: config for config in response.json()["data"]}
+    assert sandbox_config_id in configs
+    assert configs[sandbox_config_id]["language"] == "PYTHON"
+    assert "config" not in configs[sandbox_config_id]

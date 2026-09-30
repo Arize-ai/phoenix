@@ -2195,6 +2195,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/evaluators/fake-id-{}"),
     (200, "GET", "v1/evaluators"),
     (422, "GET", "v1/evaluators/fake-id-{}/versions"),
+    (200, "GET", "v1/sandbox_configs"),
     # Projects
     (404, "GET", "v1/projects/fake-id-{}"),
     (200, "GET", "v1/projects"),
