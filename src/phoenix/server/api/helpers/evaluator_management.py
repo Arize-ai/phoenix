@@ -224,6 +224,22 @@ async def ensure_evaluator_prompt_label(
         session.add(association)
 
 
+async def release_evaluator_prompt_label(session: AsyncSession, prompt_id: int) -> None:
+    """Remove the "evaluator" label from a prompt that no LLM evaluator references anymore."""
+    if await session.scalar(
+        select(models.LLMEvaluator.id).where(models.LLMEvaluator.prompt_id == prompt_id).limit(1)
+    ):
+        return
+    await session.execute(
+        delete(models.PromptPromptLabel).where(
+            models.PromptPromptLabel.prompt_id == prompt_id,
+            models.PromptPromptLabel.prompt_label_id.in_(
+                select(models.PromptLabel.id).where(models.PromptLabel.name == "evaluator")
+            ),
+        )
+    )
+
+
 async def validate_project_evaluator_project(
     session: AsyncSession,
     project_id: int,

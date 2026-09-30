@@ -17,11 +17,18 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import evaluator_service as service
-from phoenix.server.api.helpers.evaluator_prompt_source import FromPromptVersion
+from phoenix.server.api.helpers.evaluator_prompt_source import (
+    FromPromptVersion,
+    resolve_evaluator_prompt_version,
+)
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
 from phoenix.server.api.routers.v1.evaluator_common import (
     EvaluatorOutputConfig,
     EvaluatorRequest,
+    LatestPromptVersionSelector,
+    LLMEvaluatorPrompt,
+    LLMEvaluatorPromptInput,
+    PromptVersionSelector,
     decode_global_id,
     encode_global_id,
     evaluator_api_errors,
@@ -31,7 +38,7 @@ from phoenix.server.api.routers.v1.evaluator_common import (
     output_configs_to_db,
 )
 from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
-from phoenix.server.api.routers.v1.prompt_models import PromptVersion
+from phoenix.server.api.routers.v1.problem_details import ProblemDetailsRoute
 from phoenix.server.api.routers.v1.utils import PaginatedResponseBody, ResponseBody
 from phoenix.server.authorization import is_not_locked
 
@@ -61,6 +68,25 @@ def _decode_evaluator_cursor(cursor: str) -> int:
     return int(global_id.node_id)
 
 
+class CreateLLMEvaluatorRequest(EvaluatorRequest):
+    type: Literal["llm"]
+    name: Identifier = Field(description="Unique among evaluators.")
+    description: Optional[str] = Field(
+        default=None,
+        description=(
+            "Must equal the description of the prompt's tool function, since an LLM evaluator's "
+            "description is the instruction its output tool carries."
+        ),
+    )
+    prompt: LLMEvaluatorPromptInput = Field(
+        description=(
+            "The prompt version to run. Create the prompt and its version through the prompts "
+            "API first."
+        )
+    )
+    output_configs: list[CategoricalAnnotationConfigData] = Field(min_length=1)
+
+
 class CreateCodeEvaluatorRequest(EvaluatorRequest):
     type: Literal["code"]
     name: Identifier = Field(description="Unique among evaluators.")
@@ -88,12 +114,9 @@ class PatchLLMEvaluatorRequest(EvaluatorRequest):
             "description is the instruction its output tool carries."
         ),
     )
-    prompt_version_id: str = Field(
+    prompt: LLMEvaluatorPromptInput = Field(
         default=UNDEFINED,
-        description=(
-            "GlobalID of the prompt version to run. New prompt content is created through the "
-            "prompts API; a version from another prompt moves the evaluator to that prompt."
-        ),
+        description="Move the evaluator to another prompt version. Omit to keep it.",
     )
     output_configs: list[CategoricalAnnotationConfigData] = Field(default=UNDEFINED, min_length=1)
 
@@ -170,10 +193,7 @@ class LLMEvaluatorDefinition(V1RoutesBaseModel):
     description: Optional[str] = Field(
         description="Equals the description of the prompt's tool function."
     )
-    prompt_id: str = Field(description="GlobalID of the prompt whose versions this evaluator runs.")
-    prompt_version: Optional[PromptVersion] = Field(
-        description="The version the evaluator currently runs; its id is what patch accepts."
-    )
+    prompt: LLMEvaluatorPrompt
     output_configs: list[CategoricalAnnotationConfigData]
 
 
@@ -198,7 +218,7 @@ class CreatedCodeEvaluatorVersionResponseBody(ResponseBody[CreatedCodeEvaluatorV
     pass
 
 
-router = APIRouter(tags=["evaluators"])
+router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
 
 
 async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> EvaluatorDefinition:
@@ -234,25 +254,24 @@ async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> Eva
     llm = await session.get(models.LLMEvaluator, row_id)
     if llm is None:
         raise NotFound(f"Evaluator not found: {evaluator_id}")
-    prompt = await session.scalar(
-        select(models.PromptVersion)
-        .join(
-            models.PromptVersionTag,
-            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
-        )
-        .where(models.PromptVersionTag.id == llm.prompt_version_tag_id)
-    )
+    prompt_version = await resolve_evaluator_prompt_version(session, llm)
+    version_id = encode_global_id("PromptVersion", prompt_version.id) if prompt_version else None
     return LLMEvaluatorDefinition(
         type="llm",
         id=evaluator_id,
         name=llm.name,
         description=llm.description,
-        prompt_id=encode_global_id("Prompt", llm.prompt_id),
+        prompt=LLMEvaluatorPrompt(
+            prompt_id=encode_global_id("Prompt", llm.prompt_id),
+            selector=PromptVersionSelector(type="version", prompt_version_id=version_id)
+            if llm.prompt_version_tag_id is not None and version_id is not None
+            else LatestPromptVersionSelector(type="latest"),
+            resolved_prompt_version_id=version_id,
+        ),
         output_configs=[
             CategoricalAnnotationConfigData.model_validate(config.model_dump())
             for config in llm.output_configs
         ],
-        prompt_version=PromptVersion.from_orm_prompt_version(prompt) if prompt else None,
     )
 
 
@@ -320,14 +339,31 @@ async def get_evaluators(
     responses=evaluator_error_responses([404, 409, 422, 507]),
 )
 async def create_evaluator(
-    request: Request, body: CreateCodeEvaluatorRequest
+    request: Request,
+    body: Annotated[
+        Union[CreateLLMEvaluatorRequest, CreateCodeEvaluatorRequest], Field(discriminator="type")
+    ],
 ) -> EvaluatorDefinitionResponseBody:
-    """Create a code evaluator that nothing binds yet, with its first version.
+    """Create an evaluator definition that nothing binds yet.
 
-    LLM evaluators are created through the binding routes because each one is tied to its
-    own prompt. The name must be unique among evaluators; a clash is refused with 409.
+    An LLM evaluator runs an existing prompt version; a code evaluator is created with its
+    first version. The name must be unique among evaluators: a clash is refused with 409
+    `already_exists`, whose `existing_id` names the evaluator holding it.
     """
     with evaluator_api_errors():
+        if isinstance(body, CreateLLMEvaluatorRequest):
+            llm = await service.create_llm_evaluator(
+                evaluator_service_context(request),
+                service.CreateLLMEvaluatorInput(
+                    name=body.name,
+                    description=body.description,
+                    prompt_version_id=GlobalID.from_id(body.prompt.selector.prompt_version_id),
+                    output_configs=output_configs_to_db(body.output_configs),
+                ),
+            )
+            return EvaluatorDefinitionResponseBody(
+                data=await _written_definition(request, encode_global_id("LLMEvaluator", llm.id))
+            )
         row = await service.create_code_evaluator(
             evaluator_service_context(request),
             service.CreateCodeEvaluatorInput(
@@ -400,10 +436,10 @@ async def patch_evaluator(
                 service.PatchCodeEvaluatorInput(id=GlobalID.from_id(evaluator_id), **values),
             )
         else:
-            if "prompt_version_id" in fields:
-                del values["prompt_version_id"]
+            if "prompt" in fields:
+                del values["prompt"]
                 values["prompt_source"] = FromPromptVersion(
-                    prompt_version_id=GlobalID.from_id(body.prompt_version_id)
+                    prompt_version_id=GlobalID.from_id(body.prompt.selector.prompt_version_id)
                 )
             await service.patch_llm_evaluator(
                 evaluator_service_context(request),
@@ -422,21 +458,21 @@ async def patch_evaluator(
     responses=evaluator_error_responses([409, 422]),
 )
 async def delete_evaluator(request: Request, evaluator_id: str) -> Response:
-    """Delete a code evaluator that nothing binds, with its version history.
+    """Delete a definition that nothing binds; a missing evaluator is ignored.
 
     A definition still bound by a project or dataset is refused with 409; delete those
-    bindings first, or delete the last binding, which removes the definition with it. LLM
-    evaluators are owned by their bindings and are deleted with the last one; built-in
-    evaluators are never deleted. A missing evaluator is ignored.
+    bindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps
+    the prompt. Built-in evaluators cannot be deleted.
     """
     with evaluator_api_errors():
         global_id = GlobalID.from_id(evaluator_id)
-        if global_id.type_name != "CodeEvaluator":
-            raise BadRequest(
-                "Only code evaluators can be deleted here; LLM evaluators are deleted with "
-                "their last binding and built-in evaluators cannot be deleted"
-            )
-        await service.delete_code_evaluator(evaluator_service_context(request), global_id)
+        context = evaluator_service_context(request)
+        if global_id.type_name == "CodeEvaluator":
+            await service.delete_code_evaluator(context, global_id)
+        elif global_id.type_name == "LLMEvaluator":
+            await service.delete_llm_evaluator(context, global_id)
+        else:
+            raise BadRequest("Built-in evaluators cannot be deleted")
     return Response(status_code=204)
 
 

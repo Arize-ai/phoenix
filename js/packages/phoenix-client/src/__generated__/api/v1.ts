@@ -545,10 +545,11 @@ export interface paths {
         put?: never;
         /**
          * Create Evaluator
-         * @description Create a code evaluator that nothing binds yet, with its first version.
+         * @description Create an evaluator definition that nothing binds yet.
          *
-         *     LLM evaluators are created through the binding routes because each one is tied to its
-         *     own prompt. The name must be unique among evaluators; a clash is refused with 409.
+         *     An LLM evaluator runs an existing prompt version; a code evaluator is created with its
+         *     first version. The name must be unique among evaluators: a clash is refused with 409
+         *     `already_exists`, whose `existing_id` names the evaluator holding it.
          */
         post: operations["createEvaluator"];
         delete?: never;
@@ -573,12 +574,11 @@ export interface paths {
         post?: never;
         /**
          * Delete Evaluator
-         * @description Delete a code evaluator that nothing binds, with its version history.
+         * @description Delete a definition that nothing binds; a missing evaluator is ignored.
          *
          *     A definition still bound by a project or dataset is refused with 409; delete those
-         *     bindings first, or delete the last binding, which removes the definition with it. LLM
-         *     evaluators are owned by their bindings and are deleted with the last one; built-in
-         *     evaluators are never deleted. A missing evaluator is ignored.
+         *     bindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps
+         *     the prompt. Built-in evaluators cannot be deleted.
          */
         delete: operations["deleteEvaluator"];
         options?: never;
@@ -618,6 +618,26 @@ export interface paths {
          *     creates another version.
          */
         post: operations["createCodeEvaluatorVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sandbox_configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sandbox Configs
+         * @description List sandbox configurations, newest first. Provider credentials are not returned.
+         */
+        get: operations["getSandboxConfigs"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2802,8 +2822,8 @@ export interface components {
         /** CreateCodeEvaluatorRequest */
         CreateCodeEvaluatorRequest: {
             /**
-             * Type
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             type: "code";
             /** @description Unique among evaluators. */
@@ -2973,6 +2993,25 @@ export interface components {
              * @description The ID of the newly created experiment run
              */
             id: string;
+        };
+        /** CreateLLMEvaluatorRequest */
+        CreateLLMEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            /** @description Unique among evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
+             */
+            description?: string | null;
+            /** @description The prompt version to run. Create the prompt and its version through the prompts API first. */
+            prompt: components["schemas"]["LLMEvaluatorPromptInput"];
+            /** Output Configs */
+            output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
         };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
@@ -4060,18 +4099,43 @@ export interface components {
              * @description Equals the description of the prompt's tool function.
              */
             description: string | null;
-            /**
-             * Prompt Id
-             * @description GlobalID of the prompt whose versions this evaluator runs.
-             */
-            prompt_id: string;
-            /** @description The version the evaluator currently runs; its id is what patch accepts. */
-            prompt_version: components["schemas"]["PromptVersion"] | null;
+            prompt: components["schemas"]["LLMEvaluatorPrompt"];
             /** Output Configs */
             output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
         };
+        /** LLMEvaluatorPrompt */
+        LLMEvaluatorPrompt: {
+            /**
+             * Prompt Id
+             * @description GlobalID of the prompt whose version the evaluator runs.
+             */
+            prompt_id: string;
+            /**
+             * Selector
+             * @description How the version is chosen. version: pinned to one version. latest: the prompt's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.
+             */
+            selector: components["schemas"]["PromptVersionSelector"] | components["schemas"]["LatestPromptVersionSelector"];
+            /**
+             * Resolved Prompt Version Id
+             * @description GlobalID of the version the evaluator runs now; null if the prompt has none.
+             */
+            resolved_prompt_version_id: string | null;
+        };
+        /** LLMEvaluatorPromptInput */
+        LLMEvaluatorPromptInput: {
+            /** @description Which prompt version to run. */
+            selector: components["schemas"]["PromptVersionSelector"];
+        };
         /** @enum {string} */
         LanguageName: "PYTHON" | "TYPESCRIPT";
+        /** LatestPromptVersionSelector */
+        LatestPromptVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "latest";
+        };
         /**
          * LegacyAssistantMessageMetadata
          * @description Legacy transcripts predate the ``type`` discriminator, so default it here.
@@ -4672,11 +4736,8 @@ export interface components {
              * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
              */
             description?: string | null;
-            /**
-             * Prompt Version Id
-             * @description GlobalID of the prompt version to run. New prompt content is created through the prompts API; a version from another prompt moves the evaluator to that prompt.
-             */
-            prompt_version_id?: string;
+            /** @description Move the evaluator to another prompt version. Omit to keep it. */
+            prompt?: components["schemas"]["LLMEvaluatorPromptInput"];
             /** Output Configs */
             output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][];
         };
@@ -5704,6 +5765,19 @@ export interface components {
              */
             custom_provider_id?: string | null;
         };
+        /** PromptVersionSelector */
+        PromptVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "version";
+            /**
+             * Prompt Version Id
+             * @description GlobalID of the prompt version the evaluator runs. Prompt content is created through the prompts API; a version of another prompt moves the evaluator to it.
+             */
+            prompt_version_id: string;
+        };
         /** PromptVersionTag */
         PromptVersionTag: {
             name: components["schemas"]["Identifier"];
@@ -5841,6 +5915,32 @@ export interface components {
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
             data: components["schemas"]["UpsertOrDeleteSecretsResult"];
+        };
+        /** SandboxConfig */
+        SandboxConfig: {
+            /**
+             * Id
+             * @description GlobalID to pass as a code evaluator's sandbox_config_id.
+             */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            language: components["schemas"]["LanguageName"];
+            /** Backend Type */
+            backend_type: string;
+            /**
+             * Is Usable
+             * @description Whether code evaluators can be created or deployed in it now: the configuration and its provider are both enabled.
+             */
+            is_usable: boolean;
+        };
+        /** SandboxConfigsResponseBody */
+        SandboxConfigsResponseBody: {
+            /** Data */
+            data: components["schemas"]["SandboxConfig"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * SecretKeyValue
@@ -7661,6 +7761,58 @@ export interface components {
              * @default null
              */
             toolInputEmittedAt?: string | null;
+        };
+        /** ProblemDetail */
+        ProblemDetail: {
+            /**
+             * Type
+             * @default about:blank
+             */
+            type?: string;
+            /**
+             * Title
+             * @description The HTTP status phrase.
+             */
+            title: string;
+            /** Status */
+            status: number;
+            /**
+             * Detail
+             * @description What went wrong and, where possible, how to fix it.
+             */
+            detail: string;
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "validation_error" | "invalid_argument" | "not_found" | "already_exists" | "conflict" | "forbidden" | "insufficient_storage" | "error";
+            /**
+             * Errors
+             * @description Every invalid input, for validation errors.
+             * @default null
+             */
+            errors?: components["schemas"]["ProblemFieldError"][] | null;
+            /**
+             * Existing Id
+             * @description For already_exists: the GlobalID of the resource that holds the name.
+             * @default null
+             */
+            existing_id?: string | null;
+        };
+        /** ProblemFieldError */
+        ProblemFieldError: {
+            /**
+             * Field
+             * @description Dotted path of the offending input, e.g. body.name.
+             */
+            field: string;
+            /**
+             * Code
+             * @description Machine-readable reason, e.g. missing or string_pattern.
+             */
+            code: string;
+            /** Message */
+            message: string;
         };
         /**
          * SessionSummaryChunk
@@ -9764,14 +9916,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message. */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9785,7 +9936,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateCodeEvaluatorRequest"];
+                "application/json": components["schemas"]["CreateLLMEvaluatorRequest"] | components["schemas"]["CreateCodeEvaluatorRequest"];
             };
         };
         responses: {
@@ -9813,7 +9964,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Conflict */
@@ -9822,17 +9973,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message. */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Insufficient Storage */
@@ -9841,7 +9991,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9881,17 +10031,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message. */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9929,17 +10078,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message. */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -9983,7 +10131,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Conflict */
@@ -9992,17 +10140,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message. */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Insufficient Storage */
@@ -10011,7 +10158,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10054,17 +10201,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message. */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -10117,7 +10263,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Conflict */
@@ -10126,17 +10272,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message. */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Insufficient Storage */
@@ -10145,7 +10290,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getSandboxConfigs: {
+        parameters: {
+            query?: {
+                /** @description Return configurations for this language only. */
+                language?: components["schemas"]["LanguageName"] | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SandboxConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
