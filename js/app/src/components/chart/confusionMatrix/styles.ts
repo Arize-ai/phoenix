@@ -129,6 +129,22 @@ export const confusionMatrixCSS = css`
 
   .confusion-matrix__cell {
     min-height: var(--confusion-matrix-cell-min-height);
+    background-color: var(--confusion-matrix-cell-background-color);
+    color: var(--confusion-matrix-cell-color);
+  }
+
+  /* With a selection, the other cells fade by mixing their fill toward
+   * transparent rather than by opacity, which would also fade the focus ring.
+   * Their text switches to muted ink: the density ink is picked for the full
+   * fill and can vanish against the faded one. */
+  .confusion-matrix__grid[data-has-selection]
+    .confusion-matrix__cell:not(.confusion-matrix__cell--selected) {
+    background-color: color-mix(
+      in srgb,
+      var(--confusion-matrix-cell-background-color) 40%,
+      transparent
+    );
+    color: var(--global-text-color-500);
   }
 
   button.confusion-matrix__cell {
@@ -137,15 +153,14 @@ export const confusionMatrixCSS = css`
     font: inherit;
   }
 
-  .confusion-matrix__cell--selected,
   button.confusion-matrix__cell:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
 
   .confusion-matrix__cell--empty {
-    background-color: var(--global-color-gray-100);
-    color: var(--global-text-color-300);
+    --confusion-matrix-cell-background-color: var(--global-color-gray-100);
+    --confusion-matrix-cell-color: var(--global-text-color-300);
   }
 
   .confusion-matrix__total {
@@ -185,10 +200,30 @@ export const confusionMatrixCSS = css`
     padding-inline-start: var(--global-dimension-size-100);
   }
 
-  .confusion-matrix__quadrant {
+  /* Top-right corner row holding the quadrant label and the selection check,
+   * so the two never overlap */
+  .confusion-matrix__adornments {
     position: absolute;
     top: var(--global-dimension-size-100);
     right: var(--global-dimension-size-125);
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-75);
+  }
+
+  .confusion-matrix__check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--global-dimension-size-250);
+    height: var(--global-dimension-size-250);
+    border-radius: var(--global-rounding-full);
+    background-color: var(--global-static-color-white-900);
+    color: var(--global-static-color-black-900);
+    font-size: var(--global-font-size-s);
+  }
+
+  .confusion-matrix__quadrant {
     font-family: var(--global-font-family-mono);
     font-size: var(--global-font-size-xxs);
     letter-spacing: 0.08em;
