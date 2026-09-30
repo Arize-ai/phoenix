@@ -89,8 +89,6 @@ export type SpanAnnotationFixture = {
   name: string;
   label: string | null;
   score: number | null;
-  explanation: string | null;
-  annotatorKind: "LLM" | "HUMAN" | "CODE";
 };
 
 /**
@@ -104,15 +102,11 @@ export const spanAnnotationsBySpanId: Record<string, SpanAnnotationFixture[]> =
         name: "user_feedback",
         label: "positive",
         score: 1,
-        explanation: "Customer marked the answer helpful.",
-        annotatorKind: "HUMAN",
       },
       {
         name: "qa_correctness",
         label: "correct",
         score: 1,
-        explanation: "The final answer matches the policy document.",
-        annotatorKind: "LLM",
       },
     ],
     retrieve: [
@@ -120,9 +114,6 @@ export const spanAnnotationsBySpanId: Record<string, SpanAnnotationFixture[]> =
         name: "relevance",
         label: "unrelated",
         score: 0,
-        explanation:
-          "None of the four retrieved chunks mention the refund window the question asks about; they cover shipping rates.",
-        annotatorKind: "LLM",
       },
     ],
     "llm-draft": [
@@ -130,38 +121,26 @@ export const spanAnnotationsBySpanId: Record<string, SpanAnnotationFixture[]> =
         name: "hallucination",
         label: "hallucinated",
         score: 1,
-        explanation:
-          "The draft states a 45-day refund window. The retrieved context gives no window, so the figure is unsupported.",
-        annotatorKind: "LLM",
       },
       {
         name: "faithfulness",
         label: null,
         score: 0.31,
-        explanation:
-          "Two of the three claims in the draft cannot be traced back to the context.",
-        annotatorKind: "LLM",
       },
       {
         name: "faithfulness",
         label: null,
         score: 0.4,
-        explanation: "One claim is unsupported.",
-        annotatorKind: "HUMAN",
       },
       {
         name: "toxicity",
         label: null,
         score: 0.02,
-        explanation: null,
-        annotatorKind: "CODE",
       },
       {
         name: "tone",
         label: "formal",
         score: null,
-        explanation: null,
-        annotatorKind: "LLM",
       },
     ],
     "llm-critique": [
@@ -169,9 +148,6 @@ export const spanAnnotationsBySpanId: Record<string, SpanAnnotationFixture[]> =
         name: "faithfulness",
         label: null,
         score: 0.88,
-        explanation:
-          "The critique correctly identifies the unsupported refund figure.",
-        annotatorKind: "LLM",
       },
     ],
     "llm-final": [
@@ -179,30 +155,21 @@ export const spanAnnotationsBySpanId: Record<string, SpanAnnotationFixture[]> =
         name: "hallucination",
         label: "factual",
         score: 0,
-        explanation:
-          "Every claim in the answer is supported by the retrieved context.",
-        annotatorKind: "LLM",
       },
       {
         name: "faithfulness",
         label: null,
         score: 0.97,
-        explanation: "All three claims trace to the context.",
-        annotatorKind: "LLM",
       },
       {
         name: "toxicity",
         label: null,
         score: 0.01,
-        explanation: null,
-        annotatorKind: "CODE",
       },
       {
         name: "relevance",
         label: "relevant",
         score: 1,
-        explanation: "The answer addresses the refund question directly.",
-        annotatorKind: "HUMAN",
       },
     ],
   };
@@ -240,23 +207,4 @@ export function summarizeSpanAnnotations(
       })),
     };
   });
-}
-
-/**
- * The annotations of one span as the preview's details query returns them:
- * ids and creation times added, newest last. Defaults to the RAG trace's
- * annotations for that span id.
- */
-export function buildSpanAnnotationRecords(
-  spanId: string,
-  annotations: readonly SpanAnnotationFixture[] = spanAnnotationsBySpanId[
-    spanId
-  ] ?? []
-) {
-  const annotatedAt = Date.parse("2026-09-22T09:31:00.000Z");
-  return annotations.map((annotation, index) => ({
-    id: `${spanId}-annotation-${index}`,
-    ...annotation,
-    createdAt: new Date(annotatedAt + index * 1000).toISOString(),
-  }));
 }

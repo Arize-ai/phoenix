@@ -1,15 +1,22 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import type { ReactNode } from "react";
+import { Suspense, useState } from "react";
+import { useLazyLoadQuery, useRelayEnvironment } from "react-relay";
+import { createOperationDescriptor, getRequest } from "relay-runtime";
 
 import { ErrorBoundary, RichTooltip, TooltipArrow } from "@phoenix/components";
 import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
+import { useRetainQuery } from "@phoenix/contexts/QueryRetentionContext";
 import { useSettled } from "@phoenix/hooks";
 
-import type { SpanPreviewTooltipDetailsQuery as SpanPreviewTooltipDetailsQueryType } from "./__generated__/SpanPreviewTooltipDetailsQuery.graphql";
-import { useSpanMetricsDetailsProps } from "./SpanMetricsDetails";
+import type { SpanMetricsDetailsQuery as SpanMetricsDetailsQueryType } from "./__generated__/SpanMetricsDetailsQuery.graphql";
+import {
+  SpanMetricsDetailsQuery,
+  useSpanMetricsDetailsProps,
+} from "./SpanMetricsDetails";
 import type { SpanPreviewCardProps } from "./SpanPreviewCard";
 import { SpanPreviewCard } from "./SpanPreviewCard";
+import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
 import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "./TokenDetailsBreakdown";
 
 /**
@@ -18,25 +25,6 @@ import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "./TokenDetailsBreakdown";
  * scrub down the tree would fetch details for every row it crossed.
  */
 const DETAILS_SETTLE_MS = 150;
-
-const SpanPreviewTooltipDetailsQuery = graphql`
-  query SpanPreviewTooltipDetailsQuery($nodeId: ID!) {
-    node(id: $nodeId) {
-      __typename
-      ... on Span {
-        previewSpanAnnotations: spanAnnotations(
-          filter: { exclude: { names: ["note"] } }
-        ) {
-          id
-          name
-          explanation
-          createdAt
-        }
-        ...SpanMetricsDetails_span
-      }
-    }
-  }
-`;
 
 /**
  * The preview follows the pointer from row to row, so it neither fades in
@@ -57,8 +45,8 @@ export type SpanPreviewTooltipProps = Pick<
 >;
 
 /**
- * A trace tree row's tooltip: a {@link SpanPreviewCard} that loads its own
- * details once the tooltip settles.
+ * A trace tree row's tooltip: a {@link SpanPreviewCard} that loads the span's
+ * token and cost breakdown once the tooltip settles.
  *
  * @remarks
  * Render it as the tooltip of a `TooltipTrigger` around the row, which
@@ -83,33 +71,71 @@ export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
   );
 }
 
+const EMPTY_METRICS_DETAILS: TokenDetailsBreakdownProps = {};
+
+function getDetailsOperation(spanId: string) {
+  return createOperationDescriptor(getRequest(SpanMetricsDetailsQuery), {
+    nodeId: spanId,
+  });
+}
+
 function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
-  const hasSettled = useSettled(DETAILS_SETTLE_MS);
-  const placeholder = <SpanPreviewCard {...props} />;
-  if (!hasSettled) {
-    return placeholder;
+  const { span } = props;
+  // Annotations come with the tree, so a span without usage has nothing to load
+  if (!span.tokenCountTotal && !span.costSummary?.total?.cost) {
+    return (
+      <SpanPreviewCard {...props} metricsDetails={EMPTY_METRICS_DETAILS} />
+    );
   }
-  return (
+  return <SpanPreviewUsageDetails {...props} />;
+}
+
+function SpanPreviewUsageDetails(props: SpanPreviewTooltipProps) {
+  const environment = useRelayEnvironment();
+  // Details already in the store when the tooltip opens skip the settle, so
+  // revisited rows never pop in
+  const [wasCached] = useState(
+    () =>
+      environment.check(getDetailsOperation(props.span.id)).status ===
+      "available"
+  );
+  const placeholder = <SpanPreviewCard {...props} />;
+  const details = (
     <ErrorBoundary fallback={TextErrorBoundaryFallback}>
       <Suspense fallback={placeholder}>
         <LoadedSpanPreviewCard {...props} />
       </Suspense>
     </ErrorBoundary>
   );
+  if (wasCached) {
+    return details;
+  }
+  return <AfterSettle placeholder={placeholder}>{details}</AfterSettle>;
+}
+
+function AfterSettle({
+  placeholder,
+  children,
+}: {
+  placeholder: ReactNode;
+  children: ReactNode;
+}) {
+  const hasSettled = useSettled(DETAILS_SETTLE_MS);
+  return hasSettled ? children : placeholder;
 }
 
 function LoadedSpanPreviewCard(props: SpanPreviewTooltipProps) {
-  const data = useLazyLoadQuery<SpanPreviewTooltipDetailsQueryType>(
-    SpanPreviewTooltipDetailsQuery,
+  const data = useLazyLoadQuery<SpanMetricsDetailsQueryType>(
+    SpanMetricsDetailsQuery,
     { nodeId: props.span.id }
   );
+  useRetainQuery(getDetailsOperation(props.span.id));
   const node = data.node.__typename === "Span" ? data.node : null;
   const metricsDetails = useSpanMetricsDetailsProps(node);
   return (
     <SpanPreviewCard
       {...props}
-      annotations={node?.previewSpanAnnotations ?? []}
-      metricsDetails={metricsDetails ?? {}}
+      metricsDetails={metricsDetails ?? EMPTY_METRICS_DETAILS}
     />
   );
 }

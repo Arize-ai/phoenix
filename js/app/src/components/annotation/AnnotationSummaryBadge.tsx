@@ -2,14 +2,11 @@ import { css } from "@emotion/react";
 
 import { outlinedPillCSS } from "@phoenix/components/core/styles";
 import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
-import { AnnotationScoreText } from "./AnnotationScoreText";
-import {
-  getAnnotationSummaryPositiveOptimization,
-  getAnnotationSummaryTopLabel,
-} from "./annotationSummaryUtils";
+import { AnnotationLabelConsensusText } from "./AnnotationLabelConsensusText";
+import { getAnnotationSummaryPositiveOptimization } from "./annotationSummaryUtils";
+import { MeanScore } from "./MeanScore";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 import type { AnnotationSummary } from "./types";
 
@@ -25,7 +22,11 @@ const badgeCSS = css(
        its "+N" instead of truncating names */
     flex: none;
     max-width: 100%;
-    padding: 0 1px 0 var(--global-dimension-size-75);
+    padding: 0 var(--global-dimension-size-75);
+    /* A tinted value fills the badge's end itself */
+    &:has(.annotation-summary-badge__value [data-direction]) {
+      padding-inline-end: 1px;
+    }
     color: var(--global-text-color-700);
     font-size: var(--global-font-size-xs);
     line-height: 1;
@@ -41,9 +42,6 @@ const badgeCSS = css(
       flex: none;
       max-width: 14ch;
     }
-    .annotation-summary-badge__value:not([data-direction]) {
-      color: var(--global-text-color-900);
-    }
   `
 );
 
@@ -52,34 +50,39 @@ export interface AnnotationSummaryBadgeProps {
   annotationConfig?: AnnotationOptimizationConfig;
 }
 
-/** Shows the summary's most common label, falling back to its mean score. */
+/**
+ * A summary's name and value: its mean score, which aggregates every
+ * annotation behind it, or how far its labels agree when it has no score.
+ */
 export function AnnotationSummaryBadge({
   summary,
   annotationConfig,
 }: AnnotationSummaryBadgeProps) {
-  const label = getAnnotationSummaryTopLabel(summary);
-  const value =
-    label ??
-    (summary.meanScore != null ? formatFloat(summary.meanScore) : null);
-  const title = value == null ? summary.name : `${summary.name}: ${value}`;
   return (
-    <span className="annotation-summary-badge" css={badgeCSS} title={title}>
+    <span
+      className="annotation-summary-badge"
+      css={badgeCSS}
+      title={summary.name}
+    >
       <AnnotationColorSwatch annotationName={summary.name} size="S" />
       <span className="annotation-summary-badge__name">{summary.name}</span>
-      {value != null ? (
-        <AnnotationScoreText
-          elementType="span"
-          size="XS"
-          fontFamily={label != null ? "default" : "mono"}
-          className="annotation-summary-badge__value"
+      {summary.meanScore != null ? (
+        <MeanScore
+          value={summary.meanScore}
           positiveOptimization={getAnnotationSummaryPositiveOptimization({
             summary,
             annotationConfig,
           })}
-        >
-          {value}
-        </AnnotationScoreText>
-      ) : null}
+          size="XS"
+          className="annotation-summary-badge__value"
+        />
+      ) : (
+        <AnnotationLabelConsensusText
+          summary={summary}
+          size="XS"
+          className="annotation-summary-badge__value"
+        />
+      )}
     </span>
   );
 }

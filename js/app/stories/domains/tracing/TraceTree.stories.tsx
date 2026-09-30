@@ -18,7 +18,6 @@ import { PreferencesProvider } from "@phoenix/contexts";
 
 import {
   annotationConfigsByName,
-  buildSpanAnnotationRecords,
   spanAnnotationsBySpanId,
   summarizeSpanAnnotations,
 } from "../../constants/annotationFixtures";
@@ -278,10 +277,9 @@ const spansById = new Map(
 );
 
 /**
- * The details the preview loads for one span: the annotations behind its
- * badges, and a prompt/completion split with a cache-read entry for a span
- * with tokens so the breakdown has something to draw. Other spans answer
- * with latency alone.
+ * The details the preview loads for one span: a prompt/completion split
+ * with a cache-read entry for a span with tokens so the breakdown has
+ * something to draw. Other spans answer with latency alone.
  */
 function buildSpanDetails(nodeId: string) {
   const match = spansById.get(nodeId);
@@ -292,7 +290,6 @@ function buildSpanDetails(nodeId: string) {
     __typename: "Span",
     id: nodeId,
     latencyMs: match.latencyMs,
-    previewSpanAnnotations: buildSpanAnnotationRecords(nodeId),
   };
   const total = match.tokenCountTotal;
   if (typeof total !== "number") {
@@ -462,7 +459,7 @@ export const MixedRowHeights: Story = {
 /**
  * The RAG trace after its evals ran. The retriever and the draft are flagged
  * in red; the final answer passed in green; `tone` has no direction and
- * stays plain. Hover the draft for the explanations behind its badges.
+ * stays plain. Hover the draft for its preview.
  */
 export const WithAnnotations: Story = {
   render: () => (

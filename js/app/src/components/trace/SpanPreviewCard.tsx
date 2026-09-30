@@ -6,7 +6,6 @@ import { useTimeFormatters } from "@phoenix/hooks";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
-import type { SpanPreviewAnnotation } from "./SpanPreviewAnnotations";
 import { SpanPreviewAnnotations } from "./SpanPreviewAnnotations";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
@@ -55,8 +54,6 @@ const cardCSS = css`
 export type SpanPreviewCardProps = {
   span: ISpanItem;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
-  /** Omit while loading; the annotations table then shows values only. */
-  annotations?: readonly SpanPreviewAnnotation[] | null;
   /** Omit while loading; a skeleton then surrounds the span's known totals. */
   metricsDetails?: TokenDetailsBreakdownProps | null;
 };
@@ -65,7 +62,6 @@ export type SpanPreviewCardProps = {
 export function SpanPreviewCard({
   span,
   annotationConfigsByName,
-  annotations,
   metricsDetails,
 }: SpanPreviewCardProps) {
   return (
@@ -87,7 +83,6 @@ export function SpanPreviewCard({
       <SpanPreviewAnnotations
         summaries={span.spanAnnotationSummaries}
         annotationConfigsByName={annotationConfigsByName}
-        annotations={annotations}
       />
       {metricsDetails ? (
         <TokenDetailsBreakdown {...metricsDetails} />

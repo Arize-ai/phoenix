@@ -10,7 +10,6 @@ import type { ISpanItem } from "@phoenix/components/trace/types";
 
 import {
   annotationConfigsByName,
-  buildSpanAnnotationRecords,
   spanAnnotationsBySpanId,
   summarizeSpanAnnotations,
 } from "../../constants/annotationFixtures";
@@ -91,7 +90,6 @@ function buildSpanDetails(nodeId: string) {
   const base = {
     __typename: "Span",
     id: nodeId,
-    previewSpanAnnotations: buildSpanAnnotationRecords(nodeId),
   };
   if (nodeId === annotatedSpan.id) {
     return {
@@ -238,9 +236,9 @@ function OpenPreview({ span }: { span: ISpanItem }) {
 
 /**
  * The connected tooltip each trace tree row opens: a `Span Preview Card`
- * that loads its annotation explanations and token breakdown once it has
- * settled. A canned Relay environment answers after a short delay; no
- * requests leave the story.
+ * that loads its token and cost breakdown once it has settled. A canned
+ * Relay environment answers after a short delay; no requests leave the
+ * story.
  */
 const meta: Meta<typeof SpanPreviewTooltip> = {
   title: "Domains/Tracing/Span Preview Tooltip",
@@ -267,7 +265,7 @@ export const LLMSpan: Story = {
   render: () => <OpenPreview span={llmSpan} />,
 };
 
-/** An evaluated span; explanations fill in once the details load. */
+/** An evaluated span; its annotations show at once, from the tree row. */
 export const WithAnnotations: Story = {
   render: () => <OpenPreview span={annotatedSpan} />,
 };

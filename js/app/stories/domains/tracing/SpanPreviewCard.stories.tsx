@@ -17,13 +17,12 @@ import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "@phoenix/components/trace
 import type { SpanAnnotationFixture } from "../../constants/annotationFixtures";
 import {
   annotationConfigsByName,
-  buildSpanAnnotationRecords,
   spanAnnotationsBySpanId,
   summarizeSpanAnnotations,
 } from "../../constants/annotationFixtures";
 import { buildSpan } from "../../constants/spanFixtures";
 
-/** A card with its annotations and breakdown loaded, from plain values. */
+/** A card with its breakdown loaded, from plain values. */
 function loadedCard({
   annotations,
   metricsDetails = {},
@@ -38,7 +37,6 @@ function loadedCard({
       spanAnnotationSummaries: summarizeSpanAnnotations(annotations),
     }),
     annotationConfigsByName,
-    annotations: buildSpanAnnotationRecords(span.id, annotations),
     metricsDetails,
   };
 }
@@ -101,8 +99,6 @@ const failedTool = loadedCard({
       name: "tool_success",
       label: "fail",
       score: 0,
-      explanation: "Order service timed out after 600ms.",
-      annotatorKind: "CODE",
     },
   ],
 });
@@ -133,16 +129,16 @@ const longContent = loadedCard({
       name: "answer-completeness-against-reference",
       label: "partially-complete-with-omissions",
       score: 0.5,
-      explanation:
-        "The answer covers the refund window and the restocking fee but omits the exception for opened software, the exception for final-sale items, and the process for returning a gift. A reader following it would be refused at the counter for any of those three cases.",
-      annotatorKind: "LLM",
     },
     {
       name: "faithfulness",
       label: null,
       score: 0.62,
-      explanation: null,
-      annotatorKind: "HUMAN",
+    },
+    {
+      name: "release_review",
+      label: "needs-another-pass-before-release",
+      score: null,
     },
   ],
 });
@@ -166,22 +162,16 @@ const manyEvals = loadedCard({
       name: "qa_correctness",
       label: "incorrect",
       score: 0,
-      explanation: "States 30 days; the policy updated to 14 days last month.",
-      annotatorKind: "LLM",
     },
     {
       name: "user_feedback",
       label: "negative",
       score: 0,
-      explanation: "Customer says the window was wrong.",
-      annotatorKind: "HUMAN",
     },
     {
       name: "user_feedback",
       label: "positive",
       score: 1,
-      explanation: null,
-      annotatorKind: "HUMAN",
     },
   ],
 });
@@ -189,7 +179,6 @@ const manyEvals = loadedCard({
 /** Only the tree row's data, before the details load. */
 const loading: SpanPreviewCardProps = {
   ...draft,
-  annotations: null,
   metricsDetails: null,
 };
 
@@ -277,7 +266,7 @@ export const ContentLength: Story = {
       <Case label="Six evals, one scored twice">
         <SpanPreviewCard {...manyEvals} />
       </Case>
-      <Case label="Long names and explanation">
+      <Case label="Long names and labels">
         <SpanPreviewCard {...longContent} />
       </Case>
     </Stack>
@@ -285,9 +274,9 @@ export const ContentLength: Story = {
 };
 
 /**
- * Before the details load, annotations show values without explanations and
- * a skeleton surrounds the known totals. The loaded card follows for
- * comparison.
+ * Annotations come with the tree row, so before the details load only the
+ * breakdown waits, as a skeleton around the known totals. The loaded card
+ * follows for comparison.
  */
 export const Loading: Story = {
   tags: ["!dev"],

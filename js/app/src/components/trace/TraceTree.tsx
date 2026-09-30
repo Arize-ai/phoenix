@@ -17,6 +17,7 @@ import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar"
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { QueryRetentionProvider } from "@phoenix/contexts/QueryRetentionContext";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { SpanAnnotationBadges } from "./SpanAnnotationBadges";
@@ -98,27 +99,29 @@ export function TraceTree(props: TraceTreeProps) {
         ]}
         data-testid="trace-tree"
       >
-        {noSearchResults ? (
-          <li aria-live="polite">
-            <TraceTreeSearchEmpty searchQuery={searchQuery} />
-          </li>
-        ) : null}
-        {!rootSpan ? (
-          <li>
-            <Empty message="No spans" size="S" />
-          </li>
-        ) : null}
-        {filteredSpanTree.map((spanNode) => (
-          <SpanTreeItem
-            key={spanNode.span.id}
-            node={spanNode}
-            overallTimeRange={overallTimeRange}
-            onSpanClick={onSpanClick}
-            selectedSpanNodeId={selectedSpanNodeId}
-            scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
-            annotationConfigsByName={annotationConfigsByName}
-          />
-        ))}
+        <QueryRetentionProvider>
+          {noSearchResults ? (
+            <li aria-live="polite">
+              <TraceTreeSearchEmpty searchQuery={searchQuery} />
+            </li>
+          ) : null}
+          {!rootSpan ? (
+            <li>
+              <Empty message="No spans" size="S" />
+            </li>
+          ) : null}
+          {filteredSpanTree.map((spanNode) => (
+            <SpanTreeItem
+              key={spanNode.span.id}
+              node={spanNode}
+              overallTimeRange={overallTimeRange}
+              onSpanClick={onSpanClick}
+              selectedSpanNodeId={selectedSpanNodeId}
+              scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+              annotationConfigsByName={annotationConfigsByName}
+            />
+          ))}
+        </QueryRetentionProvider>
       </ul>
     </div>
   );

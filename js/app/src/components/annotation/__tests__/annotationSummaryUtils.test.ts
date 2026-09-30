@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getAnnotationLabelConsensus,
   getAnnotationSummaryPositiveOptimization,
-  getAnnotationSummaryTopLabel,
   sortAnnotationSummariesForTriage,
 } from "../annotationSummaryUtils";
 import type { AnnotationOptimizationConfig } from "../optimizationUtils";
@@ -61,17 +61,39 @@ describe("getAnnotationSummaryPositiveOptimization", () => {
   });
 });
 
-describe("getAnnotationSummaryTopLabel", () => {
-  it("picks the most common label, or nothing without labels", () => {
+describe("getAnnotationLabelConsensus", () => {
+  it("names the label when every annotation agrees", () => {
     expect(
-      getAnnotationSummaryTopLabel({
+      getAnnotationLabelConsensus({
+        labelFractions: [{ label: "correct", fraction: 1 }],
+      })
+    ).toEqual({ kind: "top", label: "correct", fraction: 1 });
+  });
+
+  it("names the most common label with its share", () => {
+    expect(
+      getAnnotationLabelConsensus({
         labelFractions: [
-          { label: "factual", fraction: 0.25 },
-          { label: "hallucinated", fraction: 0.75 },
+          { label: "factual", fraction: 1 / 3 },
+          { label: "hallucinated", fraction: 2 / 3 },
         ],
       })
-    ).toBe("hallucinated");
-    expect(getAnnotationSummaryTopLabel({ labelFractions: [] })).toBeNull();
+    ).toEqual({ kind: "top", label: "hallucinated", fraction: 2 / 3 });
+  });
+
+  it("is mixed when labels tie for most common", () => {
+    expect(
+      getAnnotationLabelConsensus({
+        labelFractions: [
+          { label: "correct", fraction: 0.5 },
+          { label: "incorrect", fraction: 0.5 },
+        ],
+      })?.kind
+    ).toBe("mixed");
+  });
+
+  it("is null without labels", () => {
+    expect(getAnnotationLabelConsensus({ labelFractions: [] })).toBeNull();
   });
 });
 

@@ -19,16 +19,30 @@ export function getAnnotationSummaryPositiveOptimization({
   });
 }
 
-export function getAnnotationSummaryTopLabel(
+export type AnnotationLabelConsensus =
+  /** One label is most common; `fraction` is its share, 1 when all agree */
+  | { kind: "top"; label: string; fraction: number }
+  /** Two or more labels tie for most common */
+  | { kind: "mixed"; labelFractions: AnnotationSummary["labelFractions"] };
+
+/**
+ * How far the labels behind a summary agree, so a split vote never reads as
+ * a verdict. `null` when the summary has no labels.
+ */
+export function getAnnotationLabelConsensus(
   summary: Pick<AnnotationSummary, "labelFractions">
-): string | null {
-  let top: AnnotationSummary["labelFractions"][number] | null = null;
-  for (const entry of summary.labelFractions) {
-    if (top == null || entry.fraction > top.fraction) {
-      top = entry;
-    }
+): AnnotationLabelConsensus | null {
+  const sorted = [...summary.labelFractions].sort(
+    (first, second) => second.fraction - first.fraction
+  );
+  const [top, runnerUp] = sorted;
+  if (top == null) {
+    return null;
   }
-  return top?.label ?? null;
+  if (runnerUp != null && runnerUp.fraction === top.fraction) {
+    return { kind: "mixed", labelFractions: sorted };
+  }
+  return { kind: "top", label: top.label, fraction: top.fraction };
 }
 
 /**
