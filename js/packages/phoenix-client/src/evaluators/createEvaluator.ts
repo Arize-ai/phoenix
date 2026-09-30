@@ -74,5 +74,6 @@ export async function createEvaluator({
 
   if (error) throw error;
   invariant(data?.data, "Failed to create evaluator");
+  invariant(data.data.type !== "builtin", "Expected an LLM or code evaluator");
   return data.data;
 }

@@ -67,15 +67,15 @@ describe("createDatasetEvaluator", () => {
       client: createTestClient(),
       dataset: { datasetName: "golden-questions" },
       name: "exact-match",
+      evaluatorId: "RXZhbHVhdG9yOjI=",
       inputMapping: INPUT_MAPPING,
-      evaluator: { type: "reference", evaluator_id: "RXZhbHVhdG9yOjI=" },
     });
 
     expect(receivedIdentifier).toBe("golden-questions");
     expect(receivedBody).toEqual({
       name: "exact-match",
+      evaluator_id: "RXZhbHVhdG9yOjI=",
       input_mapping: INPUT_MAPPING,
-      evaluator: { type: "reference", evaluator_id: "RXZhbHVhdG9yOjI=" },
     });
     expect(created).toEqual(binding);
   });
@@ -97,7 +97,7 @@ describe("createDatasetEvaluator", () => {
       dataset: { datasetId: "RGF0YXNldDox" },
       name: "notes",
       inputMapping: INPUT_MAPPING,
-      evaluator: { type: "reference", evaluator_id: "RXZhbHVhdG9yOjI=" },
+      evaluatorId: "RXZhbHVhdG9yOjI=",
       description: "override",
       outputConfigs: [{ type: "FREEFORM", name: "notes" }],
     });
@@ -223,17 +223,15 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
 });
 
 describe("deleteDatasetEvaluator and deleteDatasetEvaluators", () => {
-  it("DELETEs one binding and forwards the prompt flag", async () => {
+  it("DELETEs one binding without touching its definition", async () => {
     let receivedId: string | undefined;
-    let receivedFlag: string | null = null;
+    let receivedQuery: string | undefined;
     server.use(
       http.delete(
         "/v1/dataset_evaluators/{dataset_evaluator_id}",
         ({ params, request, response }) => {
           receivedId = params.dataset_evaluator_id;
-          receivedFlag = new URL(request.url).searchParams.get(
-            "delete_associated_prompt"
-          );
+          receivedQuery = new URL(request.url).search;
           return response(204).empty();
         }
       )
@@ -242,42 +240,23 @@ describe("deleteDatasetEvaluator and deleteDatasetEvaluators", () => {
     await deleteDatasetEvaluator({
       client: createTestClient(),
       datasetEvaluatorId: BINDING_ID,
-      deleteAssociatedPrompt: true,
     });
 
     expect(receivedId).toBe(BINDING_ID);
-    expect(receivedFlag).toBe("true");
+    expect(receivedQuery).toBe("");
   });
 
-  it("leaves the prompt flag to the server by default", async () => {
-    let receivedFlag: string | null = "unset";
+  it("DELETEs many bindings from the dataset collection", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
     server.use(
       http.delete(
-        "/v1/dataset_evaluators/{dataset_evaluator_id}",
-        ({ request, response }) => {
-          receivedFlag = new URL(request.url).searchParams.get(
-            "delete_associated_prompt"
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        ({ params, request, response }) => {
+          receivedIdentifier = params.dataset_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "dataset_evaluator_id"
           );
-          return response(204).empty();
-        }
-      )
-    );
-
-    await deleteDatasetEvaluator({
-      client: createTestClient(),
-      datasetEvaluatorId: BINDING_ID,
-    });
-
-    expect(receivedFlag).toBeNull();
-  });
-
-  it("POSTs many binding ids in the body", async () => {
-    let receivedBody: unknown;
-    server.use(
-      http.post(
-        "/v1/dataset_evaluators/delete",
-        async ({ request, response }) => {
-          receivedBody = await request.json();
           return response(204).empty();
         }
       )
@@ -285,20 +264,19 @@ describe("deleteDatasetEvaluator and deleteDatasetEvaluators", () => {
 
     await deleteDatasetEvaluators({
       client: createTestClient(),
+      dataset: { datasetName: "golden-questions" },
       datasetEvaluatorIds: ["a", "b"],
-      deleteAssociatedPrompt: true,
     });
 
-    expect(receivedBody).toEqual({
-      dataset_evaluator_ids: ["a", "b"],
-      delete_associated_prompt: true,
-    });
+    expect(receivedIdentifier).toBe("golden-questions");
+    expect(receivedIds).toEqual(["a", "b"]);
   });
 
   it("refuses an empty id list without calling the server", async () => {
     await expect(
       deleteDatasetEvaluators({
         client: createTestClient(),
+        dataset: { datasetName: "golden-questions" },
         datasetEvaluatorIds: [],
       })
     ).rejects.toThrow("At least one datasetEvaluatorId must be provided");

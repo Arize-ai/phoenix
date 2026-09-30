@@ -1,5 +1,4 @@
 from .evaluators import (
-    DatasetEvaluatorInput,
     EvaluatorDefinition,
     EvaluatorOutputConfig,
     EvaluatorType,
@@ -10,7 +9,6 @@ from .sentinels import NOT_GIVEN, NotGiven
 
 __all__ = [
     "NOT_GIVEN",
-    "DatasetEvaluatorInput",
     "EvaluatorDefinition",
     "EvaluatorOutputConfig",
     "EvaluatorType",
