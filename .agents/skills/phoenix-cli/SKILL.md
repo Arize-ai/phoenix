@@ -61,6 +61,11 @@ px evaluator update <evaluator-id>
 px evaluator delete <evaluator-id>
 px evaluator version list <evaluator-id>
 px evaluator version create <evaluator-id>
+px dataset evaluator list <dataset-identifier>
+px dataset evaluator get <dataset-evaluator-id>
+px dataset evaluator create <dataset-identifier>
+px dataset evaluator update <dataset-evaluator-id>
+px dataset evaluator delete <dataset-evaluator-id...>
 px sandbox-config list
 px auth login
 px auth logout
@@ -420,7 +425,7 @@ Shared evaluator definitions (LLM, code, built-in) that projects and datasets bi
 
 ```bash
 px evaluator list --format raw --no-progress | jq '.[] | {id, type, name}'
-px evaluator list --type code --name exact-match --format raw --no-progress | jq -r '.[0].id'   # --type llm|code
+px evaluator list --type code --name exact-match --format raw --no-progress | jq -r '.[0].id'   # --type llm|code|builtin
 px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress                                 # one definition; inspect .type
 
 # create an LLM evaluator that runs an existing prompt version (create the prompt through the prompts API first)
@@ -444,6 +449,25 @@ px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
 ```
 
 Errors carry the server's explanation and exit `1` for any of these — not found, a name clash, a validation error, and so on; only invalid flags (`3`) and rejected credentials (`4`) get their own codes. In `raw`/`json` mode they are a `{error, code, status, problem_code, problem_reason, existing_id, problem}` JSON envelope on stderr: `problem_code` is the server's stable code (`already_exists`, `validation_error`, `conflict`, `not_found`, `invalid_argument`), `problem_reason` is a finer condition under it when the server sends one (e.g. `still_bound`), `existing_id` names the resource holding a taken name, and `problem` is the full parsed body, every field included. `--if-not-exists` on `create` sidesteps the name-clash case rather than requiring a stderr parse.
+
+### Dataset bindings
+
+Attach evaluators to a dataset so experiments on it are scored. Ids are `DatasetEvaluator:…` GlobalIDs; the dataset is a name or GlobalID. A binding references an existing definition by `--evaluator-id`; create LLM and code definitions with `px evaluator create` first. A taken name fails with `already_exists` and the envelope's `existing_id`.
+
+```bash
+px dataset evaluator list golden-questions --format raw --no-progress | jq '.[] | {id, name, evaluator_id}'
+px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format raw --no-progress
+
+# attach an existing LLM, code, or built-in evaluator
+px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
+
+# change binding overrides only; --inherit-* flags send null to fall back to the definition
+px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Exact match on answer" --inherit-output-configs
+
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; the definition, prompt, and trace project are kept
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes
+```
 
 ## GraphQL
 
