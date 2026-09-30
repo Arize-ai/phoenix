@@ -1459,7 +1459,9 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
     summary="Create spans",
     description=(
         "Submit spans to be inserted into a project. If any spans are invalid or "
-        "duplicates, no spans will be inserted."
+        "duplicates, no spans will be inserted. Each span's `attributes` must be flattened "
+        "(dotted keys), as the span list endpoint returns them by default; spans fetched "
+        "with `attributes_format=nested` cannot be posted back as is."
     ),
     responses=add_errors_to_responses([404, 400]),
     status_code=202,

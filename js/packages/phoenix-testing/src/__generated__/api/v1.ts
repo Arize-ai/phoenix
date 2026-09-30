@@ -888,7 +888,7 @@ export interface paths {
         put?: never;
         /**
          * Create spans
-         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.
+         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted. Each span's `attributes` must be flattened (dotted keys), as the span list endpoint returns them by default; spans fetched with `attributes_format=nested` cannot be posted back as is.
          */
         post: operations["createSpans"];
         delete?: never;
