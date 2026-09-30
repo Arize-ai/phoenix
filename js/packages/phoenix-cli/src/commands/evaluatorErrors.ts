@@ -1,4 +1,8 @@
-import { formatApiError, HttpError } from "@arizeai/phoenix-client";
+import {
+  formatApiError,
+  HttpError,
+  type ProblemDetail,
+} from "@arizeai/phoenix-client";
 
 const MAX_DETAIL_LENGTH = 2000;
 
@@ -18,17 +22,21 @@ export async function describeError(error: unknown): Promise<string> {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** The status, reason, and existing resource of a failed API request, if any. */
+/** The status and problem details of a failed API request, if any. */
 export function describeFailure(error: unknown): {
   status?: number;
-  reason?: string;
+  problemCode?: string;
+  problemReason?: string;
   existingId?: string;
+  problem?: ProblemDetail;
 } {
   if (!(error instanceof HttpError)) return {};
   return {
     status: error.status,
-    reason: error.problem?.code,
+    problemCode: error.problem?.code,
+    problemReason: error.problem?.reason,
     existingId: error.problem?.existing_id,
+    problem: error.problem,
   };
 }
 
@@ -47,9 +55,10 @@ function describeProblem(error: HttpError): string {
  * A `hint` for the structured error envelope: one line per field error from a
  * `validation_error` response, as `--flag: reason`. `reason` is always the
  * server's own text — the CLI keeps no copy of the server's field rules (e.g.
- * the name pattern) to duplicate here. The flag is the field's dotted path
- * (`body.name`, `query.name`) with the `body.`/`query.` prefix stripped and
- * underscores dashed, which matches this CLI's flag names.
+ * the name pattern) to duplicate here. The flag is the field's normalized
+ * path (`body.name`, `query.name`, `path.evaluator_id`) with the location
+ * prefix stripped and underscores dashed, which matches this CLI's flag
+ * names.
  */
 export function validationHint(error: unknown): string | undefined {
   if (!(error instanceof HttpError)) return undefined;
@@ -59,7 +68,7 @@ export function validationHint(error: unknown): string | undefined {
   }
   return problem.errors
     .map((fieldError) => {
-      const field = fieldError.field.replace(/^(body|query)\./, "");
+      const field = fieldError.field.replace(/^(body|query|path)\./, "");
       return `--${field.replace(/_/g, "-")}: ${fieldError.message}`;
     })
     .join("; ");

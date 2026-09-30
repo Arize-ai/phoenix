@@ -614,8 +614,12 @@ async function evaluatorCreateHandler(
     try {
       created = await createEvaluator({ client, evaluator });
     } catch (error) {
-      const { reason, existingId } = describeFailure(error);
-      if (!options.ifNotExists || reason !== "already_exists" || !existingId) {
+      const { problemCode, existingId } = describeFailure(error);
+      if (
+        !options.ifNotExists ||
+        problemCode !== "already_exists" ||
+        !existingId
+      ) {
         throw error;
       }
       writeProgress({
