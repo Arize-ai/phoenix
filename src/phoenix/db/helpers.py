@@ -441,8 +441,8 @@ def exclude_dataset_evaluator_projects(
 
 
 def exclude_project_evaluator_trace_projects(
-    stmt: Select[_AnyTuple],
-) -> Select[_AnyTuple]:
+    stmt: Select[*_Ts],
+) -> Select[*_Ts]:
     return stmt.outerjoin(
         models.ProjectEvaluator,
         models.Project.id == models.ProjectEvaluator.trace_project_id,
