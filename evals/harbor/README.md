@@ -22,7 +22,7 @@ compare the conditions in the Phoenix UI.
 
 ## Prerequisites
 
-- Install Python 3.12 or newer and run `pip install "arize-phoenix-client[harbor]"`.
+- Install Python 3.12 or newer and run `uv pip install "arize-phoenix-client[harbor]"`.
 - Install Docker for local runs, or set `DAYTONA_API_KEY` to use Daytona. Local Docker
   must support Harbor's allowlist network policy. Recent Docker Desktop versions support
   this policy. Harbor stops the run if the Docker installation does not support it.
