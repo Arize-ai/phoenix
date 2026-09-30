@@ -4,7 +4,6 @@ WASM sandbox backend.
 Executes Python code locally via a CPython 3.12 WebAssembly binary using the
 ``wasmtime`` runtime. Stateless — inherits BaseNoSessionBackend.
 
-The WASM binary is downloaded on first use via _download.ensure_wasm_binary().
 Execution runs in a thread pool to avoid blocking the event loop. A single
 execution's host-memory footprint is bounded on two fronts: the guest's
 WebAssembly linear memory is capped (_MAX_WASM_MEMORY_BYTES), and captured
@@ -329,8 +328,9 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
     @staticmethod
     def probe_binary() -> WASMBinaryProbe:
         """Report whether the CPython WASM binary is locally resolvable. No network, no writes."""
-        from phoenix.config import _no_local_storage
+        from phoenix.config import _no_local_storage, get_env_allow_external_resources
         from phoenix.server.sandbox._download import (
+            external_resources_disallowed_message,
             no_local_storage_message,
             resolve_wasm_binary_if_present,
         )
@@ -352,6 +352,12 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
             return WASMBinaryProbe(
                 available=False,
                 detail=no_local_storage_message(short=True),
+                path=None,
+            )
+        if not get_env_allow_external_resources():
+            return WASMBinaryProbe(
+                available=False,
+                detail=external_resources_disallowed_message(short=True),
                 path=None,
             )
         return WASMBinaryProbe(
