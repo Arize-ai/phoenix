@@ -10,7 +10,7 @@ import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
-from sqlalchemy import Select, exists, select, tuple_, update
+from sqlalchemy import exists, select, tuple_, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND
@@ -930,15 +930,6 @@ SpanSort = Literal["id", "start_time"]
 SortOrder = Literal["asc", "desc"]
 
 
-def _apply_span_filter(stmt: Select[Any], condition: str) -> Select[Any]:
-    try:
-        return SpanFilter(condition=condition)(stmt)
-    except SpanFilterError as error:
-        raise HTTPException(
-            status_code=400, detail=f"invalid span filter expression: {error}"
-        ) from error
-
-
 def _span_sort_columns(sort: SpanSort) -> list[sa.orm.InstrumentedAttribute[Any]]:
     """Columns that order a span page; ``id`` breaks ties on ``start_time``."""
     if sort == "start_time":
@@ -1113,7 +1104,12 @@ async def span_search(
         for af in attribute:
             stmt = stmt.where(_parse_attribute(af))
     if filter:
-        stmt = _apply_span_filter(stmt, filter)
+        try:
+            stmt = SpanFilter(condition=filter)(stmt)
+        except SpanFilterError as error:
+            raise HTTPException(
+                status_code=400, detail=f"invalid span filter expression: {error}"
+            ) from error
 
     if cursor:
         try:
