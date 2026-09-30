@@ -46,7 +46,9 @@ async def _database_now(session: AsyncSession) -> datetime:
         clock = func.statement_timestamp()
     else:
         clock = func.strftime("%Y-%m-%d %H:%M:%f", "now")
-    now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
+    now: Optional[datetime] = await session.scalar(
+        select(type_coerce(clock, models.UtcTimeStamp()))
+    )
     if now is None:
         raise RuntimeError("Database did not return its current time")
     return now

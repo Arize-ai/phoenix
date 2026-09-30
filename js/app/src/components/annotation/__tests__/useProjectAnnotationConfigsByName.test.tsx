@@ -122,7 +122,7 @@ describe("project annotation display configs", () => {
               __typename: "Project",
               id: "project-1",
               evaluators: { edges: evaluators },
-              annotationConfigs: {
+              configsByName: {
                 edges: configs.map((config) => ({ config })),
               },
             },

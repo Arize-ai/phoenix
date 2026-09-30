@@ -178,7 +178,7 @@ async def get_evaluator_distribution(
                 )
             )
         ).one()
-        labels = (
+        labels: Sequence[str] = (
             (
                 await session.scalars(
                     select(label)
