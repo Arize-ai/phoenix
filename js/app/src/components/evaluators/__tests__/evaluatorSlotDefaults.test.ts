@@ -9,7 +9,6 @@ import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
   getEvaluatorInputPlaceholder,
-  getEvaluatorMappingRowNames,
   getEvaluatorSlotSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
@@ -157,34 +156,6 @@ describe("evaluator slot defaults", () => {
         }
       }
     }
-  });
-});
-
-describe("getEvaluatorMappingRowNames", () => {
-  it("lists the three defaults first, then other variables as declared", () => {
-    // A gallery template: its own names follow the three the record offers,
-    // and a default it declares is not listed twice.
-    expect(
-      getEvaluatorMappingRowNames([
-        "available_tools",
-        "input",
-        "tool_selection",
-      ])
-    ).toEqual([
-      "input",
-      "output",
-      "metadata",
-      "available_tools",
-      "tool_selection",
-    ]);
-  });
-
-  it("lists the defaults alone when nothing else is declared", () => {
-    expect(getEvaluatorMappingRowNames([])).toEqual([
-      "input",
-      "output",
-      "metadata",
-    ]);
   });
 });
 

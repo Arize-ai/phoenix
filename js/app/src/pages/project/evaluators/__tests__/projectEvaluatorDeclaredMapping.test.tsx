@@ -6,11 +6,19 @@
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
+import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import type { EvaluatorStoreInstance } from "@phoenix/store/evaluatorStore";
+
+vi.mock("@phoenix/components/evaluators/EvaluatorPathField", () => ({
+  EvaluatorPathField: ({ ariaLabel }: { ariaLabel: string }) => (
+    <input aria-label={ariaLabel} readOnly />
+  ),
+}));
 
 function DeclaredMappingForm({
   declaredVariables,
@@ -90,5 +98,38 @@ describe("a project evaluator's mapping as its variables change", () => {
     expect(store!.getState().evaluator.inputMapping.pathMapping).toEqual(
       STORED_PATHS
     );
+  });
+
+  it("shows only declared variables as path-only mapping rows", async () => {
+    await act(async () => {
+      root.render(
+        <EvaluatorStoreProvider
+          initialState={{
+            evaluator: {
+              kind: "LLM",
+              globalName: "",
+              name: "",
+              description: "",
+              isBuiltin: false,
+              includeExplanation: false,
+              inputMapping: { pathMapping: {}, literalMapping: {} },
+            },
+          }}
+        >
+          <EvaluatorInputVariablesContext.Provider
+            value={["question", "rubric"]}
+          >
+            <ProjectEvaluatorInputMapping recordKind="span" />
+          </EvaluatorInputVariablesContext.Provider>
+        </EvaluatorStoreProvider>
+      );
+    });
+
+    expect(
+      [...container.querySelectorAll('input[aria-label$="path mapping"]')].map(
+        (input) => input.getAttribute("aria-label")
+      )
+    ).toEqual(["question path mapping", "rubric path mapping"]);
+    expect(container.querySelector("select")).toBeNull();
   });
 });

@@ -12,20 +12,6 @@ export function isEvaluatorSlotName(name: string): name is EvaluatorSlotName {
   return (EVALUATOR_SLOT_NAMES as readonly string[]).includes(name);
 }
 
-/**
- * The inputs a project evaluator's mapping form lists: the three the record
- * always offers, then the evaluator's own variables in the order it declares
- * them.
- */
-export function getEvaluatorMappingRowNames(
-  declaredVariables: readonly string[]
-): string[] {
-  return [
-    ...EVALUATOR_SLOT_NAMES,
-    ...declaredVariables.filter((name) => !isEvaluatorSlotName(name)),
-  ];
-}
-
 type BySlot<T> = Record<
   ProjectEvaluatorRecordKind,
   Record<EvaluatorSlotName, T>

@@ -1,11 +1,8 @@
-import { Flex } from "@phoenix/components";
+import { Flex, Text } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
-import {
-  getEvaluatorInputPlaceholder,
-  getEvaluatorMappingRowNames,
-} from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import { getEvaluatorInputPlaceholder } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { escapeFieldNameForReactHookForm } from "@phoenix/components/evaluators/fieldNameUtils";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
@@ -16,14 +13,12 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
- * Where each evaluator input is read from on the record it runs on: `input`,
- * `output`, and `metadata` first, then every other prompt variable or
- * `evaluate` parameter the evaluator declares.
+ * Where the evaluator's declared variables are read from on the record it
+ * runs on.
  *
- * The first three are what the record offers by name, so each reads its own
- * field until pointed elsewhere. Any other variable reads nothing until it is
- * given a path, unless the evaluator saved text for it; everything the record
- * holds is reachable under `metadata`.
+ * `input`, `output`, and `metadata` read their matching context fields when
+ * left blank. Other variables need a path unless they are optional code
+ * parameters or already have a saved text binding.
  */
 export const ProjectEvaluatorInputMapping = ({
   recordKind,
@@ -33,7 +28,7 @@ export const ProjectEvaluatorInputMapping = ({
   /** Every declared variable when omitted, as for a prompt. */
   requiredVariables?: readonly string[];
 }) => {
-  const variables = getEvaluatorMappingRowNames(useEvaluatorInputVariables());
+  const variables = useEvaluatorInputVariables();
   const { control, setValue } = useEvaluatorInputMappingControlsForm({
     pruneEmptyEntries: true,
     // Mounted under a key of the record kind, so switching what the evaluator
@@ -93,6 +88,11 @@ export const ProjectEvaluatorInputMapping = ({
           )}
         />
       ))}
+      {variables.length === 0 && (
+        <Text color="text-500">
+          Add variables to the evaluator to map them here.
+        </Text>
+      )}
     </Flex>
   );
 };

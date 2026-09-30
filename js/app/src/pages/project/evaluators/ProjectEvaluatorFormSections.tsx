@@ -75,6 +75,7 @@ export const ProjectLlmEvaluatorFormSections = (
         inputMappingSection={
           <ProjectEvaluatorInputMappingSection
             recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
+            evaluatorKind="prompt"
           />
         }
       />
@@ -85,16 +86,22 @@ export const ProjectLlmEvaluatorFormSections = (
 const ProjectEvaluatorInputMappingSection = ({
   recordKind,
   requiredVariables,
+  evaluatorKind,
 }: {
   recordKind: ProjectEvaluatorRecordKind;
   requiredVariables?: readonly string[];
+  evaluatorKind: "prompt" | "code";
 }) => {
   return (
     <Flex direction="column" gap="size-200" marginTop="size-200">
       <Flex direction="column" gap="size-100">
         <EvaluatorSectionHeader
-          title="Evaluator Inputs"
-          description={`Each input reads a path on the ${recordKind}.`}
+          title={
+            evaluatorKind === "prompt"
+              ? "Map Prompt Variables"
+              : "Input Mapping"
+          }
+          description={`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata use the fields of the same name.`}
         />
         <View
           borderRadius="medium"
@@ -163,6 +170,7 @@ export const ProjectCodeEvaluatorFormSections = ({
         <ProjectEvaluatorInputMappingSection
           recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
           requiredVariables={requiredVariables}
+          evaluatorKind="code"
         />
       </>
     );
@@ -179,6 +187,7 @@ export const ProjectCodeEvaluatorFormSections = ({
       <ProjectEvaluatorInputMappingSection
         recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
         requiredVariables={requiredVariables}
+        evaluatorKind="code"
       />
     </>
   );
