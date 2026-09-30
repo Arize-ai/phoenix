@@ -303,6 +303,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         index_names = {
             "ix_eval_work_units_claimable",
             "ix_eval_work_units_evaluator_id",
+            "ix_eval_work_units_project_evaluator_failed",
             "ix_eval_work_units_project_evaluator_id",
             "ix_eval_work_units_terminal",
         }
@@ -345,6 +346,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
         index_names = {
             "ix_eval_session_work_units_claimable",
             "ix_eval_session_work_units_evaluator_id",
+            "ix_eval_session_work_units_project_evaluator_failed",
             "ix_eval_session_work_units_project_evaluator_id",
             "ix_eval_session_work_units_terminal",
             "ix_eval_session_work_units_terminal_watermark",
@@ -414,6 +416,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
         index_names = {
             "ix_eval_trace_work_units_claimable",
             "ix_eval_trace_work_units_evaluator_id",
+            "ix_eval_trace_work_units_project_evaluator_failed",
             "ix_eval_trace_work_units_project_evaluator_id",
             "ix_eval_trace_work_units_terminal",
             "ix_eval_trace_work_units_terminal_watermark",

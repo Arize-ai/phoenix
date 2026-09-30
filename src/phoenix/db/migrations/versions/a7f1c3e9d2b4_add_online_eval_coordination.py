@@ -33,6 +33,7 @@ _TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERS
 _TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
     "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST')"
 )
+_FAILED_EVAL_WORK_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -152,6 +153,14 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_evaluator_id"],
     )
+    # The newest failure per evaluator, found without walking its successes.
+    op.create_index(
+        "ix_eval_session_work_units_project_evaluator_failed",
+        "eval_session_work_units",
+        ["project_evaluator_id", "updated_at"],
+        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+    )
 
 
 def _create_trace_work_units_table() -> None:
@@ -243,6 +252,14 @@ def _create_trace_work_units_table() -> None:
         "ix_eval_trace_work_units_project_evaluator_id",
         "eval_trace_work_units",
         ["project_evaluator_id"],
+    )
+    # The newest failure per evaluator, found without walking its successes.
+    op.create_index(
+        "ix_eval_trace_work_units_project_evaluator_failed",
+        "eval_trace_work_units",
+        ["project_evaluator_id", "updated_at"],
+        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
     )
 
 
@@ -511,6 +528,14 @@ def upgrade() -> None:
         "eval_work_units",
         ["project_evaluator_id"],
     )
+    # The newest failure per evaluator, found without walking its successes.
+    op.create_index(
+        "ix_eval_work_units_project_evaluator_failed",
+        "eval_work_units",
+        ["project_evaluator_id", "updated_at"],
+        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+    )
     _create_session_work_units_table()
     _create_trace_work_units_table()
     _add_experiment_evaluator_tasks()
@@ -582,6 +607,9 @@ def _drop_experiment_evaluator_tasks() -> None:
 def downgrade() -> None:
     _drop_experiment_evaluator_tasks()
     op.drop_index(
+        "ix_eval_trace_work_units_project_evaluator_failed", table_name="eval_trace_work_units"
+    )
+    op.drop_index(
         "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
     )
     op.drop_index("ix_eval_trace_work_units_evaluator_id", table_name="eval_trace_work_units")
@@ -594,6 +622,9 @@ def downgrade() -> None:
     op.drop_table("eval_trace_work_units")
 
     op.drop_index(
+        "ix_eval_session_work_units_project_evaluator_failed", table_name="eval_session_work_units"
+    )
+    op.drop_index(
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
     )
     op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
@@ -605,6 +636,7 @@ def downgrade() -> None:
     op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
     op.drop_table("eval_session_work_units")
 
+    op.drop_index("ix_eval_work_units_project_evaluator_failed", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
