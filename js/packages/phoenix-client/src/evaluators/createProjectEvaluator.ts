@@ -7,7 +7,6 @@ import type {
   EvaluationTarget,
   EvaluatorInputMapping,
   ProjectEvaluator,
-  ProjectEvaluatorInput,
 } from "../types/evaluators";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
@@ -34,15 +33,10 @@ export type CreateProjectEvaluatorParams = ClientFn & {
    */
   samplingRate: number;
   /**
-   * The evaluator to bind: a new LLM or code evaluator, or a reference to an
-   * existing code evaluator. LLM evaluators cannot be referenced because each
-   * one is tied to its own prompt. A new LLM evaluator gives either
-   * `prompt_version` content for a new prompt or `prompt_version_id` of an
-   * existing version, not both, and its `description` must equal the
-   * description of its prompt's tool function. A new code evaluator needs at
-   * least one `output_configs` entry.
+   * The GlobalID of the LLM or code evaluator to bind. Create a definition
+   * first with `createEvaluator`.
    */
-  evaluator: ProjectEvaluatorInput;
+  evaluatorId: string;
   /**
    * A filter expression, in the language of the evaluation target (span,
    * trace, or session), that records must match to be evaluated.
@@ -67,21 +61,23 @@ export type CreateProjectEvaluatorParams = ClientFn & {
 };
 
 /**
- * Bind an evaluator to a project so it runs on incoming traces, creating the
- * evaluator if needed.
+ * Bind an existing evaluator definition to a project so it runs on incoming
+ * traces.
  *
  * @param params - The project, scheduling fields, and evaluator.
  * @param params.project - The project, by `project`, `projectId`, or `projectName`.
  * @param params.name - The binding's name.
  * @param params.evaluationTarget - `SPAN`, `TRACE`, or `SESSION`.
  * @param params.samplingRate - Fraction of matching records to evaluate.
- * @param params.evaluator - A new evaluator or `{ type: "reference", evaluator_id }`.
+ * @param params.evaluatorId - The evaluator definition GlobalID.
  * @param params.filterCondition - Optional filter expression in the language of the evaluation target.
  * @param params.enabled - Optional; defaults to enabled.
  * @param params.inputMapping - Optional input mapping.
  * @param params.evaluationDelaySeconds - Optional quiet-period delay for `TRACE` and `SESSION` targets.
  * @param params.client - An optional Phoenix client instance.
- * @returns The created binding. `evaluation_delay_seconds` is `0` for `SPAN` targets.
+ * @returns The created binding. `evaluation_delay_seconds` is `0` for `SPAN`
+ * targets. A name the project already uses is refused with 409; the thrown
+ * `HttpError` has `problem.code` `already_exists` and `problem.existing_id`.
  *
  * @requires Phoenix server >= 21.0.0
  *
@@ -94,7 +90,7 @@ export type CreateProjectEvaluatorParams = ClientFn & {
  *   name: "toxicity",
  *   evaluationTarget: "SPAN",
  *   samplingRate: 0.25,
- *   evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjox" },
+ *   evaluatorId: "Q29kZUV2YWx1YXRvcjox",
  *   filterCondition: "span_kind == 'LLM'",
  * });
  * ```
@@ -105,7 +101,7 @@ export async function createProjectEvaluator({
   name,
   evaluationTarget,
   samplingRate,
-  evaluator,
+  evaluatorId,
   filterCondition,
   enabled,
   inputMapping,
@@ -125,9 +121,9 @@ export async function createProjectEvaluator({
       },
       body: {
         name,
+        evaluator_id: evaluatorId,
         evaluation_target: evaluationTarget,
         sampling_rate: samplingRate,
-        evaluator,
         ...(filterCondition !== undefined && {
           filter_condition: filterCondition,
         }),

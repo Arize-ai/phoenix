@@ -406,8 +406,8 @@ export const DELETE_PROJECT_EVALUATOR: RouteRequirement = {
 
 export const DELETE_PROJECT_EVALUATORS: RouteRequirement = {
   kind: "route",
-  method: "POST",
-  path: "/v1/project_evaluators/delete",
+  method: "DELETE",
+  path: "/v1/projects/{project_identifier}/evaluators",
   minServerVersion: [21, 0, 0],
 };
 

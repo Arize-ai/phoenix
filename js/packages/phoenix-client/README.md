@@ -947,7 +947,7 @@ await deleteDatasetEvaluators({
 
 ### Running Evaluators on a Project
 
-A project binding runs an evaluator on incoming traces. It controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the delay. Existing code evaluators are bound by reference; LLM evaluators are created with the binding because each one is tied to its own prompt.
+A project binding runs an evaluator on incoming traces. It controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the delay. A binding references an existing LLM or code definition by `evaluatorId`; create one first with `createEvaluator`.
 
 ```ts
 import {
@@ -963,7 +963,7 @@ const binding = await createProjectEvaluator({
   name: "toxicity",
   evaluationTarget: "SPAN",
   samplingRate: 0.25,
-  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjox" },
+  evaluatorId: "Q29kZUV2YWx1YXRvcjox",
   filterCondition: "span_kind == 'LLM'",
 });
 
@@ -977,8 +977,7 @@ await updateProjectEvaluator({
   patch: { enabled: false },
 });
 
-// Deleting the last binding of an evaluator deletes the evaluator too. Its
-// prompt is kept unless `deleteAssociatedPrompt` is set.
+// Deleting a binding keeps its definition, prompt, and trace project
 await deleteProjectEvaluator({ projectEvaluatorId: binding.id });
 ```
 
