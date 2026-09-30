@@ -1,6 +1,7 @@
 """REST dataset evaluator bindings: checks that only the unit harness can drive cheaply."""
 
 from secrets import token_hex
+from typing import Any
 
 import httpx
 from strawberry.relay import GlobalID
@@ -82,7 +83,7 @@ async def test_patch_rename_to_taken_name_is_already_exists(
         session.add_all([dataset, evaluator])
         await session.flush()
     route = f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators"
-    input_mapping = {"literal_mapping": {}, "path_mapping": {}}
+    input_mapping: dict[str, Any] = {"literal_mapping": {}, "path_mapping": {}}
     evaluator_id = str(GlobalID("CodeEvaluator", str(evaluator.id)))
 
     holder = (
