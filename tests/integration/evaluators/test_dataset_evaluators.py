@@ -185,9 +185,16 @@ def test_llm_binding_overrides_across_shared_bindings(
     assert binding["evaluator_id"] == other["evaluator_id"] == definition["id"]
     assert binding["evaluator_type"] == "llm"
     route = f"v1/dataset_evaluators/{binding['id']}"
-    for invalid in [{"description": "inconsistent"}, {"output_configs": []}]:
-        assert client.patch(route, json=invalid).status_code == 422
-        assert client.get(route).json()["data"] == binding
+    # A description that no longer matches the prompt's tool is the same override
+    # incompatibility a definition edit rejects with, not a plain validation error.
+    incompatible = client.patch(route, json={"description": "inconsistent"})
+    assert incompatible.status_code == 409, incompatible.text
+    assert incompatible.json()["reason"] == "incompatible_override"
+    assert binding["id"] in incompatible.json()["dataset_evaluator_ids"]
+    assert client.get(route).json()["data"] == binding
+    # An empty override list fails schema validation before that check ever runs.
+    assert client.patch(route, json={"output_configs": []}).status_code == 422
+    assert client.get(route).json()["data"] == binding
     override = _correctness_configs()
     override[0]["values"][0]["score"] = 0.75
     response = client.patch(route, json={"output_configs": override})
