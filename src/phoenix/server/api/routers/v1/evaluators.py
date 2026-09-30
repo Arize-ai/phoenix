@@ -31,19 +31,15 @@ from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAn
 from phoenix.server.api.routers.v1.evaluator_common import (
     EvaluatorOutputConfig,
     EvaluatorRequest,
-    ExistingEvaluator,
     LatestPromptVersionSelector,
     LLMEvaluatorPrompt,
     LLMEvaluatorPromptInput,
-    NewCodeEvaluator,
-    NewLLMEvaluator,
     PromptVersionSelector,
     decode_global_id,
     encode_global_id,
     evaluator_api_errors,
     evaluator_error_responses,
     evaluator_service_context,
-    new_llm_prompt_source,
     output_configs_from_db,
     output_configs_to_db,
     parse_global_id,
@@ -788,7 +784,13 @@ async def create_code_evaluator_version(
 
 
 class CreateProjectEvaluatorRequest(EvaluatorRequest):
-    name: Identifier
+    name: Identifier = Field(description="Unique among this project's evaluators.")
+    evaluator_id: str = Field(
+        description=(
+            "GlobalID of the LLM or code evaluator definition to run. Create a definition "
+            "through POST /v1/evaluators first."
+        )
+    )
     evaluation_target: models.EvaluationTarget
     sampling_rate: float = Field(ge=0, le=1, allow_inf_nan=False)
     filter_condition: str = ""
@@ -809,9 +811,6 @@ class CreateProjectEvaluatorRequest(EvaluatorRequest):
             "server default. SPAN evaluators reject a non-null delay and store 0."
         ),
     )
-    evaluator: Annotated[
-        Union[NewLLMEvaluator, NewCodeEvaluator, ExistingEvaluator], Field(discriminator="type")
-    ]
 
 
 class PatchProjectEvaluatorRequest(EvaluatorRequest):
@@ -842,21 +841,6 @@ class PatchProjectEvaluatorRequest(EvaluatorRequest):
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
         return self
-
-
-class DeleteProjectEvaluatorsRequestBody(V1RoutesBaseModel):
-    project_evaluator_ids: list[str] = Field(
-        min_length=1,
-        max_length=1000,
-        description="GlobalIDs of the bindings to delete. Missing bindings are ignored.",
-    )
-    delete_associated_prompt: bool = Field(
-        default=False,
-        description=(
-            "Also delete each LLM evaluator's prompt when no other evaluator references it. "
-            "This includes prompts adopted through prompt_version_id, so it is off by default."
-        ),
-    )
 
 
 class ProjectEvaluator(V1RoutesBaseModel):
@@ -950,71 +934,33 @@ def _binding_response(row: models.ProjectEvaluator, kind: models.EvaluatorKind) 
 async def create_project_evaluator(
     request: Request, project_identifier: str, body: CreateProjectEvaluatorRequest
 ) -> ProjectEvaluatorResponseBody:
-    """Create an evaluator and binding atomically, or bind an existing code evaluator.
+    """Bind an existing LLM or code evaluator definition to a project.
 
     The project identifier is decoded as a GlobalID first and otherwise treated as a name.
     SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per
-    trace or session, after the first quiet period following the evaluation delay.
+    trace or session, after the first quiet period following the evaluation delay. A name the
+    project already uses is refused with 409 `already_exists` and that binding's
+    `existing_id`.
     """
     with evaluator_api_errors():
         # The writer sees a project created just before this request; a replica may not.
         async with request.app.state.db() as session:
             project = await get_project_by_identifier(session, project_identifier)
             project_id = GlobalID("Project", str(project.id))
-        definition = body.evaluator
-        context = evaluator_service_context(request)
-        if isinstance(definition, ExistingEvaluator):
-            row = await service.add_project_code_evaluator(
-                context,
-                service.AddProjectCodeEvaluatorInput(
-                    project_id=project_id,
-                    name=body.name,
-                    evaluation_target=body.evaluation_target,
-                    sampling_rate=body.sampling_rate,
-                    filter_condition=body.filter_condition,
-                    enabled=body.enabled,
-                    input_mapping=body.input_mapping,
-                    evaluation_delay_seconds=body.evaluation_delay_seconds,
-                    evaluator_id=GlobalID.from_id(definition.evaluator_id),
-                ),
-            )
-        elif isinstance(definition, NewCodeEvaluator):
-            row = await service.create_project_code_evaluator(
-                context,
-                service.CreateProjectCodeEvaluatorInput(
-                    project_id=project_id,
-                    name=body.name,
-                    evaluation_target=body.evaluation_target,
-                    sampling_rate=body.sampling_rate,
-                    filter_condition=body.filter_condition,
-                    enabled=body.enabled,
-                    input_mapping=body.input_mapping,
-                    evaluation_delay_seconds=body.evaluation_delay_seconds,
-                    source_code=definition.source_code,
-                    language=definition.language,
-                    sandbox_config_id=GlobalID.from_id(definition.sandbox_config_id),
-                    evaluator_input_mapping=definition.input_mapping,
-                    description=definition.description,
-                    output_configs=output_configs_to_db(definition.output_configs),
-                ),
-            )
-        else:
-            row = await service.create_project_llm_evaluator(
-                context,
-                service.CreateProjectLLMEvaluatorInput(
-                    project_id=project_id,
-                    name=body.name,
-                    evaluation_target=body.evaluation_target,
-                    sampling_rate=body.sampling_rate,
-                    filter_condition=body.filter_condition,
-                    enabled=body.enabled,
-                    input_mapping=body.input_mapping,
-                    evaluation_delay_seconds=body.evaluation_delay_seconds,
-                    prompt_source=new_llm_prompt_source(definition),
-                    description=definition.description,
-                    output_configs=output_configs_to_db(definition.output_configs),
-                ),
-            )
+        row = await service.add_project_evaluator(
+            evaluator_service_context(request),
+            service.AddProjectCodeEvaluatorInput(
+                project_id=project_id,
+                name=body.name,
+                evaluation_target=body.evaluation_target,
+                sampling_rate=body.sampling_rate,
+                filter_condition=body.filter_condition,
+                enabled=body.enabled,
+                input_mapping=body.input_mapping,
+                evaluation_delay_seconds=body.evaluation_delay_seconds,
+                evaluator_id=GlobalID.from_id(body.evaluator_id),
+            ),
+        )
         return ProjectEvaluatorResponseBody(
             data=await _written_project_evaluator(
                 request, encode_global_id("ProjectEvaluator", row.id)
@@ -1114,59 +1060,48 @@ async def patch_project_evaluator(
     response_model_exclude_defaults=True,
     responses=evaluator_error_responses([422]),
 )
-async def delete_project_evaluator(
-    request: Request,
-    project_evaluator_id: str,
-    delete_associated_prompt: bool = Query(
-        default=False,
-        description=(
-            "Also delete the LLM evaluator's prompt when no other evaluator references it. "
-            "This includes prompts adopted through prompt_version_id, so it is off by default."
-        ),
-    ),
-) -> Response:
-    """Delete a binding and its evaluator traces. Missing bindings are ignored.
+async def delete_project_evaluator(request: Request, project_evaluator_id: str) -> Response:
+    """Delete a binding; a missing binding is ignored.
 
-    A definition no other binding references is deleted with its last binding; built-in
-    definitions are never deleted.
+    The evaluator definition, its prompt, and the binding's trace project are kept: delete a
+    definition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.
     """
     with evaluator_api_errors():
-        await service.delete_project_evaluators(
-            evaluator_service_context(request),
-            service.DeleteProjectEvaluatorsInput(
-                project_evaluator_ids=[GlobalID.from_id(project_evaluator_id)],
-                delete_associated_prompt=delete_associated_prompt,
-            ),
+        await service.detach_project_evaluators(
+            evaluator_service_context(request), [GlobalID.from_id(project_evaluator_id)]
         )
         return Response(status_code=204)
 
 
-@router.post(
-    "/project_evaluators/delete",
+@router.delete(
+    "/projects/{project_identifier}/evaluators",
     operation_id="deleteProjectEvaluators",
     status_code=204,
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     response_model_exclude_defaults=True,
-    responses=evaluator_error_responses([422]),
+    responses=evaluator_error_responses([404, 422]),
 )
 async def delete_project_evaluators(
-    request: Request, body: DeleteProjectEvaluatorsRequestBody
+    request: Request,
+    project_identifier: str,
+    project_evaluator_id: list[str] = Query(
+        min_length=1,
+        max_length=1000,
+        description="GlobalIDs of this project's bindings to delete; repeat for each.",
+    ),
 ) -> Response:
-    """Delete up to 1000 bindings atomically; the whole batch is validated before any change.
+    """Delete up to 1000 of a project's bindings in one transaction.
 
-    Associated trace projects are deleted. Definitions no remaining binding references are
-    deleted with the batch; built-in definitions are never deleted. Missing bindings are
-    ignored for idempotency.
+    Missing bindings are ignored; a binding of another project is refused with 422 before
+    any change. Definitions, prompts, and trace projects are kept.
     """
     with evaluator_api_errors():
-        await service.delete_project_evaluators(
+        async with request.app.state.db() as session:
+            project = await get_project_by_identifier(session, project_identifier)
+        await service.detach_project_evaluators(
             evaluator_service_context(request),
-            service.DeleteProjectEvaluatorsInput(
-                project_evaluator_ids=[
-                    GlobalID.from_id(value) for value in body.project_evaluator_ids
-                ],
-                delete_associated_prompt=body.delete_associated_prompt,
-            ),
+            [GlobalID.from_id(value) for value in project_evaluator_id],
+            project_id=GlobalID("Project", str(project.id)),
         )
         return Response(status_code=204)
