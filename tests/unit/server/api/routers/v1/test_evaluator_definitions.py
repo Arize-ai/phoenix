@@ -450,11 +450,23 @@ def _add_code_evaluator(
     return evaluator
 
 
+async def _get_builtin_evaluator(
+    session: AsyncSession, key: str = "exact_match"
+) -> models.BuiltinEvaluator:
+    """The app's startup facilitator seeds one row per registered built-in class, so there
+    is always one to read back rather than one for a test to insert."""
+    builtin = await session.scalar(
+        select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == key)
+    )
+    assert builtin is not None, f"Built-in evaluator '{key}' was not seeded"
+    return builtin
+
+
 async def _add_mixed_page(
     session: AsyncSession, count: int, sandbox_config: models.SandboxConfig
 ) -> None:
-    """`count` evaluators cycling through every kind `get_evaluators` can return: an
-    untagged LLM, a tagged LLM, and a code evaluator with a version."""
+    """`count` evaluators cycling through untagged LLM, tagged LLM, and code, on top of the
+    built-ins the app seeds at startup: together, every kind `get_evaluators` can return."""
     for i in range(count):
         stem = f"mixed-{token_hex(4)}-{i}"
         kind = i % 3
@@ -488,13 +500,17 @@ async def test_list_batches_queries_independent_of_page_size(
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
 ) -> None:
-    """A page of definitions costs the same fixed number of queries whether it holds 3 rows
-    or 30: the N+1 per-item lookup this replaces would instead grow with page size."""
+    """A page of definitions costs the same fixed number of queries whether it holds a
+    handful of rows or dozens: the N+1 per-item lookup this replaces would instead grow
+    with page size. Both fetches reach every one of the app's 5 seeded built-ins too, so
+    the built-in batch is exercised at both sizes as well."""
     async with db() as session:
-        await _add_mixed_page(session, 30, sandbox_config)
+        await _add_mixed_page(session, 4, sandbox_config)
+    small = await _count_queries(httpx_client.get("v1/evaluators", params={"limit": 9}))
 
-    small = await _count_queries(httpx_client.get("v1/evaluators", params={"limit": 3}))
-    large = await _count_queries(httpx_client.get("v1/evaluators", params={"limit": 30}))
+    async with db() as session:
+        await _add_mixed_page(session, 26, sandbox_config)
+    large = await _count_queries(httpx_client.get("v1/evaluators", params={"limit": 35}))
     assert small == large, (small, large)
 
 
@@ -503,18 +519,21 @@ async def test_list_mixed_page_matches_individual_reads(
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
 ) -> None:
-    """Every kind the batched list assembles (untagged LLM, tagged LLM, code with a version)
-    reads back exactly like the single-item route it shares its conversion with."""
+    """Every kind the batched list assembles (untagged LLM, tagged LLM, code with a version,
+    and built-in) reads back exactly like the single-item route it shares its conversion
+    with."""
     async with db() as session:
         untagged = await _add_llm_evaluator(session, f"untagged-{token_hex(4)}", tagged=False)
         tagged = await _add_llm_evaluator(session, f"tagged-{token_hex(4)}", tagged=True)
         code = _add_code_evaluator(session, f"code-{token_hex(4)}", sandbox_config)
+        builtin = await _get_builtin_evaluator(session)
         await session.flush()
 
     ids = [
         str(GlobalID("LLMEvaluator", str(untagged.id))),
         str(GlobalID("LLMEvaluator", str(tagged.id))),
         str(GlobalID("CodeEvaluator", str(code.id))),
+        str(GlobalID("BuiltInEvaluator", str(builtin.id))),
     ]
     listing = await httpx_client.get("v1/evaluators", params={"limit": 1000})
     assert listing.status_code == 200, listing.text
