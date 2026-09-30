@@ -6,7 +6,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, NamedTuple
 
 from evals.harbor.verifiers import phoenix_api, verify
 
@@ -31,6 +31,7 @@ def rowid(node_id: str) -> int:
 # --- the agent's ATIF trajectory -------------------------------------------------
 
 Trajectory = dict[str, Any]
+ExampleNodeId = str
 
 
 def load_trajectory() -> Trajectory:
@@ -114,7 +115,7 @@ class Experiment:
     run_count: int
     error_count: int
     annotation_count: int
-    scores: dict[str, float | None]  # example node id -> evaluator score
+    scores: dict[ExampleNodeId, float | None]
     latency_ms: float | None
     cost: float | None
 
@@ -142,7 +143,7 @@ def _nodes(connection: dict[str, Any]) -> list[dict[str, Any]]:
 
 def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Experiment]]:
     """The evaluators bound to the dataset and every experiment run on it, with each run
-    scored by the first of those evaluators that annotated it."""
+    scored by the latest annotation from one of those evaluators."""
     dataset = phoenix_api.graphql(query("dataset_state"), {"datasetId": dataset_id})["node"]
     evaluators = [
         BoundEvaluator(
@@ -164,7 +165,7 @@ def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Exp
     experiments: list[Experiment] = []
     for node in _nodes(dataset["experiments"]):
         runs = [r for r in _nodes(node["runs"]) if r["repetitionNumber"] == 1]
-        scores: dict[str, float | None] = {}
+        scores: dict[ExampleNodeId, float | None] = {}
         annotation_count = 0
         for run in runs:
             annotations = _nodes(run["annotations"])
@@ -198,7 +199,7 @@ def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Exp
 
 def moved_examples(
     first: Experiment, last: Experiment
-) -> dict[str, tuple[float | None, float | None]]:
+) -> dict[ExampleNodeId, tuple[float | None, float | None]]:
     return {
         example_id: (first.scores.get(example_id), last.scores.get(example_id))
         for example_id in set(first.scores) | set(last.scores)
@@ -209,8 +210,13 @@ def moved_examples(
 # --- the evaluator probe -------------------------------------------------------------
 
 
-def probe_cases(example: Example) -> list[tuple[str, str, bool]]:
-    """``(label, output text, should pass)`` for one example's reference."""
+class ProbeCase(NamedTuple):
+    label: str
+    output: str
+    should_pass: bool
+
+
+def probe_cases(example: Example) -> list[ProbeCase]:
     reference = example.reference_text
     altered = (
         reference.replace("user_id", "userid", 1)
@@ -218,11 +224,11 @@ def probe_cases(example: Example) -> list[tuple[str, str, bool]]:
         else reference[:-1] + "X"
     )
     return [
-        ("identical", reference, True),
-        ("fenced", f"```sql\n{reference}\n```", True),
-        ("padded", f"  {reference}\n\n", True),
-        ("one_token_changed", altered, False),
-        ("empty", "", False),
+        ProbeCase("identical", reference, True),
+        ProbeCase("fenced", f"```sql\n{reference}\n```", True),
+        ProbeCase("padded", f"  {reference}\n\n", True),
+        ProbeCase("one_token_changed", altered, False),
+        ProbeCase("empty", "", False),
     ]
 
 
@@ -241,7 +247,7 @@ def _preview_ref(evaluator: BoundEvaluator) -> dict[str, Any]:
     GraphQL surface, including the by-id preview, filters those out as the wrong type. So
     the saved source and sandbox are sent inline, with the saved configs when the binding
     exposes them and otherwise a freeform config, under which Phoenix passes the label and
-    score through unchanged. Builtins preview by id."""
+    score through unchanged."""
     if evaluator.kind == "CODE":
         if evaluator.sandbox_config_id is None:
             raise ValueError("code evaluator has no sandbox configuration")
@@ -299,9 +305,8 @@ def _as_score(result: dict[str, Any]) -> float:
 def probe_evaluator(
     evaluator: BoundEvaluator, examples: list[Example]
 ) -> tuple[bool, dict[str, Any]]:
-    """Run the evaluator through Phoenix's preview mutation over two output shapes: a bare
-    string (SDK tasks) and a chat-messages dict (playground runs). It passes when every
-    probe agrees with expectation under at least one shape."""
+    """Passes when every probe agrees with expectation under at least one output shape: a
+    bare string, as SDK tasks return, or a chat-messages dict, as playground runs store."""
     if evaluator.kind not in {"CODE", "BUILTIN"}:
         return False, {"reason": f"a {evaluator.kind} evaluator is not an exact-match check"}
     if evaluator.kind == "BUILTIN" and evaluator.builtin_key != "exact_match":
@@ -319,19 +324,19 @@ def probe_evaluator(
                 {
                     "input": example.input,
                     "reference": example.reference,
-                    "output": shape(text),
+                    "output": shape(case.output),
                     "metadata": example.metadata,
                 }
-                for _, text, _ in cases
+                for case in cases
             ]
             try:
                 scores = preview_scores(evaluator, contexts)
             except Exception as exc:  # noqa: BLE001
                 failures.append(f"{example.rowid}: {type(exc).__name__}: {str(exc)[:200]}")
                 continue
-            for (label, _, expected), score in zip(cases, scores):
-                if (score >= 0.5) != expected:
-                    failures.append(f"{example.rowid}/{label}: score {score}")
+            for case, score in zip(cases, scores):
+                if (score >= 0.5) != case.should_pass:
+                    failures.append(f"{example.rowid}/{case.label}: score {score}")
         detail[shape_name] = failures[:10]
         if not failures:
             return True, {"shape": shape_name}

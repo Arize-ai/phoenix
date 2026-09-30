@@ -9,7 +9,6 @@ first, last = (experiments[0], experiments[-1]) if experiments else (None, None)
 
 # The empty prompt goes first, so the baseline cannot already be perfect.
 first_experiment_imperfect = len(experiments) >= 2 and experiments[0].mean_score < 1.0
-# Every experiment ran the whole dataset and the evaluator scored it.
 all_experiments_fully_scored = bool(experiments) and all(
     set(x.scores) == example_ids and x.scored_count == len(example_ids) for x in experiments
 )
