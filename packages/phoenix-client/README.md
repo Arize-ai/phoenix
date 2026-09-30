@@ -579,10 +579,10 @@ client.evaluators.delete(evaluator_id=definition["id"])
 
 Errors from these methods raise `phoenix.client.exceptions.PhoenixAPIError`, an `httpx.HTTPStatusError`. `problem` is the full parsed error body when the server sent one (`None` for a plain-text 401 challenge, an unhandled 500, or a proxy's own error page); `code` and `reason` are shortcuts to its fields. A taken name has `code == "already_exists"` and `existing_id` naming the evaluator that holds it; a still-bound delete has `code == "conflict"`, `reason == "still_bound"`, and `problem["binding_counts"]`. Treat a `code` or `reason` you don't recognize by `response.status_code`.
 
-Bind evaluators to datasets. A binding registers the evaluator to run against the dataset's experiments and carries its own name and input mapping; it does not run an experiment by itself. Existing code and built-in evaluators are bound by ID; LLM evaluators are created with the binding because each one is tied to its own prompt:
+Bind evaluators to datasets. A binding registers an existing definition to run against the dataset's experiments and carries its own name and input mapping; it does not run an experiment by itself. Create LLM and code definitions with `create_llm` and `create_code` first, then bind them, or bind a built-in evaluator by ID:
 
 ```python
-# Bind an existing evaluator to a dataset by name or ID
+# Bind a definition to a dataset by name or ID; one definition can back many bindings
 binding = client.evaluators.dataset_evaluators.create(
     dataset="golden-questions",
     name="exact-match",
@@ -590,39 +590,19 @@ binding = client.evaluators.dataset_evaluators.create(
     input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
 )
 
-# Or create a new LLM evaluator that runs an existing prompt version and bind it in one step.
-# The version must carry the output tool the evaluator scores with, so build it in the Prompt
-# Hub or with the prompts API first; the evaluator's description must equal that tool's description.
-binding = client.evaluators.dataset_evaluators.create(
-    dataset="golden-questions",
-    name="toxicity",
-    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
-    evaluator={
-        "type": "llm",
-        "description": "toxicity",
-        "prompt_version_id": "UHJvbXB0VmVyc2lvbjo3",
-        "output_configs": [
-            {
-                "type": "CATEGORICAL",
-                "name": "toxicity",
-                "optimization_direction": "MINIMIZE",
-                "values": [{"label": "toxic", "score": 1}, {"label": "clean", "score": 0}],
-            }
-        ],
-    },
-)
-
 for item in client.evaluators.dataset_evaluators.list(dataset="golden-questions"):
     print(item["id"], item["name"], item["evaluator_type"])
 
 client.evaluators.dataset_evaluators.update(
     dataset_evaluator_id=binding["id"],
-    description="Runs against the nightly golden set",
+    name="nightly-exact-match",
 )
 
-# Deleting the last binding of an evaluator deletes the evaluator too. Its
-# prompt is kept unless delete_associated_prompt=True.
+# Deleting a binding keeps its definition, prompt, and trace project
 client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
+client.evaluators.dataset_evaluators.delete_many(
+    dataset="golden-questions", dataset_evaluator_ids=["RGF0YXNldEV2YWx1YXRvcjoy"]
+)
 ```
 
 ## Documentation

@@ -5,7 +5,6 @@ import { CREATE_DATASET_EVALUATOR } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type {
   DatasetEvaluator,
-  DatasetEvaluatorInput,
   DatasetIdentifier,
   EvaluatorInputMapping,
   EvaluatorOutputConfig,
@@ -26,19 +25,14 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
    */
   name: string;
   /**
+   * The GlobalID of the LLM, code, or built-in evaluator to bind. Create a
+   * definition first with `createEvaluator`.
+   */
+  evaluatorId: string;
+  /**
    * How example and run fields map onto evaluator arguments.
    */
   inputMapping: EvaluatorInputMapping;
-  /**
-   * The evaluator to bind: a new LLM or code evaluator, or a reference to an
-   * existing code or built-in evaluator. LLM evaluators cannot be referenced
-   * because each one is tied to its own prompt. A new LLM evaluator gives
-   * either `prompt_version` content for a new prompt or `prompt_version_id`
-   * of an existing version, not both, and its `description` must equal the
-   * description of its prompt's tool function. A new code evaluator needs at
-   * least one `output_configs` entry.
-   */
-  evaluator: DatasetEvaluatorInput;
   /**
    * Overrides the shared definition's description for this binding. For LLM
    * evaluators it must equal the description of the prompt's tool function.
@@ -53,7 +47,7 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
 }
 
 /**
- * Bind an evaluator to a dataset, creating the evaluator if needed.
+ * Bind an existing evaluator definition to a dataset.
  *
  * A binding registers the evaluator to run against the dataset's experiments.
  * It does not run an experiment by itself.
@@ -62,11 +56,13 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
  * @param params.dataset - The dataset, by `dataset` (name or ID), `datasetId`, or `datasetName`. An ID wins when a dataset is also named by the same string.
  * @param params.name - The binding's name.
  * @param params.inputMapping - How record fields map onto evaluator arguments.
- * @param params.evaluator - A new evaluator or `{ type: "reference", evaluator_id }`.
+ * @param params.evaluatorId - The evaluator definition GlobalID.
  * @param params.description - Optional description override.
  * @param params.outputConfigs - Optional output configuration overrides, at least one when given.
  * @param params.client - An optional Phoenix client instance.
- * @returns The created binding.
+ * @returns The created binding. A name the dataset already uses is refused with
+ * 409; the thrown `HttpError` has `problem.code` `already_exists` and
+ * `problem.existing_id`.
  *
  * @requires Phoenix server >= 21.0.0
  *
@@ -77,8 +73,8 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
  * await createDatasetEvaluator({
  *   dataset: { datasetName: "golden-questions" },
  *   name: "exact-match",
+ *   evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
  *   inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
- *   evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
  * });
  * ```
  */
@@ -86,8 +82,8 @@ export async function createDatasetEvaluator({
   client: _client,
   dataset,
   name,
+  evaluatorId,
   inputMapping,
-  evaluator,
   description,
   outputConfigs,
 }: CreateDatasetEvaluatorParams): Promise<DatasetEvaluator> {
@@ -105,8 +101,8 @@ export async function createDatasetEvaluator({
       },
       body: {
         name,
+        evaluator_id: evaluatorId,
         input_mapping: inputMapping,
-        evaluator,
         ...(description !== undefined && { description }),
         ...(outputConfigs !== undefined && { output_configs: outputConfigs }),
       },

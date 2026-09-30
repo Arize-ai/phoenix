@@ -15,9 +15,10 @@ from phoenix.client.constants.server_requirements import (
     LIST_DATASET_EVALUATORS,
     PATCH_DATASET_EVALUATOR,
 )
-from phoenix.client.types.evaluators import DatasetEvaluatorInput, EvaluatorOutputConfig
+from phoenix.client.types.evaluators import EvaluatorOutputConfig
 from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.problem_details import raise_for_problem
 from phoenix.client.utils.server_requirements import (
     AsyncServerVersionGuard,
     ServerVersionGuard,
@@ -31,21 +32,15 @@ _PAGE_SIZE = 100
 def _build_create_body(
     *,
     name: str,
+    evaluator_id: str,
     input_mapping: v1.InputMapping,
-    evaluator: Union[DatasetEvaluatorInput, NotGiven],
-    evaluator_id: Union[str, NotGiven],
     description: Union[str, NotGiven],
     output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven],
 ) -> v1.CreateDatasetEvaluatorRequest:
-    if isinstance(evaluator, NotGiven) == isinstance(evaluator_id, NotGiven):
-        raise ValueError("Exactly one of evaluator or evaluator_id must be provided.")
-    if isinstance(evaluator, NotGiven):
-        assert not isinstance(evaluator_id, NotGiven)
-        evaluator = v1.ExistingEvaluator(type="reference", evaluator_id=evaluator_id)
     body = v1.CreateDatasetEvaluatorRequest(
         name=name,
+        evaluator_id=evaluator_id,
         input_mapping=input_mapping,
-        evaluator=evaluator,
     )
     if not isinstance(description, NotGiven):
         body["description"] = description
@@ -75,15 +70,10 @@ def _build_patch_body(
     return body
 
 
-def _build_delete_body(
-    ids: Sequence[str], *, delete_associated_prompt: bool
-) -> v1.DeleteDatasetEvaluatorsRequestBody:
+def _delete_params(ids: Sequence[str]) -> list[tuple[str, str]]:
     if not ids:
         raise ValueError("At least one dataset_evaluator_id must be provided.")
-    return v1.DeleteDatasetEvaluatorsRequestBody(
-        dataset_evaluator_ids=list(ids),
-        delete_associated_prompt=delete_associated_prompt,
-    )
+    return [("dataset_evaluator_id", binding_id) for binding_id in ids]
 
 
 class DatasetEvaluators:
@@ -131,34 +121,24 @@ class DatasetEvaluators:
         *,
         dataset: str,
         name: str,
+        evaluator_id: str,
         input_mapping: v1.InputMapping,
-        evaluator: Union[DatasetEvaluatorInput, NotGiven] = NOT_GIVEN,
-        evaluator_id: Union[str, NotGiven] = NOT_GIVEN,
         description: Union[str, NotGiven] = NOT_GIVEN,
         output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
     ) -> v1.DatasetEvaluator:
-        """Bind an evaluator to a dataset, creating the evaluator if needed.
+        """Bind an existing evaluator definition to a dataset.
 
-        Pass ``evaluator_id`` to bind an existing code or built-in evaluator, or
-        ``evaluator`` to create a new LLM or code evaluator and bind it in one
-        step. LLM evaluators cannot be referenced by ID because each one is tied
-        to its own prompt. This registers the evaluator and does not run an
-        experiment.
+        Create the definition first with :meth:`Evaluators.create_llm` or
+        :meth:`Evaluators.create_code`, or bind a built-in evaluator by ID. This
+        registers the evaluator and does not run an experiment.
 
         Args:
             dataset (str): The dataset name or ID. An ID takes precedence when a
                 dataset is also named by the same string.
             name (str): The binding's name, unique within the dataset.
+            evaluator_id (str): The ID of the LLM, code, or built-in evaluator.
             input_mapping (v1.InputMapping): How example and run fields map onto
                 evaluator arguments.
-            evaluator (DatasetEvaluatorInput): A new LLM or code evaluator, or a
-                ``{"type": "reference", "evaluator_id": ...}`` reference. A new
-                LLM evaluator gives either ``prompt_version`` content for a new
-                prompt or ``prompt_version_id`` of an existing version, not both,
-                and its ``description`` must equal the description of its
-                prompt's tool function. A new code evaluator needs at least one
-                ``output_configs`` entry.
-            evaluator_id (str): Shorthand for referencing an existing evaluator.
             description (str): Overrides the shared definition's description on
                 this binding. For LLM evaluators it must equal the description of
                 the prompt's tool function.
@@ -171,8 +151,9 @@ class DatasetEvaluators:
             The created binding.
 
         Raises:
-            httpx.HTTPError: If the request fails.
-            ValueError: If neither or both of evaluator and evaluator_id are given.
+            PhoenixAPIError: If the request fails. A name the dataset already
+                uses is refused with ``code == "already_exists"`` and
+                ``existing_id``.
 
         Example::
 
@@ -188,16 +169,15 @@ class DatasetEvaluators:
         """  # noqa: E501
         json_ = _build_create_body(
             name=name,
-            input_mapping=input_mapping,
-            evaluator=evaluator,
             evaluator_id=evaluator_id,
+            input_mapping=input_mapping,
             description=description,
             output_configs=output_configs,
         )
         self._guard.require(CREATE_DATASET_EVALUATOR)
         url = f"v1/datasets/{encode_path_param(dataset)}/evaluators"
         response = self._client.post(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.DatasetEvaluatorResponseBody, response.json())["data"]
 
     def list(self, *, dataset: str, limit: Optional[int] = None) -> List[v1.DatasetEvaluator]:
@@ -212,7 +192,7 @@ class DatasetEvaluators:
             The bindings.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -234,7 +214,7 @@ class DatasetEvaluators:
             if next_cursor:
                 params["cursor"] = next_cursor
             response = self._client.get(url, params=params)
-            response.raise_for_status()
+            raise_for_problem(response)
             page = cast(v1.DatasetEvaluatorsResponseBody, response.json())
             bindings.extend(page["data"])
             if limit is not None and len(bindings) >= limit:
@@ -254,12 +234,12 @@ class DatasetEvaluators:
             binding inherits the shared definition's value.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
         """
         self._guard.require(GET_DATASET_EVALUATOR)
         url = f"v1/dataset_evaluators/{encode_path_param(dataset_evaluator_id)}"
         response = self._client.get(url)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.DatasetEvaluatorResponseBody, response.json())["data"]
 
     def update(
@@ -287,7 +267,7 @@ class DatasetEvaluators:
             The updated binding.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
             ValueError: If no field to update is provided.
         """
         json_ = _build_patch_body(
@@ -299,65 +279,56 @@ class DatasetEvaluators:
         self._guard.require(PATCH_DATASET_EVALUATOR)
         url = f"v1/dataset_evaluators/{encode_path_param(dataset_evaluator_id)}"
         response = self._client.patch(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.DatasetEvaluatorResponseBody, response.json())["data"]
 
     def delete(
         self,
         *,
         dataset_evaluator_id: str,
-        delete_associated_prompt: bool = False,
     ) -> None:
-        """Delete a binding and its evaluator traces.
+        """Delete a binding; a missing binding is ignored.
 
-        The shared definition is deleted once nothing else references it. A
-        missing binding is ignored.
+        The evaluator definition, its prompt, and the binding's trace project are
+        kept. Delete a definition nothing binds with :meth:`Evaluators.delete`.
 
         Args:
             dataset_evaluator_id (str): The binding's ID.
-            delete_associated_prompt (bool): Also delete the prompt of an LLM
-                evaluator that is deleted along with the binding. Defaults to
-                False, which keeps the prompt in the prompt hub.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
         """
         self._guard.require(DELETE_DATASET_EVALUATOR)
         url = f"v1/dataset_evaluators/{encode_path_param(dataset_evaluator_id)}"
-        response = self._client.delete(
-            url,
-            params={"delete_associated_prompt": "true" if delete_associated_prompt else "false"},
-        )
-        response.raise_for_status()
+        response = self._client.delete(url)
+        raise_for_problem(response)
 
     def delete_many(
         self,
         *,
+        dataset: str,
         dataset_evaluator_ids: Sequence[str],
-        delete_associated_prompt: bool = False,
     ) -> None:
-        """Delete several bindings atomically.
+        """Delete several of a dataset's bindings atomically.
 
         Either every binding is deleted or none is. Missing bindings are
-        ignored, but an ID that is not a dataset evaluator binding fails the
-        whole request.
+        ignored; an ID that is not a binding, or a binding of another dataset,
+        fails the whole request. Definitions, prompts, and trace projects are
+        kept.
 
         Args:
+            dataset (str): The dataset name or ID.
             dataset_evaluator_ids (Sequence[str]): The binding IDs, at most 1000.
-            delete_associated_prompt (bool): Also delete the prompts of LLM
-                evaluators that are deleted along with the bindings. Defaults to
-                False.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
             ValueError: If no IDs are given.
         """
-        json_ = _build_delete_body(
-            dataset_evaluator_ids, delete_associated_prompt=delete_associated_prompt
-        )
+        params = _delete_params(dataset_evaluator_ids)
         self._guard.require(DELETE_DATASET_EVALUATORS)
-        response = self._client.post("v1/dataset_evaluators/delete", json=json_)
-        response.raise_for_status()
+        url = f"v1/datasets/{encode_path_param(dataset)}/evaluators"
+        response = self._client.delete(url, params=params)
+        raise_for_problem(response)
 
 
 class AsyncDatasetEvaluators:
@@ -403,34 +374,24 @@ class AsyncDatasetEvaluators:
         *,
         dataset: str,
         name: str,
+        evaluator_id: str,
         input_mapping: v1.InputMapping,
-        evaluator: Union[DatasetEvaluatorInput, NotGiven] = NOT_GIVEN,
-        evaluator_id: Union[str, NotGiven] = NOT_GIVEN,
         description: Union[str, NotGiven] = NOT_GIVEN,
         output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
     ) -> v1.DatasetEvaluator:
-        """Bind an evaluator to a dataset, creating the evaluator if needed.
+        """Bind an existing evaluator definition to a dataset.
 
-        Pass ``evaluator_id`` to bind an existing code or built-in evaluator, or
-        ``evaluator`` to create a new LLM or code evaluator and bind it in one
-        step. LLM evaluators cannot be referenced by ID because each one is tied
-        to its own prompt. This registers the evaluator and does not run an
-        experiment.
+        Create the definition first with :meth:`Evaluators.create_llm` or
+        :meth:`Evaluators.create_code`, or bind a built-in evaluator by ID. This
+        registers the evaluator and does not run an experiment.
 
         Args:
             dataset (str): The dataset name or ID. An ID takes precedence when a
                 dataset is also named by the same string.
             name (str): The binding's name, unique within the dataset.
+            evaluator_id (str): The ID of the LLM, code, or built-in evaluator.
             input_mapping (v1.InputMapping): How example and run fields map onto
                 evaluator arguments.
-            evaluator (DatasetEvaluatorInput): A new LLM or code evaluator, or a
-                ``{"type": "reference", "evaluator_id": ...}`` reference. A new
-                LLM evaluator gives either ``prompt_version`` content for a new
-                prompt or ``prompt_version_id`` of an existing version, not both,
-                and its ``description`` must equal the description of its
-                prompt's tool function. A new code evaluator needs at least one
-                ``output_configs`` entry.
-            evaluator_id (str): Shorthand for referencing an existing evaluator.
             description (str): Overrides the shared definition's description on
                 this binding. For LLM evaluators it must equal the description of
                 the prompt's tool function.
@@ -443,21 +404,19 @@ class AsyncDatasetEvaluators:
             The created binding.
 
         Raises:
-            httpx.HTTPError: If the request fails.
-            ValueError: If neither or both of evaluator and evaluator_id are given.
+            PhoenixAPIError: If the request fails.
         """
         json_ = _build_create_body(
             name=name,
-            input_mapping=input_mapping,
-            evaluator=evaluator,
             evaluator_id=evaluator_id,
+            input_mapping=input_mapping,
             description=description,
             output_configs=output_configs,
         )
         await self._guard.require(CREATE_DATASET_EVALUATOR)
         url = f"v1/datasets/{encode_path_param(dataset)}/evaluators"
         response = await self._client.post(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.DatasetEvaluatorResponseBody, response.json())["data"]
 
     async def list(self, *, dataset: str, limit: Optional[int] = None) -> List[v1.DatasetEvaluator]:
@@ -472,7 +431,7 @@ class AsyncDatasetEvaluators:
             The bindings.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
         """
         await self._guard.require(LIST_DATASET_EVALUATORS)
         url = f"v1/datasets/{encode_path_param(dataset)}/evaluators"
@@ -486,7 +445,7 @@ class AsyncDatasetEvaluators:
             if next_cursor:
                 params["cursor"] = next_cursor
             response = await self._client.get(url, params=params)
-            response.raise_for_status()
+            raise_for_problem(response)
             page = cast(v1.DatasetEvaluatorsResponseBody, response.json())
             bindings.extend(page["data"])
             if limit is not None and len(bindings) >= limit:
@@ -506,12 +465,12 @@ class AsyncDatasetEvaluators:
             binding inherits the shared definition's value.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
         """
         await self._guard.require(GET_DATASET_EVALUATOR)
         url = f"v1/dataset_evaluators/{encode_path_param(dataset_evaluator_id)}"
         response = await self._client.get(url)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.DatasetEvaluatorResponseBody, response.json())["data"]
 
     async def update(
@@ -539,7 +498,7 @@ class AsyncDatasetEvaluators:
             The updated binding.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
             ValueError: If no field to update is provided.
         """
         json_ = _build_patch_body(
@@ -551,62 +510,53 @@ class AsyncDatasetEvaluators:
         await self._guard.require(PATCH_DATASET_EVALUATOR)
         url = f"v1/dataset_evaluators/{encode_path_param(dataset_evaluator_id)}"
         response = await self._client.patch(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.DatasetEvaluatorResponseBody, response.json())["data"]
 
     async def delete(
         self,
         *,
         dataset_evaluator_id: str,
-        delete_associated_prompt: bool = False,
     ) -> None:
-        """Delete a binding and its evaluator traces.
+        """Delete a binding; a missing binding is ignored.
 
-        The shared definition is deleted once nothing else references it. A
-        missing binding is ignored.
+        The evaluator definition, its prompt, and the binding's trace project are
+        kept. Delete a definition nothing binds with :meth:`Evaluators.delete`.
 
         Args:
             dataset_evaluator_id (str): The binding's ID.
-            delete_associated_prompt (bool): Also delete the prompt of an LLM
-                evaluator that is deleted along with the binding. Defaults to
-                False, which keeps the prompt in the prompt hub.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
         """
         await self._guard.require(DELETE_DATASET_EVALUATOR)
         url = f"v1/dataset_evaluators/{encode_path_param(dataset_evaluator_id)}"
-        response = await self._client.delete(
-            url,
-            params={"delete_associated_prompt": "true" if delete_associated_prompt else "false"},
-        )
-        response.raise_for_status()
+        response = await self._client.delete(url)
+        raise_for_problem(response)
 
     async def delete_many(
         self,
         *,
+        dataset: str,
         dataset_evaluator_ids: Sequence[str],
-        delete_associated_prompt: bool = False,
     ) -> None:
-        """Delete several bindings atomically.
+        """Delete several of a dataset's bindings atomically.
 
         Either every binding is deleted or none is. Missing bindings are
-        ignored, but an ID that is not a dataset evaluator binding fails the
-        whole request.
+        ignored; an ID that is not a binding, or a binding of another dataset,
+        fails the whole request. Definitions, prompts, and trace projects are
+        kept.
 
         Args:
+            dataset (str): The dataset name or ID.
             dataset_evaluator_ids (Sequence[str]): The binding IDs, at most 1000.
-            delete_associated_prompt (bool): Also delete the prompts of LLM
-                evaluators that are deleted along with the bindings. Defaults to
-                False.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
             ValueError: If no IDs are given.
         """
-        json_ = _build_delete_body(
-            dataset_evaluator_ids, delete_associated_prompt=delete_associated_prompt
-        )
+        params = _delete_params(dataset_evaluator_ids)
         await self._guard.require(DELETE_DATASET_EVALUATORS)
-        response = await self._client.post("v1/dataset_evaluators/delete", json=json_)
-        response.raise_for_status()
+        url = f"v1/datasets/{encode_path_param(dataset)}/evaluators"
+        response = await self._client.delete(url, params=params)
+        raise_for_problem(response)

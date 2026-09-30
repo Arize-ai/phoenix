@@ -364,8 +364,8 @@ export const DELETE_DATASET_EVALUATOR: RouteRequirement = {
 
 export const DELETE_DATASET_EVALUATORS: RouteRequirement = {
   kind: "route",
-  method: "POST",
-  path: "/v1/dataset_evaluators/delete",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/evaluators",
   minServerVersion: [21, 0, 0],
 };
 
