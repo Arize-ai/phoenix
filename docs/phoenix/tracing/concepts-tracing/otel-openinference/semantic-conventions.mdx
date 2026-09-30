@@ -41,7 +41,7 @@ The GenAI observability space currently has two semantic convention standards. T
 | **Stability guarantees** | Conventions are stable across releases. Breaking changes are versioned. | Conventions are subject to change at any time, with explicit guidance about version transitions and opt-in for newer experimental revisions. |
 | **Attribute prefix** | Domain-specific prefixes: `llm.*`, `tool.*`, `agent.*`, `retriever.*`, etc. | Generally prefixed `gen_ai.*` |
 | **Instrumentation libraries** | Extensive — auto-instrumentors for most popular AI frameworks. | Smaller surface area today; instrumentors are still landing. |
-| **Phoenix support** | First-class. Phoenix reads these directly. | Spans tagged with `gen_ai.*` attributes still arrive at Phoenix, but won't get the same UI treatment as OpenInference-tagged spans. |
+| **Phoenix support** | First-class. Phoenix reads these directly. | Phoenix `15.10.0` and later converts supported `gen_ai.*` attributes to OpenInference at ingest. |
 
 For new instrumentation today, use OpenInference. Over time the two conventions are expected to converge as the GenAI spec stabilizes — when that happens, the OpenInference auto-instrumentors will pick up the change so your application code doesn't have to.
 

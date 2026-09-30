@@ -1,6 +1,7 @@
 ---
-title: "Tracing Tutorial"
-description: "Build a fully observable AI agent from scratch - trace every operation, measure quality, and debug conversations"
+title: "Instrument tutorial"
+sidebarTitle: "Overview"
+description: "Build an observable AI agent, trace each operation, measure quality, and debug conversations."
 ---
 
 AI applications are fundamentally different from traditional software. A REST API returns the same response for the same input. An LLM-powered agent reasons, retrieves, calls tools, and generates - with each step influenced by probabilities, context, and the interactions between components. When something goes wrong, the failure could be anywhere in that chain.
@@ -49,7 +50,7 @@ As you build each feature, you'll add the corresponding observability layer - so
 
 # Chapter 2: Annotations and Evaluation
 
-**The problem**: You can see what's happening, but you can't tell if responses are actually _good_. A trace showing "200 OK" doesn't mean the answer was right.
+**The problem**: You can see what's happening, but you can't tell if responses are _good_. A trace showing "200 OK" doesn't mean the answer was right.
 
 **What you'll learn**:
 

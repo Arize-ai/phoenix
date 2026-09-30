@@ -364,7 +364,7 @@ for _, row in questions_with_document_chunk_df.iterrows():
     print(f"Question: {question}\nAnswer: {response_vector.response}\n")
 ```
 
-Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)).
+Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](/docs/phoenix/observe/export-trace-data)).
 
 ```py
 from phoenix.client import Client

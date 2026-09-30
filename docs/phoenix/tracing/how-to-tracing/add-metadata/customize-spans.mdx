@@ -1,526 +1,436 @@
 ---
-title: "Add Attributes, Metadata, Users"
+title: "Customize your traces"
+description: "Add semantic conventions, structured inputs and outputs, metadata, tags, prompt templates, events, and errors to Phoenix traces."
+sidebarTitle: "Customize your traces"
 ---
 
-### Using context to customize spans
+Make traces meaningful for your app. Auto-instrumentation captures standard AI work, but your app has context Phoenix cannot infer: session IDs, user IDs, customer tier, feature flags, prompt versions, and error details. This page shows how to add that context to spans.
 
-In order to customize spans that are created via auto-instrumentation, The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. Phoenix re-exports those helpers directly from `arize-phoenix-otel` (Python, >=0.16.0) and `@arizeai/phoenix-otel` (TypeScript), so you can register tracing and manage context attributes from the same package. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
+If you still need to create spans, start with [Auto-instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) or [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument).
 
-Supported Context Attributes include:
-
-* **Session ID\*** Unique identifier for a session
-
-* **User ID\*** Unique identifier for a user.
-
-* **Metadata** Metadata associated with a span.
-
-* **Tags\*** List of tags to give the span a category.
-
-* **Prompt Template**
-
-  * **Template** Used to generate prompts as Python f-strings.
-
-  * **Version** The version of the prompt template.
-
-  * **Variables** key-value pairs applied to the prompt template.
-
-### Install Phoenix OTEL
+## Install helpers
 
 <Tabs>
-
   <Tab title="Python" icon="python">
-
     ```bash
     pip install "arize-phoenix-otel>=0.16.0"
     ```
-
-    <Note>
-    Requires `arize-phoenix-otel` **0.16.0 or later** to import the context managers directly from `phoenix.otel`. On older versions, import them from `openinference.instrumentation` instead.
-    </Note>
-
   </Tab>
 
-  <Tab title="TypeScript" icon="js">
-
+  <Tab title="JS/TS" icon="js">
     ```bash
     npm install @arizeai/phoenix-otel
     ```
-
   </Tab>
 
   <Tab title="Go" icon="golang">
-
     ```bash
+    go get github.com/Arize-ai/openinference/go/openinference-semantic-conventions
     go get github.com/Arize-ai/openinference/go/openinference-instrumentation
     ```
 
-    <Note>
-    Phoenix does not ship a `phoenix-otel-go` wrapper. Use the OpenInference Go `instrumentation` package directly to store context attributes on `context.Context`. See [Go integrations](/docs/phoenix/integrations) for tracer-provider setup.
-    </Note>
-
+    Phoenix does not ship a branded Go wrapper. Use the OpenInference Go packages with the standard OpenTelemetry Go SDK.
   </Tab>
-
 </Tabs>
 
-### Specifying a session
+## Semantic conventions
+
+[OpenInference semantic conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) are the standard attribute names Phoenix reads to render AI traces correctly. Use them when you set attributes yourself.
 
 <Tabs>
-
   <Tab title="Python" icon="python">
-
-    We provide a `using_session` context manager to add session a ID to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the session ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the session ID, must be a non-empty string.
-
     ```python
-    from phoenix.otel import using_session
+    from phoenix.otel import (
+        OpenInferenceMimeTypeValues,
+        OpenInferenceSpanKindValues,
+        SpanAttributes,
+    )
 
-    with using_session(session_id="my-session-id"):
-        # Calls within this block will generate spans with the attributes:
-        # "session.id" = "my-session-id"
-        ...
-    ```
-
-    It can also be used as a decorator:
-
-    ```python
-    @using_session(session_id="my-session-id")
-    def call_fn(*args, **kwargs):
-        # Calls within this function will generate spans with the attributes:
-        # "session.id" = "my-session-id"
-        ...
-    ```
-
-  </Tab>
-
-  <Tab title="TypeScript" icon="js">
-
-    We provide a `setSession` function which allows you to set a sessionId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback.
-
-    ```javascript
-    import { context, setSession } from "@arizeai/phoenix-otel"
-
-    context.with(
-      setSession(context.active(), { sessionId: "session-id" }),
-      () => {
-        // Calls within this block will generate spans with the attributes:
-        // "session.id" = "session-id"
-      }
+    span.set_attributes(
+        {
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+            SpanAttributes.INPUT_VALUE: "Where is my order?",
+            SpanAttributes.INPUT_MIME_TYPE: OpenInferenceMimeTypeValues.TEXT.value,
+        }
     )
     ```
+  </Tab>
 
+  <Tab title="JS/TS" icon="js">
+    ```typescript
+    import {
+      MimeType,
+      OpenInferenceSpanKind,
+      SemanticConventions,
+    } from "@arizeai/phoenix-otel";
+
+    span.setAttributes({
+      [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.CHAIN,
+      [SemanticConventions.INPUT_VALUE]: "Where is my order?",
+      [SemanticConventions.INPUT_MIME_TYPE]: MimeType.TEXT,
+    });
+    ```
   </Tab>
 
   <Tab title="Go" icon="golang">
-
-    Use `instrumentation.WithSession` to attach a session ID to the context. OpenInference Go auto-instrumentors (OpenAI Go, Anthropic Go) automatically read this from `context.Context` and add `session.id` to every LLM span descended from it.
-
     ```go
-    import "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+    import (
+        semconv "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+        "go.opentelemetry.io/otel/attribute"
+    )
 
-    ctx = instrumentation.WithSession(ctx, "my-session-id")
-    // Calls within this context will generate spans with the attributes:
-    // "session.id" = "my-session-id"
-    ```
-
-  </Tab>
-
-</Tabs>
-
-### Specifying users
-
-<Tabs>
-
-  <Tab title="Python" icon="python">
-
-    We provide a `using_user` context manager to add user ID to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the user ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the user ID, must be a non-empty string.
-
-    ```python
-    from phoenix.otel import using_user
-    with using_user("my-user-id"):
-        # Calls within this block will generate spans with the attributes:
-        # "user.id" = "my-user-id"
-        ...
-    ```
-
-    It can also be used as a decorator:
-
-    ```python
-    @using_user("my-user-id")
-    def call_fn(*args, **kwargs):
-        # Calls within this function will generate spans with the attributes:
-        # "user.id" = "my-user-id"
-        ...
-    ```
-
-  </Tab>
-
-  <Tab title="TypeScript" icon="js">
-
-    We provide a `setUser` function which allows you to set a userId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback.
-
-    ```javascript
-    import { context, setUser } from "@arizeai/phoenix-otel"
-
-    context.with(
-      setUser(context.active(), { userId: "user-id" }),
-      () => {
-        // Calls within this block will generate spans with the attributes:
-        // "user.id" = "user-id"
-      }
+    span.SetAttributes(
+        attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindChain),
+        attribute.String(semconv.InputValue, "Where is my order?"),
+        attribute.String(semconv.InputMimeType, semconv.MimeTypeText),
     )
     ```
+  </Tab>
+</Tabs>
 
+## Structured inputs and outputs
+
+Set `input.value` and `output.value` for the span table. Set MIME types when the value is JSON, text, or another structured format.
+
+For chat-style LLM spans, also use `llm.input_messages.*` and `llm.output_messages.*` so Phoenix can show message roles and content. See [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for the message format.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    import json
+
+    from phoenix.otel import OpenInferenceMimeTypeValues, SpanAttributes
+
+    span.set_attributes(
+        {
+            SpanAttributes.INPUT_VALUE: json.dumps({"question": question}),
+            SpanAttributes.INPUT_MIME_TYPE: OpenInferenceMimeTypeValues.JSON.value,
+            SpanAttributes.OUTPUT_VALUE: answer,
+            SpanAttributes.OUTPUT_MIME_TYPE: OpenInferenceMimeTypeValues.TEXT.value,
+        }
+    )
+    ```
+  </Tab>
+
+  <Tab title="JS/TS" icon="js">
+    ```typescript
+    import { MimeType, SemanticConventions } from "@arizeai/phoenix-otel";
+
+    span.setAttributes({
+      [SemanticConventions.INPUT_VALUE]: JSON.stringify({ question }),
+      [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
+      [SemanticConventions.OUTPUT_VALUE]: answer,
+      [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.TEXT,
+    });
+    ```
   </Tab>
 
   <Tab title="Go" icon="golang">
-
-    Use `instrumentation.WithUser` to attach a user ID to the context. OpenInference Go auto-instrumentors automatically read this from `context.Context` and add `user.id` to every LLM span descended from it.
-
     ```go
-    import "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+    import (
+        "encoding/json"
 
-    ctx = instrumentation.WithUser(ctx, "my-user-id")
-    // Calls within this context will generate spans with the attributes:
-    // "user.id" = "my-user-id"
+        semconv "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+        "go.opentelemetry.io/otel/attribute"
+    )
+
+    inputJSON, _ := json.Marshal(map[string]string{"question": question})
+
+    span.SetAttributes(
+        attribute.String(semconv.InputValue, string(inputJSON)),
+        attribute.String(semconv.InputMimeType, semconv.MimeTypeJSON),
+        attribute.String(semconv.OutputValue, answer),
+        attribute.String(semconv.OutputMimeType, semconv.MimeTypeText),
+    )
     ```
-
   </Tab>
-
 </Tabs>
 
-### Specifying Metadata
+For tool calls, retrieval documents, and multimodal content, use the matching OpenInference attributes. See [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) and [Capture multimodal traces](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing).
+
+## Custom attributes and metadata
+
+Use custom attributes for single-span values you want to filter or group by, such as customer tier, environment, feature flag, or A/B test variant. Use metadata for request-wide JSON context that should travel with child spans.
+
+| Use | Best for | Example |
+| :-- | :------- | :------ |
+| Custom attribute | A filterable value on one span | `mycompany.customer_tier` |
+| Metadata | Request-wide JSON context inherited by child spans | `{"request_id": "req-123"}` |
 
 <Tabs>
-
   <Tab title="Python" icon="python">
-
-    We provide a `using_metadata` context manager to add metadata to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the metadata as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the metadata, must be a dictionary with string keys. This dictionary will be serialized to JSON when saved to the OTEL Context and remain a JSON string when sent as a span attribute.
-
     ```python
+    from opentelemetry import trace
     from phoenix.otel import using_metadata
-    metadata = {
-        "key-1": value_1,
-        "key-2": value_2,
-        ...
-    }
-    with using_metadata(metadata):
-        # Calls within this block will generate spans with the attributes:
-        # "metadata" = "{\"key-1\": value_1, \"key-2\": value_2, ... }" # JSON serialized
-        ...
+
+    current_span = trace.get_current_span()
+    current_span.set_attribute("mycompany.customer_tier", "enterprise")
+    current_span.set_attribute("mycompany.ab_variant", "v2")
+
+    with using_metadata({"request_id": request_id, "pipeline_version": "2026-09"}):
+        run_agent()
     ```
-
-    It can also be used as a decorator:
-
-    ```python
-    @using_metadata(metadata)
-    def call_fn(*args, **kwargs):
-        # Calls within this function will generate spans with the attributes:
-        # "metadata" = "{\"key-1\": value_1, \"key-2\": value_2, ... }" # JSON serialized
-        ...
-    ```
-
   </Tab>
 
-  <Tab title="TypeScript" icon="js">
+  <Tab title="JS/TS" icon="js">
+    ```typescript
+    import {
+      context,
+      setAttributes,
+      setMetadata,
+    } from "@arizeai/phoenix-otel";
 
-    We provide a `setMetadata` function which allows you to set a metadata attributes on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Metadata attributes will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
-
-    ```javascript
-    import { context, setMetadata } from "@arizeai/phoenix-otel"
-
-    context.with(
-      setMetadata(context.active(), { key1: "value1", key2: "value2" }),
-      () => {
-        // Calls within this block will generate spans with the attributes:
-        // "metadata" = '{"key1": "value1", "key2": "value2"}'
-      }
-    )
-    ```
-
-  </Tab>
-
-  <Tab title="Go" icon="golang">
-
-    Use `instrumentation.WithMetadata` to attach a JSON-encoded metadata string to the context. OpenInference Go auto-instrumentors automatically read this from `context.Context` and add `metadata` to every LLM span descended from it.
-
-    ```go
-    import (
-        "encoding/json"
-
-        "github.com/Arize-ai/openinference/go/openinference-instrumentation"
-    )
-
-    metadata := map[string]any{"key1": "value1", "key2": "value2"}
-    metadataJSON, _ := json.Marshal(metadata)
-
-    ctx = instrumentation.WithMetadata(ctx, string(metadataJSON))
-    // Calls within this context will generate spans with the attributes:
-    // "metadata" = '{"key1": "value1", "key2": "value2"}'
-    ```
-
-  </Tab>
-
-</Tabs>
-
-### Specifying Tags
-
-<Tabs>
-
-  <Tab title="Python" icon="python">
-
-    We provide a `using_tags` context manager to add tags to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the tags as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The input, the tag list, must be a list of strings.
-
-    ```python
-    from phoenix.otel import using_tags
-    tags = ["tag_1", "tag_2", ...]
-    with using_tags(tags):
-        # Calls within this block will generate spans with the attributes:
-        # "tag.tags" = "["tag_1","tag_2",...]"
-        ...
-    ```
-
-    It can also be used as a decorator:
-
-    ```python
-    @using_tags(tags)
-    def call_fn(*args, **kwargs):
-        # Calls within this function will generate spans with the attributes:
-        # "tag.tags" = "["tag_1","tag_2",...]"
-        ...
-    ```
-
-  </Tab>
-
-  <Tab title="TypeScript" icon="js">
-
-    We provide a `setTags` function which allows you to set a list of string tags on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Tags, like metadata, will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
-
-    ```javascript
-    import { context, setTags } from "@arizeai/phoenix-otel"
-
-    context.with(
-      setTags(context.active(), ["value1", "value2"]),
-      () => {
-        // Calls within this block will generate spans with the attributes:
-        // "tag.tags" = '["value1", "value2"]'
-      }
-    )
-    ```
-
-  </Tab>
-
-  <Tab title="Go" icon="golang">
-
-    Use `instrumentation.WithTags` (variadic strings) to attach a list of tags to the context. OpenInference Go auto-instrumentors automatically read this from `context.Context` and add `tag.tags` to every LLM span descended from it.
-
-    ```go
-    import "github.com/Arize-ai/openinference/go/openinference-instrumentation"
-
-    ctx = instrumentation.WithTags(ctx, "tag_1", "tag_2")
-    // Calls within this context will generate spans with the attributes:
-    // "tag.tags" = '["tag_1","tag_2"]'
-    ```
-
-  </Tab>
-
-</Tabs>
-
-### Customizing Attributes
-
-<Tabs>
-
-  <Tab title="Python" icon="python">
-
-    We provide a `using_attributes` context manager to add attributes to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the attributes fields as span attributes, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). This is a convenient context manager to use if you find yourself using many of the previous ones in conjunction.
-
-    ```python expandable
-    from phoenix.otel import using_attributes
-    tags = ["tag_1", "tag_2", ...]
-    metadata = {
-        "key-1": value_1,
-        "key-2": value_2,
-        ...
-    }
-    prompt_template = "Please describe the weather forecast for {city} on {date}"
-    prompt_template_variables = {"city": "Johannesburg", "date":"July 11"}
-    prompt_template_version = "v1.0"
-    with using_attributes(
-        session_id="my-session-id",
-        user_id="my-user-id",
-        metadata=metadata,
-        tags=tags,
-        prompt_template=prompt_template,
-        prompt_template_version=prompt_template_version,
-        prompt_template_variables=prompt_template_variables,
-    ):
-        # Calls within this block will generate spans with the attributes:
-        # "session.id" = "my-session-id"
-        # "user.id" = "my-user-id"
-        # "metadata" = "{\"key-1\": value_1, \"key-2\": value_2, ... }" # JSON serialized
-        # "tag.tags" = "["tag_1","tag_2",...]"
-        # "llm.prompt_template.template" = "Please describe the weather forecast for {city} on {date}"
-        # "llm.prompt_template.variables" = "{\"city\": \"Johannesburg\", \"date\": \"July 11\"}" # JSON serialized
-        # "llm.prompt_template.version " = "v1.0"
-        ...
-    ```
-
-    The previous example is equivalent to doing the following, making `using_attributes` a very convenient tool for the more complex settings.
-
-    ```python expandable
-    with (
-        using_session("my-session-id"),
-        using_user("my-user-id"),
-        using_metadata(metadata),
-        using_tags(tags),
-        using_prompt_template(
-            template=prompt_template,
-            version=prompt_template_version,
-            variables=prompt_template_variables,
-        ),
-    ):
-        # Calls within this block will generate spans with the attributes:
-        # "session.id" = "my-session-id"
-        # "user.id" = "my-user-id"
-        # "metadata" = "{\"key-1\": value_1, \"key-2\": value_2, ... }" # JSON serialized
-        # "tag.tags" = "["tag_1","tag_2",...]"
-        # "llm.prompt_template.template" = "Please describe the weather forecast for {city} on {date}"
-        # "llm.prompt_template.variables" = "{\"city\": \"Johannesburg\", \"date\": \"July 11\"}" # JSON serialized
-        # "llm.prompt_template.version " = "v1.0"
-        ...
-    ```
-
-    It can also be used as a decorator:
-
-    ```python expandable
-    @using_attributes(
-        session_id="my-session-id",
-        user_id="my-user-id",
-        metadata=metadata,
-        tags=tags,
-        prompt_template=prompt_template,
-        prompt_template_version=prompt_template_version,
-        prompt_template_variables=prompt_template_variables,
-    )
-    def call_fn(*args, **kwargs):
-        # Calls within this function will generate spans with the attributes:
-        # "session.id" = "my-session-id"
-        # "user.id" = "my-user-id"
-        # "metadata" = "{\"key-1\": value_1, \"key-2\": value_2, ... }" # JSON serialized
-        # "tag.tags" = "["tag_1","tag_2",...]"
-        # "llm.prompt_template.template" = "Please describe the weather forecast for {city} on {date}"
-        # "llm.prompt_template.variables" = "{\"city\": \"Johannesburg\", \"date\": \"July 11\"}" # JSON serialized
-        # "llm.prompt_template.version " = "v1.0"
-        ...
-    ```
-
-  </Tab>
-
-  <Tab title="TypeScript" icon="js">
-
-    We provide a `setAttributes` function which allows you to add a set of attributes to context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Attributes set on context using `setAttributes` must be valid span [attribute values](https://opentelemetry.io/docs/specs/otel/common/#attribute).
-
-    ```javascript
-    import { context, setAttributes } from "@arizeai/phoenix-otel"
-
-    context.with(
-      setAttributes(context.active(), { myAttribute: "test" }),
-      () => {
-        // Calls within this block will generate spans with the attributes:
-        // "myAttribute" = "test"
-      }
-    )
-    ```
-
-    You can also use multiple setters at the same time to propagate multiple attributes to the span below. Since each setter function returns a new context, they can be used together as follows.
-
-    ```javascript
-    import { context, setAttributes, setSession } from "@arizeai/phoenix-otel"
-
-    context.with(
-      setAttributes(
-        setSession(context.active(), { sessionId: "session-id" }),
-        { myAttribute: "test" }
-      ),
-      () => {
-        // Calls within this block will generate spans with the attributes:
-        // "myAttribute" = "test"
-        // "session.id" = "session-id"
-      }
-    )
-    ```
-
-    You can also use `setAttributes` in conjunction with the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) to set OpenInference attributes manually.
-
-    ```javascript
-    import { context, setAttributes } from "@arizeai/phoenix-otel"
-
-    context.with(
+    const ctx = setMetadata(
       setAttributes(context.active(), {
-        "session.id": "session-id"
+        "mycompany.customer_tier": "enterprise",
+        "mycompany.ab_variant": "v2",
       }),
-      () => {
-        // Calls within this block will generate spans with the attributes:
-        // "session.id" = "session-id"
-      }
-    )
-    ```
+      { requestId, pipelineVersion: "2026-09" }
+    );
 
+    await context.with(ctx, async () => runAgent());
+    ```
   </Tab>
 
   <Tab title="Go" icon="golang">
+    ```go
+    import (
+        "encoding/json"
 
-    Go has no single-shot equivalent of `using_attributes` — compose the `With*` helpers instead. Each returns a new context; chain them to attach session, user, metadata, and tags together. Auto-instrumentors pick up all four from `context.Context`.
+        instrumentation "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+        "go.opentelemetry.io/otel/attribute"
+    )
+
+    metadataJSON, _ := json.Marshal(map[string]string{
+        "request_id": requestID,
+        "pipeline_version": "2026-09",
+    })
+
+    ctx = instrumentation.WithMetadata(ctx, string(metadataJSON))
+    span.SetAttributes(
+        attribute.String("mycompany.customer_tier", "enterprise"),
+        attribute.String("mycompany.ab_variant", "v2"),
+    )
+    ```
+  </Tab>
+</Tabs>
+
+Best practice: prefix custom attributes with your company or app name, for example `mycompany.customer_tier`, so they do not clash with OpenInference or OpenTelemetry attributes.
+
+## Sessions, users, and tags
+
+Set session, user, metadata, and tags on the active context before the traced work runs. OpenInference instrumentors and helpers read that context and attach the attributes to spans created inside it.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.otel import using_attributes
+
+    with using_attributes(
+        session_id="session-abc",
+        user_id="user-123",
+        metadata={"tenant": "acme"},
+        tags=["production", "checkout"],
+    ):
+        run_agent()
+    ```
+  </Tab>
+
+  <Tab title="JS/TS" icon="js">
+    ```typescript
+    import {
+      context,
+      setMetadata,
+      setSession,
+      setTags,
+      setUser,
+    } from "@arizeai/phoenix-otel";
+
+    let ctx = setSession(context.active(), { sessionId: "session-abc" });
+    ctx = setUser(ctx, { userId: "user-123" });
+    ctx = setMetadata(ctx, { tenant: "acme" });
+    ctx = setTags(ctx, ["production", "checkout"]);
+
+    await context.with(ctx, async () => runAgent());
+    ```
+  </Tab>
+
+  <Tab title="Go" icon="golang">
+    ```go
+    import (
+        "encoding/json"
+
+        instrumentation "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+    )
+
+    metadataJSON, _ := json.Marshal(map[string]string{"tenant": "acme"})
+
+    ctx = instrumentation.WithSession(ctx, "session-abc")
+    ctx = instrumentation.WithUser(ctx, "user-123")
+    ctx = instrumentation.WithMetadata(ctx, string(metadataJSON))
+    ctx = instrumentation.WithTags(ctx, "production", "checkout")
+    ```
+  </Tab>
+</Tabs>
+
+Use the same `session.id` for every turn in a conversation. See [Set up projects and sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions#sessions).
+
+If you create raw OpenTelemetry spans inside that context, copy the propagated attributes onto the span yourself. OpenInference instrumentors and `OITracer` do this automatically. See [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) and [TypeScript context attributes](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes).
+
+## Prompt templates
+
+Prompt-template attributes tell Phoenix which template, version, and variables produced an LLM call. Set them before the model call, because most apps render the final prompt before sending it to the provider.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.otel import using_prompt_template
+
+    with using_prompt_template(
+        template="Answer the question for {persona}: {question}",
+        variables={"persona": "support agent", "question": question},
+        version="v1.0",
+    ):
+        response = run_chat_completion(question)
+    ```
+  </Tab>
+
+  <Tab title="JS/TS" icon="js">
+    ```typescript
+    import { context, setPromptTemplate } from "@arizeai/phoenix-otel";
+
+    const ctx = setPromptTemplate(context.active(), {
+      template: "Answer the question for {{persona}}: {{question}}",
+      variables: { persona: "support agent", question },
+      version: "v1.0",
+    });
+
+    await context.with(ctx, async () => runChatCompletion(question));
+    ```
+  </Tab>
+
+  <Tab title="Go" icon="golang">
+    Go does not have a prompt-template context helper today. Set the attributes directly on the LLM span.
 
     ```go
     import (
         "encoding/json"
 
-        "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+        semconv "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+        "go.opentelemetry.io/otel/attribute"
     )
 
-    metadata := map[string]any{"key-1": "value_1", "key-2": "value_2"}
-    metadataJSON, _ := json.Marshal(metadata)
+    variablesJSON, _ := json.Marshal(map[string]string{
+        "persona": "support agent",
+        "question": question,
+    })
 
-    ctx = instrumentation.WithSession(ctx, "my-session-id")
-    ctx = instrumentation.WithUser(ctx, "my-user-id")
-    ctx = instrumentation.WithMetadata(ctx, string(metadataJSON))
-    ctx = instrumentation.WithTags(ctx, "tag_1", "tag_2")
-    // Calls within this context will generate spans with the attributes:
-    // "session.id"  = "my-session-id"
-    // "user.id"     = "my-user-id"
-    // "metadata"    = '{"key-1":"value_1","key-2":"value_2"}'
-    // "tag.tags"    = '["tag_1","tag_2"]'
+    span.SetAttributes(
+        attribute.String(semconv.LLMPromptTemplate, "Answer the question for {persona}: {question}"),
+        attribute.String(semconv.LLMPromptTemplateVersion, "v1.0"),
+        attribute.String(semconv.LLMPromptTemplateVariables, string(variablesJSON)),
+    )
     ```
-
-    For prompt-template attributes (`llm.prompt_template.*`), set them directly on the LLM span using `semconv.LLMPromptTemplate` / `LLMPromptTemplateVersion` / `LLMPromptTemplateVariables` from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions` — see [Prompt Templates](/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables).
-
   </Tab>
-
 </Tabs>
 
-### Span Processing
+## Status, events, and exceptions
 
-The tutorials and code snippets in these docs default to the `SimpleSpanProcessor.` A `SimpleSpanProcessor` processes and exports spans as they are created. This means that if you create 5 spans, each will be processed and exported before the next span is created in code. This can be helpful in scenarios where you do not want to risk losing a batch, or if you’re experimenting with OpenTelemetry in development. However, it also comes with potentially significant overhead, especially if spans are being exported over a network - each time a call to create a span is made, it would be processed and sent over a network before your app’s execution could continue.
+Use span status to mark success or failure, events to mark important moments, and recorded exceptions to preserve error details.
 
-The `BatchSpanProcessor` processes spans in batches before they are exported. This is usually the right processor to use for an application in production but it does mean spans may take some time to show up in Phoenix.
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from opentelemetry import trace
+    from opentelemetry.trace import Status, StatusCode
 
-In production we recommend the `BatchSpanProcessor` over `SimpleSpanProcessor` when deployed and the `SimpleSpanProcessor` when developing.
+    span = trace.get_current_span()
+    span.add_event("retrieval.cache_miss", {"request.id": request_id})
 
-#### BatchSpanProcessor Example - Using arize-phoenix-otel library
+    try:
+        result = run_step()
+    except Exception as error:
+        span.record_exception(error)
+        span.set_status(Status(StatusCode.ERROR))
+        raise
+    else:
+        span.set_status(Status(StatusCode.OK))
+    ```
+  </Tab>
+
+  <Tab title="JS/TS" icon="js">
+    ```typescript
+    import { SpanStatusCode, trace } from "@arizeai/phoenix-otel";
+
+    const span = trace.getActiveSpan();
+    span?.addEvent("retrieval.cache_miss", { "request.id": requestId });
+
+    try {
+      const result = await runStep();
+    } catch (error) {
+      span?.recordException(error as Error);
+      span?.setStatus({ code: SpanStatusCode.ERROR });
+      throw error;
+    }
+
+    span?.setStatus({ code: SpanStatusCode.OK });
+    ```
+  </Tab>
+
+  <Tab title="Go" icon="golang">
+    ```go
+    import (
+        "go.opentelemetry.io/otel/attribute"
+        "go.opentelemetry.io/otel/codes"
+        "go.opentelemetry.io/otel/trace"
+    )
+
+    span := trace.SpanFromContext(ctx)
+    span.AddEvent("retrieval.cache_miss", trace.WithAttributes(
+        attribute.String("request.id", requestID),
+    ))
+
+    if err := runStep(); err != nil {
+        span.RecordError(err)
+        span.SetStatus(codes.Error, err.Error())
+        return err
+    }
+
+    span.SetStatus(codes.Ok, "")
+    ```
+  </Tab>
+</Tabs>
+
+If the data arrives after the span has ended, log it as a note or annotation instead of trying to mutate the original span. See [Annotate with the client](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback).
+
+## Span processing
+
+The Python snippets in these docs use `SimpleSpanProcessor` by default through `register()`. It exports each span as it is created, which is convenient while developing.
+
+Use batching in production to reduce export overhead:
 
 ```python
 from phoenix.otel import register
 
-# configure the Phoenix tracer for batch processing
 tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  batch=True, # Default is 'False'
+    project_name="my-llm-app",
+    batch=True,
 )
 ```
 
-#### BatchSpanProcessor Example - Using OTel library
+For TypeScript, `@arizeai/phoenix-otel` uses batching by default. Set `batch: false` only when you need immediate export for local debugging.
 
-```python
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
+```typescript
+import { register } from "@arizeai/phoenix-otel";
 
-tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint)))
+const provider = register({
+  projectName: "my-llm-app",
+  batch: false,
+});
 ```
+
+## Next step
+
+Next, track token usage and model costs.
+
+<Card title="Next: Track costs" icon="arrow-right" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking" />

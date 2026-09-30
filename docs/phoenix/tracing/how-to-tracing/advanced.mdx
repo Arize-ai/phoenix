@@ -1,24 +1,123 @@
 ---
-title: "Advanced"
-sidebarTitle: "Overview"
+title: "Advanced tracing patterns"
+sidebarTitle: "Advanced tracing patterns"
+description: "Use OpenTelemetry and OpenInference controls when you need more control over what Phoenix receives."
 ---
 
-<Columns cols={2}>
-<Card title="Mask Span Attributes" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="eye-slash" horizontal>
-Learn how to block PII from logging to Phoenix
-</Card>
-<Card title="Suppress Tracing" href="/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing" icon="ban" horizontal>
-Learn how to selectively block or turn off tracing
-</Card>
-<Card title="Filter Spans to Export" href="/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans" icon="filter" horizontal>
-Learn how to send only certain spans to Phoenix
-</Card>
-<Card title="Capture Multimodal Traces" href="/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing" icon="images" horizontal>
-Learn how to trace images
-</Card>
-<Card title="Construct Shareable URLs" href="/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls" icon="link" horizontal>
-Link to projects, traces, spans, and sessions by name or ID
-</Card>
+Use these patterns after basic tracing is working. They help you control which spans Phoenix receives, which attributes are stored, and how spans stay connected across services.
 
-</Columns>
+Phoenix tracing uses OpenTelemetry to create and export spans. It uses OpenInference attributes to describe AI work, such as LLM calls, tool calls, retrieval, and agent steps.
 
+## What you can control
+
+- **Trace shape:** connect spans across services, threads, and async work.
+- **Trace volume:** sample traces or filter spans before export.
+- **Trace contents:** hide inputs, outputs, images, prompts, tools, or other attributes.
+- **Trace media:** capture image content in LLM messages.
+
+<CardGroup cols={2}>
+  <Card title="OpenTelemetry and OpenInference" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview" icon="book-open">
+    Learn how Phoenix uses OpenTelemetry spans and OpenInference attributes
+  </Card>
+  <Card title="Context propagation" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation" icon="share-2">
+    Keep spans connected across services, threads, and async work
+  </Card>
+  <Card title="Sampling" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling" icon="filter">
+    Reduce trace volume while keeping useful production visibility
+  </Card>
+  <Card title="OpenTelemetry Collector" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector" icon="route">
+    Process, route, sample, or redact spans before they reach Phoenix
+  </Card>
+  <Card title="Mask and redact data" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="eye-slash">
+    Hide or redact sensitive span data before Phoenix receives it
+  </Card>
+  <Card title="Capture multimodal traces" href="/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing" icon="images">
+    Send image content from LLM messages to Phoenix
+  </Card>
+</CardGroup>
+
+## Choose the right pattern
+
+| If you need to... | Start with... |
+| :--- | :--- |
+| Understand how Phoenix reads AI trace data | [OpenTelemetry and OpenInference](/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview) |
+| Keep one trace connected across services or background work | [Context propagation](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation) |
+| Send fewer traces from an app with high traffic | [Sampling](/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling) |
+| Hide or redact sensitive values before Phoenix receives spans | [Mask and redact data](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes) |
+| Skip one code path | [Suppress tracing](#suppress-tracing) |
+| Drop or rewrite spans before export | [Filter spans before export](#filter-spans-before-export) |
+| Process traces outside your app | [OpenTelemetry Collector](/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector) |
+| Show image content in LLM traces | [Capture multimodal traces](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing) |
+
+## How the pieces fit
+
+OpenTelemetry defines the tracing pipeline. Your application creates spans, a span processor prepares them for export, and an exporter sends them to Phoenix or to an OpenTelemetry Collector.
+
+OpenInference defines the AI fields inside those spans. Phoenix uses OpenInference span kinds and attributes to show LLM calls, tools, retrievers, agents, inputs, outputs, token counts, sessions, and users in the UI.
+
+You usually do not need to configure every OpenTelemetry component yourself. Start with [Auto-instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) or [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument), then use the patterns on this page when you need more control.
+
+## Suppress tracing
+
+Use suppression when a specific block of code should not create spans. Use it for health checks, internal logging, setup work, or model calls that should stay out of traces.
+
+### Pause tracing for a block of code
+
+```python
+from phoenix.otel import suppress_tracing
+
+with suppress_tracing():
+    # Code running inside this block does not generate traces.
+    ...
+# Tracing resumes outside the block.
+...
+```
+
+### Disable an auto-instrumentor
+
+Call `.uninstrument()` to stop tracing for a whole instrumented library.
+
+```python
+from openinference.instrumentation.openai import OpenAIInstrumentor
+
+OpenAIInstrumentor().instrument()
+OpenAIInstrumentor().uninstrument()
+```
+
+## Filter spans before export
+
+Use a span processor when you need a rule that runs on every span before export. For example, you can drop noisy spans or rewrite attributes that are specific to your app.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+
+    ```python
+    from phoenix.otel import BatchSpanProcessor, register
+    from opentelemetry.sdk.trace import ReadableSpan
+
+
+    class FilteringSpanProcessor(BatchSpanProcessor):
+        def _should_drop(self, span: ReadableSpan) -> bool:
+            # Return True if the span should be filtered out.
+            return span.name == "secret_span"
+
+        def on_end(self, span: ReadableSpan) -> None:
+            if self._should_drop(span):
+                return
+            super().on_end(span)
+
+
+    tracer_provider = register()
+    # Phoenix replaces the default processor when you add a custom one.
+    tracer_provider.add_span_processor(
+        FilteringSpanProcessor(
+            endpoint="http://localhost:6006/v1/traces",
+            protocol="http/protobuf",
+        )
+    )
+    ```
+
+    The example drops spans named `secret_span` before export. If you need to hide common OpenInference fields such as inputs, outputs, images, prompts, or tools, use [Mask and redact data](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes) first.
+
+  </Tab>
+</Tabs>

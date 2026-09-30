@@ -146,7 +146,8 @@ These integrations use manual spans around retrieval calls rather than an auto-i
 
 If no integration matches, or for advanced use cases:
 
-- **Setup tracing manually:** https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing
+- **Set up tracing:** https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel
+- **Manual instrumentation:** https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument
 - **All integrations:** https://arize.com/docs/phoenix/integrations
 
 ---
