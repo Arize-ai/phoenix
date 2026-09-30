@@ -554,7 +554,9 @@ client.evaluators.update_llm(
 )
 
 # Find a sandbox for code evaluators
-sandbox = next(c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"])
+sandbox = next(
+    c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]
+)
 
 # Create an LLM evaluator that runs an existing prompt version
 judge = client.evaluators.create_llm(
