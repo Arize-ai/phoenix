@@ -146,3 +146,30 @@ async def test_patch_rename_to_taken_name_is_already_exists(
     problem = response.json()
     assert problem["code"] == "already_exists"
     assert problem["existing_id"] == holder["id"]
+
+
+async def test_malformed_ids_are_invalid_argument_not_a_crash(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A GlobalID that fails to parse is a client error on every route that takes one,
+    matching the other evaluator-binding routes; none of them may leak a raw ValueError."""
+    for response in (
+        await httpx_client.patch("v1/project_evaluators/not-a-real-id", json={"name": "x"}),
+        await httpx_client.delete("v1/project_evaluators/not-a-real-id"),
+    ):
+        assert response.status_code == 422, response.text
+        assert response.json()["code"] == "invalid_argument"
+
+
+async def test_malformed_bulk_delete_id_is_invalid_argument_not_a_crash(
+    httpx_client: httpx.AsyncClient, db: DbSessionFactory
+) -> None:
+    """The bulk-delete route decodes each id in the list; a malformed one is still a client
+    error, not a raw ValueError leaking past the project lookup that runs first."""
+    project = await _project(db)
+    response = await httpx_client.delete(
+        f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators",
+        params={"project_evaluator_id": "not-a-real-id"},
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["code"] == "invalid_argument"
