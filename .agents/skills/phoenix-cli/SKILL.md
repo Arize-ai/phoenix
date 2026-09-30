@@ -476,13 +476,13 @@ px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --
 
 ### Project bindings (online evaluators)
 
-Attach evaluators to a project so incoming spans, traces, or sessions are scored as they arrive. Ids are `ProjectEvaluator:…` GlobalIDs. `--evaluation-target span|trace|session` is fixed at creation; `--sampling-rate` is a fraction in 0..1; `--filter-condition` is written in the target's filter language; `--evaluation-delay-seconds` (trace and session only, at least 10) is how long the record must be quiet first. Invalid numbers exit `3` before any request.
+Attach evaluators to a project so incoming spans, traces, or sessions are scored as they arrive. Ids are `ProjectEvaluator:…` GlobalIDs. A binding references an existing LLM or code definition by `--evaluator-id` (create one with `px evaluator create`). `--evaluation-target span|trace|session` is fixed at creation; `--sampling-rate` is a fraction in 0..1; `--filter-condition` is written in the target's filter language; `--evaluation-delay-seconds` (trace and session only, at least 10) is how long the record must be quiet first. Invalid numbers exit `3` before any request.
 
 ```bash
 px project evaluator list support-bot --format raw --no-progress | jq '.[] | {id, name, evaluation_target, enabled}'
 px project evaluator get UHJvamVjdEV2YWx1YXRvcjox --format raw --no-progress
 
-# attach an existing code evaluator to score LLM spans, sampling a quarter of them
+# attach an existing evaluator to score LLM spans, sampling a quarter of them
 px project evaluator create support-bot --name toxicity --evaluation-target span --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition "span_kind == 'LLM'"
 
 # pause, resume, or retune a binding; --default-evaluation-delay sends null to restore the server default
@@ -491,8 +491,9 @@ px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --enabled --sampling-rate 1
 # the quiet period applies to trace and session bindings; a span binding rejects it
 px project evaluator update UHJvamVjdEV2YWx1YXRvcjoy --evaluation-delay-seconds 120
 
-# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; removes the binding's hidden trace project too
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; the definition, prompt, and trace project are kept
 px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes
 ```
 
 ## GraphQL
