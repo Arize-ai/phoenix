@@ -553,9 +553,29 @@ client.evaluators.update_llm(
     prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
 )
 
-# Delete a code evaluator once nothing binds it
+# Find a sandbox for code evaluators
+sandbox = next(c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"])
+
+# Create an LLM evaluator that runs an existing prompt version
+judge = client.evaluators.create_llm(
+    name="correctness",
+    prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+    description="correctness",
+    output_configs=[
+        {
+            "type": "CATEGORICAL",
+            "name": "correctness",
+            "optimization_direction": "MAXIMIZE",
+            "values": [{"label": "correct", "score": 1}, {"label": "incorrect", "score": 0}],
+        }
+    ],
+)
+
+# Delete a definition once nothing binds it; an LLM evaluator's prompt is kept
 client.evaluators.delete(evaluator_id=definition["id"])
 ```
+
+Errors from these methods raise `phoenix.client.exceptions.PhoenixAPIError`, an `httpx.HTTPStatusError` whose `code` and `problem` carry the server's reason. A taken name has `code == "already_exists"` and `existing_id` naming the evaluator that holds it.
 
 ## Documentation
 

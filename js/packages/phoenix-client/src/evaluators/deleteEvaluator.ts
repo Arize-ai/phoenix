@@ -4,26 +4,26 @@ import type { ClientFn } from "../types/core";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
- * Parameters for deleting an unbound code evaluator.
+ * Parameters for deleting an unbound evaluator definition.
  */
 export interface DeleteEvaluatorParams extends ClientFn {
   /**
-   * The GlobalID of the code evaluator.
+   * The GlobalID of the LLM or code evaluator.
    */
   evaluatorId: string;
 }
 
 /**
- * Delete a code evaluator that nothing binds, with its version history.
+ * Delete an LLM or code evaluator that nothing binds.
  *
- * A definition still bound by a project or dataset is refused with 409;
- * delete those bindings first, or delete the last binding, which removes the
- * definition with it. LLM evaluators are deleted with their last binding and
- * built-in evaluators are never deleted, so their ids are refused with 422.
- * A missing evaluator is ignored.
+ * A code evaluator is deleted with its version history; an LLM evaluator with
+ * the tag that pins its version, keeping the prompt. A definition still bound
+ * by a project or dataset is refused with 409: delete those bindings first.
+ * Built-in evaluators cannot be deleted and are refused with 422. A missing
+ * evaluator is ignored.
  *
  * @param params - The evaluator to delete.
- * @param params.evaluatorId - The code evaluator GlobalID.
+ * @param params.evaluatorId - The evaluator GlobalID.
  * @param params.client - An optional Phoenix client instance.
  *
  * @requires Phoenix server >= 21.0.0

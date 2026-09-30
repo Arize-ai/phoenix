@@ -44,6 +44,30 @@ export type CodeEvaluatorCreate =
   components["schemas"]["CreateCodeEvaluatorRequest"];
 
 /**
+ * An LLM evaluator to create on its own, pinned to an existing prompt version.
+ */
+export type LLMEvaluatorCreate =
+  components["schemas"]["CreateLLMEvaluatorRequest"];
+
+/**
+ * An evaluator definition to create; `type` selects the variant.
+ */
+export type EvaluatorCreate = LLMEvaluatorCreate | CodeEvaluatorCreate;
+
+/**
+ * Which prompt version an LLM evaluator runs, as read back from the server.
+ * `selector.type` is `version` when the evaluator is pinned, or `latest` for an
+ * evaluator whose pin was removed; `resolved_prompt_version_id` is the version
+ * it runs now.
+ */
+export type LLMEvaluatorPrompt = components["schemas"]["LLMEvaluatorPrompt"];
+
+/**
+ * A sandbox configuration a code evaluator can run in.
+ */
+export type SandboxConfig = components["schemas"]["SandboxConfig"];
+
+/**
  * A new code version and the configuration to apply with it.
  */
 export type CodeEvaluatorVersionCreate =
@@ -51,8 +75,8 @@ export type CodeEvaluatorVersionCreate =
 
 /**
  * Fields that can change on a shared LLM evaluator. Omitted fields keep their
- * current values. Prompt content is edited through the prompts API; the patch
- * only records which prompt version the evaluator runs.
+ * current values. Prompt content is edited through the prompts API; `prompt`
+ * only selects which version the evaluator runs.
  */
 export type LLMEvaluatorPatch =
   components["schemas"]["PatchLLMEvaluatorRequest"];

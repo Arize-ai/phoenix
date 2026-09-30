@@ -194,6 +194,12 @@ CREATE_EVALUATOR = RouteRequirement(
     min_server_version=Version(21, 0, 0),
 )
 
+LIST_SANDBOX_CONFIGS = RouteRequirement(
+    method="GET",
+    path="/v1/sandbox_configs",
+    min_server_version=Version(21, 0, 0),
+)
+
 DELETE_EVALUATOR = RouteRequirement(
     method="DELETE",
     path="/v1/evaluators/{evaluator_id}",

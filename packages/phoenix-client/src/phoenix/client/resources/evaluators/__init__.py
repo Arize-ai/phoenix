@@ -14,10 +14,12 @@ from phoenix.client.constants.server_requirements import (
     GET_EVALUATOR,
     LIST_EVALUATOR_VERSIONS,
     LIST_EVALUATORS,
+    LIST_SANDBOX_CONFIGS,
     PATCH_EVALUATOR,
 )
 from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.problem_details import raise_for_problem
 from phoenix.client.utils.server_requirements import (
     AsyncServerVersionGuard,
     ServerVersionGuard,
@@ -57,11 +59,35 @@ def _build_llm_patch(
     if not isinstance(description, NotGiven):
         body["description"] = description
     if not isinstance(prompt_version_id, NotGiven):
-        body["prompt_version_id"] = prompt_version_id
+        body["prompt"] = _pin(prompt_version_id)
     if not isinstance(output_configs, NotGiven):
         body["output_configs"] = list(output_configs)
     if len(body) == 1:
         raise ValueError("At least one field to update must be provided.")
+    return body
+
+
+def _pin(prompt_version_id: str) -> v1.LLMEvaluatorPromptInput:
+    return v1.LLMEvaluatorPromptInput(
+        selector=v1.PromptVersionSelector(type="version", prompt_version_id=prompt_version_id)
+    )
+
+
+def _build_llm_create_body(
+    *,
+    name: str,
+    prompt_version_id: str,
+    output_configs: Sequence[v1.CategoricalAnnotationConfigData],
+    description: Optional[str],
+) -> v1.CreateLLMEvaluatorRequest:
+    body = v1.CreateLLMEvaluatorRequest(
+        type="llm",
+        name=name,
+        prompt=_pin(prompt_version_id),
+        output_configs=list(output_configs),
+    )
+    if description is not None:
+        body["description"] = description
     return body
 
 
@@ -222,7 +248,7 @@ class Evaluators:
             The definitions.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -241,7 +267,7 @@ class Evaluators:
                 "v1/evaluators",
                 params=_list_params(next_cursor, type=type, name=name, remaining=remaining),
             )
-            response.raise_for_status()
+            raise_for_problem(response)
             page = cast(v1.EvaluatorDefinitionsResponseBody, response.json())
             definitions.extend(page["data"])
             if limit is not None and len(definitions) >= limit:
@@ -261,7 +287,7 @@ class Evaluators:
             apart.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -275,7 +301,7 @@ class Evaluators:
         self._guard.require(GET_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = self._client.get(url)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
 
     def create_code(
@@ -290,9 +316,6 @@ class Evaluators:
         description: Optional[str] = None,
     ) -> v1.CodeEvaluatorDefinition:
         """Create a code evaluator that nothing binds yet, with its first version.
-
-        LLM evaluators are created through the project and dataset binding methods
-        because each one is tied to its own prompt.
 
         Args:
             name (str): A name unique among evaluators.
@@ -309,7 +332,7 @@ class Evaluators:
             The created code evaluator definition.
 
         Raises:
-            httpx.HTTPError: If the request fails. The server responds with 409
+            PhoenixAPIError: If the request fails. The server responds with 409
                 when the name is taken.
 
         Example::
@@ -339,9 +362,73 @@ class Evaluators:
         )
         self._guard.require(CREATE_EVALUATOR)
         response = self._client.post("v1/evaluators", json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
         return cast(v1.CodeEvaluatorDefinition, data)
+
+    def create_llm(
+        self,
+        *,
+        name: str,
+        prompt_version_id: str,
+        output_configs: Sequence[v1.CategoricalAnnotationConfigData],
+        description: Optional[str] = None,
+    ) -> v1.LLMEvaluatorDefinition:
+        """Create an LLM evaluator that runs an existing prompt version; nothing binds it yet.
+
+        Create the prompt and its version first with
+        :meth:`phoenix.client.resources.prompts.Prompts.create`. The evaluator stays
+        pinned to that version until it is updated.
+
+        Args:
+            name (str): A name unique among evaluators.
+            prompt_version_id (str): The ID of the prompt version to run.
+            output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
+                categorical outputs the evaluator produces. They must match the
+                prompt's tool schema.
+            description (Optional[str]): Must equal the description of the prompt's
+                tool function, because that description is the instruction the
+                evaluator's output tool carries.
+
+        Returns:
+            The created LLM evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. A taken name is refused with
+                ``code == "already_exists"`` and ``existing_id`` naming the evaluator
+                that holds it.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            version = client.prompts.create(name="correctness-judge", version=judge_prompt)
+            definition = client.evaluators.create_llm(
+                name="correctness",
+                prompt_version_id=version.id,
+                description="correctness",
+                output_configs=[
+                    {
+                        "type": "CATEGORICAL",
+                        "name": "correctness",
+                        "optimization_direction": "MAXIMIZE",
+                        "values": [{"label": "correct", "score": 1}, {"label": "incorrect", "score": 0}],
+                    }
+                ],
+            )
+        """  # noqa: E501
+        json_ = _build_llm_create_body(
+            name=name,
+            prompt_version_id=prompt_version_id,
+            output_configs=output_configs,
+            description=description,
+        )
+        self._guard.require(CREATE_EVALUATOR)
+        response = self._client.post("v1/evaluators", json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.LLMEvaluatorDefinition, data)
 
     def update_llm(
         self,
@@ -375,7 +462,7 @@ class Evaluators:
             The updated LLM evaluator definition.
 
         Raises:
-            httpx.HTTPError: If the request fails. The server responds with 409
+            PhoenixAPIError: If the request fails. The server responds with 409
                 when a dataset binding overrides outputs that the new prompt no
                 longer supports.
             ValueError: If no field to update is provided.
@@ -399,7 +486,7 @@ class Evaluators:
         self._guard.require(PATCH_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = self._client.patch(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
         return cast(v1.LLMEvaluatorDefinition, data)
 
@@ -433,7 +520,7 @@ class Evaluators:
             The updated code evaluator definition.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
             ValueError: If no field to update is provided.
 
         Example::
@@ -456,29 +543,71 @@ class Evaluators:
         self._guard.require(PATCH_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = self._client.patch(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
         return cast(v1.CodeEvaluatorDefinition, data)
 
     def delete(self, *, evaluator_id: str) -> None:
-        """Delete a code evaluator that nothing binds, with its version history.
+        """Delete an LLM or code evaluator that nothing binds.
 
-        A definition still bound by a project or dataset is refused; delete those
-        bindings first, or delete the last binding, which removes the definition
-        with it. LLM evaluators are deleted with their last binding and built-in
-        evaluators are never deleted. A missing evaluator is ignored.
+        A code evaluator is deleted with its version history. An LLM evaluator is
+        deleted with the tag that pins its version; the prompt is kept. A missing
+        evaluator is ignored.
 
         Args:
-            evaluator_id (str): The ID of the code evaluator.
+            evaluator_id (str): The ID of the evaluator.
 
         Raises:
-            httpx.HTTPError: If the request fails. The server responds with 409
-                while the evaluator is still bound and 422 for LLM or built-in ids.
+            PhoenixAPIError: If the request fails. The server responds with 409
+                while a project or dataset still binds the evaluator, and 422 for
+                built-in evaluators, which cannot be deleted.
         """
         self._guard.require(DELETE_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = self._client.delete(url)
-        response.raise_for_status()
+        raise_for_problem(response)
+
+    def list_sandbox_configs(
+        self, *, language: Optional[Language] = None
+    ) -> List[v1.SandboxConfig]:
+        """List the sandbox configurations code evaluators can run in, newest first.
+
+        Pass a configuration's ``id`` as ``sandbox_config_id`` when creating or
+        updating a code evaluator. Only configurations with ``is_usable`` accept new
+        code. Provider credentials are never returned.
+
+        Args:
+            language (Optional[Literal["PYTHON", "TYPESCRIPT"]]): Return only
+                configurations for this language.
+
+        Returns:
+            The sandbox configurations.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            usable = [c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]]
+        """  # noqa: E501
+        self._guard.require(LIST_SANDBOX_CONFIGS)
+        configs: list[v1.SandboxConfig] = []
+        next_cursor: Optional[str] = None
+        while True:
+            params: dict[str, Union[str, int]] = {"limit": _PAGE_SIZE}
+            if language is not None:
+                params["language"] = language
+            if next_cursor:
+                params["cursor"] = next_cursor
+            response = self._client.get("v1/sandbox_configs", params=params)
+            raise_for_problem(response)
+            page = cast(v1.SandboxConfigsResponseBody, response.json())
+            configs.extend(page["data"])
+            if not (next_cursor := page.get("next_cursor")):
+                return configs
 
     def list_code_versions(
         self, *, evaluator_id: str, limit: Optional[int] = None
@@ -494,7 +623,7 @@ class Evaluators:
             The versions. The first entry is the version the evaluator currently runs.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -511,7 +640,7 @@ class Evaluators:
         while True:
             remaining = None if limit is None else limit - len(versions)
             response = self._client.get(url, params=_list_params(next_cursor, remaining=remaining))
-            response.raise_for_status()
+            raise_for_problem(response)
             page = cast(v1.CodeEvaluatorVersionsResponseBody, response.json())
             versions.extend(page["data"])
             if limit is not None and len(versions) >= limit:
@@ -557,7 +686,7 @@ class Evaluators:
             The persisted code version.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -583,7 +712,7 @@ class Evaluators:
         self._guard.require(CREATE_EVALUATOR_VERSION)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
         response = self._client.post(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.CreatedCodeEvaluatorVersionResponseBody, response.json())["data"]
 
 
@@ -655,7 +784,7 @@ class AsyncEvaluators:
             The definitions.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -674,7 +803,7 @@ class AsyncEvaluators:
                 "v1/evaluators",
                 params=_list_params(next_cursor, type=type, name=name, remaining=remaining),
             )
-            response.raise_for_status()
+            raise_for_problem(response)
             page = cast(v1.EvaluatorDefinitionsResponseBody, response.json())
             definitions.extend(page["data"])
             if limit is not None and len(definitions) >= limit:
@@ -694,7 +823,7 @@ class AsyncEvaluators:
             apart.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -708,7 +837,7 @@ class AsyncEvaluators:
         await self._guard.require(GET_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = await self._client.get(url)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
 
     async def create_code(
@@ -723,9 +852,6 @@ class AsyncEvaluators:
         description: Optional[str] = None,
     ) -> v1.CodeEvaluatorDefinition:
         """Create a code evaluator that nothing binds yet, with its first version.
-
-        LLM evaluators are created through the project and dataset binding methods
-        because each one is tied to its own prompt.
 
         Args:
             name (str): A name unique among evaluators.
@@ -742,7 +868,7 @@ class AsyncEvaluators:
             The created code evaluator definition.
 
         Raises:
-            httpx.HTTPError: If the request fails. The server responds with 409
+            PhoenixAPIError: If the request fails. The server responds with 409
                 when the name is taken.
         """
         json_ = _build_create_body(
@@ -756,9 +882,73 @@ class AsyncEvaluators:
         )
         await self._guard.require(CREATE_EVALUATOR)
         response = await self._client.post("v1/evaluators", json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
         return cast(v1.CodeEvaluatorDefinition, data)
+
+    async def create_llm(
+        self,
+        *,
+        name: str,
+        prompt_version_id: str,
+        output_configs: Sequence[v1.CategoricalAnnotationConfigData],
+        description: Optional[str] = None,
+    ) -> v1.LLMEvaluatorDefinition:
+        """Create an LLM evaluator that runs an existing prompt version; nothing binds it yet.
+
+        Create the prompt and its version first with
+        :meth:`phoenix.client.resources.prompts.Prompts.create`. The evaluator stays
+        pinned to that version until it is updated.
+
+        Args:
+            name (str): A name unique among evaluators.
+            prompt_version_id (str): The ID of the prompt version to run.
+            output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
+                categorical outputs the evaluator produces. They must match the
+                prompt's tool schema.
+            description (Optional[str]): Must equal the description of the prompt's
+                tool function, because that description is the instruction the
+                evaluator's output tool carries.
+
+        Returns:
+            The created LLM evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. A taken name is refused with
+                ``code == "already_exists"`` and ``existing_id`` naming the evaluator
+                that holds it.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            version = client.prompts.create(name="correctness-judge", version=judge_prompt)
+            definition = client.evaluators.create_llm(
+                name="correctness",
+                prompt_version_id=version.id,
+                description="correctness",
+                output_configs=[
+                    {
+                        "type": "CATEGORICAL",
+                        "name": "correctness",
+                        "optimization_direction": "MAXIMIZE",
+                        "values": [{"label": "correct", "score": 1}, {"label": "incorrect", "score": 0}],
+                    }
+                ],
+            )
+        """  # noqa: E501
+        json_ = _build_llm_create_body(
+            name=name,
+            prompt_version_id=prompt_version_id,
+            output_configs=output_configs,
+            description=description,
+        )
+        await self._guard.require(CREATE_EVALUATOR)
+        response = await self._client.post("v1/evaluators", json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.LLMEvaluatorDefinition, data)
 
     async def update_llm(
         self,
@@ -792,7 +982,7 @@ class AsyncEvaluators:
             The updated LLM evaluator definition.
 
         Raises:
-            httpx.HTTPError: If the request fails. The server responds with 409
+            PhoenixAPIError: If the request fails. The server responds with 409
                 when a dataset binding overrides outputs that the new prompt no
                 longer supports.
             ValueError: If no field to update is provided.
@@ -816,7 +1006,7 @@ class AsyncEvaluators:
         await self._guard.require(PATCH_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = await self._client.patch(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
         return cast(v1.LLMEvaluatorDefinition, data)
 
@@ -850,7 +1040,7 @@ class AsyncEvaluators:
             The updated code evaluator definition.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
             ValueError: If no field to update is provided.
 
         Example::
@@ -873,29 +1063,71 @@ class AsyncEvaluators:
         await self._guard.require(PATCH_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = await self._client.patch(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
         return cast(v1.CodeEvaluatorDefinition, data)
 
     async def delete(self, *, evaluator_id: str) -> None:
-        """Delete a code evaluator that nothing binds, with its version history.
+        """Delete an LLM or code evaluator that nothing binds.
 
-        A definition still bound by a project or dataset is refused; delete those
-        bindings first, or delete the last binding, which removes the definition
-        with it. LLM evaluators are deleted with their last binding and built-in
-        evaluators are never deleted. A missing evaluator is ignored.
+        A code evaluator is deleted with its version history. An LLM evaluator is
+        deleted with the tag that pins its version; the prompt is kept. A missing
+        evaluator is ignored.
 
         Args:
-            evaluator_id (str): The ID of the code evaluator.
+            evaluator_id (str): The ID of the evaluator.
 
         Raises:
-            httpx.HTTPError: If the request fails. The server responds with 409
-                while the evaluator is still bound and 422 for LLM or built-in ids.
+            PhoenixAPIError: If the request fails. The server responds with 409
+                while a project or dataset still binds the evaluator, and 422 for
+                built-in evaluators, which cannot be deleted.
         """
         await self._guard.require(DELETE_EVALUATOR)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
         response = await self._client.delete(url)
-        response.raise_for_status()
+        raise_for_problem(response)
+
+    async def list_sandbox_configs(
+        self, *, language: Optional[Language] = None
+    ) -> List[v1.SandboxConfig]:
+        """List the sandbox configurations code evaluators can run in, newest first.
+
+        Pass a configuration's ``id`` as ``sandbox_config_id`` when creating or
+        updating a code evaluator. Only configurations with ``is_usable`` accept new
+        code. Provider credentials are never returned.
+
+        Args:
+            language (Optional[Literal["PYTHON", "TYPESCRIPT"]]): Return only
+                configurations for this language.
+
+        Returns:
+            The sandbox configurations.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            usable = [c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]]
+        """  # noqa: E501
+        await self._guard.require(LIST_SANDBOX_CONFIGS)
+        configs: list[v1.SandboxConfig] = []
+        next_cursor: Optional[str] = None
+        while True:
+            params: dict[str, Union[str, int]] = {"limit": _PAGE_SIZE}
+            if language is not None:
+                params["language"] = language
+            if next_cursor:
+                params["cursor"] = next_cursor
+            response = await self._client.get("v1/sandbox_configs", params=params)
+            raise_for_problem(response)
+            page = cast(v1.SandboxConfigsResponseBody, response.json())
+            configs.extend(page["data"])
+            if not (next_cursor := page.get("next_cursor")):
+                return configs
 
     async def list_code_versions(
         self, *, evaluator_id: str, limit: Optional[int] = None
@@ -911,7 +1143,7 @@ class AsyncEvaluators:
             The versions. The first entry is the version the evaluator currently runs.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
         """
         await self._guard.require(LIST_EVALUATOR_VERSIONS)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
@@ -922,7 +1154,7 @@ class AsyncEvaluators:
             response = await self._client.get(
                 url, params=_list_params(next_cursor, remaining=remaining)
             )
-            response.raise_for_status()
+            raise_for_problem(response)
             page = cast(v1.CodeEvaluatorVersionsResponseBody, response.json())
             versions.extend(page["data"])
             if limit is not None and len(versions) >= limit:
@@ -968,7 +1200,7 @@ class AsyncEvaluators:
             The persisted code version.
 
         Raises:
-            httpx.HTTPError: If the request fails.
+            PhoenixAPIError: If the request fails.
 
         Example::
 
@@ -992,5 +1224,5 @@ class AsyncEvaluators:
         await self._guard.require(CREATE_EVALUATOR_VERSION)
         url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
         response = await self._client.post(url, json=json_)
-        response.raise_for_status()
+        raise_for_problem(response)
         return cast(v1.CreatedCodeEvaluatorVersionResponseBody, response.json())["data"]

@@ -5,4 +5,5 @@ export * from "./updateEvaluator";
 export * from "./deleteEvaluator";
 export * from "./getCodeEvaluatorVersions";
 export * from "./createCodeEvaluatorVersion";
+export * from "./getSandboxConfigs";
 export type * from "../types/evaluators";

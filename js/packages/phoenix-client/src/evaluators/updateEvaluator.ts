@@ -28,8 +28,9 @@ export interface UpdateEvaluatorParams extends ClientFn {
  * The change applies to every project and dataset binding that references the
  * evaluator. Code is immutable per version: to change a code evaluator's
  * source, use {@link createCodeEvaluatorVersion}. Prompt content is edited through
- * the prompts API: create a version with `createPrompt` and pass its `id` as
- * `prompt_version_id`. An LLM evaluator's `description` must equal the
+ * the prompts API: create a version with `createPrompt` and select it with
+ * `prompt: { selector: { type: "version", prompt_version_id } }`. An LLM
+ * evaluator's `description` must equal the
  * description of its prompt's tool function. The server refuses with 409 an
  * LLM change that would invalidate a dataset binding's output overrides.
  *
@@ -47,7 +48,10 @@ export interface UpdateEvaluatorParams extends ClientFn {
  *
  * await updateEvaluator({
  *   evaluatorId: "TExNRXZhbHVhdG9yOjE=",
- *   patch: { type: "llm", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+ *   patch: {
+ *     type: "llm",
+ *     prompt: { selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" } },
+ *   },
  * });
  * ```
  */
