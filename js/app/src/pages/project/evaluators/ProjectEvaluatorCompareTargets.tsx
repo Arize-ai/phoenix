@@ -6,11 +6,11 @@ import invariant from "tiny-invariant";
 
 import {
   Alert,
+  ExternalLinkButton,
   Flex,
   Heading,
   Icon,
   Icons,
-  LinkButton,
   Loading,
   Text,
   Token,
@@ -35,6 +35,7 @@ import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { makeFlatAnnotationColumnId } from "@phoenix/pages/project/tableUtils";
 import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectEvaluatorCompareTargets_comparison$key } from "./__generated__/ProjectEvaluatorCompareTargets_comparison.graphql";
@@ -178,12 +179,13 @@ export function ProjectEvaluatorCompareTargets({
             )}
           </Flex>
           {target === "SPAN" ? (
-            <LinkButton
-              to={`${rootPath}/spans${spansSearch}`}
-              leadingVisual={<Icon svg={<Icons.Trace />} />}
+            // A new tab keeps this comparison and its selection in place
+            <ExternalLinkButton
+              href={prependBasename(`${rootPath}/spans${spansSearch}`)}
+              trailingVisual={<Icon svg={<Icons.ExternalLink />} />}
             >
               Open in Project View
-            </LinkButton>
+            </ExternalLinkButton>
           ) : null}
         </Flex>
       </div>
