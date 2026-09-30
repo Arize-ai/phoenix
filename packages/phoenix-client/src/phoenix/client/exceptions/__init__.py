@@ -18,11 +18,17 @@ class PhoenixException(Exception):
 class PhoenixAPIError(httpx.HTTPStatusError):
     """An error response from the Phoenix API.
 
-    Routes that return RFC 9457 problem details expose them as ``problem``: a stable
-    ``code`` (for example ``already_exists`` or ``validation_error``), a ``detail``
-    message, per-field ``errors`` for schema failures, and ``existing_id`` naming the
-    resource that holds a taken name. Other routes leave ``problem`` as ``None``; the
-    response body is still on ``response``.
+    Routes that return RFC 9457 problem details expose the full parsed body as ``problem``,
+    including members this client doesn't know about yet: a stable ``code`` (for example
+    ``already_exists`` or ``validation_error``, handle one you don't recognize by
+    ``response.status_code``), a ``detail`` message not meant to be parsed, an optional
+    ``reason`` for a finer condition under ``code`` (handle one you don't recognize by
+    ``code``), per-field ``errors`` for a ``validation_error``, and recovery fields such as
+    ``existing_id`` (``already_exists``), ``current_version_id`` (``version_mismatch``),
+    ``binding_counts`` (``still_bound``), and ``dataset_evaluator_ids``
+    (``incompatible_override``). ``problem`` is ``None`` for a response that isn't problem
+    JSON shaped like this (a 401's plain-text challenge, an unhandled 500, a proxy's own
+    error page); the response body is still on ``response``.
     """
 
     def __init__(
@@ -39,6 +45,10 @@ class PhoenixAPIError(httpx.HTTPStatusError):
     @property
     def code(self) -> Optional[str]:
         return None if self.problem is None else self.problem.get("code")
+
+    @property
+    def reason(self) -> Optional[str]:
+        return None if self.problem is None else self.problem.get("reason")
 
     @property
     def existing_id(self) -> Optional[str]:

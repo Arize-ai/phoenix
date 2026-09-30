@@ -577,7 +577,7 @@ judge = client.evaluators.create_llm(
 client.evaluators.delete(evaluator_id=definition["id"])
 ```
 
-Errors from these methods raise `phoenix.client.exceptions.PhoenixAPIError`, an `httpx.HTTPStatusError` whose `code` and `problem` carry the server's reason. A taken name has `code == "already_exists"` and `existing_id` naming the evaluator that holds it.
+Errors from these methods raise `phoenix.client.exceptions.PhoenixAPIError`, an `httpx.HTTPStatusError`. `problem` is the full parsed error body when the server sent one (`None` for a plain-text 401 challenge, an unhandled 500, or a proxy's own error page); `code` and `reason` are shortcuts to its fields. A taken name has `code == "already_exists"` and `existing_id` naming the evaluator that holds it; a still-bound delete has `code == "conflict"`, `reason == "still_bound"`, and `problem["binding_counts"]`. Treat a `code` or `reason` you don't recognize by `response.status_code`.
 
 ## Documentation
 
