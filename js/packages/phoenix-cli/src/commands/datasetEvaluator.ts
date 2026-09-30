@@ -18,7 +18,7 @@ import {
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
-import { parsePositiveIntOption } from "../optionParsers";
+import { parseFormatOption, parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
 import { exitWithError, requireValidLimitOrExit } from "./evaluatorErrors";
 import { parseJsonArrayFlag, parseJsonObjectFlag } from "./evaluatorInputs";
@@ -503,6 +503,7 @@ function addCommonReadOptions(command: Command): Command {
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
+      parseFormatOption,
       "pretty"
     )
     .option("--no-progress", "Disable progress indicators");
