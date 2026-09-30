@@ -175,6 +175,29 @@ def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> Project
 
 
 @strawberry.type
+class ProjectEvaluatorFailureSummary:
+    """How often a project evaluator's runs were given up on within a time range."""
+
+    failed_count: int = strawberry.field(description="Evaluations given up on within the range.")
+    evaluated_count: int = strawberry.field(
+        description="Evaluations that produced an annotation within the range."
+    )
+    last_failed_at: Optional[datetime] = strawberry.field(
+        description="When the newest failure in the range was given up on, or null if none was."
+    )
+    last_error: Optional[str] = strawberry.field(
+        description="The error of the newest failure in the range, or null if none was recorded."
+    )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Share of completed evaluations that failed, or null if none completed."
+    )
+    def failure_rate(self) -> Optional[float]:
+        completed = self.failed_count + self.evaluated_count
+        return self.failed_count / completed if completed else None
+
+
+@strawberry.type
 class EvaluatorInputMapping:
     literal_mapping: JSON
     """Direct key-value mappings to evaluator inputs."""
@@ -1342,8 +1365,31 @@ class ProjectEvaluator(Node):
 
     @strawberry.field
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
-        counts = await info.context.data_loaders.project_evaluator_run_counts.load(self.id)
+        counts = await info.context.data_loaders.project_evaluator_run_counts.load(
+            (self.id, None, None)
+        )
         return _project_evaluator_run_summary(counts)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Failures and completions within the time range, placed in time by when each "
+            "evaluation finished or was given up on. Finished span evaluations can be deleted "
+            "once they are older than the online evaluation retention period, so for span "
+            "evaluators a longer range may count less than it covers."
+        )
+    )
+    async def failure_summary(
+        self, info: Info[Context, None], time_range: TimeRange
+    ) -> ProjectEvaluatorFailureSummary:
+        counts = await info.context.data_loaders.project_evaluator_run_counts.load(
+            (self.id, time_range.start, time_range.end)
+        )
+        return ProjectEvaluatorFailureSummary(
+            failed_count=counts.failed,
+            evaluated_count=counts.evaluated,
+            last_failed_at=counts.last_failed_at,
+            last_error=counts.last_error,
+        )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
