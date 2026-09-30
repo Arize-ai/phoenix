@@ -1327,6 +1327,71 @@ async def test_create_rejects_invalid_llm_output_config_as_client_error(
     assert await _row_counts(db) == before
 
 
+async def test_update_source_only_edit_validates_against_current_sandbox(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """A source-only edit (sandboxConfigId omitted) is checked against the evaluator's
+    current sandbox, the same as a create or an explicit sandbox change."""
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+
+    async with db() as session:
+        monty_provider = await session.get(models.SandboxProvider, "MONTY")
+        assert monty_provider is not None
+        monty_config = models.SandboxConfig(
+            backend_type="MONTY",
+            language="PYTHON",
+            name=Identifier(f"monty-{token_hex(4)}"),
+            description=None,
+            config={"backend_type": "MONTY", "language": "PYTHON"},
+            timeout=45,
+        )
+        session.add(monty_config)
+        await session.flush()
+        project_evaluator = await session.get(
+            models.ProjectEvaluator, int(GlobalID.from_id(created["id"]).node_id)
+        )
+        assert project_evaluator is not None
+        evaluator_id = project_evaluator.evaluator_id
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        assert evaluator is not None
+        evaluator.sandbox_config_id = monty_config.id
+
+    update_result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": "updated-code",
+                "sourceCode": (
+                    "import definitely_missing\ndef evaluate(output):\n    return {'score': 1.0}"
+                ),
+                "evaluatorInputMapping": _mapping(output="value"),
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+    assert update_result.errors
+    assert "not supported by the Monty runtime" in str(update_result.errors)
+    async with db() as session:
+        version_count = await session.scalar(
+            select(func.count(models.CodeEvaluatorVersion.id)).where(
+                models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id
+            )
+        )
+    assert version_count == 1
+
+
 async def test_update_refuses_sandbox_validated_against_superseded_source(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,

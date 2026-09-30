@@ -555,7 +555,16 @@ async def update_project_code_evaluator(
     # Validate outside the write transaction to avoid nested sessions.
     validated_sandbox_config_id: Optional[int] = None
     validated_source_code: Optional[str] = None
-    if input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None:
+    # A source-only edit leaves sandbox_config_id UNSET, so it must be checked against the
+    # evaluator's current sandbox, or it saves code that was never run through any sandbox.
+    source_only_edit = (
+        input.sandbox_config_id is UNSET
+        and input.source_code is not UNSET
+        and input.source_code is not None
+    )
+    if (input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None) or (
+        source_only_edit
+    ):
         async with context.db() as session:
             current_pair = (
                 await session.execute(
@@ -571,6 +580,7 @@ async def update_project_code_evaluator(
                 raise NotFound(f"CODE project evaluator not found: {input.project_evaluator_id}")
             _, current_evaluator = current_pair
             current_language = current_evaluator.language
+            current_sandbox_config_id = current_evaluator.sandbox_config_id
             current_with_version = await code_evaluator_with_latest_version(
                 session, current_evaluator.id
             )
@@ -585,14 +595,29 @@ async def update_project_code_evaluator(
             if input.source_code is not UNSET and input.source_code is not None
             else stored_source_code
         )
-        validated_sandbox_config_id = await validate_code_evaluator_sandbox_config(
-            context.db,
-            sandbox_config_global_id=input.sandbox_config_id,
-            language=current_language,
-            action="updating this evaluator",
-            source_code=validated_source_code,
-            sandbox_runtime=context.sandbox_runtime,
-        )
+        if source_only_edit:
+            validated_sandbox_config_id = current_sandbox_config_id
+            if validated_sandbox_config_id is not None:
+                await validate_code_evaluator_sandbox_config(
+                    context.db,
+                    sandbox_config_global_id=GlobalID(
+                        "SandboxConfig", str(validated_sandbox_config_id)
+                    ),
+                    language=current_language,
+                    action="updating this evaluator",
+                    source_code=validated_source_code,
+                    sandbox_runtime=context.sandbox_runtime,
+                )
+        else:
+            assert input.sandbox_config_id is not None
+            validated_sandbox_config_id = await validate_code_evaluator_sandbox_config(
+                context.db,
+                sandbox_config_global_id=input.sandbox_config_id,
+                language=current_language,
+                action="updating this evaluator",
+                source_code=validated_source_code,
+                sandbox_runtime=context.sandbox_runtime,
+            )
 
     cleared: dict[models.EvaluationTarget, int] = {}
     try:
@@ -659,6 +684,8 @@ async def update_project_code_evaluator(
                     shared_evaluator_changed = True
             if input.source_code is not UNSET and input.source_code is not None:
                 raise_on_uninferable_evaluate_signature(input.source_code, evaluator.language)
+                if source_only_edit and evaluator.sandbox_config_id != validated_sandbox_config_id:
+                    raise Conflict("The evaluator sandbox changed during source validation; retry.")
                 locked = await code_evaluator_with_latest_version(session, evaluator.id)
                 if locked is None:
                     raise NotFound(
