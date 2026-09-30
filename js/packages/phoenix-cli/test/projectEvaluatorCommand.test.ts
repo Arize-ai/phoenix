@@ -15,7 +15,12 @@ import { createProjectEvaluatorCommand } from "../src/commands/projectEvaluator"
 import { ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 import { http, setupMockPhoenixServer } from "./mockServer";
-import { BASE_ARGS, captureCliOutput, mockProcessExit } from "./testUtils";
+import {
+  BASE_ARGS,
+  captureCliOutput,
+  mockProcessExit,
+  recordRequests,
+} from "./testUtils";
 
 const mock = setupMockPhoenixServer();
 
@@ -122,9 +127,9 @@ describe("project evaluator create", () => {
     expect(captured.identifier).toBe("support-bot");
     expect(captured.body).toEqual({
       name: "toxicity",
+      evaluator_id: "Q29kZUV2YWx1YXRvcjox",
       evaluation_target: "SPAN",
       sampling_rate: 0.25,
-      evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjox" },
       filter_condition: "span_kind == 'LLM'",
       enabled: false,
     });
@@ -132,22 +137,12 @@ describe("project evaluator create", () => {
     expect(parsed).toEqual(BINDING);
   });
 
-  it("forwards a session delay and inline evaluator JSON", async () => {
+  it("forwards a session delay and input mapping", async () => {
     const captured = captureCreate();
     captureCliOutput();
-    const evaluator = {
-      type: "code",
-      source_code: "def evaluate(output: str) -> float:\n    return 1.0\n",
-      language: "PYTHON",
-      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
-      input_mapping: { literal_mapping: {}, path_mapping: {} },
-      output_configs: [
-        {
-          type: "CONTINUOUS",
-          name: "score",
-          optimization_direction: "MAXIMIZE",
-        },
-      ],
+    const inputMapping = {
+      literal_mapping: {},
+      path_mapping: { transcript: "metadata.turns" },
     };
 
     await createProjectEvaluatorCommand().parseAsync(
@@ -160,8 +155,10 @@ describe("project evaluator create", () => {
         "SESSION",
         "--sampling-rate",
         "1",
-        "--evaluator",
-        JSON.stringify(evaluator),
+        "--evaluator-id",
+        "Q29kZUV2YWx1YXRvcjoy",
+        "--input-mapping",
+        JSON.stringify(inputMapping),
         "--evaluation-delay-seconds",
         "600",
         ...BASE_ARGS,
@@ -171,61 +168,43 @@ describe("project evaluator create", () => {
 
     expect(captured.body).toEqual({
       name: "resolution",
+      evaluator_id: "Q29kZUV2YWx1YXRvcjoy",
       evaluation_target: "SESSION",
       sampling_rate: 1,
-      evaluator,
+      input_mapping: inputMapping,
       evaluation_delay_seconds: 600,
     });
   });
 
-  it.each([
-    ["omits", {}],
-    ["empties", { output_configs: [] }],
-  ])(
-    "exits INVALID_ARGUMENT when an inline code evaluator %s its output configs",
-    async (_, outputs) => {
-      const captured = captureCreate();
-      const io = captureCliOutput();
-      const exitSpy = mockProcessExit();
-      const evaluator = {
-        type: "code",
-        source_code: "def evaluate(output: str) -> float:\n    return 1.0\n",
-        language: "PYTHON",
-        sandbox_config_id: "U2FuZGJveENvbmZpZzox",
-        input_mapping: { literal_mapping: {}, path_mapping: {} },
-        ...outputs,
-      };
+  it("exits INVALID_ARGUMENT without --evaluator-id", async () => {
+    const captured = captureCreate();
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
 
-      await expect(
-        createProjectEvaluatorCommand().parseAsync(
-          [
-            "create",
-            "support-bot",
-            "--name",
-            "resolution",
-            "--evaluation-target",
-            "SESSION",
-            "--sampling-rate",
-            "1",
-            "--evaluator",
-            JSON.stringify(evaluator),
-            "--format",
-            "raw",
-            ...BASE_ARGS,
-          ],
-          { from: "user" }
-        )
-      ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+    await expect(
+      createProjectEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "support-bot",
+          "--name",
+          "resolution",
+          "--evaluation-target",
+          "SESSION",
+          "--sampling-rate",
+          "1",
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
-      expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-      expect(captured.count).toBe(0);
-      const parsed = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
-      expect(parsed.code).toBe("INVALID_ARGUMENT");
-      expect(parsed.error).toContain(
-        "A new code evaluator in --evaluator needs at least one output config"
-      );
-    }
-  );
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(captured.count).toBe(0);
+    const parsed = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(parsed.error).toContain("--evaluator-id");
+  });
 
   it("exits INVALID_ARGUMENT on an unknown --evaluation-target without calling the server", async () => {
     const captured = captureCreate();
@@ -410,17 +389,15 @@ describe("project evaluator delete", () => {
     }
   });
 
-  it("DELETEs a single binding and keeps the prompt by default", async () => {
+  it("DELETEs a single binding and sends no other options", async () => {
     let receivedId: string | undefined;
-    let receivedFlag: string | null = null;
+    let receivedQuery: string | undefined;
     mock.server.use(
       http.delete(
         "/v1/project_evaluators/{project_evaluator_id}",
         ({ params, request, response }) => {
           receivedId = params.project_evaluator_id;
-          receivedFlag = new URL(request.url).searchParams.get(
-            "delete_associated_prompt"
-          );
+          receivedQuery = new URL(request.url).search;
           return response(204).empty();
         }
       )
@@ -433,16 +410,20 @@ describe("project evaluator delete", () => {
     );
 
     expect(receivedId).toBe(BINDING_ID);
-    expect(receivedFlag).toBe("false");
+    expect(receivedQuery).toBe("");
   });
 
-  it("POSTs several ids to the bulk endpoint and forwards --delete-prompt", async () => {
-    let receivedBody: unknown;
+  it("DELETEs several ids from the project's collection", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
     mock.server.use(
-      http.post(
-        "/v1/project_evaluators/delete",
-        async ({ request, response }) => {
-          receivedBody = await request.clone().json();
+      http.delete(
+        "/v1/projects/{project_identifier}/evaluators",
+        ({ params, request, response }) => {
+          receivedIdentifier = params.project_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "project_evaluator_id"
+          );
           return response(204).empty();
         }
       )
@@ -450,14 +431,28 @@ describe("project evaluator delete", () => {
     captureCliOutput();
 
     await createProjectEvaluatorCommand().parseAsync(
-      ["delete", "a", "b", "--delete-prompt", "--yes", ...BASE_ARGS],
+      ["delete", "a", "b", "--project", "support-bot", "--yes", ...BASE_ARGS],
       { from: "user" }
     );
 
-    expect(receivedBody).toEqual({
-      project_evaluator_ids: ["a", "b"],
-      delete_associated_prompt: true,
-    });
+    expect(receivedIdentifier).toBe("support-bot");
+    expect(receivedIds).toEqual(["a", "b"]);
+  });
+
+  it("requires --project to delete several ids", async () => {
+    const requests = recordRequests(mock.server);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createProjectEvaluatorCommand().parseAsync(
+        ["delete", "a", "b", "--yes", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(requests).toEqual([]);
   });
 
   it("exits INVALID_ARGUMENT when deletes are not enabled", async () => {
@@ -638,7 +633,7 @@ describe("project evaluator create local checks", () => {
     "1",
   ];
 
-  it("creates a new LLM evaluator without --input-mapping", async () => {
+  it("omits input_mapping when --input-mapping is not given", async () => {
     const captured: { body?: unknown } = {};
     mock.server.use(
       http.post(
@@ -650,30 +645,14 @@ describe("project evaluator create local checks", () => {
       )
     );
     captureCliOutput();
-    const evaluator = {
-      type: "llm",
-      description: "resolution",
-      prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
-      output_configs: [
-        {
-          type: "CATEGORICAL",
-          name: "resolution",
-          optimization_direction: "MAXIMIZE",
-          values: [
-            { label: "yes", score: 1 },
-            { label: "no", score: 0 },
-          ],
-        },
-      ],
-    };
 
     await createProjectEvaluatorCommand().parseAsync(
       [
         ...base,
         "--evaluation-target",
         "SESSION",
-        "--evaluator",
-        JSON.stringify(evaluator),
+        "--evaluator-id",
+        "TExNRXZhbHVhdG9yOjM=",
         "--format",
         "raw",
         ...BASE_ARGS,
@@ -681,7 +660,9 @@ describe("project evaluator create local checks", () => {
       { from: "user" }
     );
 
-    expect(captured.body).toMatchObject({ evaluator });
+    expect(captured.body).toMatchObject({
+      evaluator_id: "TExNRXZhbHVhdG9yOjM=",
+    });
     expect(captured.body).not.toHaveProperty("input_mapping");
   });
 

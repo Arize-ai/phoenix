@@ -21,11 +21,7 @@ import { writeError, writeOutput, writeProgress } from "../io";
 import { parseNumberOption, parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
 import { exitWithError, requireValidLimitOrExit } from "./evaluatorErrors";
-import {
-  parseJsonObjectFlag,
-  readInlineOrFile,
-  requireCodeEvaluatorOutputConfigs,
-} from "./evaluatorInputs";
+import { parseJsonObjectFlag } from "./evaluatorInputs";
 import {
   formatProjectEvaluatorOutput,
   formatProjectEvaluatorsOutput,
@@ -36,7 +32,6 @@ import type { CommonOptions, DeleteOptions } from "./options";
 type CreateRequest = componentsV1["schemas"]["CreateProjectEvaluatorRequest"];
 type PatchRequest = componentsV1["schemas"]["PatchProjectEvaluatorRequest"];
 type InputMapping = componentsV1["schemas"]["InputMapping"];
-type EvaluatorInput = CreateRequest["evaluator"];
 type EvaluationTarget = CreateRequest["evaluation_target"];
 
 const EVALUATION_TARGETS = ["SPAN", "TRACE", "SESSION"] as const;
@@ -107,9 +102,7 @@ interface ProjectEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
 }
 
 /**
- * Options for `px project evaluator create <project-identifier>`. Exactly one
- * of `--evaluator-id`, `--evaluator`, or `--evaluator-file` selects the
- * evaluator.
+ * Options for `px project evaluator create <project-identifier>`.
  */
 interface ProjectEvaluatorCreateOptions extends ProjectEvaluatorFieldOptions {
   /**
@@ -118,27 +111,12 @@ interface ProjectEvaluatorCreateOptions extends ProjectEvaluatorFieldOptions {
    */
   evaluationTarget?: string;
   /**
-   * `--evaluator-id <id>`: Bind an existing code evaluator. LLM evaluators
-   * cannot be referenced because each one is tied to its own prompt.
+   * `--evaluator-id <id>`: The LLM or code evaluator definition to bind.
+   * Required; create a definition with `px evaluator create`.
    *
    * @example "Q29kZUV2YWx1YXRvcjoy"
    */
   evaluatorId?: string;
-  /**
-   * `--evaluator <json>`: Inline JSON for a new LLM or code evaluator, with a
-   * `type` of `llm` or `code`. A new LLM evaluator names its prompt source
-   * with either `prompt_version` (content for a new prompt) or
-   * `prompt_version_id` (an existing version), not both, and its
-   * `description` must equal the description of its prompt's tool function.
-   * A new code evaluator carries at least one entry in `output_configs`.
-   */
-  evaluator?: string;
-  /**
-   * `--evaluator-file <path>`: Read the new evaluator JSON from a file.
-   *
-   * @example "./toxicity-evaluator.json"
-   */
-  evaluatorFile?: string;
 }
 
 /**
@@ -166,13 +144,13 @@ interface ProjectEvaluatorUpdateOptions extends ProjectEvaluatorFieldOptions {
  */
 interface ProjectEvaluatorDeleteOptions extends DeleteOptions {
   /**
-   * `--delete-prompt`: Also delete the prompt of an LLM evaluator that is
-   * deleted along with the binding. Off by default so that a prompt adopted
-   * from the prompt hub survives the binding.
+   * `--project <project-identifier>`: The project the bindings belong to.
+   * Required when deleting more than one binding, which happens in one
+   * transaction.
    *
-   * @example true
+   * @example "support-bot"
    */
-  deletePrompt?: boolean;
+  project?: string;
 }
 
 function createClientOrExit(
@@ -322,31 +300,6 @@ async function projectEvaluatorGetHandler(
 }
 
 /**
- * Resolve the evaluator to bind from whichever flag the caller supplied.
- * Callers validate that exactly one form is present before calling.
- */
-function resolveEvaluatorInput(
-  options: ProjectEvaluatorCreateOptions
-): EvaluatorInput {
-  if (options.evaluatorId !== undefined) {
-    return { type: "reference", evaluator_id: options.evaluatorId };
-  }
-  const flag =
-    options.evaluator !== undefined ? "--evaluator" : "--evaluator-file";
-  const evaluator = parseJsonObjectFlag<EvaluatorInput>({
-    flag,
-    value: readInlineOrFile({
-      inline: options.evaluator,
-      inlineFlag: "--evaluator",
-      file: options.evaluatorFile,
-      fileFlag: "--evaluator-file",
-    }),
-  });
-  requireCodeEvaluatorOutputConfigs({ flag, evaluator });
-  return evaluator;
-}
-
-/**
  * Handler for `project evaluator create`
  */
 async function projectEvaluatorCreateHandler(
@@ -393,18 +346,12 @@ async function projectEvaluatorCreateHandler(
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
-  const evaluatorFlags = [
-    options.evaluatorId,
-    options.evaluator,
-    options.evaluatorFile,
-  ].filter((value) => value !== undefined).length;
-  if (evaluatorFlags !== 1) {
+  if (!options.evaluatorId) {
     writeStructuredError({
       format: options.format,
-      message:
-        "Specify exactly one of --evaluator-id, --evaluator, or --evaluator-file",
+      message: "Missing required flag --evaluator-id",
       code: "INVALID_ARGUMENT",
-      hint: usage,
+      hint: `${usage}  (find ids with: px evaluator list)`,
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
@@ -438,8 +385,6 @@ async function projectEvaluatorCreateHandler(
             value: options.inputMapping,
           });
 
-    const evaluator = resolveEvaluatorInput(options);
-
     const client = createClientOrExit(options);
 
     writeProgress({
@@ -453,7 +398,7 @@ async function projectEvaluatorCreateHandler(
       name: options.name,
       evaluationTarget,
       samplingRate: options.samplingRate,
-      evaluator,
+      evaluatorId: options.evaluatorId,
       ...(options.filterCondition !== undefined && {
         filterCondition: options.filterCondition,
       }),
@@ -603,6 +548,15 @@ async function projectEvaluatorDeleteHandler(
   projectEvaluatorIds: string[],
   options: ProjectEvaluatorDeleteOptions
 ): Promise<void> {
+  if (projectEvaluatorIds.length > 1 && !options.project) {
+    writeStructuredError({
+      format: undefined,
+      message: "Deleting several bindings needs --project",
+      code: "INVALID_ARGUMENT",
+      hint: `px project evaluator delete ${projectEvaluatorIds.join(" ")} --project <project-identifier> --yes`,
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
   try {
     assertDeletesEnabled();
 
@@ -613,22 +567,20 @@ async function projectEvaluatorDeleteHandler(
         ? `project evaluator ${projectEvaluatorIds[0]}`
         : `${projectEvaluatorIds.length} project evaluators`;
     await confirmOrExit({
-      message: `Delete ${noun}? This removes the binding and its evaluator traces, and the evaluator itself if nothing else uses it. This cannot be undone.`,
+      message: `Delete ${noun}? Only the binding is removed; its evaluator, prompt, and trace project are kept. This cannot be undone.`,
       yes: options.yes,
     });
 
-    const deleteAssociatedPrompt = Boolean(options.deletePrompt);
     if (projectEvaluatorIds.length === 1) {
       await deleteProjectEvaluator({
         client,
         projectEvaluatorId: projectEvaluatorIds[0]!,
-        deleteAssociatedPrompt,
       });
     } else {
       await deleteProjectEvaluators({
         client,
+        project: projectRef(options.project ?? ""),
         projectEvaluatorIds,
-        deleteAssociatedPrompt,
       });
     }
 
@@ -749,7 +701,7 @@ export function createProjectEvaluatorCreateCommand(): Command {
     addSchedulingOptions(
       new Command("create")
         .description(
-          "Bind an evaluator to a project so it runs on incoming traces, creating the evaluator if needed. Requires Phoenix server >= 21.0.0."
+          "Bind an existing evaluator definition to a project so it runs on incoming traces. Create definitions with px evaluator create. Requires Phoenix server >= 21.0.0."
         )
         .argument("<project-identifier>", "Project name or ID")
         .option(
@@ -758,15 +710,7 @@ export function createProjectEvaluatorCreateCommand(): Command {
         )
         .option(
           "--evaluator-id <id>",
-          "Bind an existing code evaluator (LLM evaluators are created with the binding)"
-        )
-        .option(
-          "--evaluator <json>",
-          'Inline JSON for a new evaluator with "type": "llm" or "code" (LLM: give "prompt_version" or "prompt_version_id", not both; code: at least one "output_configs" entry)'
-        )
-        .option(
-          "--evaluator-file <path>",
-          "Read the new evaluator JSON from a file"
+          "The LLM or code evaluator to bind (required)"
         )
     )
   )
@@ -776,7 +720,7 @@ export function createProjectEvaluatorCreateCommand(): Command {
         "  # Evaluate a quarter of LLM spans with an existing evaluator\n" +
         "  px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition \"span_kind == 'LLM'\"\n\n" +
         "  # Evaluate whole sessions ten minutes after they go quiet\n" +
-        '  px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-file resolution.json --input-mapping \'{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}\' --evaluation-delay-seconds 600\n\n' +
+        '  px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping \'{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}\' --evaluation-delay-seconds 600\n\n' +
         "  # Capture the new binding ID (agent-friendly)\n" +
         "  px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 1 --evaluator-id Q29kZUV2YWx1YXRvcjox --format raw --no-progress | jq -r '.id'\n"
     )
@@ -833,12 +777,12 @@ export function createProjectEvaluatorUpdateCommand(): Command {
 export function createProjectEvaluatorDeleteCommand(): Command {
   return new Command("delete")
     .description(
-      "Delete one or more project evaluator bindings, and their evaluators once nothing else uses them. Requires Phoenix server >= 21.0.0."
+      "Delete one or more project evaluator bindings. Their evaluators, prompts, and trace projects are kept. Requires Phoenix server >= 21.0.0."
     )
     .argument("<project-evaluator-id...>", "Project evaluator ID(s)")
     .option(
-      "--delete-prompt",
-      "Also delete the prompt of an LLM evaluator deleted with the binding"
+      "--project <project-identifier>",
+      "Project the bindings belong to; required for more than one, deleted in one transaction"
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
@@ -849,8 +793,8 @@ export function createProjectEvaluatorDeleteCommand(): Command {
       "\nExamples:\n" +
         "  # Detach one binding; deletes are gated by PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true\n" +
         "  px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes\n\n" +
-        "  # Detach several and also drop an LLM evaluator's prompt\n" +
-        "  px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --delete-prompt --yes\n"
+        "  # Detach several in one transaction\n" +
+        "  px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes\n"
     )
     .action(projectEvaluatorDeleteHandler);
 }
