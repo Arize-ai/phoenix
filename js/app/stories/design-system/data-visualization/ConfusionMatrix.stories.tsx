@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { interpolateMagma, interpolateViridis } from "d3-scale-chromatic";
 import type { ComponentProps } from "react";
+import { useState } from "react";
 
 import { Flex, Heading, View } from "@phoenix/components";
 import {
@@ -169,6 +170,39 @@ export const DensityDirection: StoryObj<DensityDirectionArgs> = {
           colorInterpolator={colorInterpolator}
         />
       </Flex>
+    );
+  },
+};
+
+/**
+ * Pressing a cell selects it: the other cells fade and the selection gets a
+ * check, which sits beside the quadrant label. Press it again to clear. Tab
+ * through the cells to compare the focus ring, which never fades.
+ */
+export const Selectable: Story = {
+  args: {
+    data: binaryData,
+    size: "L",
+    showPercentage: true,
+    positiveLabel: "hallucinated",
+  },
+  render: function SelectableStory(props) {
+    const [selectedCell, setSelectedCell] = useState<
+      ComponentProps<typeof ConfusionMatrix>["selectedCell"]
+    >({ actual: "hallucinated", predicted: "factual" });
+    return (
+      <ConfusionMatrix
+        {...props}
+        selectedCell={selectedCell}
+        onCellPress={({ actual, predicted }) =>
+          setSelectedCell(
+            selectedCell?.actual === actual &&
+              selectedCell.predicted === predicted
+              ? undefined
+              : { actual, predicted }
+          )
+        }
+      />
     );
   },
 };

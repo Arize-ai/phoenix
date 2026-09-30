@@ -1,5 +1,7 @@
+import type { CSSProperties } from "react";
 import { Fragment } from "react";
 
+import { Icon, Icons } from "@phoenix/components/core/icon";
 import type { ComponentSize } from "@phoenix/components/core/types";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { classNames } from "@phoenix/utils/classNames";
@@ -148,6 +150,14 @@ function MatrixCell({
   quadrantLabel?: string;
 }) {
   const Element = onPress ? "button" : "div";
+  // Colors go through custom properties so the stylesheet can dim unselected
+  // cells without also dimming their focus ring.
+  const style = colors
+    ? ({
+        "--confusion-matrix-cell-background-color": colors.backgroundColor,
+        "--confusion-matrix-cell-color": colors.color,
+      } as CSSProperties)
+    : undefined;
   return (
     <Element
       type={onPress ? "button" : undefined}
@@ -158,10 +168,19 @@ function MatrixCell({
         "confusion-matrix__cell--selected": isSelected,
         "confusion-matrix__cell--empty": colors == null,
       })}
-      style={colors}
+      style={style}
     >
-      {quadrantLabel && (
-        <span className="confusion-matrix__quadrant">{quadrantLabel}</span>
+      {(quadrantLabel || isSelected) && (
+        <span className="confusion-matrix__adornments">
+          {quadrantLabel && (
+            <span className="confusion-matrix__quadrant">{quadrantLabel}</span>
+          )}
+          {isSelected && (
+            <span className="confusion-matrix__check" aria-hidden="true">
+              <Icon svg={<Icons.Checkmark />} />
+            </span>
+          )}
+        </span>
       )}
       <CellValue count={count} percentOf={percentOf} />
     </Element>
@@ -265,7 +284,11 @@ export function ConfusionMatrix({
         >
           {actualAxisLabel}
         </div>
-        <div className="confusion-matrix__grid" style={{ gridTemplateColumns }}>
+        <div
+          className="confusion-matrix__grid"
+          style={{ gridTemplateColumns }}
+          data-has-selection={selectedCell != null || undefined}
+        >
           <div />
           <div
             className="confusion-matrix__x-axis-label"
