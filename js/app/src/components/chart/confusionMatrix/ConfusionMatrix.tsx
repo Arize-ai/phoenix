@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 import { Fragment } from "react";
 
-import { Icon, Icons } from "@phoenix/components/core/icon";
 import type { ComponentSize } from "@phoenix/components/core/types";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { classNames } from "@phoenix/utils/classNames";
@@ -170,17 +169,8 @@ function MatrixCell({
       })}
       style={style}
     >
-      {(quadrantLabel || isSelected) && (
-        <span className="confusion-matrix__adornments">
-          {quadrantLabel && (
-            <span className="confusion-matrix__quadrant">{quadrantLabel}</span>
-          )}
-          {isSelected && (
-            <span className="confusion-matrix__check" aria-hidden="true">
-              <Icon svg={<Icons.Checkmark />} />
-            </span>
-          )}
-        </span>
+      {quadrantLabel && (
+        <span className="confusion-matrix__quadrant">{quadrantLabel}</span>
       )}
       <CellValue count={count} percentOf={percentOf} />
     </Element>

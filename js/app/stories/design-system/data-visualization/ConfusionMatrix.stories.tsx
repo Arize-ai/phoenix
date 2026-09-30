@@ -176,8 +176,8 @@ export const DensityDirection: StoryObj<DensityDirectionArgs> = {
 
 /**
  * Pressing a cell selects it: the other cells fade and the selection gets a
- * check, which sits beside the quadrant label. Press it again to clear. Tab
- * through the cells to compare the focus ring, which never fades.
+ * blue ring. Press it again to clear. Tab through the cells to compare the
+ * neutral focus ring, which never fades.
  */
 export const Selectable: Story = {
   args: {

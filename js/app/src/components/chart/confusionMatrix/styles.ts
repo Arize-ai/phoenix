@@ -153,6 +153,14 @@ export const confusionMatrixCSS = css`
     font: inherit;
   }
 
+  /* Selection is a blue ring drawn with a shadow rather than an outline, so
+   * it sits flush against the cell and can coexist with the neutral focus
+   * outline, which is offset beyond it */
+  .confusion-matrix__cell--selected {
+    box-shadow: 0 0 0 var(--global-border-size-thick)
+      var(--global-color-blue-900);
+  }
+
   button.confusion-matrix__cell:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
@@ -200,30 +208,10 @@ export const confusionMatrixCSS = css`
     padding-inline-start: var(--global-dimension-size-100);
   }
 
-  /* Top-right corner row holding the quadrant label and the selection check,
-   * so the two never overlap */
-  .confusion-matrix__adornments {
+  .confusion-matrix__quadrant {
     position: absolute;
     top: var(--global-dimension-size-100);
     right: var(--global-dimension-size-125);
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-75);
-  }
-
-  .confusion-matrix__check {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--global-dimension-size-250);
-    height: var(--global-dimension-size-250);
-    border-radius: var(--global-rounding-full);
-    background-color: var(--global-static-color-white-900);
-    color: var(--global-static-color-black-900);
-    font-size: var(--global-font-size-s);
-  }
-
-  .confusion-matrix__quadrant {
     font-family: var(--global-font-family-mono);
     font-size: var(--global-font-size-xxs);
     letter-spacing: 0.08em;
