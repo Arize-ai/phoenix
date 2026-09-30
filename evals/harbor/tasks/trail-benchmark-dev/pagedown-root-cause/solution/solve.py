@@ -7,7 +7,7 @@ sys.path.insert(0, "/opt/verifier")
 
 import re
 
-from evals.harbor.verifiers.phoenix_api import project_spans
+from evals.harbor.verifiers.phoenix_api import project_spans, write_answer
 
 messages = [
     span.get("status_message", "")
@@ -17,7 +17,7 @@ messages = [
 message = next(
     message for message in messages if re.search(r"unexpected keyword argument '\w*'", message)
 )
-print(
+write_answer(
     "The agent calls PageDownTool with a keyword argument that its forward() method does not accept: "
     + message
 )

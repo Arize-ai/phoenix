@@ -47,14 +47,14 @@ def test_final_reply_is_the_last_agent_message() -> None:
     assert verify.final_reply({"steps": [{"source": "agent", "message": "  "}]}) == ""
 
 
-def test_reply_comes_from_the_trajectory_then_the_last_oracle_log_line(tmp_path: Path) -> None:
+def test_reply_comes_from_the_trajectory_then_the_answer_file(tmp_path: Path) -> None:
     trajectory = tmp_path / "trajectory.json"
-    oracle_log = tmp_path / "oracle.txt"
-    oracle_log.write_text("UserWarning: noise\noracle\n\n")
-    assert verify.read_reply(trajectory, oracle_log) == ("oracle", "oracle_log")
+    answer = tmp_path / "answer.txt"
+    answer.write_text("oracle\n")
+    assert verify.read_reply(trajectory, answer) == ("oracle\n", "answer_file")
     trajectory.write_text(json.dumps(TRAJECTORY))
-    assert verify.read_reply(trajectory, oracle_log) == ("There are **117** traces.", "trajectory")
-    assert verify.read_reply(tmp_path / "none", tmp_path / "none") == ("", "oracle_log")
+    assert verify.read_reply(trajectory, answer) == ("There are **117** traces.", "trajectory")
+    assert verify.read_reply(tmp_path / "none", tmp_path / "none") == ("", "answer_file")
 
 
 def test_exact_check_ignores_emphasis_case_and_end_punctuation() -> None:

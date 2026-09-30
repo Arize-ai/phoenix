@@ -6,8 +6,8 @@ Usage inside a task verifier::
 
 The verifier grades the last agent message in the ATIF trajectory at
 ``/logs/agent/trajectory.json``. An oracle run has no trajectory because it runs a
-solution script instead of an agent. In that case, the verifier grades the last line the
-script printed, which Harbor captures in ``/logs/agent/oracle.txt``.
+solution script instead of an agent. In that case, the verifier reads the answer from
+``/app/answer.txt``.
 
 Use ``{"exact": "ok"}`` in ``expected.json`` to compare normalized strings. The
 normalization removes emphasis, extra whitespace, and final punctuation and ignores
@@ -27,13 +27,13 @@ from typing import Any, Literal
 
 from phoenix.evals.metrics import exact_match
 
-ORACLE_LOG_PATH = Path("/logs/agent/oracle.txt")
+ANSWER_PATH = Path("/app/answer.txt")
 TRAJECTORY_PATH = Path("/logs/agent/trajectory.json")
 REWARD_PATH = Path("/logs/verifier/reward.json")
 
 _MARKUP = re.compile(r"[*`_]")
 
-ReplySource = Literal["trajectory", "oracle_log"]
+ReplySource = Literal["trajectory", "answer_file"]
 
 
 def read_trajectory(path: Path) -> dict[str, Any] | None:
@@ -81,15 +81,14 @@ def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
     return {"tool_call_count": float(tool_calls), "agent_turn_count": float(len(steps))}
 
 
-def read_reply(trajectory_path: Path, oracle_log_path: Path) -> tuple[str, ReplySource]:
+def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, ReplySource]:
     trajectory = read_trajectory(trajectory_path)
     if trajectory is not None:
         return final_reply(trajectory), "trajectory"
     try:
-        lines = [line for line in oracle_log_path.read_text().splitlines() if line.strip()]
+        return answer_path.read_text(), "answer_file"
     except OSError:
-        lines = []
-    return (lines[-1] if lines else ""), "oracle_log"
+        return "", "answer_file"
 
 
 def normalize(text: str) -> str:
@@ -134,12 +133,12 @@ def main(argv: list[str] | None = None) -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--expected", type=Path, required=True)
-    parser.add_argument("--oracle-log", type=Path, default=ORACLE_LOG_PATH)
+    parser.add_argument("--answer", type=Path, default=ANSWER_PATH)
     parser.add_argument("--trajectory", type=Path, default=TRAJECTORY_PATH)
     parser.add_argument("--reward-file", type=Path, default=REWARD_PATH)
     args = parser.parse_args(argv)
     expected = json.loads(args.expected.read_text())
-    reply, source = read_reply(args.trajectory, args.oracle_log)
+    reply, source = read_reply(args.trajectory, args.answer)
     reward, reason = check(reply, expected)
     scores = write_reward(reward, trajectory_path=args.trajectory, reward_path=args.reward_file)
     print(

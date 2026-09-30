@@ -16,6 +16,7 @@ from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 
 PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
+ANSWER_PATH = "/app/answer.txt"
 SPAN_LIMIT = 1_000_000  # The client fetches 100 spans per page up to this limit.
 
 
@@ -86,3 +87,10 @@ def span_costs(project: str) -> dict[SpanId, float]:
         if not page["pageInfo"]["hasNextPage"]:
             return costs
         cursor = page["pageInfo"]["endCursor"]
+
+
+def write_answer(answer: str) -> None:
+    """Write the answer for grading and print it to the task log."""
+    with open(ANSWER_PATH, "w") as handle:
+        handle.write(answer + "\n")
+    print(answer)

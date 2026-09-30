@@ -7,7 +7,7 @@ sys.path.insert(0, "/opt/verifier")
 
 from collections import Counter
 
-from evals.harbor.verifiers.phoenix_api import project_spans, spans_by_trace
+from evals.harbor.verifiers.phoenix_api import project_spans, spans_by_trace, write_answer
 
 repeats = Counter(
     (trace_id, span["name"])
@@ -16,4 +16,4 @@ repeats = Counter(
     if span["span_kind"].upper() == "TOOL"
 )
 (_, name), count = repeats.most_common(1)[0]
-print(f"{name}: {count} calls")
+write_answer(f"{name}: {count} calls")
