@@ -29,6 +29,7 @@ def project_spans(project: str) -> list[v1.Span]:
 
 
 TraceId = str
+SpanId = str
 
 
 def spans_by_trace(spans: list[v1.Span]) -> dict[TraceId, list[v1.Span]]:
@@ -66,11 +67,11 @@ def graphql(
     return data
 
 
-def span_costs(project: str) -> dict[str, float]:
-    """Return total cost by span ID, omitting spans without cost data."""
+def span_costs(project: str) -> dict[SpanId, float]:
+    """Spans without cost data are omitted."""
     edges = graphql("{ projects(first: 100) { edges { node { id name } } } }")["projects"]["edges"]
     project_id = json.dumps(next(e["node"]["id"] for e in edges if e["node"]["name"] == project))
-    costs: dict[str, float] = {}
+    costs: dict[SpanId, float] = {}
     cursor: str | None = None
     while True:
         after = ", after: " + json.dumps(cursor) if cursor else ""
