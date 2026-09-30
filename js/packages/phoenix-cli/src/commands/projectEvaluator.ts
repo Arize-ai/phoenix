@@ -155,6 +155,14 @@ interface ProjectEvaluatorDeleteOptions extends DeleteOptions {
    * @example "support-bot"
    */
   project?: string;
+  /**
+   * `--format <format>`: How a refusal is rendered on stderr. `pretty` (the
+   * default) is human-readable, `raw` and `json` carry the structured error
+   * (`problem_code`, `problem_reason`, `problem`) for scripts and agents.
+   *
+   * @example "raw" // px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --format raw
+   */
+  format?: OutputFormat;
 }
 
 function createClientOrExit(
@@ -554,7 +562,7 @@ async function projectEvaluatorDeleteHandler(
 ): Promise<void> {
   if (projectEvaluatorIds.length > 1 && !options.project) {
     writeStructuredError({
-      format: undefined,
+      format: options.format,
       message: "Deleting several bindings needs --project",
       code: "INVALID_ARGUMENT",
       hint: `px project evaluator delete ${projectEvaluatorIds.join(" ")} --project <project-identifier> --yes`,
@@ -593,7 +601,11 @@ async function projectEvaluatorDeleteHandler(
       noProgress: !options.progress,
     });
   } catch (error) {
-    await exitWithError({ verb: "deleting project evaluator", error });
+    await exitWithError({
+      verb: "deleting project evaluator",
+      error,
+      format: options.format,
+    });
   }
 }
 
@@ -791,6 +803,12 @@ export function createProjectEvaluatorDeleteCommand(): Command {
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format for a refusal: pretty, json, or raw",
+      parseFormatOption,
+      "pretty"
+    )
     .option("-y, --yes", "Skip confirmation prompt")
     .option("--no-progress", "Disable progress indicators")
     .addHelpText(
