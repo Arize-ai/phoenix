@@ -642,14 +642,23 @@ export interface paths {
         put?: never;
         /**
          * Create Project Evaluator
-         * @description Create an evaluator and binding atomically, or bind an existing code evaluator.
+         * @description Bind an existing LLM or code evaluator definition to a project.
          *
          *     The project identifier is decoded as a GlobalID first and otherwise treated as a name.
          *     SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per
-         *     trace or session, after the first quiet period following the evaluation delay.
+         *     trace or session, after the first quiet period following the evaluation delay. A name the
+         *     project already uses is refused with 409 `already_exists` and that binding's
+         *     `existing_id`.
          */
         post: operations["createProjectEvaluator"];
-        delete?: never;
+        /**
+         * Delete Project Evaluators
+         * @description Delete up to 1000 of a project's bindings in one transaction.
+         *
+         *     Missing bindings are ignored; a binding of another project is refused with 422 before
+         *     any change. Definitions, prompts, and trace projects are kept.
+         */
+        delete: operations["deleteProjectEvaluators"];
         options?: never;
         head?: never;
         patch?: never;
@@ -671,10 +680,10 @@ export interface paths {
         post?: never;
         /**
          * Delete Project Evaluator
-         * @description Delete a binding and its evaluator traces. Missing bindings are ignored.
+         * @description Delete a binding; a missing binding is ignored.
          *
-         *     A definition no other binding references is deleted with its last binding; built-in
-         *     definitions are never deleted.
+         *     The evaluator definition, its prompt, and the binding's trace project are kept: delete a
+         *     definition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.
          */
         delete: operations["deleteProjectEvaluator"];
         options?: never;
@@ -684,30 +693,6 @@ export interface paths {
          * @description Update only binding settings. Evaluation target and evaluator kind are immutable.
          */
         patch: operations["patchProjectEvaluator"];
-        trace?: never;
-    };
-    "/v1/project_evaluators/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Delete Project Evaluators
-         * @description Delete up to 1000 bindings atomically; the whole batch is validated before any change.
-         *
-         *     Associated trace projects are deleted. Definitions no remaining binding references are
-         *     deleted with the batch; built-in definitions are never deleted. Missing bindings are
-         *     ignored for idempotency.
-         */
-        post: operations["deleteProjectEvaluators"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/v1/datasets/{dataset_identifier}/evaluators": {
@@ -3215,7 +3200,13 @@ export interface components {
         };
         /** CreateProjectEvaluatorRequest */
         CreateProjectEvaluatorRequest: {
+            /** @description Unique among this project's evaluators. */
             name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the LLM or code evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
             evaluation_target: components["schemas"]["EvaluationTarget"];
             /** Sampling Rate */
             sampling_rate: number;
@@ -3236,8 +3227,6 @@ export interface components {
              * @description Quiet period in seconds before a TRACE or SESSION evaluator runs. Null stores the server default. SPAN evaluators reject a non-null delay and store 0.
              */
             evaluation_delay_seconds?: number | null;
-            /** Evaluator */
-            evaluator: components["schemas"]["NewLLMEvaluator"] | components["schemas"]["NewCodeEvaluator"] | components["schemas"]["ExistingEvaluator"];
         };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
@@ -3638,20 +3627,6 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
-        /** DeleteProjectEvaluatorsRequestBody */
-        DeleteProjectEvaluatorsRequestBody: {
-            /**
-             * Project Evaluator Ids
-             * @description GlobalIDs of the bindings to delete. Missing bindings are ignored.
-             */
-            project_evaluator_ids: string[];
-            /**
-             * Delete Associated Prompt
-             * @description Also delete each LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default.
-             * @default false
-             */
-            delete_associated_prompt?: boolean;
-        };
         /** DeleteSessionsRequestBody */
         DeleteSessionsRequestBody: {
             /**
@@ -3853,22 +3828,6 @@ export interface components {
             data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"])[];
             /** Next Cursor */
             next_cursor: string | null;
-        };
-        /**
-         * ExistingEvaluator
-         * @description Attach an evaluator definition that already exists instead of creating one.
-         */
-        ExistingEvaluator: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "reference";
-            /**
-             * Evaluator Id
-             * @description GlobalID of an existing evaluator definition. Datasets accept code and built-in evaluators; projects accept code evaluators. LLM definitions belong to the binding that created them and cannot be referenced.
-             */
-            evaluator_id: string;
         };
         /** Experiment */
         Experiment: {
@@ -4723,49 +4682,6 @@ export interface components {
          * @enum {string}
          */
         ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
-        /** NewCodeEvaluator */
-        NewCodeEvaluator: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "code";
-            /** Description */
-            description?: string | null;
-            /** Source Code */
-            source_code: string;
-            language: components["schemas"]["LanguageName"];
-            /** Sandbox Config Id */
-            sandbox_config_id: string;
-            input_mapping: components["schemas"]["InputMapping"];
-            /**
-             * Output Configs
-             * @description Outputs the code produces.
-             */
-            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
-        };
-        /** NewLLMEvaluator */
-        NewLLMEvaluator: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "llm";
-            /**
-             * Description
-             * @description Must equal the description of the prompt's tool function.
-             */
-            description?: string | null;
-            /** @description Chat prompt content for a new prompt created for this evaluator. Content only: a version id inside this object is rejected. Exactly one of prompt_version and prompt_version_id is required. */
-            prompt_version?: components["schemas"]["PromptVersionData"] | null;
-            /**
-             * Prompt Version Id
-             * @description GlobalID of an existing prompt version for the evaluator to run; the evaluator attaches to that version's prompt. New content for an existing prompt is created through the prompts API first. Exactly one of prompt_version and prompt_version_id is required.
-             */
-            prompt_version_id?: string | null;
-            /** Output Configs */
-            output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
-        };
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -10865,6 +10781,56 @@ export interface operations {
             };
         };
     };
+    deleteProjectEvaluators: {
+        parameters: {
+            query: {
+                /** @description GlobalIDs of this project's bindings to delete; repeat for each. */
+                project_evaluator_id: string[];
+            };
+            header?: never;
+            path: {
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     getProjectEvaluator: {
         parameters: {
             query?: never;
@@ -10916,10 +10882,7 @@ export interface operations {
     };
     deleteProjectEvaluator: {
         parameters: {
-            query?: {
-                /** @description Also delete the LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default. */
-                delete_associated_prompt?: boolean;
-            };
+            query?: never;
             header?: never;
             path: {
                 project_evaluator_id: string;
@@ -11017,46 +10980,6 @@ export interface operations {
             };
             /** @description Insufficient Storage */
             507: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    deleteProjectEvaluators: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeleteProjectEvaluatorsRequestBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

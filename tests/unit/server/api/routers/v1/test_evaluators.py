@@ -35,29 +35,26 @@ def test_patch_preserves_omitted_fields_and_explicit_null() -> None:
     assert patch.input_mapping is None
 
 
-def test_reference_creation_requires_no_definition() -> None:
+def test_creation_references_a_definition() -> None:
     body = CreateProjectEvaluatorRequest.model_validate(
         {
             "name": "quality",
             "evaluation_target": "SPAN",
             "sampling_rate": 1,
-            "evaluator": {"type": "reference", "evaluator_id": "existing"},
+            "evaluator_id": "existing",
         }
     )
-    assert body.evaluator.type == "reference"
+    assert body.evaluator_id == "existing"
 
 
-def test_reference_rejects_inline_definition() -> None:
+def test_creation_rejects_an_inline_definition() -> None:
     with pytest.raises(ValidationError):
         CreateProjectEvaluatorRequest.model_validate(
             {
                 "name": "quality",
                 "evaluation_target": "SPAN",
                 "sampling_rate": 1,
-                "evaluator": {
-                    "type": "reference",
-                    "evaluator_id": "existing",
-                    "source_code": "...",
-                },
+                "evaluator_id": "existing",
+                "evaluator": {"type": "code", "source_code": "..."},
             }
         )

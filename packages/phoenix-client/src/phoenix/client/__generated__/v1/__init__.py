@@ -284,18 +284,8 @@ class DatasetWithExampleCount(TypedDict):
     example_count: int
 
 
-class DeleteProjectEvaluatorsRequestBody(TypedDict):
-    project_evaluator_ids: Sequence[str]
-    delete_associated_prompt: NotRequired[bool]
-
-
 class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
-
-
-class ExistingEvaluator(TypedDict):
-    type: Literal["reference"]
-    evaluator_id: str
 
 
 class Experiment(TypedDict):
@@ -1621,6 +1611,17 @@ class CreateExperimentRunResponseBody(TypedDict):
     data: CreateExperimentRunResponseBodyData
 
 
+class CreateProjectEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+    sampling_rate: float
+    filter_condition: NotRequired[str]
+    enabled: NotRequired[bool]
+    input_mapping: NotRequired[InputMapping]
+    evaluation_delay_seconds: NotRequired[int]
+
+
 class CreateProjectResponseBody(TypedDict):
     data: Project
 
@@ -1839,22 +1840,6 @@ class ListDatasetExamplesData(TypedDict):
 
 class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
-
-
-class NewCodeEvaluator(TypedDict):
-    type: Literal["code"]
-    source_code: str
-    language: Literal["PYTHON", "TYPESCRIPT"]
-    sandbox_config_id: str
-    input_mapping: InputMapping
-    output_configs: Sequence[
-        Union[
-            CategoricalAnnotationConfigData,
-            ContinuousAnnotationConfigData,
-            FreeformAnnotationConfigData,
-        ]
-    ]
-    description: NotRequired[str]
 
 
 class PatchCodeEvaluatorRequest(TypedDict):
@@ -2715,25 +2700,6 @@ class GetPromptVersionsResponseBody(TypedDict):
 class ListAgentSessionMessagesResponseBody(TypedDict):
     data: Sequence[PhoenixUIMessage]
     next_cursor: Optional[str]
-
-
-class NewLLMEvaluator(TypedDict):
-    type: Literal["llm"]
-    output_configs: Sequence[CategoricalAnnotationConfigData]
-    description: NotRequired[str]
-    prompt_version: NotRequired[PromptVersionData]
-    prompt_version_id: NotRequired[str]
-
-
-class CreateProjectEvaluatorRequest(TypedDict):
-    name: str
-    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
-    sampling_rate: float
-    evaluator: Union[NewLLMEvaluator, NewCodeEvaluator, ExistingEvaluator]
-    filter_condition: NotRequired[str]
-    enabled: NotRequired[bool]
-    input_mapping: NotRequired[InputMapping]
-    evaluation_delay_seconds: NotRequired[int]
 
 
 class OtlpAnyValue(TypedDict):
