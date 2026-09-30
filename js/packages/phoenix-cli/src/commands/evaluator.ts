@@ -364,9 +364,10 @@ async function exitWithError({
     format,
     message: `Error ${verb}: ${await describeError(error)}`,
     code: exitCodeName(exitCode),
-    hint: error instanceof InvalidArgumentError
-      ? error.hint
-      : validationHint(error),
+    hint:
+      error instanceof InvalidArgumentError
+        ? error.hint
+        : validationHint(error),
     ...describeFailure(error),
   });
   process.exit(exitCode);

@@ -100,9 +100,7 @@ describe("sandbox-config list", () => {
       { from: "user" }
     );
 
-    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual([
-      CONFIG,
-    ]);
+    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual([CONFIG]);
   });
 
   it("rejects an invalid --format before any request", async () => {
