@@ -114,3 +114,58 @@ async def test_patch_rename_to_taken_name_is_already_exists(
     problem = response.json()
     assert problem["code"] == "already_exists"
     assert problem["existing_id"] == holder["id"]
+
+
+async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
+    httpx_client: httpx.AsyncClient, db: DbSessionFactory, sandbox_config: models.SandboxConfig
+) -> None:
+    """A well-formed GlobalID of the wrong node type is a client error on every id field
+    these routes decode -- path, query, and body -- never a raw ValueError."""
+    wrong_type = str(GlobalID("Project", "1"))
+    async with db() as session:
+        dataset = models.Dataset(name=f"wrong-type-{token_hex(4)}", metadata_={})
+        evaluator = models.CodeEvaluator(
+            name=Identifier(f"wrong-type-{token_hex(4)}"),
+            description=None,
+            metadata_={},
+            language=sandbox_config.language,
+            sandbox_config_id=sandbox_config.id,
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=[
+                ContinuousOutputConfig(
+                    type="CONTINUOUS",
+                    name="score",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                )
+            ],
+            versions=[models.CodeEvaluatorVersion(source_code="def evaluate(output): ...")],
+        )
+        session.add_all([dataset, evaluator])
+        await session.flush()
+    dataset_route = f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators"
+    body = {
+        "name": f"wrong-type-binding-{token_hex(4)}",
+        "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+        "evaluator_id": str(GlobalID("CodeEvaluator", str(evaluator.id))),
+    }
+    created = await httpx_client.post(dataset_route, json=body)
+    assert created.status_code == 201, created.text
+    binding_route = f"v1/dataset_evaluators/{created.json()['data']['id']}"
+
+    responses = (
+        # path: dataset_evaluator_id, on every verb that takes one
+        await httpx_client.get(f"v1/dataset_evaluators/{wrong_type}"),
+        await httpx_client.patch(f"v1/dataset_evaluators/{wrong_type}", json={"name": "x"}),
+        await httpx_client.delete(f"v1/dataset_evaluators/{wrong_type}"),
+        # query: the list route's cursor, and the bulk delete's repeated id
+        await httpx_client.get(dataset_route, params={"cursor": wrong_type}),
+        await httpx_client.delete(dataset_route, params={"dataset_evaluator_id": wrong_type}),
+        # body: evaluator_id, on create
+        await httpx_client.post(dataset_route, json={**body, "evaluator_id": wrong_type}),
+    )
+    for response in responses:
+        assert response.status_code == 422, response.text
+        assert response.json()["code"] == "invalid_argument", response.text
+
+    # none of the refused calls above touched the binding created before them
+    assert (await httpx_client.get(binding_route)).status_code == 200
