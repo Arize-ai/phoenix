@@ -77,7 +77,7 @@ class _ActiveProjectEvaluator:
     identifier: str
     span_filter: SpanFilter
 
-    def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[tuple[int]]:
+    def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[int]:
         stmt = (
             select(models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
@@ -86,9 +86,7 @@ class _ActiveProjectEvaluator:
         )
         return self.span_filter(stmt)
 
-    def materializable_scan_stmt(
-        self, low_exclusive: int, high_inclusive: int
-    ) -> Select[tuple[int]]:
+    def materializable_scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[int]:
         return self.scan_stmt(low_exclusive, high_inclusive).where(
             ~exists(
                 select(1).where(
