@@ -14,7 +14,6 @@ import { formatPercentShort } from "@phoenix/utils/numberFormatUtils";
 export type ProjectEvaluatorFailureSummary = {
   failedCount: number;
   evaluatedCount: number;
-  droppedCount: number;
   failureRate: number | null;
   lastFailedAt: string | null;
   lastError: string | null;
@@ -57,14 +56,8 @@ export function ProjectEvaluatorFailuresCell({
 }: {
   failureSummary: ProjectEvaluatorFailureSummary;
 }) {
-  const {
-    failedCount,
-    evaluatedCount,
-    droppedCount,
-    failureRate,
-    lastFailedAt,
-    lastError,
-  } = failureSummary;
+  const { failedCount, evaluatedCount, failureRate, lastFailedAt, lastError } =
+    failureSummary;
   if (failureRate == null) {
     return (
       <Text fontFamily="mono" color="text-700">
@@ -72,13 +65,7 @@ export function ProjectEvaluatorFailuresCell({
       </Text>
     );
   }
-  const counts = [
-    `${countFormatter.format(failedCount)} failed`,
-    `${countFormatter.format(evaluatedCount)} evaluated`,
-    ...(droppedCount > 0
-      ? [`${countFormatter.format(droppedCount)} dropped`]
-      : []),
-  ].join(" · ");
+  const counts = `${countFormatter.format(failedCount)} failed · ${countFormatter.format(evaluatedCount)} evaluated`;
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>

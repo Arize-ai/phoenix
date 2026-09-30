@@ -182,12 +182,6 @@ class ProjectEvaluatorFailureSummary:
     evaluated_count: int = strawberry.field(
         description="Evaluations that produced an annotation within the range."
     )
-    dropped_count: int = strawberry.field(
-        description=(
-            "Evaluations shed from the backlog within the range. They are not failures and "
-            "do not count toward the failure rate."
-        )
-    )
     last_failed_at: Optional[datetime] = strawberry.field(
         description="When the newest failure in the range was given up on, or null if none was."
     )
@@ -1379,8 +1373,9 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Failures and completions within the time range, placed in time by when each "
-            "evaluation finished or was given up on. Work older than the online evaluation "
-            "retention window is reaped, so a longer range counts no further back than that."
+            "evaluation finished or was given up on. Finished span evaluations can be deleted "
+            "once they are older than the online evaluation retention period, so for span "
+            "evaluators a longer range may count less than it covers."
         )
     )
     async def failure_summary(
@@ -1392,7 +1387,6 @@ class ProjectEvaluator(Node):
         return ProjectEvaluatorFailureSummary(
             failed_count=counts.failed,
             evaluated_count=counts.evaluated,
-            dropped_count=counts.dropped,
             last_failed_at=counts.last_failed_at,
             last_error=counts.last_error,
         )

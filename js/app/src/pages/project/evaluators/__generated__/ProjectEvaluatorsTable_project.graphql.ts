@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7176f8d0b043157351e29866abff002b>>
+ * @generated SignedSource<<6d207d54d774d5d5476631fb61a8cc1c>>
  * @lightSyntaxTransform
  */
 
@@ -83,45 +83,38 @@ v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "droppedCount",
+  "name": "optimizationDirection",
   "storageKey": null
 },
 v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "optimizationDirection",
+  "name": "label",
   "storageKey": null
 },
 v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "label",
+  "name": "lowerBound",
   "storageKey": null
 },
 v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "lowerBound",
-  "storageKey": null
-},
-v13 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v14 = [
+v13 = [
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v15 = [
+v14 = [
   {
     "alias": null,
     "args": null,
@@ -130,17 +123,17 @@ v15 = [
     "storageKey": null
   }
 ],
-v16 = [
+v15 = [
   (v3/*:: as any*/)
 ],
-v17 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v18 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -302,7 +295,13 @@ return {
                         },
                         (v7/*:: as any*/),
                         (v8/*:: as any*/),
-                        (v9/*:: as any*/)
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "droppedCount",
+                          "storageKey": null
+                        }
                       ],
                       "storageKey": null
                     },
@@ -348,7 +347,7 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v10/*:: as any*/),
+                                (v9/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -357,7 +356,7 @@ return {
                                   "name": "values",
                                   "plural": true,
                                   "selections": [
-                                    (v11/*:: as any*/),
+                                    (v10/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -375,9 +374,9 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v10/*:: as any*/),
-                                (v12/*:: as any*/),
-                                (v13/*:: as any*/)
+                                (v9/*:: as any*/),
+                                (v11/*:: as any*/),
+                                (v12/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -385,7 +384,7 @@ return {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v10/*:: as any*/),
+                                (v9/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -393,8 +392,8 @@ return {
                                   "name": "threshold",
                                   "storageKey": null
                                 },
-                                (v12/*:: as any*/),
-                                (v13/*:: as any*/)
+                                (v11/*:: as any*/),
+                                (v12/*:: as any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null
@@ -526,14 +525,14 @@ return {
                         (v5/*:: as any*/),
                         {
                           "alias": null,
-                          "args": (v14/*:: as any*/),
+                          "args": (v13/*:: as any*/),
                           "kind": "ScalarField",
                           "name": "traceCount",
                           "storageKey": null
                         },
                         {
                           "alias": null,
-                          "args": (v14/*:: as any*/),
+                          "args": (v13/*:: as any*/),
                           "concreteType": "SpanCostSummary",
                           "kind": "LinkedField",
                           "name": "costSummary",
@@ -546,7 +545,7 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": (v15/*:: as any*/),
+                              "selections": (v14/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -556,7 +555,7 @@ return {
                               "kind": "LinkedField",
                               "name": "prompt",
                               "plural": false,
-                              "selections": (v15/*:: as any*/),
+                              "selections": (v14/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -566,7 +565,7 @@ return {
                               "kind": "LinkedField",
                               "name": "completion",
                               "plural": false,
-                              "selections": (v15/*:: as any*/),
+                              "selections": (v14/*:: as any*/),
                               "storageKey": null
                             }
                           ],
@@ -576,8 +575,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v14/*:: as any*/),
-                  "argumentDefinitions": (v16/*:: as any*/)
+                  "args": (v13/*:: as any*/),
+                  "argumentDefinitions": (v15/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -585,7 +584,7 @@ return {
                   "selections": [
                     {
                       "alias": null,
-                      "args": (v14/*:: as any*/),
+                      "args": (v13/*:: as any*/),
                       "concreteType": "ProjectEvaluatorFailureSummary",
                       "kind": "LinkedField",
                       "name": "failureSummary",
@@ -593,7 +592,6 @@ return {
                       "selections": [
                         (v8/*:: as any*/),
                         (v7/*:: as any*/),
-                        (v9/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -619,8 +617,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v14/*:: as any*/),
-                  "argumentDefinitions": (v16/*:: as any*/)
+                  "args": (v13/*:: as any*/),
+                  "argumentDefinitions": (v15/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -665,8 +663,8 @@ return {
                               "name": "summary",
                               "plural": false,
                               "selections": [
+                                (v16/*:: as any*/),
                                 (v17/*:: as any*/),
-                                (v18/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -689,7 +687,7 @@ return {
                                   "name": "labelFractions",
                                   "plural": true,
                                   "selections": [
-                                    (v11/*:: as any*/),
+                                    (v10/*:: as any*/),
                                     {
                                       "alias": null,
                                       "args": null,
@@ -711,7 +709,7 @@ return {
                               "name": "previousSummary",
                               "plural": false,
                               "selections": [
-                                (v17/*:: as any*/)
+                                (v16/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -730,8 +728,8 @@ return {
                                   "name": "timestamp",
                                   "storageKey": null
                                 },
-                                (v17/*:: as any*/),
-                                (v18/*:: as any*/)
+                                (v16/*:: as any*/),
+                                (v17/*:: as any*/)
                               ],
                               "storageKey": null
                             }

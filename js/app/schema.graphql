@@ -3703,7 +3703,7 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
-  Failures and completions within the time range, placed in time by when each evaluation finished or was given up on. Work older than the online evaluation retention window is reaped, so a longer range counts no further back than that.
+  Failures and completions within the time range, placed in time by when each evaluation finished or was given up on. Finished span evaluations can be deleted once they are older than the online evaluation retention period, so for span evaluators a longer range may count less than it covers.
   """
   failureSummary(timeRange: TimeRange!): ProjectEvaluatorFailureSummary!
 
@@ -3775,11 +3775,6 @@ type ProjectEvaluatorFailureSummary {
 
   """Evaluations that produced an annotation within the range."""
   evaluatedCount: Int!
-
-  """
-  Evaluations shed from the backlog within the range. They are not failures and do not count toward the failure rate.
-  """
-  droppedCount: Int!
 
   """
   When the newest failure in the range was given up on, or null if none was.

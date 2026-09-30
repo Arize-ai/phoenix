@@ -222,7 +222,6 @@ const readRow = (
         failureSummary(timeRange: $timeRange) {
           failedCount
           evaluatedCount
-          droppedCount
           failureRate
           lastFailedAt
           lastError

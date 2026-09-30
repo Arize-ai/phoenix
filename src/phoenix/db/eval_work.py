@@ -11,8 +11,7 @@ MAX_ATTEMPTS = 3
 LIVE_EVAL_WORK_STATUSES = ("PENDING", "RUNNING", "ERROR")
 _SHARED_TERMINAL_STATUSES = ("DONE", "FAILED", "EXPIRED", "SUPERSEDED")
 TERMINAL_EVAL_WORK_STATUSES = (*_SHARED_TERMINAL_STATUSES, "DROPPED")
-# Given up on: the terminal statuses the user is owed an error for. SUPERSEDED
-# and CONTENT_LOST are lifecycle events and DROPPED is load shedding, not failures.
+# Given up on: the terminal statuses the user is owed an error for.
 FAILED_EVAL_WORK_STATUSES = ("FAILED", "EXPIRED")
 EVAL_WORK_STATUSES = (*LIVE_EVAL_WORK_STATUSES, *TERMINAL_EVAL_WORK_STATUSES)
 

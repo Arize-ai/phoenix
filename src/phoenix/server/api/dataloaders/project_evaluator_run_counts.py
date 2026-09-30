@@ -155,7 +155,10 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     DROPPED (shed from the backlog under load) is the system's doing, not the evaluator's.
 
     The statuses render as literals so the condition matches the partial
-    ``ix_*_project_evaluator_failed`` indexes' predicate even under a generic plan.
+    ``ix_*_project_evaluator_failed`` indexes' predicate. SQLite needs this: with bound
+    values (``status IN (?, ?)``) it can't prove the predicate, so it skips the index
+    and sorts the evaluator's rows instead. Postgres only misses it under a forced
+    generic plan. Don't simplify this back to ``.in_((...))``.
     """
     return model.status.in_(
         sa.bindparam(
