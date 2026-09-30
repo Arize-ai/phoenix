@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import String, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -310,7 +310,9 @@ async def get_evaluators(
                 .order_by(models.Evaluator.id.desc())
             )
             if name is not None:
-                stmt = stmt.where(models.Evaluator.name == Identifier.model_validate(name))
+                # name is an Identifier-typed column; compare it as text so a name that
+                # cannot exist (e.g. one with an uppercase letter) just matches nothing.
+                stmt = stmt.where(cast(models.Evaluator.name, String) == name)
             if cursor is not None:
                 stmt = stmt.where(models.Evaluator.id <= _decode_evaluator_cursor(cursor))
             rows = (await session.execute(stmt.limit(limit + 1))).all()
