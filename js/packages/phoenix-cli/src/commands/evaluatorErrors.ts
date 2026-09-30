@@ -1,19 +1,46 @@
 import { formatApiError, HttpError } from "@arizeai/phoenix-client";
 
-const MAX_DETAIL_LENGTH = 500;
+const MAX_DETAIL_LENGTH = 2000;
 
 /**
  * Describe a failure for the terminal, including the server's explanation.
  *
- * The client throws `HttpError` with only the status line; the useful part of
- * a 409 (which bindings conflict) or a 422 (what was invalid) is in the body.
+ * Routes that return problem details explain the failure on `error.problem`;
+ * others put it in the body as text or FastAPI's JSON validation detail.
  */
 export async function describeError(error: unknown): Promise<string> {
   if (error instanceof HttpError) {
-    const detail = await readDetail(error);
+    const detail = error.problem
+      ? describeProblem(error)
+      : await readDetail(error);
     return `HTTP ${error.status} ${error.statusText}${detail ? `: ${detail}` : ""}`;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+/** The status, reason, and existing resource of a failed API request, if any. */
+export function describeFailure(error: unknown): {
+  status?: number;
+  reason?: string;
+  existingId?: string;
+} {
+  if (!(error instanceof HttpError)) return {};
+  return {
+    status: error.status,
+    reason: error.problem?.code,
+    existingId: error.problem?.existing_id,
+  };
+}
+
+function describeProblem(error: HttpError): string {
+  const problem = error.problem;
+  if (!problem) return "";
+  const lines = [problem.detail];
+  for (const fieldError of problem.errors ?? []) {
+    lines.push(`${fieldError.field}: ${fieldError.message}`);
+  }
+  if (problem.existing_id) lines.push(`existing_id: ${problem.existing_id}`);
+  return lines.join("; ");
 }
 
 async function readDetail(error: HttpError): Promise<string> {

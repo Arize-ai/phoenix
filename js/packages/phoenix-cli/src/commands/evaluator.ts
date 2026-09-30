@@ -26,7 +26,7 @@ import {
 import { writeError, writeOutput, writeProgress } from "../io";
 import { parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
-import { describeError } from "./evaluatorErrors";
+import { describeError, describeFailure } from "./evaluatorErrors";
 import {
   parseJsonArrayFlag,
   parseJsonObjectFlag,
@@ -41,6 +41,11 @@ import {
 } from "./formatEvaluator";
 import type { CommonOptions, DeleteOptions } from "./options";
 
+type EvaluatorDefinition =
+  componentsV1["schemas"]["EvaluatorDefinitionResponseBody"]["data"];
+type EvaluatorCreate =
+  | componentsV1["schemas"]["CreateLLMEvaluatorRequest"]
+  | componentsV1["schemas"]["CreateCodeEvaluatorRequest"];
 type LLMEvaluatorPatch = componentsV1["schemas"]["PatchLLMEvaluatorRequest"];
 type CodeEvaluatorPatch = componentsV1["schemas"]["PatchCodeEvaluatorRequest"];
 type EvaluatorPatch = LLMEvaluatorPatch | CodeEvaluatorPatch;
@@ -92,15 +97,34 @@ interface EvaluatorListOptions extends CommonOptions<OutputFormat> {
 type EvaluatorGetOptions = CommonOptions<OutputFormat>;
 
 /**
- * Options for `px evaluator create`: a code evaluator that nothing binds yet.
+ * Options for `px evaluator create`: an LLM or code evaluator that nothing
+ * binds yet.
  */
 interface EvaluatorCreateOptions extends CommonOptions<OutputFormat> {
+  /**
+   * `--type <llm|code>`: The kind of evaluator to create. Required.
+   *
+   * @example "llm"
+   */
+  type?: string;
   /**
    * `--name <name>`: Name unique among evaluators. Required.
    *
    * @example "exact-match"
    */
   name?: string;
+  /**
+   * `--prompt-version-id <id>`: (LLM) The prompt version to run, created
+   * through the prompts API first. Required for `--type llm`.
+   *
+   * @example "UHJvbXB0VmVyc2lvbjo3"
+   */
+  promptVersionId?: string;
+  /**
+   * `--if-not-exists`: When the name is taken, print the evaluator that holds
+   * it instead of failing.
+   */
+  ifNotExists?: boolean;
   /**
    * `--source-code <text>`: The full source, inline.
    */
@@ -337,6 +361,7 @@ async function exitWithError({
     message: `Error ${verb}: ${await describeError(error)}`,
     code: exitCodeName(exitCode),
     hint: error instanceof InvalidArgumentError ? error.hint : undefined,
+    ...describeFailure(error),
   });
   process.exit(exitCode);
 }
@@ -439,6 +464,126 @@ async function evaluatorGetHandler(
   }
 }
 
+const CREATE_USAGE: Record<EvaluatorType, string> = {
+  llm: "px evaluator create --type llm --name <name> --prompt-version-id <id> --description <text> --output-configs <json>",
+  code: "px evaluator create --type code --name <name> --file evaluator.py --language PYTHON --sandbox-config-id <id> --input-mapping <json> --output-configs <json>",
+};
+
+/**
+ * Validate `evaluator create` flags for the selected `--type`, exiting with
+ * INVALID_ARGUMENT and the full invocation when they do not fit.
+ */
+function parseCreateTypeOrExit(options: EvaluatorCreateOptions): EvaluatorType {
+  const type = parseChoiceOrExit<EvaluatorType>({
+    flag: "--type",
+    value: options.type ?? "",
+    allowed: EVALUATOR_TYPES,
+    format: options.format,
+    normalize: (value) => value.toLowerCase(),
+  });
+  const llmFlags = [["--prompt-version-id", options.promptVersionId]] as const;
+  const codeFlags = [
+    ["--source-code", options.sourceCode],
+    ["--file", options.file],
+    ["--language", options.language],
+    ["--sandbox-config-id", options.sandboxConfigId],
+    ["--input-mapping", options.inputMapping],
+  ] as const;
+  const required =
+    type === "llm"
+      ? [
+          ["--name", options.name],
+          ...llmFlags,
+          ["--output-configs", options.outputConfigs],
+        ]
+      : [
+          ["--name", options.name],
+          ...codeFlags.filter(
+            ([flag]) => flag !== "--source-code" && flag !== "--file"
+          ),
+          ["--output-configs", options.outputConfigs],
+        ];
+  const exitWith = (message: string): never => {
+    writeStructuredError({
+      format: options.format,
+      message,
+      code: "INVALID_ARGUMENT",
+      hint: CREATE_USAGE[type],
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  };
+  const missing = required.find(([, value]) => !value);
+  if (missing) exitWith(`Missing required flag ${missing[0]}`);
+  const misplaced = (type === "llm" ? codeFlags : llmFlags)
+    .filter(([, value]) => value !== undefined)
+    .map(([flag]) => flag);
+  if (misplaced.length > 0) {
+    exitWith(`${misplaced.join(", ")} cannot be used with --type ${type}`);
+  }
+  return type;
+}
+
+/** Build the definition `evaluator create` sends for the selected `--type`. */
+function buildEvaluatorCreate({
+  type,
+  options,
+}: {
+  type: EvaluatorType;
+  options: EvaluatorCreateOptions;
+}): EvaluatorCreate {
+  const nonEmpty = { hint: CREATE_USAGE[type] };
+  const description =
+    options.description !== undefined
+      ? { description: options.description }
+      : {};
+  if (type === "llm") {
+    return {
+      type: "llm",
+      name: options.name ?? "",
+      prompt: {
+        selector: {
+          type: "version",
+          prompt_version_id: options.promptVersionId ?? "",
+        },
+      },
+      output_configs: parseJsonArrayFlag<CategoricalOutputConfig>({
+        flag: "--output-configs",
+        value: options.outputConfigs ?? "",
+        nonEmpty,
+      }),
+      ...description,
+    };
+  }
+  return {
+    type: "code",
+    name: options.name ?? "",
+    source_code: readInlineOrFile({
+      inline: options.sourceCode,
+      inlineFlag: "--source-code",
+      file: options.file,
+      fileFlag: "--file",
+    }),
+    language: parseChoiceOrExit<Language>({
+      flag: "--language",
+      value: options.language ?? "",
+      allowed: LANGUAGES,
+      format: options.format,
+      normalize: (value) => value.toUpperCase(),
+    }),
+    sandbox_config_id: options.sandboxConfigId ?? "",
+    input_mapping: parseJsonObjectFlag<InputMapping>({
+      flag: "--input-mapping",
+      value: options.inputMapping ?? "",
+    }),
+    output_configs: parseJsonArrayFlag<CodeOutputConfig>({
+      flag: "--output-configs",
+      value: options.outputConfigs ?? "",
+      nonEmpty,
+    }),
+    ...description,
+  };
+}
+
 /**
  * Handler for `evaluator create`
  */
@@ -447,72 +592,37 @@ async function evaluatorCreateHandler(
 ): Promise<void> {
   // Argument-shape validation runs before the try block so its `process.exit`
   // isn't caught and re-mapped by the catch-all error handler below.
-  const usage =
-    "px evaluator create --name <name> --file evaluator.py --language PYTHON --sandbox-config-id <id> --input-mapping <json> --output-configs <json>";
-  for (const [flag, value] of [
-    ["--name", options.name],
-    ["--language", options.language],
-    ["--sandbox-config-id", options.sandboxConfigId],
-    ["--input-mapping", options.inputMapping],
-    ["--output-configs", options.outputConfigs],
-  ] as const) {
-    if (!value) {
-      writeStructuredError({
-        format: options.format,
-        message: `Missing required flag ${flag}`,
-        code: "INVALID_ARGUMENT",
-        hint: usage,
-      });
-      process.exit(ExitCode.INVALID_ARGUMENT);
-    }
-  }
-  const language = parseChoiceOrExit<Language>({
-    flag: "--language",
-    value: options.language ?? "",
-    allowed: LANGUAGES,
-    format: options.format,
-    normalize: (value) => value.toUpperCase(),
-  });
+  const type = parseCreateTypeOrExit(options);
 
   try {
-    const sourceCode = readInlineOrFile({
-      inline: options.sourceCode,
-      inlineFlag: "--source-code",
-      file: options.file,
-      fileFlag: "--file",
-    });
     const client = createClientOrExit(options);
+    const evaluator = buildEvaluatorCreate({ type, options });
 
     writeProgress({
       message: `Creating evaluator ${options.name}...`,
       noProgress: !options.progress,
     });
 
-    const evaluator = await createEvaluator({
-      client,
-      evaluator: {
-        type: "code",
-        name: options.name ?? "",
-        source_code: sourceCode,
-        language,
-        sandbox_config_id: options.sandboxConfigId ?? "",
-        input_mapping: parseJsonObjectFlag<InputMapping>({
-          flag: "--input-mapping",
-          value: options.inputMapping ?? "",
-        }),
-        output_configs: parseJsonArrayFlag<CodeOutputConfig>({
-          flag: "--output-configs",
-          value: options.outputConfigs ?? "",
-          nonEmpty: { hint: usage },
-        }),
-        ...(options.description !== undefined && {
-          description: options.description,
-        }),
-      },
-    });
+    let created: EvaluatorDefinition;
+    try {
+      created = await createEvaluator({ client, evaluator });
+    } catch (error) {
+      const { reason, existingId } = describeFailure(error);
+      if (!options.ifNotExists || reason !== "already_exists" || !existingId) {
+        throw error;
+      }
+      writeProgress({
+        message: `Evaluator ${options.name} already exists: ${existingId}`,
+        noProgress: !options.progress,
+      });
+      created = await getEvaluator({ client, evaluatorId: existingId });
+    }
 
     writeOutput({
-      message: formatEvaluatorOutput({ evaluator, format: options.format }),
+      message: formatEvaluatorOutput({
+        evaluator: created,
+        format: options.format,
+      }),
     });
   } catch (error) {
     await exitWithError({
@@ -585,7 +695,12 @@ function buildEvaluatorPatch({
       });
     }
     if (options.promptVersionId !== undefined) {
-      patch.prompt_version_id = options.promptVersionId;
+      patch.prompt = {
+        selector: {
+          type: "version",
+          prompt_version_id: options.promptVersionId,
+        },
+      };
     }
     return patch;
   }
@@ -710,7 +825,7 @@ async function evaluatorDeleteHandler(
     const client = createClientOrExit(options);
 
     await confirmOrExit({
-      message: `Delete evaluator ${evaluatorId} and its version history? This cannot be undone.`,
+      message: `Delete evaluator ${evaluatorId}? A code evaluator's version history is deleted with it; an LLM evaluator's prompt is kept. This cannot be undone.`,
       yes: options.yes,
     });
 
@@ -894,9 +1009,18 @@ export function createEvaluatorCreateCommand(): Command {
   return addCommonReadOptions(
     new Command("create")
       .description(
-        "Create a code evaluator that nothing binds yet, with its first version. Requires Phoenix server >= 21.0.0."
+        "Create an LLM or code evaluator that nothing binds yet. An LLM evaluator runs an existing prompt version; a code evaluator is created with its first version. Requires Phoenix server >= 21.0.0."
       )
+      .option("--type <type>", "Evaluator type: llm or code")
       .option("--name <name>", "Name, unique among evaluators")
+      .option(
+        "--prompt-version-id <id>",
+        "(LLM) Prompt version to run; create it with the prompts API first"
+      )
+      .option(
+        "--if-not-exists",
+        "Print the evaluator that already holds the name instead of failing"
+      )
       .option("--source-code <text>", "Full source, inline")
       .option("--file <path>", "Read the full source from a file")
       .option("--language <language>", "PYTHON or TYPESCRIPT")
@@ -917,11 +1041,16 @@ export function createEvaluatorCreateCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        "  # Create from a file and capture the new evaluator's ID (agent-friendly)\n" +
-        "  px evaluator create --name exact-match --file evaluator.py --language PYTHON \\\n" +
+        "  # Create an LLM evaluator that runs an existing prompt version\n" +
+        "  px evaluator create --type llm --name correctness --prompt-version-id UHJvbXB0VmVyc2lvbjo3 \\\n" +
+        '    --description correctness --output-configs \'[{"type":"CATEGORICAL","name":"correctness","optimization_direction":"MAXIMIZE","values":[{"label":"correct","score":1},{"label":"incorrect","score":0}]}]\'\n\n' +
+        "  # Create a code evaluator from a file and capture its ID, reusing one that already has the name (agent-friendly)\n" +
+        "  px evaluator create --type code --name exact-match --file evaluator.py --language PYTHON \\\n" +
         '    --sandbox-config-id U2FuZGJveENvbmZpZzox --input-mapping \'{"literal_mapping":{},"path_mapping":{"output":"output"}}\' \\\n' +
         '    --output-configs \'[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]\' \\\n' +
-        "    --format raw --no-progress | jq -r '.id'\n"
+        "    --if-not-exists --format raw --no-progress | jq -r '.id'\n\n" +
+        "  # Find a sandbox for code evaluators\n" +
+        "  px sandbox-config list --language PYTHON\n"
     )
     .action(evaluatorCreateHandler);
 }
