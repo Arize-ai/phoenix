@@ -797,11 +797,11 @@ px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
 px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes
 ```
 
-| Option                            | Description                                                    | Default  |
-| --------------------------------- | ---------------------------------------------------------------| -------- |
-| `--project <project-identifier>`  | Project the bindings belong to; required for more than one ID  | —        |
-| `--format <format>`               | Output format for a refusal: `pretty`, `json`, or `raw`        | `pretty` |
-| `-y, --yes`                       | Skip the confirmation prompt                                   | —        |
+| Option                           | Description                                                   | Default  |
+| -------------------------------- | ------------------------------------------------------------- | -------- |
+| `--project <project-identifier>` | Project the bindings belong to; required for more than one ID | —        |
+| `--format <format>`              | Output format for a refusal: `pretty`, `json`, or `raw`       | `pretty` |
+| `-y, --yes`                      | Skip the confirmation prompt                                  | —        |
 
 ---
 
