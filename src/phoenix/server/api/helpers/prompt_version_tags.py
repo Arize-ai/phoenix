@@ -48,16 +48,18 @@ async def validate_prompt_version_tag_move(
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
         except ValueError as error:
             raise Conflict(
-                f"Tag '{tag.name.root}' records the prompt version of evaluator {evaluator_id}, "
-                f"which cannot run the target version: {error}"
+                f"Tag '{tag.name.root}' records the prompt version of evaluator "
+                f"'{evaluator.name.root}' ({evaluator_id}), which cannot run the target "
+                f"version: {error}"
             ) from error
         if incompatible := await incompatible_dataset_override_ids(
             session, evaluator, prompt_version
         ):
             raise Conflict(
-                f"Tag '{tag.name.root}' records the prompt version of evaluator {evaluator_id}; "
-                "dataset evaluator bindings override outputs that the target version does not "
-                f"support: {', '.join(incompatible)}"
+                f"Tag '{tag.name.root}' records the prompt version of evaluator "
+                f"'{evaluator.name.root}' ({evaluator_id}); dataset evaluator bindings "
+                f"override outputs that the target version does not support: "
+                f"{', '.join(incompatible)}"
             )
         evaluator.updated_at = now
 
@@ -77,8 +79,10 @@ async def validate_prompt_version_tag_delete(
     if not evaluators:
         return
     noun = "evaluator" if len(evaluators) == 1 else "evaluators"
-    evaluator_ids = ", ".join(str(GlobalID("LLMEvaluator", str(e.id))) for e in evaluators)
+    evaluator_names = ", ".join(
+        f"'{e.name.root}' ({GlobalID('LLMEvaluator', str(e.id))})" for e in evaluators
+    )
     raise Conflict(
-        f"Tag '{tag.name.root}' records the prompt version of {noun} {evaluator_ids}, "
+        f"Tag '{tag.name.root}' records the prompt version of {noun} {evaluator_names}, "
         f"so it cannot be deleted; edit or delete the {noun} first"
     )

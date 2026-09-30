@@ -120,6 +120,7 @@ class _Fixture:
         self.tag = tag
         self.tag_name = tag.name.root
         self.evaluator_gid = str(GlobalID("LLMEvaluator", str(evaluator.id)))
+        self.evaluator_name = evaluator.name.root
         self.updated_at = evaluator.updated_at
 
 
@@ -272,6 +273,7 @@ class TestRestRoutes:
         )
         assert response.status_code == 409, response.text
         assert pinned.evaluator_gid in response.text
+        assert pinned.evaluator_name in response.text
         state = await _state(db, pinned.evaluator.id)
         assert state.tag_target == pinned.pinned_version.id
         assert state.updated_at == pinned.updated_at
@@ -289,6 +291,7 @@ class TestRestRoutes:
         )
         assert response.status_code == 409, response.text
         assert dataset_override in response.text
+        assert pinned.evaluator_name in response.text
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.pinned_version.id
 
     async def test_other_tags_move_freely(
@@ -377,6 +380,7 @@ class TestGraphQLMutations:
         )
         assert result.errors and "cannot run the target version" in result.errors[0].message
         assert pinned.evaluator_gid in result.errors[0].message
+        assert pinned.evaluator_name in result.errors[0].message
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.pinned_version.id
 
         result = await gql_client.execute(
@@ -410,6 +414,7 @@ class TestGraphQLMutations:
         )
         assert result.errors and "cannot be deleted" in result.errors[0].message
         assert pinned.evaluator_gid in result.errors[0].message
+        assert pinned.evaluator_name in result.errors[0].message
         assert await _tag_exists(db, pinned.tag.id)
         state = await _state(db, pinned.evaluator.id)
         assert state.tag_id == pinned.tag.id
@@ -467,6 +472,7 @@ class TestGraphQLMutations:
             },
         )
         assert result.errors and "cannot run the target version" in result.errors[0].message
+        assert pinned.evaluator_name in result.errors[0].message
         assert await _version_count(db, pinned.prompt.id) == 3
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.pinned_version.id
 
@@ -690,6 +696,7 @@ class TestConcurrentWrites:
             ),
         )
         assert result.errors and "cannot run the target version" in result.errors[0].message
+        assert pinned.evaluator_name in result.errors[0].message
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.incompatible_version.id
 
     async def test_retag_in_place_behind_an_edit_that_moves_the_tag_is_checked(
