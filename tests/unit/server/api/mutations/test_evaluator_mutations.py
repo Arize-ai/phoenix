@@ -4681,3 +4681,57 @@ class TestUpdateDatasetCodeEvaluatorMutation:
         assert evaluator["description"] == "override"
         assert evaluator["inputMapping"]["literalMapping"] == {"k": "v"}
         assert evaluator["updatedAt"]
+
+    async def test_update_rejects_duplicate_name_on_the_same_dataset(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        """The unique constraint is on (dataset_id, name), so renaming one binding to
+        another binding's name on the same dataset is a clean Conflict, not a crash."""
+
+        def _new_binding(name: str) -> models.DatasetEvaluators:
+            code_evaluator = models.CodeEvaluator(
+                name=IdentifierModel.model_validate(f"code-{token_hex(4)}"),
+                description="code evaluator",
+                metadata_={},
+                language=sandbox_config.language,
+                sandbox_config_id=sandbox_config.id,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                versions=[
+                    models.CodeEvaluatorVersion(
+                        source_code="def evaluate(output):\n    return {'score': 1.0}"
+                    )
+                ],
+            )
+            return models.DatasetEvaluators(
+                dataset_id=empty_dataset.id,
+                evaluator=code_evaluator,
+                name=IdentifierModel.model_validate(name),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name=f"code-binding-project-{token_hex(4)}"),
+            )
+
+        async with db() as session:
+            first_binding = _new_binding(f"first-{token_hex(4)}")
+            second_binding = _new_binding(f"second-{token_hex(4)}")
+            session.add(first_binding)
+            session.add(second_binding)
+            await session.flush()
+            first_binding_id = first_binding.id
+            second_binding_name = second_binding.name.root
+
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", str(first_binding_id))),
+                    "name": second_binding_name,
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                }
+            },
+        )
+        assert result.errors and "already exists" in result.errors[0].message.lower()
