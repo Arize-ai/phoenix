@@ -731,6 +731,80 @@ Miss-case stderr (raw): `{"error":"Project 'foo' not found","code":"FAILURE","hi
 
 ---
 
+### `px project evaluator list <project-identifier>`
+
+List the evaluators bound to a project. Requires Phoenix server >= 21.0.0.
+
+```bash
+px project evaluator list support-bot
+px project evaluator list support-bot --format raw --no-progress | jq -r '.[] | select(.enabled) | .id'
+```
+
+---
+
+### `px project evaluator get <project-evaluator-id>`
+
+Show a single binding. Output is a single record.
+
+```bash
+px project evaluator get UHJvamVjdEV2YWx1YXRvcjox --format json
+```
+
+---
+
+### `px project evaluator create <project-identifier>`
+
+Bind an existing evaluator definition to a project so it runs on incoming traces. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the evaluation delay; the delay is reported as `0` for `SPAN` bindings, which evaluate spans as they arrive. Create LLM and code definitions with `px evaluator create` first; one definition can back many bindings. A name the project already uses is refused with a conflict whose envelope carries `existing_id`.
+
+```bash
+px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition "span_kind == 'LLM'"
+px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}' --evaluation-delay-seconds 600
+```
+
+| Option                           | Description                                                                                                    | Default  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------- |
+| `--name <name>`                  | Binding name, unique within the project (required)                                                             | —        |
+| `--evaluation-target <target>`   | `SPAN`, `TRACE`, or `SESSION` (required)                                                                       | —        |
+| `--sampling-rate <number>`       | Fraction of matching records to evaluate, 0 to 1 (required)                                                    | —        |
+| `--evaluator-id <id>`            | The LLM or code evaluator to bind (required)                                                                   | —        |
+| `--filter-condition <expr>`      | Filter expression records must match, in the language of the evaluation target                                 | —        |
+| `--disabled`                     | Create the binding paused                                                                                      | —        |
+| `--input-mapping <json>`         | JSON object with `literal_mapping` and `path_mapping` (omit to use the definition's; LLM evaluators have none) | —        |
+| `--evaluation-delay-seconds <n>` | For `TRACE` and `SESSION` targets, quiet period before evaluation (rejected for `SPAN`)                        | server   |
+| `--format <format>`              | `pretty`, `json`, or `raw`                                                                                     | `pretty` |
+
+---
+
+### `px project evaluator update <project-evaluator-id>`
+
+Update a binding. Only the flags you pass are sent; omitted fields keep their values.
+
+```bash
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --sampling-rate 0.5 --filter-condition "span_kind == 'LLM'"
+```
+
+Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disabled`, `--input-mapping`, and `--evaluation-delay-seconds`. The evaluation target cannot change. `--inherit-input-mapping` drops the binding's mapping so the evaluator uses the definition's again, and `--default-evaluation-delay` restores the server's default delay for the target.
+
+---
+
+### `px project evaluator delete <project-evaluator-id...>`
+
+Delete one or more bindings. Only the bindings go: their evaluator definitions, prompts, and trace projects are kept. Several IDs need `--project` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+```bash
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes
+```
+
+| Option                           | Description                                                   | Default  |
+| -------------------------------- | ------------------------------------------------------------- | -------- |
+| `--project <project-identifier>` | Project the bindings belong to; required for more than one ID | —        |
+| `--format <format>`              | Output format for a refusal: `pretty`, `json`, or `raw`       | `pretty` |
+| `-y, --yes`                      | Skip the confirmation prompt                                  | —        |
+
+---
+
 ### `px session list`
 
 List sessions for a project.
