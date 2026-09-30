@@ -4215,14 +4215,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -4324,14 +4324,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -4394,14 +4394,14 @@
             "description": "Successful Response"
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -4457,14 +4457,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -4528,14 +4528,14 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
             "description": "Not Found",
@@ -4602,14 +4602,14 @@
             "description": "Successful Response"
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "422": {
             "description": "Unprocessable Entity",
