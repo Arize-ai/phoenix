@@ -1475,6 +1475,8 @@ CREATE INDEX ix_eval_session_work_units_claimable ON public.eval_session_work_un
     USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_evaluator_id ON public.eval_session_work_units
     USING btree (evaluator_id);
+CREATE INDEX ix_eval_session_work_units_project_evaluator_failed ON public.eval_session_work_units
+    USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON public.eval_session_work_units
     USING btree (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
@@ -1534,6 +1536,8 @@ CREATE INDEX ix_eval_trace_work_units_claimable ON public.eval_trace_work_units
     USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_trace_work_units_evaluator_id ON public.eval_trace_work_units
     USING btree (evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_failed ON public.eval_trace_work_units
+    USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON public.eval_trace_work_units
     USING btree (project_evaluator_id);
 CREATE INDEX ix_eval_trace_work_units_terminal ON public.eval_trace_work_units
@@ -1592,6 +1596,8 @@ CREATE INDEX ix_eval_work_units_claimable ON public.eval_work_units
     USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_evaluator_id ON public.eval_work_units
     USING btree (evaluator_id);
+CREATE INDEX ix_eval_work_units_project_evaluator_failed ON public.eval_work_units
+    USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON public.eval_work_units
     USING btree (project_evaluator_id);
 CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
