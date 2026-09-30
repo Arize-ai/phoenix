@@ -19,9 +19,8 @@ export const LLMEvaluatorForm = ({
   showInputMapping?: boolean;
   showAnnotationConfig?: boolean;
   /**
-   * Replaces the dataset mapping section. A dataset evaluator maps one row per
-   * template variable; an evaluator on a project's records maps the three
-   * inputs it receives, so the two sections are not the same control.
+   * Replaces the dataset mapping section with one that resolves variables
+   * against project records.
    */
   inputMappingSection?: ReactNode;
 }) => {
