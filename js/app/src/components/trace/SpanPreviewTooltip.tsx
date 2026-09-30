@@ -1,27 +1,26 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import type { ReactNode } from "react";
+import { Suspense, useState } from "react";
+import { useLazyLoadQuery, useRelayEnvironment } from "react-relay";
+import { createOperationDescriptor, getRequest } from "relay-runtime";
 
-import {
-  ErrorBoundary,
-  RichTooltip,
-  Text,
-  TooltipArrow,
-} from "@phoenix/components";
+import { ErrorBoundary, RichTooltip, TooltipArrow } from "@phoenix/components";
 import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
-import { useSettled, useTimeFormatters } from "@phoenix/hooks";
+import { useRetainQuery } from "@phoenix/contexts/QueryRetentionContext";
+import { useSettled } from "@phoenix/hooks";
 
-import { LatencyText } from "./LatencyText";
-import { SpanKindIcon } from "./SpanKindIcon";
-import { SpanMetricsDetailsById } from "./SpanMetricsDetails";
-import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
+import type { SpanMetricsDetailsQuery as SpanMetricsDetailsQueryType } from "./__generated__/SpanMetricsDetailsQuery.graphql";
 import {
-  TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
-  TokenDetailsBreakdownSkeleton,
-} from "./TokenDetailsBreakdown";
-import type { ISpanItem } from "./types";
+  SpanMetricsDetailsQuery,
+  useSpanMetricsDetailsProps,
+} from "./SpanMetricsDetails";
+import type { SpanPreviewCardProps } from "./SpanPreviewCard";
+import { SpanPreviewCard } from "./SpanPreviewCard";
+import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
+import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "./TokenDetailsBreakdown";
 
 /**
- * How long a tooltip stays open before its span's breakdown is fetched.
+ * How long a tooltip stays open before its span's details are fetched.
  * React Aria opens each tooltip at once after the first, so without this a
  * scrub down the tree would fetch details for every row it crossed.
  */
@@ -40,48 +39,14 @@ const spanPreviewTooltipCSS = css`
   }
 `;
 
-const cardCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-150);
-
-  .span-preview__header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-    min-width: 0;
-  }
-  .span-preview__name {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .span-preview__timing {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--global-dimension-size-200);
-    white-space: nowrap;
-  }
-  /* The breakdowns follow the timing under a rule, as sections do inside them */
-  .span-preview__timing + * {
-    padding-top: var(--global-dimension-size-150);
-    border-top: var(--global-border-size-thin) solid
-      var(--global-color-gray-300);
-  }
-`;
-
-export type SpanPreviewTooltipProps = {
-  /** The span as the trace tree holds it. */
-  span: ISpanItem;
-};
+export type SpanPreviewTooltipProps = Pick<
+  SpanPreviewCardProps,
+  "span" | "annotationConfigsByName"
+>;
 
 /**
- * A rich tooltip that describes one span of the trace tree: its name, when
- * it ran and for how long, then its token and cost breakdown.
+ * A trace tree row's tooltip: a {@link SpanPreviewCard} that loads the span's
+ * token and cost breakdown once the tooltip settles.
  *
  * @remarks
  * Render it as the tooltip of a `TooltipTrigger` around the row, which
@@ -90,14 +55,8 @@ export type SpanPreviewTooltipProps = {
  * the preview holds one horizontal position as the pointer moves down the
  * tree whatever the nesting, and the arrow and the row's hover fill, which
  * reaches that same edge, tie the two together.
- *
- * The identity, timing and totals render at once from what the row already
- * holds. The breakdown is fetched only once the tooltip has stayed open a
- * moment, so a scrub down the tree fetches details for the rows the pointer
- * rests on and no others; until it arrives, a skeleton of the breakdown
- * holds its place around the totals.
  */
-export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
+export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
   return (
     <RichTooltip
       placement="left top"
@@ -107,72 +66,76 @@ export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
     >
       {/* The arrow points at the row the preview describes */}
       <TooltipArrow />
-      <div css={cardCSS}>
-        <header className="span-preview__header">
-          <SpanKindIcon spanKind={span.spanKind} />
-          <Text weight="heavy" className="span-preview__name" title={span.name}>
-            {span.name}
-          </Text>
-          {span.statusCode === "ERROR" ? (
-            <SpanStatusCodeIcon statusCode="ERROR" />
-          ) : null}
-        </header>
-        <SpanTimingDetails
-          startTime={span.startTime}
-          endTime={span.endTime}
-          latencyMs={span.latencyMs}
-        />
-        <SpanPreviewMetrics span={span} />
-      </div>
+      <SpanPreviewDetails {...props} />
     </RichTooltip>
   );
 }
 
-/**
- * The span's token and cost totals at once, in a skeleton of the breakdown,
- * replaced by the full breakdown once the tooltip has settled and the
- * breakdown has loaded.
- */
-function SpanPreviewMetrics({ span }: SpanPreviewTooltipProps) {
-  const hasSettled = useSettled(DETAILS_SETTLE_MS);
-  const skeleton = (
-    <TokenDetailsBreakdownSkeleton
-      tokens={{ total: span.tokenCountTotal }}
-      costs={{ total: span.costSummary?.total?.cost }}
-    />
-  );
-  if (!hasSettled) {
-    return skeleton;
+const EMPTY_METRICS_DETAILS: TokenDetailsBreakdownProps = {};
+
+function getDetailsOperation(spanId: string) {
+  return createOperationDescriptor(getRequest(SpanMetricsDetailsQuery), {
+    nodeId: spanId,
+  });
+}
+
+function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
+  const { span } = props;
+  // Annotations come with the tree, so a span without usage has nothing to load
+  if (!span.tokenCountTotal && !span.costSummary?.total?.cost) {
+    return (
+      <SpanPreviewCard {...props} metricsDetails={EMPTY_METRICS_DETAILS} />
+    );
   }
-  return (
+  return <SpanPreviewUsageDetails {...props} />;
+}
+
+function SpanPreviewUsageDetails(props: SpanPreviewTooltipProps) {
+  const environment = useRelayEnvironment();
+  // Details already in the store when the tooltip opens skip the settle, so
+  // revisited rows never pop in
+  const [wasCached] = useState(
+    () =>
+      environment.check(getDetailsOperation(props.span.id)).status ===
+      "available"
+  );
+  const placeholder = <SpanPreviewCard {...props} />;
+  const details = (
     <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-      <Suspense fallback={skeleton}>
-        <SpanMetricsDetailsById spanNodeId={span.id} />
+      <Suspense fallback={placeholder}>
+        <LoadedSpanPreviewCard {...props} />
       </Suspense>
     </ErrorBoundary>
   );
+  if (wasCached) {
+    return details;
+  }
+  return <AfterSettle placeholder={placeholder}>{details}</AfterSettle>;
 }
 
-/**
- * One line: when the span started and ended on the left, and how long that
- * took on the right. Every span has these, so a tool or chain span without
- * tokens still has a preview worth opening. Times stop at the second: the
- * latency beside them carries the finer resolution.
- */
-function SpanTimingDetails({
-  startTime,
-  endTime,
-  latencyMs,
-}: Pick<ISpanItem, "startTime" | "endTime" | "latencyMs">) {
-  const { timeOfDayFormatter } = useTimeFormatters();
+function AfterSettle({
+  placeholder,
+  children,
+}: {
+  placeholder: ReactNode;
+  children: ReactNode;
+}) {
+  const hasSettled = useSettled(DETAILS_SETTLE_MS);
+  return hasSettled ? children : placeholder;
+}
+
+function LoadedSpanPreviewCard(props: SpanPreviewTooltipProps) {
+  const data = useLazyLoadQuery<SpanMetricsDetailsQueryType>(
+    SpanMetricsDetailsQuery,
+    { nodeId: props.span.id }
+  );
+  useRetainQuery(getDetailsOperation(props.span.id));
+  const node = data.node.__typename === "Span" ? data.node : null;
+  const metricsDetails = useSpanMetricsDetailsProps(node);
   return (
-    <div className="span-preview__timing">
-      <Text size="S" fontFamily="mono" color="text-700">
-        {timeOfDayFormatter(new Date(startTime))}
-        {" to "}
-        {endTime ? timeOfDayFormatter(new Date(endTime)) : "now"}
-      </Text>
-      <LatencyText latencyMs={latencyMs} size="S" showIcon={false} />
-    </div>
+    <SpanPreviewCard
+      {...props}
+      metricsDetails={metricsDetails ?? EMPTY_METRICS_DETAILS}
+    />
   );
 }

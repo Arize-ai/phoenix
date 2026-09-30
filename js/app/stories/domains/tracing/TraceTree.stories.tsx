@@ -16,6 +16,13 @@ import {
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import { PreferencesProvider } from "@phoenix/contexts";
 
+import {
+  annotationConfigsByName,
+  spanAnnotationsBySpanId,
+  summarizeSpanAnnotations,
+} from "../../constants/annotationFixtures";
+import { buildSpan } from "../../constants/spanFixtures";
+
 /**
  * The frame the stories render into, sized like the trace tree's slot in the
  * trace details view.
@@ -28,35 +35,9 @@ const frameStyle: CSSProperties = {
   flexDirection: "column",
 };
 
-/**
- * Builds a span with sensible defaults. `startOffsetMs` is relative to the
- * trace start so a fixture reads as a timeline.
- */
-function span(
-  overrides: Partial<ISpanItem> & {
-    id: string;
-    name: string;
-    spanKind: string;
-    startOffsetMs: number;
-    /** `null` leaves the span open: no end time and no latency. */
-    latencyMs: number | null;
-  }
-): ISpanItem {
-  const { startOffsetMs, latencyMs, ...rest } = overrides;
-  const traceStart = Date.parse("2026-09-22T09:30:00.000Z");
-  const start = new Date(traceStart + startOffsetMs);
-  return {
-    spanId: rest.id,
-    parentId: null,
-    statusCode: "OK",
-    startTime: start.toISOString(),
-    endTime:
-      latencyMs == null
-        ? null
-        : new Date(start.getTime() + latencyMs).toISOString(),
-    latencyMs,
-    ...rest,
-  };
+/** Places every span of these fixtures in one trace that starts at 09:30. */
+function span(overrides: Parameters<typeof buildSpan>[0]): ISpanItem {
+  return buildSpan(overrides, { traceStart: "2026-09-22T09:30:00.000Z" });
 }
 
 /**
@@ -277,6 +258,17 @@ const deepSpans: ISpanItem[] = Array.from(
   }
 );
 
+/** The RAG trace with its evals attached to the spans they ran over. */
+const evaluatedSpans: ISpanItem[] = ragSpans.map((item) => {
+  const annotations = spanAnnotationsBySpanId[item.id];
+  return annotations
+    ? {
+        ...item,
+        spanAnnotationSummaries: summarizeSpanAnnotations(annotations),
+      }
+    : item;
+});
+
 const spansById = new Map(
   [...gameRoundSpans, ...ragSpans, ...mixedSpans, ...deepSpans].map((item) => [
     item.id,
@@ -285,16 +277,20 @@ const spansById = new Map(
 );
 
 /**
- * The details the preview loads for one span. A span with tokens gets
- * a prompt/completion split and a cache-read entry so the breakdown has
- * something to draw; other spans answer with latency alone.
+ * The details the preview loads for one span: a prompt/completion split
+ * with a cache-read entry for a span with tokens so the breakdown has
+ * something to draw. Other spans answer with latency alone.
  */
 function buildSpanDetails(nodeId: string) {
   const match = spansById.get(nodeId);
   if (!match) {
     return null;
   }
-  const base = { __typename: "Span", id: nodeId, latencyMs: match.latencyMs };
+  const base = {
+    __typename: "Span",
+    id: nodeId,
+    latencyMs: match.latencyMs,
+  };
   const total = match.tokenCountTotal;
   if (typeof total !== "number") {
     return {
@@ -388,6 +384,7 @@ function TraceTreeFrame({
           selectedSpanNodeId={selectedSpanNodeId}
           onSpanClick={(item) => setSelectedSpanNodeId(item.id)}
           scrollSelectedSpanIntoView={false}
+          annotationConfigsByName={annotationConfigsByName}
         />
       </TraceTreeProvider>
     </div>
@@ -401,12 +398,14 @@ function TraceTreeFrame({
  * latency | tokens | cost. Metrics a span lacks are dropped from its footer,
  * so rows differ in height, and the tree edges end at each row's own center.
  *
- * Every row is the trigger of a rich tooltip beside the tree that names
- * the span and shows when it ran, then its token and cost breakdown. The
- * breakdown is fetched only when a tooltip opens, with the totals the row
- * already knows standing in until it arrives. In these stories a canned
- * Relay environment answers that load after a short delay. Scrub the
- * pointer down a tree: after the first tooltip, each row's opens at once.
+ * A span with annotations (notes aside) gets a line of badges under the row,
+ * unfavorable first, tinted by the project's annotation config. Badges that
+ * do not fit collapse into "+N".
+ *
+ * Every row opens the `Span Preview Tooltip`, whose details load only once
+ * it settles; here a canned Relay environment answers after a short delay.
+ * Scrub the pointer down a tree: after the first tooltip, each row's opens
+ * at once.
  *
  * While a trace loads, `TraceTreeSkeleton` stands in for the tree. Its rows
  * share the tree's layout styles and edges, so it responds to the same width
@@ -455,6 +454,39 @@ export const ManyLLMSpans: Story = {
  */
 export const MixedRowHeights: Story = {
   render: () => <TraceTreeFrame spans={mixedSpans} />,
+};
+
+/**
+ * The RAG trace after its evals ran. The retriever and the draft are flagged
+ * in red; the final answer passed in green; `tone` has no direction and
+ * stays plain. Hover the draft for its preview.
+ */
+export const WithAnnotations: Story = {
+  render: () => (
+    <TraceTreeFrame spans={evaluatedSpans} initialSelectedSpanId="llm-draft" />
+  ),
+};
+
+/**
+ * The same trace in a narrow tree: badges that do not fit are clipped whole
+ * behind a "+N" badge, and the unfavorable one is the one left showing.
+ */
+export const AnnotationsClipped: Story = {
+  render: () => (
+    <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+      {[
+        { label: "Medium (420px)", width: 420 },
+        { label: "Compact (260px)", width: 260 },
+      ].map(({ label, width }) => (
+        <div key={label}>
+          <Text size="XS" color="text-700">
+            {label}
+          </Text>
+          <TraceTreeFrame spans={evaluatedSpans} width={width} />
+        </div>
+      ))}
+    </div>
+  ),
 };
 
 /** An error span keeps its footer; the status icon sits beside the name. */

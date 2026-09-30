@@ -1,3 +1,5 @@
+import type { AnnotationSummary } from "@phoenix/components/annotation/types";
+
 /**
  * A generic interface for a span to be re-used as a constraint
  */
@@ -16,6 +18,8 @@ export interface ISpanItem {
   costSummary?: {
     total?: { cost?: number | null } | null;
   } | null;
+  /** Per-name annotation summaries, notes excluded. */
+  spanAnnotationSummaries?: readonly AnnotationSummary[] | null;
   [otherKeys: string]: unknown;
 }
 

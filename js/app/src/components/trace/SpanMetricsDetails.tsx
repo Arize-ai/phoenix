@@ -88,6 +88,17 @@ function getSpanMetricsDetailsProps(
 }
 
 /**
+ * Reads `SpanMetricsDetails_span` into `TokenDetailsBreakdown` props, for
+ * surfaces that pass plain data down instead of a fragment key.
+ */
+export function useSpanMetricsDetailsProps(
+  span: SpanMetricsDetails_span$key | null | undefined
+): TokenDetailsBreakdownProps | null {
+  const data = useFragment(SpanMetricsDetailsFragment, span);
+  return data ? getSpanMetricsDetailsProps(data) : null;
+}
+
+/**
  * Metrics details for a span whose data the parent already holds. Spread
  * `SpanMetricsDetails_span` into the parent's query or fragment.
  */
