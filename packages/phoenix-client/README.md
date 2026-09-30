@@ -522,7 +522,7 @@ from phoenix.client import Client
 
 client = Client()
 
-# List definitions; `type` is "llm" or "code"
+# List definitions; `type` is "llm", "code", or "builtin"
 for definition in client.evaluators.list(type="code", limit=20):
     print(definition["id"], definition["name"])
 
