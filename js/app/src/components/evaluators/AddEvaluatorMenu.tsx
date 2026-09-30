@@ -6,7 +6,6 @@ import type {
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 import { useSearchParams } from "react-router";
-import z from "zod";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { Button } from "@phoenix/components/core/button";
@@ -29,6 +28,7 @@ import {
 import type { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_llmEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_llmEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
+import { choicesToOutputConfigValues } from "@phoenix/components/evaluators/utils";
 import {
   CREATE_CODE_EVALUATOR_PARAM,
   CREATE_LLM_EVALUATOR_PARAM,
@@ -355,12 +355,6 @@ const LLMEvaluatorTemplateSubmenu = ({
               (evaluator) => evaluator.name === key
             );
             if (evaluator) {
-              const maybeValidatedChoices = z
-                .record(z.string(), z.number())
-                .safeParse(evaluator.choices);
-              const validatedChoices = maybeValidatedChoices.success
-                ? maybeValidatedChoices.data
-                : {};
               onAction({
                 name: evaluator.name,
                 description: evaluator.description ?? "",
@@ -368,12 +362,7 @@ const LLMEvaluatorTemplateSubmenu = ({
                   {
                     name: evaluator.name,
                     optimizationDirection: evaluator.optimizationDirection,
-                    values: Object.entries(validatedChoices).map(
-                      ([label, score]) => ({
-                        label,
-                        score,
-                      })
-                    ),
+                    values: choicesToOutputConfigValues(evaluator.choices),
                   },
                 ],
                 promptMessages: evaluator.messages,
