@@ -94,7 +94,10 @@ function evaluatorRow(evaluator: EvaluatorDefinition): Record<string, unknown> {
   };
   switch (evaluator.type) {
     case "llm":
-      row["prompt version"] = evaluator.prompt_version?.id ?? "";
+      row["prompt version"] =
+        evaluator.prompt.selector.type === "latest"
+          ? `latest (${evaluator.prompt.resolved_prompt_version_id ?? "none"})`
+          : evaluator.prompt.selector.prompt_version_id;
       break;
     case "code":
       row.language = evaluator.language;

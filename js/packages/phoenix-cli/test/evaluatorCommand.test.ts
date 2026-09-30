@@ -52,8 +52,11 @@ const LLM_EVALUATOR: componentsV1["schemas"]["LLMEvaluatorDefinition"] = {
   id: LLM_ID,
   name: "toxicity",
   description: "Flags toxic responses",
-  prompt_id: "UHJvbXB0OjE=",
-  prompt_version: null,
+  prompt: {
+    prompt_id: "UHJvbXB0OjE=",
+    selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+    resolved_prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
+  },
   output_configs: [
     {
       type: "CATEGORICAL",
@@ -284,6 +287,8 @@ describe("evaluator create", () => {
       await createEvaluatorCommand().parseAsync(
         [
           "create",
+          "--type",
+          "code",
           "--name",
           "exact-match",
           "--file",
@@ -335,7 +340,16 @@ describe("evaluator create", () => {
 
     await expect(
       createEvaluatorCommand().parseAsync(
-        ["create", "--name", "exact-match", "--source-code", "x", ...BASE_ARGS],
+        [
+          "create",
+          "--type",
+          "code",
+          "--name",
+          "exact-match",
+          "--source-code",
+          "x",
+          ...BASE_ARGS,
+        ],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -359,6 +373,8 @@ describe("evaluator create", () => {
       createEvaluatorCommand().parseAsync(
         [
           "create",
+          "--type",
+          "code",
           "--name",
           "exact-match",
           "--source-code",
@@ -394,6 +410,8 @@ describe("evaluator create", () => {
       createEvaluatorCommand().parseAsync(
         [
           "create",
+          "--type",
+          "code",
           "--name",
           "exact-match",
           "--source-code",
@@ -421,7 +439,9 @@ describe("evaluator create", () => {
       error:
         "Error creating evaluator: --output-configs must be a non-empty JSON array",
       code: "INVALID_ARGUMENT",
-      hint: expect.stringContaining("px evaluator create --name <name>"),
+      hint: expect.stringContaining(
+        "px evaluator create --type code --name <name>"
+      ),
     });
   });
 });
@@ -477,7 +497,12 @@ describe("evaluator update", () => {
 
     expect(captured.body).toEqual({
       type: "llm",
-      prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
+      prompt: {
+        selector: {
+          type: "version",
+          prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
+        },
+      },
     });
   });
 
@@ -926,5 +951,121 @@ describe("evaluator command error handling", () => {
     expect(listed).toBe(false);
     const envelope = JSON.parse(String(stderrSpy.mock.calls[0]?.[0]));
     expect(envelope.code).toBe("INVALID_ARGUMENT");
+  });
+});
+
+describe("evaluator create --type llm", () => {
+  const llmArgs = [
+    "create",
+    "--type",
+    "llm",
+    "--name",
+    "toxicity",
+    "--prompt-version-id",
+    "UHJvbXB0VmVyc2lvbjo3",
+    "--output-configs",
+    JSON.stringify(LLM_EVALUATOR.output_configs),
+    "--format",
+    "raw",
+  ];
+
+  it("pins the prompt version through the selector", async () => {
+    let receivedBody: unknown;
+    mock.server.use(
+      http.post("/v1/evaluators", async ({ request, response }) => {
+        receivedBody = await request.clone().json();
+        return response(201).json({ data: LLM_EVALUATOR });
+      })
+    );
+    const io = captureCliOutput();
+
+    await createEvaluatorCommand().parseAsync([...llmArgs, ...BASE_ARGS], {
+      from: "user",
+    });
+
+    expect(receivedBody).toEqual({
+      type: "llm",
+      name: "toxicity",
+      prompt: {
+        selector: {
+          type: "version",
+          prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
+        },
+      },
+      output_configs: LLM_EVALUATOR.output_configs,
+    });
+    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual(
+      LLM_EVALUATOR
+    );
+  });
+
+  it("refuses code-only flags before any request", async () => {
+    const requests = recordRequests(mock.server);
+    const io = captureCliOutput();
+    mockProcessExit();
+
+    await expect(
+      createEvaluatorCommand().parseAsync(
+        [...llmArgs, "--language", "PYTHON", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(requests).toEqual([]);
+    const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(envelope.error).toBe("--language cannot be used with --type llm");
+  });
+
+  const taken = () =>
+    new Response(
+      JSON.stringify({
+        type: "about:blank",
+        title: "Conflict",
+        status: 409,
+        detail: "An evaluator named 'toxicity' already exists",
+        code: "already_exists",
+        existing_id: LLM_ID,
+      }),
+      { status: 409, headers: { "content-type": "application/problem+json" } }
+    );
+
+  it("reports the server's reason and the existing evaluator", async () => {
+    mock.server.use(http.post("/v1/evaluators", () => taken()));
+    const io = captureCliOutput();
+    mockProcessExit();
+
+    await expect(
+      createEvaluatorCommand().parseAsync([...llmArgs, ...BASE_ARGS], {
+        from: "user",
+      })
+    ).rejects.toThrow("process.exit:");
+
+    const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(envelope).toMatchObject({
+      status: 409,
+      reason: "already_exists",
+      existing_id: LLM_ID,
+    });
+    expect(envelope.error).toContain("already exists");
+  });
+
+  it("prints the existing evaluator with --if-not-exists", async () => {
+    mock.server.use(
+      http.post("/v1/evaluators", () => taken()),
+      http.get("/v1/evaluators/{evaluator_id}", ({ params, response }) => {
+        expect(params.evaluator_id).toBe(LLM_ID);
+        return response(200).json({ data: LLM_EVALUATOR });
+      })
+    );
+    const io = captureCliOutput();
+
+    await createEvaluatorCommand().parseAsync(
+      [...llmArgs, "--if-not-exists", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual(
+      LLM_EVALUATOR
+    );
   });
 });

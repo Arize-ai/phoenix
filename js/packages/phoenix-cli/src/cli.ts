@@ -14,6 +14,7 @@ import {
   createProfileCommand,
   createProjectCommand,
   createPromptCommand,
+  createSandboxConfigCommand,
   createSessionAnnotationsCommand,
   createSessionCommand,
   createSelfCommand,
@@ -54,6 +55,7 @@ export function createProgram(): Command {
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptCommand());
   program.addCommand(createEvaluatorCommand());
+  program.addCommand(createSandboxConfigCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
   program.addCommand(createSelfCommand());
