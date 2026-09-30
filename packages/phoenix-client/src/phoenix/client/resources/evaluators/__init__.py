@@ -568,7 +568,7 @@ class Evaluators:
         raise_for_problem(response)
 
     def list_sandbox_configs(
-        self, *, language: Optional[Language] = None
+        self, *, language: Optional[Language] = None, limit: Optional[int] = None
     ) -> List[v1.SandboxConfig]:
         """List the sandbox configurations code evaluators can run in, newest first.
 
@@ -579,6 +579,8 @@ class Evaluators:
         Args:
             language (Optional[Literal["PYTHON", "TYPESCRIPT"]]): Return only
                 configurations for this language.
+            limit (Optional[int]): Stop after this many configurations. By
+                default pagination is followed to the end.
 
         Returns:
             The sandbox configurations.
@@ -597,15 +599,16 @@ class Evaluators:
         configs: list[v1.SandboxConfig] = []
         next_cursor: Optional[str] = None
         while True:
-            params: dict[str, Union[str, int]] = {"limit": _PAGE_SIZE}
+            remaining = None if limit is None else limit - len(configs)
+            params = _list_params(next_cursor, remaining=remaining)
             if language is not None:
                 params["language"] = language
-            if next_cursor:
-                params["cursor"] = next_cursor
             response = self._client.get("v1/sandbox_configs", params=params)
             raise_for_problem(response)
             page = cast(v1.SandboxConfigsResponseBody, response.json())
             configs.extend(page["data"])
+            if limit is not None and len(configs) >= limit:
+                return configs[:limit]
             if not (next_cursor := page.get("next_cursor")):
                 return configs
 
@@ -1088,7 +1091,7 @@ class AsyncEvaluators:
         raise_for_problem(response)
 
     async def list_sandbox_configs(
-        self, *, language: Optional[Language] = None
+        self, *, language: Optional[Language] = None, limit: Optional[int] = None
     ) -> List[v1.SandboxConfig]:
         """List the sandbox configurations code evaluators can run in, newest first.
 
@@ -1099,6 +1102,8 @@ class AsyncEvaluators:
         Args:
             language (Optional[Literal["PYTHON", "TYPESCRIPT"]]): Return only
                 configurations for this language.
+            limit (Optional[int]): Stop after this many configurations. By
+                default pagination is followed to the end.
 
         Returns:
             The sandbox configurations.
@@ -1117,15 +1122,16 @@ class AsyncEvaluators:
         configs: list[v1.SandboxConfig] = []
         next_cursor: Optional[str] = None
         while True:
-            params: dict[str, Union[str, int]] = {"limit": _PAGE_SIZE}
+            remaining = None if limit is None else limit - len(configs)
+            params = _list_params(next_cursor, remaining=remaining)
             if language is not None:
                 params["language"] = language
-            if next_cursor:
-                params["cursor"] = next_cursor
             response = await self._client.get("v1/sandbox_configs", params=params)
             raise_for_problem(response)
             page = cast(v1.SandboxConfigsResponseBody, response.json())
             configs.extend(page["data"])
+            if limit is not None and len(configs) >= limit:
+                return configs[:limit]
             if not (next_cursor := page.get("next_cursor")):
                 return configs
 
