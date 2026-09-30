@@ -64,11 +64,13 @@ import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectE
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
+import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import {
   EvaluatorScoreWindowProvider,
   ProjectEvaluatorMeanScoreCell,
@@ -107,6 +109,7 @@ const scrollableAreaCSS = css`
 const readRow = (
   row: ProjectEvaluatorsTable_row$key &
     ProjectEvaluatorsTable_costs$key &
+    ProjectEvaluatorsTable_failures$key &
     ProjectEvaluatorsTable_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
@@ -211,6 +214,22 @@ const readRow = (
     `,
     row
   );
+  const failuresData = readInlineData<ProjectEvaluatorsTable_failures$key>(
+    graphql`
+      fragment ProjectEvaluatorsTable_failures on ProjectEvaluator
+      @inline
+      @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
+        failureSummary(timeRange: $timeRange) {
+          failedCount
+          evaluatedCount
+          failureRate
+          lastFailedAt
+          lastError
+        }
+      }
+    `,
+    row
+  );
   const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
     graphql`
       fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
@@ -248,7 +267,7 @@ const readRow = (
     `,
     row
   );
-  return { ...rowData, ...costData, ...scoresData };
+  return { ...rowData, ...costData, ...failuresData, ...scoresData };
 };
 
 type TableRow = ReturnType<typeof readRow>;
@@ -269,7 +288,7 @@ export function ProjectEvaluatorsTable({
   projectId: string;
   /** Free-text name search from the toolbar; empty means unfiltered. */
   filter: string;
-  /** Selected project time range used by the cost aggregates. */
+  /** Selected project time range used by the cost and failure aggregates. */
   timeRange: TimeRangeISOStrings;
   /** Normalized filter used to fetch the rows supplied by the owner query. */
   initialFilter: string;
@@ -308,6 +327,8 @@ export function ProjectEvaluatorsTable({
             node {
               ...ProjectEvaluatorsTable_row
               ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorsTable_failures
+                @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_scores
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
@@ -478,6 +499,17 @@ export function ProjectEvaluatorsTable({
           <ProjectEvaluatorStatusCell
             enabled={row.original.enabled}
             runSummary={row.original.runSummary}
+          />
+        ),
+      },
+      {
+        id: "failures",
+        header: "failure rate",
+        size: 110,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <ProjectEvaluatorFailuresCell
+            failureSummary={row.original.failureSummary}
           />
         ),
       },
