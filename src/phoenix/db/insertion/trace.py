@@ -18,7 +18,7 @@ async def advance_trace_liveness(
     if not rowids:
         return
 
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         value = func.greatest(
             models.Trace.last_span_ingested_at,

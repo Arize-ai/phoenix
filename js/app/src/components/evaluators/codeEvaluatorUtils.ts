@@ -239,19 +239,58 @@ function getTypeScriptPatternNameSlot({
   }
   // The key is what binds an input; a rename or a default sits beside it and
   // names nothing the evaluator is handed.
+  const key = getPatternPropertyKey({ state, property });
+  return key === null
+    ? null
+    : toNameSlot({
+        state,
+        from: key.from,
+        to: key.to,
+        pos,
+        requiresDestructure: false,
+      });
+}
+
+/**
+ * The range of the key a destructured property binds. A renamed property
+ * (`{ input: value }`) carries a PropertyName; a shorthand one (`{ input }`,
+ * `{ input = 1 }`) carries only the VariableDefinition, whose range can run
+ * over a default the parser failed to recover.
+ */
+function getPatternPropertyKey({
+  state,
+  property,
+}: {
+  state: EditorState;
+  property: CodeEvaluatorSyntaxNode;
+}): { from: number; to: number } | null {
   const propertyName = findDirectChild({
     parent: property,
     name: "PropertyName",
   });
-  return propertyName === null
+  if (propertyName !== null) {
+    return { from: propertyName.from, to: propertyName.to };
+  }
+  if (
+    findDirectChild({ parent: property, name: "Spread" }) !== null ||
+    findDirectChild({ parent: property, name: ":" }) !== null
+  ) {
+    return null;
+  }
+  const definition = findDirectChild({
+    parent: property,
+    name: "VariableDefinition",
+  });
+  if (definition === null) {
+    return null;
+  }
+  const text = state.doc.sliceString(definition.from, definition.to);
+  const identifier = /^[\p{ID_Start}$_][\p{ID_Continue}$\u200c\u200d]*/u.exec(
+    text
+  );
+  return identifier === null
     ? null
-    : toNameSlot({
-        state,
-        from: propertyName.from,
-        to: propertyName.to,
-        pos,
-        requiresDestructure: false,
-      });
+    : { from: definition.from, to: definition.from + identifier[0].length };
 }
 
 function getTypeScriptParameterNameSlot({
@@ -496,12 +535,10 @@ function extractTypeScriptVariables({
   }
   return getDirectChildren(objectPattern)
     .filter((node) => node.name === "PatternProperty")
-    .map((property) =>
-      findDirectChild({ parent: property, name: "PropertyName" })
-    )
-    .filter((node): node is CodeEvaluatorSyntaxNode => node !== null)
-    .map((node) => ({
-      name: getNodeText({ state, node }),
+    .map((property) => getPatternPropertyKey({ state, property }))
+    .filter((key) => key !== null)
+    .map((key) => ({
+      name: state.doc.sliceString(key.from, key.to),
       // TypeScript evaluators receive one object, so destructured keys can be
       // absent without preventing the evaluator call.
       isRequired: false,

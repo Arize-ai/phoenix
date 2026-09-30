@@ -433,7 +433,7 @@ class EvalSweeper(DaemonTask):
         for _ in range(2):
             async with self._db() as session:
                 database_now = await self._database_now(session)
-                lease_id = await session.scalar(
+                lease_id: Optional[int] = await session.scalar(
                     update(models.EvalWorkLease)
                     .where(
                         models.EvalWorkLease.name == self._lease_name,
@@ -536,7 +536,9 @@ class EvalSweeper(DaemonTask):
             if self._db.dialect is SupportedSQLDialect.POSTGRESQL
             else func.now()
         )
-        database_now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
+        database_now: Optional[datetime] = await session.scalar(
+            select(type_coerce(clock, models.UtcTimeStamp()))
+        )
         if database_now is None:
             raise RuntimeError("Database did not return its current time")
         return database_now
