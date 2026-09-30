@@ -459,6 +459,17 @@ test.describe.serial("Projects", () => {
       .click();
     await expect(createDialog).toBeVisible();
     await createDialog.getByLabel("Name").first().fill(evaluatorName);
+    // Every template here declares a variable beyond input, output and
+    // metadata, which the record has no field of the same name for, so Create
+    // waits until each has a path.
+    const declaredVariablePaths = createDialog.getByRole("textbox", {
+      name: /^(?!(input|output|metadata) ).+ path mapping$/,
+    });
+    await expect(declaredVariablePaths.first()).toBeVisible();
+    for (const pathField of await declaredVariablePaths.all()) {
+      await pathField.click();
+      await page.keyboard.insertText("input");
+    }
     await createDialog
       .getByRole("button", { name: "Create", exact: true })
       .click();
