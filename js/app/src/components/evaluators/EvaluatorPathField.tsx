@@ -87,7 +87,10 @@ export function EvaluatorPathField({
   /** What the variable reads while the field is empty. */
   placeholder: string;
 }) {
-  const suggestedPaths = getEvaluatorSlotSuggestedPaths(recordKind, variableName);
+  const suggestedPaths = getEvaluatorSlotSuggestedPaths(
+    recordKind,
+    variableName
+  );
 
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
