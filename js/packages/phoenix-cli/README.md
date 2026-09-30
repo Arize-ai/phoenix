@@ -754,26 +754,24 @@ px project evaluator get UHJvamVjdEV2YWx1YXRvcjox --format json
 
 ### `px project evaluator create <project-identifier>`
 
-Bind an evaluator to a project so it runs on incoming traces, creating the evaluator if needed. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the evaluation delay; the delay is reported as `0` for `SPAN` bindings, which evaluate spans as they arrive. Exactly one of `--evaluator-id`, `--evaluator`, or `--evaluator-file` selects the evaluator. Existing code evaluators are bound by ID; LLM evaluators are created with the binding because each one is tied to its own prompt. A new LLM evaluator names its prompt source with either `prompt_version` (content for a new prompt) or `prompt_version_id` (an existing version), not both, and its `description` must equal the description of its prompt's tool function.
+Bind an existing evaluator definition to a project so it runs on incoming traces. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the evaluation delay; the delay is reported as `0` for `SPAN` bindings, which evaluate spans as they arrive. Create LLM and code definitions with `px evaluator create` first; one definition can back many bindings. A name the project already uses is refused with a conflict whose envelope carries `existing_id`.
 
 ```bash
 px project evaluator create support-bot --name toxicity --evaluation-target SPAN --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition "span_kind == 'LLM'"
-px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-file resolution.json --input-mapping '{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}' --evaluation-delay-seconds 600
+px project evaluator create support-bot --name resolution --evaluation-target SESSION --sampling-rate 1 --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"transcript":"metadata.turns"}}' --evaluation-delay-seconds 600
 ```
 
-| Option                           | Description                                                                                                                | Default  |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `--name <name>`                  | Binding name, unique within the project (required)                                                                         | —        |
-| `--evaluation-target <target>`   | `SPAN`, `TRACE`, or `SESSION` (required)                                                                                   | —        |
-| `--sampling-rate <number>`       | Fraction of matching records to evaluate, 0 to 1 (required)                                                                | —        |
-| `--evaluator-id <id>`            | Bind an existing code evaluator                                                                                            | —        |
-| `--evaluator <json>`             | Inline JSON for a new evaluator with `type` of `llm` or `code`; a code evaluator needs at least one `output_configs` entry | —        |
-| `--evaluator-file <path>`        | Read the new evaluator JSON from a file                                                                                    | —        |
-| `--filter-condition <expr>`      | Filter expression records must match, in the language of the evaluation target                                             | —        |
-| `--disabled`                     | Create the binding paused                                                                                                  | —        |
-| `--input-mapping <json>`         | JSON object with `literal_mapping` and `path_mapping` (omit to use the definition's; LLM evaluators have none)             | —        |
-| `--evaluation-delay-seconds <n>` | For `TRACE` and `SESSION` targets, quiet period before evaluation (rejected for `SPAN`)                                    | server   |
-| `--format <format>`              | `pretty`, `json`, or `raw`                                                                                                 | `pretty` |
+| Option                           | Description                                                                                                    | Default  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------- |
+| `--name <name>`                  | Binding name, unique within the project (required)                                                             | —        |
+| `--evaluation-target <target>`   | `SPAN`, `TRACE`, or `SESSION` (required)                                                                       | —        |
+| `--sampling-rate <number>`       | Fraction of matching records to evaluate, 0 to 1 (required)                                                    | —        |
+| `--evaluator-id <id>`            | The LLM or code evaluator to bind (required)                                                                   | —        |
+| `--filter-condition <expr>`      | Filter expression records must match, in the language of the evaluation target                                 | —        |
+| `--disabled`                     | Create the binding paused                                                                                      | —        |
+| `--input-mapping <json>`         | JSON object with `literal_mapping` and `path_mapping` (omit to use the definition's; LLM evaluators have none) | —        |
+| `--evaluation-delay-seconds <n>` | For `TRACE` and `SESSION` targets, quiet period before evaluation (rejected for `SPAN`)                        | server   |
+| `--format <format>`              | `pretty`, `json`, or `raw`                                                                                     | `pretty` |
 
 ---
 
@@ -792,17 +790,17 @@ Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disa
 
 ### `px project evaluator delete <project-evaluator-id...>`
 
-Delete one or more bindings and their evaluator traces. The shared definition is deleted once nothing else references it; an LLM evaluator's prompt is kept unless `--delete-prompt` is passed. Several IDs are deleted atomically. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+Delete one or more bindings. Only the bindings go: their evaluator definitions, prompts, and trace projects are kept. Several IDs need `--project` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
 ```bash
 px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
-px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --delete-prompt --yes
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes
 ```
 
-| Option            | Description                                                         | Default |
-| ----------------- | ------------------------------------------------------------------- | ------- |
-| `--delete-prompt` | Also delete the prompt of an LLM evaluator deleted with the binding | —       |
-| `-y, --yes`       | Skip the confirmation prompt                                        | —       |
+| Option                           | Description                                                   | Default |
+| -------------------------------- | ------------------------------------------------------------- | ------- |
+| `--project <project-identifier>` | Project the bindings belong to; required for more than one ID | —       |
+| `-y, --yes`                      | Skip the confirmation prompt                                  | —       |
 
 ---
 
