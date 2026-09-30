@@ -67,7 +67,7 @@ def test_evaluators_exposes_dataset_evaluators() -> None:
 
 
 class TestDatasetEvaluatorsCreate:
-    def test_create_with_evaluator_id_sends_reference(self) -> None:
+    def test_create_references_the_definition(self) -> None:
         created = _make_binding()
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -75,8 +75,8 @@ class TestDatasetEvaluatorsCreate:
             assert request.url.path == "/v1/datasets/golden-questions/evaluators"
             assert json.loads(request.content) == {
                 "name": "exact-match",
+                "evaluator_id": EVALUATOR_ID,
                 "input_mapping": INPUT_MAPPING,
-                "evaluator": {"type": "reference", "evaluator_id": EVALUATOR_ID},
             }
             return httpx.Response(201, json={"data": created})
 
@@ -84,23 +84,13 @@ class TestDatasetEvaluatorsCreate:
         result = DatasetEvaluators(client).create(
             dataset="golden-questions",
             name="exact-match",
-            input_mapping=INPUT_MAPPING,
             evaluator_id=EVALUATOR_ID,
+            input_mapping=INPUT_MAPPING,
         )
         assert result == created
         assert result["evaluator_type"] == "code"
 
-    def test_create_with_new_evaluator_and_overrides(self) -> None:
-        evaluator: v1.NewCodeEvaluator = {
-            "type": "code",
-            "source_code": "def evaluate(output: str) -> float:\n    return 1.0\n",
-            "language": "PYTHON",
-            "sandbox_config_id": "U2FuZGJveENvbmZpZzox",
-            "input_mapping": INPUT_MAPPING,
-            "output_configs": [
-                {"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}
-            ],
-        }
+    def test_create_sends_overrides(self) -> None:
         output_configs: list[v1.FreeformAnnotationConfigData] = [
             {"type": "FREEFORM", "name": "notes"}
         ]
@@ -108,7 +98,6 @@ class TestDatasetEvaluatorsCreate:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/v1/datasets/RGF0YXNldDox/evaluators"
             body = json.loads(request.content)
-            assert body["evaluator"] == evaluator
             assert body["description"] == "override"
             assert body["output_configs"] == output_configs
             return httpx.Response(201, json={"data": _make_binding(description="override")})
@@ -117,22 +106,12 @@ class TestDatasetEvaluatorsCreate:
         result = DatasetEvaluators(client).create(
             dataset="RGF0YXNldDox",
             name="exact-match",
+            evaluator_id=EVALUATOR_ID,
             input_mapping=INPUT_MAPPING,
-            evaluator=evaluator,
             description="override",
             output_configs=output_configs,
         )
         assert result["description"] == "override"
-
-    @pytest.mark.parametrize("kwargs", [{}, {"evaluator_id": EVALUATOR_ID, "evaluator": {}}])
-    def test_create_requires_exactly_one_evaluator_source(self, kwargs: dict[str, object]) -> None:
-        with pytest.raises(ValueError, match="Exactly one of evaluator or evaluator_id"):
-            DatasetEvaluators(_unreachable_client()).create(
-                dataset="d",
-                name="n",
-                input_mapping=INPUT_MAPPING,
-                **kwargs,  # type: ignore[arg-type]
-            )
 
     def test_create_calls_guard_before_request(self) -> None:
         with pytest.raises(_GuardSentinel):
@@ -203,62 +182,50 @@ class TestDatasetEvaluatorsGetUpdate:
 
 
 class TestDatasetEvaluatorsDelete:
-    def test_delete_keeps_prompt_by_default(self) -> None:
+    def test_delete_removes_only_the_binding(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
             assert request.url.path == f"/v1/dataset_evaluators/{BINDING_ID}"
-            assert request.url.params.get("delete_associated_prompt") == "false"
+            assert not request.url.params
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         DatasetEvaluators(client).delete(dataset_evaluator_id=BINDING_ID)
 
-    def test_delete_forwards_prompt_flag(self) -> None:
+    def test_delete_many_deletes_from_the_dataset_collection(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.params.get("delete_associated_prompt") == "true"
+            assert request.method == "DELETE"
+            assert request.url.path == "/v1/datasets/golden-questions/evaluators"
+            assert request.url.params.get_list("dataset_evaluator_id") == ["a", "b"]
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        DatasetEvaluators(client).delete(
-            dataset_evaluator_id=BINDING_ID, delete_associated_prompt=True
+        DatasetEvaluators(client).delete_many(
+            dataset="golden-questions", dataset_evaluator_ids=["a", "b"]
         )
-
-    def test_delete_many_posts_ids_in_body(self) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert request.method == "POST"
-            assert request.url.path == "/v1/dataset_evaluators/delete"
-            assert json.loads(request.content) == {
-                "dataset_evaluator_ids": ["a", "b"],
-                "delete_associated_prompt": False,
-            }
-            return httpx.Response(204)
-
-        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        DatasetEvaluators(client).delete_many(dataset_evaluator_ids=["a", "b"])
 
     def test_delete_many_requires_ids(self) -> None:
         with pytest.raises(ValueError, match="At least one dataset_evaluator_id"):
-            DatasetEvaluators(_unreachable_client()).delete_many(dataset_evaluator_ids=[])
+            DatasetEvaluators(_unreachable_client()).delete_many(
+                dataset="d", dataset_evaluator_ids=[]
+            )
 
     def test_delete_many_calls_guard_before_request(self) -> None:
         with pytest.raises(_GuardSentinel):
             DatasetEvaluators(
                 _unreachable_client(),
                 _guard=_refusing_guard(DELETE_DATASET_EVALUATORS),  # type: ignore[arg-type]
-            ).delete_many(dataset_evaluator_ids=["a"])
+            ).delete_many(dataset="d", dataset_evaluator_ids=["a"])
 
 
 class TestAsyncDatasetEvaluators:
     @pytest.mark.asyncio
-    async def test_create_with_evaluator_id_sends_reference(self) -> None:
+    async def test_create_references_the_definition(self) -> None:
         created = _make_binding()
 
         async def handler(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/v1/datasets/golden-questions/evaluators"
-            assert json.loads(request.content)["evaluator"] == {
-                "type": "reference",
-                "evaluator_id": EVALUATOR_ID,
-            }
+            assert json.loads(request.content)["evaluator_id"] == EVALUATOR_ID
             return httpx.Response(201, json={"data": created})
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
@@ -287,19 +254,16 @@ class TestAsyncDatasetEvaluators:
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_delete_many_posts_ids_in_body(self) -> None:
+    async def test_delete_many_deletes_from_the_dataset_collection(self) -> None:
         async def handler(request: httpx.Request) -> httpx.Response:
-            assert request.method == "POST"
-            assert request.url.path == "/v1/dataset_evaluators/delete"
-            assert json.loads(request.content) == {
-                "dataset_evaluator_ids": ["a", "b"],
-                "delete_associated_prompt": True,
-            }
+            assert request.method == "DELETE"
+            assert request.url.path == "/v1/datasets/golden-questions/evaluators"
+            assert request.url.params.get_list("dataset_evaluator_id") == ["a", "b"]
             return httpx.Response(204)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         await AsyncDatasetEvaluators(client).delete_many(
-            dataset_evaluator_ids=["a", "b"], delete_associated_prompt=True
+            dataset="golden-questions", dataset_evaluator_ids=["a", "b"]
         )
 
 

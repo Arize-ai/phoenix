@@ -112,23 +112,6 @@ export type EvaluatorOutputConfig =
 export type DatasetEvaluator = components["schemas"]["DatasetEvaluator"];
 
 /**
- * A new LLM evaluator to create alongside a binding.
- */
-export type NewLLMEvaluator = components["schemas"]["NewLLMEvaluator"];
-
-/**
- * A new code evaluator to create alongside a binding.
- */
-export type NewCodeEvaluator = components["schemas"]["NewCodeEvaluator"];
-
-/**
- * The evaluator a dataset binding creates or references: a new LLM or code
- * evaluator, or `{ type: "reference", evaluator_id }` for an existing one.
- */
-export type DatasetEvaluatorInput =
-  components["schemas"]["CreateDatasetEvaluatorRequest"]["evaluator"];
-
-/**
  * Fields that can change on a dataset binding. Omitted fields keep their
  * current values.
  */

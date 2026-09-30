@@ -955,47 +955,23 @@ console.log(version.id, version.was_created);
 
 ### Binding Evaluators to Datasets
 
-A dataset binding registers an evaluator to run against the dataset's experiments. It carries its own name and input mapping and may override the definition's description and output configurations. Creating a binding does not run an experiment. Existing code and built-in evaluators are bound by reference; LLM evaluators are created with the binding because each one is tied to its own prompt.
+A dataset binding registers an existing evaluator definition to run against the dataset's experiments. It carries its own name and input mapping and may override the definition's description and output configurations. Creating a binding does not run an experiment. Create LLM and code definitions with `createEvaluator` first, or bind a built-in evaluator by ID; one definition can back many bindings.
 
 ```ts
 import {
   createDatasetEvaluator,
   deleteDatasetEvaluator,
+  deleteDatasetEvaluators,
   getDatasetEvaluators,
   updateDatasetEvaluator,
 } from "@arizeai/phoenix-client/evaluators";
 
-// Bind an existing evaluator; the dataset can be selected by name or ID
+// The dataset can be selected by name or ID
 const binding = await createDatasetEvaluator({
   dataset: { datasetName: "golden-questions" },
   name: "exact-match",
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
   inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
-  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
-});
-
-// Or create a new LLM evaluator that runs an existing prompt version and bind it in one step.
-// The version must carry the output tool the evaluator scores with, so build it in the Prompt
-// Hub or with the prompts API first; the evaluator's description must equal that tool's description.
-await createDatasetEvaluator({
-  dataset: { datasetName: "golden-questions" },
-  name: "toxicity",
-  inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
-  evaluator: {
-    type: "llm",
-    description: "toxicity",
-    prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
-    output_configs: [
-      {
-        type: "CATEGORICAL",
-        name: "toxicity",
-        optimization_direction: "MINIMIZE",
-        values: [
-          { label: "toxic", score: 1 },
-          { label: "clean", score: 0 },
-        ],
-      },
-    ],
-  },
 });
 
 const bindings = await getDatasetEvaluators({
@@ -1004,12 +980,15 @@ const bindings = await getDatasetEvaluators({
 
 await updateDatasetEvaluator({
   datasetEvaluatorId: binding.id,
-  patch: { description: "Runs against the nightly golden set" },
+  patch: { name: "nightly-exact-match" },
 });
 
-// Deleting the last binding of an evaluator deletes the evaluator too. Its
-// prompt is kept unless `deleteAssociatedPrompt` is set.
+// Deleting a binding keeps its definition, prompt, and trace project
 await deleteDatasetEvaluator({ datasetEvaluatorId: binding.id });
+await deleteDatasetEvaluators({
+  dataset: { datasetName: "golden-questions" },
+  datasetEvaluatorIds: bindings.map((item) => item.id),
+});
 ```
 
 ## Examples

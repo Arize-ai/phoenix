@@ -5,7 +5,6 @@ from typing import Literal, Union
 from phoenix.client.__generated__ import v1
 
 __all__ = [
-    "DatasetEvaluatorInput",
     "EvaluatorDefinition",
     "EvaluatorOutputConfig",
     "EvaluatorType",
@@ -31,11 +30,3 @@ EvaluatorOutputConfig = Union[
     v1.FreeformAnnotationConfigData,
 ]
 """An output configuration produced by an evaluator or overridden on a binding."""
-
-DatasetEvaluatorInput = Union[
-    v1.NewLLMEvaluator,
-    v1.NewCodeEvaluator,
-    v1.ExistingEvaluator,
-]
-"""The evaluator a dataset binding creates or references. ``type`` is ``"llm"``,
-``"code"``, or ``"reference"``."""
