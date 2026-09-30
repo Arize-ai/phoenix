@@ -2,9 +2,16 @@
  * RFC 9457 problem details, returned by the routes that report structured errors.
  *
  * `code` is stable and machine-readable (for example `already_exists` or
- * `validation_error`); treat an unrecognized code by its status. `existing_id`
- * names the resource that holds a taken name, and `errors` lists every invalid
- * input of a request that failed schema validation.
+ * `validation_error`); treat an unrecognized code by its status. `reason` is a finer
+ * condition under `code` (for example `still_bound`); treat an unrecognized reason by
+ * `code`. `errors` lists every invalid input of a request that failed schema validation.
+ * The remaining fields are the recovery data a caller needs for a given `reason`:
+ * `existing_id` (`already_exists`) names the resource that holds a taken name,
+ * `current_version_id` (`version_mismatch`) is the version actually current — null when
+ * there is none yet — `binding_counts` (`still_bound`) counts what still refuses a delete,
+ * and `dataset_evaluator_ids` (`incompatible_override`) names the bindings whose overrides
+ * no longer fit. The index signature lets a future member (an unreleased reason's own
+ * field, say) pass through unread rather than being stripped.
  */
 export interface ProblemDetail {
   type: string;
@@ -12,8 +19,13 @@ export interface ProblemDetail {
   status: number;
   detail: string;
   code: string;
+  reason?: string;
   errors?: { field: string; code: string; message: string }[];
   existing_id?: string;
+  current_version_id?: string | null;
+  binding_counts?: { project: number; dataset: number };
+  dataset_evaluator_ids?: string[];
+  [extension: string]: unknown;
 }
 
 /**
@@ -50,8 +62,24 @@ function describe(response: Response, problem?: ProblemDetail): string {
   for (const error of problem.errors ?? []) {
     lines.push(`  ${error.field}: ${error.message}`);
   }
+  if (problem.reason) lines.push(`  reason: ${problem.reason}`);
   if (problem.existing_id) lines.push(`  existing_id: ${problem.existing_id}`);
   return lines.join("\n");
+}
+
+/**
+ * A problem body is an object with, at minimum, a numeric `status` and string `code` and
+ * `detail`; anything else (a proxy's HTML page, a truncated body, a body some other layer
+ * wrote under this content type) is not one, even under the right content type.
+ */
+function isProblemDetail(body: unknown): body is ProblemDetail {
+  if (!body || typeof body !== "object") return false;
+  const candidate = body as Record<string, unknown>;
+  return (
+    typeof candidate.status === "number" &&
+    typeof candidate.code === "string" &&
+    typeof candidate.detail === "string"
+  );
 }
 
 /**
@@ -69,9 +97,7 @@ export async function readProblemDetail(
   }
   try {
     const body: unknown = await response.clone().json();
-    return body && typeof body === "object"
-      ? (body as ProblemDetail)
-      : undefined;
+    return isProblemDetail(body) ? body : undefined;
   } catch {
     return undefined;
   }

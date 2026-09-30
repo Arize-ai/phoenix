@@ -9,6 +9,18 @@ from phoenix.client.exceptions import PhoenixAPIError
 _DETAIL_LIMIT = 2000
 
 
+def _is_problem_detail(body: Any) -> bool:
+    """A problem body is a JSON object with, at minimum, an int `status` and string `code`
+    and `detail`; anything else (a proxy's HTML page, a truncated body, a body some other
+    layer wrote under this content type) is not one, even under the right content type."""
+    return (
+        isinstance(body, dict)
+        and isinstance(body.get("status"), int)
+        and isinstance(body.get("code"), str)
+        and isinstance(body.get("detail"), str)
+    )
+
+
 def raise_for_problem(response: httpx.Response) -> None:
     """Raise :class:`PhoenixAPIError` for an error response, carrying its problem details."""
     if response.is_success:
@@ -19,7 +31,7 @@ def raise_for_problem(response: httpx.Response) -> None:
             body = response.json()
         except ValueError:
             body = None
-        if isinstance(body, dict):
+        if _is_problem_detail(body):
             problem = body
     request = response.request
     message = f"{response.status_code} {response.reason_phrase} for {request.method} {request.url}"
@@ -27,6 +39,8 @@ def raise_for_problem(response: httpx.Response) -> None:
         message += f": [{problem.get('code')}] {problem.get('detail')}"
         for error in problem.get("errors") or ():
             message += f"\n  {error.get('field')}: {error.get('message')}"
+        if problem.get("reason"):
+            message += f"\n  reason: {problem['reason']}"
         if problem.get("existing_id"):
             message += f"\n  existing_id: {problem['existing_id']}"
     elif response.text:
