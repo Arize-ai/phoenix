@@ -549,7 +549,7 @@ px evaluator create --type code --name exact-match --file evaluator.py --languag
 | `--output-configs <json>`  | JSON array of output configurations, at least one (required)                    | —       |
 | `--if-not-exists`          | Print the evaluator that already holds the name instead of failing              | —       |
 
-A server-side failure on any `px evaluator` command — not found, a name clash, a validation error, and so on — exits `ExitCode.FAILURE` (1); only auth and bad-argument problems get their own codes. To tell these apart, pass `--format raw` or `json` and read `status` and `reason` from the stderr envelope: `reason` is the server's problem code (`not_found`, `conflict`, `already_exists`, `validation_error`, ...). `--if-not-exists` on `create` covers the name-clash case without inspecting the envelope.
+A server-side failure on any `px evaluator` command — not found, a name clash, a validation error, and so on — exits `ExitCode.FAILURE` (1); only auth and bad-argument problems get their own codes. To tell these apart, pass `--format raw` or `json` and read `status`, `problem_code`, and `problem_reason` from the stderr envelope: `problem_code` is the server's own code (`not_found`, `conflict`, `already_exists`, `validation_error`, ...) and `problem_reason` is a finer condition under it when the server sends one (e.g. `still_bound`). The full parsed body is under `problem`, including recovery fields like `existing_id` or `binding_counts`. `--if-not-exists` on `create` covers the name-clash case without inspecting the envelope.
 
 ### `px evaluator update <evaluator-id>`
 
@@ -592,7 +592,7 @@ px sandbox-config list --language PYTHON
 px sandbox-config list --language PYTHON --format raw --no-progress | jq -r 'map(select(.is_usable))[0].id'
 ```
 
-In `raw`/`json` mode a failed request's error envelope also carries the HTTP `status`, the server's `reason` (for example `already_exists` or `validation_error`), and, for a taken name, the `existing_id` holding it.
+In `raw`/`json` mode a failed request's error envelope also carries the HTTP `status`, the server's `problem_code` (for example `already_exists` or `validation_error`), and, for a taken name, the `existing_id` holding it.
 
 ### `px evaluator version list <evaluator-id>`
 

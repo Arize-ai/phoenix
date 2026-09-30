@@ -1,3 +1,5 @@
+import type { ProblemDetail } from "@arizeai/phoenix-client";
+
 import { writeError } from "./io";
 
 /**
@@ -7,11 +9,16 @@ import { writeError } from "./io";
  *
  * Shape:
  *   { error: string, code: string, hint?: string, status?: number,
- *     reason?: string, existing_id?: string }
+ *     problem_code?: string, problem_reason?: string, existing_id?: string,
+ *     problem?: ProblemDetail }
  *
  * `code` is the `ExitCode` constant *name* (e.g. "INVALID_ARGUMENT", not the
  * numeric code), and `hint` SHOULD be a copy-pasteable command that resolves
- * the problem when one is available.
+ * the problem when one is available. `problem_code` and `problem_reason` are
+ * shortcuts to the server's own `code` (e.g. "already_exists") and `reason`
+ * (a finer condition under it, e.g. "still_bound"); `problem` is the full
+ * parsed body, every member included, for a recovery field this envelope
+ * doesn't shortcut on its own (e.g. `binding_counts`).
  */
 export interface StructuredError {
   error: string;
@@ -19,10 +26,14 @@ export interface StructuredError {
   hint?: string;
   /** HTTP status of a failed API request. */
   status?: number;
-  /** The server's machine-readable reason, e.g. "already_exists". */
-  reason?: string;
+  /** The server's own machine-readable code, e.g. "already_exists". */
+  problem_code?: string;
+  /** A finer condition under problem_code, e.g. "still_bound". */
+  problem_reason?: string;
   /** For "already_exists": the GlobalID of the resource that holds the name. */
   existing_id?: string;
+  /** The full parsed problem body, every member included. */
+  problem?: ProblemDetail;
 }
 
 export interface WriteStructuredErrorOptions {
@@ -34,10 +45,13 @@ export interface WriteStructuredErrorOptions {
   code: string;
   /** Optional copy-pasteable resolution hint. */
   hint?: string;
-  /** HTTP status, server reason, and existing resource of a failed API request. */
+  /** HTTP status, the server's code and reason, and existing resource of a failed request. */
   status?: number;
-  reason?: string;
+  problemCode?: string;
+  problemReason?: string;
   existingId?: string;
+  /** The full parsed problem body, every member included. */
+  problem?: ProblemDetail;
 }
 
 /**
@@ -51,8 +65,10 @@ export function writeStructuredError({
   code,
   hint,
   status,
-  reason,
+  problemCode,
+  problemReason,
   existingId,
+  problem,
 }: WriteStructuredErrorOptions): void {
   const mode = format ?? "pretty";
   if (mode === "json" || mode === "raw") {
@@ -61,8 +77,10 @@ export function writeStructuredError({
       code,
       ...(hint !== undefined && { hint }),
       ...(status !== undefined && { status }),
-      ...(reason !== undefined && { reason }),
+      ...(problemCode !== undefined && { problem_code: problemCode }),
+      ...(problemReason !== undefined && { problem_reason: problemReason }),
       ...(existingId !== undefined && { existing_id: existingId }),
+      ...(problem !== undefined && { problem }),
     };
     writeError({
       message:

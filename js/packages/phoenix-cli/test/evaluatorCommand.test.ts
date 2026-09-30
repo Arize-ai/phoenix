@@ -1103,10 +1103,45 @@ describe("evaluator create --type llm", () => {
     const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
     expect(envelope).toMatchObject({
       status: 409,
-      reason: "already_exists",
+      problem_code: "already_exists",
       existing_id: LLM_ID,
     });
+    expect(envelope.problem).toMatchObject({ existing_id: LLM_ID });
     expect(envelope.error).toContain("already exists");
+  });
+
+  const stillBound = () =>
+    new Response(
+      JSON.stringify({
+        type: "urn:phoenix:problem:conflict",
+        title: "Conflict",
+        status: 409,
+        detail: "Evaluator is still bound by 1 project and 0 dataset bindings",
+        code: "conflict",
+        reason: "still_bound",
+        binding_counts: { project: 1, dataset: 0 },
+      }),
+      { status: 409, headers: { "content-type": "application/problem+json" } }
+    );
+
+  it("surfaces the server's finer reason and recovery fields under problem", async () => {
+    mock.server.use(http.post("/v1/evaluators", () => stillBound()));
+    const io = captureCliOutput();
+    mockProcessExit();
+
+    await expect(
+      createEvaluatorCommand().parseAsync([...llmArgs, ...BASE_ARGS], {
+        from: "user",
+      })
+    ).rejects.toThrow("process.exit:");
+
+    const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(envelope).toMatchObject({
+      status: 409,
+      problem_code: "conflict",
+      problem_reason: "still_bound",
+    });
+    expect(envelope.problem.binding_counts).toEqual({ project: 1, dataset: 0 });
   });
 
   const invalidName = () =>
@@ -1141,7 +1176,10 @@ describe("evaluator create --type llm", () => {
     ).rejects.toThrow("process.exit:");
 
     const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
-    expect(envelope).toMatchObject({ status: 422, reason: "validation_error" });
+    expect(envelope).toMatchObject({
+      status: 422,
+      problem_code: "validation_error",
+    });
     expect(envelope.hint).toBe(
       "--name: String should match pattern '^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$'"
     );
