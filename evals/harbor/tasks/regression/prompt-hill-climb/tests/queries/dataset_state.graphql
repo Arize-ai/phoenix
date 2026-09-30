@@ -83,6 +83,7 @@ query DatasetState($datasetId: ID!) {
                         name
                         score
                         label
+                        startTime
                       }
                     }
                   }

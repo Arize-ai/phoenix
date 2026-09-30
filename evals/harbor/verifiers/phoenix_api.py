@@ -6,10 +6,12 @@ GraphQL, so :func:`span_costs` uses the GraphQL API.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import urllib.request
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 from phoenix.client import Client
@@ -48,6 +50,24 @@ def annotation_labels(project: str, name: str) -> list[str]:
         for annotation in annotations
         if annotation.get("result") and annotation["result"].get("label")
     ]
+
+
+def read_query(path: Path) -> str:
+    """The text of a ``.graphql`` file, which the unit tests validate against the schema."""
+    return path.read_text()
+
+
+def nodes(connection: dict[str, Any]) -> list[dict[str, Any]]:
+    return [edge["node"] for edge in connection["edges"]]
+
+
+def rowid(node_id: str) -> int:
+    """The database row number inside a relay node id such as ``Experiment:12``."""
+    return int(base64.b64decode(node_id).decode().rsplit(":", 1)[1])
+
+
+def global_id(type_name: str, rowid: int) -> str:
+    return base64.b64encode(f"{type_name}:{rowid}".encode()).decode()
 
 
 def graphql(

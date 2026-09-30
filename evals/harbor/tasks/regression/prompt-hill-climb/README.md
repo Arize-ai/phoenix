@@ -36,15 +36,15 @@ The checks read Phoenix through `arize-phoenix-client` and the GraphQL queries i
      - `first_experiment_imperfect`: at least two experiments, and the first scores below 1.0.
      - `all_experiments_fully_scored`: every experiment has 28 runs, each scored by the evaluator.
      - `last_experiment_passes_all`: the last experiment has no errored runs and 28 passes.
-     - Also writes `first_score`, `last_score`, and `best_score`, and snapshots the
-       experiments to `/var/lib/phoenix-eval/state/step_02.json` for step 3.
+     - Also writes `first_score`, `last_score`, and `best_score`.
 3. `step_03_compare`
    - Instruction: compare first and last experiments, show moved examples, record the learning on the last one.
    - Verifier:
-     - `no_new_experiments_or_scores`: experiments, run counts, and annotation count match the step 2 snapshot.
+     - `no_new_experiments_or_scores`: no experiment or annotation was created after the step began,
+       taking the start from the first timestamp in the step's ATIF trajectory.
      - `reply_names_both_experiments`: the final reply names the first and last experiment.
      - `reply_links_comparison_view`: the reply links `/datasets/<id>/compare?experimentId=...` for exactly that pair.
-     - `learning_recorded_on_last_experiment`: the last experiment's metadata gained a dated entry and lost no keys.
-     - `judge_accepts_comparison`: an LLM judge (`PHOENIX_EVAL_JUDGE_MODEL`, default
-       `claude-sonnet-5`) confirms the reply states matching scores, compares latency and
+     - `learning_recorded_on_last_experiment`: the last experiment's metadata holds a date on or after the step began.
+     - `judge_accepts_comparison`: the shared LLM judge (`PHOENIX_EVAL_JUDGE_PROVIDER` and
+       `PHOENIX_EVAL_JUDGE_MODEL`, default OpenAI `gpt-5-nano`) confirms the reply states matching scores, compares latency and
        cost, cites real moved examples, and gives a verdict.

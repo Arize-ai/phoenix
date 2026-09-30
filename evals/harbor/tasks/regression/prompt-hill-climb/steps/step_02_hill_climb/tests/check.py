@@ -1,6 +1,9 @@
+import json
+
 import hill_climb_checks as hc
 
-trajectory = hc.load_trajectory()
+from evals.harbor.verifiers import verify
+
 dataset_id, examples = hc.fetch_dataset()
 evaluators, experiments = hc.fetch_dataset_state(dataset_id)
 
@@ -17,38 +20,22 @@ last_experiment_passes_all = (
 )
 
 passed = first_experiment_imperfect and all_experiments_fully_scored and last_experiment_passes_all
-if experiments:
-    hc.save_state(
-        "step_02",
+details = {
+    "experiment_count": len(experiments),
+    "experiments": [
         {
-            "experiments": [
-                {
-                    "id": x.node_id,
-                    "name": x.name,
-                    "metadata": x.metadata,
-                    "run_count": x.run_count,
-                    "annotation_count": x.annotation_count,
-                }
-                for x in experiments
-            ],
-        },
-    )
-hc.write_reward(
+            "id": x.node_id,
+            "name": x.name,
+            "runs": x.run_count,
+            "errors": x.error_count,
+            "passed": x.pass_count,
+        }
+        for x in experiments
+    ],
+}
+scores = verify.write_reward(
     float(passed),
-    details={
-        "tool_calls": hc.tool_call_count(trajectory),
-        "experiment_count": len(experiments),
-        "experiments": [
-            {
-                "id": x.node_id,
-                "name": x.name,
-                "runs": x.run_count,
-                "errors": x.error_count,
-                "passed": x.pass_count,
-            }
-            for x in experiments
-        ],
-    },
+    details,
     first_experiment_imperfect=first_experiment_imperfect,
     all_experiments_fully_scored=all_experiments_fully_scored,
     last_experiment_passes_all=last_experiment_passes_all,
@@ -56,3 +43,4 @@ hc.write_reward(
     last_score=last.mean_score if last else 0.0,
     best_score=max((x.mean_score for x in experiments), default=0.0),
 )
+print(json.dumps({**scores, **details}, indent=2, default=str))

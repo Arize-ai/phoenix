@@ -1,49 +1,17 @@
 from __future__ import annotations
 
-import base64
-import json
-import os
 import re
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
 from evals.harbor.verifiers import phoenix_api, verify
 
-AGENT_LOGS_DIR = Path(os.environ.get("PHOENIX_EVAL_AGENT_LOGS_DIR", "/logs/agent"))
-REWARD_PATH = Path(os.environ.get("PHOENIX_EVAL_REWARD_PATH", "/logs/verifier/reward.json"))
-# Survives between steps because every step verifies inside the same container.
-STATE_DIR = Path(os.environ.get("PHOENIX_EVAL_STATE_DIR", "/var/lib/phoenix-eval/state"))
-JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "claude-sonnet-5")
 QUERIES_DIR = Path(__file__).with_name("queries")
 DATASET_NAME = "banking_saas_dataset_clean"
 
-
-def query(name: str) -> str:
-    return (QUERIES_DIR / f"{name}.graphql").read_text()
-
-
-def rowid(node_id: str) -> int:
-    """The database row number inside a relay node id such as ``Experiment:12``."""
-    return int(base64.b64decode(node_id).decode().rsplit(":", 1)[1])
-
-
-# --- the agent's ATIF trajectory -------------------------------------------------
-
-Trajectory = dict[str, Any]
 ExampleNodeId = str
-
-
-def load_trajectory() -> Trajectory:
-    return verify.read_trajectory(AGENT_LOGS_DIR / "trajectory.json") or {}
-
-
-def final_reply(trajectory: Trajectory) -> str:
-    return verify.final_reply(trajectory)
-
-
-def tool_call_count(trajectory: Trajectory) -> int:
-    return sum(len(step.get("tool_calls") or []) for step in verify.agent_steps(trajectory))
 
 
 # --- the dataset -------------------------------------------------------------------
@@ -51,14 +19,14 @@ def tool_call_count(trajectory: Trajectory) -> int:
 
 @dataclass
 class Example:
-    node_id: str
+    node_id: ExampleNodeId
     input: Any
     reference: Any
     metadata: Any
 
     @property
     def rowid(self) -> int:
-        return rowid(self.node_id)
+        return phoenix_api.rowid(self.node_id)
 
     @property
     def reference_text(self) -> str:
@@ -111,17 +79,17 @@ class Experiment:
     name: str
     description: str | None
     metadata: dict[str, Any]
-    created_at: str
+    created_at: datetime
     run_count: int
     error_count: int
-    annotation_count: int
     scores: dict[ExampleNodeId, float | None]
+    latest_annotation_at: datetime | None
     latency_ms: float | None
     cost: float | None
 
     @property
     def rowid(self) -> int:
-        return rowid(self.node_id)
+        return phoenix_api.rowid(self.node_id)
 
     @property
     def scored_count(self) -> int:
@@ -136,15 +104,18 @@ class Experiment:
         scored = [s for s in self.scores.values() if s is not None]
         return sum(scored) / len(scored) if scored else 0.0
 
-
-def _nodes(connection: dict[str, Any]) -> list[dict[str, Any]]:
-    return [edge["node"] for edge in connection["edges"]]
+    def changed_after(self, instant: datetime) -> bool:
+        """Whether the experiment or any of its scores was created after ``instant``."""
+        return self.created_at > instant or (
+            self.latest_annotation_at is not None and self.latest_annotation_at > instant
+        )
 
 
 def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Experiment]]:
     """The evaluators bound to the dataset and every experiment run on it, with each run
     scored by the latest annotation from one of those evaluators."""
-    dataset = phoenix_api.graphql(query("dataset_state"), {"datasetId": dataset_id})["node"]
+    query = phoenix_api.read_query(QUERIES_DIR / "dataset_state.graphql")
+    dataset = phoenix_api.graphql(query, {"datasetId": dataset_id})["node"]
     evaluators = [
         BoundEvaluator(
             node_id=binding["evaluator"]["id"],
@@ -159,17 +130,17 @@ def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Exp
             sandbox_config_id=(binding["evaluator"].get("sandboxConfig") or {}).get("id"),
             evaluator_name=binding["evaluator"]["name"],
         )
-        for binding in _nodes(dataset["datasetEvaluators"])
+        for binding in phoenix_api.nodes(dataset["datasetEvaluators"])
     ]
     evaluator_names = {e.name for e in evaluators}
     experiments: list[Experiment] = []
-    for node in _nodes(dataset["experiments"]):
-        runs = [r for r in _nodes(node["runs"]) if r["repetitionNumber"] == 1]
+    for node in phoenix_api.nodes(dataset["experiments"]):
+        runs = [r for r in phoenix_api.nodes(node["runs"]) if r["repetitionNumber"] == 1]
         scores: dict[ExampleNodeId, float | None] = {}
-        annotation_count = 0
+        annotation_times: list[datetime] = []
         for run in runs:
-            annotations = _nodes(run["annotations"])
-            annotation_count += len(annotations)
+            annotations = phoenix_api.nodes(run["annotations"])
+            annotation_times.extend(verify.parse_timestamp(a["startTime"]) for a in annotations)
             matching = [
                 a["score"]
                 for a in annotations
@@ -184,11 +155,11 @@ def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Exp
                 name=node["name"],
                 description=node["description"],
                 metadata=node["metadata"] or {},
-                created_at=node["createdAt"],
+                created_at=verify.parse_timestamp(node["createdAt"]),
                 run_count=len(runs),
                 error_count=sum(1 for r in runs if r["error"]),
-                annotation_count=annotation_count,
                 scores=scores,
+                latest_annotation_at=max(annotation_times, default=None),
                 latency_ms=node["averageRunLatencyMs"],
                 cost=float(total_cost) if total_cost is not None else None,
             )
@@ -279,9 +250,8 @@ def preview_scores(evaluator: BoundEvaluator, contexts: list[dict[str, Any]]) ->
         }
         for context in contexts
     ]
-    results = phoenix_api.graphql(
-        query("evaluator_previews"), {"input": {"previews": previews}}, timeout=300.0
-    )
+    query = phoenix_api.read_query(QUERIES_DIR / "evaluator_previews.graphql")
+    results = phoenix_api.graphql(query, {"input": {"previews": previews}}, timeout=300.0)
     scores = [_as_score(r) for r in results["evaluatorPreviews"]["results"]]
     if len(scores) != len(contexts):
         raise ValueError(f"{len(contexts)} contexts produced {len(scores)} results")
@@ -343,49 +313,19 @@ def probe_evaluator(
     return False, detail
 
 
-# --- cross-step state -----------------------------------------------------------------
+# --- the final reply ---------------------------------------------------------------
+
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def save_state(name: str, state: dict[str, Any]) -> None:
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    (STATE_DIR / f"{name}.json").write_text(json.dumps(state, indent=2, default=str))
-
-
-def load_state(name: str) -> dict[str, Any] | None:
-    path = STATE_DIR / f"{name}.json"
-    return json.loads(path.read_text()) if path.exists() else None
-
-
-def metadata_preserved(before: dict[str, Any], after: dict[str, Any]) -> bool:
-    """Every key the experiment carried before is still there with the same value, except
-    a list the agent appended to, which may have grown."""
-    for key, old in before.items():
-        new = after.get(key)
-        if isinstance(old, list) and isinstance(new, list):
-            if new[: len(old)] != old:
-                return False
-        elif new != old:
-            return False
-    return True
-
-
-def metadata_additions(before: dict[str, Any], after: dict[str, Any]) -> str:
-    added: dict[str, Any] = {}
-    for key, new in after.items():
-        old = before.get(key)
-        if isinstance(old, list) and isinstance(new, list):
-            if len(new) > len(old):
-                added[key] = new[len(old) :]
-        elif new != old:
-            added[key] = new
-    return json.dumps(added, default=str)
-
-
-_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}")
-
-
-def has_timestamp(text: str) -> bool:
-    return bool(_TIMESTAMP.search(text))
+def dates_in(text: str) -> list[date]:
+    dates = []
+    for match in _DATE.findall(text):
+        try:
+            dates.append(date.fromisoformat(match))
+        except ValueError:
+            continue
+    return dates
 
 
 _COMPARE_LINK = re.compile(r"/datasets/([A-Za-z0-9=_-]+)/compare\?([^\s)\]>\"']*)")
@@ -396,60 +336,3 @@ def compare_links(text: str) -> list[tuple[str, set[str]]]:
     for dataset_id, query_string in _COMPARE_LINK.findall(text):
         links.append((dataset_id, set(re.findall(r"experimentId=([A-Za-z0-9=_-]+)", query_string))))
     return links
-
-
-# --- LLM judge --------------------------------------------------------------------
-
-_JUDGE_ATTEMPTS = 3
-_JUDGE_MAX_TOKENS = 8000  # the judge model may think before it answers
-
-
-def judge(system: str, user: str) -> dict[str, Any] | None:
-    """Ask the judge model for a JSON verdict; ``None`` when no judge is available."""
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return None
-    import anthropic
-
-    client = anthropic.Anthropic()
-    text = ""
-    for _attempt in range(_JUDGE_ATTEMPTS):
-        response = client.messages.create(
-            model=JUDGE_MODEL,
-            max_tokens=_JUDGE_MAX_TOKENS,
-            system=system + "\n\nRespond with a single JSON object and nothing else.",
-            messages=[{"role": "user", "content": user}],
-        )
-        text = "".join(
-            block.text for block in response.content if isinstance(block, anthropic.types.TextBlock)
-        )
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                verdict: dict[str, Any] = json.loads(match.group(0))
-                return verdict
-            except json.JSONDecodeError:
-                continue
-    return {
-        "error": f"judge returned no usable JSON after {_JUDGE_ATTEMPTS} attempts",
-        "raw": text[:500],
-    }
-
-
-def write_reward(reward: float, details: dict[str, Any] | None = None, **components: Any) -> None:
-    """Harbor's reward file accepts numbers only, and it averages every key into its
-    summary, so only 0-to-1 scores go there; counts and diagnostics go to ``details.json``."""
-    REWARD_PATH.parent.mkdir(parents=True, exist_ok=True)
-    rewards: dict[str, float] = {"reward": float(reward)}
-    details = dict(details or {})
-    for key, value in components.items():
-        if isinstance(value, bool):
-            rewards[key] = float(value)
-        elif isinstance(value, (int, float)):
-            rewards[key] = float(value)
-        else:
-            details[key] = value
-    REWARD_PATH.write_text(json.dumps(rewards, indent=2) + "\n")
-    REWARD_PATH.with_name("details.json").write_text(
-        json.dumps(details, indent=2, default=str) + "\n"
-    )
-    print(json.dumps({**rewards, **details}, indent=2, default=str))
