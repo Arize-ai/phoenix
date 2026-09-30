@@ -568,6 +568,8 @@ export interface paths {
         /**
          * Get Evaluator
          * @description Read a definition, including its current code or the prompt version it runs.
+         *
+         *     Built-in definitions are read-only.
          */
         get: operations["getEvaluator"];
         put?: never;
@@ -622,6 +624,78 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Evaluators
+         * @description List dataset bindings with their stored overrides and an opaque pagination cursor.
+         */
+        get: operations["getDatasetEvaluators"];
+        put?: never;
+        /**
+         * Create Dataset Evaluator
+         * @description Bind an existing evaluator definition to a dataset.
+         *
+         *     The dataset identifier is decoded as a GlobalID first and otherwise treated as a name.
+         *     Binding descriptions and output configurations override the shared definition; null
+         *     inherits it. Input mappings are always dataset-specific. A name the dataset already uses
+         *     is refused with 409 `already_exists` and that binding's `existing_id`. This registers an
+         *     evaluator and does not run an experiment.
+         */
+        post: operations["createDatasetEvaluator"];
+        /**
+         * Delete Dataset Evaluators
+         * @description Delete up to 1000 of a dataset's bindings in one transaction.
+         *
+         *     Missing bindings are ignored; a binding of another dataset is refused with 422 before
+         *     any change. Definitions, prompts, and trace projects are kept.
+         */
+        delete: operations["deleteDatasetEvaluators"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dataset_evaluators/{dataset_evaluator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Evaluator
+         * @description Fetch binding settings. Null description/output configs inherit the shared definition.
+         */
+        get: operations["getDatasetEvaluator"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Dataset Evaluator
+         * @description Delete a binding; a missing binding is ignored.
+         *
+         *     The evaluator definition, its prompt, and the binding's trace project are kept: delete a
+         *     definition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.
+         */
+        delete: operations["deleteDatasetEvaluator"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Dataset Evaluator
+         * @description Update only the binding. Dataset and evaluator references are immutable.
+         *
+         *     LLM output overrides must remain consistent with the prompt the evaluator runs, and a
+         *     later change to that prompt is refused while it would invalidate them. Use
+         *     /evaluators/{evaluator_id} to modify a shared definition instead.
+         */
+        patch: operations["patchDatasetEvaluator"];
         trace?: never;
     };
     "/v1/sandbox_configs": {
@@ -2326,6 +2400,27 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** BuiltInEvaluatorDefinition */
+        BuiltInEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "builtin";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            /** Key */
+            key: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
         /** BuiltInModelProvider */
         BuiltInModelProvider: {
             /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
@@ -2843,6 +2938,27 @@ export interface components {
              */
             output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
         };
+        /** CreateDatasetEvaluatorRequest */
+        CreateDatasetEvaluatorRequest: {
+            /** @description Unique among this dataset's evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the LLM, code, or built-in evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Binding override. Null inherits the shared description.
+             */
+            description?: string | null;
+            /**
+             * Output Configs
+             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
             /**
@@ -3245,6 +3361,45 @@ export interface components {
             /** Example Count */
             example_count: number;
         };
+        /** DatasetEvaluator */
+        DatasetEvaluator: {
+            /** Id */
+            id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /**
+             * Evaluator Type
+             * @enum {string}
+             */
+            evaluator_type: "llm" | "code" | "builtin";
+            /** Trace Project Id */
+            trace_project_id: string;
+            name: components["schemas"]["Identifier"];
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description This binding's description override; null means it inherits the evaluator's description.
+             */
+            description: string | null;
+            /**
+             * Output Configs
+             * @description This binding's output config override; null means it inherits the evaluator's output configs.
+             */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
+        /** DatasetEvaluatorResponseBody */
+        DatasetEvaluatorResponseBody: {
+            data: components["schemas"]["DatasetEvaluator"];
+        };
+        /** DatasetEvaluatorsResponseBody */
+        DatasetEvaluatorsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetEvaluator"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** DatasetExample */
         DatasetExample: {
             /** Id */
@@ -3564,12 +3719,12 @@ export interface components {
         /** EvaluatorDefinitionResponseBody */
         EvaluatorDefinitionResponseBody: {
             /** Data */
-            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"];
+            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"];
         };
         /** EvaluatorDefinitionsResponseBody */
         EvaluatorDefinitionsResponseBody: {
             /** Data */
-            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"])[];
+            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -4722,6 +4877,21 @@ export interface components {
             input_mapping?: components["schemas"]["InputMapping"];
             /** Output Configs */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
+        /** PatchDatasetEvaluatorRequest */
+        PatchDatasetEvaluatorRequest: {
+            name?: components["schemas"]["Identifier"];
+            input_mapping?: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Omit to preserve; null restores inheritance.
+             */
+            description?: string | null;
+            /**
+             * Output Configs
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
         /** PatchLLMEvaluatorRequest */
         PatchLLMEvaluatorRequest: {
@@ -9916,7 +10086,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Return one kind only. */
-                type?: ("llm" | "code") | null;
+                type?: ("llm" | "code" | "builtin") | null;
                 /** @description Return the evaluator with this name. */
                 name?: string | null;
                 cursor?: string | null;
@@ -10276,6 +10446,337 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedCodeEvaluatorVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDatasetEvaluators: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDatasetEvaluators: {
+        parameters: {
+            query: {
+                /** @description GlobalIDs of this dataset's bindings to delete; repeat for each. */
+                dataset_evaluator_id: string[];
+            };
+            header?: never;
+            path: {
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchDatasetEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorResponseBody"];
                 };
             };
             /** @description Forbidden */

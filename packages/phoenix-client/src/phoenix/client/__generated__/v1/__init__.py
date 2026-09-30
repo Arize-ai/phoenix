@@ -1815,6 +1815,21 @@ class PatchCodeEvaluatorRequest(TypedDict):
     ]
 
 
+class PatchDatasetEvaluatorRequest(TypedDict):
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class PatchLLMEvaluatorRequest(TypedDict):
     type: Literal["llm"]
     name: NotRequired[str]
@@ -2127,6 +2142,22 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
+class BuiltInEvaluatorDefinition(TypedDict):
+    type: Literal["builtin"]
+    id: str
+    name: str
+    description: Optional[str]
+    key: str
+    input_schema: Mapping[str, Any]
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+
+
 class ChatCompletion(TypedDict):
     id: str
     created: int
@@ -2203,6 +2234,22 @@ class CreateCodeEvaluatorRequest(TypedDict):
     description: NotRequired[str]
 
 
+class CreateDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class CreateLLMEvaluatorRequest(TypedDict):
     type: Literal["llm"]
     name: str
@@ -2213,6 +2260,35 @@ class CreateLLMEvaluatorRequest(TypedDict):
 
 class CreateSpansRequestBody(TypedDict):
     data: Sequence[Span]
+
+
+class DatasetEvaluator(TypedDict):
+    id: str
+    dataset_id: str
+    evaluator_id: str
+    evaluator_type: Literal["llm", "code", "builtin"]
+    trace_project_id: str
+    name: str
+    input_mapping: InputMapping
+    description: Optional[str]
+    output_configs: Optional[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class DatasetEvaluatorResponseBody(TypedDict):
+    data: DatasetEvaluator
+
+
+class DatasetEvaluatorsResponseBody(TypedDict):
+    data: Sequence[DatasetEvaluator]
+    next_cursor: Optional[str]
 
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
@@ -2388,11 +2464,13 @@ class PromptMessage(TypedDict):
 
 
 class EvaluatorDefinitionResponseBody(TypedDict):
-    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition]
+    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
 
 
 class EvaluatorDefinitionsResponseBody(TypedDict):
-    data: Sequence[Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition]]
+    data: Sequence[
+        Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
+    ]
     next_cursor: Optional[str]
 
 

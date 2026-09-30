@@ -1,8 +1,13 @@
+"""Shared server and resource fixtures for evaluator integration tests."""
+
+from secrets import token_hex
 from typing import Iterator, Mapping
 
+import httpx
 import pytest
 
-from .._helpers import _AppInfo, _server
+from .._helpers import _AppInfo, _gql, _httpx_client, _server
+from ._helpers import _graphql
 
 
 @pytest.fixture(scope="package")
@@ -27,3 +32,53 @@ def _env(
         **_env_auth,
         **_env_smtp,
     }
+
+
+@pytest.fixture
+def client(_app: _AppInfo) -> Iterator[httpx.Client]:
+    with _httpx_client(_app, _app.admin_secret) as client:
+        yield client
+
+
+@pytest.fixture
+def sandbox_id(_app: _AppInfo) -> Iterator[str]:
+    result, _ = _gql(
+        _app,
+        _app.admin_secret,
+        query="""
+        mutation($input: CreateSandboxConfigInput!) {
+            createSandboxConfig(input: $input) { sandboxConfig { id } }
+        }
+    """,
+        variables={
+            "input": {"name": f"rest-{token_hex(8)}", "config": {"wasm": {"language": "PYTHON"}}}
+        },
+    )
+    sandbox_id = result["data"]["createSandboxConfig"]["sandboxConfig"]["id"]
+    try:
+        yield sandbox_id
+    finally:
+        _gql(
+            _app,
+            _app.admin_secret,
+            query="""
+            mutation($input: DeleteSandboxConfigInput!) { deleteSandboxConfig(input: $input) { query { __typename } } }
+        """,
+            variables={"input": {"id": sandbox_id}},
+            raise_on_errors=False,
+        )
+
+
+@pytest.fixture
+def dataset_id(client: httpx.Client, _app: _AppInfo) -> Iterator[str]:
+    dataset = _graphql(
+        _app,
+        """
+        mutation($input: CreateDatasetInput!) { createDataset(input: $input) { dataset { id } } }
+    """,
+        {"input": {"name": f"eval-definitions-{token_hex(8)}"}},
+    )["createDataset"]["dataset"]
+    try:
+        yield dataset["id"]
+    finally:
+        client.delete(f"v1/datasets/{dataset['id']}")
