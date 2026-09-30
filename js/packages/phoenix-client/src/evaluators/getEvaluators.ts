@@ -38,7 +38,7 @@ const DEFAULT_PAGE_SIZE = 100;
  * Every definition is returned whether or not a project or dataset binds it.
  *
  * @param params - Optional filters.
- * @param params.type - Return only `"llm"`, `"code"`, or `"builtin"` definitions.
+ * @param params.type - Return only `"llm"` or `"code"` definitions.
  * @param params.name - Return only the evaluator with this exact name.
  * @param params.limit - Stop after this many definitions.
  * @param params.client - An optional Phoenix client instance.
