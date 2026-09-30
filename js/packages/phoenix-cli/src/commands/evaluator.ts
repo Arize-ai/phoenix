@@ -231,7 +231,16 @@ interface EvaluatorUpdateOptions extends CommonOptions<OutputFormat> {
 /**
  * Options for `px evaluator delete <evaluator-id>`.
  */
-type EvaluatorDeleteOptions = DeleteOptions;
+interface EvaluatorDeleteOptions extends DeleteOptions {
+  /**
+   * `--format <format>`: How a refusal is rendered on stderr. `pretty` (the
+   * default) is human-readable, `raw` and `json` carry the structured error
+   * (`problem_code`, `problem_reason`, `problem`) for scripts and agents.
+   *
+   * @example "raw" // px evaluator delete Q29kZUV2YWx1YXRvcjoy --format raw
+   */
+  format?: OutputFormat;
+}
 
 /**
  * Options for `px evaluator version list <evaluator-id>`.
@@ -847,7 +856,11 @@ async function evaluatorDeleteHandler(
       noProgress: !options.progress,
     });
   } catch (error) {
-    await exitWithError({ verb: "deleting evaluator", error });
+    await exitWithError({
+      verb: "deleting evaluator",
+      error,
+      format: options.format,
+    });
   }
 }
 
@@ -1118,17 +1131,23 @@ export function createEvaluatorUpdateCommand(): Command {
 export function createEvaluatorDeleteCommand(): Command {
   return new Command("delete")
     .description(
-      "Delete a code evaluator that nothing binds, with its version history. Requires Phoenix server >= 21.0.0."
+      "Delete an LLM or code evaluator that nothing binds. A code evaluator's version history is deleted with it; an LLM evaluator's prompt is kept. Requires Phoenix server >= 21.0.0."
     )
-    .argument("<evaluator-id>", "Code evaluator ID")
+    .argument("<evaluator-id>", "Evaluator ID")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format for a refusal: pretty, json, or raw",
+      parseFormatOption,
+      "pretty"
+    )
     .option("-y, --yes", "Skip confirmation prompt")
     .option("--no-progress", "Disable progress indicators")
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        "  # Delete an unbound code evaluator; deletes are gated by PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true\n" +
+        "  # Delete an unbound evaluator; deletes are gated by PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true\n" +
         "  px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes\n"
     )
     .action(evaluatorDeleteHandler);

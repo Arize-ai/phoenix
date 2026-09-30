@@ -764,6 +764,48 @@ describe("evaluator delete", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
   });
+
+  it("prints the still_bound refusal as structured JSON in raw mode", async () => {
+    mock.server.use(
+      http.delete(
+        "/v1/evaluators/{evaluator_id}",
+        () =>
+          new Response(
+            JSON.stringify({
+              type: "urn:phoenix:problem:conflict",
+              title: "Conflict",
+              status: 409,
+              detail:
+                "Evaluator is still bound by 1 project and 0 dataset bindings",
+              code: "conflict",
+              reason: "still_bound",
+              binding_counts: { project: 1, dataset: 0 },
+            }),
+            {
+              status: 409,
+              headers: { "content-type": "application/problem+json" },
+            }
+          )
+      )
+    );
+    const io = captureCliOutput();
+    mockProcessExit();
+
+    await expect(
+      createEvaluatorCommand().parseAsync(
+        ["delete", CODE_ID, "--yes", "--format", "raw", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow("process.exit:");
+
+    const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(envelope).toMatchObject({
+      status: 409,
+      problem_code: "conflict",
+      problem_reason: "still_bound",
+    });
+    expect(envelope.problem.binding_counts).toEqual({ project: 1, dataset: 0 });
+  });
 });
 
 describe("evaluator version list", () => {
