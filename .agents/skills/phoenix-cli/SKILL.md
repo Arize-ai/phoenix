@@ -54,6 +54,14 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px evaluator list
+px evaluator get <evaluator-id>
+px evaluator create
+px evaluator update <evaluator-id>
+px evaluator delete <evaluator-id>
+px evaluator version list <evaluator-id>
+px evaluator version create <evaluator-id>
+px sandbox-config list
 px auth login
 px auth logout
 px auth status
@@ -405,6 +413,37 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 ```
 
 Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Invalid input (bad flags, type mismatches, malformed values) exits `3` (`INVALID_ARGUMENT`) with a `{error, code, hint?}` JSON envelope on stderr in `raw`/`json` mode. `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
+
+## Evaluators
+
+Shared evaluator definitions (LLM, code, built-in) that projects and datasets bind. Requires Phoenix server >= 21.0.0; older servers fail fast with exit `1` and a message naming the required version. Ids are typed GlobalIDs (`CodeEvaluator:…`, `LLMEvaluator:…`, `BuiltInEvaluator:…`). Create a definition here, then bind it to projects and datasets by its id; deleting a binding never deletes the definition.
+
+```bash
+px evaluator list --format raw --no-progress | jq '.[] | {id, type, name}'
+px evaluator list --type code --name exact-match --format raw --no-progress | jq -r '.[0].id'   # --type llm|code
+px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress                                 # one definition; inspect .type
+
+# create an LLM evaluator that runs an existing prompt version (create the prompt through the prompts API first)
+px evaluator create --type llm --name correctness --prompt-version-id <prompt-version-id> --description correctness \
+  --output-configs '[{"type":"CATEGORICAL","name":"correctness","optimization_direction":"MAXIMIZE","values":[{"label":"correct","score":1},{"label":"incorrect","score":0}]}]'
+
+# create a code evaluator from a file; find a sandbox first, and --if-not-exists reuses an evaluator that already has the name
+px sandbox-config list --language PYTHON --format raw --no-progress | jq -r 'map(select(.is_usable))[0].id'
+px evaluator create --type code --name exact-match --language PYTHON --sandbox-config-id <id> --file evaluator.py --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' \
+  --output-configs '[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]' --if-not-exists --format raw --no-progress | jq -r '.id'
+
+# update fields; --type llm|code picks the patch shape
+px evaluator update Q29kZUV2YWx1YXRvcjoy --type code --description "Exact string match"
+
+# deploy new source as a new immutable version; unchanged source returns the existing version
+px evaluator version list Q29kZUV2YWx1YXRvcjoy --format raw --no-progress | jq '.[0].id'
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py --expected-current-version <version-id>
+
+# delete an unbound LLM or code evaluator (an LLM evaluator's prompt is kept) — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; refused with 409 while bound
+px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
+```
+
+Errors carry the server's explanation and exit `1` for any of these — not found, a name clash, a validation error, and so on; only invalid flags (`3`) and rejected credentials (`4`) get their own codes. In `raw`/`json` mode they are a `{error, code, status, problem_code, problem_reason, existing_id, problem}` JSON envelope on stderr: `problem_code` is the server's stable code (`already_exists`, `validation_error`, `conflict`, `not_found`, `invalid_argument`), `problem_reason` is a finer condition under it when the server sends one (e.g. `still_bound`), `existing_id` names the resource holding a taken name, and `problem` is the full parsed body, every field included. `--if-not-exists` on `create` sidesteps the name-clash case rather than requiring a stderr parse.
 
 ## GraphQL
 
