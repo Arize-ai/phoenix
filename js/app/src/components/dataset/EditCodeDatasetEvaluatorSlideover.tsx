@@ -380,11 +380,18 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
     const {
-      evaluator: { name, description, inputMapping, id: evaluatorId },
+      evaluator: {
+        name,
+        globalName,
+        description,
+        inputMapping,
+        id: evaluatorId,
+      },
       outputConfigs,
     } = store.getState();
     invariant(evaluatorId, "evaluator id is required");
     const normalizedName = name.trim();
+    const normalizedGlobalName = globalName.trim();
     const normalizedDescription = description.trim() || undefined;
 
     return new Promise<EvaluatorSubmitResult>((resolve) => {
@@ -401,7 +408,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         variables: {
           input: {
             id: evaluatorId,
-            name: normalizedName,
+            name: normalizedGlobalName,
             description: normalizedDescription,
             outputConfigs: buildOutputConfigsInput(outputConfigs),
             inputMapping,
