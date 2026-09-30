@@ -272,8 +272,6 @@ const CreateCodeEvaluatorDialog = ({
                 datasetId,
                 evaluatorId: createdEvaluator.id,
                 name: normalizedName,
-                description: normalizedDescription,
-                outputConfigs: buildOutputConfigsInput(outputConfigs),
                 inputMapping,
               },
               connectionIds: updateConnectionIds ?? [],
