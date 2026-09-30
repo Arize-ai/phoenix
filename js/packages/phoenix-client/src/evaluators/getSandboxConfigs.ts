@@ -12,11 +12,15 @@ export interface GetSandboxConfigsParams extends ClientFn {
    * Return configurations for this language only.
    */
   language?: SandboxConfig["language"];
+  /**
+   * Stop after this many configurations. By default pagination is followed to
+   * the end.
+   */
+  limit?: number;
 }
 
 /**
- * List the sandbox configurations code evaluators can run in, newest first,
- * following pagination to the end.
+ * List the sandbox configurations code evaluators can run in, newest first.
  *
  * Pass a configuration's `id` as `sandbox_config_id` when creating or updating
  * a code evaluator; only configurations with `is_usable` accept new code.
@@ -24,6 +28,7 @@ export interface GetSandboxConfigsParams extends ClientFn {
  *
  * @param params - Optional filters.
  * @param params.language - Return configurations for this language only.
+ * @param params.limit - Stop after this many configurations.
  * @param params.client - An optional Phoenix client instance.
  * @returns The sandbox configurations.
  *
@@ -39,6 +44,7 @@ export interface GetSandboxConfigsParams extends ClientFn {
 export async function getSandboxConfigs({
   client: _client,
   language,
+  limit,
 }: GetSandboxConfigsParams = {}): Promise<SandboxConfig[]> {
   const client = _client ?? createClient();
   await ensureServerCapability({ client, requirement: LIST_SANDBOX_CONFIGS });
@@ -46,11 +52,15 @@ export async function getSandboxConfigs({
   const configs: SandboxConfig[] = [];
   let cursor: string | undefined;
   do {
+    const remaining = limit === undefined ? 100 : limit - configs.length;
     const { data, error } = await client.GET("/v1/sandbox_configs", {
-      params: { query: { language, cursor, limit: 100 } },
+      params: { query: { language, cursor, limit: Math.min(100, remaining) } },
     });
     if (error) throw error;
     configs.push(...(data?.data ?? []));
+    if (limit !== undefined && configs.length >= limit) {
+      return configs.slice(0, limit);
+    }
     cursor = data?.next_cursor ?? undefined;
   } while (cursor);
   return configs;

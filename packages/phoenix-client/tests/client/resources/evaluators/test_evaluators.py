@@ -489,6 +489,19 @@ class TestSandboxConfigs:
             second,
         ]
 
+    def test_list_stops_at_the_limit(self) -> None:
+        config = {"id": "U2FuZGJveENvbmZpZzoy", "name": "wasm", "is_usable": True}
+        calls = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal calls
+            calls += 1
+            assert request.url.params["limit"] == "1"
+            return httpx.Response(200, json={"data": [config], "next_cursor": "next"})
+
+        assert Evaluators(_client(handler)).list_sandbox_configs(limit=1) == [config]
+        assert calls == 1
+
     def test_list_calls_guard_before_request(self) -> None:
         with pytest.raises(_GuardSentinel):
             Evaluators(
