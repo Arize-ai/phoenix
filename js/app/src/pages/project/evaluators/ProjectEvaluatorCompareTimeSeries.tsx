@@ -43,8 +43,10 @@ import {
 } from "./projectEvaluatorCompareUtils";
 import {
   COMPARE_CHART_MARGIN,
+  COMPARE_LABELED_Y_AXIS_WIDTH,
   compareChartFooterCSS,
   compareChartToolbarCSS,
+  getCompareYAxisLabel,
   ProjectEvaluatorCompareViewToggle,
 } from "./ProjectEvaluatorCompareViewToggle";
 
@@ -410,8 +412,16 @@ function ProjectEvaluatorCompareTimeSeriesChart({
       }),
       // A side only draws in the views its own results support.
       isVisible: series?.views.includes(view) ?? false,
+      scoreDomain: getScoreDomain(side.config),
     };
   });
+  // Evaluators on the same score scale share one axis; otherwise each side
+  // gets its own, named after it.
+  const [domainA, domainB] = groups.map(({ scoreDomain }) => scoreDomain);
+  const sharesScoreScale =
+    typeof domainA[0] === "number" &&
+    domainA[0] === domainB[0] &&
+    domainA[1] === domainB[1];
 
   return (
     <TimeSeriesCard
@@ -443,11 +453,15 @@ function ProjectEvaluatorCompareTimeSeriesChart({
         >
           {({ chartProps }) => (
             <AnnotationMetricsGroupedChart
-              groups={groups.map((group) => ({
+              groups={groups.map((group, index) => ({
                 ...group,
                 scoreAxisProps: {
-                  domain: getScoreDomain(group.config),
-                  style: { ...compactYAxisProps.style, fill: group.color },
+                  domain: group.scoreDomain,
+                  width: COMPARE_LABELED_Y_AXIS_WIDTH,
+                  label: getCompareYAxisLabel({
+                    value: `${group.name} score`,
+                    orientation: index === 0 ? "left" : "right",
+                  }),
                 },
                 getMeanScoreOptimization: (meanScore) =>
                   getPositiveOptimizationFromConfig({
@@ -464,6 +478,15 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                   timeTickFormatter(new Date(Number(value))),
               }}
               yAxisProps={compactYAxisProps}
+              sharedScoreAxisProps={
+                sharesScoreScale
+                  ? {
+                      domain: domainA,
+                      width: COMPARE_LABELED_Y_AXIS_WIDTH,
+                      label: getCompareYAxisLabel({ value: "Score" }),
+                    }
+                  : undefined
+              }
               renderTooltipHeader={(x) => (
                 <Text weight="heavy" size="S">
                   {timeRangeFormatter(
@@ -504,11 +527,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
               >
                 {side.name}
               </Text>
-              {view === "scores" ? (
-                <Text size="XS" color="text-700">
-                  {side.key === "a" ? "· left axis" : "· right axis"}
-                </Text>
-              ) : null}
             </div>
             {view === "labels" && side.isVisible
               ? side.segments.map((segment) => (

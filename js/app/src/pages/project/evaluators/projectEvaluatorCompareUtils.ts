@@ -14,7 +14,7 @@ import { formatInt } from "@phoenix/utils/numberFormatUtils";
  */
 export const EVALUATOR_COMPARE_HUES = {
   a: "blue",
-  b: "orange",
+  b: "purple",
 } as const;
 
 export type EvaluatorCompareHue =
@@ -110,6 +110,17 @@ const getFlaggedThresholdOperator = (
     getFlagThresholdOperators(optimizationDirection).flagged
   ];
 
+/** Which scores a threshold flags, e.g. "≤ 0.5". */
+export function formatFlagCondition({
+  threshold,
+  optimizationDirection,
+}: {
+  threshold: number;
+  optimizationDirection: EvaluatorOptimizationDirection | null;
+}): string {
+  return `${getFlaggedThresholdOperator(optimizationDirection)} ${formatThreshold(threshold)}`;
+}
+
 export function formatMatrixSubtitle({
   target,
   populationSize,
@@ -154,23 +165,23 @@ export function formatMatrixSubtitle({
 /** Neutral fill for labels that carry no optimization meaning. */
 export const NEUTRAL_LABEL_COLOR = "var(--global-color-gray-400)";
 /**
- * The palette steps label shades span: the most optimal label takes the step
- * furthest from the background, the least optimal the nearest. Low steps sit
- * near the background in both themes, so the ramp holds in light and dark.
+ * The palette steps shades span: shade 1 takes the step furthest from the
+ * background, shade 0 the nearest. Low steps sit near the background in both
+ * themes, so the ramp holds in light and dark.
  */
-const MOST_OPTIMAL_STEP = 900;
-const LEAST_OPTIMAL_STEP = 400;
+const STRONGEST_SHADE_STEP = 900;
+const LIGHTEST_SHADE_STEP = 400;
 const PALETTE_STEP = 100;
 
 /**
- * Ranks labels from least (0) to most (1) optimal by their mapped scores and
- * the evaluator's optimization direction, spacing distinct scores evenly so
- * every step reads as a visible change. A label without a score gets null.
+ * Shades labels from worst (0) to best (1) by their mapped scores and the
+ * evaluator's optimization direction, spacing distinct scores evenly so every
+ * step reads as a visible change. A label without a score gets null.
  *
  * Returns null when the labels carry no such meaning: no MAXIMIZE/MINIMIZE
  * direction, or fewer than two distinct scores to order.
  */
-export function getLabelOptimalities({
+export function getRankedLabelShades({
   direction,
   scores,
   referenceScores = [],
@@ -206,33 +217,31 @@ export function getLabelOptimalities({
 }
 
 /**
- * Stand-in optimalities for labels without an optimization direction: the
- * same shades, stepped through in display order, so an evaluator's labels
- * look the same whether or not they rank. The first label takes the strongest
- * shade; here the shades carry no ranking.
+ * Shades for labels without an optimization direction, stepped through in
+ * display order, so an evaluator's labels look the same whether or not they
+ * rank. The first label takes the strongest shade; here the shades carry no
+ * ranking.
  */
-export function getPositionalOptimalities(count: number): number[] {
+export function getPositionalShades(count: number): number[] {
   return Array.from({ length: count }, (_, index) =>
     count <= 1 ? 1 : 1 - index / (count - 1)
   );
 }
 
 /**
- * Shades a label within its evaluator's hue by optimality: the best label
- * takes the strongest step and worse ones step toward the background, spread
- * evenly and rounded to a palette step. Null optimality (a label without a
- * score) is neutral gray.
+ * Turns a shade (0 = lightest, 1 = strongest) into a step of the evaluator's
+ * hue, spread evenly and rounded to a palette step. A null shade (a label
+ * without a score) is neutral gray.
  */
-export function getLabelOptimalityColor({
+export function getShadeColor({
   hue,
-  optimality,
+  shade,
 }: {
   hue: EvaluatorCompareHue;
-  optimality: number | null;
+  shade: number | null;
 }): string {
-  if (optimality == null) return NEUTRAL_LABEL_COLOR;
-  const steps = (MOST_OPTIMAL_STEP - LEAST_OPTIMAL_STEP) / PALETTE_STEP;
-  const step =
-    LEAST_OPTIMAL_STEP + Math.round(optimality * steps) * PALETTE_STEP;
+  if (shade == null) return NEUTRAL_LABEL_COLOR;
+  const steps = (STRONGEST_SHADE_STEP - LIGHTEST_SHADE_STEP) / PALETTE_STEP;
+  const step = LIGHTEST_SHADE_STEP + Math.round(shade * steps) * PALETTE_STEP;
   return `var(--global-color-${hue}-${step})`;
 }

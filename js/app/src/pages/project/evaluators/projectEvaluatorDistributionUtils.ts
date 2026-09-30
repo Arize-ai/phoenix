@@ -2,7 +2,7 @@ import type { AnnotationMetricsView } from "@phoenix/components/chart/annotation
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import type { ProjectEvaluatorCompareDistributions_side$data } from "./__generated__/ProjectEvaluatorCompareDistributions_side.graphql";
-import { getLabelOptimalities } from "./projectEvaluatorCompareUtils";
+import { getRankedLabelShades } from "./projectEvaluatorCompareUtils";
 
 export type DistributionSide = Omit<
   ProjectEvaluatorCompareDistributions_side$data,
@@ -133,64 +133,62 @@ export function getDistributionThresholdPosition({
 }
 
 /**
- * Puts label rows most optimal first, by mapped score and optimization
+ * Puts label rows best first, by mapped score and optimization
  * direction, so every evaluator's bars read best to worst from the left.
  * Unscored labels and the grouped Other row follow in their original order.
  * Without a direction the rows keep their order (configured, then
- * alphabetical) and optimalities are null.
+ * alphabetical) and shades are null.
  */
-export function orderLabelRowsByOptimality({
+export function orderLabelRowsBestFirst({
   rows,
   direction,
   referenceScores,
 }: {
   rows: ReadonlyArray<DistributionChartRow>;
   direction: string | null | undefined;
-  /** The evaluator's configured label scores; see getLabelOptimalities. */
+  /** The evaluator's configured label scores; see getRankedLabelShades. */
   referenceScores?: ReadonlyArray<number | null | undefined>;
 }): {
   rows: DistributionChartRow[];
-  optimalities: ReadonlyArray<number | null> | null;
+  shades: ReadonlyArray<number | null> | null;
 } {
-  const optimalities = getLabelOptimalities({
+  const shades = getRankedLabelShades({
     direction,
     scores: rows.map((row) => (row.isOther ? null : row.score)),
     referenceScores,
   });
-  if (optimalities == null) {
-    return { rows: [...rows], optimalities: null };
+  if (shades == null) {
+    return { rows: [...rows], shades: null };
   }
   const ranked = rows.map((row, index) => ({
     row,
-    optimality: optimalities[index] ?? null,
+    shade: shades[index] ?? null,
   }));
   // Stable, so ties and unscored rows keep their original order.
-  ranked.sort(
-    (left, right) => (right.optimality ?? -1) - (left.optimality ?? -1)
-  );
+  ranked.sort((left, right) => (right.shade ?? -1) - (left.shade ?? -1));
   return {
     rows: ranked.map(({ row }) => row),
-    optimalities: ranked.map(({ optimality }) => optimality),
+    shades: ranked.map(({ shade }) => shade),
   };
 }
 
 /**
- * Ranks score rows from least (0) to most (1) optimal along the evaluator's
+ * Shades score rows from worst (0) to best (1) along the evaluator's
  * optimization direction: exact values by score, histogram bins by midpoint.
  * Rows keep their numeric order; only their shading follows. Null without a
  * direction or fewer than two distinct scores.
  */
-export function getScoreRowOptimalities({
+export function getRankedScoreRowShades({
   rows,
   direction,
   referenceScores,
 }: {
   rows: ReadonlyArray<DistributionChartRow>;
   direction: string | null | undefined;
-  /** The evaluator's configured score scale; see getLabelOptimalities. */
+  /** The evaluator's configured score scale; see getRankedLabelShades. */
   referenceScores?: ReadonlyArray<number | null | undefined>;
 }): ReadonlyArray<number | null> | null {
-  return getLabelOptimalities({
+  return getRankedLabelShades({
     direction,
     referenceScores,
     scores: rows.map((row) =>

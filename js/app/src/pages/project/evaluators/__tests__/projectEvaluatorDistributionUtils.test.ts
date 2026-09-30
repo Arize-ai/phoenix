@@ -6,8 +6,8 @@ import {
   getDistributionScope,
   getDistributionThresholdPosition,
   getDistributionView,
-  getScoreRowOptimalities,
-  orderLabelRowsByOptimality,
+  getRankedScoreRowShades,
+  orderLabelRowsBestFirst,
   type DistributionSide,
 } from "../projectEvaluatorDistributionUtils";
 
@@ -96,7 +96,7 @@ describe("evaluator distribution chart data", () => {
   });
 });
 
-describe("orderLabelRowsByOptimality", () => {
+describe("orderLabelRowsBestFirst", () => {
   const rows = [
     { label: "hallucinated", score: 1, count: 6 },
     { label: "grounded", score: 0, count: 15 },
@@ -104,8 +104,8 @@ describe("orderLabelRowsByOptimality", () => {
     { label: "Other labels (grouped)", isOther: true, count: 2 },
   ];
 
-  it("puts the most optimal label first and Other last", () => {
-    const ordered = orderLabelRowsByOptimality({
+  it("puts the best label first and Other last", () => {
+    const ordered = orderLabelRowsBestFirst({
       rows,
       direction: "MINIMIZE",
     });
@@ -115,26 +115,26 @@ describe("orderLabelRowsByOptimality", () => {
       "unscored",
       "Other labels (grouped)",
     ]);
-    expect(ordered.optimalities).toEqual([1, 0, null, null]);
+    expect(ordered.shades).toEqual([1, 0, null, null]);
   });
 
   it("keeps the original order without a direction", () => {
-    const ordered = orderLabelRowsByOptimality({ rows, direction: "NONE" });
+    const ordered = orderLabelRowsBestFirst({ rows, direction: "NONE" });
     expect(ordered.rows).toEqual(rows);
-    expect(ordered.optimalities).toBeNull();
+    expect(ordered.shades).toBeNull();
   });
 });
 
-describe("getScoreRowOptimalities", () => {
+describe("getRankedScoreRowShades", () => {
   it("ranks exact scores along the direction without reordering", () => {
     const rows = [
       { label: "0", score: 0, count: 13 },
       { label: "1", score: 1, count: 5 },
     ];
-    expect(getScoreRowOptimalities({ rows, direction: "MINIMIZE" })).toEqual([
+    expect(getRankedScoreRowShades({ rows, direction: "MINIMIZE" })).toEqual([
       1, 0,
     ]);
-    expect(getScoreRowOptimalities({ rows, direction: "MAXIMIZE" })).toEqual([
+    expect(getRankedScoreRowShades({ rows, direction: "MAXIMIZE" })).toEqual([
       0, 1,
     ]);
   });
@@ -144,14 +144,14 @@ describe("getScoreRowOptimalities", () => {
       { label: "0–0.5", count: 1, lowerBound: 0, upperBound: 0.5 },
       { label: "0.5–1", count: 1, lowerBound: 0.5, upperBound: 1 },
     ];
-    expect(getScoreRowOptimalities({ rows, direction: "MAXIMIZE" })).toEqual([
+    expect(getRankedScoreRowShades({ rows, direction: "MAXIMIZE" })).toEqual([
       0, 1,
     ]);
   });
 
   it("is null without a direction", () => {
     expect(
-      getScoreRowOptimalities({
+      getRankedScoreRowShades({
         rows: [{ label: "0", score: 0, count: 1 }],
         direction: "NONE",
       })

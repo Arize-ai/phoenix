@@ -402,7 +402,10 @@ export type AnnotationMetricsChartGroup = {
   readonly series: AnnotationMetricsSeries | undefined;
   /** Label slices in stacking order, bottom first. */
   readonly segments: ReadonlyArray<AnnotationLabelSegment>;
-  /** The group's own score axis in the scores view, e.g. its domain. */
+  /**
+   * The group's own score axis in the scores view, e.g. its domain. Unused
+   * when the chart draws one shared score axis.
+   */
   readonly scoreAxisProps?: YAxisProps;
   readonly getMeanScoreOptimization?: (meanScore: number) => boolean | null;
 };
@@ -412,19 +415,26 @@ type AnnotationMetricsGroupedChartProps = {
   view: AnnotationMetricsView;
   xAxisProps: XAxisProps;
   yAxisProps: YAxisProps;
+  /**
+   * One score axis shared by every group in the scores view. Without it, each
+   * group draws on its own axis.
+   */
+  sharedScoreAxisProps?: YAxisProps;
   renderTooltipHeader: (x: number) => ReactNode;
   chartProps?: ComponentProps<typeof ComposedChart>;
   emptyStateMessage?: string;
 };
+
+const SHARED_SCORE_AXIS_ID = "score";
 
 function getGroupDataKeyPrefix(key: string) {
   return `values.${key}.`;
 }
 
 /**
- * Several annotation series over one x axis: mean scores as lines on their
- * own axes (the first on the left, the rest on the right), or label shares as
- * side-by-side stacked bars per bin. The multi-series counterpart of
+ * Several annotation series over one x axis: mean scores as lines, on one
+ * shared axis or each on its own (the first on the left, the rest on the
+ * right), or label shares as side-by-side stacked bars per bin. The multi-series counterpart of
  * {@link AnnotationMetricsChart}, drawn with the same bars and lines.
  */
 export function AnnotationMetricsGroupedChart({
@@ -432,6 +442,7 @@ export function AnnotationMetricsGroupedChart({
   view,
   xAxisProps,
   yAxisProps,
+  sharedScoreAxisProps,
   renderTooltipHeader,
   chartProps,
   emptyStateMessage = "No chartable evaluation data",
@@ -459,7 +470,14 @@ export function AnnotationMetricsGroupedChart({
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis {...xAxisProps} />
-          {isScoreView ? (
+          {isScoreView && sharedScoreAxisProps ? (
+            <YAxis
+              {...yAxisProps}
+              yAxisId={SHARED_SCORE_AXIS_ID}
+              tickFormatter={floatFormatter}
+              {...sharedScoreAxisProps}
+            />
+          ) : isScoreView ? (
             groups.map((group, index) => (
               <YAxis
                 key={group.key}
@@ -493,7 +511,9 @@ export function AnnotationMetricsGroupedChart({
             ? visibleGroups.map((group) => (
                 <Line
                   key={group.key}
-                  yAxisId={group.key}
+                  yAxisId={
+                    sharedScoreAxisProps ? SHARED_SCORE_AXIS_ID : group.key
+                  }
                   type="monotone"
                   dataKey={`${getGroupDataKeyPrefix(group.key)}${MEAN_SCORE_DATA_KEY}`}
                   name={group.name}

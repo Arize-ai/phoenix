@@ -25,7 +25,7 @@ export const compareChartToolbarCSS = css`
 
 /**
  * The row under each comparison plot: the time chart's legend, or a
- * distribution's axis name and mean. One height for both, so the plots above
+ * distribution's mean score. One height for both, so the plots above
  * them end at the same line; tall enough for a tinted score.
  */
 export const compareChartFooterCSS = css`
@@ -42,6 +42,30 @@ export const compareChartFooterCSS = css`
  * labels, which render just past the axis height, inside the chart.
  */
 export const COMPARE_CHART_MARGIN = { top: 8, right: 8, left: 2, bottom: 4 };
+
+/** Width of a comparison chart's y axis with a name set along it. */
+export const COMPARE_LABELED_Y_AXIS_WIDTH = 56;
+
+/**
+ * Names a comparison chart's y axis: set along the axis, in the axis text
+ * color, reading bottom to top on the left and top to bottom on the right.
+ */
+export function getCompareYAxisLabel({
+  value,
+  orientation = "left",
+}: {
+  value: string;
+  orientation?: "left" | "right";
+}) {
+  return {
+    value,
+    angle: orientation === "left" ? -90 : 90,
+    position: orientation === "left" ? "insideLeft" : "insideRight",
+    fontSize: 11,
+    fill: "var(--chart-axis-text-color)",
+    style: { textAnchor: "middle" },
+  } as const;
+}
 
 /**
  * Switches a comparison chart between scores and labels. Both options always

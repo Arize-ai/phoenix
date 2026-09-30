@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bffb79c2d74979435b472202f19214ab>>
+ * @generated SignedSource<<757d9f5f7d0c4778286cf572fdce39da>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,12 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorCompareStats_comparison$data = {
+  readonly a: {
+    readonly threshold: number | null;
+  };
+  readonly b: {
+    readonly threshold: number | null;
+  };
   readonly coverage: {
     readonly evaluatedByBoth: number;
     readonly onlyA: number;
@@ -32,7 +38,17 @@ export type ProjectEvaluatorCompareStats_comparison$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareStats_comparison">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "threshold",
+    "storageKey": null
+  }
+];
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
@@ -94,6 +110,26 @@ const node: ReaderFragment = {
     {
       "alias": null,
       "args": null,
+      "concreteType": "EvaluatorComparisonSummary",
+      "kind": "LinkedField",
+      "name": "a",
+      "plural": false,
+      "selections": (v0/*:: as any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "EvaluatorComparisonSummary",
+      "kind": "LinkedField",
+      "name": "b",
+      "plural": false,
+      "selections": (v0/*:: as any*/),
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "EvaluatorComparisonStatistics",
       "kind": "LinkedField",
       "name": "statistics",
@@ -134,7 +170,8 @@ const node: ReaderFragment = {
   "type": "ProjectEvaluatorComparison",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "2c52d690463011623a1d41806ec8b655";
+(node as any).hash = "e3906cea3f77e906602a4ba101bf683f";
 
 export default node;

@@ -8,9 +8,9 @@ import type {
 import {
   type EvaluatorCompareHue,
   getConfiguredScores,
-  getLabelOptimalities,
-  getLabelOptimalityColor,
-  getPositionalOptimalities,
+  getRankedLabelShades,
+  getShadeColor,
+  getPositionalShades,
 } from "./projectEvaluatorCompareUtils";
 
 /** The views either evaluator can show, scores first. */
@@ -60,8 +60,8 @@ export function getLabelDisplayOrder({
 
 /**
  * Colors one evaluator's labels for a stacked bar in shades of its hue. With
- * an optimization direction, shades follow optimality and the most optimal
- * label comes first, so the bottom of each stack is the share of good
+ * an optimization direction, labels shade best to worst and the best label
+ * comes first, so the bottom of each stack is the share of good
  * results. Without one, labels step through the same shades in display order.
  */
 export function getCompareLabelSegments({
@@ -82,24 +82,22 @@ export function getCompareLabelSegments({
     labels,
     configuredLabels: Array.from(scoresByLabel.keys()),
   });
-  const optimalities =
-    getLabelOptimalities({
+  const shades =
+    getRankedLabelShades({
       direction: config?.optimizationDirection,
       scores: ordered.map((label) => scoresByLabel.get(label)),
       referenceScores: getConfiguredScores(config),
-    }) ?? getPositionalOptimalities(ordered.length);
+    }) ?? getPositionalShades(ordered.length);
   const segments = ordered.map((label, order) => ({
     label,
     index: indexByLabel.get(label) ?? order,
-    optimality: optimalities[order] ?? null,
+    shade: shades[order] ?? null,
   }));
-  // Stable, so equally optimal labels keep display order.
-  segments.sort(
-    (left, right) => (right.optimality ?? -1) - (left.optimality ?? -1)
-  );
-  return segments.map(({ label, index, optimality }) => ({
+  // Stable, so equally shaded labels keep display order.
+  segments.sort((left, right) => (right.shade ?? -1) - (left.shade ?? -1));
+  return segments.map(({ label, index, shade }) => ({
     label,
     index,
-    color: getLabelOptimalityColor({ hue, optimality }),
+    color: getShadeColor({ hue, shade }),
   }));
 }

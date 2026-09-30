@@ -56,14 +56,16 @@ import {
   EVALUATOR_COMPARE_HUES,
   type EvaluatorCompareHue,
   getConfiguredScores,
-  getLabelOptimalityColor,
-  getPositionalOptimalities,
+  getShadeColor,
+  getPositionalShades,
   NEUTRAL_LABEL_COLOR,
 } from "./projectEvaluatorCompareUtils";
 import {
   COMPARE_CHART_MARGIN,
+  COMPARE_LABELED_Y_AXIS_WIDTH,
   compareChartFooterCSS,
   compareChartToolbarCSS,
+  getCompareYAxisLabel,
   ProjectEvaluatorCompareViewToggle,
 } from "./ProjectEvaluatorCompareViewToggle";
 import {
@@ -71,8 +73,8 @@ import {
   getDistributionRows,
   getDistributionScope,
   getDistributionThresholdPosition,
-  getScoreRowOptimalities,
-  orderLabelRowsByOptimality,
+  getRankedScoreRowShades,
+  orderLabelRowsBestFirst,
   getDistributionView,
   type DistributionScope,
   type DistributionSide,
@@ -118,22 +120,6 @@ const panelCSS = css`
 `;
 
 const DISTRIBUTION_SCOPE_PARAM = "distributionScope";
-
-// Reads as the card's subtitle: subtitle color and size, and no inset, so the
-// text lines up where a plain subtitle would sit.
-const scopePickerTriggerCSS = css`
-  color: var(--global-text-color-700);
-  font-size: var(--global-font-size-s);
-  padding-inline: var(--global-dimension-size-50);
-  margin-inline-start: calc(-1 * var(--global-dimension-size-50));
-  &[data-hovered] {
-    color: var(--global-text-color-900);
-  }
-  /* Menu close returns focus to the trigger; no ring for pointer users */
-  &[data-focused]:not([data-focus-visible]) {
-    outline: none;
-  }
-`;
 
 const evaluatorFragment = graphql`
   fragment ProjectEvaluatorCompareDistributions_evaluator on ProjectEvaluator
@@ -257,21 +243,13 @@ export function ProjectEvaluatorCompareDistributions({
       rows.reduce((maximum, row) => Math.max(maximum, row.count), maximum),
     1
   );
-  const hasScores = sides.some(({ view }) => view === "scores");
-  const hasLabels = sides.some(({ view }) => view === "labels");
-  const title =
-    hasScores && hasLabels
-      ? "Distributions"
-      : hasScores
-        ? "Score distributions"
-        : "Label distributions";
   const target = formatEvaluationTargetPlural(evaluatorA.evaluationTarget);
 
   return (
     <div css={panelCSS}>
       <Card
-        title={title}
-        headerContent={
+        title="Distributions"
+        extra={
           <DistributionScopePicker
             scope={scope}
             target={target}
@@ -314,11 +292,7 @@ export function ProjectEvaluatorCompareDistributions({
   );
 }
 
-/**
- * The card's subtitle, doubling as a quiet picker for which targets the
- * distributions cover. Reads as a description until hovered, so the choice
- * sits where the population is already named.
- */
+/** Picks which targets the distributions cover. */
 function DistributionScopePicker({
   scope,
   target,
@@ -342,14 +316,12 @@ function DistributionScopePicker({
     <MenuTrigger>
       <Button
         size="S"
-        variant="quiet"
-        css={scopePickerTriggerCSS}
         aria-label={`Distribution population: ${selected?.label}`}
         trailingVisual={<Icon svg={<Icons.ChevronDown />} />}
       >
         {selected?.label}
       </Button>
-      <MenuContainer placement="bottom start" minHeight="auto">
+      <MenuContainer placement="bottom end" minHeight="auto">
         <Menu
           selectionMode="single"
           disallowEmptySelection
@@ -468,26 +440,26 @@ function DistributionChart({
   // Bars are always shades of the evaluator's hue, ranked by optimization
   // direction when there is one. Without one, scores shade by value (higher
   // stronger) and labels step through the shades in display order.
-  const { rows, optimalities } =
+  const { rows, shades: rankedShades } =
     view === "labels"
-      ? orderLabelRowsByOptimality({
+      ? orderLabelRowsBestFirst({
           rows: unorderedRows,
           direction,
           referenceScores,
         })
       : {
           rows: unorderedRows,
-          optimalities: getScoreRowOptimalities({
+          shades: getRankedScoreRowShades({
             rows: unorderedRows,
             direction: direction === "MINIMIZE" ? "MINIMIZE" : "MAXIMIZE",
             referenceScores,
           }),
         };
-  const shades = optimalities ?? getPositionalOptimalities(rows.length);
+  const shades = rankedShades ?? getPositionalShades(rows.length);
   const getFill = (row: DistributionChartRow, index: number) =>
     row.isOther
       ? NEUTRAL_LABEL_COLOR
-      : getLabelOptimalityColor({ hue, optimality: shades[index] ?? null });
+      : getShadeColor({ hue, shade: shades[index] ?? null });
   const data = rows.map((row, index) => ({
     ...row,
     x: index,
@@ -585,15 +557,10 @@ function DistributionChart({
                   domain={[0, maximum]}
                   allowDecimals={false}
                   tickFormatter={intShortFormatter}
-                  width={56}
-                  label={{
+                  width={COMPARE_LABELED_Y_AXIS_WIDTH}
+                  label={getCompareYAxisLabel({
                     value: target.charAt(0).toUpperCase() + target.slice(1),
-                    angle: -90,
-                    position: "insideLeft",
-                    fontSize: 11,
-                    fill: "var(--chart-axis-text-color)",
-                    style: { textAnchor: "middle" },
-                  }}
+                  })}
                 />
                 <RechartsTooltip
                   {...defaultTooltipProps}
@@ -654,29 +621,26 @@ function DistributionChart({
             </ChartResponsiveContainer>
           </ChartEmptyStateOverlay>
         </div>
-        {/* The axis name and the side's mean, in the row the time chart
-            keeps its legend in; the mean takes the tint scores have
-            elsewhere. A gray bar gets one legend item explaining it. */}
+        {/* The side's mean score, in the row the time chart keeps its legend
+            in; the mean takes the tint scores have elsewhere. A gray bar gets
+            one legend item explaining it. */}
         <div
           css={compareChartFooterCSS}
           className="evaluator-distributions__footer"
         >
-          <Text color="text-700">
-            {view === "scores" ? "Score" : "Label"}
-            {meanScore == null ? null : (
-              <>
-                {" · mean "}
-                <AnnotationScoreText
-                  positiveOptimization={getPositiveOptimizationFromConfig({
-                    config: optimizationConfig,
-                    score: meanScore,
-                  })}
-                >
-                  {formatFloat(meanScore)}
-                </AnnotationScoreText>
-              </>
-            )}
-          </Text>
+          {meanScore == null ? null : (
+            <Text color="text-700">
+              {"Mean score "}
+              <AnnotationScoreText
+                positiveOptimization={getPositiveOptimizationFromConfig({
+                  config: optimizationConfig,
+                  score: meanScore,
+                })}
+              >
+                {formatFloat(meanScore)}
+              </AnnotationScoreText>
+            </Text>
+          )}
           {hasUnscoredLabel ? (
             <div className="evaluator-distributions__legend-item">
               <ColorSwatch color={NEUTRAL_LABEL_COLOR} size="M" />

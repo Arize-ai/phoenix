@@ -3,9 +3,9 @@ import {
   getComparedOutputName,
   getFlagThresholdOperators,
   getKappaGloss,
-  getLabelOptimalities,
-  getLabelOptimalityColor,
-  getPositionalOptimalities,
+  getRankedLabelShades,
+  getShadeColor,
+  getPositionalShades,
   NEUTRAL_LABEL_COLOR,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
@@ -128,19 +128,19 @@ describe("project evaluator compare utils", () => {
     );
   });
 
-  describe("getLabelOptimalities", () => {
+  describe("getRankedLabelShades", () => {
     it("ranks a binary pair by direction", () => {
       expect(
-        getLabelOptimalities({ direction: "MAXIMIZE", scores: [1, 0] })
+        getRankedLabelShades({ direction: "MAXIMIZE", scores: [1, 0] })
       ).toEqual([1, 0]);
       expect(
-        getLabelOptimalities({ direction: "MINIMIZE", scores: [1, 0] })
+        getRankedLabelShades({ direction: "MINIMIZE", scores: [1, 0] })
       ).toEqual([0, 1]);
     });
 
     it("spaces distinct scores evenly regardless of their values", () => {
       expect(
-        getLabelOptimalities({
+        getRankedLabelShades({
           direction: "MAXIMIZE",
           scores: [0, 0.9, 1, 0.9],
         })
@@ -149,20 +149,20 @@ describe("project evaluator compare utils", () => {
 
     it("leaves unscored labels null", () => {
       expect(
-        getLabelOptimalities({ direction: "MAXIMIZE", scores: [1, null, 0] })
+        getRankedLabelShades({ direction: "MAXIMIZE", scores: [1, null, 0] })
       ).toEqual([1, null, 0]);
     });
 
     it("ranks a lone label on the configured scale", () => {
       expect(
-        getLabelOptimalities({
+        getRankedLabelShades({
           direction: "MINIMIZE",
           scores: [0],
           referenceScores: [1, 0],
         })
       ).toEqual([1]);
       expect(
-        getLabelOptimalities({
+        getRankedLabelShades({
           direction: "MINIMIZE",
           scores: [1],
           referenceScores: [1, 0],
@@ -172,39 +172,39 @@ describe("project evaluator compare utils", () => {
 
     it("returns null without a direction or two distinct scores", () => {
       expect(
-        getLabelOptimalities({ direction: "NONE", scores: [1, 0] })
+        getRankedLabelShades({ direction: "NONE", scores: [1, 0] })
       ).toBeNull();
       expect(
-        getLabelOptimalities({ direction: null, scores: [1, 0] })
+        getRankedLabelShades({ direction: null, scores: [1, 0] })
       ).toBeNull();
       expect(
-        getLabelOptimalities({ direction: "MAXIMIZE", scores: [1, 1, null] })
+        getRankedLabelShades({ direction: "MAXIMIZE", scores: [1, 1, null] })
       ).toBeNull();
     });
   });
 
-  describe("getPositionalOptimalities", () => {
+  describe("getPositionalShades", () => {
     it("spaces labels evenly from strongest to faintest", () => {
-      expect(getPositionalOptimalities(3)).toEqual([1, 0.5, 0]);
-      expect(getPositionalOptimalities(1)).toEqual([1]);
-      expect(getPositionalOptimalities(0)).toEqual([]);
+      expect(getPositionalShades(3)).toEqual([1, 0.5, 0]);
+      expect(getPositionalShades(1)).toEqual([1]);
+      expect(getPositionalShades(0)).toEqual([]);
     });
   });
 
-  describe("getLabelOptimalityColor", () => {
+  describe("getShadeColor", () => {
     it("takes the strongest step for the best label and the faintest for the worst", () => {
-      expect(getLabelOptimalityColor({ hue: "blue", optimality: 1 })).toBe(
+      expect(getShadeColor({ hue: "blue", shade: 1 })).toBe(
         "var(--global-color-blue-900)"
       );
-      expect(getLabelOptimalityColor({ hue: "orange", optimality: 0 })).toBe(
-        "var(--global-color-orange-400)"
+      expect(getShadeColor({ hue: "purple", shade: 0 })).toBe(
+        "var(--global-color-purple-400)"
       );
     });
 
     it("spreads labels in between across rounded palette steps", () => {
       expect(
-        [1, 2 / 3, 1 / 3, 0].map((optimality) =>
-          getLabelOptimalityColor({ hue: "blue", optimality })
+        [1, 2 / 3, 1 / 3, 0].map((shade) =>
+          getShadeColor({ hue: "blue", shade })
         )
       ).toEqual([
         "var(--global-color-blue-900)",
@@ -215,7 +215,7 @@ describe("project evaluator compare utils", () => {
     });
 
     it("is neutral for a label without a score", () => {
-      expect(getLabelOptimalityColor({ hue: "blue", optimality: null })).toBe(
+      expect(getShadeColor({ hue: "blue", shade: null })).toBe(
         NEUTRAL_LABEL_COLOR
       );
     });
