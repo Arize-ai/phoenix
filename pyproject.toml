@@ -33,6 +33,7 @@ dependencies = [
   "uvicorn",
   "psutil",
   "strawberry-graphql==0.327.7",
+  "graphql-core<3.3",  # 3.3 changes default-value coercion used by schema search
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
