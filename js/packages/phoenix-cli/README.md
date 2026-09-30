@@ -577,7 +577,7 @@ Prompt content is not edited here. Create a new version of the evaluator's promp
 
 ### `px evaluator delete <evaluator-id>`
 
-Delete an LLM or code evaluator that nothing binds. A code evaluator's version history goes with it; an LLM evaluator's prompt is kept. An evaluator still bound by a project or dataset is refused with a conflict: delete those bindings first. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+Delete an LLM or code evaluator that nothing binds. A code evaluator's version history goes with it; an LLM evaluator's prompt is kept. An evaluator still bound by a project or dataset is refused with a conflict: delete those bindings first. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`. `--format` controls how a refusal is rendered; `raw` and `json` carry the structured error.
 
 ```bash
 px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
