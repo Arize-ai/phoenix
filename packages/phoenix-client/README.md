@@ -605,7 +605,7 @@ client.evaluators.dataset_evaluators.delete_many(
 )
 ```
 
-Bind evaluators to projects to run them on incoming traces. A project binding controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive; `TRACE` and `SESSION` evaluators run once per trace or session after it has been quiet for the delay:
+Bind existing evaluator definitions to projects to run them on incoming traces. A project binding controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive; `TRACE` and `SESSION` evaluators run once per trace or session after it has been quiet for the delay:
 
 ```python
 # Evaluate a quarter of matching LLM spans as they arrive
@@ -624,9 +624,11 @@ for item in client.evaluators.project_evaluators.list(project="support-bot"):
 # Pause the binding without deleting it
 client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], enabled=False)
 
-# Deleting the last binding of an evaluator deletes the evaluator too. Its
-# prompt is kept unless delete_associated_prompt=True.
+# Deleting a binding keeps its evaluator definition, prompt, and trace project
 client.evaluators.project_evaluators.delete(project_evaluator_id=binding["id"])
+client.evaluators.project_evaluators.delete_many(
+    project="support-bot", project_evaluator_ids=["UHJvamVjdEV2YWx1YXRvcjoy"]
+)
 ```
 
 ## Documentation

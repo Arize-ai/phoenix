@@ -68,15 +68,15 @@ describe("createProjectEvaluator", () => {
       name: "toxicity",
       evaluationTarget: "SPAN",
       samplingRate: 0.25,
-      evaluator: { type: "reference", evaluator_id: "RXZhbHVhdG9yOjE=" },
+      evaluatorId: "RXZhbHVhdG9yOjE=",
     });
 
     expect(receivedIdentifier).toBe("support-bot");
     expect(receivedBody).toEqual({
       name: "toxicity",
+      evaluator_id: "RXZhbHVhdG9yOjE=",
       evaluation_target: "SPAN",
       sampling_rate: 0.25,
-      evaluator: { type: "reference", evaluator_id: "RXZhbHVhdG9yOjE=" },
     });
     expect(created).toEqual(binding);
   });
@@ -99,7 +99,7 @@ describe("createProjectEvaluator", () => {
       name: "toxicity",
       evaluationTarget: "SESSION",
       samplingRate: 1,
-      evaluator: { type: "reference", evaluator_id: "RXZhbHVhdG9yOjE=" },
+      evaluatorId: "RXZhbHVhdG9yOjE=",
       filterCondition: "span_kind == 'LLM'",
       enabled: false,
       inputMapping: { literal_mapping: {}, path_mapping: {} },
@@ -233,17 +233,15 @@ describe("getProjectEvaluator and updateProjectEvaluator", () => {
 });
 
 describe("deleteProjectEvaluator and deleteProjectEvaluators", () => {
-  it("DELETEs one binding and forwards the prompt flag", async () => {
+  it("DELETEs one binding without touching its definition", async () => {
     let receivedId: string | undefined;
-    let receivedFlag: string | null = null;
+    let receivedQuery: string | undefined;
     server.use(
       http.delete(
         "/v1/project_evaluators/{project_evaluator_id}",
         ({ params, request, response }) => {
           receivedId = params.project_evaluator_id;
-          receivedFlag = new URL(request.url).searchParams.get(
-            "delete_associated_prompt"
-          );
+          receivedQuery = new URL(request.url).search;
           return response(204).empty();
         }
       )
@@ -252,42 +250,23 @@ describe("deleteProjectEvaluator and deleteProjectEvaluators", () => {
     await deleteProjectEvaluator({
       client: createTestClient(),
       projectEvaluatorId: BINDING_ID,
-      deleteAssociatedPrompt: true,
     });
 
     expect(receivedId).toBe(BINDING_ID);
-    expect(receivedFlag).toBe("true");
+    expect(receivedQuery).toBe("");
   });
 
-  it("leaves the prompt flag to the server by default", async () => {
-    let receivedFlag: string | null = "unset";
+  it("DELETEs many bindings from the project collection", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
     server.use(
       http.delete(
-        "/v1/project_evaluators/{project_evaluator_id}",
-        ({ request, response }) => {
-          receivedFlag = new URL(request.url).searchParams.get(
-            "delete_associated_prompt"
+        "/v1/projects/{project_identifier}/evaluators",
+        ({ params, request, response }) => {
+          receivedIdentifier = params.project_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "project_evaluator_id"
           );
-          return response(204).empty();
-        }
-      )
-    );
-
-    await deleteProjectEvaluator({
-      client: createTestClient(),
-      projectEvaluatorId: BINDING_ID,
-    });
-
-    expect(receivedFlag).toBeNull();
-  });
-
-  it("POSTs many binding ids in the body", async () => {
-    let receivedBody: unknown;
-    server.use(
-      http.post(
-        "/v1/project_evaluators/delete",
-        async ({ request, response }) => {
-          receivedBody = await request.json();
           return response(204).empty();
         }
       )
@@ -295,20 +274,19 @@ describe("deleteProjectEvaluator and deleteProjectEvaluators", () => {
 
     await deleteProjectEvaluators({
       client: createTestClient(),
+      project: { projectName: "support-bot" },
       projectEvaluatorIds: ["a", "b"],
-      deleteAssociatedPrompt: true,
     });
 
-    expect(receivedBody).toEqual({
-      project_evaluator_ids: ["a", "b"],
-      delete_associated_prompt: true,
-    });
+    expect(receivedIdentifier).toBe("support-bot");
+    expect(receivedIds).toEqual(["a", "b"]);
   });
 
   it("refuses an empty id list without calling the server", async () => {
     await expect(
       deleteProjectEvaluators({
         client: createTestClient(),
+        project: { projectName: "support-bot" },
         projectEvaluatorIds: [],
       })
     ).rejects.toThrow("At least one projectEvaluatorId must be provided");

@@ -69,7 +69,7 @@ def test_evaluators_exposes_project_evaluators() -> None:
 
 
 class TestProjectEvaluatorsCreate:
-    def test_create_with_evaluator_id_sends_reference_and_required_fields(self) -> None:
+    def test_create_references_the_definition(self) -> None:
         created = _make_binding()
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -77,9 +77,9 @@ class TestProjectEvaluatorsCreate:
             assert request.url.path == "/v1/projects/support-bot/evaluators"
             assert json.loads(request.content) == {
                 "name": "toxicity",
+                "evaluator_id": EVALUATOR_ID,
                 "evaluation_target": "SPAN",
                 "sampling_rate": 0.25,
-                "evaluator": {"type": "reference", "evaluator_id": EVALUATOR_ID},
             }
             return httpx.Response(201, json={"data": created})
 
@@ -100,55 +100,21 @@ class TestProjectEvaluatorsCreate:
             assert body["enabled"] is False
             assert body["input_mapping"] == {"literal_mapping": {}, "path_mapping": {}}
             assert body["evaluation_delay_seconds"] == 600
-            assert body["evaluator"]["type"] == "llm"
             return httpx.Response(201, json={"data": _make_binding(enabled=False)})
 
-        evaluator: v1.NewLLMEvaluator = {
-            "type": "llm",
-            "prompt_version": {
-                "model_provider": "OPENAI",
-                "model_name": "gpt-4o",
-                "template": {
-                    "type": "chat",
-                    "messages": [{"role": "user", "content": "Toxic? {{output}}"}],
-                },
-                "template_type": "CHAT",
-                "template_format": "MUSTACHE",
-                "invocation_parameters": {"type": "openai", "openai": {}},
-            },
-            "output_configs": [
-                {
-                    "type": "CATEGORICAL",
-                    "name": "toxicity",
-                    "optimization_direction": "MINIMIZE",
-                    "values": [{"label": "toxic", "score": 1}, {"label": "clean", "score": 0}],
-                }
-            ],
-        }
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         result = ProjectEvaluators(client).create(
             project="support-bot",
             name="toxicity",
             evaluation_target="SESSION",
             sampling_rate=1.0,
-            evaluator=evaluator,
+            evaluator_id=EVALUATOR_ID,
             filter_condition="span_kind == 'LLM'",
             enabled=False,
             input_mapping={"literal_mapping": {}, "path_mapping": {}},
             evaluation_delay_seconds=600,
         )
         assert result["enabled"] is False
-
-    @pytest.mark.parametrize("kwargs", [{}, {"evaluator_id": EVALUATOR_ID, "evaluator": {}}])
-    def test_create_requires_exactly_one_evaluator_source(self, kwargs: dict[str, object]) -> None:
-        with pytest.raises(ValueError, match="Exactly one of evaluator or evaluator_id"):
-            ProjectEvaluators(_unreachable_client()).create(
-                project="p",
-                name="n",
-                evaluation_target="SPAN",
-                sampling_rate=1.0,
-                **kwargs,  # type: ignore[arg-type]
-            )
 
     def test_create_calls_guard_before_request(self) -> None:
         with pytest.raises(_GuardSentinel):
@@ -227,60 +193,51 @@ class TestProjectEvaluatorsGetUpdate:
 
 
 class TestProjectEvaluatorsDelete:
-    def test_delete_keeps_prompt_by_default(self) -> None:
+    def test_delete_removes_only_the_binding(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.method == "DELETE"
             assert request.url.path == f"/v1/project_evaluators/{BINDING_ID}"
-            assert request.url.params.get("delete_associated_prompt") == "false"
+            assert not request.url.params
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         ProjectEvaluators(client).delete(project_evaluator_id=BINDING_ID)
 
-    def test_delete_forwards_prompt_flag(self) -> None:
+    def test_delete_many_deletes_from_the_project_collection(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.params.get("delete_associated_prompt") == "true"
+            assert request.method == "DELETE"
+            assert request.url.path == "/v1/projects/support-bot/evaluators"
+            assert request.url.params.get_list("project_evaluator_id") == ["a", "b"]
             return httpx.Response(204)
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        ProjectEvaluators(client).delete(
-            project_evaluator_id=BINDING_ID, delete_associated_prompt=True
+        ProjectEvaluators(client).delete_many(
+            project="support-bot", project_evaluator_ids=["a", "b"]
         )
-
-    def test_delete_many_posts_ids_in_body(self) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert request.method == "POST"
-            assert request.url.path == "/v1/project_evaluators/delete"
-            assert json.loads(request.content) == {
-                "project_evaluator_ids": ["a", "b"],
-                "delete_associated_prompt": False,
-            }
-            return httpx.Response(204)
-
-        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        ProjectEvaluators(client).delete_many(project_evaluator_ids=["a", "b"])
 
     def test_delete_many_requires_ids(self) -> None:
         with pytest.raises(ValueError, match="At least one project_evaluator_id"):
-            ProjectEvaluators(_unreachable_client()).delete_many(project_evaluator_ids=[])
+            ProjectEvaluators(_unreachable_client()).delete_many(
+                project="p", project_evaluator_ids=[]
+            )
 
     def test_delete_many_calls_guard_before_request(self) -> None:
         with pytest.raises(_GuardSentinel):
             ProjectEvaluators(
                 _unreachable_client(),
                 _guard=_refusing_guard(DELETE_PROJECT_EVALUATORS),  # type: ignore[arg-type]
-            ).delete_many(project_evaluator_ids=["a"])
+            ).delete_many(project="p", project_evaluator_ids=["a"])
 
 
 class TestAsyncProjectEvaluators:
     @pytest.mark.asyncio
-    async def test_create_with_evaluator_id_sends_reference(self) -> None:
+    async def test_create_references_the_definition(self) -> None:
         created = _make_binding()
 
         async def handler(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/v1/projects/support-bot/evaluators"
             body = json.loads(request.content)
-            assert body["evaluator"] == {"type": "reference", "evaluator_id": EVALUATOR_ID}
+            assert body["evaluator_id"] == EVALUATOR_ID
             assert body["evaluation_target"] == "SPAN"
             return httpx.Response(201, json={"data": created})
 
@@ -307,19 +264,16 @@ class TestAsyncProjectEvaluators:
         assert result["enabled"] is False
 
     @pytest.mark.asyncio
-    async def test_delete_many_posts_ids_in_body(self) -> None:
+    async def test_delete_many_deletes_from_the_project_collection(self) -> None:
         async def handler(request: httpx.Request) -> httpx.Response:
-            assert request.method == "POST"
-            assert request.url.path == "/v1/project_evaluators/delete"
-            assert json.loads(request.content) == {
-                "project_evaluator_ids": ["a", "b"],
-                "delete_associated_prompt": True,
-            }
+            assert request.method == "DELETE"
+            assert request.url.path == "/v1/projects/support-bot/evaluators"
+            assert request.url.params.get_list("project_evaluator_id") == ["a", "b"]
             return httpx.Response(204)
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         await AsyncProjectEvaluators(client).delete_many(
-            project_evaluator_ids=["a", "b"], delete_associated_prompt=True
+            project="support-bot", project_evaluator_ids=["a", "b"]
         )
 
 
