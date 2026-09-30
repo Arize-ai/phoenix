@@ -273,7 +273,7 @@ DELETE_PROJECT_EVALUATOR = RouteRequirement(
 )
 
 DELETE_PROJECT_EVALUATORS = RouteRequirement(
-    method="POST",
-    path="/v1/project_evaluators/delete",
+    method="DELETE",
+    path="/v1/projects/{project_identifier}/evaluators",
     min_server_version=Version(21, 0, 0),
 )

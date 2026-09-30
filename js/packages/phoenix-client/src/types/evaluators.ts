@@ -153,14 +153,6 @@ export type ProjectEvaluator = components["schemas"]["ProjectEvaluator"];
 export type EvaluationTarget = components["schemas"]["EvaluationTarget"];
 
 /**
- * The evaluator a project binding creates or references: a new LLM or code
- * evaluator, or `{ type: "reference", evaluator_id }` for an existing code
- * evaluator.
- */
-export type ProjectEvaluatorInput =
-  components["schemas"]["CreateProjectEvaluatorRequest"]["evaluator"];
-
-/**
  * Fields that can change on a project binding. Omitted fields keep their
  * current values.
  */
