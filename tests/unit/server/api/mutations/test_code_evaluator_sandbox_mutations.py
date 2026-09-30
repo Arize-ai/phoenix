@@ -820,6 +820,43 @@ class TestCodeEvaluatorSandboxMutationIds:
         assert row is not None
         assert row.sandbox_config_id == sandbox_config.id
 
+    async def test_create_code_evaluator_reports_a_clean_conflict_on_duplicate_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        name = f"duplicate-code-evaluator-{token_hex(4)}"
+        first = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": _create_code_evaluator_input(
+                    sandbox_config_id=sandbox_config.id, name=name
+                )
+            },
+        )
+        assert first.data and not first.errors
+
+        second = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": _create_code_evaluator_input(
+                    sandbox_config_id=sandbox_config.id, name=name
+                )
+            },
+        )
+        assert second.errors
+        assert second.errors[0].message == f"An evaluator named '{name}' already exists"
+        assert "UNIQUE constraint" not in second.errors[0].message
+        assert "IntegrityError" not in second.errors[0].message
+        async with db() as session:
+            count = await session.scalar(
+                select(sa.func.count(models.CodeEvaluator.id)).where(
+                    models.CodeEvaluator.name == Identifier(name)
+                )
+            )
+        assert count == 1
+
     async def test_create_code_evaluator_rejects_disabled_sandbox_config(
         self,
         gql_client: AsyncGraphQLClient,
