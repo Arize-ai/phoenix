@@ -43,6 +43,28 @@ function describeProblem(error: HttpError): string {
   return lines.join("; ");
 }
 
+/**
+ * A `hint` for the structured error envelope: one line per field error from a
+ * `validation_error` response, as `--flag: reason`. `reason` is always the
+ * server's own text — the CLI keeps no copy of the server's field rules (e.g.
+ * the name pattern) to duplicate here. The flag is the field's dotted path
+ * (`body.name`, `query.name`) with the `body.`/`query.` prefix stripped and
+ * underscores dashed, which matches this CLI's flag names.
+ */
+export function validationHint(error: unknown): string | undefined {
+  if (!(error instanceof HttpError)) return undefined;
+  const problem = error.problem;
+  if (problem?.code !== "validation_error" || !problem.errors?.length) {
+    return undefined;
+  }
+  return problem.errors
+    .map((fieldError) => {
+      const field = fieldError.field.replace(/^(body|query)\./, "");
+      return `--${field.replace(/_/g, "-")}: ${fieldError.message}`;
+    })
+    .join("; ");
+}
+
 async function readDetail(error: HttpError): Promise<string> {
   let text: string;
   try {

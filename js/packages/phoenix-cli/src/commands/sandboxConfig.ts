@@ -9,9 +9,13 @@ import {
 } from "../config";
 import { ExitCode, exitCodeName, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
-import { parsePositiveIntOption } from "../optionParsers";
+import { parseFormatOption, parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
-import { describeError, describeFailure } from "./evaluatorErrors";
+import {
+  describeError,
+  describeFailure,
+  validationHint,
+} from "./evaluatorErrors";
 import type { OutputFormat } from "./formatEvaluator";
 import { formatSandboxConfigsOutput } from "./formatSandboxConfig";
 import type { CommonOptions } from "./options";
@@ -92,6 +96,7 @@ async function sandboxConfigListHandler(
       format: options.format,
       message: `Error fetching sandbox configurations: ${await describeError(error)}`,
       code: exitCodeName(exitCode),
+      hint: validationHint(error),
       ...describeFailure(error),
     });
     process.exit(exitCode);
@@ -117,6 +122,7 @@ export function createSandboxConfigListCommand(): Command {
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
+      parseFormatOption,
       "pretty"
     )
     .option("--no-progress", "Disable progress indicators")
