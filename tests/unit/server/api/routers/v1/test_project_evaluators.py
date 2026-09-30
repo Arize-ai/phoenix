@@ -55,6 +55,36 @@ async def test_llm_binding_without_input_mapping_stores_null(
     assert stored is None
 
 
+async def test_trace_target_binding_round_trips(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    """TRACE-target bindings create and list like SPAN and SESSION do; only those two
+    are covered elsewhere."""
+    project = await _project(db)
+    response = await httpx_client.post(
+        f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators",
+        json={
+            "name": "trace-target",
+            "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+            "evaluation_target": "TRACE",
+            "sampling_rate": 1.0,
+        },
+    )
+    assert response.status_code == 201, response.text
+    created = response.json()["data"]
+    assert created["evaluation_target"] == "TRACE"
+
+    response = await httpx_client.get(
+        f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators"
+    )
+    assert response.status_code == 200, response.text
+    listed = response.json()["data"]
+    assert [item["id"] for item in listed] == [created["id"]]
+    assert listed[0]["evaluation_target"] == "TRACE"
+
+
 async def test_referencing_a_missing_evaluator_is_not_found(
     httpx_client: httpx.AsyncClient, db: DbSessionFactory
 ) -> None:
