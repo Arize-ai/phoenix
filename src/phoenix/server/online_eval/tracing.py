@@ -9,13 +9,13 @@ from typing import Optional
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SdkSpan
 from opentelemetry.sdk.trace import SpanProcessor
-from opentelemetry.util.types import AttributeValue
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
+from phoenix.trace.attributes import AttributeValue
 from phoenix.tracers import Tracer
 
 logger = logging.getLogger(__name__)
