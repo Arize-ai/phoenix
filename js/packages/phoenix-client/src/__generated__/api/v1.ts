@@ -527,6 +527,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evaluators
+         * @description List evaluator definitions, newest first, whether or not anything binds them.
+         *
+         *     Items are identified by their own typed ids, and the cursor is a separate value:
+         *     pass `next_cursor` back as is.
+         */
+        get: operations["getEvaluators"];
+        put?: never;
+        /**
+         * Create Evaluator
+         * @description Create an evaluator definition that nothing binds yet.
+         *
+         *     An LLM evaluator runs an existing prompt version; a code evaluator is created with its
+         *     first version. The name must be unique among evaluators: a clash is refused with 409
+         *     `already_exists`, whose `existing_id` names the evaluator holding it.
+         */
+        post: operations["createEvaluator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluators/{evaluator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evaluator
+         * @description Read a definition, including its current code or the prompt version it runs.
+         */
+        get: operations["getEvaluator"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Evaluator
+         * @description Delete a definition that nothing binds; a missing evaluator is ignored.
+         *
+         *     A definition still bound by a project or dataset is refused with 409; delete those
+         *     bindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps
+         *     the prompt. Built-in evaluators cannot be deleted.
+         */
+        delete: operations["deleteEvaluator"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Evaluator
+         * @description Edit a definition; the change applies to every binding that references it.
+         *
+         *     Omitted fields keep their values. Code is appended through the versions endpoint and
+         *     prompt content through the prompts API; this route only moves pointers to them. An LLM
+         *     change that would invalidate a dataset binding's overrides is refused with 409.
+         */
+        patch: operations["patchEvaluator"];
+        trace?: never;
+    };
+    "/v1/evaluators/{evaluator_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Code Evaluator Versions
+         * @description List a code evaluator's versions, newest first. Only code evaluators have versions.
+         */
+        get: operations["listCodeEvaluatorVersions"];
+        put?: never;
+        /**
+         * Create Code Evaluator Version
+         * @description Append immutable code, returning 200 when it matches the current version.
+         *
+         *     Configuration sent alongside (sandbox, input mapping, outputs, description) is applied in
+         *     the same transaction, so bindings never see new code with the old configuration. Pass
+         *     `expected_current_version_id` to be refused with 409 if another deployment landed first.
+         *     Deduplication compares against the current version only, so restoring older source
+         *     creates another version.
+         */
+        post: operations["createCodeEvaluatorVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sandbox_configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sandbox Configs
+         * @description List sandbox configurations, newest first. Provider credentials are not returned.
+         */
+        get: operations["getSandboxConfigs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets/{dataset_id}/experiments": {
         parameters: {
             query?: never;
@@ -2473,6 +2590,29 @@ export interface components {
              */
             value: string;
         };
+        /** CodeEvaluatorDefinition */
+        CodeEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            language: components["schemas"]["LanguageName"];
+            /** Sandbox Config Id */
+            sandbox_config_id: string | null;
+            input_mapping: components["schemas"]["InputMapping"] | null;
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /** Current Version Id */
+            current_version_id: string | null;
+            /** Source Code */
+            source_code: string | null;
+        };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {
             /**
@@ -2482,6 +2622,54 @@ export interface components {
             type: "code_evaluator";
             /** Evaluatornodeid */
             evaluatorNodeId?: string | null;
+        };
+        /** CodeEvaluatorVersion */
+        CodeEvaluatorVersion: {
+            /** Id */
+            id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /** Source Code */
+            source_code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CodeEvaluatorVersionRequest */
+        CodeEvaluatorVersionRequest: {
+            /** Source Code */
+            source_code: string;
+            /**
+             * Expected Current Version Id
+             * @description GlobalID of the version the caller believes is current. When another version has been appended since, the request is refused with 409 instead of deploying over it.
+             */
+            expected_current_version_id?: string | null;
+            /**
+             * Description
+             * @description Configuration applied together with the new code. Omit to keep.
+             */
+            description?: string | null;
+            /**
+             * Sandbox Config Id
+             * @description Sandbox to run the new code in. Omit to keep; null clears it.
+             */
+            sandbox_config_id?: string | null;
+            /** @description Default input mapping for the new code's arguments. Omit to keep. */
+            input_mapping?: components["schemas"]["InputMapping"];
+            /**
+             * Output Configs
+             * @description Outputs the new code produces. Omit to keep.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
+        /** CodeEvaluatorVersionsResponseBody */
+        CodeEvaluatorVersionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["CodeEvaluatorVersion"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * CompactAgentSessionRequestBody
@@ -2630,6 +2818,30 @@ export interface components {
             response_format?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** CreateCodeEvaluatorRequest */
+        CreateCodeEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            /** @description Unique among evaluators. */
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Code */
+            source_code: string;
+            language: components["schemas"]["LanguageName"];
+            /** Sandbox Config Id */
+            sandbox_config_id: string;
+            /** @description Default mapping from record fields to the function's arguments. */
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Output Configs
+             * @description Outputs the code produces.
+             */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
         };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
@@ -2782,6 +2994,25 @@ export interface components {
              */
             id: string;
         };
+        /** CreateLLMEvaluatorRequest */
+        CreateLLMEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            /** @description Unique among evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
+             */
+            description?: string | null;
+            /** @description The prompt version to run. Create the prompt and its version through the prompts API first. */
+            prompt: components["schemas"]["LLMEvaluatorPromptInput"];
+            /** Output Configs */
+            output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
+        };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
             /** Name */
@@ -2897,6 +3128,29 @@ export interface components {
              * @description The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints.
              */
             key: string;
+        };
+        /** CreatedCodeEvaluatorVersion */
+        CreatedCodeEvaluatorVersion: {
+            /** Id */
+            id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /** Source Code */
+            source_code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Was Created
+             * @description False when the source matched the current version, which is returned instead.
+             */
+            was_created: boolean;
+        };
+        /** CreatedCodeEvaluatorVersionResponseBody */
+        CreatedCodeEvaluatorVersionResponseBody: {
+            data: components["schemas"]["CreatedCodeEvaluatorVersion"];
         };
         /** CustomModelProvider */
         CustomModelProvider: {
@@ -3306,6 +3560,18 @@ export interface components {
             } | null;
             /** Approval */
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /** EvaluatorDefinitionResponseBody */
+        EvaluatorDefinitionResponseBody: {
+            /** Data */
+            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"];
+        };
+        /** EvaluatorDefinitionsResponseBody */
+        EvaluatorDefinitionsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** Experiment */
         Experiment: {
@@ -3729,6 +3995,17 @@ export interface components {
              */
             repetition_numbers: number[];
         };
+        /** InputMapping */
+        InputMapping: {
+            /** Literal Mapping */
+            literal_mapping: {
+                [key: string]: unknown;
+            };
+            /** Path Mapping */
+            path_mapping: {
+                [key: string]: string;
+            };
+        };
         /** InsertedSessionAnnotation */
         InsertedSessionAnnotation: {
             /**
@@ -3806,6 +4083,58 @@ export interface components {
              * @enum {string}
              */
             auth_method: "LDAP";
+        };
+        /** LLMEvaluatorDefinition */
+        LLMEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description Equals the description of the prompt's tool function.
+             */
+            description: string | null;
+            prompt: components["schemas"]["LLMEvaluatorPrompt"];
+            /** Output Configs */
+            output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
+        };
+        /** LLMEvaluatorPrompt */
+        LLMEvaluatorPrompt: {
+            /**
+             * Prompt Id
+             * @description GlobalID of the prompt whose version the evaluator runs.
+             */
+            prompt_id: string;
+            /**
+             * Selector
+             * @description How the version is chosen. version: pinned to one version. latest: the prompt's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.
+             */
+            selector: components["schemas"]["PromptVersionSelector"] | components["schemas"]["LatestPromptVersionSelector"];
+            /**
+             * Resolved Prompt Version Id
+             * @description GlobalID of the version the evaluator runs now; null if the prompt has none.
+             */
+            resolved_prompt_version_id: string | null;
+        };
+        /** LLMEvaluatorPromptInput */
+        LLMEvaluatorPromptInput: {
+            /** @description Which prompt version to run. */
+            selector: components["schemas"]["PromptVersionSelector"];
+        };
+        /** @enum {string} */
+        LanguageName: "PYTHON" | "TYPESCRIPT";
+        /** LatestPromptVersionSelector */
+        LatestPromptVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "latest";
         };
         /**
          * LegacyAssistantMessageMetadata
@@ -4377,6 +4706,40 @@ export interface components {
         /** PatchAgentSessionResponseBody */
         PatchAgentSessionResponseBody: {
             data: components["schemas"]["AgentSessionData"];
+        };
+        /** PatchCodeEvaluatorRequest */
+        PatchCodeEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            name?: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Sandbox Config Id */
+            sandbox_config_id?: string | null;
+            input_mapping?: components["schemas"]["InputMapping"];
+            /** Output Configs */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
+        /** PatchLLMEvaluatorRequest */
+        PatchLLMEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            name?: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
+             */
+            description?: string | null;
+            /** @description Move the evaluator to another prompt version. Omit to keep it. */
+            prompt?: components["schemas"]["LLMEvaluatorPromptInput"];
+            /** Output Configs */
+            output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][];
         };
         /**
          * PatchPromptRequestBody
@@ -5402,6 +5765,19 @@ export interface components {
              */
             custom_provider_id?: string | null;
         };
+        /** PromptVersionSelector */
+        PromptVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "version";
+            /**
+             * Prompt Version Id
+             * @description GlobalID of the prompt version the evaluator runs. Prompt content is created through the prompts API; a version of another prompt moves the evaluator to it.
+             */
+            prompt_version_id: string;
+        };
         /** PromptVersionTag */
         PromptVersionTag: {
             name: components["schemas"]["Identifier"];
@@ -5539,6 +5915,32 @@ export interface components {
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
             data: components["schemas"]["UpsertOrDeleteSecretsResult"];
+        };
+        /** SandboxConfig */
+        SandboxConfig: {
+            /**
+             * Id
+             * @description GlobalID to pass as a code evaluator's sandbox_config_id.
+             */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            language: components["schemas"]["LanguageName"];
+            /** Backend Type */
+            backend_type: string;
+            /**
+             * Is Usable
+             * @description Whether code evaluators can be created or deployed in it now: the configuration and its provider are both enabled.
+             */
+            is_usable: boolean;
+        };
+        /** SandboxConfigsResponseBody */
+        SandboxConfigsResponseBody: {
+            /** Data */
+            data: components["schemas"]["SandboxConfig"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * SecretKeyValue
@@ -7309,6 +7711,13 @@ export interface components {
             /** Errortext */
             errorText: string;
         };
+        /** BindingCounts */
+        BindingCounts: {
+            /** Project */
+            project: number;
+            /** Dataset */
+            dataset: number;
+        };
         /**
          * PhoenixToolCallCallbackProviderMetadata
          * @description Shape of the ``phoenix`` namespace the browser returns in
@@ -7359,6 +7768,81 @@ export interface components {
              * @default null
              */
             toolInputEmittedAt?: string | null;
+        };
+        /** ProblemDetail */
+        ProblemDetail: {
+            /**
+             * Type
+             * @description urn:phoenix:problem:<code>, e.g. urn:phoenix:problem:conflict.
+             */
+            type: string;
+            /**
+             * Title
+             * @description A fixed title for `code`, e.g. 'Already exists'.
+             */
+            title: string;
+            /** Status */
+            status: number;
+            /**
+             * Detail
+             * @description What went wrong and, where possible, how to fix it.
+             */
+            detail: string;
+            /**
+             * Code
+             * @description Stable machine-readable code: validation_error, invalid_argument, not_found, already_exists, conflict, forbidden, insufficient_storage, or error. A future code is additive; treat one you don't recognize by `status`.
+             */
+            code: string;
+            /**
+             * Reason
+             * @description A finer condition under `code`, e.g. still_bound or version_mismatch. New reasons may appear; treat one you don't recognize by `code`.
+             * @default null
+             */
+            reason?: string | null;
+            /**
+             * Errors
+             * @description Every invalid input, for validation_error.
+             * @default null
+             */
+            errors?: components["schemas"]["ProblemFieldError"][] | null;
+            /**
+             * Existing Id
+             * @description For already_exists: the GlobalID of the resource that holds the name.
+             * @default null
+             */
+            existing_id?: string | null;
+            /**
+             * Current Version Id
+             * @description For version_mismatch: the GlobalID of the version actually current, or null when the evaluator has none yet. Re-read the evaluator and reconcile before retrying; don't replace the expected version blindly.
+             * @default null
+             */
+            current_version_id?: string | null;
+            /**
+             * @description For still_bound: how many project and dataset bindings still refuse the delete.
+             * @default null
+             */
+            binding_counts?: components["schemas"]["BindingCounts"] | null;
+            /**
+             * Dataset Evaluator Ids
+             * @description For incompatible_override: GlobalIDs of the dataset bindings whose output overrides no longer fit the evaluator's prompt.
+             * @default null
+             */
+            dataset_evaluator_ids?: string[] | null;
+        };
+        /** ProblemFieldError */
+        ProblemFieldError: {
+            /**
+             * Field
+             * @description Normalized dotted path of the offending input: body, query, or path, followed by the field's own path (array indices are numeric segments). Discriminated-union tags and validator wrapper names are stripped, e.g. body.name rather than body.code.name.
+             */
+            field: string;
+            /**
+             * Code
+             * @description One of missing, unknown_field, wrong_type, pattern, too_short, too_long, out_of_range, invalid_choice, or invalid.
+             */
+            code: string;
+            /** Message */
+            message: string;
         };
         /**
          * SessionSummaryChunk
@@ -9424,6 +9908,462 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    getEvaluators: {
+        parameters: {
+            query?: {
+                /** @description Return one kind only. */
+                type?: ("llm" | "code") | null;
+                /** @description Return the evaluator with this name. */
+                name?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLLMEvaluatorRequest"] | components["schemas"]["CreateCodeEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchLLMEvaluatorRequest"] | components["schemas"]["PatchCodeEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listCodeEvaluatorVersions: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeEvaluatorVersionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createCodeEvaluatorVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeEvaluatorVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Source matches the current version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedCodeEvaluatorVersionResponseBody"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedCodeEvaluatorVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getSandboxConfigs: {
+        parameters: {
+            query?: {
+                /** @description Return configurations for this language only. */
+                language?: components["schemas"]["LanguageName"] | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SandboxConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };

@@ -147,6 +147,7 @@ def _code_create_input(
         "language": "PYTHON",
         "sandboxConfigId": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
         "evaluatorInputMapping": _mapping(output="value"),
+        "outputConfigs": [{"continuous": {"name": "score", "optimizationDirection": "MAXIMIZE"}}],
         "samplingRate": 0.5,
         "evaluationTarget": "SPAN",
         "inputMapping": None,
@@ -520,6 +521,136 @@ async def test_delete_project_binding_preserves_core_attached_to_another_project
         assert attached_criteria is not None
         assert attached_criteria.evaluator_id == core_rowid
         assert await session.get(models.CodeEvaluator, core_rowid) is not None
+
+
+async def _has_evaluator_label(db: DbSessionFactory, prompt_id: int) -> bool:
+    async with db() as session:
+        return (
+            await session.scalar(
+                select(models.PromptPromptLabel.id)
+                .join(
+                    models.PromptLabel,
+                    models.PromptPromptLabel.prompt_label_id == models.PromptLabel.id,
+                )
+                .where(
+                    models.PromptPromptLabel.prompt_id == prompt_id,
+                    models.PromptLabel.name == "evaluator",
+                )
+            )
+        ) is not None
+
+
+async def test_delete_last_binding_removes_the_tag_and_label_when_prompt_is_kept(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting an LLM evaluator's last binding, with its prompt kept, deletes the tag the
+    evaluator owned and drops the prompt's "evaluator" label since nothing else uses it."""
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="solo-llm", text="Evaluate {{input}}")},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    async with db() as session:
+        evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(created["evaluator"]["id"]).node_id)
+        )
+        assert evaluator is not None
+        prompt_id = evaluator.prompt_id
+        tag_id = evaluator.prompt_version_tag_id
+        assert tag_id is not None
+    assert await _has_evaluator_label(db, prompt_id)
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": False}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        assert await session.get(models.PromptVersionTag, tag_id) is None
+        assert await session.get(models.Prompt, prompt_id) is not None
+    assert not await _has_evaluator_label(db, prompt_id)
+
+
+async def test_delete_binding_keeps_the_label_when_another_evaluator_shares_the_prompt(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting one LLM evaluator's binding removes its own tag but leaves the prompt's
+    "evaluator" label in place as long as another LLM evaluator still runs that prompt."""
+    project = await _add_project(db)
+    first_result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="first-llm", text="Evaluate {{input}}")},
+    )
+    assert first_result.data and not first_result.errors
+    first = first_result.data["createProjectLlmEvaluator"]["evaluator"]
+    prompt_version_id = first["evaluator"]["promptVersion"]["id"]
+
+    second_input = _llm_input(project, name="second-llm", text="Evaluate {{input}}")
+    second_input["promptVersionId"] = prompt_version_id
+    second_result = await gql_client.execute(_CREATE_LLM, {"input": second_input})
+    assert second_result.data and not second_result.errors
+    second = second_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    async with db() as session:
+        first_evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(first["evaluator"]["id"]).node_id)
+        )
+        second_evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(second["evaluator"]["id"]).node_id)
+        )
+        assert first_evaluator is not None and second_evaluator is not None
+        assert first_evaluator.prompt_id == second_evaluator.prompt_id
+        prompt_id = first_evaluator.prompt_id
+        first_tag_id = first_evaluator.prompt_version_tag_id
+        assert first_tag_id is not None
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [first["id"]], "deleteAssociatedPrompt": False}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        assert await session.get(models.PromptVersionTag, first_tag_id) is None
+        assert await session.get(models.Prompt, prompt_id) is not None
+    assert await _has_evaluator_label(db, prompt_id)
+
+
+async def test_delete_last_binding_with_associated_prompt_deletes_it_without_error(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """delete_associated_prompt=true removes the prompt too; the tag and label cleanup that
+    runs afterward is a no-op on the now-missing prompt rather than an error."""
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="deleted-prompt-llm", text="Evaluate {{input}}")},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    async with db() as session:
+        evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(created["evaluator"]["id"]).node_id)
+        )
+        assert evaluator is not None
+        prompt_id = evaluator.prompt_id
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        assert await session.get(models.Prompt, prompt_id) is None
 
 
 async def test_project_llm_evaluator_create_update_delete(
@@ -1091,6 +1222,62 @@ async def test_update_code_evaluator_rejects_explicit_null_source_code(
     )
     assert result.errors
     assert result.errors[0].message == "source_code cannot be set to null"
+
+
+@pytest.mark.parametrize("output_configs", [[], None], ids=["empty", "omitted"])
+async def test_create_code_evaluator_requires_output_configs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    output_configs: Optional[list[Any]],
+) -> None:
+    project = await _add_project(db)
+    before = await _row_counts(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_input["outputConfigs"] = output_configs
+
+    result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+
+    assert result.errors
+    assert result.errors[0].message == "At least one output config is required."
+    assert await _row_counts(db) == before
+
+
+async def test_update_code_evaluator_rejects_empty_output_configs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    evaluator = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": evaluator["id"],
+                "name": evaluator["name"],
+                "outputConfigs": [],
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+            }
+        },
+    )
+
+    assert result.errors
+    assert result.errors[0].message == "At least one output config is required."
+    async with db() as session:
+        code_evaluator = await session.get(
+            models.CodeEvaluator, int(GlobalID.from_id(evaluator["evaluator"]["id"]).node_id)
+        )
+    assert code_evaluator is not None
+    assert [config.name for config in code_evaluator.output_configs] == ["score"]
 
 
 async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(
