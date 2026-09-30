@@ -199,6 +199,26 @@ describe("evaluator list", () => {
     expect(parsed).toEqual([CODE_EVALUATOR]);
   });
 
+  it("prints an empty result for a name that cannot exist, without erroring", async () => {
+    let receivedName: string | null = null;
+    mock.server.use(
+      http.get("/v1/evaluators", ({ request, response }) => {
+        receivedName = new URL(request.url).searchParams.get("name");
+        return response(200).json({ data: [], next_cursor: null });
+      })
+    );
+    const io = captureCliOutput();
+
+    await createEvaluatorCommand().parseAsync(
+      ["list", "--name", "Exact-Match", "--format", "raw", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(receivedName).toBe("Exact-Match");
+    const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
+    expect(parsed).toEqual([]);
+  });
+
   it("exits INVALID_ARGUMENT on an unknown --type without calling the server", async () => {
     let calls = 0;
     mock.server.use(
@@ -952,6 +972,46 @@ describe("evaluator command error handling", () => {
     const envelope = JSON.parse(String(stderrSpy.mock.calls[0]?.[0]));
     expect(envelope.code).toBe("INVALID_ARGUMENT");
   });
+
+  it("accepts --format in any case", async () => {
+    mock.server.use(
+      http.get("/v1/evaluators", ({ response }) =>
+        response(200).json({ data: [], next_cursor: null })
+      )
+    );
+    const io = captureCliOutput();
+
+    await createEvaluatorCommand().parseAsync(
+      ["list", "--format", "JSON", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual([]);
+  });
+
+  it("rejects an invalid --format before contacting the server", async () => {
+    let listed = false;
+    mock.server.use(
+      http.get("/v1/evaluators", ({ response }) => {
+        listed = true;
+        return response(200).json({ data: [], next_cursor: null });
+      })
+    );
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockProcessExit();
+
+    await expect(
+      createEvaluatorCommand().parseAsync(
+        ["list", "--format", "yaml", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(listed).toBe(false);
+    expect(String(stderrSpy.mock.calls[0]?.[0])).toContain(
+      "Invalid --format: yaml"
+    );
+  });
 });
 
 describe("evaluator create --type llm", () => {
@@ -1047,6 +1107,44 @@ describe("evaluator create --type llm", () => {
       existing_id: LLM_ID,
     });
     expect(envelope.error).toContain("already exists");
+  });
+
+  const invalidName = () =>
+    new Response(
+      JSON.stringify({
+        type: "about:blank",
+        title: "Unprocessable Entity",
+        status: 422,
+        detail: "1 validation error for Identifier",
+        code: "validation_error",
+        errors: [
+          {
+            field: "body.name",
+            code: "string_pattern_mismatch",
+            message:
+              "String should match pattern '^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$'",
+          },
+        ],
+      }),
+      { status: 422, headers: { "content-type": "application/problem+json" } }
+    );
+
+  it("hints each field error's flag and the server's own reason", async () => {
+    mock.server.use(http.post("/v1/evaluators", () => invalidName()));
+    const io = captureCliOutput();
+    mockProcessExit();
+
+    await expect(
+      createEvaluatorCommand().parseAsync([...llmArgs, ...BASE_ARGS], {
+        from: "user",
+      })
+    ).rejects.toThrow("process.exit:");
+
+    const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(envelope).toMatchObject({ status: 422, reason: "validation_error" });
+    expect(envelope.hint).toBe(
+      "--name: String should match pattern '^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$'"
+    );
   });
 
   it("prints the existing evaluator with --if-not-exists", async () => {

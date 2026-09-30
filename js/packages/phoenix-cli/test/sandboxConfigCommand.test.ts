@@ -87,6 +87,48 @@ describe("sandbox-config list", () => {
     expect(envelope.code).toBe("INVALID_ARGUMENT");
   });
 
+  it("accepts --format in any case", async () => {
+    mock.server.use(
+      http.get("/v1/sandbox_configs", ({ response }) =>
+        response(200).json({ data: [CONFIG], next_cursor: null })
+      )
+    );
+    const io = captureCliOutput();
+
+    await createSandboxConfigCommand().parseAsync(
+      ["list", "--format", "RAW", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual([
+      CONFIG,
+    ]);
+  });
+
+  it("rejects an invalid --format before any request", async () => {
+    let listed = false;
+    mock.server.use(
+      http.get("/v1/sandbox_configs", ({ response }) => {
+        listed = true;
+        return response(200).json({ data: [CONFIG], next_cursor: null });
+      })
+    );
+    const io = captureCliOutput();
+    mockProcessExit();
+
+    await expect(
+      createSandboxConfigCommand().parseAsync(
+        ["list", "--format", "yaml", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(listed).toBe(false);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "Invalid --format: yaml"
+    );
+  });
+
   it("works against the generated handlers alone", async () => {
     const io = captureCliOutput();
 
