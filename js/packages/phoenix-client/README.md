@@ -886,7 +886,7 @@ import {
   getEvaluators,
 } from "@arizeai/phoenix-client/evaluators";
 
-// `type` is "llm", "code", or "builtin"; `name` and `limit` keep the list small
+// `type` is "llm" or "code"; `name` and `limit` keep the list small
 for (const evaluator of await getEvaluators({ type: "code", limit: 20 })) {
   console.log(evaluator.id, evaluator.name);
 }
