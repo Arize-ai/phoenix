@@ -90,18 +90,19 @@ describe("project evaluator list", () => {
       { from: "user" }
     );
 
-    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual([
-      BINDING,
-    ]);
+    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual([BINDING]);
   });
 
   it("rejects an invalid --format before any request", async () => {
     let listed = false;
     mock.server.use(
-      http.get("/v1/projects/{project_identifier}/evaluators", ({ response }) => {
-        listed = true;
-        return response(200).json({ data: [BINDING], next_cursor: null });
-      })
+      http.get(
+        "/v1/projects/{project_identifier}/evaluators",
+        ({ response }) => {
+          listed = true;
+          return response(200).json({ data: [BINDING], next_cursor: null });
+        }
+      )
     );
     const io = captureCliOutput();
     mockProcessExit();
