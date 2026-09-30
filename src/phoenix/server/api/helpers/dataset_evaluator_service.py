@@ -219,8 +219,10 @@ async def create_dataset_llm_evaluator(
             llm_evaluator.updated_at = datetime.now(timezone.utc)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         if "foreign" in str(e).lower():
-            raise BadRequest(f"Dataset with id {dataset_id} not found")
-        raise Conflict(f"An evaluator with name '{input.name}' already exists for this dataset")
+            raise NotFound(f"Dataset with id {dataset_id} not found")
+        raise Conflict(
+            f"DatasetEvaluator with name {input.name} already exists for dataset {dataset_id}"
+        )
     return dataset_evaluator_record
 
 
@@ -379,7 +381,10 @@ async def update_dataset_llm_evaluator(
                 session, dataset_evaluator.id, binding_values
             )
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise Conflict("An evaluator with this name already exists")
+            raise Conflict(
+                f"DatasetEvaluator with name {evaluator_name} already exists for dataset "
+                f"{dataset_evaluator.dataset_id}"
+            )
 
         if llm_evaluator.prompt_version_tag_id is not None:
             if prompt_version_tag is None:
@@ -699,13 +704,17 @@ async def update_dataset_builtin_evaluator(
                 binding_values["output_configs"] = input.output_configs
             if input.description is not UNSET:
                 binding_values["description"] = input.description
+            dataset_evaluator_dataset_id = dataset_evaluator.dataset_id
             dataset_evaluator = await _write_dataset_evaluator(
                 session, dataset_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         if "foreign" in str(e).lower():
             raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
-        raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
+        raise Conflict(
+            f"DatasetEvaluator with name {input.name} already exists for dataset "
+            f"{dataset_evaluator_dataset_id}"
+        )
 
     # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
     if dataset_evaluator.output_configs is None:
@@ -863,13 +872,17 @@ async def update_dataset_code_evaluator(
                 binding_values["output_configs"] = input.output_configs
             if input.description is not UNSET:
                 binding_values["description"] = input.description
+            dataset_evaluator_dataset_id = dataset_evaluator.dataset_id
             dataset_evaluator = await _write_dataset_evaluator(
                 session, dataset_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         if "foreign" in str(e).lower():
             raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
-        raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
+        raise Conflict(
+            f"DatasetEvaluator with name {input.name} already exists for dataset "
+            f"{dataset_evaluator_dataset_id}"
+        )
 
     # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
     if dataset_evaluator.output_configs is None:
