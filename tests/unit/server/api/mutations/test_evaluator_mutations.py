@@ -4141,6 +4141,129 @@ class TestDeleteDatasetEvaluators:
         async with db() as session:
             await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt_id))
 
+    async def test_delete_llm_evaluator_removes_its_tag_and_the_prompt_label(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """Deleting an LLM evaluator's last binding, with the prompt kept, deletes the tag
+        the evaluator owned and drops the prompt's "evaluator" label."""
+        evaluator_name = IdentifierModel.model_validate(f"test-llm-tag-cleanup-{token_hex(4)}")
+
+        async with db() as session:
+            prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"test-prompt-tag-cleanup-{token_hex(4)}"),
+                description="test prompt with a tag to clean up",
+                prompt_versions=[
+                    models.PromptVersion(
+                        template_type="CHAT",
+                        template_format="MUSTACHE",
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[TextContentPart(type="text", text="Test: {{input}}")],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(),
+                        ),
+                        tools=None,
+                        response_format=None,
+                        model_provider=ModelProvider.OPENAI,
+                        model_name="gpt-4",
+                        metadata_={},
+                    )
+                ],
+            )
+            session.add(prompt)
+            await session.flush()
+            label = models.PromptLabel(
+                name="evaluator",
+                description="Automatically assigned to prompts created for LLM evaluators",
+                color="#4ecf50",
+            )
+            session.add(label)
+            await session.flush()
+            session.add(models.PromptPromptLabel(prompt_id=prompt.id, prompt_label_id=label.id))
+            llm_evaluator = models.LLMEvaluator(
+                name=evaluator_name,
+                description="test llm evaluator with a tag",
+                kind="LLM",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="correctness description",
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
+                prompt=prompt,
+                dataset_evaluators=[
+                    models.DatasetEvaluators(
+                        dataset_id=empty_dataset.id,
+                        name=evaluator_name,
+                        description="test description",
+                        output_configs=None,
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                        project=models.Project(
+                            name=f"{empty_dataset.name}/{evaluator_name}",
+                            description="Project for llm evaluator with a tag",
+                        ),
+                    )
+                ],
+            )
+            session.add(llm_evaluator)
+            await session.flush()
+            llm_evaluator.prompt_version_tag = models.PromptVersionTag(
+                name=IdentifierModel.model_validate(
+                    f"{evaluator_name.root}-evaluator-{token_hex(4)}"
+                ),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt.prompt_versions[0].id,
+            )
+            await session.flush()
+            prompt_id = prompt.id
+            tag_id = llm_evaluator.prompt_version_tag_id
+            dataset_evaluator_gid = str(
+                GlobalID("DatasetEvaluator", str(llm_evaluator.dataset_evaluators[0].id))
+            )
+            assert tag_id is not None
+
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorIds": [dataset_evaluator_gid],
+                    "deleteAssociatedPrompt": False,
+                }
+            },
+        )
+        assert not result.errors
+        assert result.data is not None
+
+        async with db() as session:
+            assert await session.get(models.PromptVersionTag, tag_id) is None
+            assert await session.get(models.Prompt, prompt_id) is not None
+            remaining_label = await session.scalar(
+                sa.select(models.PromptPromptLabel.id).where(
+                    models.PromptPromptLabel.prompt_id == prompt_id
+                )
+            )
+            assert remaining_label is None
+
+        # Clean up the prompt
+        async with db() as session:
+            await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt_id))
+
 
 class TestMultiOutputEvaluators:
     """Tests for multi-output evaluator functionality."""
