@@ -1031,7 +1031,10 @@ async def patch_dataset_evaluator(
     patch: DatasetEvaluatorPatch,
 ) -> models.DatasetEvaluators:
     """Patch binding overrides without editing the shared evaluator definition."""
-    row_id = from_global_id_with_expected_type(dataset_evaluator_id, "DatasetEvaluator")
+    try:
+        row_id = from_global_id_with_expected_type(dataset_evaluator_id, "DatasetEvaluator")
+    except ValueError as error:
+        raise BadRequest(f"Invalid dataset evaluator id: {dataset_evaluator_id}") from error
     if patch.output_configs is not UNSET and patch.output_configs is not None:
         require_output_configs(patch.output_configs)
     try:

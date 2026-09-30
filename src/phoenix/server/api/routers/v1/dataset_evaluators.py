@@ -26,6 +26,7 @@ from phoenix.server.api.routers.v1.evaluator_common import (
     evaluator_service_context,
     output_configs_from_db,
     output_configs_to_db,
+    parse_global_id,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import ProblemDetailsRoute
@@ -192,7 +193,7 @@ async def create_dataset_evaluator(
         configs = (
             output_configs_to_db(body.output_configs) if body.output_configs is not None else None
         )
-        evaluator_id = GlobalID.from_id(body.evaluator_id)
+        evaluator_id = parse_global_id(body.evaluator_id)
         row: models.DatasetEvaluators
         if evaluator_id.type_name == "LLMEvaluator":
             row = await service.create_dataset_llm_binding(
@@ -321,7 +322,7 @@ async def patch_dataset_evaluator(
             values["output_configs"] = output_configs_to_db(body.output_configs)
         await service.patch_dataset_evaluator(
             evaluator_service_context(request),
-            GlobalID.from_id(dataset_evaluator_id),
+            parse_global_id(dataset_evaluator_id),
             service.DatasetEvaluatorPatch(**values),
         )
         return DatasetEvaluatorResponseBody(
@@ -346,7 +347,7 @@ async def delete_dataset_evaluator(request: Request, dataset_evaluator_id: str) 
     """
     with evaluator_api_errors():
         await service.detach_dataset_evaluators(
-            evaluator_service_context(request), [GlobalID.from_id(dataset_evaluator_id)]
+            evaluator_service_context(request), [parse_global_id(dataset_evaluator_id)]
         )
         return Response(status_code=204)
 
@@ -379,7 +380,7 @@ async def delete_dataset_evaluators(
             dataset = await get_dataset_by_identifier(session, dataset_identifier)
         await service.detach_dataset_evaluators(
             evaluator_service_context(request),
-            [GlobalID.from_id(value) for value in dataset_evaluator_id],
+            [parse_global_id(value) for value in dataset_evaluator_id],
             dataset_id=GlobalID("Dataset", str(dataset.id)),
         )
         return Response(status_code=204)
