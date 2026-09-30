@@ -192,6 +192,23 @@ async def dataset_override(db: DbSessionFactory, pinned: _Fixture) -> AsyncItera
         )
 
 
+@pytest.fixture
+async def other_prompt(db: DbSessionFactory) -> AsyncIterator[models.PromptVersion]:
+    """A second prompt, unrelated to `pinned`, that an evaluator edit can swap onto."""
+    prompt = models.Prompt(
+        name=Identifier.model_validate(f"tag-move-other-prompt-{token_hex(4)}"),
+        description="other prompt",
+        prompt_versions=[_prompt_version("Assess {{output}}")],
+    )
+    async with db() as session:
+        session.add(prompt)
+        await session.flush()
+    version = prompt.prompt_versions[0]
+    yield version
+    async with db() as session:
+        await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt.id))
+
+
 class _EvaluatorState:
     def __init__(self, tag_id: Optional[int], tag_target: Optional[int], updated_at: datetime):
         self.tag_id = tag_id
@@ -303,6 +320,34 @@ class TestRestRoutes:
         )
         assert response.status_code == 204, response.text
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.pinned_version.id
+
+    async def test_concurrent_first_tags_do_not_skip_the_move_check(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory, pinned: _Fixture
+    ) -> None:
+        """A brand new tag name is created by whichever of two concurrent requests wins the
+        insert; the other falls through to a re-read and the same move check, rather than
+        overwriting the winner's row unconditionally."""
+        name = f"race-{token_hex(4)}"
+        responses = await asyncio.gather(
+            httpx_client.post(
+                f"v1/prompt_versions/{_path(pinned.compatible_version)}/tags",
+                json={"name": name},
+            ),
+            httpx_client.post(
+                f"v1/prompt_versions/{_path(pinned.pinned_version)}/tags",
+                json={"name": name},
+            ),
+        )
+        assert all(r.status_code == 204 for r in responses), [r.text for r in responses]
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == pinned.prompt.id,
+                    models.PromptVersionTag.name == Identifier.model_validate(name),
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id in (pinned.compatible_version.id, pinned.pinned_version.id)
 
     async def test_deleting_the_tag_is_refused(
         self, httpx_client: httpx.AsyncClient, db: DbSessionFactory, pinned: _Fixture
@@ -525,6 +570,26 @@ def _relabel(pinned: _Fixture) -> Callable[[AsyncSession], Awaitable[None]]:
     return edit
 
 
+def _move_to_another_prompt(
+    pinned: _Fixture, other_version: models.PromptVersion
+) -> Callable[[AsyncSession], Awaitable[None]]:
+    """An evaluator edit that repoints the evaluator, and its tag, at an unrelated prompt."""
+
+    async def edit(session: AsyncSession) -> None:
+        evaluator = await session.get(
+            models.LLMEvaluator, pinned.evaluator.id, with_for_update=True
+        )
+        assert evaluator is not None
+        evaluator.prompt_id = other_version.prompt_id
+        evaluator.updated_at = datetime.now(timezone.utc)
+        tag = await session.get(models.PromptVersionTag, pinned.tag.id)
+        assert tag is not None
+        tag.prompt_id = other_version.prompt_id
+        tag.prompt_version_id = other_version.id
+
+    return edit
+
+
 def _prompt_version_input() -> dict[str, Any]:
     return {
         "templateFormat": "MUSTACHE",
@@ -713,6 +778,35 @@ class TestConcurrentWrites:
         )
         assert response.status_code == 409, response.text
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.incompatible_version.id
+
+    async def test_tag_move_behind_an_edit_that_moves_the_tag_to_another_prompt_is_refused(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        pinned: _Fixture,
+        other_prompt: models.PromptVersion,
+    ) -> None:
+        """A move waiting on the evaluator lock rereads the tag's prompt, not just its version,
+        so it cannot land the tag's version from one prompt onto a tag an edit moved to another."""
+        response = await _behind(
+            db,
+            _move_to_another_prompt(pinned, other_prompt),
+            lambda: httpx_client.post(
+                f"v1/prompt_versions/{_path(pinned.compatible_version)}/tags",
+                json={"name": pinned.tag_name},
+            ),
+        )
+        assert response.status_code == 409, response.text
+        assert pinned.evaluator_gid in response.text
+        assert pinned.evaluator_name in response.text
+        state = await _state(db, pinned.evaluator.id)
+        assert state.tag_target == other_prompt.id
+        async with db() as session:
+            # Point the evaluator back at its own prompt so the fixtures can tear down; the
+            # edit this test simulates committed for real, the refused move never wrote.
+            evaluator = await session.get(models.LLMEvaluator, pinned.evaluator.id)
+            assert evaluator is not None
+            evaluator.prompt_id = pinned.prompt.id
 
     @pytest.mark.parametrize("binding", ["project", "dataset"])
     async def test_edit_behind_a_tag_move_reads_the_moved_tag(

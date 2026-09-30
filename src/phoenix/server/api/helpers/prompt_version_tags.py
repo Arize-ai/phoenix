@@ -27,20 +27,29 @@ async def validate_prompt_version_tag_move(
     Conflict naming the evaluator. Tags no evaluator uses move freely.
 
     Call it before every write to an existing tag, including one that seems to leave the tag in
-    place: the tag's version is reread under the evaluator lock, since an evaluator edit may
-    have moved it.
+    place: the tag's prompt and version are reread under the evaluator lock, since an evaluator
+    edit may have moved it, to a different version or to a different prompt entirely.
     """
     # Tag moves and evaluator edits lock the evaluator row first, so each validates against
     # the other's committed state.
     evaluators = await llm_evaluators_pinned_by_prompt_version_tag(session, tag.id, for_update=True)
     if not evaluators:
         return
-    await session.refresh(tag, attribute_names=["prompt_version_id"])
-    if tag.prompt_version_id == prompt_version_id:
-        return
+    await session.refresh(tag, attribute_names=["prompt_id", "prompt_version_id"])
     prompt_version = await session.get(models.PromptVersion, prompt_version_id)
     if prompt_version is None:
         raise NotFound(f"Prompt version not found: {prompt_version_id}")
+    if tag.prompt_id != prompt_version.prompt_id:
+        noun = "evaluator" if len(evaluators) == 1 else "evaluators"
+        evaluator_names = ", ".join(
+            f"'{e.name.root}' ({GlobalID('LLMEvaluator', str(e.id))})" for e in evaluators
+        )
+        raise Conflict(
+            f"Tag '{tag.name.root}' now records the prompt version of {noun} "
+            f"{evaluator_names} under a different prompt; it cannot move here"
+        )
+    if tag.prompt_version_id == prompt_version_id:
+        return
     now = datetime.now(timezone.utc)
     for evaluator in evaluators:
         evaluator_id = GlobalID("LLMEvaluator", str(evaluator.id))
