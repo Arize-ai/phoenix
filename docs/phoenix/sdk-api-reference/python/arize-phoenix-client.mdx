@@ -295,23 +295,42 @@ The evaluator helpers require Phoenix server 21.0.0 or later. Each method checks
 
 | Kind | How it is created | Dataset bindings | Project bindings | Edit and delete |
 |------|-------------------|------------------|------------------|-----------------|
-| `code` | `create_code`, or inline with a binding | By ID or inline | By ID or inline | `update_code`, `create_code_version`, `delete` |
-| `llm` | Inline with a binding only | Inline only | Inline only | `update_llm`; deleted with its last binding |
+| `llm` | `create_llm`, pinned to an existing prompt version | By ID | By ID | `update_llm`, `delete` |
+| `code` | `create_code`, with its first version | By ID | By ID | `update_code`, `create_code_version`, `delete` |
 | `builtin` | Ships with Phoenix | By ID | Not accepted | Never edited or deleted |
 
-An LLM evaluator is tied to its own prompt, so another binding cannot reference it by ID.
+Create a definition first, then bind it by its `id`. One definition can back any number of bindings, and deleting a binding never deletes the definition.
 
 ```python
 from phoenix.client import Client
 
 client = Client()
 
-# Create a code evaluator that nothing binds yet; at least one output config is required
+# Create an LLM evaluator that runs an existing prompt version
+judge = client.evaluators.create_llm(
+    name="toxicity",
+    prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+    output_configs=[
+        {
+            "type": "CATEGORICAL",
+            "name": "toxicity",
+            "optimization_direction": "MINIMIZE",
+            "values": [{"label": "toxic", "score": 1}, {"label": "clean", "score": 0}],
+        }
+    ],
+)
+
+# Create a code evaluator in a usable sandbox; at least one output config is required
+sandbox = next(
+    config
+    for config in client.evaluators.list_sandbox_configs(language="PYTHON")
+    if config["is_usable"]
+)
 definition = client.evaluators.create_code(
     name="exact-match",
     source_code=open("evaluator.py").read(),
     language="PYTHON",
-    sandbox_config_id="U2FuZGJveENvbmZpZzox",
+    sandbox_config_id=sandbox["id"],
     input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
     output_configs=[{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}],
 )
@@ -349,11 +368,27 @@ client.evaluators.project_evaluators.create(
     evaluator_id=definition["id"],
     evaluation_delay_seconds=600,
 )
+
+# Detach the binding; the definition, prompt, and trace project are kept
+client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
 ```
 
-- **Definitions**: `create_code_version` returns the current version with `was_created=False` when the source is unchanged. Prompt content for an LLM evaluator is edited through `client.prompts`; `update_llm` only records which prompt version runs. `delete` removes a code evaluator that nothing binds and refuses one that is still bound with 409. Deleting the last binding of a code or LLM evaluator deletes the definition with it; built-in evaluators are never deleted.
-- **Dataset bindings**: attach an existing code or built-in evaluator with `evaluator_id`, or create an LLM or code evaluator inline with `evaluator`. `description` and `output_configs` are overrides: omit them on `create`, or pass `None` to `update`, and the binding uses the evaluator's values and follows later changes to them. An `output_configs` override needs at least one config (`[]` is rejected). On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description. `delete_many` deletes up to 1000 bindings atomically.
-- **Project bindings**: attach an existing code evaluator with `evaluator_id`, or create an LLM or code evaluator inline. `evaluation_target` is `SPAN`, `TRACE`, or `SESSION` and cannot change later. `filter_condition` is written in the target's filter language (span, trace, or session). `evaluation_delay_seconds` applies to `TRACE` and `SESSION` only: at least 10 seconds, 300 by default. `SPAN` targets reject a delay and evaluate spans as they arrive.
+Failed requests raise `PhoenixAPIError`, a subclass of `httpx.HTTPStatusError`. When the server explains the failure with [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, `code` is a stable reason (`validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, and so on) and `problem` holds the full body. A name clash is refused with `code == "already_exists"` and `existing_id` naming the resource that holds the name:
+
+```python
+from phoenix.client.exceptions import PhoenixAPIError
+
+try:
+    client.evaluators.create_code(name="exact-match", ...)
+except PhoenixAPIError as error:
+    if error.code != "already_exists":
+        raise
+    definition = client.evaluators.get(evaluator_id=error.existing_id)
+```
+
+- **Definitions**: `create_code_version` returns the current version with `was_created=False` when the source is unchanged. Prompt content for an LLM evaluator is edited through `client.prompts`; `update_llm` only records which prompt version runs. `delete` removes an LLM or code evaluator that nothing binds and refuses one that is still bound with 409; an LLM evaluator's prompt is kept. Built-in evaluators are never deleted.
+- **Dataset bindings**: attach an existing LLM, code, or built-in evaluator with `evaluator_id`. `description` and `output_configs` are overrides: omit them on `create`, or pass `None` to `update`, and the binding uses the evaluator's values and follows later changes to them. An `output_configs` override needs at least one config (`[]` is rejected). On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description. Deleting a binding keeps its definition, prompt, and trace project. `delete_many(dataset=..., dataset_evaluator_ids=...)` deletes up to 1000 of a dataset's bindings atomically.
+- **Project bindings**: attach an existing LLM or code evaluator with `evaluator_id`. `evaluation_target` is `SPAN`, `TRACE`, or `SESSION` and cannot change later. `filter_condition` is written in the target's filter language (span, trace, or session). `evaluation_delay_seconds` applies to `TRACE` and `SESSION` only: at least 10 seconds, 300 by default. `SPAN` targets reject a delay and evaluate spans as they arrive. `delete_many(project=..., project_evaluator_ids=...)` deletes up to 1000 of a project's bindings atomically.
 
 ## Sessions
 
