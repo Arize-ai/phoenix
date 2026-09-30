@@ -8,6 +8,8 @@ import {
   Alert,
   Flex,
   Heading,
+  Icon,
+  Icons,
   LinkButton,
   Loading,
   Text,
@@ -45,6 +47,19 @@ import {
 } from "./projectEvaluatorCompareFilterUtils";
 import { formatCompareSelection } from "./projectEvaluatorCompareSelection";
 import { useCompareSelection } from "./ProjectEvaluatorCompareSelectionContext";
+
+// Cancel the page gutter so the table's borders run edge to edge; the heading
+// keeps it to line up with the cards above.
+const targetsSectionCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  margin-inline: calc(-1 * var(--project-evaluator-compare-page-gutter));
+`;
+
+const targetsHeadingCSS = css`
+  padding-inline: var(--project-evaluator-compare-page-gutter);
+`;
 
 const targetsTableCSS = css`
   transition: opacity 150ms ease-in-out;
@@ -142,31 +157,36 @@ export function ProjectEvaluatorCompareTargets({
     params.set(SPAN_FILTER_CONDITION_PARAM, condition)
   );
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        gap="size-200"
-      >
-        <Flex direction="row" alignItems="center" gap="size-100" wrap>
-          <Heading level={2}>{`Matching ${noun}`}</Heading>
-          {shownSelection ? (
-            <Token maxWidth="100%" onRemove={() => setSelection(null)}>
-              {formatCompareSelection(shownSelection)}
-            </Token>
-          ) : (
-            <Text color="text-700">
-              Evaluated by both evaluators in the selected time range
-            </Text>
-          )}
+    <div css={targetsSectionCSS}>
+      <div css={targetsHeadingCSS}>
+        <Flex
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          gap="size-200"
+        >
+          <Flex direction="row" alignItems="center" gap="size-100" wrap>
+            <Heading level={2}>{`Matching ${noun}`}</Heading>
+            {shownSelection ? (
+              <Token maxWidth="100%" onRemove={() => setSelection(null)}>
+                {formatCompareSelection(shownSelection)}
+              </Token>
+            ) : (
+              <Text color="text-700">
+                Evaluated by both evaluators in the selected time range
+              </Text>
+            )}
+          </Flex>
+          {target === "SPAN" ? (
+            <LinkButton
+              to={`${rootPath}/spans${spansSearch}`}
+              leadingVisual={<Icon svg={<Icons.Trace />} />}
+            >
+              Open in Project View
+            </LinkButton>
+          ) : null}
         </Flex>
-        {target === "SPAN" ? (
-          <LinkButton to={`${rootPath}/spans${spansSearch}`}>
-            Open in Spans
-          </LinkButton>
-        ) : null}
-      </Flex>
+      </div>
       <ProjectProvider
         projectId={projectId}
         scope="evaluator-compare"
@@ -219,7 +239,7 @@ export function ProjectEvaluatorCompareTargets({
           </TracingProvider>
         </StreamStateProvider>
       </ProjectProvider>
-    </Flex>
+    </div>
   );
 }
 
