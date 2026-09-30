@@ -425,7 +425,7 @@ Shared evaluator definitions (LLM, code, built-in) that projects and datasets bi
 
 ```bash
 px evaluator list --format raw --no-progress | jq '.[] | {id, type, name}'
-px evaluator list --type code --name exact-match --format raw --no-progress | jq -r '.[0].id'   # --type llm|code
+px evaluator list --type code --name exact-match --format raw --no-progress | jq -r '.[0].id'   # --type llm|code|builtin
 px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress                                 # one definition; inspect .type
 
 # create an LLM evaluator that runs an existing prompt version (create the prompt through the prompts API first)
