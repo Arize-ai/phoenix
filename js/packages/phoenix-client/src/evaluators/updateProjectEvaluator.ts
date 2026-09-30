@@ -53,7 +53,7 @@ export async function updateProjectEvaluator({
   projectEvaluatorId,
   patch,
 }: UpdateProjectEvaluatorParams): Promise<ProjectEvaluator> {
-  if (Object.keys(patch).length === 0) {
+  if (Object.values(patch).every((value) => value === undefined)) {
     throw new Error("At least one field to update must be provided");
   }
 

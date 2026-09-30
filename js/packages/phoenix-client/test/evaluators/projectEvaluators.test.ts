@@ -230,6 +230,39 @@ describe("getProjectEvaluator and updateProjectEvaluator", () => {
       })
     ).rejects.toThrow("At least one field to update must be provided");
   });
+
+  it("refuses a patch whose only field is undefined without calling the server", async () => {
+    await expect(
+      updateProjectEvaluator({
+        client: createTestClient(),
+        projectEvaluatorId: BINDING_ID,
+        patch: { enabled: undefined },
+      })
+    ).rejects.toThrow("At least one field to update must be provided");
+  });
+
+  it("sends a patch whose only field is null, since null is a real value", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.patch(
+        "/v1/project_evaluators/{project_evaluator_id}",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(200).json({
+            data: { ...binding, evaluation_delay_seconds: null },
+          });
+        }
+      )
+    );
+
+    await updateProjectEvaluator({
+      client: createTestClient(),
+      projectEvaluatorId: BINDING_ID,
+      patch: { evaluation_delay_seconds: null },
+    });
+
+    expect(receivedBody).toEqual({ evaluation_delay_seconds: null });
+  });
 });
 
 describe("deleteProjectEvaluator and deleteProjectEvaluators", () => {
