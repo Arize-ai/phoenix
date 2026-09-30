@@ -39,8 +39,6 @@ from phoenix.server.api.helpers.evaluator_management import (
     generate_unique_evaluator_name,
     get_project_for_dataset_evaluator,
     parse_evaluator_id,
-    raise_on_uninferable_evaluate_signature,
-    validate_code_evaluator_sandbox_config,
 )
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     EditCurrentPrompt,
@@ -1539,59 +1537,24 @@ class EvaluatorMutationMixin:
         info: Info[Context, None],
         input: CreateCodeEvaluatorInput,
     ) -> CodeEvaluatorMutationPayload:
-        user_id: Optional[int] = None
-        assert isinstance(request := info.context.request, Request)
-        if "user" in request.scope:
-            assert isinstance(user := request.user, PhoenixUser)
-            user_id = int(user.identity)
-
-        try:
-            validated_name = IdentifierModel.model_validate(input.name)
-        except ValidationError as error:
-            raise BadRequest(f"Invalid evaluator name: {error}")
-
         output_configs: list[OutputConfigType] = (
             convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs
             else []
         )
-        evaluator_service.require_output_configs(output_configs)
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
-        input_mapping_orm = input.input_mapping.to_orm()
-        raise_on_uninferable_evaluate_signature(input.source_code, input.language.to_orm())
-        sandbox_config_id = await validate_code_evaluator_sandbox_config(
-            info.context.db,
-            sandbox_config_global_id=input.sandbox_config_id,
-            language=input.language.value,
-            action="creating this evaluator",
+        command = evaluator_service.CreateCodeEvaluatorInput(
+            name=input.name,
             source_code=input.source_code,
-            sandbox_runtime=info.context.sandbox_runtime,
+            language=input.language.to_orm(),
+            sandbox_config_id=input.sandbox_config_id,
+            input_mapping=input.input_mapping.to_orm(),
+            output_configs=output_configs,
+            description=input.description,
         )
-
-        try:
-            async with info.context.db() as session:
-                row = models.CodeEvaluator(
-                    name=validated_name,
-                    description=input.description,
-                    language=input.language.value,
-                    user_id=user_id,
-                    sandbox_config_id=sandbox_config_id,
-                    input_mapping=input_mapping_orm,
-                    output_configs=output_configs,
-                )
-                session.add(row)
-                await session.flush()
-
-                version = models.CodeEvaluatorVersion(
-                    code_evaluator_id=row.id,
-                    source_code=input.source_code,
-                    user_id=user_id,
-                )
-                session.add(version)
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-            raise BadRequest(f"Could not create code evaluator: {e}")
-
+        context = _evaluator_service_context(info.context)
+        row = await evaluator_service.create_code_evaluator(context, command)
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=row.id, db_record=row),
             query=Query(),
