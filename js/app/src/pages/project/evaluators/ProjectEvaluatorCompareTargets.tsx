@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useEffectEvent, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 import invariant from "tiny-invariant";
@@ -26,14 +26,23 @@ import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import type { ProjectTab } from "@phoenix/pages/project/constants";
-import { SessionFiltersProvider } from "@phoenix/pages/project/SessionFiltersContext";
+import {
+  SessionFiltersProvider,
+  useSessionFilters,
+} from "@phoenix/pages/project/SessionFiltersContext";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
 import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
-import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
+import {
+  SpanFiltersProvider,
+  useSpanFilterCondition,
+} from "@phoenix/pages/project/SpanFiltersContext";
 import type { SettledSpanFilterSeed } from "@phoenix/pages/project/spanFilterSeed";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { makeFlatAnnotationColumnId } from "@phoenix/pages/project/tableUtils";
-import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
+import {
+  TraceFiltersProvider,
+  useTraceFilters,
+} from "@phoenix/pages/project/TraceFiltersContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
@@ -148,6 +157,32 @@ export function ProjectEvaluatorCompareTargets({
     sideA,
     sideB,
   });
+  // The condition the mounted table was seeded with, and the user's edit of
+  // it, if any. Editing the filter clears the selection but keeps the table.
+  const [table, setTable] = useState<{
+    seedCondition: string;
+    editedCondition: string | null;
+  }>({ seedCondition: condition, editedCondition: null });
+  const [previousCondition, setPreviousCondition] = useState(condition);
+  if (condition !== previousCondition) {
+    setPreviousCondition(condition);
+    // A selection cleared by an edit leaves the edited table in place; any
+    // other change to the selection reseeds it.
+    if (table.editedCondition == null || activeSelection != null) {
+      setTable({ seedCondition: condition, editedCondition: null });
+    }
+  }
+  const handleFilterConditionChange = (editedCondition: string | null) => {
+    setTable((current) =>
+      current.editedCondition === editedCondition
+        ? current
+        : { ...current, editedCondition }
+    );
+    if (editedCondition != null && selection) {
+      setSelection(null);
+    }
+  };
+  const tableCondition = table.editedCondition ?? table.seedCondition;
   const noun = `${target.toLowerCase()}s`;
   const compareAnnotationVisibility = {
     [sideA.annotationName]: true,
@@ -155,7 +190,7 @@ export function ProjectEvaluatorCompareTargets({
   };
   const { rootPath } = useProjectRootPath();
   const spansSearch = withSearchParams(useTimeRangeSearch(), (params) =>
-    params.set(SPAN_FILTER_CONDITION_PARAM, condition)
+    params.set(SPAN_FILTER_CONDITION_PARAM, tableCondition)
   );
   return (
     <div css={targetsSectionCSS}>
@@ -228,12 +263,16 @@ export function ProjectEvaluatorCompareTargets({
             {/* Keep current rows visible while the next selection loads. */}
             <div css={targetsTableCSS} aria-busy={isPending}>
               <Suspense fallback={<Loading />}>
-                <ErrorBoundary key={condition} fallback={CompareTargetsError}>
+                <ErrorBoundary
+                  key={table.seedCondition}
+                  fallback={CompareTargetsError}
+                >
                   <CompareTargetsFilters
                     projectId={projectId}
                     target={target}
-                    condition={condition}
+                    condition={table.seedCondition}
                     timeRange={timeRange}
+                    onFilterConditionChange={handleFilterConditionChange}
                   />
                 </ErrorBoundary>
               </Suspense>
@@ -287,6 +326,8 @@ type TargetsProps = {
   target: CompareTarget;
   condition: string;
   timeRange: TimeRange;
+  /** Reports the user's edit of `condition`, or null when it matches */
+  onFilterConditionChange: (editedCondition: string | null) => void;
 };
 
 type TargetsTableProps = Omit<TargetsProps, "target"> &
@@ -300,11 +341,13 @@ function CompareTargetsFilters(props: TargetsProps) {
   if (props.target === "TRACE")
     return (
       <TraceFiltersProvider initialFilterCondition={props.condition}>
+        <TraceFilterEditWatcher {...props} />
         <CompareTargetsTable {...props} target="TRACE" />
       </TraceFiltersProvider>
     );
   return (
     <SessionFiltersProvider initialFilterCondition={props.condition}>
+      <SessionFilterEditWatcher {...props} />
       <CompareTargetsTable {...props} target="SESSION" />
     </SessionFiltersProvider>
   );
@@ -323,6 +366,7 @@ function CompareSpanTargets(props: TargetsProps) {
       fallbackFilterCondition={seed.condition}
       persistToUrl={false}
     >
+      <SpanFilterEditWatcher {...props} />
       <ErrorBoundary
         fallback={({ error }) => (
           <SpanFilterErrorFallback error={error} onResolved={setSeed} />
@@ -337,6 +381,36 @@ function CompareSpanTargets(props: TargetsProps) {
       </ErrorBoundary>
     </SpanFiltersProvider>
   );
+}
+
+type FilterEditWatcherProps = Pick<
+  TargetsProps,
+  "condition" | "onFilterConditionChange"
+>;
+
+function useReportFilterEdit(
+  filterCondition: string,
+  { condition, onFilterConditionChange }: FilterEditWatcherProps
+) {
+  const report = useEffectEvent(onFilterConditionChange);
+  useEffect(() => {
+    report(filterCondition === condition ? null : filterCondition);
+  }, [filterCondition, condition]);
+}
+
+function SpanFilterEditWatcher(props: FilterEditWatcherProps) {
+  useReportFilterEdit(useSpanFilterCondition(), props);
+  return null;
+}
+
+function TraceFilterEditWatcher(props: FilterEditWatcherProps) {
+  useReportFilterEdit(useTraceFilters().filterCondition, props);
+  return null;
+}
+
+function SessionFilterEditWatcher(props: FilterEditWatcherProps) {
+  useReportFilterEdit(useSessionFilters().filterCondition, props);
+  return null;
 }
 
 function CompareTargetsTable(props: TargetsTableProps) {
