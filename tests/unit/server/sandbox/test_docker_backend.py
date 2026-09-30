@@ -165,14 +165,26 @@ async def test_find_or_create_session_reuses_oldest_running_sandbox_by_display_n
     assert ("PUT", "sb-old.sandboxes.example", "/api/v1/files/content") in fake.calls()
 
 
-async def test_timeout_kill_surfaces_as_timed_out() -> None:
+@pytest.mark.parametrize(
+    "exec_response, expected_error",
+    [
+        pytest.param({"exitCode": -1}, "Execution timed out after 5s", id="timeout-kill"),
+        pytest.param(
+            {"stdout": _b64("partial"), "incomplete": True},
+            "Output exceeded the Docker Sandboxes capture limit and was truncated",
+            id="truncated-output",
+        ),
+    ],
+)
+async def test_incomplete_runs_surface_as_errors(
+    exec_response: dict[str, Any], expected_error: str
+) -> None:
     fake = _FakeDockerSandboxes(
-        listed=[_resource("sb-old", "running")],
-        exec_response={"exitCode": -1},
+        listed=[_resource("sb-old", "running")], exec_response=exec_response
     )
     backend = _backend(fake)
 
     handle = await backend.find_or_create_session("key")
-    result = await backend.execute_in_session(handle, "while True: pass", timeout=5)
+    result = await backend.execute_in_session(handle, "print('x')", timeout=5)
 
-    assert result.error == "Execution timed out after 5s"
+    assert result.error == expected_error

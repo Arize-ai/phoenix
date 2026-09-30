@@ -459,6 +459,9 @@ class DockerSandboxBackend(SandboxBackend):
         stderr = _decode(response.get("stderr"))
         if timeout is not None and exit_code == _TIMEOUT_KILLED_EXIT_CODE:
             return _timed_out(timeout)
+        if response.get("incomplete"):
+            message = "Output exceeded the Docker Sandboxes capture limit and was truncated"
+            return ExecutionResult(stdout=stdout, stderr=stderr, error=message)
         if exit_code != 0:
             return ExecutionResult(
                 stdout=stdout, stderr=stderr, error=stderr or f"exit code {exit_code}"
