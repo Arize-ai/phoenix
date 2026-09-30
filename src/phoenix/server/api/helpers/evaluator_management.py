@@ -58,7 +58,12 @@ async def validate_code_evaluator_sandbox_config(
     source_code: str,
     sandbox_runtime: SandboxRuntimeContext,
 ) -> int:
-    sandbox_config_id = from_global_id_with_expected_type(sandbox_config_global_id, "SandboxConfig")
+    try:
+        sandbox_config_id = from_global_id_with_expected_type(
+            sandbox_config_global_id, "SandboxConfig"
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid sandbox config id: {sandbox_config_global_id}")
     async with db() as session:
         config_and_provider = (
             await session.execute(

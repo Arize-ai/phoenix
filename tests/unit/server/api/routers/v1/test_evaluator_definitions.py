@@ -595,6 +595,96 @@ async def test_delete_still_bound_llm_evaluator_reports_binding_counts(
     assert problem["binding_counts"] == {"project": 0, "dataset": 1}
 
 
+async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """A well-formed GlobalID of the wrong node type -- not just a malformed one -- is a
+    client error on every id field these routes decode, in the path, the query, and the
+    body, never a raw ValueError leaking as a 500."""
+    wrong_type = str(GlobalID("Project", "1"))
+    async with db() as session:
+        code = _add_code_evaluator(session, f"wrong-type-{token_hex(4)}", sandbox_config)
+        await session.flush()
+        code_route = f"v1/evaluators/{GlobalID('CodeEvaluator', str(code.id))}"
+    llm_route = f"v1/evaluators/{GlobalID('LLMEvaluator', str(correctness_llm_evaluator.id))}"
+    categorical_output_configs = [
+        {
+            "type": "CATEGORICAL",
+            "name": "correctness",
+            "optimization_direction": "MAXIMIZE",
+            "values": [{"label": "correct", "score": 1.0}],
+        }
+    ]
+
+    responses = (
+        # path: evaluator_id, on every verb and sub-route that takes one
+        await httpx_client.get(f"v1/evaluators/{wrong_type}"),
+        await httpx_client.patch(f"v1/evaluators/{wrong_type}", json={"type": "llm", "name": "x"}),
+        await httpx_client.delete(f"v1/evaluators/{wrong_type}"),
+        await httpx_client.get(f"v1/evaluators/{wrong_type}/versions"),
+        await httpx_client.post(
+            f"v1/evaluators/{wrong_type}/versions", json={"source_code": "def evaluate(): ..."}
+        ),
+        # query: the list route's cursor
+        await httpx_client.get("v1/evaluators", params={"cursor": wrong_type}),
+        # body: sandbox_config_id, on create, patch, and deploy
+        await httpx_client.post(
+            "v1/evaluators",
+            json={
+                "type": "code",
+                "name": f"wrong-sandbox-{token_hex(4)}",
+                "source_code": "def evaluate(output):\n    return {'score': 1.0}",
+                "language": "PYTHON",
+                "sandbox_config_id": wrong_type,
+                "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+                "output_configs": [_SCORE_JSON],
+            },
+        ),
+        await httpx_client.patch(
+            code_route,
+            json={"type": "code", "sandbox_config_id": wrong_type, "description": "wrong sandbox"},
+        ),
+        await httpx_client.post(
+            f"{code_route}/versions",
+            json={
+                "source_code": "def evaluate(output):\n    return {'score': 9.0}",
+                "sandbox_config_id": wrong_type,
+            },
+        ),
+        # body: expected_current_version_id, on deploy
+        await httpx_client.post(
+            f"{code_route}/versions",
+            json={
+                "source_code": "def evaluate(output):\n    return {'score': 9.0}",
+                "expected_current_version_id": wrong_type,
+            },
+        ),
+        # body: prompt.selector.prompt_version_id, on create and patch LLM
+        await httpx_client.post(
+            "v1/evaluators",
+            json={
+                "type": "llm",
+                "name": f"wrong-prompt-{token_hex(4)}",
+                "prompt": {"selector": {"type": "version", "prompt_version_id": wrong_type}},
+                "output_configs": categorical_output_configs,
+            },
+        ),
+        await httpx_client.patch(
+            llm_route,
+            json={
+                "type": "llm",
+                "prompt": {"selector": {"type": "version", "prompt_version_id": wrong_type}},
+            },
+        ),
+    )
+    for response in responses:
+        assert response.status_code == 422, response.text
+        assert response.json()["code"] == "invalid_argument", response.text
+
+
 def test_problem_details_cover_every_declared_error_response() -> None:
     """Every error status the opted-in routers (evaluators, sandbox_configs) declare must be
     problem+json referencing ProblemDetail, including the 403 the outer /v1 router otherwise
