@@ -471,7 +471,20 @@ class AsyncProjectEvaluators:
             PhoenixAPIError: If the request fails. A name the project already
                 uses is refused with ``code == "already_exists"`` and
                 ``existing_id``.
-        """
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            binding = await client.evaluators.project_evaluators.create(
+                project="support-bot",
+                name="toxicity",
+                evaluation_target="SPAN",
+                sampling_rate=0.25,
+                evaluator_id="Q29kZUV2YWx1YXRvcjox",
+            )
+        """  # noqa: E501
         json_ = _build_create_body(
             name=name,
             evaluation_target=evaluation_target,
@@ -501,7 +514,17 @@ class AsyncProjectEvaluators:
 
         Raises:
             PhoenixAPIError: If the request fails.
-        """
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            for binding in await client.evaluators.project_evaluators.list(
+                project="support-bot"
+            ):
+                print(binding["id"], binding["name"])
+        """  # noqa: E501
         await self._guard.require(LIST_PROJECT_EVALUATORS)
         url = f"v1/projects/{encode_path_param(project)}/evaluators"
         bindings: list[v1.ProjectEvaluator] = []

@@ -405,7 +405,19 @@ class AsyncDatasetEvaluators:
 
         Raises:
             PhoenixAPIError: If the request fails.
-        """
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            binding = await client.evaluators.dataset_evaluators.create(
+                dataset="golden-questions",
+                name="exact-match",
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+            )
+        """  # noqa: E501
         json_ = _build_create_body(
             name=name,
             evaluator_id=evaluator_id,
@@ -432,7 +444,17 @@ class AsyncDatasetEvaluators:
 
         Raises:
             PhoenixAPIError: If the request fails.
-        """
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            for binding in await client.evaluators.dataset_evaluators.list(
+                dataset="golden-questions"
+            ):
+                print(binding["id"], binding["name"])
+        """  # noqa: E501
         await self._guard.require(LIST_DATASET_EVALUATORS)
         url = f"v1/datasets/{encode_path_param(dataset)}/evaluators"
         bindings: list[v1.DatasetEvaluator] = []
