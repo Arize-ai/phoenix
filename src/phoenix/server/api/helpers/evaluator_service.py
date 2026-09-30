@@ -864,9 +864,12 @@ async def patch_code_evaluator(
     context: EvaluatorServiceContext, input: PatchCodeEvaluatorInput
 ) -> models.CodeEvaluator:
     """Patch a shared code definition while preserving its immutable source versions."""
-    evaluator_id = from_global_id_with_expected_type(
-        global_id=input.id, expected_type_name="CodeEvaluator"
-    )
+    try:
+        evaluator_id = from_global_id_with_expected_type(
+            global_id=input.id, expected_type_name="CodeEvaluator"
+        )
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
 
     if input.input_mapping is not UNSET and input.input_mapping is None:
         raise BadRequest("input_mapping cannot be set to null")
@@ -923,7 +926,8 @@ async def patch_code_evaluator(
                     )
                     if latest_source_code != validated_source_code:
                         raise Conflict(
-                            "The evaluator version changed during sandbox validation; retry."
+                            "The evaluator version changed during sandbox validation; retry.",
+                            reason="concurrent_change",
                         )
                     row.sandbox_config_id = validated_sandbox_config_id
 
@@ -942,6 +946,8 @@ async def patch_code_evaluator(
             await session.refresh(row, attribute_names=["updated_at"])
 
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if input.name is not UNSET and input.name is not None:
+            raise await _name_taken(context, input.name) from error
         raise Conflict(
             "Could not update the evaluator because of a conflicting resource"
         ) from error
@@ -1069,7 +1075,10 @@ async def create_llm_evaluator(
 async def delete_llm_evaluator(context: EvaluatorServiceContext, evaluator_id: GlobalID) -> None:
     """Delete an LLM definition nothing binds, with the tag that pins its version; the
     prompt is kept. A bound definition is refused with Conflict."""
-    row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
+    try:
+        row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
     async with context.db() as session:
         row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
         if row is None:
@@ -1099,13 +1108,18 @@ async def _refuse_bound_evaluator(
     if project_bindings or dataset_bindings:
         raise Conflict(
             f"Evaluator {evaluator_id} is still bound by {project_bindings} project and "
-            f"{dataset_bindings} dataset bindings; delete those bindings first"
+            f"{dataset_bindings} dataset bindings; delete those bindings first",
+            reason="still_bound",
+            binding_counts={"project": project_bindings, "dataset": dataset_bindings},
         )
 
 
 async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: GlobalID) -> None:
     """Delete a code definition nothing binds; a bound definition is refused with Conflict."""
-    row_id = from_global_id_with_expected_type(evaluator_id, "CodeEvaluator")
+    try:
+        row_id = from_global_id_with_expected_type(evaluator_id, "CodeEvaluator")
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
     async with context.db() as session:
         row = await session.get(models.CodeEvaluator, row_id, with_for_update=True)
         if row is None:
@@ -1123,17 +1137,26 @@ def _check_expected_version(
 ) -> None:
     if input.expected_current_version_id is None:
         return
-    expected = from_global_id_with_expected_type(
-        input.expected_current_version_id, "CodeEvaluatorVersion"
-    )
+    try:
+        expected = from_global_id_with_expected_type(
+            input.expected_current_version_id, "CodeEvaluatorVersion"
+        )
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
     actual = _version_id_or_none(current_version)
     if actual != expected:
-        actual_id = (
-            str(GlobalID("CodeEvaluatorVersion", str(actual))) if actual is not None else "none"
+        current_version_id = (
+            str(GlobalID("CodeEvaluatorVersion", str(actual))) if actual is not None else None
+        )
+        current_description = (
+            f"is {current_version_id}" if current_version_id is not None else "has no version yet"
         )
         raise Conflict(
-            f"The evaluator's current version is {actual_id}, not the expected "
-            f"{input.expected_current_version_id}; re-read the evaluator and retry"
+            f"The evaluator's current version {current_description}, not the expected "
+            f"{input.expected_current_version_id}; re-read the evaluator and reconcile "
+            "before retrying",
+            reason="version_mismatch",
+            current_version_id=current_version_id,
         )
 
 
@@ -1147,9 +1170,12 @@ async def create_code_evaluator_version(
     expected_current_version_id is refused with Conflict when another deployment landed
     in between, so deployments do not silently reactivate older source.
     """
-    evaluator_id = from_global_id_with_expected_type(
-        global_id=input.code_evaluator_id, expected_type_name="CodeEvaluator"
-    )
+    try:
+        evaluator_id = from_global_id_with_expected_type(
+            global_id=input.code_evaluator_id, expected_type_name="CodeEvaluator"
+        )
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
     if input.input_mapping is not UNSET and input.input_mapping is None:
         raise BadRequest("input_mapping cannot be set to null")
     if input.output_configs is not UNSET and input.output_configs is None:
@@ -1184,9 +1210,12 @@ async def create_code_evaluator_version(
         elif input.sandbox_config_id is None:
             target_sandbox_config_id = None
         else:
-            target_sandbox_config_id = from_global_id_with_expected_type(
-                input.sandbox_config_id, "SandboxConfig"
-            )
+            try:
+                target_sandbox_config_id = from_global_id_with_expected_type(
+                    input.sandbox_config_id, "SandboxConfig"
+                )
+            except ValueError as error:
+                raise BadRequest(str(error)) from error
 
     raise_on_uninferable_evaluate_signature(input.source_code, validated_language)
     if target_sandbox_config_id is not None:
@@ -1212,16 +1241,25 @@ async def create_code_evaluator_version(
             row, current_version = code_evaluator_with_version
             _check_expected_version(input, current_version)
             if row.language != validated_language:
-                raise Conflict("The evaluator language changed during source validation; retry.")
+                raise Conflict(
+                    "The evaluator language changed during source validation; retry.",
+                    reason="concurrent_change",
+                )
             if _version_id_or_none(current_version) != validated_current_version_id:
                 if current_version is None or not current_version.has_identical_content(candidate):
-                    raise Conflict("The evaluator version changed during source validation; retry.")
+                    raise Conflict(
+                        "The evaluator version changed during source validation; retry.",
+                        reason="concurrent_change",
+                    )
             if input.description is not UNSET:
                 row.description = input.description
             if input.sandbox_config_id is not UNSET:
                 row.sandbox_config_id = target_sandbox_config_id
             elif row.sandbox_config_id != target_sandbox_config_id:
-                raise Conflict("The evaluator sandbox changed during source validation; retry.")
+                raise Conflict(
+                    "The evaluator sandbox changed during source validation; retry.",
+                    reason="concurrent_change",
+                )
             if input.input_mapping is not UNSET and input.input_mapping is not None:
                 row.input_mapping = input.input_mapping
             if input.output_configs is not UNSET and input.output_configs is not None:
@@ -1329,7 +1367,10 @@ async def patch_llm_evaluator(
     patch: LLMEvaluatorPatch,
 ) -> models.LLMEvaluator:
     """Update a shared LLM definition and its pinned prompt version atomically."""
-    row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
+    try:
+        row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
     try:
         async with context.db() as session:
             # Tag moves and evaluator edits lock the evaluator row first, so each validates
@@ -1338,7 +1379,10 @@ async def patch_llm_evaluator(
             if row is None:
                 raise NotFound(f"LLM evaluator not found: {evaluator_id}")
             if patch.name is not UNSET:
-                row.name = IdentifierModel.model_validate(patch.name)
+                try:
+                    row.name = IdentifierModel.model_validate(patch.name)
+                except ValidationError as error:
+                    raise BadRequest(f"Invalid evaluator name: {error}") from error
             configs = row.output_configs if patch.output_configs is UNSET else patch.output_configs
             output_configs = LLMEvaluatorOutputConfigs.model_validate({"configs": configs}).configs
             if patch.prompt_source is not None and patch.prompt_source.content is not None:
@@ -1355,8 +1399,12 @@ async def patch_llm_evaluator(
             )
             await _reject_incompatible_dataset_overrides(session, row, prompt_version)
             await session.flush()
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise Conflict("An evaluator with this name already exists")
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if patch.name is not UNSET and patch.name is not None:
+            raise await _name_taken(context, patch.name) from error
+        raise Conflict(
+            "Could not update the evaluator because of a conflicting resource"
+        ) from error
     return row
 
 
@@ -1369,5 +1417,7 @@ async def _reject_incompatible_dataset_overrides(
     if incompatible := await incompatible_dataset_override_ids(session, evaluator, prompt_version):
         raise Conflict(
             "Dataset evaluator bindings override outputs that the updated prompt no longer "
-            f"supports: {', '.join(incompatible)}"
+            f"supports: {', '.join(incompatible)}",
+            reason="incompatible_override",
+            dataset_evaluator_ids=incompatible,
         )

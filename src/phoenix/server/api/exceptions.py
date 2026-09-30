@@ -48,7 +48,16 @@ class Conflict(CustomGraphQLError):
     """
     An error raised when a mutation cannot be completed due to a conflict with
     the current state of one or more resources.
+
+    `reason` is a finer condition under the REST `conflict` code (e.g. `still_bound`), and
+    `extra` carries that reason's own recovery fields (e.g. `binding_counts`); a REST caller
+    (`evaluator_api_errors`) reads both, and GraphQL ignores them.
     """
+
+    def __init__(self, message: str, *, reason: Optional[str] = None, **extra: Any) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.extra = extra
 
 
 class AlreadyExists(Conflict):
