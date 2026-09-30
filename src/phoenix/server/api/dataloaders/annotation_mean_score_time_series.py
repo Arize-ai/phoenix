@@ -84,7 +84,9 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
                     results[position] = mean_scores[annotation_name]
         return results
 
-    def _get_stmt(self, segment: Segment, *annotation_names: AnnotationName) -> Select[Any]:
+    def _get_stmt(
+        self, segment: Segment, *annotation_names: AnnotationName
+    ) -> Select[*tuple[Any, ...]]:
         kind, project_rowid, (start_time, end_time), stride, utc_offset_minutes = segment
 
         annotation_model: Union[
@@ -100,7 +102,7 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
             bucket = date_trunc(
                 self._db.dialect, stride, models.Trace.start_time, utc_offset_minutes
             )
-            stmt: Select[Any] = (
+            stmt: Select[*tuple[Any, ...]] = (
                 select(
                     bucket.label("bucket"),
                     models.Span.id.label("entity_id"),

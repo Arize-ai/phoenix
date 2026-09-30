@@ -237,7 +237,7 @@ def _last_error_stmt(
     evaluation targets.
     """
 
-    def newest_failure(model: _WorkUnitModel) -> sa.Select[Any]:
+    def newest_failure(model: _WorkUnitModel) -> sa.Select[*tuple[Any, ...]]:
         candidate = aliased(model)
         newest_failure_id = (
             sa.select(candidate.id)
