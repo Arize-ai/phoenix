@@ -99,8 +99,11 @@ def _validate_tool_and_config(
         else None
     )
     if (
-        # if the evaluator description is not None, it must match the function description
-        # the function may have an empty string as its description, as required by the Anthropic API
+        # The judge model reads the tool function's description as its instruction, while the
+        # UI shows the evaluator's description as what the evaluator does, so the two must be
+        # the same string or the UI describes an instruction the judge isn't running.
+        # If the evaluator description is not None, it must match the function description.
+        # The function may have an empty string as its description, as required by the Anthropic API
         evaluator_description is not None
         and evaluator_description != prompt_tool_function_definition_description
     ):
@@ -287,7 +290,8 @@ class _LLMEvaluatorPromptErrorMessage:
         "Evaluator tool choice specific function name must match defined function name"
     )
     EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION = (
-        "Evaluator description must match the function description"
+        "Evaluator description must match the function description; create a prompt version "
+        "whose tool description matches, then PATCH prompt and description together"
     )
     REQUIRED_VALUES_MUST_BE_UNIQUE = "Required values must be unique"
     MISSING_REQUIRED_PROPERTIES = "The following properties must be required: {properties}"
