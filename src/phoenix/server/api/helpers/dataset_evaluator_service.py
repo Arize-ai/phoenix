@@ -37,8 +37,6 @@ from phoenix.server.api.helpers.evaluator_management import (
     generate_unique_evaluator_name,
     get_project_for_dataset_evaluator,
     parse_evaluator_id,
-    raise_on_uninferable_evaluate_signature,
-    validate_code_evaluator_sandbox_config,
 )
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     CreatePromptSource,
@@ -1041,6 +1039,7 @@ async def patch_dataset_evaluator(
             row = await session.get(models.DatasetEvaluators, row_id)
             if row is None:
                 raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
+            dataset_rowid = row.dataset_id
             values: dict[str, Any] = {"user_id": context.user_id}
             if patch.name is not UNSET:
                 values["name"] = IdentifierModel.model_validate(patch.name)
@@ -1071,90 +1070,24 @@ async def patch_dataset_evaluator(
                         raise NotFound("The evaluator's pinned prompt version was not found")
                     output_configs = values.get("output_configs", row.output_configs)
                     description = values.get("description", row.description)
-                    validate_llm_binding_overrides(
-                        prompt,
-                        output_configs if output_configs is not None else list(llm.output_configs),
-                        description if description is not None else llm.description,
-                    )
+                    try:
+                        validate_llm_binding_overrides(
+                            prompt,
+                            output_configs
+                            if output_configs is not None
+                            else list(llm.output_configs),
+                            description if description is not None else llm.description,
+                        )
+                    except BadRequest as error:
+                        raise Conflict(
+                            str(error),
+                            reason="incompatible_override",
+                            dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(row.id)))],
+                        ) from error
             row = await _write_dataset_evaluator(session, row.id, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-        raise Conflict("An evaluator with this name already exists in the dataset") from error
-    return row
-
-
-@dataclass(kw_only=True)
-class CreateDatasetInlineCodeEvaluatorInput:
-    dataset_id: GlobalID
-    name: Identifier
-    source_code: str
-    language: models.LanguageName
-    sandbox_config_id: GlobalID
-    evaluator_input_mapping: InputMapping
-    input_mapping: InputMapping
-    evaluator_description: Optional[str] = None
-    evaluator_output_configs: list[OutputConfigType]
-    description: Optional[str] = None
-    output_configs: Optional[list[OutputConfigType]] = None
-
-
-async def create_dataset_inline_code_evaluator(
-    context: EvaluatorServiceContext,
-    input: CreateDatasetInlineCodeEvaluatorInput,
-) -> models.DatasetEvaluators:
-    """Create a code definition, initial version, and dataset binding atomically."""
-    dataset_id = from_global_id_with_expected_type(input.dataset_id, "Dataset")
-    name = IdentifierModel.model_validate(input.name)
-    require_output_configs(input.evaluator_output_configs)
-    if input.output_configs is not None:
-        require_output_configs(input.output_configs)
-    raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-    sandbox_id = await validate_code_evaluator_sandbox_config(
-        context.db,
-        sandbox_config_global_id=input.sandbox_config_id,
-        language=input.language,
-        action="creating this evaluator",
-        source_code=input.source_code,
-        sandbox_runtime=context.sandbox_runtime,
-    )
-    try:
-        async with context.db() as session:
-            dataset = await session.get(models.Dataset, dataset_id)
-            if dataset is None:
-                raise NotFound(f"Dataset not found: {input.dataset_id}")
-            evaluator = models.CodeEvaluator(
-                name=await generate_unique_evaluator_name(session, name),
-                description=input.evaluator_description,
-                language=input.language,
-                sandbox_config_id=sandbox_id,
-                input_mapping=input.evaluator_input_mapping,
-                output_configs=input.evaluator_output_configs,
-                user_id=context.user_id,
-            )
-            session.add(evaluator)
-            await session.flush()
-            session.add(
-                models.CodeEvaluatorVersion(
-                    code_evaluator_id=evaluator.id,
-                    source_code=input.source_code,
-                    user_id=context.user_id,
-                )
-            )
-            row = models.DatasetEvaluators(
-                dataset_id=dataset_id,
-                evaluator_id=evaluator.id,
-                name=name,
-                description=input.description,
-                input_mapping=input.input_mapping,
-                output_configs=input.output_configs,
-                user_id=context.user_id,
-                project=get_project_for_dataset_evaluator(
-                    dataset_name=dataset.name,
-                    dataset_evaluator_name=name.root,
-                ),
-            )
-            session.add(row)
-            await session.flush()
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if patch.name is not UNSET and patch.name is not None:
+            raise await _dataset_binding_name_taken(context, dataset_rowid, patch.name) from error
         raise Conflict("An evaluator with this name already exists in the dataset") from error
     return row
 
