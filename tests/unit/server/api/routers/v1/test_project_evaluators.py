@@ -103,3 +103,46 @@ async def test_referencing_a_missing_evaluator_is_not_found(
         assert response.status_code == 404, response.text
         assert response.json()["code"] == "not_found"
     assert await _binding_count(db, project.id) == 0
+
+
+async def test_patch_rename_to_taken_name_is_already_exists(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    """Renaming a binding to a name another binding on the same project already holds is
+    the same already_exists conflict a create would give, not a generic one."""
+    project = await _project(db)
+    route = f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators"
+    evaluator_id = str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id)))
+
+    holder = (
+        await httpx_client.post(
+            route,
+            json={
+                "name": "holder",
+                "evaluator_id": evaluator_id,
+                "evaluation_target": "SPAN",
+                "sampling_rate": 1.0,
+            },
+        )
+    ).json()["data"]
+    renamer = (
+        await httpx_client.post(
+            route,
+            json={
+                "name": "renamer",
+                "evaluator_id": evaluator_id,
+                "evaluation_target": "SPAN",
+                "sampling_rate": 1.0,
+            },
+        )
+    ).json()["data"]
+
+    response = await httpx_client.patch(
+        f"v1/project_evaluators/{renamer['id']}", json={"name": "holder"}
+    )
+    assert response.status_code == 409, response.text
+    problem = response.json()
+    assert problem["code"] == "already_exists"
+    assert problem["existing_id"] == holder["id"]
