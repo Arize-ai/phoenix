@@ -61,7 +61,7 @@ export async function updateEvaluator({
   patch,
 }: UpdateEvaluatorParams): Promise<EvaluatorDefinition> {
   const { type: _type, ...fields } = patch;
-  if (Object.keys(fields).length === 0) {
+  if (Object.values(fields).every((value) => value === undefined)) {
     throw new Error("At least one field to update must be provided");
   }
 
