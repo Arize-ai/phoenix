@@ -56,6 +56,7 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
     eval_session_work_status_check,
     eval_work_status_check,
+    failed_eval_work_index_predicate,
     live_eval_session_work_index_predicate,
     live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
@@ -3828,6 +3829,14 @@ class EvalWorkUnit(HasId):
             postgresql_where=text(terminal_eval_work_index_predicate()),
             sqlite_where=text(terminal_eval_work_index_predicate()),
         ),
+        # The newest failure per evaluator, found without walking its successes.
+        Index(
+            "ix_eval_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
+        ),
     )
 
 
@@ -3896,6 +3905,14 @@ class EvalSessionWorkUnit(HasId):
             "project_session_rowid",
             "evaluator_id",
             "config_fingerprint",
+        ),
+        # The newest failure per evaluator, found without walking its successes.
+        Index(
+            "ix_eval_session_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
         ),
     )
 
@@ -3967,5 +3984,13 @@ class EvalTraceWorkUnit(HasId):
             "trace_rowid",
             "evaluator_id",
             "config_fingerprint",
+        ),
+        # The newest failure per evaluator, found without walking its successes.
+        Index(
+            "ix_eval_trace_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
         ),
     )
