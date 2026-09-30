@@ -300,8 +300,8 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
     dependency_hints = (
         "Install Phoenix with the `wasm` extra so `wasmtime` is available.",
         (
-            "Allow Phoenix to download the CPython WASM binary on first use, "
-            "or pre-populate the local WASM cache."
+            "Set `PHOENIX_WASM_BINARY_PATH` to a local copy of the CPython WASM binary, "
+            "or let Phoenix download it at startup."
         ),
     )
     config_model = WASMConfig
