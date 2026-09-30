@@ -508,11 +508,11 @@ px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
 px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes
 ```
 
-| Option                           | Description                                                    | Default  |
-| -------------------------------- | ---------------------------------------------------------------| -------- |
-| `--dataset <dataset-identifier>` | Dataset the bindings belong to; required for more than one ID  | —        |
-| `--format <format>`              | Output format for a refusal: `pretty`, `json`, or `raw`        | `pretty` |
-| `-y, --yes`                      | Skip the confirmation prompt                                   | —        |
+| Option                           | Description                                                   | Default  |
+| -------------------------------- | ------------------------------------------------------------- | -------- |
+| `--dataset <dataset-identifier>` | Dataset the bindings belong to; required for more than one ID | —        |
+| `--format <format>`              | Output format for a refusal: `pretty`, `json`, or `raw`       | `pretty` |
+| `-y, --yes`                      | Skip the confirmation prompt                                  | —        |
 
 ---
 
