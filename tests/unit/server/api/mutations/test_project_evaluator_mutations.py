@@ -1494,7 +1494,7 @@ async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(
 
     assert result.errors
     assert result.errors[0].message == (
-        "A project evaluator with this name already exists for this project"
+        "A project evaluator named 'duplicate-project-evaluator' already exists for this project"
     )
     assert await _row_counts(db) == before
 
@@ -1694,7 +1694,7 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
     )
     assert result.errors
     assert result.errors[0].message == (
-        "A project evaluator with this name already exists for this project"
+        "A project evaluator named 'second-project-evaluator' already exists for this project"
     )
     assert await _row_counts(db) == counts_before
 
