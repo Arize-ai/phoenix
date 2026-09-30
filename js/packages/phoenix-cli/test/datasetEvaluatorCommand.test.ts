@@ -77,6 +77,48 @@ describe("dataset evaluator list", () => {
     const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual([BINDING]);
   });
+
+  it("accepts --format in any case", async () => {
+    mock.server.use(
+      http.get("/v1/datasets/{dataset_identifier}/evaluators", ({ response }) =>
+        response(200).json({ data: [BINDING], next_cursor: null })
+      )
+    );
+    const io = captureCliOutput();
+
+    await createDatasetEvaluatorCommand().parseAsync(
+      ["list", "golden-questions", "--format", "RAW", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(JSON.parse(String(io.stdout.mock.calls[0]?.[0]))).toEqual([
+      BINDING,
+    ]);
+  });
+
+  it("rejects an invalid --format before any request", async () => {
+    let listed = false;
+    mock.server.use(
+      http.get("/v1/datasets/{dataset_identifier}/evaluators", ({ response }) => {
+        listed = true;
+        return response(200).json({ data: [BINDING], next_cursor: null });
+      })
+    );
+    const io = captureCliOutput();
+    mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        ["list", "golden-questions", "--format", "yaml", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(listed).toBe(false);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "Invalid --format: yaml"
+    );
+  });
 });
 
 describe("dataset evaluator create", () => {
