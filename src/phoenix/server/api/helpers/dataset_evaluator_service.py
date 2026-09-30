@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from pydantic import ValidationError
 from sqlalchemy import delete, select, true, update
@@ -30,7 +30,7 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.evaluators import (
     get_builtin_evaluator_by_key,
 )
-from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluator_management import (
     ensure_evaluator_prompt_label,
     garbage_collect_evaluators,
@@ -45,6 +45,7 @@ from phoenix.server.api.helpers.evaluator_prompt_source import (
     FromPromptVersion,
     get_prompt_version,
     pin_prompt_version,
+    resolve_evaluator_prompt_version,
 )
 from phoenix.server.api.helpers.evaluator_service import (
     EvaluatorServiceContext,
@@ -637,7 +638,9 @@ async def create_dataset_builtin_evaluator(
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         if "foreign" in str(e).lower():
             raise NotFound(f"Dataset with id {input.dataset_id} not found")
-        raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
+        raise await _dataset_binding_name_taken(
+            context, dataset_rowid, IdentifierModel.model_validate(input.name)
+        ) from e
 
     # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
     if output_configs is None:
@@ -797,7 +800,9 @@ async def create_dataset_code_evaluator(
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         if "foreign" in str(e).lower():
             raise NotFound(f"Dataset with id {input.dataset_id} not found")
-        raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
+        raise await _dataset_binding_name_taken(
+            context, dataset_rowid, IdentifierModel.model_validate(input.name)
+        ) from e
 
     # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
     if output_configs is None:
@@ -881,6 +886,127 @@ class DatasetEvaluatorPatch:
     description: Optional[str] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
     output_configs: Optional[list[OutputConfigType]] = UNSET
+
+
+@dataclass(kw_only=True)
+class CreateDatasetLLMBindingInput:
+    dataset_id: GlobalID
+    evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: InputMapping
+    description: Optional[str] = None
+    output_configs: Optional[list[OutputConfigType]] = None
+
+
+async def create_dataset_llm_binding(
+    context: EvaluatorServiceContext, input: CreateDatasetLLMBindingInput
+) -> models.DatasetEvaluators:
+    """Bind an existing LLM evaluator to a dataset and create the binding's trace project.
+
+    The evaluator row is locked so a concurrent definition delete or edit sees the binding;
+    overrides are validated against the version the evaluator runs.
+    """
+    dataset_rowid = _decode_id(input.dataset_id, "Dataset", "dataset")
+    evaluator_rowid = _decode_id(input.evaluator_id, "LLMEvaluator", "evaluator")
+    try:
+        name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(f"Invalid evaluator name: {error}")
+    if input.output_configs is not None:
+        require_output_configs(input.output_configs)
+    try:
+        async with context.db() as session:
+            evaluator = await session.get(
+                models.LLMEvaluator, evaluator_rowid, with_for_update=True
+            )
+            if evaluator is None:
+                raise NotFound(f"LLM evaluator not found: {input.evaluator_id}")
+            dataset_name = await session.scalar(
+                select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+            )
+            if dataset_name is None:
+                raise NotFound(f"Dataset not found: {input.dataset_id}")
+            version = await resolve_evaluator_prompt_version(session, evaluator)
+            if version is None:
+                raise NotFound(f"Prompt version not found for evaluator {input.evaluator_id}")
+            validate_llm_binding_overrides(
+                version,
+                input.output_configs
+                if input.output_configs is not None
+                else list(evaluator.output_configs),
+                input.description if input.description is not None else evaluator.description,
+            )
+            binding = models.DatasetEvaluators(
+                dataset_id=dataset_rowid,
+                evaluator_id=evaluator_rowid,
+                name=name,
+                description=input.description,
+                output_configs=input.output_configs,
+                input_mapping=input.input_mapping,
+                user_id=context.user_id,
+                project=get_project_for_dataset_evaluator(
+                    dataset_name=dataset_name,
+                    dataset_evaluator_name=str(name),
+                ),
+            )
+            session.add(binding)
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        raise await _dataset_binding_name_taken(context, dataset_rowid, name) from error
+    return binding
+
+
+async def _dataset_binding_name_taken(
+    context: EvaluatorServiceContext, dataset_rowid: int, name: Identifier
+) -> Conflict:
+    async with context.db() as session:
+        existing_id = await session.scalar(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.dataset_id == dataset_rowid,
+                models.DatasetEvaluators.name == name,
+            )
+        )
+    if existing_id is None:
+        return Conflict(f"Could not bind evaluator '{name.root}' because of a conflicting resource")
+    return AlreadyExists(
+        f"An evaluator named '{name.root}' already exists for this dataset",
+        existing_id=str(GlobalID("DatasetEvaluator", str(existing_id))),
+    )
+
+
+async def detach_dataset_evaluators(
+    context: EvaluatorServiceContext,
+    dataset_evaluator_ids: list[GlobalID],
+    *,
+    dataset_id: Optional[GlobalID] = None,
+) -> None:
+    """Delete bindings only: their definitions, prompts, and trace projects are kept.
+
+    Missing bindings are ignored. With a dataset, a binding of another dataset is refused
+    before any change.
+    """
+    rowids = [
+        _decode_id(binding_id, "DatasetEvaluator", "dataset evaluator")
+        for binding_id in dataset_evaluator_ids
+    ]
+    async with context.db() as session:
+        elsewhere: Sequence[int] = []
+        if dataset_id is not None:
+            dataset_rowid = _decode_id(dataset_id, "Dataset", "dataset")
+            elsewhere = (
+                await session.scalars(
+                    select(models.DatasetEvaluators.id).where(
+                        models.DatasetEvaluators.id.in_(rowids),
+                        models.DatasetEvaluators.dataset_id != dataset_rowid,
+                    )
+                )
+            ).all()
+        if elsewhere:
+            listed = ", ".join(str(GlobalID("DatasetEvaluator", str(i))) for i in elsewhere)
+            raise BadRequest(f"These bindings belong to another dataset: {listed}")
+        await session.execute(
+            delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(rowids))
+        )
 
 
 def validate_llm_binding_overrides(

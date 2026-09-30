@@ -284,18 +284,8 @@ class DatasetWithExampleCount(TypedDict):
     example_count: int
 
 
-class DeleteDatasetEvaluatorsRequestBody(TypedDict):
-    dataset_evaluator_ids: Sequence[str]
-    delete_associated_prompt: NotRequired[bool]
-
-
 class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
-
-
-class ExistingEvaluator(TypedDict):
-    type: Literal["reference"]
-    evaluator_id: str
 
 
 class Experiment(TypedDict):
@@ -1808,22 +1798,6 @@ class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
-class NewCodeEvaluator(TypedDict):
-    type: Literal["code"]
-    source_code: str
-    language: Literal["PYTHON", "TYPESCRIPT"]
-    sandbox_config_id: str
-    input_mapping: InputMapping
-    output_configs: Sequence[
-        Union[
-            CategoricalAnnotationConfigData,
-            ContinuousAnnotationConfigData,
-            FreeformAnnotationConfigData,
-        ]
-    ]
-    description: NotRequired[str]
-
-
 class PatchCodeEvaluatorRequest(TypedDict):
     type: Literal["code"]
     name: NotRequired[str]
@@ -2260,6 +2234,22 @@ class CreateCodeEvaluatorRequest(TypedDict):
     description: NotRequired[str]
 
 
+class CreateDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class CreateLLMEvaluatorRequest(TypedDict):
     type: Literal["llm"]
     name: str
@@ -2666,30 +2656,6 @@ class GetPromptVersionsResponseBody(TypedDict):
 class ListAgentSessionMessagesResponseBody(TypedDict):
     data: Sequence[PhoenixUIMessage]
     next_cursor: Optional[str]
-
-
-class NewLLMEvaluator(TypedDict):
-    type: Literal["llm"]
-    output_configs: Sequence[CategoricalAnnotationConfigData]
-    description: NotRequired[str]
-    prompt_version: NotRequired[PromptVersionData]
-    prompt_version_id: NotRequired[str]
-
-
-class CreateDatasetEvaluatorRequest(TypedDict):
-    name: str
-    input_mapping: InputMapping
-    evaluator: Union[NewLLMEvaluator, NewCodeEvaluator, ExistingEvaluator]
-    description: NotRequired[str]
-    output_configs: NotRequired[
-        Sequence[
-            Union[
-                CategoricalAnnotationConfigData,
-                ContinuousAnnotationConfigData,
-                FreeformAnnotationConfigData,
-            ]
-        ]
-    ]
 
 
 class OtlpAnyValue(TypedDict):
