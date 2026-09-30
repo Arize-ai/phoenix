@@ -42,7 +42,7 @@ def _assert_problem(
     specific fields the caller expects."""
     assert response.status_code == status, response.text
     assert response.headers["content-type"] == "application/problem+json", response.text
-    problem = response.json()
+    problem: dict[str, Any] = response.json()
     assert problem["type"] == f"urn:phoenix:problem:{code}", problem
     assert problem["title"], problem
     assert problem["status"] == status
