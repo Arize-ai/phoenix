@@ -33,6 +33,7 @@ fragment DatasetEvaluatorFields on DatasetEvaluator {
     ...EvaluatorOutputConfigFields
   }
   evaluator {
+    __typename
     id
     name
     kind
@@ -51,6 +52,7 @@ fragment DatasetEvaluatorFields on DatasetEvaluator {
 
 query DatasetEvaluators($datasetId: ID!) {
   node(id: $datasetId) {
+    __typename
     ... on Dataset {
       datasetEvaluators(first: 50) {
         edges {

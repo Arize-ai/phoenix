@@ -40,6 +40,7 @@ class Client(BaseClient):
                 ...EvaluatorOutputConfigFields
               }
               evaluator {
+                __typename
                 id
                 name
                 kind

@@ -40,6 +40,7 @@ fragment ExperimentFields on Experiment {
 
 query DatasetExperiments($datasetId: ID!) {
   node(id: $datasetId) {
+    __typename
     ... on Dataset {
       experiments(first: 200) {
         edges {
