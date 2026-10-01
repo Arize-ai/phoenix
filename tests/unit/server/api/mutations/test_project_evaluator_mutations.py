@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any, Optional
 
@@ -80,6 +81,14 @@ mutation($input: DeleteProjectEvaluatorsInput!) {
 _SET_ENABLED = f"""
 mutation($input: SetProjectEvaluatorEnabledInput!) {{
   setProjectEvaluatorEnabled(input: $input) {{
+    evaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
+  }}
+}}
+"""
+
+_CLEAR_QUEUE = f"""
+mutation($input: ClearProjectEvaluatorQueueInput!) {{
+  clearProjectEvaluatorQueue(input: $input) {{
     evaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
   }}
 }}
@@ -733,6 +742,137 @@ async def test_set_project_evaluator_enabled_rejects_malformed_global_id(
         "The node id must correspond to a node of type ProjectEvaluator, "
         "but the id is not a valid integer"
     )
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_clear_project_evaluator_queue_preserves_enabled_state_and_other_work(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    enabled: bool,
+) -> None:
+    project = await _add_project(db)
+    created_evaluators = []
+    for _ in range(2):
+        result = await gql_client.execute(
+            _CREATE_CODE, {"input": _code_create_input(project, sandbox_config)}
+        )
+        assert result.data and not result.errors
+        created_evaluators.append(result.data["createProjectCodeEvaluator"]["evaluator"])
+
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project_session = models.ProjectSession(
+            session_id=token_hex(16), project_id=project.id, start_time=now, end_time=now
+        )
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id=token_hex(16),
+            project_session=project_session,
+            start_time=now,
+            end_time=now,
+        )
+        span = models.Span(
+            trace=trace,
+            span_id=token_hex(8),
+            name="test-span",
+            span_kind="INTERNAL",
+            start_time=now,
+            end_time=now,
+            attributes={},
+            events=[],
+            status_code="OK",
+            status_message="",
+            cumulative_error_count=0,
+            cumulative_llm_token_count_prompt=0,
+            cumulative_llm_token_count_completion=0,
+        )
+        session.add_all((project_session, trace, span))
+        await session.flush()
+        for evaluator_index, created in enumerate(created_evaluators):
+            project_evaluator_id = GlobalID.from_id(created["id"]).node_id
+            project_evaluator = await session.get(
+                models.ProjectEvaluator, int(project_evaluator_id)
+            )
+            assert project_evaluator is not None
+            statuses = (
+                ("PENDING", "ERROR", "RUNNING", "DONE") if evaluator_index == 0 else ("PENDING",)
+            )
+            for status in statuses:
+                fields = dict(
+                    evaluator_id=project_evaluator.evaluator_id,
+                    project_evaluator_id=project_evaluator.id,
+                    config_fingerprint=f"{evaluator_index}-{status}",
+                    status=status,
+                )
+                session.add_all(
+                    (
+                        models.EvalWorkUnit(span_rowid=span.id, **fields),
+                        models.EvalSessionWorkUnit(
+                            project_session_rowid=project_session.id,
+                            evaluated_through=now,
+                            **fields,
+                        ),
+                        models.EvalTraceWorkUnit(
+                            trace_rowid=trace.id, evaluated_through=now, **fields
+                        ),
+                    )
+                )
+
+    target_id = created_evaluators[0]["id"]
+    if not enabled:
+        disable_result = await gql_client.execute(
+            _SET_ENABLED, {"input": {"projectEvaluatorId": target_id, "enabled": False}}
+        )
+        assert disable_result.data and not disable_result.errors
+    for work_unit_model in (
+        models.EvalWorkUnit,
+        models.EvalSessionWorkUnit,
+        models.EvalTraceWorkUnit,
+    ):
+        async with db() as session:
+            assert sorted(await session.scalars(select(work_unit_model.status))) == [
+                "DONE",
+                "ERROR",
+                "PENDING",
+                "PENDING",
+                "RUNNING",
+            ]
+
+    clear_result = await gql_client.execute(
+        _CLEAR_QUEUE, {"input": {"projectEvaluatorId": target_id}}
+    )
+    assert clear_result.data and not clear_result.errors
+    assert clear_result.data["clearProjectEvaluatorQueue"]["evaluator"]["enabled"] is enabled
+    for work_unit_model in (
+        models.EvalWorkUnit,
+        models.EvalSessionWorkUnit,
+        models.EvalTraceWorkUnit,
+    ):
+        async with db() as session:
+            assert sorted(await session.scalars(select(work_unit_model.status))) == [
+                "DONE",
+                "PENDING",
+                "RUNNING",
+            ]
+
+
+@pytest.mark.parametrize("node_id", ["999999999", "not-an-integer"])
+async def test_clear_project_evaluator_queue_rejects_invalid_id(
+    gql_client: AsyncGraphQLClient, node_id: str
+) -> None:
+    project_evaluator_id = str(GlobalID("ProjectEvaluator", node_id))
+    result = await gql_client.execute(
+        _CLEAR_QUEUE, {"input": {"projectEvaluatorId": project_evaluator_id}}
+    )
+    assert result.errors
+    if node_id == "999999999":
+        assert result.errors[0].message == f"Project evaluator not found: {project_evaluator_id}"
+    else:
+        assert result.errors[0].message == (
+            "The node id must correspond to a node of type ProjectEvaluator, "
+            "but the id is not a valid integer"
+        )
 
 
 async def test_project_evaluator_node_resolves_by_global_id(
