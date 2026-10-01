@@ -78,6 +78,50 @@ const targetsTableCSS = css`
   }
 `;
 
+/**
+ * Tracks the condition the matching targets table was seeded with and the
+ * user's edit of it, if any. An edit clears the selection through `onEdit`
+ * but keeps the table on the edited condition; any other change to
+ * `condition` reseeds the table.
+ */
+function useEditableTargetsCondition({
+  condition,
+  hasActiveSelection,
+  onEdit,
+}: {
+  condition: string;
+  hasActiveSelection: boolean;
+  onEdit: () => void;
+}) {
+  const [table, setTable] = useState<{
+    seedCondition: string;
+    editedCondition: string | null;
+  }>({ seedCondition: condition, editedCondition: null });
+  const [previousCondition, setPreviousCondition] = useState(condition);
+  if (condition !== previousCondition) {
+    setPreviousCondition(condition);
+    // A selection cleared by an edit leaves the edited table in place
+    if (table.editedCondition == null || hasActiveSelection) {
+      setTable({ seedCondition: condition, editedCondition: null });
+    }
+  }
+  const handleFilterConditionChange = (editedCondition: string | null) => {
+    setTable((current) =>
+      current.editedCondition === editedCondition
+        ? current
+        : { ...current, editedCondition }
+    );
+    if (editedCondition != null) {
+      onEdit();
+    }
+  };
+  return {
+    table,
+    tableCondition: table.editedCondition ?? table.seedCondition,
+    handleFilterConditionChange,
+  };
+}
+
 const evaluatorFragment = graphql`
   fragment ProjectEvaluatorCompareTargets_evaluator on ProjectEvaluator {
     evaluator {
@@ -157,32 +201,16 @@ export function ProjectEvaluatorCompareTargets({
     sideA,
     sideB,
   });
-  // The condition the mounted table was seeded with, and the user's edit of
-  // it, if any. Editing the filter clears the selection but keeps the table.
-  const [table, setTable] = useState<{
-    seedCondition: string;
-    editedCondition: string | null;
-  }>({ seedCondition: condition, editedCondition: null });
-  const [previousCondition, setPreviousCondition] = useState(condition);
-  if (condition !== previousCondition) {
-    setPreviousCondition(condition);
-    // A selection cleared by an edit leaves the edited table in place; any
-    // other change to the selection reseeds it.
-    if (table.editedCondition == null || activeSelection != null) {
-      setTable({ seedCondition: condition, editedCondition: null });
-    }
-  }
-  const handleFilterConditionChange = (editedCondition: string | null) => {
-    setTable((current) =>
-      current.editedCondition === editedCondition
-        ? current
-        : { ...current, editedCondition }
-    );
-    if (editedCondition != null && selection) {
-      setSelection(null);
-    }
-  };
-  const tableCondition = table.editedCondition ?? table.seedCondition;
+  const { table, tableCondition, handleFilterConditionChange } =
+    useEditableTargetsCondition({
+      condition,
+      hasActiveSelection: activeSelection != null,
+      onEdit: () => {
+        if (selection) {
+          setSelection(null);
+        }
+      },
+    });
   const noun = `${target.toLowerCase()}s`;
   const compareAnnotationVisibility = {
     [sideA.annotationName]: true,
@@ -207,11 +235,11 @@ export function ProjectEvaluatorCompareTargets({
               <Token maxWidth="100%" onRemove={() => setSelection(null)}>
                 {formatCompareSelection(shownSelection)}
               </Token>
-            ) : (
+            ) : table.editedCondition == null ? (
               <Text color="text-700">
                 Evaluated by both evaluators in the selected time range
               </Text>
-            )}
+            ) : null}
           </Flex>
           {target === "SPAN" ? (
             // A new tab keeps this comparison and its selection in place
