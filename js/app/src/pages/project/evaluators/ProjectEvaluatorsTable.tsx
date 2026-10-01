@@ -77,6 +77,7 @@ import {
   ProjectEvaluatorMeanScoreHeader,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
@@ -126,6 +127,8 @@ const readRow = (
           status
           lastRunAt
           queuedCount
+          oldestQueuedAt
+          newestQueuedAt
           evaluatedCount
           failedCount
           droppedCount
@@ -500,6 +503,15 @@ export function ProjectEvaluatorsTable({
             enabled={row.original.enabled}
             runSummary={row.original.runSummary}
           />
+        ),
+      },
+      {
+        id: "queue",
+        header: "queued",
+        size: 100,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <ProjectEvaluatorQueueCell runSummary={row.original.runSummary} />
         ),
       },
       {
