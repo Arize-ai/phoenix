@@ -102,7 +102,7 @@ jobs:
               - "scripts/ci/test_skill_filter_dsl_examples.py"
             harbor_graphql:
               - "evals/harbor/graphql/**"
-              - "evals/harbor/verifiers/graphql_client/**"
+              - "evals/harbor/verifiers/__generated__/graphql_client/**"
               - "js/app/schema.graphql"
               - "pyproject.toml"
       - name: Print Filters

@@ -15,7 +15,7 @@ from typing import Any
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 
-from evals.harbor.verifiers.graphql_client import Client as GraphQLClient
+from evals.harbor.verifiers.__generated__.graphql_client import Client as GraphQLClient
 
 PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
 ANSWER_PATH = "/app/answer.txt"
