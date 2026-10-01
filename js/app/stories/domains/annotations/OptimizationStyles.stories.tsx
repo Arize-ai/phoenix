@@ -18,7 +18,8 @@ const SCORE_STYLES = [
 ] as const;
 
 const meta = {
-  title: "Annotation/Optimization Styles",
+  title: "Domains/Annotations/Optimization Styles",
+  tags: ["updated", "incomplete", "unreviewed"],
   parameters: {
     layout: "centered",
     themeLayout: "row",
@@ -29,6 +30,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const AllStyles: Story = {
+  tags: ["!dev"],
   render: () => (
     <Flex direction="row" gap="size-400" alignItems="start">
       <Flex direction="column" gap="size-100" alignItems="start">

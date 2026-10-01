@@ -126,7 +126,7 @@ function Row({
 }
 
 const meta: Meta<typeof Sparkline> = {
-  title: "Charting/Sparkline",
+  title: "Design System/Data visualization/Sparkline",
   component: Sparkline,
   parameters: {
     inset: true,
@@ -148,7 +148,7 @@ const meta: Meta<typeof Sparkline> = {
       },
     },
   },
-  tags: ["autodocs"],
+  tags: ["updated", "incomplete", "unreviewed"],
 };
 
 export default meta;

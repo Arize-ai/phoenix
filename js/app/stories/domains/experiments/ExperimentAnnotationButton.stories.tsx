@@ -5,8 +5,9 @@ import type { Annotation } from "@phoenix/components/annotation";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 
 const meta: Meta = {
-  title: "Experiment/ExperimentAnnotationButton",
+  title: "Domains/Experiments/Experiment Annotation Button",
   component: ExperimentAnnotationButton,
+  tags: ["updated", "incomplete", "unreviewed"],
   parameters: {
     layout: "centered",
   },
