@@ -1,12 +1,17 @@
 import { useMemo } from "react";
+import { useStore } from "zustand";
 
 import {
+  Button,
   ExternalLinkButton,
   Flex,
   Icon,
   Icons,
   RecordIcon,
   Timer,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 import { Switch } from "@phoenix/components/core/switch";
@@ -20,7 +25,10 @@ import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundE
 import { PlaygroundExampleColumnSelector } from "@phoenix/pages/playground/PlaygroundExampleColumnSelector";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
+import type { EditableTableStore } from "@phoenix/types/table";
 import { prependBasename } from "@phoenix/utils/routingUtils";
+
+import type { PlaygroundExampleTableRow } from "./examplesEditing";
 
 type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
 
@@ -40,6 +48,8 @@ type PlaygroundExperimentToolbarProps = {
   onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
   editingEvaluator: EditingEvaluator | null;
   onEditingEvaluatorChange: (editing: EditingEvaluator | null) => void;
+  /** The table's edit session; Edit here begins it. */
+  editStore: EditableTableStore<PlaygroundExampleTableRow>;
 };
 
 export function PlaygroundExperimentToolbar({
@@ -57,7 +67,12 @@ export function PlaygroundExperimentToolbar({
   onLlmEvaluatorFormOpenChange,
   editingEvaluator,
   onEditingEvaluatorChange,
+  editStore,
 }: PlaygroundExperimentToolbarProps) {
+  const isEditingExamples = useStore(
+    editStore,
+    (state) => state.mode !== "read"
+  );
   const instances = usePlaygroundContext((state) => state.instances);
   // Dataset evaluators score a prompt's outputs; an evaluator task is the
   // judge itself, so there is nothing to attach to it.
@@ -128,7 +143,25 @@ export function PlaygroundExperimentToolbar({
           onEditingEvaluatorChange={onEditingEvaluatorChange}
         />
       ) : null}
-      <PlaygroundDatasetSelect isDisabled={isRunning} />
+      <PlaygroundDatasetSelect isDisabled={isRunning || isEditingExamples} />
+      {/* Editing happens in the table under the floating edit toolbar, so this
+          only opens the session; it steps aside once one is under way. */}
+      {isEditingExamples ? null : (
+        <TooltipTrigger>
+          <Button
+            size="S"
+            leadingVisual={<Icon svg={<Icons.Edit />} />}
+            isDisabled={isRunning}
+            onPress={() => editStore.getState().beginEditing()}
+          >
+            Edit
+          </Button>
+          <Tooltip>
+            <TooltipArrow />
+            Edit the dataset&apos;s examples here. Saved as a new version.
+          </Tooltip>
+        </TooltipTrigger>
+      )}
       <PlaygroundExampleColumnSelector hasMetadata={hasExampleMetadata} />
       <PlaygroundExperimentSettingsButton
         isDisabled={isRunning}

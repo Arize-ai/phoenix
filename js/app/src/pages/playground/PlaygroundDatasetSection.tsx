@@ -1,7 +1,9 @@
+import { css } from "@emotion/react";
 import type { Ref } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 import type { PanelImperativeHandle } from "react-resizable-panels";
+import { useStore } from "zustand";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
@@ -15,10 +17,13 @@ import {
   selectDatasetEvaluatorsOperation,
 } from "@phoenix/agent/uiOperations/operations/datasetEvaluators";
 import { Flex } from "@phoenix/components";
+import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useUnsavedChangesBlocker } from "@phoenix/hooks";
+import { describeUnsavedExampleChanges } from "@phoenix/pages/examples/unsavedExampleChanges";
 import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
   PlaygroundDatasetSection_evaluator$data,
@@ -26,10 +31,16 @@ import type {
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
+import {
+  createEditableTableStore,
+  getEditableTableChangeCount,
+  hasEditableTableUnsavedChanges,
+} from "@phoenix/store/editableTableStore";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
+import type { PlaygroundExampleTableRow } from "./examplesEditing";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundDatasetExamplesTablePreferencesProvider } from "./PlaygroundDatasetExamplesTablePreferences";
@@ -268,6 +279,39 @@ export function PlaygroundDatasetSection({
 
   // We want to re-mount the context when the dataset or the splits change
   const key = `${datasetId}-${splitIds?.join("-")}`;
+
+  // One edit session for the table. It lives here, beside the toolbar that
+  // opens it, and ends when the dataset or the splits change under it.
+  const [editStore] = useState(() =>
+    createEditableTableStore<PlaygroundExampleTableRow>({
+      getRowId: (row) => row.id,
+    })
+  );
+  useEffect(() => {
+    return () => editStore.getState().cancelEditing();
+  }, [editStore, key]);
+
+  // The rest of the page reads the session's state from the playground store:
+  // the Run button waits for the edits to be saved or discarded.
+  const setIsEditingExamples = usePlaygroundContext(
+    (state) => state.setIsEditingExamples
+  );
+  useEffect(() => {
+    const sync = () =>
+      setIsEditingExamples(editStore.getState().mode !== "read");
+    sync();
+    const unsubscribe = editStore.subscribe(sync);
+    return () => {
+      unsubscribe();
+      setIsEditingExamples(false);
+    };
+  }, [editStore, setIsEditingExamples]);
+
+  // An edit session lives only in memory, so leaving the page drops it.
+  const changeCount = useStore(editStore, getEditableTableChangeCount);
+  const hasUnsavedChanges = useStore(editStore, hasEditableTableUnsavedChanges);
+  const blocker = useUnsavedChangesBlocker({ hasUnsavedChanges });
+
   return (
     <PlaygroundDatasetExamplesTablePreferencesProvider>
       <TitledPanel
@@ -295,16 +339,19 @@ export function PlaygroundDatasetSection({
             onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
             editingEvaluator={editingEvaluator}
             onEditingEvaluatorChange={setEditingEvaluator}
+            editStore={editStore}
           />
         }
         panelProps={IO_PANEL_PROPS}
         onCollapseChange={onPanelCollapseChange}
       >
-        <Flex direction={"column"} height={"100%"}>
+        {/* Positioned: the table's floating edit toolbar anchors to it. */}
+        <Flex direction={"column"} height={"100%"} css={sectionBodyCSS}>
           <PlaygroundDatasetExamplesTableProvider key={key}>
             <PlaygroundDatasetExamplesTable
               datasetId={datasetId}
               splitIds={splitIds}
+              editStore={editStore}
               evaluatorMappings={
                 isEvaluatorKind
                   ? NO_EVALUATOR_MAPPINGS
@@ -320,6 +367,16 @@ export function PlaygroundDatasetSection({
           </PlaygroundDatasetExamplesTableProvider>
         </Flex>
       </TitledPanel>
+      <ConfirmNavigationDialog
+        blocker={blocker}
+        message={`Leaving this page will discard ${describeUnsavedExampleChanges(
+          { count: changeCount }
+        )}.`}
+      />
     </PlaygroundDatasetExamplesTablePreferencesProvider>
   );
 }
+
+const sectionBodyCSS = css`
+  position: relative;
+`;

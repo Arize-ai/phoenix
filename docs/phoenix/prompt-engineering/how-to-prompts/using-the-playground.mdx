@@ -181,6 +181,10 @@ If however you run a prompt over dataset examples, the outputs and spans from yo
 
 The playground holds one kind of task at a time: prompts, or evaluators. The task selector at the top of each task (where the prompt picker sits) has a **Prompts** tab and an **Evaluators** tab: each lists your saved items of that kind, with **New prompt**, or **New LLM evaluator** and **New code evaluator**, beneath them. Picking an evaluator turns the page into an evaluator playground where you try LLM and code evaluators against a dataset, record the outputs you expected, and compare up to four evaluators side by side. You can also open an evaluator here with the **Playground** button of the evaluators, dataset evaluators and project evaluators tables, or from the evaluator picker of a prompt task. From a project's evaluators the playground opens without a dataset; select one to run the evaluator over its examples.
 
+### Editing the examples
+
+Press **Edit** in the Experiment toolbar to change the dataset without leaving the playground. Each example's input, reference output and metadata cell opens a JSON editor when pressed; the toolbar along the bottom adds examples, removes them, and saves everything as one new dataset version. Runs wait until you save or cancel, since they judge the saved examples rather than the ones on screen. Expected outputs recorded on an example are kept through a metadata edit even while the table hides them.
+
 1. Pick an evaluator, or start a new one, from the task selector of the first task. While the page holds more than one task, the selector only offers the page's kind; remove the other tasks to switch between prompts and evaluators.
 2. Configure the evaluator's tabs. An LLM evaluator's **Prompt** tab is its judge prompt, with the same model controls as a prompt task; a code evaluator's **Code** tab needs a configured sandbox. **Input mapping** points the evaluator's variables at fields of the dataset example, and **Output** names the evaluator and its labels or score.
 3. In the **Experiment** panel, select a dataset and optional splits. Evaluators run over every example of the dataset, or of the selected splits.

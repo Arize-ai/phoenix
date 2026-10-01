@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -61,6 +62,16 @@ const cellTriggerCSS = css`
   &[data-disabled] {
     cursor: default;
   }
+`;
+
+// A trigger around a consumer's own cell content: the content lays itself
+// out and pads itself, the trigger only supplies the click target and the
+// hover and dirty treatment the table draws on it.
+const cellTriggerFillCSS = css`
+  ${cellTriggerCSS};
+  display: block;
+  padding: 0;
+  cursor: pointer;
 `;
 
 // Full-bleed editor: flush against the dialog header and footer so the
@@ -136,6 +147,12 @@ export type EditableJSONCellProps<
    * would recognize.
    */
   rowLabel?: string;
+  /**
+   * Renders the cell's content from its current value, in place of the
+   * one-line JSON text. For tables whose cells are taller than a line, so
+   * editing keeps the look the read mode has.
+   */
+  children?: (value: unknown) => ReactNode;
 };
 
 /**
@@ -151,6 +168,7 @@ export function EditableJSONCell<
     requireObject = false,
     title: titleProp,
     rowLabel,
+    children: renderValue,
     ...cellContext
   } = props;
   // The default is assigned outside the destructuring pattern: a template
@@ -267,7 +285,9 @@ export function EditableJSONCell<
   });
 
   if (!cell.isEditing || !cell.isEditable) {
-    return (
+    return renderValue ? (
+      renderValue(cell.value)
+    ) : (
       <span css={cellTextCSS}>
         <JSONText json={cell.value} maxLength={100} />
       </span>
@@ -279,7 +299,7 @@ export function EditableJSONCell<
       <AriaButton
         data-cell-edit-trigger
         data-dirty={cell.isDirty}
-        css={cellTriggerCSS}
+        css={renderValue ? cellTriggerFillCSS : cellTriggerCSS}
         isDisabled={cell.isSaving}
         onClick={(event) => event.stopPropagation()}
         onPress={openEditor}
@@ -288,15 +308,19 @@ export function EditableJSONCell<
         // would announce that context twice.
         aria-label={`Edit ${columnId} for ${rowLabel ?? `row ${cellContext.row.id}`}`}
       >
-        <span css={cellTextCSS}>
-          {/* Show the full object while editing: a single-key object collapsed
-              to its value reads as an empty cell once that value is blank. */}
-          <JSONText
-            json={cell.value}
-            maxLength={100}
-            collapseSingleKey={false}
-          />
-        </span>
+        {renderValue ? (
+          renderValue(cell.value)
+        ) : (
+          <span css={cellTextCSS}>
+            {/* Show the full object while editing: a single-key object collapsed
+                to its value reads as an empty cell once that value is blank. */}
+            <JSONText
+              json={cell.value}
+              maxLength={100}
+              collapseSingleKey={false}
+            />
+          </span>
+        )}
       </AriaButton>
       <ModalOverlay
         isOpen={isOpen}

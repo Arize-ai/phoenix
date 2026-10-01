@@ -470,6 +470,11 @@ export interface PlaygroundProps {
    */
   recordExperiments: boolean;
   /**
+   * The dataset's examples are being edited in the table. Runs wait: the
+   * server would judge the saved examples, not the ones on screen.
+   */
+  isEditingExamples: boolean;
+  /**
    * The dataset examples the active run covers, or null for every example
    * of the dataset. A row's play button runs the tasks on that one example.
    * @default null
@@ -814,6 +819,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * set whether to record experiments
    */
   setRecordExperiments: (recordExperiments: boolean) => void;
+  setIsEditingExamples: (isEditingExamples: boolean) => void;
   /**
    * Stage the name/description/metadata for the experiments created by the next
    * dataset-backed run. Passing null clears any staged scaffold.
