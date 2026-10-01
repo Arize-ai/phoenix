@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78eda428a68815e9c0012386ca2b5f6a>>
+ * @generated SignedSource<<9d2ef163a79712b1bf3e807d7c0e9a36>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "decision" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type ConnectedTraceTree$data = {

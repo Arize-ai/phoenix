@@ -1032,7 +1032,7 @@ async def span_search(
         default=None,
         description=(
             "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, "
-            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN"
         ),
     ),
     status_code: Optional[list[str]] = Query(

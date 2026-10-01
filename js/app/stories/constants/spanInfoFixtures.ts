@@ -1409,3 +1409,68 @@ export const unparsableAttributesSpan: SpanInfoFixture = {
   documentRetrievalMetrics: [],
   documentEvaluations: [],
 };
+
+const decisionInput = JSON.stringify(
+  {
+    query: "I was charged twice this month, can you cancel my plan?",
+    candidates: ["billing", "cancellation", "technical_support", "sales"],
+  },
+  null,
+  2
+);
+
+const decisionOutput = JSON.stringify(
+  {
+    selected: "billing",
+    scores: {
+      billing: 0.74,
+      cancellation: 0.21,
+      technical_support: 0.03,
+      sales: 0.02,
+    },
+  },
+  null,
+  2
+);
+
+/**
+ * A decision span: a router model picking one of the candidate routes given
+ * in the request. Decision spans have no cards of their own, so this is the
+ * generic input / output view with a metadata card.
+ */
+export const decisionSpan: SpanInfoFixture = {
+  id: "U3BhbjpkZWNpc2lvbg==",
+  name: "route_request",
+  spanKind: "decision",
+  statusMessage: "",
+  attributes: JSON.stringify({
+    openinference: {
+      span: {
+        kind: "DECISION",
+      },
+    },
+    input: {
+      mime_type: "application/json",
+      value: decisionInput,
+    },
+    output: {
+      mime_type: "application/json",
+      value: decisionOutput,
+    },
+    metadata: {
+      model_name: "intent-router-v3",
+      candidates: ["billing", "cancellation", "technical_support", "sales"],
+      confidence: 0.74,
+    },
+  }),
+  input: {
+    value: decisionInput,
+    mimeType: "json",
+  },
+  output: {
+    value: decisionOutput,
+    mimeType: "json",
+  },
+  documentRetrievalMetrics: [],
+  documentEvaluations: [],
+};

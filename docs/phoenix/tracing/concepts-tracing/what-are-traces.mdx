@@ -62,7 +62,7 @@ A `project` is a collection of traces. You can think of a project as a container
 
 ## Span Kind
 
-When a span is created, it is created as one of the following: Chain, Retriever, Reranker, LLM, Embedding, Agent, or Tool.
+When a span is created, it is created as one of the following: Chain, Retriever, Reranker, LLM, Embedding, Agent, Tool, Guardrail, Evaluator, Decision, or Prompt.
 
 <Frame caption="The SpanKinds supported by OpenInference Tracing">
   <img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/span_kinds.png" alt="" />
@@ -95,6 +95,10 @@ A Tool is a span that represents a call to an external tool such as a calculator
 **AGENT**
 
 A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.
+
+**DECISION**
+
+A Decision is a span that represents a call to a decision model — a model that scores or selects among candidate options supplied in the request rather than generating free-form text. For example, a Decision span could represent a router choosing which agent handles a request, a classifier judging a condition, or a model scoring an item against a rubric.
 
 ## Span Attributes
 

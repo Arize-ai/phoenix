@@ -33,6 +33,14 @@ const toolSpan = buildSpan({
   latencyMs: 6767,
 });
 
+const decisionSpan = buildSpan({
+  id: "decision-call",
+  name: "route_request",
+  spanKind: "decision",
+  startOffsetMs: 180,
+  latencyMs: 42,
+});
+
 const openSpan = buildSpan({
   id: "open-span",
   name: "agent-loop",
@@ -278,6 +286,11 @@ export const TokensWithoutCost: Story = {
 /** A tool span has no usage, so timing is the whole tooltip. */
 export const ToolSpan: Story = {
   render: () => <OpenPreview span={toolSpan} />,
+};
+
+/** A decision span: a model choosing among candidates, timing only. */
+export const DecisionSpan: Story = {
+  render: () => <OpenPreview span={decisionSpan} />,
 };
 
 /** A span that has not ended yet has no end time and no latency. */

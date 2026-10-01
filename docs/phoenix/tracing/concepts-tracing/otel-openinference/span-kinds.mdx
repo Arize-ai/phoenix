@@ -1,7 +1,7 @@
 ---
 title: "OpenInference Span Kinds"
 sidebarTitle: "Span kinds"
-description: "The eleven OpenInference span kinds — LLM, Tool, Agent, Chain, Retriever, and the rest — with the canonical attributes Phoenix expects on each."
+description: "The twelve OpenInference span kinds — LLM, Tool, Agent, Chain, Retriever, and the rest — with the canonical attributes Phoenix expects on each."
 keywords: ['span kinds', 'OpenInference', 'LLM', 'TOOL', 'AGENT', 'CHAIN', 'RETRIEVER', 'EMBEDDING', 'openinference.span.kind']
 ---
 
@@ -29,9 +29,9 @@ span.set_attribute(
 **Phoenix UI behavior**: span-kind icons in Phoenix trace tree come directly from the `openinference.span.kind` attribute. A span without that attribute renders with a blank icon. Auto-instrumentors set this for you — set it explicitly on every manual span.
 </Info>
 
-# The Eleven Span Kinds
+# The Twelve Span Kinds
 
-OpenInference defines eleven span-kind values. The first four (LLM, Chain, Agent, Tool) are the ones you'll encounter most often:
+OpenInference defines twelve span-kind values. The first four (LLM, Chain, Agent, Tool) are the ones you'll encounter most often:
 
 | Icon | Span kind | Description |
 | :---: | :--- | :--- |
@@ -44,6 +44,7 @@ OpenInference defines eleven span-kind values. The first four (LLM, Chain, Agent
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/reranker.png" width="32" alt="Reranker span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`RERANKER`** | A relevance-based re-ordering of documents. |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/guardrail.png" width="32" alt="Guardrail span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`GUARDRAIL`** | A validation of LLM input or output for safety, policy, or compliance. |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Evaluator span-kind icon (falls back to Unknown)" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`EVALUATOR`** | An evaluation process — the type, configuration, and results. |
+| <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Decision span-kind icon (falls back to Unknown)" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`DECISION`** | A call to a decision model — one that scores or selects among candidate options supplied in the request (routing, classification, rubric scoring) rather than generating free-form text. |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Prompt span-kind icon (falls back to Unknown)" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`PROMPT`** | A span representing prompt construction or templating. |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Unknown span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`UNKNOWN`** | Default when no kind is set explicitly. |
 
@@ -135,7 +136,7 @@ Chain spans use only the common attributes — `input.value`, `output.value`, `m
 
 ## Other Kinds
 
-The remaining seven span kinds — RETRIEVER, EMBEDDING, RERANKER, GUARDRAIL, EVALUATOR, PROMPT, UNKNOWN — each have their own attribute schemas. Consult the [canonical source](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) for the full per-kind attribute list.
+The remaining eight span kinds — RETRIEVER, EMBEDDING, RERANKER, GUARDRAIL, EVALUATOR, DECISION, PROMPT, UNKNOWN — each have their own attribute schemas. Consult the [canonical source](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) for the full per-kind attribute list.
 
 # Multimodal Message Content
 

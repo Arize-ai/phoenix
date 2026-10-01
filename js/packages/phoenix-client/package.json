@@ -119,7 +119,7 @@
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^2.12.0",
+    "@arizeai/openinference-semantic-conventions": "^2.13.0",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",

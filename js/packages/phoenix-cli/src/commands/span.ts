@@ -86,7 +86,7 @@ interface SpanListOptions
   /**
    * `--span-kind <kinds...>`: Filter by OpenInference span kind — `LLM`,
    * `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`,
-   * `GUARDRAIL`, `EVALUATOR`, or `UNKNOWN`.
+   * `GUARDRAIL`, `EVALUATOR`, `DECISION`, or `UNKNOWN`.
    *
    * @example ["LLM", "TOOL"]
    */
@@ -432,7 +432,7 @@ export function createSpanListCommand(): Command {
     )
     .option(
       "--span-kind <kinds...>",
-      "Filter by span kind (LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN)"
+      "Filter by span kind (LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN)"
     )
     .option(
       "--status-code <codes...>",

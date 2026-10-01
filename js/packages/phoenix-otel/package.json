@@ -59,8 +59,8 @@
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-core": "^2.7.1",
-    "@arizeai/openinference-semantic-conventions": "^2.12.0",
+    "@arizeai/openinference-core": "^2.7.2",
+    "@arizeai/openinference-semantic-conventions": "^2.13.0",
     "@arizeai/openinference-vercel": "^3.2.1",
     "@arizeai/phoenix-config": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
