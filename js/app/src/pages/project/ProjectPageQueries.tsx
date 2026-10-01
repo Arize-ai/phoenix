@@ -53,6 +53,19 @@ export const ProjectPageQueriesSpansQuery = graphql`
   }
 `;
 
+// Never fetched: only read from the store, to learn whether a table preload can
+// trust its cache. `hasTraces` takes no arguments, so whichever query last
+// fetched it -- under any time range or filter -- answers here.
+export const ProjectPageQueriesHasTracesQuery = graphql`
+  query ProjectPageQueriesHasTracesQuery($id: ID!) {
+    project: node(id: $id) {
+      ... on Project {
+        hasTraces
+      }
+    }
+  }
+`;
+
 export const ProjectPageQueriesSessionsQuery = graphql`
   query ProjectPageQueriesSessionsQuery(
     $id: ID!
@@ -93,6 +106,12 @@ export const ProjectPageQueryReferenceContext = createContext<{
     seed: SettledSpanFilterSeed,
     persistToUrl?: boolean
   ) => void;
+  /**
+   * Reload the spans query from the network with its current seed. Used while
+   * the project has no traces, since only this query decides when onboarding
+   * gives way to the table.
+   */
+  reloadSpansQuery: () => void;
   sessionsQueryReference: PreloadedQuery<ProjectPageSessionsQueryType> | null;
   /**
    * The condition the sessions query was loaded with; null while the server
@@ -104,17 +123,21 @@ export const ProjectPageQueryReferenceContext = createContext<{
   /** The traces counterpart of `sessionsFilterSeed`. */
   tracesFilterSeed: string | null;
   resolveTracesSeed: (condition: string, persistToUrl?: boolean) => void;
+  /** The traces counterpart of `reloadSpansQuery`. */
+  reloadTracesQuery: () => void;
   projectConfigQueryReference: PreloadedQuery<ProjectPageProjectConfigQueryType> | null;
 }>({
   spansQueryReference: null,
   spansFilterSeed: null,
   resolveSpansSeed: () => {},
+  reloadSpansQuery: () => {},
   sessionsQueryReference: null,
   sessionsFilterSeed: null,
   resolveSessionsSeed: () => {},
   tracesQueryReference: null,
   tracesFilterSeed: null,
   resolveTracesSeed: () => {},
+  reloadTracesQuery: () => {},
   projectConfigQueryReference: null,
 });
 

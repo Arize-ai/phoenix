@@ -21,6 +21,7 @@ import {
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
+import { useReloadUntilTracesArrive } from "./useReloadUntilTracesArrive";
 
 // Module-level so the identity is stable: an inline component would remount the
 // field on every render.
@@ -42,6 +43,11 @@ function SpansTabContent({
     ProjectPageQueriesSpansQuery,
     queryReference
   );
+  const { reloadSpansQuery } = useProjectPageQueryReferenceContext();
+  useReloadUntilTracesArrive({
+    hasTraces: data.project.hasTraces ?? false,
+    reload: reloadSpansQuery,
+  });
 
   if (!data.project.hasTraces) {
     return (

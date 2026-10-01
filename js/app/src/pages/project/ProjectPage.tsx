@@ -9,7 +9,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  useQueryLoader,
+  useRelayEnvironment,
+} from "react-relay";
 import {
   Outlet,
   useLocation,
@@ -17,6 +22,8 @@ import {
   useParams,
   useSearchParams,
 } from "react-router";
+import type { IEnvironment } from "relay-runtime";
+import { createOperationDescriptor, getRequest } from "relay-runtime";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -35,6 +42,7 @@ import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
+import type { ProjectPageQueriesHasTracesQuery as ProjectPageHasTracesQueryType } from "./__generated__/ProjectPageQueriesHasTracesQuery.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
@@ -45,6 +53,7 @@ import {
   withFilterConditionParam,
 } from "./filterConditionParam";
 import {
+  ProjectPageQueriesHasTracesQuery,
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
   ProjectPageQueriesSpansQuery,
@@ -192,6 +201,25 @@ function settledConditionFromUrl(param: string): string | null {
   return condition === "" ? "" : null;
 }
 
+/**
+ * Whether the store already knows this project has traces. Anything short of a
+ * cached `true` -- no record, or a `false` that may have gone stale while the
+ * page was away -- means the onboarding-or-table decision needs the network.
+ */
+function storeKnowsProjectHasTraces(
+  environment: IEnvironment,
+  projectId: string
+): boolean {
+  const operation = createOperationDescriptor(
+    getRequest(ProjectPageQueriesHasTracesQuery),
+    { id: projectId }
+  );
+  const data = environment.lookup(operation.fragment).data as
+    | ProjectPageHasTracesQueryType["response"]
+    | undefined;
+  return data?.project?.hasTraces === true;
+}
+
 export function LegacyTraceFilterParamNotice({
   isActive,
 }: {
@@ -291,6 +319,20 @@ function ProjectPageContentBody({
     timeRangeRef.current = timeRangeISOStrings;
   }, [timeRangeISOStrings]);
 
+  const environment = useRelayEnvironment();
+  /**
+   * The spans and traces preloads alone decide between onboarding and the
+   * table, so they take the store's answer only once it says the project has
+   * traces. A cached `false` would otherwise keep onboarding up.
+   */
+  const tablePreloadFetchPolicy = useCallback(
+    () =>
+      storeKnowsProjectHasTraces(environment, projectId)
+        ? "store-or-network"
+        : "network-only",
+    [environment, projectId]
+  );
+
   /**
    * Load the spans table from a condition whose validity and root scope are
    * both settled. Called for the conditions this app classifies itself, and by
@@ -322,15 +364,18 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadSpansQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          filterCondition: seed.condition || null,
-          rootSpansOnly: seed.rootSpansOnly,
-        });
+        loadSpansQuery(
+          {
+            id: projectId,
+            timeRange: timeRangeRef.current,
+            filterCondition: seed.condition || null,
+            rootSpansOnly: seed.rootSpansOnly,
+          },
+          { fetchPolicy: tablePreloadFetchPolicy() }
+        );
       });
     },
-    [projectId, loadSpansQuery]
+    [projectId, loadSpansQuery, tablePreloadFetchPolicy]
   );
 
   /**
@@ -355,15 +400,57 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadTracesQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          traceFilterCondition: condition || null,
-        });
+        loadTracesQuery(
+          {
+            id: projectId,
+            timeRange: timeRangeRef.current,
+            traceFilterCondition: condition || null,
+          },
+          { fetchPolicy: tablePreloadFetchPolicy() }
+        );
       });
     },
-    [projectId, loadTracesQuery]
+    [projectId, loadTracesQuery, tablePreloadFetchPolicy]
   );
+
+  /**
+   * Reload the spans query with its current seed, skipping the store. A
+   * project's first traces only reach the page through this query's
+   * `hasTraces`, and a cached `false` would keep onboarding up indefinitely.
+   */
+  const reloadSpansQuery = useCallback(() => {
+    if (spansFilterSeed === null) {
+      return;
+    }
+    startTransition(() => {
+      loadSpansQuery(
+        {
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          filterCondition: spansFilterSeed.condition || null,
+          rootSpansOnly: spansFilterSeed.rootSpansOnly,
+        },
+        { fetchPolicy: "network-only" }
+      );
+    });
+  }, [projectId, loadSpansQuery, spansFilterSeed]);
+
+  /** The traces counterpart of `reloadSpansQuery`. */
+  const reloadTracesQuery = useCallback(() => {
+    if (tracesFilterSeed === null) {
+      return;
+    }
+    startTransition(() => {
+      loadTracesQuery(
+        {
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          traceFilterCondition: tracesFilterSeed || null,
+        },
+        { fetchPolicy: "network-only" }
+      );
+    });
+  }, [projectId, loadTracesQuery, tracesFilterSeed]);
 
   /** The sessions counterpart of `resolveTracesSeed`. */
   const resolveSessionsSeed = useCallback(
@@ -415,11 +502,15 @@ function ProjectPageContentBody({
         const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
         // Returning to a tab whose rows already answer this condition is not a
         // reason to reload it. Re-resolving would tear the table down and
-        // rebuild it for the same result.
+        // rebuild it for the same result. The exception is a project still
+        // showing onboarding, whose traces may have arrived while away.
         if (
           spansQueryReference &&
           spansFilterSeed?.condition === seed.condition
         ) {
+          if (!storeKnowsProjectHasTraces(environment, currentProjectId)) {
+            reloadSpansQuery();
+          }
           return;
         }
         if (seed.requiresServerValidation) {
@@ -437,6 +528,9 @@ function ProjectPageContentBody({
           TRACE_FILTER_CONDITION_PARAM
         );
         if (tracesQueryReference && tracesFilterSeed === condition) {
+          if (!storeKnowsProjectHasTraces(environment, currentProjectId)) {
+            reloadTracesQuery();
+          }
           return;
         }
         if (condition === "") {
@@ -498,12 +592,14 @@ function ProjectPageContentBody({
           spansQueryReference: spansQueryReference ?? null,
           spansFilterSeed,
           resolveSpansSeed,
+          reloadSpansQuery,
           sessionsQueryReference: sessionsQueryReference ?? null,
           sessionsFilterSeed,
           resolveSessionsSeed,
           tracesQueryReference: tracesQueryReference ?? null,
           tracesFilterSeed,
           resolveTracesSeed,
+          reloadTracesQuery,
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >

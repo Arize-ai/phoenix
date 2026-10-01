@@ -20,6 +20,7 @@ import {
 } from "./ProjectPageQueries";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { TraceFiltersProvider } from "./TraceFiltersContext";
+import { useReloadUntilTracesArrive } from "./useReloadUntilTracesArrive";
 
 // Module-level: an inline component would remount the field on every render.
 function TracesFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
@@ -50,6 +51,11 @@ function TracesTabContent({
     ProjectPageQueriesTracesQuery,
     tracesQueryReference
   );
+  const { reloadTracesQuery } = useProjectPageQueryReferenceContext();
+  useReloadUntilTracesArrive({
+    hasTraces: data.project.hasTraces ?? false,
+    reload: reloadTracesQuery,
+  });
 
   if (!data.project.hasTraces) {
     return (
