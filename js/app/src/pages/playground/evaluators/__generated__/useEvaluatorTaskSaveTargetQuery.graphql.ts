@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40435250a831ffc892a21ac55a6430f8>>
+ * @generated SignedSource<<ebe0913e9d27f3704fdcbd6c2aebe2d4>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type useEvaluatorTaskSaveTargetQuery$data = {
       readonly id: string;
     };
     readonly id?: string;
+    readonly name?: string;
   };
   readonly evaluator?: {
     readonly datasetEvaluators?: ReadonlyArray<{
@@ -31,6 +32,7 @@ export type useEvaluatorTaskSaveTargetQuery$data = {
     }>;
     readonly id?: string;
     readonly kind?: EvaluatorKind;
+    readonly name?: string;
   };
 };
 export type useEvaluatorTaskSaveTargetQuery = {
@@ -77,10 +79,17 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "name",
   "storageKey": null
 },
 v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "Dataset",
@@ -92,10 +101,6 @@ v7 = {
   ],
   "storageKey": null
 },
-v8 = [
-  (v5/*:: as any*/),
-  (v7/*:: as any*/)
-],
 v9 = {
   "alias": null,
   "args": null,
@@ -103,7 +108,10 @@ v9 = {
   "kind": "LinkedField",
   "name": "datasetEvaluators",
   "plural": true,
-  "selections": (v8/*:: as any*/),
+  "selections": [
+    (v5/*:: as any*/),
+    (v8/*:: as any*/)
+  ],
   "storageKey": null
 },
 v10 = [
@@ -150,6 +158,7 @@ return {
                 "selections": [
                   (v5/*:: as any*/),
                   (v6/*:: as any*/),
+                  (v7/*:: as any*/),
                   (v9/*:: as any*/)
                 ],
                 "type": "Evaluator",
@@ -175,7 +184,11 @@ return {
             "selections": [
               {
                 "kind": "InlineFragment",
-                "selections": (v8/*:: as any*/),
+                "selections": [
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v8/*:: as any*/)
+                ],
                 "type": "DatasetEvaluator",
                 "abstractKey": null
               }
@@ -218,6 +231,7 @@ return {
                 "kind": "InlineFragment",
                 "selections": [
                   (v6/*:: as any*/),
+                  (v7/*:: as any*/),
                   (v9/*:: as any*/)
                 ],
                 "type": "Evaluator",
@@ -246,7 +260,8 @@ return {
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v7/*:: as any*/)
+                  (v6/*:: as any*/),
+                  (v8/*:: as any*/)
                 ],
                 "type": "DatasetEvaluator",
                 "abstractKey": null
@@ -259,16 +274,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0e3bd96bf7959fc23b434ddf34baf298",
+    "cacheID": "34432c1bdbc8b22922b4e7e62d818726",
     "id": null,
     "metadata": {},
     "name": "useEvaluatorTaskSaveTargetQuery",
     "operationKind": "query",
-    "text": "query useEvaluatorTaskSaveTargetQuery(\n  $evaluatorId: ID!\n  $hasEvaluator: Boolean!\n  $datasetEvaluatorId: ID!\n  $hasDatasetEvaluator: Boolean!\n) {\n  evaluator: node(id: $evaluatorId) @include(if: $hasEvaluator) {\n    __typename\n    ... on Evaluator {\n      __isEvaluator: __typename\n      id\n      kind\n      datasetEvaluators {\n        id\n        dataset {\n          id\n        }\n      }\n    }\n    id\n  }\n  datasetEvaluator: node(id: $datasetEvaluatorId) @include(if: $hasDatasetEvaluator) {\n    __typename\n    ... on DatasetEvaluator {\n      id\n      dataset {\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query useEvaluatorTaskSaveTargetQuery(\n  $evaluatorId: ID!\n  $hasEvaluator: Boolean!\n  $datasetEvaluatorId: ID!\n  $hasDatasetEvaluator: Boolean!\n) {\n  evaluator: node(id: $evaluatorId) @include(if: $hasEvaluator) {\n    __typename\n    ... on Evaluator {\n      __isEvaluator: __typename\n      id\n      name\n      kind\n      datasetEvaluators {\n        id\n        dataset {\n          id\n        }\n      }\n    }\n    id\n  }\n  datasetEvaluator: node(id: $datasetEvaluatorId) @include(if: $hasDatasetEvaluator) {\n    __typename\n    ... on DatasetEvaluator {\n      id\n      name\n      dataset {\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "70875f7c16f9e30bc4eae6ab5df36566";
+(node as any).hash = "b90b9a9b412ef5a32951666d3732c572";
 
 export default node;
