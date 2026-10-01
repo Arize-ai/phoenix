@@ -8,7 +8,7 @@ from evals.harbor.verifiers.graphql.__generated__ import ExperimentFields
 trajectory = verify.read_trajectory(verify.TRAJECTORY_PATH)
 reply = verify.final_reply(trajectory)
 started = verify.started_at(trajectory)
-dataset_id, examples = hc.fetch_dataset()
+dataset_id, examples = phoenix_api.dataset_examples(hc.DATASET_NAME)
 evaluators = phoenix_api.dataset_evaluators(dataset_id)
 experiments = phoenix_api.dataset_experiments(dataset_id)
 examples_by_id = {e["node_id"]: e for e in examples}

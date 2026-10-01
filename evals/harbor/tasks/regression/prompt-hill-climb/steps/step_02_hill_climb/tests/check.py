@@ -4,7 +4,7 @@ import hill_climb_checks as hc
 
 from evals.harbor.verifiers import phoenix_api, verify
 
-dataset_id, examples = hc.fetch_dataset()
+dataset_id, examples = phoenix_api.dataset_examples(hc.DATASET_NAME)
 evaluators = phoenix_api.dataset_evaluators(dataset_id)
 experiments = phoenix_api.dataset_experiments(dataset_id)
 

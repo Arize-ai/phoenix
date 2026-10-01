@@ -34,6 +34,12 @@ def client() -> Client:
     return Client(base_url=PHOENIX_URL)
 
 
+def dataset_examples(dataset: str) -> tuple[str, list[v1.DatasetExample]]:
+    """The dataset's node id and its current examples."""
+    result = client().datasets.get_dataset(dataset=dataset)
+    return result.id, result.examples
+
+
 def project_spans(project: str) -> list[v1.Span]:
     return client().spans.get_spans(project_identifier=project, limit=SPAN_LIMIT)
 

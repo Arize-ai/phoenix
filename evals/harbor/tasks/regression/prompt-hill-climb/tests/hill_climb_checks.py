@@ -35,12 +35,6 @@ Scores = dict[ExampleNodeId, float | None]
 # --- the dataset -------------------------------------------------------------------
 
 
-def fetch_dataset() -> tuple[str, list[v1.DatasetExample]]:
-    """The dataset's node id and its current examples."""
-    dataset = phoenix_api.client().datasets.get_dataset(dataset=DATASET_NAME)
-    return dataset.id, dataset.examples
-
-
 def reference_text(example: v1.DatasetExample) -> str:
     return str(example["output"].get("reference", ""))
 
