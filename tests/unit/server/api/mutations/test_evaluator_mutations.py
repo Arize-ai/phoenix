@@ -1173,12 +1173,15 @@ class TestUpdateDatasetLLMEvaluatorMutation:
         updated_evaluator = result.data["updateDatasetLlmEvaluator"]["evaluator"]
         assert updated_evaluator["name"] == "updated-evaluator-name"
         llm_data = updated_evaluator["evaluator"]
+        # The shared evaluator is renamed with its binding.
+        assert llm_data["name"] == "updated-evaluator-name"
         assert llm_data["description"] == "updated description"
         assert llm_data["kind"] == "LLM"
 
         async with db() as session:
             db_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
             assert db_evaluator is not None
+            assert str(db_evaluator.name) == "updated-evaluator-name"
             assert db_evaluator.description == "updated description"
             # user_id is None when authentication is disabled
             assert db_evaluator.user_id is None

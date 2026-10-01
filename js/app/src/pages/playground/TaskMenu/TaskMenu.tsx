@@ -72,7 +72,10 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
 
-  const [hasOpened, setHasOpened] = useState(false);
+  // How many times the menu has opened: the options load on the first and
+  // the evaluators are fetched again on each, so saves made in between show.
+  const [openCount, setOpenCount] = useState(0);
+  const hasOpened = openCount > 0;
   // The menu opens on the tab of what the task is now.
   const [selectedKind, setSelectedKind] = useState<PlaygroundTaskKind>(
     instance.task.kind
@@ -98,6 +101,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     promptsFetchKey: instance.prompt
       ? `${instance.prompt.id}:${instance.prompt.version}`
       : undefined,
+    evaluatorsFetchKey: openCount,
   });
 
   const tabs = getTaskMenuTabs({
@@ -164,7 +168,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       onOpenChange={(isOpen) => {
         if (isOpen) {
           setSelectedKind(instance.task.kind);
-          startLoadingOptions(() => setHasOpened(true));
+          startLoadingOptions(() => setOpenCount((count) => count + 1));
         }
       }}
       css={taskSelectCSS}

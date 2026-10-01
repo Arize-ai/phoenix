@@ -35,7 +35,9 @@ export function PlaygroundCompareMenu() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
-  const [hasOpened, setHasOpened] = useState(false);
+  // Bumped on every opening, so evaluators saved since then show.
+  const [openCount, setOpenCount] = useState(0);
+  const hasOpened = openCount > 0;
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -45,6 +47,7 @@ export function PlaygroundCompareMenu() {
     includePrompts: hasOpened && taskKind === "prompt",
     includeEvaluators: hasOpened && taskKind === "evaluator",
     search: deferredSearch,
+    evaluatorsFetchKey: openCount,
   });
 
   // Locked to the page's kind, so a single tab: the list shows without a
@@ -65,7 +68,9 @@ export function PlaygroundCompareMenu() {
       value={null}
       isDisabled={isFull || isRunning}
       onOpenChange={(isOpen) => {
-        if (isOpen) startLoadingOptions(() => setHasOpened(true));
+        if (isOpen) {
+          startLoadingOptions(() => setOpenCount((count) => count + 1));
+        }
       }}
       onChange={(key) => {
         const source =
