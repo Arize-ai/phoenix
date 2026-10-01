@@ -84,6 +84,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             requirements/
+            scripts/
             src/phoenix/
             packages/phoenix-evals/
             evals/
