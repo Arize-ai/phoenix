@@ -757,7 +757,7 @@ async def _write_project_evaluator(
     The row is handed to resolvers after the session closes, so server-generated values
     such as updated_at must come back with the write instead of being loaded lazily.
     """
-    row = await session.scalar(
+    row: models.ProjectEvaluator | None = await session.scalar(
         update(models.ProjectEvaluator)
         .where(models.ProjectEvaluator.id == project_evaluator_id)
         .values(**values)
