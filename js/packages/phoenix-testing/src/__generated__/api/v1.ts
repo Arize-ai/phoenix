@@ -5362,10 +5362,18 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /**
+             * Custom Provider Id
+             * @description GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider.
+             */
+            custom_provider_id?: string | null;
             /** Id */
             id: string;
         };
-        /** PromptVersionData */
+        /**
+         * PromptVersionData
+         * @description Prompt content shared by prompt and evaluator APIs.
+         */
         PromptVersionData: {
             /** Description */
             description?: string | null;
@@ -5388,6 +5396,11 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /**
+             * Custom Provider Id
+             * @description GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider.
+             */
+            custom_provider_id?: string | null;
         };
         /** PromptVersionTag */
         PromptVersionTag: {
@@ -10976,6 +10989,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
