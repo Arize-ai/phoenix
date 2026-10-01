@@ -58,7 +58,12 @@ async def validate_code_evaluator_sandbox_config(
     source_code: str,
     sandbox_runtime: SandboxRuntimeContext,
 ) -> int:
-    sandbox_config_id = from_global_id_with_expected_type(sandbox_config_global_id, "SandboxConfig")
+    try:
+        sandbox_config_id = from_global_id_with_expected_type(
+            sandbox_config_global_id, "SandboxConfig"
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid sandbox config id: {sandbox_config_global_id}")
     async with db() as session:
         config_and_provider = (
             await session.execute(
@@ -71,7 +76,7 @@ async def validate_code_evaluator_sandbox_config(
             )
         ).one_or_none()
         if config_and_provider is None:
-            raise BadRequest(f"Sandbox config not found: {sandbox_config_global_id}")
+            raise NotFound(f"Sandbox config not found: {sandbox_config_global_id}")
         target_cfg, provider = config_and_provider
         if not target_cfg.enabled:
             raise BadRequest(
@@ -224,6 +229,45 @@ async def ensure_evaluator_prompt_label(
         session.add(association)
 
 
+async def release_evaluator_prompt_label(session: AsyncSession, prompt_id: int) -> None:
+    """Remove the "evaluator" label from a prompt that no LLM evaluator references anymore."""
+    if await session.scalar(
+        select(models.LLMEvaluator.id).where(models.LLMEvaluator.prompt_id == prompt_id).limit(1)
+    ):
+        return
+    await session.execute(
+        delete(models.PromptPromptLabel).where(
+            models.PromptPromptLabel.prompt_id == prompt_id,
+            models.PromptPromptLabel.prompt_label_id.in_(
+                select(models.PromptLabel.id).where(models.PromptLabel.name == "evaluator")
+            ),
+        )
+    )
+
+
+async def release_llm_evaluator_prompt(
+    session: AsyncSession,
+    *,
+    prompt_version_tag_id: Optional[int],
+    prompt_id: int,
+) -> None:
+    """Delete the tag a removed LLM evaluator owned and drop its prompt's "evaluator" label.
+
+    Call this once the evaluator row itself is gone: the tag's ON DELETE RESTRICT FK from
+    llm_evaluators only allows deleting the tag in that order. Both this and the label removal
+    are no-ops when the prompt was deleted too (a prompt's delete cascades to its tags, and
+    there is no prompt left to un-label), so the caller doesn't need to track that separately.
+    """
+    if prompt_version_tag_id is not None:
+        await session.execute(
+            delete(models.PromptVersionTag).where(
+                models.PromptVersionTag.id == prompt_version_tag_id
+            )
+        )
+    if await session.get(models.Prompt, prompt_id) is not None:
+        await release_evaluator_prompt_label(session, prompt_id)
+
+
 async def validate_project_evaluator_project(
     session: AsyncSession,
     project_id: int,
@@ -308,16 +352,36 @@ async def garbage_collect_evaluators(
     prompt_ids: set[int],
     delete_associated_prompt: bool,
 ) -> None:
+    deleted_ids: set[int] = set()
+    llm_evaluator_prompts: dict[int, tuple[Optional[int], int]] = {}
     if evaluator_ids:
-        await session.execute(
-            delete(models.Evaluator).where(
-                models.Evaluator.id.in_(evaluator_ids),
-                ~select(models.DatasetEvaluators.id)
-                .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
-                .exists(),
-                ~select(models.ProjectEvaluator.id)
-                .where(models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
-                .exists(),
+        # Read the LLM evaluators' tag and prompt before deleting: once a row is gone there is
+        # nothing left to join it against. RETURNING then reports only the evaluators this
+        # delete actually removed, so a binding added between this read and that delete (which
+        # keeps the row) can't be cleaned up as if it were unbound.
+        llm_evaluator_prompts = {
+            row.id: (row.prompt_version_tag_id, row.prompt_id)
+            for row in await session.execute(
+                select(
+                    models.LLMEvaluator.id,
+                    models.LLMEvaluator.prompt_version_tag_id,
+                    models.LLMEvaluator.prompt_id,
+                ).where(models.LLMEvaluator.id.in_(evaluator_ids))
+            )
+        }
+        deleted_ids = set(
+            await session.scalars(
+                delete(models.Evaluator)
+                .where(
+                    models.Evaluator.id.in_(evaluator_ids),
+                    ~select(models.DatasetEvaluators.id)
+                    .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
+                    .exists(),
+                    ~select(models.ProjectEvaluator.id)
+                    .where(models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
+                    .exists(),
+                )
+                .returning(models.Evaluator.id)
             )
         )
     if delete_associated_prompt and prompt_ids:
@@ -329,6 +393,12 @@ async def garbage_collect_evaluators(
                 .exists(),
             )
         )
+    for evaluator_id in deleted_ids:
+        if (prompt_info := llm_evaluator_prompts.get(evaluator_id)) is not None:
+            tag_id, prompt_id = prompt_info
+            await release_llm_evaluator_prompt(
+                session, prompt_version_tag_id=tag_id, prompt_id=prompt_id
+            )
 
 
 def parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:

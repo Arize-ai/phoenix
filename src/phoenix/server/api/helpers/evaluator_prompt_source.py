@@ -10,11 +10,12 @@ prompt and pinned.
 from dataclasses import dataclass
 from typing import Optional, Union
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -27,10 +28,11 @@ class NewPrompt:
 
 @dataclass(frozen=True)
 class FromPromptVersion:
-    """Start from an existing version; content that differs is appended to its prompt."""
+    """Start from an existing version; content that differs is appended to its prompt.
+    Without content, the version is pinned as it is."""
 
     prompt_version_id: GlobalID
-    content: models.PromptVersion
+    content: Optional[models.PromptVersion] = None
 
 
 @dataclass(frozen=True)
@@ -47,10 +49,11 @@ UpdatePromptSource = Union[EditCurrentPrompt, FromPromptVersion]
 async def get_prompt_version(
     session: AsyncSession, prompt_version_id: GlobalID
 ) -> models.PromptVersion:
-    version = await session.get(
-        models.PromptVersion,
-        from_global_id_with_expected_type(prompt_version_id, "PromptVersion"),
-    )
+    try:
+        row_id = from_global_id_with_expected_type(prompt_version_id, "PromptVersion")
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+    version = await session.get(models.PromptVersion, row_id)
     if version is None:
         raise NotFound(f"Prompt version not found: {prompt_version_id}")
     return version
@@ -60,14 +63,43 @@ async def pin_prompt_version(
     session: AsyncSession,
     *,
     base: Optional[models.PromptVersion],
-    content: models.PromptVersion,
+    content: Optional[models.PromptVersion],
     prompt_id: int,
 ) -> models.PromptVersion:
-    """Return base when the content is identical to it; otherwise append the content to
-    the prompt and return it."""
+    """Return base when there is no content or the content is identical to it; otherwise
+    append the content to the prompt and return it."""
+    if content is None:
+        if base is None:
+            raise NotFound("Prompt version not found")
+        return base
     if base is not None and base.has_identical_content(content):
         return base
     content.prompt_id = prompt_id
     session.add(content)
     await session.flush()
     return content
+
+
+async def resolve_evaluator_prompt_version(
+    session: AsyncSession, evaluator: models.LLMEvaluator
+) -> Optional[models.PromptVersion]:
+    """The version an evaluator runs: the one its tag pins, or, for an evaluator without a
+    tag, its prompt's newest version."""
+    version: Optional[models.PromptVersion]
+    if evaluator.prompt_version_tag_id is not None:
+        version = await session.scalar(
+            select(models.PromptVersion)
+            .join(
+                models.PromptVersionTag,
+                models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
+            )
+            .where(models.PromptVersionTag.id == evaluator.prompt_version_tag_id)
+        )
+    else:
+        version = await session.scalar(
+            select(models.PromptVersion)
+            .where(models.PromptVersion.prompt_id == evaluator.prompt_id)
+            .order_by(models.PromptVersion.id.desc())
+            .limit(1)
+        )
+    return version
