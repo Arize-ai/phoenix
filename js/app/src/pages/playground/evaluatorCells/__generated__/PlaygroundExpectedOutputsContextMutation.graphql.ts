@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4da128c6f172f0e35dd5f420ec3f11a6>>
+ * @generated SignedSource<<0bbaebdb245848f20a2513e72de73aab>>
  * @lightSyntaxTransform
  */
 
@@ -34,6 +34,9 @@ export type PlaygroundExpectedOutputsContextMutation$data = {
           readonly label: string | null;
           readonly score: number | null;
         }>;
+        readonly input: any;
+        readonly metadata: any;
+        readonly output: any;
         readonly revisionId: string;
       };
     }>;
@@ -90,6 +93,27 @@ v1 = [
             "name": "revision",
             "plural": false,
             "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "input",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "output",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "metadata",
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": null,
@@ -164,16 +188,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "22356d6ca64989e31853c74be7e27f9e",
+    "cacheID": "d85cfe18a42e18933fad6dd19158ff50",
     "id": null,
     "metadata": {},
     "name": "PlaygroundExpectedOutputsContextMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundExpectedOutputsContextMutation(\n  $input: SetDatasetExampleExpectedOutputsInput!\n) {\n  setDatasetExampleExpectedOutputs(input: $input) {\n    examples {\n      id\n      revision {\n        revisionId\n        expectedOutputs {\n          annotationName\n          label\n          score\n          explanation\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundExpectedOutputsContextMutation(\n  $input: SetDatasetExampleExpectedOutputsInput!\n) {\n  setDatasetExampleExpectedOutputs(input: $input) {\n    examples {\n      id\n      revision {\n        input\n        output\n        metadata\n        revisionId\n        expectedOutputs {\n          annotationName\n          label\n          score\n          explanation\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "33f9b73377b224de9bbffc8d0fa30b11";
+(node as any).hash = "1047c14facf14862907aecbcec6eef88";
 
 export default node;

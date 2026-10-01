@@ -9,7 +9,7 @@ import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "../constants";
 import {
   DUPLICATE_SECTION,
-  getTaskMenuSections,
+  getTaskMenuTabs,
   parseTaskMenuKey,
 } from "./taskMenuItems";
 import { TaskMenuList } from "./TaskMenuList";
@@ -35,7 +35,9 @@ export function PlaygroundCompareMenu() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
-  const [hasOpened, setHasOpened] = useState(false);
+  // Bumped on every opening, so evaluators saved since then show.
+  const [openCount, setOpenCount] = useState(0);
+  const hasOpened = openCount > 0;
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -45,19 +47,19 @@ export function PlaygroundCompareMenu() {
     includePrompts: hasOpened && taskKind === "prompt",
     includeEvaluators: hasOpened && taskKind === "evaluator",
     search: deferredSearch,
+    evaluatorsFetchKey: openCount,
   });
 
-  const sections = [
-    DUPLICATE_SECTION,
-    ...getTaskMenuSections({
-      kind: taskKind,
-      isLocked: true,
-      prompts: promptItems,
-      evaluators,
-      search: deferredSearch,
-      matches: contains,
-    }),
-  ];
+  // Locked to the page's kind, so a single tab: the list shows without a
+  // tab strip, the duplicate action ahead of it.
+  const tabs = getTaskMenuTabs({
+    kind: taskKind,
+    isLocked: true,
+    prompts: promptItems,
+    evaluators,
+    search: deferredSearch,
+    matches: contains,
+  });
 
   return (
     <Select
@@ -66,7 +68,9 @@ export function PlaygroundCompareMenu() {
       value={null}
       isDisabled={isFull || isRunning}
       onOpenChange={(isOpen) => {
-        if (isOpen) startLoadingOptions(() => setHasOpened(true));
+        if (isOpen) {
+          startLoadingOptions(() => setOpenCount((count) => count + 1));
+        }
       }}
       onChange={(key) => {
         const source =
@@ -81,7 +85,9 @@ export function PlaygroundCompareMenu() {
       </Button>
       <Popover placement="bottom end">
         <TaskMenuList
-          sections={sections}
+          tabs={tabs}
+          selectedKind={taskKind}
+          leadingSections={[DUPLICATE_SECTION]}
           search={search}
           onSearchChange={setSearch}
           isLoading={isLoadingOptions}

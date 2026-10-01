@@ -368,6 +368,8 @@ const patchCodeMutation = graphql`
     patchCodeEvaluator(input: $input) {
       evaluator {
         id
+        name
+        description
       }
     }
   }

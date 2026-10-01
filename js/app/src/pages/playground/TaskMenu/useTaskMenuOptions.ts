@@ -24,12 +24,18 @@ export function useTaskMenuOptions({
   includeEvaluators,
   search,
   promptsFetchKey,
+  evaluatorsFetchKey,
 }: {
   includePrompts: boolean;
   includeEvaluators: boolean;
   search: string;
   /** Bump to refetch the prompts, e.g. after a save adds a version. */
   promptsFetchKey?: string;
+  /**
+   * Bump to refetch the evaluators. The menus bump it on every opening, so a
+   * save or a rename made since the last opening shows.
+   */
+  evaluatorsFetchKey?: string | number;
 }): TaskMenuOptions {
   const promptsData = useLazyLoadQuery<useTaskMenuOptionsPromptsQuery>(
     graphql`
@@ -89,7 +95,8 @@ export function useTaskMenuOptions({
     {
       includeEvaluators,
       filter: search ? { col: "name", value: search } : null,
-    }
+    },
+    { fetchPolicy: "store-and-network", fetchKey: evaluatorsFetchKey }
   );
 
   const prompts: PromptData[] = (promptsData.prompts?.edges ?? []).map(

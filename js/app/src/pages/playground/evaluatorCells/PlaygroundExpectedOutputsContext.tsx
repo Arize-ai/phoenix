@@ -188,8 +188,10 @@ function writeExpectedOutputs({
 }
 
 // The payload returns the examples' new revisions in the table's own shape,
-// so the rows read the fresh revision id and expected outputs from the Relay store and
-// the next write on the same example carries the right revision guard.
+// so the rows read the fresh revision from the Relay store without a reload:
+// the expected outputs, the metadata they are recorded in (which the metadata
+// column shows when asked), and the revision id the next write on the same
+// example must carry as its guard.
 const expectedOutputsMutation = graphql`
   mutation PlaygroundExpectedOutputsContextMutation(
     $input: SetDatasetExampleExpectedOutputsInput!
@@ -198,6 +200,9 @@ const expectedOutputsMutation = graphql`
       examples {
         id
         revision {
+          input
+          output
+          metadata
           revisionId
           expectedOutputs {
             annotationName
