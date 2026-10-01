@@ -232,7 +232,7 @@ async def _write_dataset_evaluator(
     The row is handed to resolvers after the session closes, so server-generated values
     such as updated_at must come back with the write instead of being loaded lazily.
     """
-    row = await session.scalar(
+    row: models.DatasetEvaluators | None = await session.scalar(
         update(models.DatasetEvaluators)
         .where(models.DatasetEvaluators.id == dataset_evaluator_id)
         .values(**values)
@@ -421,7 +421,7 @@ async def delete_dataset_evaluators(
     deleted_gids: list[GlobalID] = []
 
     async with context.db() as session:
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
 
         # Flat aliasing prevents SQLAlchemy from rewriting the base kind discriminator.
         llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
