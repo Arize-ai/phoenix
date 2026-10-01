@@ -140,6 +140,7 @@ import {
 } from "./exampleColumns";
 import {
   type PlaygroundExampleTableRow,
+  EditExampleCellButton,
   getNewPlaygroundExampleTemplate,
   PlaygroundExampleEditContent,
   PlaygroundExampleRowActionsCell,
@@ -1748,6 +1749,16 @@ export function PlaygroundDatasetExamplesTable({
                   return prev;
                 });
               }}
+              extra={
+                <EditExampleCellButton
+                  rowId={context.row.original.id}
+                  columnId="input"
+                  columnLabel={columnLabels.input}
+                  position={context.row.index + 1}
+                  editStore={editStore}
+                  isDisabled={hasSomeRunIds}
+                />
+              }
             />
           ),
         size: 200,
@@ -1790,6 +1801,16 @@ export function PlaygroundDatasetExamplesTable({
               value={context.row.original.output}
               height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
               label={columnLabels.output}
+              extra={
+                <EditExampleCellButton
+                  rowId={context.row.original.id}
+                  columnId="output"
+                  columnLabel={columnLabels.output}
+                  position={context.row.index + 1}
+                  editStore={editStore}
+                  isDisabled={hasSomeRunIds}
+                />
+              }
             />
           ),
         size: 200,
@@ -1829,7 +1850,19 @@ export function PlaygroundDatasetExamplesTable({
             <ExperimentMetadataCell
               value={value}
               height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-              extra={isHidingAnnotations ? <HiddenAnnotationsNotice /> : null}
+              extra={
+                <>
+                  {isHidingAnnotations ? <HiddenAnnotationsNotice /> : null}
+                  <EditExampleCellButton
+                    rowId={context.row.original.id}
+                    columnId="metadata"
+                    columnLabel={columnLabels.metadata}
+                    position={context.row.index + 1}
+                    editStore={editStore}
+                    isDisabled={hasSomeRunIds}
+                  />
+                </>
+              }
             />
           );
         },

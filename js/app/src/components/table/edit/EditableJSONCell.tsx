@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -244,7 +244,26 @@ export function EditableJSONCell<
     setEditorError(null);
     setSettledError(null);
     setIsOpen(false);
+    cell.clearPendingOpen();
   };
+
+  // A session begun from this cell opens its editor as soon as the cell is
+  // editable. The request stays in the store until the editor closes, so the
+  // editor is open from the first render after the table rebuilds its cells
+  // for the session, and stays open if they rebuild again. The text is read
+  // from the cell when the request arrives.
+  const isOpenForPending =
+    cell.isPendingOpen && cell.isEditing && cell.isEditable;
+  useEffect(() => {
+    if (isOpenForPending) {
+      const text = formatJSONEditorValue(cell.value);
+      setEditorSelection({ anchor: getJSONEditorInitialCursor(text) });
+      replaceEditorText(text, { typed: false });
+    }
+    // The text is taken when the request arrives, not on every value change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpenForPending]);
+  const isEditorOpen = isOpen || isOpenForPending;
 
   const saveEditorValue = () => {
     const validation = validateEditorValue(editorValue);
@@ -263,7 +282,7 @@ export function EditableJSONCell<
   // only serialized while the editor is open.
   const canUndo =
     cell.canRevert ||
-    (isOpen && editorValue !== formatJSONEditorValue(cell.originalValue));
+    (isEditorOpen && editorValue !== formatJSONEditorValue(cell.originalValue));
 
   // Restores the original value in both the store and the open editor.
   const undoEditorChange = () => {
@@ -278,7 +297,7 @@ export function EditableJSONCell<
   // Cmd+Enter commits the cell. Scoped to this cell's open dialog — every other
   // mounted cell keeps its shortcut disabled.
   useHotkeys("mod+enter", () => saveEditorValue(), {
-    enabled: isOpen,
+    enabled: isEditorOpen,
     enableOnFormTags: true,
     enableOnContentEditable: true,
     preventDefault: true,
@@ -323,7 +342,7 @@ export function EditableJSONCell<
         )}
       </AriaButton>
       <ModalOverlay
-        isOpen={isOpen}
+        isOpen={isEditorOpen}
         onOpenChange={(nextIsOpen) => {
           if (nextIsOpen) {
             setIsOpen(true);

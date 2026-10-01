@@ -25,9 +25,20 @@ export type EditableTableRowPatches<Row extends object> = Partial<
   Record<string, Partial<Row> | undefined>
 >;
 
+/** One cell of the table, by its row id and column id. */
+export type EditableTableCellRef = {
+  rowId: string;
+  columnId: string;
+};
+
 /** The data of an edit session. Server rows live outside the session. */
 export interface EditableTableState<Row extends object> {
   readonly mode: EditableTableMode;
+  /**
+   * A cell asked to open its editor as soon as it can: the session was begun
+   * from that cell. The cell clears it once it has opened.
+   */
+  readonly pendingEditCell: EditableTableCellRef | null;
   /**
    * New rows, newest first, so a table can show them at the top. Each holds
    * the values the row started with; cell edits to a new row live in
@@ -42,8 +53,13 @@ export interface EditableTableState<Row extends object> {
 
 /** What a table and its cells may do to an edit session. */
 export interface EditableTableActions<Row extends object> {
-  /** Opens an edit session. */
-  beginEditing(): void;
+  /**
+   * Opens an edit session. With `cell`, that cell's editor opens as soon as
+   * it mounts, so a session can start from one cell in a single press.
+   */
+  beginEditing(options?: { cell?: EditableTableCellRef }): void;
+  /** The pending cell has opened its editor; nothing else should. */
+  clearPendingEditCell(): void;
   /** Ends the session and drops every pending change. */
   cancelEditing(): void;
   /**
