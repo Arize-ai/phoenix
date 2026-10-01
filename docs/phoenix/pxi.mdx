@@ -46,10 +46,18 @@ PXI is in **beta** and will make mistakes. Use it with care on production data. 
 Set PXI to Bypass Approval and paste:
 
 ```text
-Create a dataset called airline-support with 3 examples: customer questions about a fictional airline's Basic fare, with input {"question": ...} and output {"expected_answer": ...}. Invent a refund, change, and baggage policy that differs from industry norms. Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
+Create a dataset called travel-support with these 3 examples, input {"question": ...} and output {"expected_answer": ...}:
+1. "How long do I have to cancel a Basic fare for a full refund?" -> "Basic fares can be cancelled for a full refund within 48 hours of booking."
+2. "Can I change the date on a Basic fare, and what does it cost?" -> "Basic fares can be changed once for a 40 dollar fee, plus any difference in price."
+3. "How many checked bags come with a Basic fare, and what does a second bag cost?" -> "Basic fares include one checked bag. A second bag is 45 dollars."
+Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
 ```
 
-When it reports the scores, reply *Add the policy to the prompt and rerun*.
+Every example scores 0: the prompt knows nothing about this airline. Then reply:
+
+```text
+Add this policy to the prompt and rerun: full refund if cancelled within 48 hours of booking; one change allowed for a 40 dollar fee plus any price difference; one checked bag included, a second bag is 45 dollars.
+```
 
 ## Learn more
 
