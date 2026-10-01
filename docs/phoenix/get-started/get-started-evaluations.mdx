@@ -56,12 +56,6 @@ When it reports the scores, reply *Add the policy to the prompt and rerun*.
       Already have traces? Filter the spans table with an expression such as `status_code == 'ERROR'`, or ask [PXI](/docs/phoenix/pxi) to find problem traces, then select the spans and click **Add to Dataset**.
     </Note>
 
-    <Frame caption="Selected spans ready to add to a dataset">
-      <img
-        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-create-dataset-from-traces.png"
-        alt="Phoenix traces table with three selected support_reply spans and the Add to Dataset action visible"
-      />
-    </Frame>
   </Step>
 
   <Step title={<span className="step-title">Decide what good looks like</span>}>
@@ -97,12 +91,6 @@ When it reports the scores, reply *Add the policy to the prompt and rerun*.
 
     That first run is your baseline. Every later edit is scored the same way, so the comparison isolates your change.
 
-    <Frame caption="Prompt variables matched to a selected dataset">
-      <img
-        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-run-prompt-saved-dataset.png"
-        alt="Phoenix Prompt Playground with a saved support prompt selected, the text prompt variable, the Run button, evaluator controls, and the support quickstart dataset selected"
-      />
-    </Frame>
   </Step>
 
   <Step title={<span className="step-title">Prove the change helped</span>}>
@@ -123,13 +111,6 @@ When it reports the scores, reply *Add the policy to the prompt and rerun*.
 
     2. Run it over the same dataset.
     3. Open the dataset's **Experiments** tab and compare the two runs side by side.
-
-    <Frame caption="Side-by-side experiment comparison">
-      <img
-        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-compare-score-delta.png"
-        alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
-      />
-    </Frame>
 
     A higher score means the edit helped. If an example still scores 0, read the judge's explanation on that run. That is your next edit.
   </Step>
