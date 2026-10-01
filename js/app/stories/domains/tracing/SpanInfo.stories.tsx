@@ -320,8 +320,8 @@ export const ChainJsonIO: Story = {
 };
 
 /**
- * A decision span (experimental). No cards of its own yet, and this one has
- * no input or output, so the attributes card is all it shows.
+ * A decision span (experimental) — its input and output, with the decision
+ * model named in the input card's header.
  */
 export const Decision: Story = {
   args: { span: decisionSpan },
