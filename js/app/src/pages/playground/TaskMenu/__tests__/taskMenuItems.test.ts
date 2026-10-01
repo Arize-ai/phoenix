@@ -4,8 +4,8 @@ import { createPlaygroundEvaluatorTask } from "@phoenix/store/playground";
 
 import {
   getTaskMenuLabel,
-  getTaskMenuSections,
   getTaskMenuSelectedKey,
+  getTaskMenuTabs,
   parseTaskMenuKey,
 } from "../taskMenuItems";
 
@@ -19,9 +19,9 @@ const evaluators = [{ id: "E1", name: "correctness", kind: "CODE" as const }];
 const matches = (text: string, search: string) =>
   text.toLowerCase().includes(search.toLowerCase());
 
-describe("getTaskMenuSections", () => {
-  it("offers both kinds and every New action while the kind is unlocked", () => {
-    const sections = getTaskMenuSections({
+describe("getTaskMenuTabs", () => {
+  it("offers a tab per kind, each with its items and New actions, while the kind is unlocked", () => {
+    const tabs = getTaskMenuTabs({
       kind: "prompt",
       isLocked: false,
       prompts,
@@ -30,20 +30,29 @@ describe("getTaskMenuSections", () => {
       matches,
     });
 
-    expect(sections.map((section) => section.id)).toEqual([
+    expect(tabs.map((tab) => [tab.kind, tab.title])).toEqual([
+      ["prompt", "Prompts"],
+      ["evaluator", "Evaluators"],
+    ]);
+    expect(tabs[0].sections.map((section) => section.id)).toEqual([
       "prompts",
+      "new",
+    ]);
+    expect(tabs[0].sections[1].items.map((item) => item.key)).toEqual([
+      "new:prompt",
+    ]);
+    expect(tabs[1].sections.map((section) => section.id)).toEqual([
       "evaluators",
       "new",
     ]);
-    expect(sections[2].items.map((item) => item.key)).toEqual([
-      "new:prompt",
+    expect(tabs[1].sections[1].items.map((item) => item.key)).toEqual([
       "new:LLM",
       "new:CODE",
     ]);
   });
 
-  it("keeps only the locked kind's section and New actions", () => {
-    const sections = getTaskMenuSections({
+  it("keeps only the locked kind's tab", () => {
+    const tabs = getTaskMenuTabs({
       kind: "evaluator",
       isLocked: true,
       prompts,
@@ -52,18 +61,15 @@ describe("getTaskMenuSections", () => {
       matches,
     });
 
-    expect(sections.map((section) => section.id)).toEqual([
+    expect(tabs.map((tab) => tab.kind)).toEqual(["evaluator"]);
+    expect(tabs[0].sections.map((section) => section.id)).toEqual([
       "evaluators",
       "new",
-    ]);
-    expect(sections[1].items.map((item) => item.key)).toEqual([
-      "new:LLM",
-      "new:CODE",
     ]);
   });
 
   it("filters prompts by the search and drops an emptied section", () => {
-    const sections = getTaskMenuSections({
+    const [tab] = getTaskMenuTabs({
       kind: "prompt",
       isLocked: true,
       prompts,
@@ -72,18 +78,18 @@ describe("getTaskMenuSections", () => {
       matches,
     });
 
-    expect(sections[0].items).toEqual([
+    expect(tab.sections[0].items).toEqual([
       { key: "prompt:P2", label: "Classify" },
     ]);
     expect(
-      getTaskMenuSections({
+      getTaskMenuTabs({
         kind: "prompt",
         isLocked: true,
         prompts,
         evaluators: [],
         search: "nothing",
         matches,
-      }).map((section) => section.id)
+      })[0].sections.map((section) => section.id)
     ).toEqual(["new"]);
   });
 });
