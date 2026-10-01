@@ -80,7 +80,7 @@ def scored_count(scores: Scores) -> int:
 
 
 def pass_count(scores: Scores) -> int:
-    return sum(1 for s in scores.values() if s is not None and s >= 0.5)
+    return sum(1 for s in scores.values() if s == 1.0)
 
 
 def mean_score(scores: Scores) -> float:
@@ -106,16 +106,16 @@ def moved_examples(
     }
 
 
-# --- the evaluator probe -------------------------------------------------------------
+# --- the exact-match check -------------------------------------------------------------
 
 
-class ProbeCase(NamedTuple):
+class Candidate(NamedTuple):
     label: str
     output: str
     should_pass: bool
 
 
-def probe_cases(example: v1.DatasetExample) -> list[ProbeCase]:
+def candidates(example: v1.DatasetExample) -> list[Candidate]:
     reference = reference_text(example)
     altered = (
         reference.replace("user_id", "userid", 1)
@@ -123,11 +123,11 @@ def probe_cases(example: v1.DatasetExample) -> list[ProbeCase]:
         else reference[:-1] + "X"
     )
     return [
-        ProbeCase("identical", reference, True),
-        ProbeCase("fenced", f"```sql\n{reference}\n```", True),
-        ProbeCase("padded", f"  {reference}\n\n", True),
-        ProbeCase("one_token_changed", altered, False),
-        ProbeCase("empty", "", False),
+        Candidate("identical", reference, True),
+        Candidate("fenced", f"```sql\n{reference}\n```", True),
+        Candidate("padded", f"  {reference}\n\n", True),
+        Candidate("one_token_changed", altered, False),
+        Candidate("empty", "", False),
     ]
 
 
@@ -209,7 +209,7 @@ def _as_score(result: EvaluatorPreviewsEvaluatorPreviewsResults) -> float:
 def is_exact_match_evaluator(
     evaluator: DatasetEvaluatorFields, examples: list[v1.DatasetExample]
 ) -> tuple[bool, dict[str, Any]]:
-    """Passes when every probe agrees with expectation under at least one output shape: a
+    """Passes when every candidate output agrees with expectation under at least one output shape: a
     bare string, as SDK tasks return, or a chat-messages dict, as playground runs store."""
     kind = evaluator.evaluator.kind
     if kind not in {EvaluatorKind.CODE, EvaluatorKind.BUILTIN}:
@@ -224,7 +224,7 @@ def is_exact_match_evaluator(
     for shape_name, shape in shapes.items():
         failures: list[str] = []
         for example in examples:
-            cases = probe_cases(example)
+            cases = candidates(example)
             contexts = [
                 {
                     "input": example["input"],
@@ -241,7 +241,7 @@ def is_exact_match_evaluator(
                 failures.append(f"{example_rowid}: {type(exc).__name__}: {str(exc)[:200]}")
                 continue
             for case, score in zip(cases, scores):
-                if (score >= 0.5) != case.should_pass:
+                if score != (1.0 if case.should_pass else 0.0):
                     failures.append(f"{example_rowid}/{case.label}: score {score}")
         detail[shape_name] = failures[:10]
         if not failures:

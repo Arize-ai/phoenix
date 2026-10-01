@@ -9,8 +9,10 @@ evaluators = phoenix_api.dataset_evaluators(dataset_id)
 experiments = phoenix_api.dataset_experiments(dataset_id)
 
 one_evaluator_attached = len(evaluators) == 1
-probe_verdicts = {e.name: hc.is_exact_match_evaluator(e, examples) for e in evaluators}
-evaluator_is_exact_match = one_evaluator_attached and all(ok for ok, _ in probe_verdicts.values())
+exact_match_verdicts = {e.name: hc.is_exact_match_evaluator(e, examples) for e in evaluators}
+evaluator_is_exact_match = one_evaluator_attached and all(
+    ok for ok, _ in exact_match_verdicts.values()
+)
 no_experiments_yet = not experiments and len(examples) == 28
 
 passed = one_evaluator_attached and evaluator_is_exact_match and no_experiments_yet
@@ -21,7 +23,7 @@ details = {
         {"name": e.name, "kind": e.evaluator.kind.value, "builtin": hc.builtin_key(e)}
         for e in evaluators
     ],
-    "probe_verdicts": {name: detail for name, (_, detail) in probe_verdicts.items()},
+    "exact_match_verdicts": {name: detail for name, (_, detail) in exact_match_verdicts.items()},
 }
 scores = verify.write_reward(
     float(passed),
