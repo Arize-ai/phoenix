@@ -68,6 +68,7 @@ At job start, the plugin creates or reuses a versioned dataset for the resolved 
 As each final logical trial finishes, Phoenix records:
 
 - an experiment run linked to the task's dataset example;
+- the agent's final textual response when its terminal ATIF trajectory contains one;
 - Harbor's verifier rewards as experiment evaluations;
 - an `infra_ok` evaluation for execution health;
 - a run error when Harbor recorded an exception; and
@@ -87,13 +88,18 @@ Start with the default `atif` mode when your Harbor agent writes ATIF trajectori
 | Agent and model | Experiment | Each distinct agent and model configuration gets its own experiment. |
 | Planned task attempt | Repetition | Repetitions use stable, one-based numbers from the job plan. |
 | Final logical trial | Experiment run | Physical retries keep the logical repetition number. The plugin records only the terminal attempt. |
+| Final agent response | Run output | Text from the terminal ATIF agent turn appears as Markdown in experiment comparisons. |
 | Verifier reward | Experiment evaluation | The plugin records each Harbor reward as a named CODE evaluation on the experiment run. |
 | Trial or step exception | Run error | Errors are stored separately from behavioral rewards. |
 | ATIF trajectory | Trace | One trial-level trace links to the experiment run when conversion succeeds. Multi-step trials include one span per attempted step. |
 
 Each Harbor task becomes one dataset example, including a multi-step task. For a multi-step task, the example input also contains the ordered step names and instructions. Phoenix dataset examples have an empty reference `output` because Harbor verifies an environment state rather than a single reference response.
 
-Each run output includes the Harbor trial ID, trial name, trial URI, and task name. It also includes Harbor's token totals and cost when the agent reports them. Task metadata keeps environment variable names but redacts their values.
+When the terminal ATIF trajectory ends with a textual agent turn, the run output uses Phoenix's chat-message format and the experiment comparison renders the response as Markdown. For structured ATIF messages, the plugin joins text parts in order and omits media parts. It leaves the output empty when the final turn is a tool call, contains only media, or is otherwise not a user-facing text response. This is expected for tasks whose result is an environment change rather than a written answer.
+
+Run output extraction is independent of trace upload. `trace_mode=null` still records a saved terminal ATIF response without creating a trace. Missing or invalid trajectories leave the output empty. Multi-step tasks use the last attempted step, continued trajectories use their terminal continuation, and Harbor retries contribute only the terminal physical attempt.
+
+Successful experiment runs are immutable. Runs created by earlier plugin versions keep their legacy Harbor metadata output when a job resumes; the plugin recognizes and reuses them instead of treating the changed output format as a conflict.
 
 ### Dataset versions
 
