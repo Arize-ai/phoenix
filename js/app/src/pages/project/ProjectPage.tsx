@@ -54,6 +54,7 @@ import {
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
+import { useReloadUntilTracesArrive } from "./useReloadUntilTracesArrive";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -192,6 +193,33 @@ function settledConditionFromUrl(param: string): string | null {
   return condition === "" ? "" : null;
 }
 
+/** The spans preload's variables for a settled seed. */
+function spansQueryVariables(
+  projectId: string,
+  timeRange: TimeRangeISOStrings,
+  seed: SettledSpanFilterSeed
+): ProjectPageSpansQueryType["variables"] {
+  return {
+    id: projectId,
+    timeRange,
+    filterCondition: seed.condition || null,
+    rootSpansOnly: seed.rootSpansOnly,
+  };
+}
+
+/** The traces preload's variables for a validated condition. */
+function tracesQueryVariables(
+  projectId: string,
+  timeRange: TimeRangeISOStrings,
+  condition: string
+): ProjectPageTracesQueryType["variables"] {
+  return {
+    id: projectId,
+    timeRange,
+    traceFilterCondition: condition || null,
+  };
+}
+
 export function LegacyTraceFilterParamNotice({
   isActive,
 }: {
@@ -232,6 +260,7 @@ function ProjectPageContentBody({
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
+            hasTraces
             ...ProjectStats_project
             ...ProjectTimeRangeControls_data
           }
@@ -291,6 +320,23 @@ function ProjectPageContentBody({
     timeRangeRef.current = timeRangeISOStrings;
   }, [timeRangeISOStrings]);
 
+  // Shares the project record with the spans and traces preloads, so it turns
+  // true as soon as either of them sees the project's first traces.
+  const hasTraces = data.project.hasTraces ?? false;
+  // Read at load time, like the time range, so the resolvers below keep their
+  // identity when the project's first traces arrive.
+  const hasTracesRef = useRef(hasTraces);
+  useEffect(() => {
+    hasTracesRef.current = hasTraces;
+  }, [hasTraces]);
+  /**
+   * The spans and traces preloads decide between onboarding and the table, so
+   * they take the store's answer only once the project has traces. A cached
+   * `false` would otherwise keep onboarding up.
+   */
+  const tablePreloadFetchPolicy = () =>
+    hasTracesRef.current ? "store-or-network" : "network-only";
+
   /**
    * Load the spans table from a condition whose validity and root scope are
    * both settled. Called for the conditions this app classifies itself, and by
@@ -322,12 +368,10 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadSpansQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          filterCondition: seed.condition || null,
-          rootSpansOnly: seed.rootSpansOnly,
-        });
+        loadSpansQuery(
+          spansQueryVariables(projectId, timeRangeRef.current, seed),
+          { fetchPolicy: tablePreloadFetchPolicy() }
+        );
       });
     },
     [projectId, loadSpansQuery]
@@ -355,15 +399,44 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadTracesQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          traceFilterCondition: condition || null,
-        });
+        loadTracesQuery(
+          tracesQueryVariables(projectId, timeRangeRef.current, condition),
+          { fetchPolicy: tablePreloadFetchPolicy() }
+        );
       });
     },
     [projectId, loadTracesQuery]
   );
+
+  /**
+   * Reload the spans query with its current seed, skipping the store. A
+   * project's first traces only reach the page through this query's
+   * `hasTraces`, and a cached `false` would keep onboarding up indefinitely.
+   */
+  const reloadSpansQuery = useCallback(() => {
+    if (spansFilterSeed === null) {
+      return;
+    }
+    startTransition(() => {
+      loadSpansQuery(
+        spansQueryVariables(projectId, timeRangeRef.current, spansFilterSeed),
+        { fetchPolicy: "network-only" }
+      );
+    });
+  }, [projectId, loadSpansQuery, spansFilterSeed]);
+
+  /** The traces counterpart of `reloadSpansQuery`. */
+  const reloadTracesQuery = useCallback(() => {
+    if (tracesFilterSeed === null) {
+      return;
+    }
+    startTransition(() => {
+      loadTracesQuery(
+        tracesQueryVariables(projectId, timeRangeRef.current, tracesFilterSeed),
+        { fetchPolicy: "network-only" }
+      );
+    });
+  }, [projectId, loadTracesQuery, tracesFilterSeed]);
 
   /** The sessions counterpart of `resolveTracesSeed`. */
   const resolveSessionsSeed = useCallback(
@@ -415,11 +488,15 @@ function ProjectPageContentBody({
         const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
         // Returning to a tab whose rows already answer this condition is not a
         // reason to reload it. Re-resolving would tear the table down and
-        // rebuild it for the same result.
+        // rebuild it for the same result. The exception is a project still
+        // showing onboarding, whose traces may have arrived while away.
         if (
           spansQueryReference &&
           spansFilterSeed?.condition === seed.condition
         ) {
+          if (!hasTraces) {
+            reloadSpansQuery();
+          }
           return;
         }
         if (seed.requiresServerValidation) {
@@ -437,6 +514,9 @@ function ProjectPageContentBody({
           TRACE_FILTER_CONDITION_PARAM
         );
         if (tracesQueryReference && tracesFilterSeed === condition) {
+          if (!hasTraces) {
+            reloadTracesQuery();
+          }
           return;
         }
         if (condition === "") {
@@ -469,6 +549,17 @@ function ProjectPageContentBody({
       loadTableQueryForTab(tabIndex, projectId as string);
     });
   }, [tabIndex, projectId]);
+
+  // While onboarding shows, new streamed data may be the project's first
+  // traces, and only the active tab's preload can say so.
+  const reloadActiveTableQuery = useCallback(() => {
+    if (tabIndex === TAB_INDEX_MAP.spans) {
+      reloadSpansQuery();
+    } else if (tabIndex === TAB_INDEX_MAP.traces) {
+      reloadTracesQuery();
+    }
+  }, [tabIndex, reloadSpansQuery, reloadTracesQuery]);
+  useReloadUntilTracesArrive({ hasTraces, reload: reloadActiveTableQuery });
 
   const onTabChange = useCallback(
     (index: number) => {
