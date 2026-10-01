@@ -189,6 +189,14 @@ const ragSpans: ISpanItem[] = [
     startOffsetMs: 8412,
     latencyMs: 8,
   }),
+  span({
+    id: "decision",
+    name: "route · pick answer style",
+    spanKind: "decision",
+    parentId: "query",
+    startOffsetMs: 8420,
+    latencyMs: 42,
+  }),
 ];
 
 /**
