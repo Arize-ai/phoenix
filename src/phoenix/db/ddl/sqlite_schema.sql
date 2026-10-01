@@ -472,10 +472,10 @@ CREATE UNIQUE INDEX ix_users_username ON users (username);
 -- ---------------
 CREATE TABLE api_keys (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     expires_at TIMESTAMP,
     scopes JSONB,
     audience JSONB,
@@ -762,12 +762,12 @@ CREATE TABLE dataset_evaluators (
     evaluator_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    output_configs JSONB NOT NULL,
+    output_configs JSONB,
     input_mapping JSONB NOT NULL,
     user_id INTEGER,
     project_id INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_dataset_evaluators_dataset_id_name UNIQUE (dataset_id, name),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
@@ -1276,8 +1276,8 @@ CREATE INDEX ix_oauth2_grants_user_id ON oauth2_grants (user_id);
 -- ----------------------------
 CREATE TABLE password_reset_tokens (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     CONSTRAINT fk_password_reset_tokens_user_id_users
         FOREIGN KEY (user_id)
@@ -1304,9 +1304,12 @@ CREATE TABLE project_evaluators (
     evaluation_target VARCHAR NOT NULL
         CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
         CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
-    evaluation_delay_seconds INTEGER DEFAULT '300' NOT NULL
+    evaluation_delay_seconds INTEGER NOT NULL
         CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
-        CHECK (evaluation_delay_seconds >= 10),
+        CHECK (
+            (evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0)
+            OR (evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= 10)
+        ),
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
     swept_through_at TIMESTAMP,
@@ -1676,14 +1679,13 @@ CREATE INDEX ix_prompt_version_tags_user_id ON prompt_version_tags (user_id);
 -- ---------------------
 CREATE TABLE llm_evaluators (
     id INTEGER NOT NULL,
-    kind VARCHAR DEFAULT 'LLM' NOT NULL
-        CONSTRAINT "ck_llm_evaluators_`valid_evaluator_kind`"
-        CHECK (kind = 'LLM'),
+    kind VARCHAR DEFAULT 'LLM' NOT NULL,
     prompt_id INTEGER NOT NULL,
     prompt_version_tag_id INTEGER,
     output_configs JSONB NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     CONSTRAINT pk_llm_evaluators PRIMARY KEY (id),
+    CONSTRAINT "ck_llm_evaluators_`valid_evaluator_kind`" CHECK (kind = 'LLM'),
     CONSTRAINT fk_llm_evaluators_kind_evaluators
         FOREIGN KEY (kind, id)
         REFERENCES evaluators (kind, id)
@@ -1695,7 +1697,7 @@ CREATE TABLE llm_evaluators (
     CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
         FOREIGN KEY (prompt_version_tag_id)
         REFERENCES prompt_version_tags (id)
-        ON DELETE SET NULL
+        ON DELETE RESTRICT
 );
 
 CREATE INDEX ix_llm_evaluators_prompt_id ON llm_evaluators (prompt_id);

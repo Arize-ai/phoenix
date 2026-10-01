@@ -1,0 +1,1098 @@
+"""Dataset evaluator operations shared by GraphQL and REST."""
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from secrets import token_hex
+from typing import Any, Optional, Sequence
+
+from pydantic import ValidationError
+from sqlalchemy import delete, select, true, update
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
+from strawberry.relay import GlobalID
+
+from phoenix.db import models
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    delete_projects_and_evaluator_trace_projects,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalOutputConfig,
+    OutputConfigType,
+    as_output_configs,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.server.api.evaluators import (
+    get_builtin_evaluator_by_key,
+)
+from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.evaluator_management import (
+    ensure_evaluator_prompt_label,
+    garbage_collect_evaluators,
+    generate_unique_evaluator_name,
+    get_project_for_dataset_evaluator,
+    parse_evaluator_id,
+)
+from phoenix.server.api.helpers.evaluator_prompt_source import (
+    CreatePromptSource,
+    FromPromptVersion,
+    get_prompt_version,
+    pin_prompt_version,
+    resolve_evaluator_prompt_version,
+)
+from phoenix.server.api.helpers.evaluator_service import (
+    EvaluatorServiceContext,
+    require_output_configs,
+)
+from phoenix.server.api.helpers.evaluators import (
+    LLMEvaluatorOutputConfigs,
+    require_categorical_output_configs,
+    validate_consistent_llm_evaluator_and_prompt_version,
+    validate_evaluator_prompt_and_configs,
+)
+from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+
+@dataclass(kw_only=True)
+class CreateDatasetLLMEvaluatorInput:
+    dataset_id: GlobalID
+    name: Identifier
+    description: Optional[str] = UNSET
+    prompt_source: CreatePromptSource
+    output_configs: list[OutputConfigType]
+    input_mapping: Optional[InputMapping] = None
+    binding_description: Optional[str] = None
+    binding_output_configs: Optional[list[OutputConfigType]] = None
+
+
+@dataclass(kw_only=True)
+class UpdateDatasetLLMEvaluatorInput:
+    dataset_evaluator_id: GlobalID
+    dataset_id: GlobalID
+    name: Identifier
+    description: Optional[str] = UNSET
+    prompt_source: CreatePromptSource
+    output_configs: list[OutputConfigType]
+    input_mapping: Optional[InputMapping] = None
+
+
+@dataclass(kw_only=True)
+class CreateDatasetBuiltinEvaluatorInput:
+    dataset_id: GlobalID
+    evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: Optional[InputMapping] = None
+    output_configs: Optional[list[OutputConfigType]] = None
+    description: Optional[str] = None
+
+
+@dataclass(kw_only=True)
+class UpdateDatasetBuiltinEvaluatorInput:
+    dataset_evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: Optional[InputMapping] = None
+    output_configs: Optional[list[OutputConfigType]] = UNSET
+    description: Optional[str] = UNSET
+
+
+@dataclass(kw_only=True)
+class CreateDatasetCodeEvaluatorInput:
+    dataset_id: GlobalID
+    evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: Optional[InputMapping] = None
+    output_configs: Optional[list[OutputConfigType]] = None
+    description: Optional[str] = None
+
+
+@dataclass(kw_only=True)
+class UpdateDatasetCodeEvaluatorInput:
+    dataset_evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: Optional[InputMapping] = None
+    output_configs: Optional[list[OutputConfigType]] = UNSET
+    description: Optional[str] = UNSET
+
+
+@dataclass(kw_only=True)
+class DeleteDatasetEvaluatorsInput:
+    dataset_evaluator_ids: list[GlobalID]
+    delete_associated_prompt: bool = False
+
+
+async def create_dataset_llm_evaluator(
+    context: EvaluatorServiceContext, input: CreateDatasetLLMEvaluatorInput
+) -> models.DatasetEvaluators:
+    """Create an LLM definition, pinned prompt, trace project, and dataset binding."""
+    if input.input_mapping is None:
+        raise BadRequest("input_mapping is required")
+    dataset_id = _decode_id(input.dataset_id, "Dataset", "dataset")
+    user_id = context.user_id
+    source = input.prompt_source
+    if source.content is not None:
+        source.content.user_id = user_id
+    try:
+        require_categorical_output_configs(input.output_configs)
+        validated_configs = LLMEvaluatorOutputConfigs.model_validate(
+            {"configs": input.output_configs}
+        )
+    except (ValueError, ValidationError) as e:
+        raise BadRequest(str(e))
+    output_configs: list[CategoricalOutputConfig] = list(validated_configs.configs)
+    try:
+        validated_name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(f"Invalid evaluator name: {error}")
+    evaluator_description = input.description if input.description is not UNSET else None
+
+    try:
+        async with context.db() as session:
+            evaluator_name = await generate_unique_evaluator_name(session, validated_name)
+            if source.content is not None:
+                await validate_custom_provider(session, source.content)
+
+            dataset_name = await session.scalar(
+                select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+            )
+            if dataset_name is None:
+                raise NotFound(f"Dataset with id {dataset_id} not found")
+
+            if isinstance(source, FromPromptVersion):
+                base = await get_prompt_version(session, source.prompt_version_id)
+                prompt = await session.get(models.Prompt, base.prompt_id)
+                if prompt is None:
+                    raise NotFound(f"Prompt with id {base.prompt_id} not found")
+                prompt_version = await pin_prompt_version(
+                    session, base=base, content=source.content, prompt_id=prompt.id
+                )
+            else:
+                prompt_version = source.content
+                prompt = models.Prompt(
+                    name=IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
+                    description=evaluator_description,
+                    prompt_versions=[prompt_version],
+                )
+
+            # Only an explicit override is stored; a None binding value inherits the
+            # evaluator's description and outputs.
+            binding_description = input.binding_description
+            binding_configs: Optional[list[OutputConfigType]] = input.binding_output_configs
+            validate_llm_binding_overrides(
+                prompt_version,
+                binding_configs if binding_configs is not None else list(output_configs),
+                binding_description if binding_description is not None else evaluator_description,
+            )
+            dataset_evaluator_record = models.DatasetEvaluators(
+                dataset_id=dataset_id,
+                name=validated_name,
+                description=binding_description,
+                output_configs=binding_configs,
+                input_mapping=input.input_mapping,
+                user_id=user_id,
+                project=get_project_for_dataset_evaluator(
+                    dataset_name=dataset_name,
+                    dataset_evaluator_name=str(evaluator_name),
+                ),
+            )
+
+            llm_evaluator = models.LLMEvaluator(
+                name=evaluator_name,
+                description=evaluator_description,
+                kind="LLM",
+                output_configs=output_configs,
+                user_id=user_id,
+                prompt=prompt,
+                dataset_evaluators=[dataset_evaluator_record],
+            )
+
+            try:
+                validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+            except ValueError as error:
+                raise BadRequest(str(error))
+
+            session.add(llm_evaluator)
+            await session.flush()
+
+            await ensure_evaluator_prompt_label(session, prompt.id)
+            tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
+            prompt_tag = models.PromptVersionTag(
+                name=tag_name,
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            llm_evaluator.prompt_version_tag = prompt_tag
+            # Updates to Evaluator do not trigger LLMEvaluator.updated_at.
+            llm_evaluator.updated_at = datetime.now(timezone.utc)
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+        if "foreign" in str(e).lower():
+            raise NotFound(f"Dataset with id {dataset_id} not found")
+        raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
+    return dataset_evaluator_record
+
+
+async def _write_dataset_evaluator(
+    session: AsyncSession, dataset_evaluator_id: int, values: dict[str, Any]
+) -> models.DatasetEvaluators:
+    """Update binding columns and return the row as the database stored it.
+
+    The row is handed to resolvers after the session closes, so server-generated values
+    such as updated_at must come back with the write instead of being loaded lazily.
+    """
+    row: models.DatasetEvaluators | None = await session.scalar(
+        update(models.DatasetEvaluators)
+        .where(models.DatasetEvaluators.id == dataset_evaluator_id)
+        .values(**values)
+        .returning(models.DatasetEvaluators)
+    )
+    assert row is not None
+    return row
+
+
+async def update_dataset_llm_evaluator(
+    context: EvaluatorServiceContext, input: UpdateDatasetLLMEvaluatorInput
+) -> models.DatasetEvaluators:
+    """Update a dataset binding and its shared LLM definition."""
+    user_id = context.user_id
+
+    try:
+        evaluator_name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(f"Invalid evaluator name: {error}")
+
+    try:
+        require_categorical_output_configs(input.output_configs)
+        validated_configs = LLMEvaluatorOutputConfigs.model_validate(
+            {"configs": input.output_configs}
+        )
+    except (ValueError, ValidationError) as e:
+        raise BadRequest(str(e))
+    output_configs: list[CategoricalOutputConfig] = list(validated_configs.configs)
+
+    source = input.prompt_source
+    if source.content is not None:
+        source.content.user_id = user_id
+
+    try:
+        dataset_evaluator_rowid = from_global_id_with_expected_type(
+            global_id=input.dataset_evaluator_id,
+            expected_type_name="DatasetEvaluator",
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid DatasetEvaluator id: {input.dataset_evaluator_id}")
+
+    async with context.db() as session:
+        # Tag moves and evaluator edits lock the evaluator row first, so each validates
+        # against the other's committed state.
+        evaluator_id = await session.scalar(
+            select(models.DatasetEvaluators.evaluator_id).where(
+                models.DatasetEvaluators.id == dataset_evaluator_rowid
+            )
+        )
+        if evaluator_id is not None:
+            await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
+        dataset_evaluator_row = await session.execute(
+            select(
+                models.DatasetEvaluators,
+                models.LLMEvaluator,
+                models.PromptVersionTag,
+            )
+            .join(
+                models.LLMEvaluator,
+                models.DatasetEvaluators.evaluator_id == models.LLMEvaluator.id,
+            )
+            .outerjoin(
+                models.PromptVersionTag,
+                models.LLMEvaluator.prompt_version_tag_id == models.PromptVersionTag.id,
+            )
+            .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+        )
+        dataset_evaluator_triplet = dataset_evaluator_row.one_or_none()
+        if dataset_evaluator_triplet is None:
+            dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_rowid)
+            if dataset_evaluator is None:
+                raise NotFound(f"DatasetEvaluator with id {input.dataset_evaluator_id} not found")
+            evaluator = (
+                await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
+                if dataset_evaluator.evaluator_id is not None
+                else None
+            )
+            if evaluator is not None and evaluator.kind == "BUILTIN":
+                raise BadRequest("Cannot update a built-in evaluator")
+            raise NotFound(
+                f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
+            )
+        dataset_evaluator, llm_evaluator, prompt_version_tag = dataset_evaluator_triplet
+        if source.content is not None:
+            await validate_custom_provider(session, source.content)
+        shared_evaluator_changed = False
+
+        # Without a selected version, an edit stores its content as a new prompt.
+        if isinstance(source, FromPromptVersion):
+            base = await get_prompt_version(session, source.prompt_version_id)
+            target_prompt_id = base.prompt_id
+            prompt_version = await pin_prompt_version(
+                session, base=base, content=source.content, prompt_id=target_prompt_id
+            )
+            if prompt_version is not base:
+                shared_evaluator_changed = True
+        else:
+            prompt_version = source.content
+            new_prompt = models.Prompt(
+                name=IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
+                description=input.description or None,
+                prompt_versions=[prompt_version],
+            )
+            session.add(new_prompt)
+            await session.flush()
+            await ensure_evaluator_prompt_label(session, new_prompt.id)
+            target_prompt_id = new_prompt.id
+            shared_evaluator_changed = True
+        if llm_evaluator.prompt_id != target_prompt_id:
+            llm_evaluator.prompt_id = target_prompt_id
+            shared_evaluator_changed = True
+
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        # The input describes the evaluator itself, so the binding stores no
+        # override and inherits the evaluator's description and outputs.
+        binding_values: dict[str, Any] = dict(
+            name=evaluator_name,
+            description=None,
+            output_configs=None,
+            input_mapping=input.input_mapping,
+            user_id=user_id,
+        )
+
+        if input.description is not UNSET and llm_evaluator.description != input.description:
+            llm_evaluator.description = input.description
+            shared_evaluator_changed = True
+        if llm_evaluator.output_configs != list(output_configs):
+            llm_evaluator.output_configs = list(output_configs)
+            shared_evaluator_changed = True
+
+        try:
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
+        except ValueError as error:
+            raise BadRequest(str(error))
+
+        try:
+            dataset_evaluator = await _write_dataset_evaluator(
+                session, dataset_evaluator.id, binding_values
+            )
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict(f"An evaluator named '{evaluator_name}' already exists for this dataset")
+
+        if llm_evaluator.prompt_version_tag_id is not None:
+            if prompt_version_tag is None:
+                raise NotFound(
+                    f"Prompt version tag with id {llm_evaluator.prompt_version_tag_id} not found"
+                )
+            if (
+                prompt_version_tag.prompt_version_id != prompt_version.id
+                or prompt_version_tag.prompt_id != target_prompt_id
+            ):
+                prompt_version_tag.prompt_version_id = prompt_version.id
+                prompt_version_tag.prompt_id = target_prompt_id
+                shared_evaluator_changed = True
+
+        if shared_evaluator_changed:
+            llm_evaluator.updated_at = datetime.now(timezone.utc)
+            llm_evaluator.user_id = user_id
+
+    return dataset_evaluator
+
+
+async def delete_dataset_evaluators(
+    context: EvaluatorServiceContext, input: DeleteDatasetEvaluatorsInput
+) -> list[GlobalID]:
+    """Delete bindings and trace projects; collect unreferenced LLM/code definitions.
+
+    Built-ins are retained. Associated prompts are collected only when requested
+    and no LLM evaluator references them.
+    """
+    dataset_evaluator_rowids: list[int] = []
+    for dataset_evaluator_gid in input.dataset_evaluator_ids:
+        try:
+            dataset_evaluator_rowid = from_global_id_with_expected_type(
+                global_id=dataset_evaluator_gid,
+                expected_type_name="DatasetEvaluator",
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset evaluator id: {dataset_evaluator_gid}")
+        dataset_evaluator_rowids.append(dataset_evaluator_rowid)
+
+    if not dataset_evaluator_rowids:
+        return []
+
+    deleted_gids: list[GlobalID] = []
+
+    async with context.db() as session:
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+
+        # Flat aliasing prevents SQLAlchemy from rewriting the base kind discriminator.
+        llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
+        # PostgreSQL can delete and return bindings in one CTE; SQLite requires two statements.
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            deleted_links_cte = (
+                delete(models.DatasetEvaluators)
+                .where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
+                .returning(
+                    models.DatasetEvaluators.id,
+                    models.DatasetEvaluators.evaluator_id,
+                    models.DatasetEvaluators.project_id,
+                )
+                .cte("deleted_links")
+            )
+            gather_stmt = (
+                select(
+                    deleted_links_cte.c.id,
+                    deleted_links_cte.c.evaluator_id,
+                    deleted_links_cte.c.project_id,
+                    models.Evaluator.kind,
+                    llm_evaluator_alias.prompt_id,
+                )
+                .select_from(deleted_links_cte)
+                .join(
+                    models.Evaluator,
+                    models.Evaluator.id == deleted_links_cte.c.evaluator_id,
+                )
+                .outerjoin(
+                    llm_evaluator_alias,
+                    llm_evaluator_alias.id == deleted_links_cte.c.evaluator_id,
+                )
+            )
+        else:
+            gather_stmt = (
+                select(
+                    models.DatasetEvaluators.id,
+                    models.DatasetEvaluators.evaluator_id,
+                    models.DatasetEvaluators.project_id,
+                    models.Evaluator.kind,
+                    llm_evaluator_alias.prompt_id,
+                )
+                .join(
+                    models.Evaluator,
+                    models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                )
+                .outerjoin(
+                    llm_evaluator_alias,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator_alias.id,
+                )
+                .where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
+            )
+        rows = (await session.execute(gather_stmt)).all()
+
+        link_ids: list[int] = []
+        project_ids: list[int] = []
+        gc_candidate_evaluator_ids: set[int] = set()
+        candidate_prompt_ids: set[int] = set()
+
+        for link_id, evaluator_id, project_id, kind, prompt_id in rows:
+            link_ids.append(link_id)
+            project_ids.append(project_id)
+            deleted_gids.append(GlobalID("DatasetEvaluator", str(link_id)))
+            if kind != "BUILTIN":
+                gc_candidate_evaluator_ids.add(evaluator_id)
+                if prompt_id is not None:
+                    candidate_prompt_ids.add(prompt_id)
+
+        if project_ids:
+            cascade_rows = (
+                await session.execute(
+                    select(
+                        models.ProjectEvaluator.evaluator_id,
+                        models.Evaluator.kind,
+                        llm_evaluator_alias.prompt_id,
+                    )
+                    .join(
+                        models.Evaluator,
+                        models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
+                    )
+                    .outerjoin(
+                        llm_evaluator_alias,
+                        models.ProjectEvaluator.evaluator_id == llm_evaluator_alias.id,
+                    )
+                    .where(models.ProjectEvaluator.project_id.in_(project_ids))
+                )
+            ).all()
+            for evaluator_id, kind, prompt_id in cascade_rows:
+                if kind != "BUILTIN":
+                    gc_candidate_evaluator_ids.add(evaluator_id)
+                    if prompt_id is not None:
+                        candidate_prompt_ids.add(prompt_id)
+
+        if not link_ids:
+            return []
+
+        # Remove bindings before trace projects to satisfy the RESTRICT foreign key.
+        if dialect is not SupportedSQLDialect.POSTGRESQL:
+            await session.execute(
+                delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(link_ids))
+            )
+
+        if project_ids:
+            await delete_projects_and_evaluator_trace_projects(session, project_ids)
+
+        await garbage_collect_evaluators(
+            session,
+            evaluator_ids=gc_candidate_evaluator_ids,
+            prompt_ids=candidate_prompt_ids,
+            delete_associated_prompt=input.delete_associated_prompt,
+        )
+
+    return deleted_gids
+
+
+async def create_dataset_builtin_evaluator(
+    context: EvaluatorServiceContext, input: CreateDatasetBuiltinEvaluatorInput
+) -> models.DatasetEvaluators:
+    """Bind a registered built-in evaluator, inheriting unset output overrides."""
+    try:
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=input.dataset_id,
+            expected_type_name="Dataset",
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
+
+    try:
+        built_in_evaluator_id, _ = parse_evaluator_id(input.evaluator_id)
+    except ValueError as e:
+        raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
+
+    user_id = context.user_id
+
+    if input.input_mapping is None:
+        raise BadRequest("input_mapping is required")
+    input_mapping: InputMapping = input.input_mapping
+
+    try:
+        name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(f"Invalid evaluator name: {error}")
+
+    if input.output_configs is not None:
+        require_output_configs(input.output_configs)
+
+    try:
+        async with context.db() as session:
+            builtin_and_dataset = (
+                await session.execute(
+                    select(models.BuiltinEvaluator, models.Dataset.name)
+                    .select_from(models.BuiltinEvaluator)
+                    .join(models.Dataset, true())
+                    .where(
+                        models.BuiltinEvaluator.id == built_in_evaluator_id,
+                        models.Dataset.id == dataset_rowid,
+                    )
+                )
+            ).one_or_none()
+            if builtin_and_dataset is None:
+                builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
+                if builtin_db is None:
+                    raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
+                dataset_name = await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+                )
+                if dataset_name is None:
+                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
+            else:
+                builtin_db, dataset_name = builtin_and_dataset
+
+            builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
+            if builtin_evaluator is None:
+                raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
+
+            output_configs: Optional[list[OutputConfigType]] = None
+            if input.output_configs is not None:
+                output_configs = input.output_configs
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset_rowid,
+                name=name,
+                input_mapping=input_mapping,
+                evaluator_id=built_in_evaluator_id,
+                output_configs=output_configs,
+                description=input.description,
+                user_id=user_id,
+                project=get_project_for_dataset_evaluator(
+                    dataset_name=dataset_name,
+                    dataset_evaluator_name=str(name),
+                ),
+            )
+
+            session.add(dataset_evaluator)
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+        if "foreign" in str(e).lower():
+            raise NotFound(f"Dataset with id {input.dataset_id} not found")
+        raise await _dataset_binding_name_taken(
+            context, dataset_rowid, IdentifierModel.model_validate(input.name)
+        ) from e
+
+    # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
+    if output_configs is None:
+        dataset_evaluator.output_configs = list(builtin_evaluator().output_configs)
+
+    return dataset_evaluator
+
+
+async def update_dataset_builtin_evaluator(
+    context: EvaluatorServiceContext, input: UpdateDatasetBuiltinEvaluatorInput
+) -> models.DatasetEvaluators:
+    """Replace binding settings while preserving omitted output overrides."""
+    try:
+        dataset_evaluator_rowid = from_global_id_with_expected_type(
+            global_id=input.dataset_evaluator_id,
+            expected_type_name="DatasetEvaluator",
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
+
+    if input.input_mapping is None:
+        raise BadRequest("input_mapping is required")
+    input_mapping: InputMapping = input.input_mapping
+
+    user_id = context.user_id
+
+    if input.output_configs is not UNSET and input.output_configs is not None:
+        require_output_configs(input.output_configs)
+
+    try:
+        async with context.db() as session:
+            dataset_evaluator_row = await session.execute(
+                select(models.DatasetEvaluators, models.BuiltinEvaluator)
+                .join(
+                    models.BuiltinEvaluator,
+                    models.DatasetEvaluators.evaluator_id == models.BuiltinEvaluator.id,
+                )
+                .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+            )
+            dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+            if dataset_evaluator_pair is None:
+                dataset_evaluator = await session.get(
+                    models.DatasetEvaluators, dataset_evaluator_rowid
+                )
+                if dataset_evaluator is None:
+                    raise NotFound(
+                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                    )
+                raise BadRequest("Cannot update a non-built-in evaluator")
+            dataset_evaluator, builtin_db = dataset_evaluator_pair
+
+            builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
+            if builtin_evaluator is None:
+                raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
+
+            try:
+                name = IdentifierModel.model_validate(input.name)
+            except ValidationError as error:
+                raise BadRequest(f"Invalid evaluator name: {error}")
+            binding_values: dict[str, Any] = dict(
+                name=name, input_mapping=input_mapping, user_id=user_id
+            )
+            if input.output_configs is not UNSET:
+                binding_values["output_configs"] = input.output_configs
+            if input.description is not UNSET:
+                binding_values["description"] = input.description
+            dataset_evaluator = await _write_dataset_evaluator(
+                session, dataset_evaluator.id, binding_values
+            )
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+        if "foreign" in str(e).lower():
+            raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
+        raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
+
+    # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
+    if dataset_evaluator.output_configs is None:
+        dataset_evaluator.output_configs = list(builtin_evaluator().output_configs)
+
+    return dataset_evaluator
+
+
+async def create_dataset_code_evaluator(
+    context: EvaluatorServiceContext, input: CreateDatasetCodeEvaluatorInput
+) -> models.DatasetEvaluators:
+    """Bind an existing code evaluator and create its dataset trace project."""
+    try:
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=input.dataset_id,
+            expected_type_name="Dataset",
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
+
+    try:
+        evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
+    except ValueError as e:
+        raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
+    if evaluator_kind != "CODE":
+        raise BadRequest("Evaluator must be a code evaluator")
+
+    if input.input_mapping is None:
+        raise BadRequest("input_mapping is required")
+    input_mapping: InputMapping = input.input_mapping
+
+    user_id = context.user_id
+
+    try:
+        name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(f"Invalid evaluator name: {error}")
+
+    output_configs: Optional[list[OutputConfigType]] = None
+    if input.output_configs is not None:
+        require_output_configs(input.output_configs)
+        output_configs = input.output_configs
+
+    try:
+        async with context.db() as session:
+            evaluator_and_dataset = (
+                await session.execute(
+                    select(models.CodeEvaluator, models.Dataset.name)
+                    .select_from(models.CodeEvaluator)
+                    .join(models.Dataset, true())
+                    .where(
+                        models.CodeEvaluator.id == evaluator_id,
+                        models.Dataset.id == dataset_rowid,
+                    )
+                )
+            ).one_or_none()
+            if evaluator_and_dataset is None:
+                code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+                if code_evaluator is None:
+                    raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
+                dataset_name = await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+                )
+                if dataset_name is None:
+                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
+            else:
+                code_evaluator, dataset_name = evaluator_and_dataset
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset_rowid,
+                name=name,
+                input_mapping=input_mapping,
+                evaluator_id=evaluator_id,
+                output_configs=output_configs,
+                description=input.description,
+                user_id=user_id,
+                project=get_project_for_dataset_evaluator(
+                    dataset_name=dataset_name,
+                    dataset_evaluator_name=str(name),
+                ),
+            )
+
+            session.add(dataset_evaluator)
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+        if "foreign" in str(e).lower():
+            raise NotFound(f"Dataset with id {input.dataset_id} not found")
+        raise await _dataset_binding_name_taken(
+            context, dataset_rowid, IdentifierModel.model_validate(input.name)
+        ) from e
+
+    # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
+    if output_configs is None:
+        dataset_evaluator.output_configs = as_output_configs(code_evaluator.output_configs)
+
+    return dataset_evaluator
+
+
+async def update_dataset_code_evaluator(
+    context: EvaluatorServiceContext, input: UpdateDatasetCodeEvaluatorInput
+) -> models.DatasetEvaluators:
+    """Replace binding settings without editing the code definition."""
+    try:
+        dataset_evaluator_rowid = from_global_id_with_expected_type(
+            global_id=input.dataset_evaluator_id,
+            expected_type_name="DatasetEvaluator",
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
+
+    if input.input_mapping is None:
+        raise BadRequest("input_mapping is required")
+    input_mapping: InputMapping = input.input_mapping
+
+    user_id = context.user_id
+
+    if input.output_configs is not UNSET and input.output_configs is not None:
+        require_output_configs(input.output_configs)
+
+    try:
+        async with context.db() as session:
+            dataset_evaluator_row = await session.execute(
+                select(models.DatasetEvaluators, models.CodeEvaluator)
+                .join(
+                    models.CodeEvaluator,
+                    models.DatasetEvaluators.evaluator_id == models.CodeEvaluator.id,
+                )
+                .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+            )
+            dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+            if dataset_evaluator_pair is None:
+                dataset_evaluator = await session.get(
+                    models.DatasetEvaluators, dataset_evaluator_rowid
+                )
+                if dataset_evaluator is None:
+                    raise NotFound(
+                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                    )
+                raise BadRequest("Cannot update a non-code dataset evaluator")
+            dataset_evaluator, evaluator = dataset_evaluator_pair
+
+            try:
+                name = IdentifierModel.model_validate(input.name)
+            except ValidationError as error:
+                raise BadRequest(f"Invalid evaluator name: {error}")
+            binding_values: dict[str, Any] = dict(
+                name=name, input_mapping=input_mapping, user_id=user_id
+            )
+            if input.output_configs is not UNSET:
+                binding_values["output_configs"] = input.output_configs
+            if input.description is not UNSET:
+                binding_values["description"] = input.description
+            dataset_evaluator = await _write_dataset_evaluator(
+                session, dataset_evaluator.id, binding_values
+            )
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+        if "foreign" in str(e).lower():
+            raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
+        raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
+
+    # Eager response configs avoid a concurrent GraphQL read; persisted null retains inheritance.
+    if dataset_evaluator.output_configs is None:
+        dataset_evaluator.output_configs = as_output_configs(evaluator.output_configs)
+
+    return dataset_evaluator
+
+
+@dataclass(kw_only=True)
+class DatasetEvaluatorPatch:
+    name: Optional[Identifier] = UNSET
+    description: Optional[str] = UNSET
+    input_mapping: Optional[InputMapping] = UNSET
+    output_configs: Optional[list[OutputConfigType]] = UNSET
+
+
+@dataclass(kw_only=True)
+class CreateDatasetLLMBindingInput:
+    dataset_id: GlobalID
+    evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: InputMapping
+    description: Optional[str] = None
+    output_configs: Optional[list[OutputConfigType]] = None
+
+
+async def create_dataset_llm_binding(
+    context: EvaluatorServiceContext, input: CreateDatasetLLMBindingInput
+) -> models.DatasetEvaluators:
+    """Bind an existing LLM evaluator to a dataset and create the binding's trace project.
+
+    The evaluator row is locked so a concurrent definition delete or edit sees the binding;
+    overrides are validated against the version the evaluator runs.
+    """
+    dataset_rowid = _decode_id(input.dataset_id, "Dataset", "dataset")
+    evaluator_rowid = _decode_id(input.evaluator_id, "LLMEvaluator", "evaluator")
+    try:
+        name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(f"Invalid evaluator name: {error}")
+    if input.output_configs is not None:
+        require_output_configs(input.output_configs)
+    try:
+        async with context.db() as session:
+            evaluator = await session.get(
+                models.LLMEvaluator, evaluator_rowid, with_for_update=True
+            )
+            if evaluator is None:
+                raise NotFound(f"LLM evaluator not found: {input.evaluator_id}")
+            dataset_name = await session.scalar(
+                select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+            )
+            if dataset_name is None:
+                raise NotFound(f"Dataset not found: {input.dataset_id}")
+            version = await resolve_evaluator_prompt_version(session, evaluator)
+            if version is None:
+                raise NotFound(f"Prompt version not found for evaluator {input.evaluator_id}")
+            validate_llm_binding_overrides(
+                version,
+                input.output_configs
+                if input.output_configs is not None
+                else list(evaluator.output_configs),
+                input.description if input.description is not None else evaluator.description,
+            )
+            binding = models.DatasetEvaluators(
+                dataset_id=dataset_rowid,
+                evaluator_id=evaluator_rowid,
+                name=name,
+                description=input.description,
+                output_configs=input.output_configs,
+                input_mapping=input.input_mapping,
+                user_id=context.user_id,
+                project=get_project_for_dataset_evaluator(
+                    dataset_name=dataset_name,
+                    dataset_evaluator_name=str(name),
+                ),
+            )
+            session.add(binding)
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        raise await _dataset_binding_name_taken(context, dataset_rowid, name) from error
+    return binding
+
+
+async def _dataset_binding_name_taken(
+    context: EvaluatorServiceContext, dataset_rowid: int, name: Identifier
+) -> Conflict:
+    async with context.db() as session:
+        existing_id = await session.scalar(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.dataset_id == dataset_rowid,
+                models.DatasetEvaluators.name == name,
+            )
+        )
+    if existing_id is None:
+        return Conflict(f"Could not bind evaluator '{name.root}' because of a conflicting resource")
+    return AlreadyExists(
+        f"An evaluator named '{name.root}' already exists for this dataset",
+        existing_id=str(GlobalID("DatasetEvaluator", str(existing_id))),
+    )
+
+
+async def detach_dataset_evaluators(
+    context: EvaluatorServiceContext,
+    dataset_evaluator_ids: list[GlobalID],
+    *,
+    dataset_id: Optional[GlobalID] = None,
+) -> None:
+    """Delete bindings only: their definitions, prompts, and trace projects are kept.
+
+    Missing bindings are ignored. With a dataset, a binding of another dataset is refused
+    before any change.
+    """
+    rowids = [
+        _decode_id(binding_id, "DatasetEvaluator", "dataset evaluator")
+        for binding_id in dataset_evaluator_ids
+    ]
+    async with context.db() as session:
+        elsewhere: Sequence[int] = []
+        if dataset_id is not None:
+            dataset_rowid = _decode_id(dataset_id, "Dataset", "dataset")
+            elsewhere = (
+                await session.scalars(
+                    select(models.DatasetEvaluators.id).where(
+                        models.DatasetEvaluators.id.in_(rowids),
+                        models.DatasetEvaluators.dataset_id != dataset_rowid,
+                    )
+                )
+            ).all()
+        if elsewhere:
+            listed = ", ".join(str(GlobalID("DatasetEvaluator", str(i))) for i in elsewhere)
+            raise BadRequest(f"These bindings belong to another dataset: {listed}")
+        await session.execute(
+            delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(rowids))
+        )
+
+
+def validate_llm_binding_overrides(
+    prompt: models.PromptVersion,
+    output_configs: list[OutputConfigType],
+    description: Optional[str],
+) -> None:
+    """Require LLM binding overrides to agree with the prompt's output schema."""
+    configs = LLMEvaluatorOutputConfigs.model_validate({"configs": output_configs}).configs
+    try:
+        validate_evaluator_prompt_and_configs(
+            prompt_tools=prompt.tools,
+            prompt_response_format=prompt.response_format,
+            evaluator_output_configs=configs,
+            evaluator_description=description,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error)) from error
+
+
+async def patch_dataset_evaluator(
+    context: EvaluatorServiceContext,
+    dataset_evaluator_id: GlobalID,
+    patch: DatasetEvaluatorPatch,
+) -> models.DatasetEvaluators:
+    """Patch binding overrides without editing the shared evaluator definition."""
+    try:
+        row_id = from_global_id_with_expected_type(dataset_evaluator_id, "DatasetEvaluator")
+    except ValueError as error:
+        raise BadRequest(f"Invalid dataset evaluator id: {dataset_evaluator_id}") from error
+    if patch.output_configs is not UNSET and patch.output_configs is not None:
+        require_output_configs(patch.output_configs)
+    try:
+        async with context.db() as session:
+            row = await session.get(models.DatasetEvaluators, row_id)
+            if row is None:
+                raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
+            dataset_rowid = row.dataset_id
+            values: dict[str, Any] = {"user_id": context.user_id}
+            if patch.name is not UNSET:
+                values["name"] = IdentifierModel.model_validate(patch.name)
+            if patch.input_mapping is not UNSET:
+                if patch.input_mapping is None:
+                    raise BadRequest("input_mapping cannot be null for dataset evaluators")
+                values["input_mapping"] = patch.input_mapping
+            if patch.description is not UNSET:
+                values["description"] = patch.description
+            if patch.output_configs is not UNSET:
+                values["output_configs"] = patch.output_configs
+            if patch.output_configs is not UNSET or patch.description is not UNSET:
+                # Tag moves and evaluator edits lock the evaluator row first, so each validates
+                # against the other's committed state. The binding is reread under the lock
+                # because an evaluator edit may have rewritten the overrides this patch keeps.
+                llm = await session.get(models.LLMEvaluator, row.evaluator_id, with_for_update=True)
+                if llm is not None:
+                    await session.refresh(row)
+                    prompt = await session.scalar(
+                        select(models.PromptVersion)
+                        .join(
+                            models.PromptVersionTag,
+                            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
+                        )
+                        .where(models.PromptVersionTag.id == llm.prompt_version_tag_id)
+                    )
+                    if prompt is None:
+                        raise NotFound("The evaluator's pinned prompt version was not found")
+                    output_configs = values.get("output_configs", row.output_configs)
+                    description = values.get("description", row.description)
+                    try:
+                        validate_llm_binding_overrides(
+                            prompt,
+                            output_configs
+                            if output_configs is not None
+                            else list(llm.output_configs),
+                            description if description is not None else llm.description,
+                        )
+                    except BadRequest as error:
+                        raise Conflict(
+                            str(error),
+                            reason="incompatible_override",
+                            dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(row.id)))],
+                        ) from error
+            row = await _write_dataset_evaluator(session, row.id, values)
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if patch.name is not UNSET and patch.name is not None:
+            raise await _dataset_binding_name_taken(context, dataset_rowid, patch.name) from error
+        raise Conflict("An evaluator with this name already exists in the dataset") from error
+    return row
+
+
+def _decode_id(global_id: GlobalID, type_name: str, label: str) -> int:
+    """Decode a typed GlobalID, reporting a malformed or mistyped id as a client error."""
+    try:
+        return from_global_id_with_expected_type(global_id=global_id, expected_type_name=type_name)
+    except ValueError as error:
+        raise BadRequest(f"Invalid {label} id: {global_id}") from error

@@ -1,0 +1,1335 @@
+from __future__ import annotations
+
+import logging
+from collections.abc import Sequence
+from typing import List, Optional, Union, cast
+
+import httpx
+
+from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import (
+    CREATE_EVALUATOR,
+    CREATE_EVALUATOR_VERSION,
+    DELETE_EVALUATOR,
+    GET_EVALUATOR,
+    LIST_EVALUATOR_VERSIONS,
+    LIST_EVALUATORS,
+    LIST_SANDBOX_CONFIGS,
+    PATCH_EVALUATOR,
+)
+from phoenix.client.resources.evaluators.dataset_evaluators import (
+    AsyncDatasetEvaluators,
+    DatasetEvaluators,
+)
+from phoenix.client.resources.evaluators.project_evaluators import (
+    AsyncProjectEvaluators,
+    ProjectEvaluators,
+)
+from phoenix.client.types.evaluators import (
+    EvaluatorDefinition,
+    EvaluatorOutputConfig,
+    EvaluatorType,
+    Language,
+)
+from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
+from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.problem_details import raise_for_problem
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
+)
+
+logger = logging.getLogger(__name__)
+
+_PAGE_SIZE = 100
+
+
+def _build_llm_patch(
+    *,
+    name: Union[str, NotGiven],
+    description: Union[str, None, NotGiven],
+    prompt_version_id: Union[str, NotGiven],
+    output_configs: Union[Sequence[v1.CategoricalAnnotationConfigData], NotGiven],
+) -> dict[str, object]:
+    body: dict[str, object] = {"type": "llm"}
+    if not isinstance(name, NotGiven):
+        body["name"] = name
+    if not isinstance(description, NotGiven):
+        body["description"] = description
+    if not isinstance(prompt_version_id, NotGiven):
+        body["prompt"] = _pin(prompt_version_id)
+    if not isinstance(output_configs, NotGiven):
+        body["output_configs"] = list(output_configs)
+    if len(body) == 1:
+        raise ValueError("At least one field to update must be provided.")
+    return body
+
+
+def _pin(prompt_version_id: str) -> v1.LLMEvaluatorPromptInput:
+    return v1.LLMEvaluatorPromptInput(
+        selector=v1.PromptVersionSelector(type="version", prompt_version_id=prompt_version_id)
+    )
+
+
+def _build_llm_create_body(
+    *,
+    name: str,
+    prompt_version_id: str,
+    output_configs: Sequence[v1.CategoricalAnnotationConfigData],
+    description: Optional[str],
+) -> v1.CreateLLMEvaluatorRequest:
+    body = v1.CreateLLMEvaluatorRequest(
+        type="llm",
+        name=name,
+        prompt=_pin(prompt_version_id),
+        output_configs=list(output_configs),
+    )
+    if description is not None:
+        body["description"] = description
+    return body
+
+
+def _build_code_patch(
+    *,
+    name: Union[str, NotGiven],
+    description: Union[str, None, NotGiven],
+    sandbox_config_id: Union[str, None, NotGiven],
+    input_mapping: Union[v1.InputMapping, NotGiven],
+    output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven],
+) -> dict[str, object]:
+    body: dict[str, object] = {"type": "code"}
+    if not isinstance(name, NotGiven):
+        body["name"] = name
+    if not isinstance(description, NotGiven):
+        body["description"] = description
+    if not isinstance(sandbox_config_id, NotGiven):
+        body["sandbox_config_id"] = sandbox_config_id
+    if not isinstance(input_mapping, NotGiven):
+        body["input_mapping"] = input_mapping
+    if not isinstance(output_configs, NotGiven):
+        body["output_configs"] = list(output_configs)
+    if len(body) == 1:
+        raise ValueError("At least one field to update must be provided.")
+    return body
+
+
+def _build_create_body(
+    *,
+    name: str,
+    source_code: str,
+    language: Language,
+    sandbox_config_id: str,
+    input_mapping: v1.InputMapping,
+    output_configs: Sequence[EvaluatorOutputConfig],
+    description: Optional[str],
+) -> v1.CreateCodeEvaluatorRequest:
+    body = v1.CreateCodeEvaluatorRequest(
+        type="code",
+        name=name,
+        source_code=source_code,
+        language=language,
+        sandbox_config_id=sandbox_config_id,
+        input_mapping=input_mapping,
+        output_configs=list(output_configs),
+    )
+    if description is not None:
+        body["description"] = description
+    return body
+
+
+def _build_version_body(
+    *,
+    source_code: str,
+    expected_current_version_id: Union[str, NotGiven],
+    description: Union[str, None, NotGiven],
+    sandbox_config_id: Union[str, None, NotGiven],
+    input_mapping: Union[v1.InputMapping, NotGiven],
+    output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven],
+) -> dict[str, object]:
+    body: dict[str, object] = {"source_code": source_code}
+    if not isinstance(expected_current_version_id, NotGiven):
+        body["expected_current_version_id"] = expected_current_version_id
+    if not isinstance(description, NotGiven):
+        body["description"] = description
+    if not isinstance(sandbox_config_id, NotGiven):
+        body["sandbox_config_id"] = sandbox_config_id
+    if not isinstance(input_mapping, NotGiven):
+        body["input_mapping"] = input_mapping
+    if not isinstance(output_configs, NotGiven):
+        body["output_configs"] = list(output_configs)
+    return body
+
+
+def _list_params(
+    cursor: Optional[str],
+    *,
+    type: Optional[EvaluatorType] = None,
+    name: Optional[str] = None,
+    remaining: Optional[int] = None,
+) -> dict[str, Union[str, int]]:
+    page = _PAGE_SIZE if remaining is None else max(1, min(remaining, _PAGE_SIZE))
+    params: dict[str, Union[str, int]] = {"limit": page}
+    if type is not None:
+        params["type"] = type
+    if name is not None:
+        params["name"] = name
+    if cursor:
+        params["cursor"] = cursor
+    return params
+
+
+class Evaluators:
+    """Client for the shared evaluator definitions API.
+
+    Definitions are shared by every project and dataset binding that references
+    them, so an update here applies everywhere the evaluator is used.
+
+    Examples:
+        Basic operations::
+
+            from phoenix.client import Client
+            client = Client()
+
+            for definition in client.evaluators.list(type="code"):
+                print(definition["id"], definition["name"])
+
+            definition = client.evaluators.get(evaluator_id="Q29kZUV2YWx1YXRvcjoy")
+            print(definition["type"], definition["name"])
+
+            client.evaluators.update_code(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                description="Exact match against the expected output",
+            )
+
+            version = client.evaluators.create_code_version(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                source_code="def evaluate(output: str) -> float:\\n    return 1.0\\n",
+            )
+            print(version["id"], version["was_created"])
+
+            # Bind an evaluator to a dataset
+            client.evaluators.dataset_evaluators.create(
+                dataset="golden-questions",
+                name="exact-match",
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+            )
+
+            # Run an evaluator on a project's incoming spans
+            client.evaluators.project_evaluators.create(
+                project="support-bot",
+                name="exact-match",
+                evaluation_target="SPAN",
+                sampling_rate=0.25,
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+            )
+    """
+
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
+        """Initialize the Evaluators client.
+
+        Args:
+            client (httpx.Client): The httpx client to use for making requests.
+        """
+        self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
+        self._dataset_evaluators = DatasetEvaluators(client, _guard=self._guard)
+        self._project_evaluators = ProjectEvaluators(client, _guard=self._guard)
+
+    @property
+    def dataset_evaluators(self) -> DatasetEvaluators:
+        """Bindings between datasets and evaluators.
+
+        Returns:
+            DatasetEvaluators: The dataset evaluator bindings client.
+        """
+        return self._dataset_evaluators
+
+    @property
+    def project_evaluators(self) -> ProjectEvaluators:
+        """Bindings that run evaluators on a project's incoming traces.
+
+        Returns:
+            ProjectEvaluators: The project evaluator bindings client.
+        """
+        return self._project_evaluators
+
+    def list(
+        self,
+        *,
+        type: Optional[EvaluatorType] = None,
+        name: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[EvaluatorDefinition]:
+        """List shared evaluator definitions, newest first.
+
+        Every definition is returned whether or not a project or dataset binds it.
+        Each item embeds its current code or prompt version, so prefer ``name`` or
+        ``limit`` over listing everything when looking for one evaluator.
+
+        Args:
+            type (Optional[Literal["llm", "code", "builtin"]]): Return only one kind of
+                definition. All kinds are returned by default.
+            name (Optional[str]): Return only the evaluator with this exact name.
+            limit (Optional[int]): Stop after this many definitions. By default
+                pagination is followed to the end.
+
+        Returns:
+            The definitions.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            for definition in client.evaluators.list(type="llm", limit=20):
+                print(definition["id"], definition["name"])
+        """  # noqa: E501
+        self._guard.require(LIST_EVALUATORS)
+        definitions: list[EvaluatorDefinition] = []
+        next_cursor: Optional[str] = None
+        while True:
+            remaining = None if limit is None else limit - len(definitions)
+            response = self._client.get(
+                "v1/evaluators",
+                params=_list_params(next_cursor, type=type, name=name, remaining=remaining),
+            )
+            raise_for_problem(response)
+            page = cast(v1.EvaluatorDefinitionsResponseBody, response.json())
+            definitions.extend(page["data"])
+            if limit is not None and len(definitions) >= limit:
+                return definitions[:limit]
+            if not (next_cursor := page.get("next_cursor")):
+                break
+        return definitions
+
+    def get(self, *, evaluator_id: str) -> EvaluatorDefinition:
+        """Get a shared evaluator definition by ID.
+
+        Args:
+            evaluator_id (str): The ID of the evaluator.
+
+        Returns:
+            The LLM, code, or built-in evaluator definition. Inspect ``type`` to
+            tell them apart.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            definition = client.evaluators.get(evaluator_id="Q29kZUV2YWx1YXRvcjoy")
+            if definition["type"] == "code":
+                print(definition["source_code"])
+        """  # noqa: E501
+        self._guard.require(GET_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = self._client.get(url)
+        raise_for_problem(response)
+        return cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+
+    def create_code(
+        self,
+        *,
+        name: str,
+        source_code: str,
+        language: Language,
+        sandbox_config_id: str,
+        input_mapping: v1.InputMapping,
+        output_configs: Sequence[EvaluatorOutputConfig],
+        description: Optional[str] = None,
+    ) -> v1.CodeEvaluatorDefinition:
+        """Create a code evaluator that nothing binds yet, with its first version.
+
+        Args:
+            name (str): A name unique among evaluators.
+            source_code (str): The full source of the first version.
+            language (Literal["PYTHON", "TYPESCRIPT"]): The language of the source.
+            sandbox_config_id (str): The ID of the sandbox configuration to run in.
+            input_mapping (v1.InputMapping): The default mapping from record fields
+                to the function's arguments.
+            output_configs (Sequence[EvaluatorOutputConfig]): The outputs the
+                evaluator produces; at least one.
+            description (Optional[str]): A description.
+
+        Returns:
+            The created code evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. The server responds with 409
+                when the name is taken.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            definition = client.evaluators.create_code(
+                name="exact-match",
+                source_code=open("evaluator.py").read(),
+                language="PYTHON",
+                sandbox_config_id="U2FuZGJveENvbmZpZzox",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+                output_configs=[
+                    {"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}
+                ],
+            )
+        """  # noqa: E501
+        json_ = _build_create_body(
+            name=name,
+            source_code=source_code,
+            language=language,
+            sandbox_config_id=sandbox_config_id,
+            input_mapping=input_mapping,
+            output_configs=output_configs,
+            description=description,
+        )
+        self._guard.require(CREATE_EVALUATOR)
+        response = self._client.post("v1/evaluators", json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.CodeEvaluatorDefinition, data)
+
+    def create_llm(
+        self,
+        *,
+        name: str,
+        prompt_version_id: str,
+        output_configs: Sequence[v1.CategoricalAnnotationConfigData],
+        description: Optional[str] = None,
+    ) -> v1.LLMEvaluatorDefinition:
+        """Create an LLM evaluator that runs an existing prompt version; nothing binds it yet.
+
+        Create the prompt and its version first with
+        :meth:`phoenix.client.resources.prompts.Prompts.create`. The evaluator stays
+        pinned to that version until it is updated.
+
+        Args:
+            name (str): A name unique among evaluators.
+            prompt_version_id (str): The ID of the prompt version to run.
+            output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
+                categorical outputs the evaluator produces. They must match the
+                prompt's tool schema.
+            description (Optional[str]): Must equal the description of the prompt's
+                tool function, because that description is the instruction the
+                evaluator's output tool carries.
+
+        Returns:
+            The created LLM evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. A taken name is refused with
+                ``code == "already_exists"`` and ``existing_id`` naming the evaluator
+                that holds it.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            version = client.prompts.create(name="correctness-judge", version=judge_prompt)
+            definition = client.evaluators.create_llm(
+                name="correctness",
+                prompt_version_id=version.id,
+                description="correctness",
+                output_configs=[
+                    {
+                        "type": "CATEGORICAL",
+                        "name": "correctness",
+                        "optimization_direction": "MAXIMIZE",
+                        "values": [{"label": "correct", "score": 1}, {"label": "incorrect", "score": 0}],
+                    }
+                ],
+            )
+        """  # noqa: E501
+        json_ = _build_llm_create_body(
+            name=name,
+            prompt_version_id=prompt_version_id,
+            output_configs=output_configs,
+            description=description,
+        )
+        self._guard.require(CREATE_EVALUATOR)
+        response = self._client.post("v1/evaluators", json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.LLMEvaluatorDefinition, data)
+
+    def update_llm(
+        self,
+        *,
+        evaluator_id: str,
+        name: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        prompt_version_id: Union[str, NotGiven] = NOT_GIVEN,
+        output_configs: Union[Sequence[v1.CategoricalAnnotationConfigData], NotGiven] = NOT_GIVEN,
+    ) -> v1.LLMEvaluatorDefinition:
+        """Update a shared LLM evaluator. Omitted fields keep their current values.
+
+        Prompt content is not edited here. Create a new prompt version with
+        :meth:`phoenix.client.resources.prompts.Prompts.create` and pass its ID as
+        ``prompt_version_id``.
+
+        Args:
+            evaluator_id (str): The ID of the LLM evaluator.
+            name (str): A new name for the evaluator.
+            description (Optional[str]): A new description, or ``None`` to clear
+                it. It must equal the description of the prompt's tool function,
+                because that description is the instruction the evaluator's
+                output tool carries.
+            prompt_version_id (str): The ID of the prompt version to run. A
+                version of another prompt moves the evaluator to that prompt.
+            output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
+                categorical outputs the evaluator produces. They must match the
+                prompt's tool schema.
+
+        Returns:
+            The updated LLM evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. The server responds with 409
+                when a dataset binding overrides outputs that the new prompt no
+                longer supports.
+            ValueError: If no field to update is provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            client.evaluators.update_llm(
+                evaluator_id="TExNRXZhbHVhdG9yOjE=",
+                prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+            )
+        """  # noqa: E501
+        json_ = _build_llm_patch(
+            name=name,
+            description=description,
+            prompt_version_id=prompt_version_id,
+            output_configs=output_configs,
+        )
+        self._guard.require(PATCH_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = self._client.patch(url, json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.LLMEvaluatorDefinition, data)
+
+    def update_code(
+        self,
+        *,
+        evaluator_id: str,
+        name: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        sandbox_config_id: Union[str, None, NotGiven] = NOT_GIVEN,
+        input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
+        output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
+    ) -> v1.CodeEvaluatorDefinition:
+        """Update a shared code evaluator. Omitted fields keep their current values.
+
+        Source code is immutable per version; use :meth:`create_code_version` to
+        append new code, optionally together with the configuration it needs.
+
+        Args:
+            evaluator_id (str): The ID of the code evaluator.
+            name (str): A new name for the evaluator.
+            description (Optional[str]): A new description, or ``None`` to clear it.
+            sandbox_config_id (Optional[str]): The ID of the sandbox configuration
+                to run in, or ``None`` to clear it.
+            input_mapping (v1.InputMapping): The default mapping from record
+                fields to evaluator arguments.
+            output_configs (Sequence[EvaluatorOutputConfig]): The outputs the
+                evaluator produces; at least one.
+
+        Returns:
+            The updated code evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+            ValueError: If no field to update is provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            client.evaluators.update_code(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+            )
+        """  # noqa: E501
+        json_ = _build_code_patch(
+            name=name,
+            description=description,
+            sandbox_config_id=sandbox_config_id,
+            input_mapping=input_mapping,
+            output_configs=output_configs,
+        )
+        self._guard.require(PATCH_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = self._client.patch(url, json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.CodeEvaluatorDefinition, data)
+
+    def delete(self, *, evaluator_id: str) -> None:
+        """Delete an LLM or code evaluator that nothing binds.
+
+        A code evaluator is deleted with its version history. An LLM evaluator is
+        deleted with the tag that pins its version; the prompt is kept. A missing
+        evaluator is ignored.
+
+        Args:
+            evaluator_id (str): The ID of the evaluator.
+
+        Raises:
+            PhoenixAPIError: If the request fails. The server responds with 409
+                while a project or dataset still binds the evaluator, and 422 for
+                built-in evaluators, which cannot be deleted.
+        """
+        self._guard.require(DELETE_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = self._client.delete(url)
+        raise_for_problem(response)
+
+    def list_sandbox_configs(
+        self, *, language: Optional[Language] = None, limit: Optional[int] = None
+    ) -> List[v1.SandboxConfig]:
+        """List the sandbox configurations code evaluators can run in, newest first.
+
+        Pass a configuration's ``id`` as ``sandbox_config_id`` when creating or
+        updating a code evaluator. Only configurations with ``is_usable`` accept new
+        code. Provider credentials are never returned.
+
+        Args:
+            language (Optional[Literal["PYTHON", "TYPESCRIPT"]]): Return only
+                configurations for this language.
+            limit (Optional[int]): Stop after this many configurations. By
+                default pagination is followed to the end.
+
+        Returns:
+            The sandbox configurations.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            usable = [c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]]
+        """  # noqa: E501
+        self._guard.require(LIST_SANDBOX_CONFIGS)
+        configs: list[v1.SandboxConfig] = []
+        next_cursor: Optional[str] = None
+        while True:
+            remaining = None if limit is None else limit - len(configs)
+            params = _list_params(next_cursor, remaining=remaining)
+            if language is not None:
+                params["language"] = language
+            response = self._client.get("v1/sandbox_configs", params=params)
+            raise_for_problem(response)
+            page = cast(v1.SandboxConfigsResponseBody, response.json())
+            configs.extend(page["data"])
+            if limit is not None and len(configs) >= limit:
+                return configs[:limit]
+            if not (next_cursor := page.get("next_cursor")):
+                return configs
+
+    def list_code_versions(
+        self, *, evaluator_id: str, limit: Optional[int] = None
+    ) -> List[v1.CodeEvaluatorVersion]:
+        """List the versions of a code evaluator, newest first.
+
+        Args:
+            evaluator_id (str): The ID of the code evaluator.
+            limit (Optional[int]): Stop after this many versions. By default
+                pagination is followed to the end.
+
+        Returns:
+            The versions. The first entry is the version the evaluator currently runs.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            for version in client.evaluators.list_code_versions(evaluator_id="Q29kZUV2YWx1YXRvcjoy"):
+                print(version["id"], version["created_at"])
+        """  # noqa: E501
+        self._guard.require(LIST_EVALUATOR_VERSIONS)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
+        versions: list[v1.CodeEvaluatorVersion] = []
+        next_cursor: Optional[str] = None
+        while True:
+            remaining = None if limit is None else limit - len(versions)
+            response = self._client.get(url, params=_list_params(next_cursor, remaining=remaining))
+            raise_for_problem(response)
+            page = cast(v1.CodeEvaluatorVersionsResponseBody, response.json())
+            versions.extend(page["data"])
+            if limit is not None and len(versions) >= limit:
+                return versions[:limit]
+            if not (next_cursor := page.get("next_cursor")):
+                break
+        return versions
+
+    def create_code_version(
+        self,
+        *,
+        evaluator_id: str,
+        source_code: str,
+        expected_current_version_id: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        sandbox_config_id: Union[str, None, NotGiven] = NOT_GIVEN,
+        input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
+        output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
+    ) -> v1.CreatedCodeEvaluatorVersion:
+        """Append a new immutable version of a code evaluator's source.
+
+        Configuration passed alongside is applied in the same transaction, so
+        bindings never run the new code with the old sandbox, input mapping, or
+        outputs. If the source matches the current version, the existing version
+        is returned and ``was_created`` is ``False``; only the current version is
+        compared, so restoring older source creates a new version.
+
+        Args:
+            evaluator_id (str): The ID of the code evaluator.
+            source_code (str): The full source of the new version.
+            expected_current_version_id (str): The version believed to be current.
+                When another version has been appended since, the server refuses
+                with 409 instead of deploying over it.
+            description (Optional[str]): A new description, or ``None`` to clear it.
+            sandbox_config_id (Optional[str]): The sandbox the new code runs in,
+                or ``None`` to clear it.
+            input_mapping (v1.InputMapping): The default mapping for the new
+                code's arguments.
+            output_configs (Sequence[EvaluatorOutputConfig]): The outputs the new
+                code produces; at least one.
+
+        Returns:
+            The persisted code version.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            [current] = client.evaluators.list_code_versions(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy", limit=1
+            )
+            version = client.evaluators.create_code_version(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                source_code=open("evaluator.py").read(),
+                expected_current_version_id=current["id"],
+            )
+            print(version["id"], version["was_created"])
+        """  # noqa: E501
+        json_ = _build_version_body(
+            source_code=source_code,
+            expected_current_version_id=expected_current_version_id,
+            description=description,
+            sandbox_config_id=sandbox_config_id,
+            input_mapping=input_mapping,
+            output_configs=output_configs,
+        )
+        self._guard.require(CREATE_EVALUATOR_VERSION)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
+        response = self._client.post(url, json=json_)
+        raise_for_problem(response)
+        return cast(v1.CreatedCodeEvaluatorVersionResponseBody, response.json())["data"]
+
+
+class AsyncEvaluators:
+    """Asynchronous client for the shared evaluator definitions API.
+
+    Definitions are shared by every project and dataset binding that references
+    them, so an update here applies everywhere the evaluator is used.
+
+    Examples:
+        Basic operations::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            for definition in await client.evaluators.list(type="code"):
+                print(definition["id"], definition["name"])
+
+            definition = await client.evaluators.get(evaluator_id="Q29kZUV2YWx1YXRvcjoy")
+            print(definition["type"], definition["name"])
+
+            await client.evaluators.update_code(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                description="Exact match against the expected output",
+            )
+
+            version = await client.evaluators.create_code_version(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                source_code="def evaluate(output: str) -> float:\\n    return 1.0\\n",
+            )
+            print(version["id"], version["was_created"])
+
+            # Bind an evaluator to a dataset
+            await client.evaluators.dataset_evaluators.create(
+                dataset="golden-questions",
+                name="exact-match",
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+            )
+
+            # Run an evaluator on a project's incoming spans
+            await client.evaluators.project_evaluators.create(
+                project="support-bot",
+                name="exact-match",
+                evaluation_target="SPAN",
+                sampling_rate=0.25,
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+            )
+    """
+
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
+        """Initialize the AsyncEvaluators client.
+
+        Args:
+            client (httpx.AsyncClient): The httpx client to use for making requests.
+        """
+        self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
+        self._dataset_evaluators = AsyncDatasetEvaluators(client, _guard=self._guard)
+        self._project_evaluators = AsyncProjectEvaluators(client, _guard=self._guard)
+
+    @property
+    def dataset_evaluators(self) -> AsyncDatasetEvaluators:
+        """Bindings between datasets and evaluators.
+
+        Returns:
+            AsyncDatasetEvaluators: The dataset evaluator bindings client.
+        """
+        return self._dataset_evaluators
+
+    @property
+    def project_evaluators(self) -> AsyncProjectEvaluators:
+        """Bindings that run evaluators on a project's incoming traces.
+
+        Returns:
+            AsyncProjectEvaluators: The project evaluator bindings client.
+        """
+        return self._project_evaluators
+
+    async def list(
+        self,
+        *,
+        type: Optional[EvaluatorType] = None,
+        name: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[EvaluatorDefinition]:
+        """List shared evaluator definitions, newest first.
+
+        Every definition is returned whether or not a project or dataset binds it.
+        Each item embeds its current code or prompt version, so prefer ``name`` or
+        ``limit`` over listing everything when looking for one evaluator.
+
+        Args:
+            type (Optional[Literal["llm", "code", "builtin"]]): Return only one kind of
+                definition. All kinds are returned by default.
+            name (Optional[str]): Return only the evaluator with this exact name.
+            limit (Optional[int]): Stop after this many definitions. By default
+                pagination is followed to the end.
+
+        Returns:
+            The definitions.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            for definition in await client.evaluators.list(type="llm", limit=20):
+                print(definition["id"], definition["name"])
+        """  # noqa: E501
+        await self._guard.require(LIST_EVALUATORS)
+        definitions: list[EvaluatorDefinition] = []
+        next_cursor: Optional[str] = None
+        while True:
+            remaining = None if limit is None else limit - len(definitions)
+            response = await self._client.get(
+                "v1/evaluators",
+                params=_list_params(next_cursor, type=type, name=name, remaining=remaining),
+            )
+            raise_for_problem(response)
+            page = cast(v1.EvaluatorDefinitionsResponseBody, response.json())
+            definitions.extend(page["data"])
+            if limit is not None and len(definitions) >= limit:
+                return definitions[:limit]
+            if not (next_cursor := page.get("next_cursor")):
+                break
+        return definitions
+
+    async def get(self, *, evaluator_id: str) -> EvaluatorDefinition:
+        """Get a shared evaluator definition by ID.
+
+        Args:
+            evaluator_id (str): The ID of the evaluator.
+
+        Returns:
+            The LLM, code, or built-in evaluator definition. Inspect ``type`` to
+            tell them apart.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            definition = await client.evaluators.get(evaluator_id="Q29kZUV2YWx1YXRvcjoy")
+            if definition["type"] == "code":
+                print(definition["source_code"])
+        """  # noqa: E501
+        await self._guard.require(GET_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = await self._client.get(url)
+        raise_for_problem(response)
+        return cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+
+    async def create_code(
+        self,
+        *,
+        name: str,
+        source_code: str,
+        language: Language,
+        sandbox_config_id: str,
+        input_mapping: v1.InputMapping,
+        output_configs: Sequence[EvaluatorOutputConfig],
+        description: Optional[str] = None,
+    ) -> v1.CodeEvaluatorDefinition:
+        """Create a code evaluator that nothing binds yet, with its first version.
+
+        Args:
+            name (str): A name unique among evaluators.
+            source_code (str): The full source of the first version.
+            language (Literal["PYTHON", "TYPESCRIPT"]): The language of the source.
+            sandbox_config_id (str): The ID of the sandbox configuration to run in.
+            input_mapping (v1.InputMapping): The default mapping from record fields
+                to the function's arguments.
+            output_configs (Sequence[EvaluatorOutputConfig]): The outputs the
+                evaluator produces; at least one.
+            description (Optional[str]): A description.
+
+        Returns:
+            The created code evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. The server responds with 409
+                when the name is taken.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            definition = await client.evaluators.create_code(
+                name="exact-match",
+                source_code=open("evaluator.py").read(),
+                language="PYTHON",
+                sandbox_config_id="U2FuZGJveENvbmZpZzox",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+                output_configs=[
+                    {"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}
+                ],
+            )
+        """  # noqa: E501
+        json_ = _build_create_body(
+            name=name,
+            source_code=source_code,
+            language=language,
+            sandbox_config_id=sandbox_config_id,
+            input_mapping=input_mapping,
+            output_configs=output_configs,
+            description=description,
+        )
+        await self._guard.require(CREATE_EVALUATOR)
+        response = await self._client.post("v1/evaluators", json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.CodeEvaluatorDefinition, data)
+
+    async def create_llm(
+        self,
+        *,
+        name: str,
+        prompt_version_id: str,
+        output_configs: Sequence[v1.CategoricalAnnotationConfigData],
+        description: Optional[str] = None,
+    ) -> v1.LLMEvaluatorDefinition:
+        """Create an LLM evaluator that runs an existing prompt version; nothing binds it yet.
+
+        Create the prompt and its version first with
+        :meth:`phoenix.client.resources.prompts.Prompts.create`. The evaluator stays
+        pinned to that version until it is updated.
+
+        Args:
+            name (str): A name unique among evaluators.
+            prompt_version_id (str): The ID of the prompt version to run.
+            output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
+                categorical outputs the evaluator produces. They must match the
+                prompt's tool schema.
+            description (Optional[str]): Must equal the description of the prompt's
+                tool function, because that description is the instruction the
+                evaluator's output tool carries.
+
+        Returns:
+            The created LLM evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. A taken name is refused with
+                ``code == "already_exists"`` and ``existing_id`` naming the evaluator
+                that holds it.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            version = client.prompts.create(name="correctness-judge", version=judge_prompt)
+            definition = client.evaluators.create_llm(
+                name="correctness",
+                prompt_version_id=version.id,
+                description="correctness",
+                output_configs=[
+                    {
+                        "type": "CATEGORICAL",
+                        "name": "correctness",
+                        "optimization_direction": "MAXIMIZE",
+                        "values": [{"label": "correct", "score": 1}, {"label": "incorrect", "score": 0}],
+                    }
+                ],
+            )
+        """  # noqa: E501
+        json_ = _build_llm_create_body(
+            name=name,
+            prompt_version_id=prompt_version_id,
+            output_configs=output_configs,
+            description=description,
+        )
+        await self._guard.require(CREATE_EVALUATOR)
+        response = await self._client.post("v1/evaluators", json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.LLMEvaluatorDefinition, data)
+
+    async def update_llm(
+        self,
+        *,
+        evaluator_id: str,
+        name: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        prompt_version_id: Union[str, NotGiven] = NOT_GIVEN,
+        output_configs: Union[Sequence[v1.CategoricalAnnotationConfigData], NotGiven] = NOT_GIVEN,
+    ) -> v1.LLMEvaluatorDefinition:
+        """Update a shared LLM evaluator. Omitted fields keep their current values.
+
+        Prompt content is not edited here. Create a new prompt version with
+        :meth:`phoenix.client.resources.prompts.AsyncPrompts.create` and pass its
+        ID as ``prompt_version_id``.
+
+        Args:
+            evaluator_id (str): The ID of the LLM evaluator.
+            name (str): A new name for the evaluator.
+            description (Optional[str]): A new description, or ``None`` to clear
+                it. It must equal the description of the prompt's tool function,
+                because that description is the instruction the evaluator's
+                output tool carries.
+            prompt_version_id (str): The ID of the prompt version to run. A
+                version of another prompt moves the evaluator to that prompt.
+            output_configs (Sequence[v1.CategoricalAnnotationConfigData]): The
+                categorical outputs the evaluator produces. They must match the
+                prompt's tool schema.
+
+        Returns:
+            The updated LLM evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails. The server responds with 409
+                when a dataset binding overrides outputs that the new prompt no
+                longer supports.
+            ValueError: If no field to update is provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            await client.evaluators.update_llm(
+                evaluator_id="TExNRXZhbHVhdG9yOjE=",
+                prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+            )
+        """  # noqa: E501
+        json_ = _build_llm_patch(
+            name=name,
+            description=description,
+            prompt_version_id=prompt_version_id,
+            output_configs=output_configs,
+        )
+        await self._guard.require(PATCH_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = await self._client.patch(url, json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.LLMEvaluatorDefinition, data)
+
+    async def update_code(
+        self,
+        *,
+        evaluator_id: str,
+        name: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        sandbox_config_id: Union[str, None, NotGiven] = NOT_GIVEN,
+        input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
+        output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
+    ) -> v1.CodeEvaluatorDefinition:
+        """Update a shared code evaluator. Omitted fields keep their current values.
+
+        Source code is immutable per version; use :meth:`create_code_version` to
+        append new code, optionally together with the configuration it needs.
+
+        Args:
+            evaluator_id (str): The ID of the code evaluator.
+            name (str): A new name for the evaluator.
+            description (Optional[str]): A new description, or ``None`` to clear it.
+            sandbox_config_id (Optional[str]): The ID of the sandbox configuration
+                to run in, or ``None`` to clear it.
+            input_mapping (v1.InputMapping): The default mapping from record
+                fields to evaluator arguments.
+            output_configs (Sequence[EvaluatorOutputConfig]): The outputs the
+                evaluator produces; at least one.
+
+        Returns:
+            The updated code evaluator definition.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+            ValueError: If no field to update is provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            await client.evaluators.update_code(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+            )
+        """  # noqa: E501
+        json_ = _build_code_patch(
+            name=name,
+            description=description,
+            sandbox_config_id=sandbox_config_id,
+            input_mapping=input_mapping,
+            output_configs=output_configs,
+        )
+        await self._guard.require(PATCH_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = await self._client.patch(url, json=json_)
+        raise_for_problem(response)
+        data = cast(v1.EvaluatorDefinitionResponseBody, response.json())["data"]
+        return cast(v1.CodeEvaluatorDefinition, data)
+
+    async def delete(self, *, evaluator_id: str) -> None:
+        """Delete an LLM or code evaluator that nothing binds.
+
+        A code evaluator is deleted with its version history. An LLM evaluator is
+        deleted with the tag that pins its version; the prompt is kept. A missing
+        evaluator is ignored.
+
+        Args:
+            evaluator_id (str): The ID of the evaluator.
+
+        Raises:
+            PhoenixAPIError: If the request fails. The server responds with 409
+                while a project or dataset still binds the evaluator, and 422 for
+                built-in evaluators, which cannot be deleted.
+        """
+        await self._guard.require(DELETE_EVALUATOR)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}"
+        response = await self._client.delete(url)
+        raise_for_problem(response)
+
+    async def list_sandbox_configs(
+        self, *, language: Optional[Language] = None, limit: Optional[int] = None
+    ) -> List[v1.SandboxConfig]:
+        """List the sandbox configurations code evaluators can run in, newest first.
+
+        Pass a configuration's ``id`` as ``sandbox_config_id`` when creating or
+        updating a code evaluator. Only configurations with ``is_usable`` accept new
+        code. Provider credentials are never returned.
+
+        Args:
+            language (Optional[Literal["PYTHON", "TYPESCRIPT"]]): Return only
+                configurations for this language.
+            limit (Optional[int]): Stop after this many configurations. By
+                default pagination is followed to the end.
+
+        Returns:
+            The sandbox configurations.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            usable = [c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]]
+        """  # noqa: E501
+        await self._guard.require(LIST_SANDBOX_CONFIGS)
+        configs: list[v1.SandboxConfig] = []
+        next_cursor: Optional[str] = None
+        while True:
+            remaining = None if limit is None else limit - len(configs)
+            params = _list_params(next_cursor, remaining=remaining)
+            if language is not None:
+                params["language"] = language
+            response = await self._client.get("v1/sandbox_configs", params=params)
+            raise_for_problem(response)
+            page = cast(v1.SandboxConfigsResponseBody, response.json())
+            configs.extend(page["data"])
+            if limit is not None and len(configs) >= limit:
+                return configs[:limit]
+            if not (next_cursor := page.get("next_cursor")):
+                return configs
+
+    async def list_code_versions(
+        self, *, evaluator_id: str, limit: Optional[int] = None
+    ) -> List[v1.CodeEvaluatorVersion]:
+        """List the versions of a code evaluator, newest first.
+
+        Args:
+            evaluator_id (str): The ID of the code evaluator.
+            limit (Optional[int]): Stop after this many versions. By default
+                pagination is followed to the end.
+
+        Returns:
+            The versions. The first entry is the version the evaluator currently runs.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            versions = await client.evaluators.list_code_versions(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy"
+            )
+            for version in versions:
+                print(version["id"], version["created_at"])
+        """  # noqa: E501
+        await self._guard.require(LIST_EVALUATOR_VERSIONS)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
+        versions: list[v1.CodeEvaluatorVersion] = []
+        next_cursor: Optional[str] = None
+        while True:
+            remaining = None if limit is None else limit - len(versions)
+            response = await self._client.get(
+                url, params=_list_params(next_cursor, remaining=remaining)
+            )
+            raise_for_problem(response)
+            page = cast(v1.CodeEvaluatorVersionsResponseBody, response.json())
+            versions.extend(page["data"])
+            if limit is not None and len(versions) >= limit:
+                return versions[:limit]
+            if not (next_cursor := page.get("next_cursor")):
+                break
+        return versions
+
+    async def create_code_version(
+        self,
+        *,
+        evaluator_id: str,
+        source_code: str,
+        expected_current_version_id: Union[str, NotGiven] = NOT_GIVEN,
+        description: Union[str, None, NotGiven] = NOT_GIVEN,
+        sandbox_config_id: Union[str, None, NotGiven] = NOT_GIVEN,
+        input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
+        output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
+    ) -> v1.CreatedCodeEvaluatorVersion:
+        """Append a new immutable version of a code evaluator's source.
+
+        Configuration passed alongside is applied in the same transaction, so
+        bindings never run the new code with the old sandbox, input mapping, or
+        outputs. If the source matches the current version, the existing version
+        is returned and ``was_created`` is ``False``; only the current version is
+        compared, so restoring older source creates a new version.
+
+        Args:
+            evaluator_id (str): The ID of the code evaluator.
+            source_code (str): The full source of the new version.
+            expected_current_version_id (str): The version believed to be current.
+                When another version has been appended since, the server refuses
+                with 409 instead of deploying over it.
+            description (Optional[str]): A new description, or ``None`` to clear it.
+            sandbox_config_id (Optional[str]): The sandbox the new code runs in,
+                or ``None`` to clear it.
+            input_mapping (v1.InputMapping): The default mapping for the new
+                code's arguments.
+            output_configs (Sequence[EvaluatorOutputConfig]): The outputs the new
+                code produces; at least one.
+
+        Returns:
+            The persisted code version.
+
+        Raises:
+            PhoenixAPIError: If the request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            version = await client.evaluators.create_code_version(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                source_code=open("evaluator.py").read(),
+            )
+            print(version["id"], version["was_created"])
+        """  # noqa: E501
+        json_ = _build_version_body(
+            source_code=source_code,
+            expected_current_version_id=expected_current_version_id,
+            description=description,
+            sandbox_config_id=sandbox_config_id,
+            input_mapping=input_mapping,
+            output_configs=output_configs,
+        )
+        await self._guard.require(CREATE_EVALUATOR_VERSION)
+        url = f"v1/evaluators/{encode_path_param(evaluator_id)}/versions"
+        response = await self._client.post(url, json=json_)
+        raise_for_problem(response)
+        return cast(v1.CreatedCodeEvaluatorVersionResponseBody, response.json())["data"]

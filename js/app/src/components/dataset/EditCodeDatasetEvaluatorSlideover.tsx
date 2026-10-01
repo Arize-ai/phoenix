@@ -383,11 +383,18 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
     const {
-      evaluator: { name, description, inputMapping, id: evaluatorId },
+      evaluator: {
+        name,
+        globalName,
+        description,
+        inputMapping,
+        id: evaluatorId,
+      },
       outputConfigs,
     } = store.getState();
     invariant(evaluatorId, "evaluator id is required");
     const normalizedName = name.trim();
+    const normalizedGlobalName = globalName.trim();
     const normalizedDescription = description.trim() || undefined;
     const normalizedInputMapping = normalizeInputMapping(inputMapping);
 
@@ -405,7 +412,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         variables: {
           input: {
             id: evaluatorId,
-            name: normalizedName,
+            name: normalizedGlobalName,
             description: normalizedDescription,
             outputConfigs: buildOutputConfigsInput(outputConfigs),
             inputMapping: normalizedInputMapping,
@@ -428,8 +435,9 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   input: {
                     datasetEvaluatorId,
                     name: normalizedName,
-                    description: normalizedDescription,
-                    outputConfigs: buildOutputConfigsInput(outputConfigs),
+                    // Clears any override so the dataset inherits the evaluator.
+                    description: null,
+                    outputConfigs: null,
                     inputMapping: normalizedInputMapping,
                   },
                   connectionIds: updateConnectionIds ?? [],

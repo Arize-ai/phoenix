@@ -483,7 +483,7 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
 -- ---------------
 CREATE TABLE public.api_keys (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -805,7 +805,7 @@ CREATE TABLE public.dataset_evaluators (
     evaluator_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    output_configs JSONB NOT NULL,
+    output_configs JSONB,
     input_mapping JSONB NOT NULL,
     user_id BIGINT,
     project_id BIGINT NOT NULL,
@@ -1360,7 +1360,7 @@ CREATE INDEX ix_oauth2_grants_user_id ON public.oauth2_grants
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT pk_password_reset_tokens PRIMARY KEY (id),
@@ -1387,7 +1387,7 @@ CREATE TABLE public.project_evaluators (
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
     sampling_rate DOUBLE PRECISION NOT NULL,
     evaluation_target VARCHAR NOT NULL,
-    evaluation_delay_seconds INTEGER NOT NULL DEFAULT 300,
+    evaluation_delay_seconds INTEGER NOT NULL,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
     swept_through_at TIMESTAMP WITH TIME ZONE,
@@ -1396,7 +1396,7 @@ CREATE TABLE public.project_evaluators (
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_project_evaluators_project_id_name
         UNIQUE (project_id, name),
-    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK ((evaluation_delay_seconds >= 10)),
+    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
         CHECK (((evaluation_target)::text = ANY ((ARRAY[
             'SPAN'::character varying,
@@ -1799,7 +1799,7 @@ CREATE TABLE public.llm_evaluators (
     CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
         FOREIGN KEY (prompt_version_tag_id)
         REFERENCES public.prompt_version_tags (id)
-        ON DELETE SET NULL
+        ON DELETE RESTRICT
 );
 
 CREATE INDEX ix_llm_evaluators_prompt_id ON public.llm_evaluators
