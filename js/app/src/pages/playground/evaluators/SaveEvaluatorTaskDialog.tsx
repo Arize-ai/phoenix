@@ -47,10 +47,12 @@ const SUBMIT_LABELS: Record<SaveAction, string> = {
  * The task's save step, in the shape of the prompt playground's save dialog:
  * name and description (the same values the Output tab edits), what the save
  * will do, and, for a loaded evaluator, a "Save as new" that leaves it
- * untouched and saves a copy named `<name>_copy`.
+ * untouched and saves a new evaluator under the typed name, or as a copy
+ * named `<name>_copy` when the name was not changed.
  */
 export function SaveEvaluatorTaskDialog({
   target,
+  savedNames,
   isOpen,
   onOpenChange,
   isSaving,
@@ -58,6 +60,8 @@ export function SaveEvaluatorTaskDialog({
   onSave,
 }: {
   target: EvaluatorSaveTarget;
+  /** The names the loaded evaluator is saved under; see "Save as new". */
+  savedNames: readonly string[];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   isSaving: boolean;
@@ -70,6 +74,7 @@ export function SaveEvaluatorTaskDialog({
         <Dialog>
           <SaveEvaluatorTaskForm
             target={target}
+            savedNames={savedNames}
             isSaving={isSaving}
             error={error}
             onSave={onSave}
@@ -83,12 +88,14 @@ export function SaveEvaluatorTaskDialog({
 
 function SaveEvaluatorTaskForm({
   target,
+  savedNames,
   isSaving,
   error,
   onSave,
   onClose,
 }: {
   target: EvaluatorSaveTarget;
+  savedNames: readonly string[];
   isSaving: boolean;
   error: string | null;
   onSave: (options: { asNew: boolean }) => Promise<UIOperationResult>;
@@ -103,6 +110,9 @@ function SaveEvaluatorTaskForm({
   );
 
   const canSubmit = !!name.trim() && !isSaving;
+  // "Save as new" under the loaded evaluator's own name saves a copy; under
+  // a new name it saves the evaluator the name describes.
+  const isCopy = savedNames.includes(name.trim());
 
   return (
     <DialogContent>
@@ -158,8 +168,9 @@ function SaveEvaluatorTaskForm({
               </Button>
               <Tooltip>
                 <TooltipArrow />
-                Leaves the loaded evaluator unchanged and creates a copy named{" "}
-                {name.trim()}_copy. Rename it afterwards if you like.
+                {isCopy
+                  ? `Leaves the loaded evaluator unchanged and creates a copy named ${name.trim()}_copy. Rename it afterwards if you like.`
+                  : `Leaves the loaded evaluator unchanged and creates a new evaluator named ${name.trim()}.`}
               </Tooltip>
             </TooltipTrigger>
           ) : null}
