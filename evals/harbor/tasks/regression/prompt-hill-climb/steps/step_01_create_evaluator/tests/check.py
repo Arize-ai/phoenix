@@ -9,7 +9,7 @@ evaluators = phoenix_api.dataset_evaluators(dataset_id)
 experiments = phoenix_api.dataset_experiments(dataset_id)
 
 one_evaluator_attached = len(evaluators) == 1
-probe_verdicts = {e.name: hc.probe_evaluator(e, examples) for e in evaluators}
+probe_verdicts = {e.name: hc.is_exact_match_evaluator(e, examples) for e in evaluators}
 evaluator_is_exact_match = one_evaluator_attached and all(ok for ok, _ in probe_verdicts.values())
 no_experiments_yet = not experiments and len(examples) == 28
 

@@ -206,7 +206,7 @@ def _as_score(result: EvaluatorPreviewsEvaluatorPreviewsResults) -> float:
     raise ValueError(f"unrecognized evaluator result {result!r}")
 
 
-def probe_evaluator(
+def is_exact_match_evaluator(
     evaluator: DatasetEvaluatorFields, examples: list[v1.DatasetExample]
 ) -> tuple[bool, dict[str, Any]]:
     """Passes when every probe agrees with expectation under at least one output shape: a
