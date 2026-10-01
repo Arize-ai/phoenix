@@ -1,16 +1,26 @@
+import importlib.util
 import json
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
-from scripts import load_patronus_trail as loader
+
+@pytest.fixture
+def loader() -> ModuleType:
+    path = Path(__file__).resolve().parents[3] / "scripts" / "load_patronus_trail.py"
+    spec = importlib.util.spec_from_file_location("load_patronus_trail", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.mark.parametrize("scores_on_trace", [False, True])
 def test_annotations_are_persisted_when_loading_returns(
-    tmp_path: Path, scores_on_trace: bool
+    tmp_path: Path, scores_on_trace: bool, loader: ModuleType
 ) -> None:
     trace_id = "1" * 32
     span_id = "2" * 16
