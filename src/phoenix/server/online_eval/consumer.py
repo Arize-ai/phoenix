@@ -43,6 +43,7 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
     ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS,
     ONLINE_EVAL_PENDING_WORK_UNITS,
+    ONLINE_EVAL_RATE_OUT,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
 )
@@ -147,6 +148,8 @@ class OnlineEvalConsumer(DaemonTask):
         self._db_semaphore = db_semaphore
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._publish_metrics = get_env_enable_prometheus()
+        self.rate_out_count = 0
+        ONLINE_EVAL_RATE_OUT.labels(evaluation_target=self._evaluation_target)
 
     async def _run(self) -> None:
         while self._running:
@@ -437,6 +440,10 @@ class OnlineEvalConsumer(DaemonTask):
                     f"Online-eval work unit {unit.work_unit_id} finished after its claim "
                     "was lost; the annotation write is idempotent"
                 )
+            else:
+                self.rate_out_count += 1
+                if self._publish_metrics:
+                    ONLINE_EVAL_RATE_OUT.labels(evaluation_target=self._evaluation_target).inc()
 
     async def _retry_transition(
         self,

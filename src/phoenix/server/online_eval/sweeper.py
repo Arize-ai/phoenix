@@ -60,6 +60,7 @@ from phoenix.server.online_eval.project_evaluator_resolution import resolve_proj
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
+    ONLINE_EVAL_RATE_IN,
     ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS,
     ONLINE_EVAL_SWEEP_ATTEMPTS,
     ONLINE_EVAL_SWEEP_DURATION_SECONDS,
@@ -388,6 +389,7 @@ class EvalSweeper(DaemonTask):
         self._metric_labels = {"evaluation_target": evaluation_target}
         ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG.labels(**self._metric_labels)
         ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**self._metric_labels)
+        ONLINE_EVAL_RATE_IN.labels(**self._metric_labels)
         ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**self._metric_labels)
@@ -398,6 +400,7 @@ class EvalSweeper(DaemonTask):
         self._max_outstanding = max_outstanding
         self._late_commit_margin = timedelta(seconds=get_env_online_eval_frontier_lag_seconds())
         self._publish_metrics = get_env_enable_prometheus()
+        self.rate_in_count = 0
         self._sweeper_id = f"{evaluation_target.lower()}-sweeper-{token_hex(8)}"
         self._lease_name = f"{target.lease_name_prefix}:{consumer_group}"
         self._lease_held = False
@@ -521,6 +524,10 @@ class EvalSweeper(DaemonTask):
                 ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**labels).observe(
                     time.monotonic() - started_at
                 )
+        if renewed is not None:
+            self.rate_in_count += materialized_work_count
+            if self._publish_metrics and materialized_work_count:
+                ONLINE_EVAL_RATE_IN.labels(**labels).inc(materialized_work_count)
         if self._publish_metrics:
             if renewed is None:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
