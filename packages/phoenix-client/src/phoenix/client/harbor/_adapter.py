@@ -10,6 +10,7 @@ Contract tests pin the private attributes read here to supported Harbor versions
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -166,6 +167,7 @@ def _build_task_records(
                 steps=content.steps,
                 multi_step_reward_strategy=content.multi_step_reward_strategy,
                 config=content.config,
+                reference_output=content.reference_output,
             )
         )
     return tuple(records)
@@ -195,6 +197,7 @@ class _TaskContent:
     steps: tuple[StepRecord, ...]
     multi_step_reward_strategy: Literal["mean", "final"] | None
     config: dict[str, Any]
+    reference_output: dict[str, Any]
 
 
 def _read_task_content(task_dir: Path) -> _TaskContent:
@@ -230,6 +233,47 @@ def _read_task_content(task_dir: Path) -> _TaskContent:
         steps=tuple(steps),
         multi_step_reward_strategy=multi_step_reward_strategy,
         config=_redact_env(task_toml),
+        reference_output=_read_reference_output(task_dir, task.config.metadata),
+    )
+
+
+def _read_reference_output(task_dir: Path, metadata: Mapping[str, Any]) -> dict[str, Any]:
+    phoenix = metadata.get("phoenix", {})
+    setting = "metadata.phoenix.reference_output_path"
+    if not isinstance(phoenix, dict):
+        raise HarborPluginError(f"Task {task_dir}: metadata.phoenix must be a TOML table.")
+    if "reference_output_path" not in phoenix:
+        return {}
+    configured_path = phoenix["reference_output_path"]
+    if not isinstance(configured_path, str) or not configured_path.strip():
+        raise HarborPluginError(f"Task {task_dir}: {setting} must be a non-empty relative path.")
+    relative_path = Path(configured_path)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise HarborPluginError(
+            f"Task {task_dir}: {setting}={configured_path!r} must be relative to the task root "
+            "without '..' components."
+        )
+    try:
+        root = task_dir.resolve(strict=True)
+        path = (root / relative_path).resolve(strict=True)
+        if not path.is_relative_to(root):
+            raise HarborPluginError(
+                f"Task {task_dir}: {setting}={configured_path!r} resolves outside the task root."
+            )
+        value = json.loads(path.read_text(encoding="utf-8"))
+        json.dumps(value, allow_nan=False)
+    except (OSError, ValueError, RuntimeError) as error:
+        raise HarborPluginError(
+            f"Task {task_dir}: could not load {setting}={configured_path!r}: {error}. "
+            "Provide a readable UTF-8 JSON file inside the task root, or remove the setting."
+        ) from error
+    if isinstance(value, str):
+        return {"messages": [{"role": "assistant", "content": value}]}
+    if isinstance(value, dict):
+        return cast(dict[str, Any], value)
+    raise HarborPluginError(
+        f"Task {task_dir}: {setting}={configured_path!r} must contain a JSON string "
+        "or object. Wrap lists, numbers, booleans, or null in an object."
     )
 
 
