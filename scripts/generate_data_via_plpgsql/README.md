@@ -6,8 +6,15 @@ This directory contains scripts for generating synthetic trace data in PostgreSQ
 
 Generate spans:
 ```bash
-python generate_spans.py --num-batches 10 --traces-per-batch 100
+python generate_spans.py --num-batches 10 --traces-per-batch 100 --num-projects 5
 ```
+
+Traces are distributed round-robin across `generated-project-1` through
+`generated-project-N`, including across batch boundaries. Existing projects with
+those names are reused on subsequent runs. Use `--num-projects 1` to put all
+generated traces in one project. To run the SQL file directly, set
+`phoenix_generate.num_traces`, `phoenix_generate.num_projects`, and optionally
+`phoenix_generate.trace_offset` through `PGOPTIONS` (see `generate_spans.sql`).
 
 Add annotations to spans:
 ```bash

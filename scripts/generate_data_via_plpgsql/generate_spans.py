@@ -10,6 +10,7 @@ Usage:
 Options:
     --num-batches N      Number of batches to run (default: 10)
     --traces-per-batch N Number of traces per batch (default: 100)
+    --num-projects N     Number of projects to distribute traces across (default: 5)
     --db-name NAME       Database name (default: postgres)
     --db-user USER       Database user (default: postgres)
     --db-host HOST       Database host (default: localhost)
@@ -25,20 +26,33 @@ import time
 from datetime import timedelta
 
 
+def positive_int(value):
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
+
+
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Generate spans in batches")
     parser.add_argument(
         "--num-batches",
-        type=int,
+        type=positive_int,
         default=10,
         help="Number of batches to run (default: 10)",
     )
     parser.add_argument(
         "--traces-per-batch",
-        type=int,
+        type=positive_int,
         default=100,
         help="Number of traces per batch (default: 100)",
+    )
+    parser.add_argument(
+        "--num-projects",
+        type=positive_int,
+        default=5,
+        help="Number of projects to distribute traces across (default: 5)",
     )
     parser.add_argument(
         "--db-name",
@@ -81,6 +95,8 @@ def run_sql_script(
     db_password,
     script_path,
     num_traces=None,
+    num_projects=None,
+    trace_offset=0,
     print_output=False,
 ):
     """Run a SQL script file.
@@ -93,6 +109,8 @@ def run_sql_script(
         db_password: Database password
         script_path: Path to SQL script file
         num_traces: Number of traces to generate (optional)
+        num_projects: Number of projects to distribute traces across (optional)
+        trace_offset: Number of traces generated in previous batches
         print_output: Whether to print the output (default: False)
 
     Returns:
@@ -102,9 +120,13 @@ def run_sql_script(
     env = os.environ.copy()
     env["PGPASSWORD"] = db_password
 
-    # Set num_traces if provided
     if num_traces is not None:
-        env["num_traces"] = str(num_traces)
+        settings = (
+            f"-c phoenix_generate.num_traces={num_traces} "
+            f"-c phoenix_generate.num_projects={num_projects if num_projects is not None else 5} "
+            f"-c phoenix_generate.trace_offset={trace_offset}"
+        )
+        env["PGOPTIONS"] = f"{env.get('PGOPTIONS', '')} {settings}".strip()
 
     # Build the command
     cmd = [
@@ -117,6 +139,8 @@ def run_sql_script(
         db_name,
         "-U",
         db_user,
+        "-v",
+        "ON_ERROR_STOP=1",
         "-f",
         script_path,
     ]
@@ -165,7 +189,10 @@ def main():
         # Calculate total traces
         total_traces = args.num_batches * args.traces_per_batch
 
-        print(f"Generating {total_traces} traces in {args.num_batches} batches")
+        print(
+            f"Generating {total_traces} traces in {args.num_batches} batches "
+            f"across {args.num_projects} projects"
+        )
 
         # Record start time
         start_time = time.time()
@@ -185,6 +212,8 @@ def main():
                 args.db_password,
                 sql_script_path,
                 args.traces_per_batch,
+                num_projects=args.num_projects,
+                trace_offset=i * args.traces_per_batch,
                 print_output=False,  # Don't print output for generate_spans.sql
             ):
                 print(" failed")

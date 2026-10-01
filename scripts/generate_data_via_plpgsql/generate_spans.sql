@@ -73,7 +73,9 @@
  *
  * Configuration:
  *   - num_traces: Number of traces to generate (default: 100)
- *   - Can be set via environment variable: num_traces
+ *   - num_projects: Number of projects to distribute traces across (default: 5)
+ *   - trace_offset: Number of traces generated in previous batches (default: 0)
+ *   - Can be set via PGOPTIONS using phoenix_generate.<parameter>
  *
  * Performance Features:
  *   - Efficient batch processing
@@ -85,10 +87,11 @@
  *
  * Example:
  *   -- To run with custom parameters:
- *   num_traces=500 psql -d your_database -f generate_spans.sql
+ *   PGOPTIONS='-c phoenix_generate.num_traces=500 -c phoenix_generate.num_projects=5' \
+ *     psql -d your_database -f generate_spans.sql
  *
  * Expected Outcome:
- *   - Creates a 'default' project if it doesn't exist
+ *   - Creates and reuses generated-project-1 through generated-project-N
  *   - Generates spans across the specified number of traces
  *   - Each span has realistic timing and parent-child relationships
  *   - Spans include random data of two distinct sizes (1000B or 10B per field, doubled by hex encoding)
@@ -355,13 +358,19 @@ $$ LANGUAGE plpgsql;
 -- Function to generate spans
 -- Parameters:
 --   p_num_traces: Number of traces to generate (default: 100)
+--   p_num_projects: Number of projects to distribute traces across (default: 5)
+--   p_trace_offset: Number of traces generated in previous batches (default: 0)
 -- Returns: void
 CREATE OR REPLACE FUNCTION generate_spans(
-    p_num_traces INTEGER DEFAULT 100
+    p_num_traces INTEGER DEFAULT 100,
+    p_num_projects INTEGER DEFAULT 5,
+    p_trace_offset INTEGER DEFAULT 0
 ) RETURNS void AS
 $$
 DECLARE
     project_id        INTEGER;
+    project_ids       INTEGER[] := ARRAY[]::INTEGER[];
+    project_name      TEXT;
     trace_record      RECORD;
     span_id           TEXT;
     start_time        TIMESTAMP WITH TIME ZONE;
@@ -378,15 +387,22 @@ DECLARE
     v_layer3_count    INTEGER := 0;
     v_conversation_id UUID;
 BEGIN
-    -- Get the default project ID
-    SELECT id INTO project_id FROM public.projects WHERE name = 'default';
-
-    -- If project doesn't exist, create it
-    IF project_id IS NULL THEN
-        INSERT INTO public.projects (name, description)
-        VALUES ('default', 'Default project for testing span generation')
-        RETURNING id INTO project_id;
+    IF p_num_traces < 1 OR p_num_projects < 1 OR p_trace_offset < 0 THEN
+        RAISE EXCEPTION 'num_traces and num_projects must be positive; trace_offset must be nonnegative';
     END IF;
+
+    FOR project_number IN 1..p_num_projects LOOP
+        project_name := 'generated-project-' || project_number;
+        SELECT id INTO project_id FROM public.projects WHERE name = project_name;
+
+        IF project_id IS NULL THEN
+            INSERT INTO public.projects (name, description)
+            VALUES (project_name, 'Project for testing span generation')
+            RETURNING id INTO project_id;
+        END IF;
+
+        project_ids := array_append(project_ids, project_id);
+    END LOOP;
 
     -- Generate traces
     FOR i IN 1..p_num_traces
@@ -404,6 +420,7 @@ BEGIN
                 end_time := start_time + (random_duration * INTERVAL '1 minute');
 
                 -- Insert trace
+                project_id := project_ids[((p_trace_offset + i - 1) % p_num_projects) + 1];
                 INSERT INTO public.traces (project_rowid,
                                            trace_id,
                                            start_time,
@@ -530,17 +547,27 @@ DO
 $$
     DECLARE
         v_num_traces INTEGER;
+        v_num_projects INTEGER;
+        v_trace_offset INTEGER;
     BEGIN
         -- Get number of traces to generate from parameter if provided
-        v_num_traces := current_setting('num_traces', true)::INTEGER;
+        v_num_traces := current_setting('phoenix_generate.num_traces', true)::INTEGER;
+        v_num_projects := current_setting('phoenix_generate.num_projects', true)::INTEGER;
+        v_trace_offset := current_setting('phoenix_generate.trace_offset', true)::INTEGER;
 
         -- Use default if not set
         IF v_num_traces IS NULL THEN
             v_num_traces := 100;
         END IF;
+        IF v_num_projects IS NULL THEN
+            v_num_projects := 5;
+        END IF;
+        IF v_trace_offset IS NULL THEN
+            v_trace_offset := 0;
+        END IF;
 
         -- Generate spans
-        PERFORM generate_spans(v_num_traces);
+        PERFORM generate_spans(v_num_traces, v_num_projects, v_trace_offset);
     EXCEPTION
         WHEN OTHERS THEN
             RAISE NOTICE 'Error: % (SQLSTATE: %)', SQLERRM, SQLSTATE;
