@@ -71,16 +71,15 @@ describe("expected output queue", () => {
       ex1: { judge: { label: "fail" } },
       ex2: { judge: { label: "fail" } },
     });
+    // A landed write is silent: straight back to idle, nothing left to show.
     expect(queue.getState()).toMatchObject({
       pendingCount: 0,
-      status: "saved",
+      status: "idle",
       overlay: {},
     });
     expect(states.some((state) => state.status === "saving")).toBe(true);
     // Nothing left to write, so the max-wait timer was cancelled with the flush.
-    expect(timers.scheduled()).toEqual([2500]);
-    timers.fire(2500);
-    expect(queue.getState().status).toBe("idle");
+    expect(timers.scheduled()).toEqual([]);
   });
 
   it("keeps annotations made during a write for the next batch and shows both as recorded", async () => {
@@ -151,7 +150,7 @@ describe("expected output queue", () => {
       ex1: { judge: null },
       ex2: { judge: { label: "pass" } },
     });
-    expect(queue.getState().status).toBe("saved");
+    expect(queue.getState().status).toBe("idle");
   });
 
   it("clears the error when a retry of the failed batch succeeds", async () => {
@@ -173,7 +172,7 @@ describe("expected output queue", () => {
     // Retry calls flushNow directly, without a new annotation in between.
     expect(await queue.flushNow()).toEqual({ ok: true });
     expect(queue.getState()).toMatchObject({
-      status: "saved",
+      status: "idle",
       error: null,
       pendingCount: 0,
     });
