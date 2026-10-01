@@ -19,7 +19,8 @@ export type PromptModelProvider =
   | "MINIMAX"
   | "PERPLEXITY"
   | "ZAI"
-  | "META";
+  | "META"
+  | "TYPESAFE";
 
 /**
  * Supported prompt provider SDKs

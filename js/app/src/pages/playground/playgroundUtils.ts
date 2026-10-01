@@ -203,6 +203,8 @@ function convertAttributeToolCall({
         input: argumentsValue,
       } satisfies AnthropicToolCall;
     case "GOOGLE":
+    // TypeSafe AI has no tool call format of its own
+    case "TYPESAFE":
       return {
         id: toolCall.id ?? "",
         function: {
@@ -1462,6 +1464,8 @@ export const createToolCallForProvider = (
       return createAnthropicToolCall();
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
+    // TypeSafe AI has no chat/tool-call API; fall back to the generic shape
+    case "TYPESAFE":
       return createOpenAIToolCall();
     default:
       return assertUnreachable(provider);
