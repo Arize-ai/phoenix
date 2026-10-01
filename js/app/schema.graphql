@@ -5293,6 +5293,7 @@ enum SpanKind {
   reranker
   evaluator
   guardrail
+  decision
   unknown
 }
 
