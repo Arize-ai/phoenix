@@ -16,6 +16,7 @@ import pytest
 from phoenix.server.sandbox._download import (
     WASMBinaryUnavailable,
     ensure_wasm_binary,
+    external_resources_disallowed_message,
     no_local_storage_message,
     prefetch_wasm_binary_if_needed,
     resolve_wasm_binary_if_present,
@@ -351,8 +352,53 @@ class TestEnsureWasmBinaryEnvVarUnset:
         mock_urlopen.assert_not_called()
         assert not wasm_dir.exists()
 
+    def test_external_resources_disallowed_raises_without_download(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+        wasm_dir = tmp_path / "wasm"
+
+        with patch(_URLOPEN, side_effect=AssertionError("network used")):
+            with pytest.raises(WASMBinaryUnavailable) as exc_info:
+                ensure_wasm_binary(
+                    wasm_dir=wasm_dir,
+                    filename=_FILENAME,
+                    expected_sha256="",
+                )
+
+        assert str(exc_info.value) == external_resources_disallowed_message()
+        assert not wasm_dir.exists()
+
 
 class TestPrefetchWasmBinaryIfNeeded:
+    @pytest.mark.parametrize(
+        "env_var, value",
+        [
+            ("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "DENO"),
+            ("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false"),
+        ],
+    )
+    async def test_prefetch_skips_when_wasm_disallowed_or_external_resources_off(
+        self,
+        env_var: str,
+        value: str,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        monkeypatch.setenv(env_var, value)
+        wasm_dir = tmp_path / "wasm"
+        monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
+
+        with patch(_URLOPEN, side_effect=AssertionError("network used")):
+            with caplog.at_level("WARNING", logger="phoenix.server.sandbox._download"):
+                await prefetch_wasm_binary_if_needed()
+
+        assert not wasm_dir.exists()
+        assert not caplog.records
+
     async def test_prefetch_downloads_when_missing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

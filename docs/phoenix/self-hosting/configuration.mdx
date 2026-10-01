@@ -35,7 +35,7 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_WORKING\_DIR:** The directory in which to save, load, and export data. This directory must be accessible by both the Phoenix server and the notebook environment. Defaults to `~/.phoenix/`
 
-* **PHOENIX\_ALLOW\_EXTERNAL\_RESOURCES:** Controls whether external resources (such as Google Fonts) are loaded in the web interface. Defaults to `true`. Set to `false` in air-gapped environments to prevent external requests that can cause UI loading delays. Available since version 11.15.0.
+* **PHOENIX\_ALLOW\_EXTERNAL\_RESOURCES:** Controls whether Phoenix makes public-internet requests of its own, such as loading Google Fonts, sending telemetry, or downloading the WebAssembly sandbox runtime. Defaults to `true`. Set to `false` in air-gapped environments. Services you configure yourself, such as LLM providers and hosted sandboxes, aren't affected. See [Air-Gapped Deployments](/docs/phoenix/self-hosting/security/network-security#air-gapped-deployments) for the full list. Available since version 11.15.0.
 
 * **PHOENIX\_SQL\_DATABASE\_URL:** The SQL database URL to use when logging traces and evals. if you plan on using SQLite, it's advised to use a persistent volume and simply point the `PHOENIX_WORKING_DIR` to that volume. If URL is not specified, by default Phoenix starts with a file-based SQLite database in a temporary folder, the location of which will be shown at startup. Phoenix also supports PostgresSQL as shown below:
 
@@ -91,7 +91,7 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_ENABLE\_OAUTH2\_AUTHORIZATION\_SERVER:** Whether Phoenix serves its built-in OAuth2 authorization server, which lets MCP clients and the Phoenix CLI log in interactively via the browser. Defaults to `true`. Has no effect unless authentication is enabled. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full set of `PHOENIX_OAUTH2_*` tuning variables (grant expiry, dynamic client registration, redirect host allowlists, and rate limits).
 
-* **PHOENIX\_ALLOWED\_SANDBOX\_PROVIDERS:** A comma-separated, case-insensitive list of code-execution sandbox providers that Phoenix is permitted to use. When unset, all providers are allowed. Set to `NONE` to disable every sandbox provider. Unrecognized provider names will cause a startup error. Supported values: `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`. Example: `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO`. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) for details.
+* **PHOENIX\_ALLOWED\_SANDBOX\_PROVIDERS:** A comma-separated, case-insensitive list of code-execution sandbox providers that Phoenix is permitted to use. When unset, all providers are allowed. Set to `NONE` to disable every sandbox provider. Unrecognized provider names will cause a startup error. Supported values: `WASM`, `DENO`, `MONTY`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`. Example: `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO`. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) for details.
 
 ### Logging
 

@@ -158,8 +158,8 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
 
     assert backends["WASM"]["dependencyHints"] == [
         "Install Phoenix with the `wasm` extra so `wasmtime` is available.",
-        "Allow Phoenix to download the CPython WASM binary on first use, "
-        "or pre-populate the local WASM cache.",
+        "Set `PHOENIX_WASM_BINARY_PATH` to a local copy of the CPython WASM binary, "
+        "or let Phoenix download it at startup.",
     ]
     assert backends["E2B"]["dependencyHints"] == [
         "Install Phoenix with the `e2b` extra.",
