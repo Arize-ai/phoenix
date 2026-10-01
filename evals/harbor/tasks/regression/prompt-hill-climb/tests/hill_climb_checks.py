@@ -5,7 +5,6 @@ from datetime import date, datetime
 from typing import Any, Callable, NamedTuple
 
 from phoenix.client.__generated__ import v1
-from strawberry.relay import GlobalID
 
 from evals.harbor.verifiers import phoenix_api
 from evals.harbor.verifiers.graphql.__generated__ import (
@@ -15,8 +14,6 @@ from evals.harbor.verifiers.graphql.__generated__ import (
     ContinuousAnnotationConfigInput,
     DatasetEvaluatorFields,
     DatasetEvaluatorFieldsEvaluatorCodeEvaluator,
-    DatasetEvaluatorsNodeDataset,
-    DatasetExperimentsNodeDataset,
     EvaluatorInputMappingInput,
     EvaluatorKind,
     EvaluatorPreviewInput,
@@ -28,7 +25,6 @@ from evals.harbor.verifiers.graphql.__generated__ import (
     FreeformAnnotationConfigInput,
     InlineCodeEvaluatorInput,
 )
-from phoenix.server.api.types.node import from_global_id
 
 DATASET_NAME = "banking_saas_dataset_clean"
 
@@ -45,10 +41,6 @@ def fetch_dataset() -> tuple[str, list[v1.DatasetExample]]:
     return dataset.id, dataset.examples
 
 
-def rowid(node_id: str) -> int:
-    return from_global_id(GlobalID.from_id(node_id))[1]
-
-
 def reference_text(example: v1.DatasetExample) -> str:
     return str(example["output"].get("reference", ""))
 
@@ -63,23 +55,8 @@ def question(example: v1.DatasetExample) -> str:
 # --- evaluators and experiments -----------------------------------------------------
 
 
-def fetch_evaluators(dataset_id: str) -> list[DatasetEvaluatorFields]:
-    node = phoenix_api.graphql_client().dataset_evaluators(dataset_id, timeout=60.0).node
-    if not isinstance(node, DatasetEvaluatorsNodeDataset):
-        raise ValueError(f"{dataset_id} is not a dataset")
-    return [edge.node for edge in node.dataset_evaluators.edges]
-
-
 def builtin_key(evaluator: DatasetEvaluatorFields) -> str | None:
     return evaluator.evaluator.name if evaluator.evaluator.kind is EvaluatorKind.BUILTIN else None
-
-
-def fetch_experiments(dataset_id: str) -> list[ExperimentFields]:
-    """Every experiment run on the dataset, oldest first."""
-    node = phoenix_api.graphql_client().dataset_experiments(dataset_id, timeout=60.0).node
-    if not isinstance(node, DatasetExperimentsNodeDataset):
-        raise ValueError(f"{dataset_id} is not a dataset")
-    return sorted((edge.node for edge in node.experiments.edges), key=lambda x: x.created_at)
 
 
 def first_runs(experiment: ExperimentFields) -> list[ExperimentRunFields]:
@@ -263,7 +240,7 @@ def probe_evaluator(
                 }
                 for case in cases
             ]
-            example_rowid = rowid(example["node_id"])
+            example_rowid = phoenix_api.rowid(example["node_id"])
             try:
                 scores = preview_scores(evaluator, contexts)
             except Exception as exc:  # noqa: BLE001

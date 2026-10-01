@@ -14,8 +14,16 @@ from typing import Any
 
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
+from strawberry.relay import GlobalID
 
 from evals.harbor.verifiers.graphql.__generated__ import Client as GraphQLClient
+from evals.harbor.verifiers.graphql.__generated__ import (
+    DatasetEvaluatorFields,
+    DatasetEvaluatorsNodeDataset,
+    DatasetExperimentsNodeDataset,
+    ExperimentFields,
+)
+from phoenix.server.api.types.node import from_global_id
 
 PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
 ANSWER_PATH = "/app/answer.txt"
@@ -55,6 +63,25 @@ def annotation_labels(project: str, name: str) -> list[str]:
 def graphql_client() -> GraphQLClient:
     """The typed client that ``make codegen-harbor-graphql`` compiles from verifiers/graphql/operations."""
     return GraphQLClient(url=f"{PHOENIX_URL}/graphql")
+
+
+def rowid(node_id: str) -> int:
+    return from_global_id(GlobalID.from_id(node_id))[1]
+
+
+def dataset_evaluators(dataset_id: str) -> list[DatasetEvaluatorFields]:
+    node = graphql_client().dataset_evaluators(dataset_id, timeout=60.0).node
+    if not isinstance(node, DatasetEvaluatorsNodeDataset):
+        raise ValueError(f"{dataset_id} is not a dataset")
+    return [edge.node for edge in node.dataset_evaluators.edges]
+
+
+def dataset_experiments(dataset_id: str) -> list[ExperimentFields]:
+    """Every experiment run on the dataset, oldest first."""
+    node = graphql_client().dataset_experiments(dataset_id, timeout=60.0).node
+    if not isinstance(node, DatasetExperimentsNodeDataset):
+        raise ValueError(f"{dataset_id} is not a dataset")
+    return sorted((edge.node for edge in node.experiments.edges), key=lambda x: x.created_at)
 
 
 def graphql(

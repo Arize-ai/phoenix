@@ -2,15 +2,15 @@ import json
 
 import hill_climb_checks as hc
 
-from evals.harbor.verifiers import llm_judge, verify
+from evals.harbor.verifiers import llm_judge, phoenix_api, verify
 from evals.harbor.verifiers.graphql.__generated__ import ExperimentFields
 
 trajectory = verify.read_trajectory(verify.TRAJECTORY_PATH)
 reply = verify.final_reply(trajectory)
 started = verify.started_at(trajectory)
 dataset_id, examples = hc.fetch_dataset()
-evaluators = hc.fetch_evaluators(dataset_id)
-experiments = hc.fetch_experiments(dataset_id)
+evaluators = phoenix_api.dataset_evaluators(dataset_id)
+experiments = phoenix_api.dataset_experiments(dataset_id)
 examples_by_id = {e["node_id"]: e for e in examples}
 
 first, last = experiments[0], experiments[-1]
@@ -23,7 +23,8 @@ no_new_experiments_or_scores = started is not None and not any(
 )
 
 reply_names_both_experiments = all(
-    x.name in reply or x.id in reply or f"#{hc.rowid(x.id)}" in reply for x in (first, last)
+    x.name in reply or x.id in reply or f"#{phoenix_api.rowid(x.id)}" in reply
+    for x in (first, last)
 )
 
 links = hc.compare_links(reply)

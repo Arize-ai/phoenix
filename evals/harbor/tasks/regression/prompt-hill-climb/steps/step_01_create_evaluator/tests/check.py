@@ -2,11 +2,11 @@ import json
 
 import hill_climb_checks as hc
 
-from evals.harbor.verifiers import verify
+from evals.harbor.verifiers import phoenix_api, verify
 
 dataset_id, examples = hc.fetch_dataset()
-evaluators = hc.fetch_evaluators(dataset_id)
-experiments = hc.fetch_experiments(dataset_id)
+evaluators = phoenix_api.dataset_evaluators(dataset_id)
+experiments = phoenix_api.dataset_experiments(dataset_id)
 
 one_evaluator_attached = len(evaluators) == 1
 probe_verdicts = {e.name: hc.probe_evaluator(e, examples) for e in evaluators}
