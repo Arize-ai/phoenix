@@ -1,5 +1,7 @@
 # DECISION Spans
 
+> **Experimental.** Phoenix recognizes the DECISION kind and renders it with its own icon, but support for decision models is still being built out. There are no decision-specific semantic attributes yet, and no decision-model provider is fully supported. Expect these conventions to change.
+
 ## Purpose
 
 DECISION spans represent a call to a decision model: a model that scores or selects among candidate options supplied in the request rather than generating free-form text. Typical uses are routing (which agent or tool handles a request), classification (judging a condition), and rubric scoring (ranking items against criteria).

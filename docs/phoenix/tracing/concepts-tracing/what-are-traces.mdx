@@ -96,9 +96,9 @@ A Tool is a span that represents a call to an external tool such as a calculator
 
 A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.
 
-**DECISION**
+**DECISION** *(experimental)*
 
-A Decision is a span that represents a call to a decision model — a model that scores or selects among candidate options supplied in the request rather than generating free-form text. For example, a Decision span could represent a router choosing which agent handles a request, a classifier judging a condition, or a model scoring an item against a rubric.
+A Decision is a span that represents a call to a decision model — a model that scores or selects among candidate options supplied in the request rather than generating free-form text. For example, a Decision span could represent a router choosing which agent handles a request, a classifier judging a condition, or a model scoring an item against a rubric. Support for decision spans is still being built out; Phoenix recognizes the kind but does not yet fully support any decision-model provider.
 
 ## Span Attributes
 

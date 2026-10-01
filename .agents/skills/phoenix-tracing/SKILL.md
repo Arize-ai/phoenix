@@ -61,7 +61,7 @@ Reference these guidelines when:
 - [span-reranker](references/span-reranker.md) - Document re-ranking
 - [span-guardrail](references/span-guardrail.md) - Safety checks
 - [span-evaluator](references/span-evaluator.md) - LLM evaluation
-- [span-decision](references/span-decision.md) - Decision model calls (routing, classification, scoring)
+- [span-decision](references/span-decision.md) - Decision model calls (routing, classification, scoring) — experimental
 
 ### 4. Organization
 
