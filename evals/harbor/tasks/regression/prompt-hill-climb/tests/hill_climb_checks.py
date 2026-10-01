@@ -6,7 +6,10 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
+from strawberry.relay import GlobalID
+
 from evals.harbor.verifiers import phoenix_api, verify
+from phoenix.server.api.types.node import from_global_id
 
 QUERIES_DIR = Path(__file__).with_name("queries")
 DATASET_NAME = "banking_saas_dataset_clean"
@@ -26,7 +29,7 @@ class Example:
 
     @property
     def rowid(self) -> int:
-        return phoenix_api.rowid(self.node_id)
+        return from_global_id(GlobalID.from_id(self.node_id))[1]
 
     @property
     def reference_text(self) -> str:
@@ -89,7 +92,7 @@ class Experiment:
 
     @property
     def rowid(self) -> int:
-        return phoenix_api.rowid(self.node_id)
+        return from_global_id(GlobalID.from_id(self.node_id))[1]
 
     @property
     def scored_count(self) -> int:

@@ -6,7 +6,6 @@ GraphQL, so :func:`span_costs` uses the GraphQL API.
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 import urllib.request
@@ -59,15 +58,6 @@ def read_query(path: Path) -> str:
 
 def nodes(connection: dict[str, Any]) -> list[dict[str, Any]]:
     return [edge["node"] for edge in connection["edges"]]
-
-
-def rowid(node_id: str) -> int:
-    """The database row number inside a relay node id such as ``Experiment:12``."""
-    return int(base64.b64decode(node_id).decode().rsplit(":", 1)[1])
-
-
-def global_id(type_name: str, rowid: int) -> str:
-    return base64.b64encode(f"{type_name}:{rowid}".encode()).decode()
 
 
 def graphql(
