@@ -477,9 +477,9 @@ def _load_source(
     if pending_span_annos or pending_trace_annos:
         _wait_for_spans(client, project, span_ids)
     for batch in _batches(pending_span_annos):
-        client.spans.log_span_annotations(span_annotations=batch)
+        client.spans.log_span_annotations(span_annotations=batch, sync=True)
     for batch in _batches(pending_trace_annos):
-        client.traces.log_trace_annotations(trace_annotations=batch)
+        client.traces.log_trace_annotations(trace_annotations=batch, sync=True)
 
     logger.info(
         "%s: %d traces / %d spans / %d span annotations / %d trace annotations → %r",
