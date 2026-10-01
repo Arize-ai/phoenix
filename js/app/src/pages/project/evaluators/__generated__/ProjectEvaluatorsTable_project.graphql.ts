@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d207d54d774d5d5476631fb61a8cc1c>>
+ * @generated SignedSource<<43615baedcfb618ed20d48f66f23194b>>
  * @lightSyntaxTransform
  */
 
@@ -291,6 +291,20 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "queuedCount",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "oldestQueuedAt",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "newestQueuedAt",
                           "storageKey": null
                         },
                         (v7/*:: as any*/),

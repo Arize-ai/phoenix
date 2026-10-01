@@ -1758,7 +1758,7 @@ async def test_project_evaluator_run_summary(
                 span_id=token_hex(8),
                 name=f"span-{index}",
                 span_kind="LLM",
-                start_time=now,
+                start_time=now - timedelta(minutes=index),
                 end_time=now,
                 attributes={},
                 events=[],
@@ -1877,6 +1877,8 @@ async def test_project_evaluator_run_summary(
                         status
                         lastRunAt
                         queuedCount
+                        oldestQueuedAt
+                        newestQueuedAt
                         evaluatedCount
                         failedCount
                         droppedCount
@@ -1898,6 +1900,8 @@ async def test_project_evaluator_run_summary(
     assert run_summary["droppedCount"] == 1
     # Waiting: the PENDING unit and the ERROR with attempts remaining.
     assert run_summary["queuedCount"] == 2
+    assert datetime.fromisoformat(run_summary["oldestQueuedAt"]) == now - timedelta(minutes=4)
+    assert datetime.fromisoformat(run_summary["newestQueuedAt"]) == now - timedelta(minutes=2)
     # The newest FAILED unit's error — not the retrying unit's, which is newer but
     # not a failure, and not a lifecycle expiry's.
     assert run_summary["lastError"] == "execution deadline exceeded"
@@ -1935,10 +1939,10 @@ async def test_project_evaluator_run_summary_counts_trace_work(
             models.Trace(
                 trace_id=token_hex(8),
                 project_rowid=project.id,
-                start_time=now,
+                start_time=now - timedelta(minutes=index),
                 end_time=now,
             )
-            for _ in range(2)
+            for index in range(3)
         ]
         session.add_all([project_evaluator, *traces])
         await session.flush()
@@ -1963,6 +1967,15 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                     error="ROOT_SPAN_MISSING",
                     updated_at=now - timedelta(minutes=5),
                 ),
+                models.EvalTraceWorkUnit(
+                    trace_rowid=traces[2].id,
+                    evaluator_id=evaluator.id,
+                    project_evaluator_id=project_evaluator.id,
+                    config_fingerprint=fingerprint,
+                    evaluated_through=now,
+                    status="PENDING",
+                    updated_at=now,
+                ),
             ]
         )
         await session.flush()
@@ -1976,6 +1989,8 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                         status
                         lastRunAt
                         queuedCount
+                        oldestQueuedAt
+                        newestQueuedAt
                         evaluatedCount
                         failedCount
                         lastError
@@ -1991,7 +2006,9 @@ async def test_project_evaluator_run_summary_counts_trace_work(
     assert run_summary["status"] == "RUNNING"
     assert run_summary["evaluatedCount"] == 1
     assert run_summary["failedCount"] == 1
-    assert run_summary["queuedCount"] == 0
+    assert run_summary["queuedCount"] == 1
+    assert datetime.fromisoformat(run_summary["oldestQueuedAt"]) == now - timedelta(minutes=2)
+    assert datetime.fromisoformat(run_summary["newestQueuedAt"]) == now - timedelta(minutes=2)
     assert run_summary["lastError"] == "ROOT_SPAN_MISSING"
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
 
@@ -2081,7 +2098,7 @@ async def test_project_evaluator_run_summary_reports_error_when_failure_is_newes
         """query ($id: ID!) {
             node(id: $id) {
                 ... on ProjectEvaluator {
-                    runSummary { status lastError }
+                    runSummary { status lastError queuedCount oldestQueuedAt newestQueuedAt }
                 }
             }
         }""",
@@ -2092,6 +2109,9 @@ async def test_project_evaluator_run_summary_reports_error_when_failure_is_newes
     run_summary = response.data["node"]["runSummary"]
     assert run_summary["status"] == "ERROR"
     assert run_summary["lastError"] == "credentials expired"
+    assert run_summary["queuedCount"] == 0
+    assert run_summary["oldestQueuedAt"] is None
+    assert run_summary["newestQueuedAt"] is None
 
 
 async def test_project_evaluator_failure_summary_is_scoped_to_the_time_range(

@@ -38,7 +38,8 @@ class ProjectEvaluatorRunCounts:
     """How much evaluation work a project evaluator has produced, and when.
 
     Counts cover every evaluation target and reach back only as far as the online-eval
-    retention window, after which completed work is reaped.
+    retention window, after which completed work is reaped. Queued bounds refer to
+    the start time of the span, trace, or session waiting to be evaluated.
     """
 
     queued: int = 0
@@ -48,6 +49,8 @@ class ProjectEvaluatorRunCounts:
     last_evaluated_at: Optional[datetime] = None
     last_failed_at: Optional[datetime] = None
     last_error: Optional[str] = None
+    oldest_queued_at: Optional[datetime] = None
+    newest_queued_at: Optional[datetime] = None
 
 
 class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCounts]):
@@ -76,6 +79,22 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
         intervals = list(dict.fromkeys((start, end) for _, start, end in keys))
         async with self._db.read() as session:
             result = await _load_run_counts(session, project_evaluator_ids, intervals)
+            unbounded_ids = [
+                project_evaluator_id
+                for project_evaluator_id, start, end in keys
+                if start is None
+                and end is None
+                and result.get(
+                    (project_evaluator_id, None, None), ProjectEvaluatorRunCounts()
+                ).queued
+            ]
+            if unbounded_ids:
+                bounds = await _load_queue_bounds(session, sorted(set(unbounded_ids)))
+                for project_evaluator_id, (oldest, newest) in bounds.items():
+                    key = (project_evaluator_id, None, None)
+                    result[key] = replace(
+                        result[key], oldest_queued_at=oldest, newest_queued_at=newest
+                    )
             for interval in intervals:
                 last_errors = await _load_last_errors(session, project_evaluator_ids, interval)
                 for project_evaluator_id, error in last_errors.items():
@@ -84,6 +103,44 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
                     result[key] = replace(counts, last_error=error)
         empty = ProjectEvaluatorRunCounts()
         return [result.get(key, empty) for key in keys]
+
+
+async def _load_queue_bounds(
+    session: AsyncSession, project_evaluator_ids: list[ProjectEvaluatorId]
+) -> dict[ProjectEvaluatorId, tuple[datetime, datetime]]:
+    """Find the start-time window of live work across span, trace, and session targets."""
+    targets = (
+        (models.EvalWorkUnit, models.Span, models.EvalWorkUnit.span_rowid),
+        (models.EvalTraceWorkUnit, models.Trace, models.EvalTraceWorkUnit.trace_rowid),
+        (
+            models.EvalSessionWorkUnit,
+            models.ProjectSession,
+            models.EvalSessionWorkUnit.project_session_rowid,
+        ),
+    )
+    statements = [
+        sa.select(
+            work_unit.project_evaluator_id,
+            sa.func.min(target.start_time).label("oldest"),
+            sa.func.max(target.start_time).label("newest"),
+        )
+        .join(target, target.id == target_id)
+        .where(
+            work_unit.project_evaluator_id.in_(project_evaluator_ids),
+            work_unit.status.in_(LIVE_EVAL_WORK_STATUSES),
+        )
+        .group_by(work_unit.project_evaluator_id)
+        for work_unit, target, target_id in targets
+    ]
+    bounds: dict[ProjectEvaluatorId, tuple[datetime, datetime]] = {}
+    async for project_evaluator_id, oldest, newest in await session.stream(
+        sa.union_all(*statements)
+    ):
+        if project_evaluator_id in bounds:
+            previous_oldest, previous_newest = bounds[project_evaluator_id]
+            oldest, newest = min(oldest, previous_oldest), max(newest, previous_newest)
+        bounds[project_evaluator_id] = (oldest, newest)
+    return bounds
 
 
 async def _load_run_counts(

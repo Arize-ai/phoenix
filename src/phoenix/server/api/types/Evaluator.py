@@ -138,6 +138,12 @@ class ProjectEvaluatorRunSummary:
     queued_count: int = strawberry.field(
         description="Evaluations waiting to run, including ones awaiting a retry."
     )
+    oldest_queued_at: Optional[datetime] = strawberry.field(
+        description="Start time of the oldest queued span, trace, or session; null when empty."
+    )
+    newest_queued_at: Optional[datetime] = strawberry.field(
+        description="Start time of the newest queued span, trace, or session; null when empty."
+    )
     evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
     failed_count: int = strawberry.field(description="Evaluations that were given up on.")
     dropped_count: int = strawberry.field(
@@ -167,6 +173,8 @@ def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> Project
         status=status,
         last_run_at=max(filter(None, (last_evaluated_at, last_failed_at)), default=None),
         queued_count=counts.queued,
+        oldest_queued_at=counts.oldest_queued_at,
+        newest_queued_at=counts.newest_queued_at,
         evaluated_count=counts.evaluated,
         failed_count=counts.failed,
         dropped_count=counts.dropped,

@@ -3869,6 +3869,16 @@ type ProjectEvaluatorRunSummary {
   """Evaluations waiting to run, including ones awaiting a retry."""
   queuedCount: Int!
 
+  """
+  Start time of the oldest queued span, trace, or session; null when empty.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Start time of the newest queued span, trace, or session; null when empty.
+  """
+  newestQueuedAt: DateTime
+
   """Evaluations that produced an annotation."""
   evaluatedCount: Int!
 
