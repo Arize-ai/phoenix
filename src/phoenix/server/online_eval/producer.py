@@ -47,6 +47,7 @@ from phoenix.server.online_eval.project_evaluator_resolution import resolve_proj
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
+    ONLINE_EVAL_RATE_IN,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
@@ -149,6 +150,8 @@ class OnlineEvalProducer(DaemonTask):
         self._last_backstop_at = time.monotonic()
         self._lease_held = False
         self._publish_metrics = get_env_enable_prometheus()
+        self.rate_in_count = 0
+        ONLINE_EVAL_RATE_IN.labels(evaluation_target=self._evaluation_target)
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
@@ -492,6 +495,8 @@ class OnlineEvalProducer(DaemonTask):
         frontier: int,
         budget: int,
     ) -> tuple[bool, int]:
+        materialized_count = 0
+        truncated = False
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
                 span_ids = list(
@@ -501,7 +506,9 @@ class OnlineEvalProducer(DaemonTask):
                 )
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
+                materialized_count += await self._insert_work_units(
+                    session, project_evaluator, admitted_span_ids
+                )
                 budget -= len(admitted_span_ids)
                 if len(admitted_span_ids) < len(sampled_span_ids) or (
                     budget == 0 and index < len(active) - 1
@@ -511,21 +518,29 @@ class OnlineEvalProducer(DaemonTask):
                         f"{budget} budget remaining"
                     )
                     await self._fence_mutating_session(session)
-                    return False, budget
-            advanced = await session.scalar(
-                update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
+                    truncated = True
+                    break
+            if not truncated:
+                advanced = await session.scalar(
+                    update(models.EvalWorkCursor)
+                    .where(
+                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
+                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
+                        models.EvalWorkCursor.claimed_by == self._producer_id,
+                    )
+                    .values(produced_through_id=frontier)
+                    .returning(models.EvalWorkCursor.id)
                 )
-                .values(produced_through_id=frontier)
-                .returning(models.EvalWorkCursor.id)
-            )
-            if advanced is None:
-                self._lease_held = False
-                raise _CursorLeaseLost
-        return True, budget
+                if advanced is None:
+                    self._lease_held = False
+                    raise _CursorLeaseLost
+        self._record_rate_in(materialized_count)
+        return not truncated, budget
+
+    def _record_rate_in(self, count: int) -> None:
+        self.rate_in_count += count
+        if self._publish_metrics and count:
+            ONLINE_EVAL_RATE_IN.labels(evaluation_target=self._evaluation_target).inc(count)
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
@@ -584,13 +599,16 @@ class OnlineEvalProducer(DaemonTask):
         # Window is [watermark - lookback, watermark], matching the reaper's floor
         # exactly so every retained terminal row is inside the swept range.
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
+        materialized_count = 0
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
                 stmt = project_evaluator.materializable_scan_stmt(low_exclusive, watermark)
                 span_ids = list(await session.scalars(stmt))
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
+                materialized_count += await self._insert_work_units(
+                    session, project_evaluator, admitted_span_ids
+                )
                 budget -= len(admitted_span_ids)
                 if len(admitted_span_ids) < len(sampled_span_ids) or (
                     budget == 0 and index < len(active) - 1
@@ -601,6 +619,7 @@ class OnlineEvalProducer(DaemonTask):
                     )
                     break
             await self._fence_mutating_session(session)
+        self._record_rate_in(materialized_count)
         return budget
 
     async def _fence_mutating_session(self, session: AsyncSession) -> None:
@@ -623,9 +642,9 @@ class OnlineEvalProducer(DaemonTask):
         session: AsyncSession,
         project_evaluator: _ActiveProjectEvaluator,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
         if not span_ids:
-            return
+            return 0
         records = [
             {
                 "span_rowid": span_rowid,
@@ -635,10 +654,11 @@ class OnlineEvalProducer(DaemonTask):
             }
             for span_rowid in span_ids
         ]
+        materialized_count = 0
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
             batch = records[start : start + _INSERT_BATCH_SIZE]
             batch_span_ids = [record["span_rowid"] for record in batch]
-            await session.execute(
+            revived = await session.execute(
                 update(models.EvalWorkUnit)
                 .where(
                     models.EvalWorkUnit.span_rowid.in_(batch_span_ids),
@@ -661,13 +681,17 @@ class OnlineEvalProducer(DaemonTask):
                     claimed_at=None,
                     cooldown_until=None,
                 )
+                .returning(models.EvalWorkUnit.id)
             )
-            await session.execute(
+            materialized_count += len(revived.all())
+            inserted = await session.execute(
                 insert_on_conflict(
                     *batch,
                     table=models.EvalWorkUnit,
                     dialect=self._db.dialect,
                     unique_by=_WORK_UNIT_UNIQUE_BY,
                     on_conflict=OnConflict.DO_NOTHING,
-                )
+                ).returning(models.EvalWorkUnit.id)
             )
+            materialized_count += len(inserted.all())
+        return materialized_count

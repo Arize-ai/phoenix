@@ -1473,6 +1473,10 @@ async def test_a_vocabulary_name_binds_only_through_a_metadata_path(
 async def test_happy_path_claims_evaluates_annotates_and_completes(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    metric = Mock()
+    metric.labels.return_value = metric
+    monkeypatch.setattr(consumer_module, "ONLINE_EVAL_RATE_OUT", metric)
+    monkeypatch.setattr(consumer_module, "get_env_enable_prometheus", lambda: True)
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -1487,6 +1491,8 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
     await consumer._cycle()
+    assert consumer.rate_out_count == 1
+    metric.inc.assert_called_once_with()
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "DONE"
@@ -1508,6 +1514,8 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     # Nothing is claimable afterwards; a repeat cycle writes nothing new.
     await consumer._cycle()
     assert len(await _annotations(db)) == 1
+    assert consumer.rate_out_count == 1
+    metric.inc.assert_called_once_with()
 
 
 async def test_custom_provider_materializes_claims_executes_and_annotates(
@@ -2452,6 +2460,7 @@ async def test_unavailable_sandbox_runtime_expires_without_counting_attempt(
     assert unit.attempts == 0
     assert unit.error == "SANDBOX_RUNTIME_UNAVAILABLE"
     assert await _annotations(db) == []
+    assert consumer.rate_out_count == 0
 
 
 async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
@@ -2754,6 +2763,7 @@ async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(
     assert unit.cooldown_until is not None
     assert unit.cooldown_until > before
     assert await _annotations(db) == []
+    assert consumer.rate_out_count == 0
 
 
 async def test_transient_provider_error_retries_without_burning_attempts(
@@ -3264,6 +3274,7 @@ async def test_complete_retries_after_ambiguous_commit(
     await consumer._process_unit(unit)
 
     assert complete_calls == 1
+    assert consumer.rate_out_count == 0
     assert (await _get_unit(db, unit_id)).status == "DONE"
 
 

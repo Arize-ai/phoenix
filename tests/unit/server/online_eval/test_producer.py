@@ -224,7 +224,12 @@ async def test_storage_pause_skips_materialization_and_cursor_advance(
 
 async def test_tick_materializes_matching_spans_and_advances_watermark(
     db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    metric = Mock()
+    metric.labels.return_value = metric
+    monkeypatch.setattr(producer_module, "ONLINE_EVAL_RATE_IN", metric)
+    monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -248,6 +253,8 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
 
     materialized = await _work_unit_span_rowids(db)
     assert sorted(materialized) == sorted(span.id for span in llm_spans)
+    assert producer.rate_in_count == len(llm_spans)
+    metric.inc.assert_called_once_with(len(llm_spans))
     assert tool_span.id not in materialized
     assert other_span.id not in materialized
 
@@ -283,6 +290,8 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
+    assert producer.rate_in_count == len(llm_spans)
+    metric.inc.assert_called_once_with(len(llm_spans))
 
 
 async def test_builtin_implementation_version_changes_fingerprint(
@@ -713,6 +722,7 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
         )
 
     await producer._backstop_sweep(active, watermark, 10)
+    assert producer.rate_in_count == 1
 
     async with db() as session:
         units = list(await session.scalars(select(models.EvalWorkUnit)))
@@ -1269,6 +1279,7 @@ async def test_unexpected_criteria_load_error_fails_closed(
         await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
+    assert producer.rate_in_count == 0
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == 0
 
@@ -1362,13 +1373,14 @@ async def test_lost_lease_rolls_back_materialization_and_aborts_tick(
         session: Any,
         project_evaluator: Any,
         span_ids: list[int],
-    ) -> None:
-        await insert_work_units(session, project_evaluator, span_ids)
+    ) -> int:
+        count = await insert_work_units(session, project_evaluator, span_ids)
         await session.execute(
             update(models.EvalWorkCursor)
             .where(models.EvalWorkCursor.id == cursor_id)
             .values(claimed_by="rival-producer")
         )
+        return count
 
     monkeypatch.setattr(producer, "_insert_work_units", _insert_then_lose_lease)
 
@@ -1376,6 +1388,7 @@ async def test_lost_lease_rolls_back_materialization_and_aborts_tick(
         await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
+    assert producer.rate_in_count == 0
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == span.id - 1
     assert cursor.claimed_by == producer._producer_id
@@ -1411,14 +1424,14 @@ async def test_separate_lease_steal_rolls_back_truncated_frontier(
         session: Any,
         project_evaluator: Any,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
         async with db() as rival_session:
             await rival_session.execute(
                 update(models.EvalWorkCursor)
                 .where(models.EvalWorkCursor.id == cursor_id)
                 .values(claimed_by="rival-producer")
             )
-        await insert_work_units(session, project_evaluator, span_ids)
+        return await insert_work_units(session, project_evaluator, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _steal_then_insert)
 
@@ -1451,14 +1464,14 @@ async def test_separate_lease_steal_rolls_back_backstop(
         session: Any,
         project_evaluator: Any,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
         async with db() as rival_session:
             await rival_session.execute(
                 update(models.EvalWorkCursor)
                 .where(models.EvalWorkCursor.id == cursor_id)
                 .values(claimed_by="rival-producer")
             )
-        await insert_work_units(session, project_evaluator, span_ids)
+        return await insert_work_units(session, project_evaluator, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _steal_then_insert)
 

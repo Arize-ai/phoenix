@@ -229,6 +229,18 @@ ONLINE_EVAL_MATERIALIZED_WORK_UNITS = Counter(
     documentation="Total number of online-eval work units materialized",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
+ONLINE_EVAL_RATE_IN = Counter(
+    namespace="phoenix",
+    name="online_eval_rate_in_total",
+    documentation="Total online-eval work units committed to the queue",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_RATE_OUT = Counter(
+    namespace="phoenix",
+    name="online_eval_rate_out_total",
+    documentation="Total online-eval work units completed by consumers",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
 
 
 def _join_paths(prefix: str, path: str) -> str:

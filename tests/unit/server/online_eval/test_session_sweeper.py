@@ -1060,6 +1060,7 @@ async def test_lost_lease_rolls_back_sweep(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
     assert work_count == 0
+    assert sweeper.rate_in_count == 0
     assert "SESSION evaluation sweeper lost its lease" in caplog.text
 
 
@@ -1542,6 +1543,7 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
         "ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG",
         "ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS",
         "ONLINE_EVAL_MATERIALIZED_WORK_UNITS",
+        "ONLINE_EVAL_RATE_IN",
         "ONLINE_EVAL_SWEEP_ATTEMPTS",
         "ONLINE_EVAL_SWEEP_DURATION_SECONDS",
         "ONLINE_EVAL_SWEEP_FAILURES",
@@ -1563,9 +1565,12 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     metrics["ONLINE_EVAL_SWEEP_SUCCESSES"].inc.assert_called_once_with()
     metrics["ONLINE_EVAL_SWEEP_FAILURES"].inc.assert_not_called()
     metrics["ONLINE_EVAL_MATERIALIZED_WORK_UNITS"].inc.assert_called_once_with(1)
+    metrics["ONLINE_EVAL_RATE_IN"].inc.assert_called_once_with(1)
+    assert sweeper.rate_in_count == 1
 
     sweeper._max_outstanding = 0
     await sweeper._tick()
+    assert sweeper.rate_in_count == 1
     metrics["ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_once_with(1)
     assert metrics["ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS"].set.call_count == 2
 
