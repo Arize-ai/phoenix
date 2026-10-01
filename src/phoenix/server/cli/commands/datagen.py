@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from argparse import SUPPRESS, Namespace
+from argparse import Namespace
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Mapping, TypeVar
 
@@ -28,9 +28,9 @@ class _Config:
 
 
 def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
+    # No `help=`, so argparse leaves this internal command out of `phoenix --help`.
     parser = subparsers.add_parser(
         "datagen",
-        help=SUPPRESS,
         description=(
             "Internal Phoenix development tool. Not a supported feature: "
             "these flags, the default project name, and the corpus format "
