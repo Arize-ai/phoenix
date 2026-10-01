@@ -6,8 +6,9 @@ import { JSONPreview } from "@phoenix/components/code/JSONPreview";
 import { truncateJsonPreview } from "@phoenix/components/code/truncateJsonPreview";
 
 const meta: Meta<typeof JSONPreview> = {
-  title: "Code/JSONPreview",
+  title: "Design System/Code/JSON Preview",
   component: JSONPreview,
+  tags: ["unused", "updated", "incomplete", "unreviewed"],
   parameters: {
     layout: "padded",
     docs: {
