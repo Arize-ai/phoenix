@@ -1,15 +1,14 @@
-import { css } from "@emotion/react";
 import { useMemo, useState } from "react";
 import { useStore } from "zustand";
 
 import {
-  Button,
   ExternalLinkButton,
   Flex,
   Icon,
   Icons,
   RecordIcon,
   Timer,
+  ToggleButton,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -168,21 +167,19 @@ export function PlaygroundExperimentToolbar({
         />
       ) : null}
       <PlaygroundDatasetSelect isDisabled={isRunning || isEditingExamples} />
-      {/* One control, one place: it opens the session and, once one is under
-          way, cancels it, so the toolbar never shifts. Editing itself happens
-          in the table under the floating edit toolbar. */}
+      {/* One control, one place: pressed while a session is under way, it
+          opens the session and cancels it, and never changes its footprint.
+          Editing itself happens in the table under the floating edit toolbar. */}
       <TooltipTrigger>
-        <Button
+        <ToggleButton
           size="S"
-          css={editToggleCSS}
-          leadingVisual={
-            <Icon svg={isEditingExamples ? <Icons.Close /> : <Icons.Edit />} />
-          }
+          leadingVisual={<Icon svg={<Icons.Edit />} />}
+          isSelected={isEditingExamples}
           isDisabled={isEditingExamples ? isSavingExamples : isRunning}
-          onPress={toggleEditing}
+          onChange={toggleEditing}
         >
-          {isEditingExamples ? "Cancel" : "Edit"}
-        </Button>
+          Edit
+        </ToggleButton>
         <Tooltip>
           <TooltipArrow />
           {isEditingExamples
@@ -207,8 +204,3 @@ export function PlaygroundExperimentToolbar({
     </Flex>
   );
 }
-
-// Wide enough for either label, so the toggle keeps its footprint.
-const editToggleCSS = css`
-  min-width: var(--global-dimension-size-1200);
-`;
