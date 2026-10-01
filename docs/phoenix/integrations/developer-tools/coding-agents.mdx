@@ -30,6 +30,22 @@ The steps to connect depend on your agent. Find yours in the table.
 
 Then ask your agent a question, such as *List my Phoenix projects*.
 
+## Hand it a job
+
+Instrument an app:
+
+```text
+Use the Phoenix tracing skill to instrument this application. First inspect the codebase and identify the LLM providers, frameworks, package manager, and existing OpenTelemetry setup. Then propose the Phoenix instrumentation plan before changing code.
+```
+
+Run the [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations) flow end to end:
+
+```text
+Download https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv and create a Phoenix dataset called "travel-support" from it, mapping the question column to input and expected_answer to output. Then write an LLM-as-a-judge evaluator that scores whether a reply answers the question and matches the expected answer. Run an experiment over the dataset with a travel support prompt, and tell me which examples scored lowest and why.
+```
+
+Every example scores 0 on that first run: the prompt knows nothing about this airline. Then reply *Add the Basic fare policy to the prompt, rerun the experiment, and compare the scores.*
+
 ## Find your Phoenix endpoint
 
 Every setup needs the **endpoint** of your Phoenix instance: the base URL you open Phoenix at in the browser, with no trailing slash and no path such as `/mcp` or `/v1`. Go to the **Settings** page in your Phoenix instance to find your endpoint and, if auth is enabled, to create an **API key**.

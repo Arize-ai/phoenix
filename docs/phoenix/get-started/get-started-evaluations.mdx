@@ -6,41 +6,9 @@ Evaluations in Phoenix run offline: an evaluator scores every run of an experime
 
 Everything below works on a fresh Phoenix with nothing instrumented yet. The judge and the Playground call a model, so add your OpenAI or Anthropic key first: **Settings → AI Providers**, edit the provider, **Server** tab. Or start Phoenix with `OPENAI_API_KEY` set.
 
-## Hand it to a coding agent
-
-Install the Phoenix skills, then paste this prompt.
-
-```bash
-npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-evals
-```
-
-```text
-Download https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv
-and create a Phoenix dataset called "travel-support" from it, mapping the
-question column to input and expected_answer to output.
-
-Then write an LLM-as-a-judge evaluator that scores whether a reply answers the
-question and matches the expected answer. Run an experiment over the dataset
-with a travel support prompt, and tell me which examples scored lowest and why.
-```
-
-Every example scores 0 on that first run: the prompt knows nothing about this airline. Then reply:
-
-```text
-Add the Basic fare policy to the prompt, rerun the experiment, and compare the scores.
-```
-
-## Or ask PXI
-
-[PXI](/docs/phoenix/pxi), the agent built into Phoenix, runs the whole flow and invents the dataset. Open it from any page, set it to Bypass Approval, and paste:
-
-```text
-Create a dataset called airline-support with 3 examples: customer questions about a fictional airline's Basic fare, with input {"question": ...} and output {"expected_answer": ...}. Invent a refund, change, and baggage policy that differs from industry norms. Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
-```
-
-When it reports the scores, reply *Add the policy to the prompt and rerun*.
-
-## Do it yourself
+<Note>
+A coding agent or [PXI](/docs/phoenix/pxi) can run this whole flow for you. [Set Up Your Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job) has the prompt.
+</Note>
 
 <Steps>
   <Step title={<span className="step-title">Start with a handful of examples</span>}>

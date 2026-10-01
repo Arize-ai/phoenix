@@ -41,6 +41,16 @@ PXI is in **beta** and will make mistakes. Use it with care on production data. 
   </Step>
 </Steps>
 
+## Try a full workflow
+
+Set PXI to Bypass Approval and paste:
+
+```text
+Create a dataset called airline-support with 3 examples: customer questions about a fictional airline's Basic fare, with input {"question": ...} and output {"expected_answer": ...}. Invent a refund, change, and baggage policy that differs from industry norms. Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
+```
+
+When it reports the scores, reply *Add the policy to the prompt and rerun*.
+
 ## Learn more
 
 [Learn more](/docs/phoenix/pxi-learn-more) covers skills, the permission model, the terminal client, slash commands, model providers, and every configuration setting.
