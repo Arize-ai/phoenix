@@ -320,8 +320,8 @@ export const ChainJsonIO: Story = {
 };
 
 /**
- * A decision span: a router model selecting one of the candidate routes in
- * its input. The generic view with JSON input / output and a metadata card.
+ * A decision span (experimental). No cards of its own yet, and this one has
+ * no input or output, so the attributes card is all it shows.
  */
 export const Decision: Story = {
   args: { span: decisionSpan },
