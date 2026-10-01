@@ -17,6 +17,7 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
+import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
@@ -50,8 +51,8 @@ export function PlaygroundRunButton() {
   const hasDataset =
     resolvePlaygroundDatasetId({ searchParams, storeDatasetId }) != null;
 
-  const isEditingExamples = usePlaygroundContext(
-    (state) => state.isEditingExamples
+  const isEditingExamples = usePlaygroundExampleEditing(
+    (session) => session.mode !== "read"
   );
 
   // Evaluators judge dataset examples; prompts can also run on manual input.

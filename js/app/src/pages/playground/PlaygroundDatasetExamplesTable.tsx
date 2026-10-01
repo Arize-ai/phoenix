@@ -1466,13 +1466,13 @@ export function PlaygroundDatasetExamplesTable({
   // Whether the session's rows hide the annotations is fixed when the session
   // starts. Pending edits are snapshots of what the cells showed, so the
   // preference changing underneath them would mislay the hidden part on save.
+  // Outside a session it follows the preference, adjusted during render so
+  // the rows below never see a stale value.
   const [hidesAnnotationsForEditing, setHidesAnnotationsForEditing] =
     useState(hideAnnotations);
-  useEffect(() => {
-    if (!isEditingExamples) {
-      setHidesAnnotationsForEditing(hideAnnotations);
-    }
-  }, [isEditingExamples, hideAnnotations]);
+  if (!isEditingExamples && hidesAnnotationsForEditing !== hideAnnotations) {
+    setHidesAnnotationsForEditing(hideAnnotations);
+  }
 
   // In an edit session the new examples lead, and each saved example's
   // metadata is the metadata as its column shows it, with anything hidden

@@ -472,8 +472,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     streaming: true,
     repetitions: 1,
     recordExperiments: true,
-    isEditingExamples: false,
-    unsavedExampleChangeCount: 0,
     runExampleIds: null,
     nextExperimentScaffold: null,
     operationType: "chat",
@@ -1180,11 +1178,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setRepetitions: (repetitions: number) => {
       set({ repetitions }, false, { type: "setRepetitions" });
-    },
-    setExampleEditing: ({ isEditingExamples, unsavedExampleChangeCount }) => {
-      set({ isEditingExamples, unsavedExampleChangeCount }, false, {
-        type: "setExampleEditing",
-      });
     },
     setRecordExperiments: (recordExperiments: boolean) => {
       set({ recordExperiments }, false, { type: "setRecordExperiments" });

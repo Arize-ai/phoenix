@@ -10,3 +10,8 @@ export {
   restoreHiddenMetadata,
   toEditableMetadata,
 } from "./playgroundExampleEditing";
+export {
+  PlaygroundExampleEditingProvider,
+  usePlaygroundExampleEditing,
+  usePlaygroundExampleEditStore,
+} from "./PlaygroundExampleEditingContext";

@@ -112,6 +112,10 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { describeUnsavedExampleChanges } from "@phoenix/pages/examples/unsavedExampleChanges";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
+import {
+  PlaygroundExampleEditingProvider,
+  usePlaygroundExampleEditing,
+} from "@phoenix/pages/playground/examplesEditing";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import {
   arePlaygroundTaskParamsEqual,
@@ -124,6 +128,10 @@ import {
   type AgentClientActionResult,
   waitForRegisteredClientActions,
 } from "@phoenix/store/agentStore";
+import {
+  getEditableTableChangeCount,
+  hasEditableTableUnsavedChanges,
+} from "@phoenix/store/editableTableStore";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
@@ -216,23 +224,29 @@ export function Playground(
       defaultModelProvider={defaultModelProvider}
       defaultModelName={defaultModelName}
     >
-      <div css={playgroundWrapCSS}>
-        {/* The panels below shrink, not the header, so the header controls
-            stay put whatever kind of task the page holds. */}
-        <View borderBottomColor="default" borderBottomWidth="thin" flex="none">
-          <PageHeader
-            title="Playground"
-            extra={
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <PlaygroundCredentialsDropdown />
-                <PlaygroundConfigButton />
-                <PlaygroundRunButton />
-              </Flex>
-            }
-          />
-        </View>
-        <PlaygroundContent />
-      </div>
+      <PlaygroundExampleEditingProvider>
+        <div css={playgroundWrapCSS}>
+          {/* The panels below shrink, not the header, so the header controls
+              stay put whatever kind of task the page holds. */}
+          <View
+            borderBottomColor="default"
+            borderBottomWidth="thin"
+            flex="none"
+          >
+            <PageHeader
+              title="Playground"
+              extra={
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <PlaygroundCredentialsDropdown />
+                  <PlaygroundConfigButton />
+                  <PlaygroundRunButton />
+                </Flex>
+              }
+            />
+          </View>
+          <PlaygroundContent />
+        </div>
+      </PlaygroundExampleEditingProvider>
       <Suspense>
         <PlaygroundExamplePage />
       </Suspense>
@@ -308,10 +322,12 @@ function PlaygroundContent() {
   const anyDirtyInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
   );
-  // Edits to the dataset's examples the table has not saved. The table
-  // reports them here because a router honors one blocker, and this is it.
-  const unsavedExampleChangeCount = usePlaygroundContext(
-    (state) => state.unsavedExampleChangeCount
+  // Edits to the dataset's examples the table has not saved. They are read
+  // here because a router honors one blocker, and this is it.
+  const unsavedExampleChangeCount = usePlaygroundExampleEditing((session) =>
+    hasEditableTableUnsavedChanges(session)
+      ? getEditableTableChangeCount(session)
+      : 0
   );
   const recordExperiments = usePlaygroundContext(
     (state) => state.recordExperiments

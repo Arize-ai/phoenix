@@ -27,16 +27,11 @@ import type {
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
-import {
-  createEditableTableStore,
-  getEditableTableChangeCount,
-  hasEditableTableUnsavedChanges,
-} from "@phoenix/store/editableTableStore";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
-import type { PlaygroundExampleTableRow } from "./examplesEditing";
+import { usePlaygroundExampleEditStore } from "./examplesEditing";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundDatasetExamplesTablePreferencesProvider } from "./PlaygroundDatasetExamplesTablePreferences";
@@ -276,44 +271,10 @@ export function PlaygroundDatasetSection({
   // We want to re-mount the context when the dataset or the splits change
   const key = `${datasetId}-${splitIds?.join("-")}`;
 
-  // One edit session for the table. It lives here, beside the toolbar that
-  // opens it, and ends when the dataset or the splits change under it.
-  const [editStore] = useState(() =>
-    createEditableTableStore<PlaygroundExampleTableRow>({
-      getRowId: (row) => row.id,
-    })
-  );
-  useEffect(() => {
-    return () => editStore.getState().cancelEditing();
-  }, [editStore, key]);
-
-  // The rest of the page reads the session's state from the playground
-  // store: the Run button waits for the edits to be saved or discarded, and
-  // the page's one navigation blocker asks before unsaved edits are lost. (A
-  // router honors a single blocker, so this section registers none.)
-  const setExampleEditing = usePlaygroundContext(
-    (state) => state.setExampleEditing
-  );
-  useEffect(() => {
-    const sync = () => {
-      const state = editStore.getState();
-      setExampleEditing({
-        isEditingExamples: state.mode !== "read",
-        unsavedExampleChangeCount: hasEditableTableUnsavedChanges(state)
-          ? getEditableTableChangeCount(state)
-          : 0,
-      });
-    };
-    sync();
-    const unsubscribe = editStore.subscribe(sync);
-    return () => {
-      unsubscribe();
-      setExampleEditing({
-        isEditingExamples: false,
-        unsavedExampleChangeCount: 0,
-      });
-    };
-  }, [editStore, setExampleEditing]);
+  // The page's edit session for the examples: the toolbar opens it and the
+  // table edits in it. The Run button and the navigation blocker read the
+  // same store, so nothing here mirrors its state elsewhere.
+  const editStore = usePlaygroundExampleEditStore();
 
   return (
     <PlaygroundDatasetExamplesTablePreferencesProvider>
