@@ -5,9 +5,9 @@ title: "Evaluate Your Agent"
 
 An evaluation scores your AI agent's output so you can compare prompts or models and catch regressions before you ship. It has three parts:
 
-- **Dataset**: the test cases. Each example has an input and, optionally, the answer you expect.
-- **Experiment**: your prompt or agent, run once on every example in the dataset. Each run produces an output.
-- **Evaluator**: scores each output, either with code or with an LLM acting as judge.
+- **Dataset**: test cases, with inputs and expected outputs.
+- **Experiment**: the change you want to test, such as a new prompt, run over the dataset.
+- **Evaluator**: code or an LLM judge that scores each output.
 
 Phoenix runs these offline. Online evals, scoring live traffic, are in development.
 
