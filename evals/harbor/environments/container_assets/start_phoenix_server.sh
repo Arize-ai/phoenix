@@ -12,7 +12,9 @@ if is_healthy; then
   exit 0
 fi
 mkdir -p "$(dirname "$LOG")"
-PHOENIX_SQL_DATABASE_URL=sqlite:////data/phoenix.db setsid phoenix serve >"$LOG" 2>&1 &
+# Force PXI tracing so the phoenix-chat-agent harness can read every model call's usage.
+# Without it, the harness sees only the final call and undercounts PXI tokens and cost.
+PHOENIX_AGENTS_FORCE_TRACING=true PHOENIX_SQL_DATABASE_URL=sqlite:////data/phoenix.db setsid phoenix serve >"$LOG" 2>&1 &
 for _ in $(seq 1 120); do
   if is_healthy; then
     exit 0
