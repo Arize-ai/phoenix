@@ -91,9 +91,57 @@ Start with the default `atif` mode when your Harbor agent writes ATIF trajectori
 | Trial or step exception | Run error | Errors are stored separately from behavioral rewards. |
 | ATIF trajectory | Trace | One trial-level trace links to the experiment run when conversion succeeds. Multi-step trials include one span per attempted step. |
 
-Each Harbor task becomes one dataset example, including a multi-step task. For a multi-step task, the example input also contains the ordered step names and instructions. Phoenix dataset examples have an empty reference `output` because Harbor verifies an environment state rather than a single reference response.
+Each Harbor task becomes one dataset example, including a multi-step task. For a multi-step task, the example input also contains the ordered step names and instructions. Reference outputs are optional. Without an explicit reference file, the dataset example's `output` stays empty.
 
 Each run output includes the Harbor trial ID, trial name, trial URI, and task name. It also includes Harbor's token totals and cost when the agent reports them. Task metadata keeps environment variable names but redacts their values.
+
+### Optional reference outputs
+
+To display an expected answer beside an experiment result, add this setting to the task's `task.toml`:
+
+```toml
+[metadata.phoenix]
+reference_output_path = "tests/expected.json"
+```
+
+The file must contain either a JSON string or a JSON object. A string becomes an assistant message in the example's output:
+
+```json
+"117 traces"
+```
+
+```json
+{"messages": [{"role": "assistant", "content": "117 traces"}]}
+```
+
+An object is stored unchanged. Use it for structured expected results, chat messages, or existing verifier references:
+
+```json
+{"reference": "117 traces", "notes": "Count every trace in the seeded project."}
+```
+
+Wrap top-level arrays, numbers, booleans, or null in an object, such as `{"count": 117}`. The plugin does not interpret object keys or use the reference to calculate rewards.
+
+Paths resolve relative to the downloaded task root on the host running Harbor, not the agent sandbox or the job's working directory. Absolute paths, `..` components, and symlinks that resolve outside the task root are rejected. Keep references under `tests/` beside verifier assets; do not copy them into the agent's workspace. The plugin reads files during setup and never runs a solution to obtain a reference.
+
+The same setting works for a task selected from a local dataset or passed directly:
+
+```bash
+harbor run -p ./my-dataset -a oracle --plugin arize-phoenix
+harbor run -p ./my-dataset/my-task -a oracle --plugin arize-phoenix
+```
+
+It also travels with tasks in registry, package, and repository datasets. Each task opts in independently, so jobs can mix tasks with and without references. No job-wide Phoenix option is needed.
+
+For a multi-step task, put the setting in the root `task.toml` as above. There is one reference output for the whole task. It should describe the expected final result. If useful, an object can describe expected intermediate results as well:
+
+```json
+{"steps": {"collect": {"count": 117}, "summarize": {"answer": "117 traces"}}}
+```
+
+The plugin stores this object as one example output; it does not split it into step examples or match its keys to step names.
+
+Omitting the setting leaves the reference blank, even if a file named `expected.json` exists. A configured file that is missing, unreadable, invalid JSON, or has an unsupported top-level type stops setup before trials begin. Errors identify the task and configured path. Changing reference content updates the dataset example and creates a new dataset version; existing experiments retain their original version.
 
 ### Dataset versions
 

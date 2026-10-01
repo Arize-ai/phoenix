@@ -133,6 +133,13 @@ through `px`. PXI is a separate condition and is not available to the other agen
 The TRAIL benchmark contains questions about the `research-assistant` project. Each
 condition answers every question in its final reply, and the verifier grades that reply.
 
+Each TRAIL task opts into Phoenix reference outputs with
+`[metadata.phoenix] reference_output_path = "tests/expected.json"` in `task.toml`.
+The plugin stores that JSON object unchanged on the dataset example, including the
+answer and any grading notes, so you can compare it with the agent's result.
+Tasks without this setting have a blank reference in Phoenix. Reference-content
+changes create a new dataset version on the next job.
+
 The `tests/expected.json` file in each task selects one of two grading methods:
 
 ```json
