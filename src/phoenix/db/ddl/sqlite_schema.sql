@@ -329,12 +329,14 @@ CREATE TABLE spans (
 CREATE INDEX ix_cumulative_llm_token_count_total ON spans
     ((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion));
 CREATE INDEX ix_spans_parent_id ON spans (parent_id);
-CREATE INDEX ix_spans_session_id ON spans (JSON_EXTRACT(attributes, '$."session"."id"'))
-    WHERE JSON_EXTRACT(attributes, '$."session"."id"') IS NOT NULL;
+CREATE INDEX ix_spans_session_id ON spans
+    (CAST(JSON_EXTRACT(attributes, '$."session"."id"') AS VARCHAR))
+    WHERE CAST(JSON_EXTRACT(attributes, '$."session"."id"') AS VARCHAR) IS NOT NULL;
 CREATE INDEX ix_spans_start_time ON spans (start_time);
 CREATE INDEX ix_spans_trace_rowid ON spans (trace_rowid);
-CREATE INDEX ix_spans_user_id ON spans (JSON_EXTRACT(attributes, '$."user"."id"'))
-    WHERE JSON_EXTRACT(attributes, '$."user"."id"') IS NOT NULL;
+CREATE INDEX ix_spans_user_id ON spans
+    (CAST(JSON_EXTRACT(attributes, '$."user"."id"') AS VARCHAR))
+    WHERE CAST(JSON_EXTRACT(attributes, '$."user"."id"') AS VARCHAR) IS NOT NULL;
 
 
 -- Table: span_costs
@@ -1177,8 +1179,8 @@ CREATE TABLE agent_session_messages (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     agent_session_id INTEGER NOT NULL,
     message JSONB NOT NULL,
-    message_id VARCHAR NOT NULL GENERATED ALWAYS AS (JSON_EXTRACT(message, '$."id"')) STORED,
-    is_compaction_message BOOLEAN NOT NULL GENERATED ALWAYS AS (coalesce(JSON_EXTRACT(message, '$."metadata"."phoenix"."isCompactionMessage"'), 0)) STORED,
+    message_id VARCHAR NOT NULL GENERATED ALWAYS AS (CAST(JSON_EXTRACT(message, '$."id"') AS VARCHAR)) STORED,
+    is_compaction_message BOOLEAN NOT NULL GENERATED ALWAYS AS (coalesce(CAST(JSON_EXTRACT(message, '$."metadata"."phoenix"."isCompactionMessage"') AS BOOLEAN), 0)) STORED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT uq_agent_session_messages_message_id UNIQUE (message_id),
