@@ -15,7 +15,10 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { PromptVersionSelector } from "@phoenix/pages/playground/PromptMenu";
-import type { PlaygroundInstanceSource } from "@phoenix/store/playground";
+import type {
+  PlaygroundInstanceSource,
+  PlaygroundTaskKind,
+} from "@phoenix/store/playground";
 import {
   getPlaygroundTaskKind,
   isTaskKindLocked,
@@ -25,8 +28,8 @@ import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 import { ConfirmReplaceTaskDialog } from "./ConfirmReplaceTaskDialog";
 import {
   getTaskMenuLabel,
-  getTaskMenuSections,
   getTaskMenuSelectedKey,
+  getTaskMenuTabs,
   parseTaskMenuKey,
   TASK_MENU_LOCK_NOTE,
 } from "./taskMenuItems";
@@ -35,9 +38,10 @@ import { useTaskMenuOptions } from "./useTaskMenuOptions";
 
 /**
  * Picks what a playground instance is: a saved prompt, a saved evaluator,
- * or a new draft of either. With one instance on the page any item is
- * offered and choosing another kind replaces the instance; with more, only
- * the page's kind is. A prompt task keeps the version and tag pickers.
+ * or a new draft of either, from a tab per kind. With one instance on the
+ * page both tabs are offered and choosing from the other kind's tab replaces
+ * the instance; with more, only the page's kind is. A prompt task keeps the
+ * version and tag pickers.
  */
 export function TaskMenu({ instanceId }: { instanceId: number }) {
   const instance = usePlaygroundContext(selectPlaygroundInstance(instanceId));
@@ -68,7 +72,14 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
 
-  const [hasOpened, setHasOpened] = useState(false);
+  // How many times the menu has opened: the options load on the first and
+  // the evaluators are fetched again on each, so saves made in between show.
+  const [openCount, setOpenCount] = useState(0);
+  const hasOpened = openCount > 0;
+  // The menu opens on the tab of what the task is now.
+  const [selectedKind, setSelectedKind] = useState<PlaygroundTaskKind>(
+    instance.task.kind
+  );
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -90,9 +101,10 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     promptsFetchKey: instance.prompt
       ? `${instance.prompt.id}:${instance.prompt.version}`
       : undefined,
+    evaluatorsFetchKey: openCount,
   });
 
-  const sections = getTaskMenuSections({
+  const tabs = getTaskMenuTabs({
     kind: taskKind,
     isLocked,
     prompts: promptItems,
@@ -154,7 +166,10 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       onChange={select}
       isDisabled={isRunning}
       onOpenChange={(isOpen) => {
-        if (isOpen) startLoadingOptions(() => setHasOpened(true));
+        if (isOpen) {
+          setSelectedKind(instance.task.kind);
+          startLoadingOptions(() => setOpenCount((count) => count + 1));
+        }
       }}
       css={taskSelectCSS}
     >
@@ -175,7 +190,9 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
       </Button>
       <Popover placement="bottom start">
         <TaskMenuList
-          sections={sections}
+          tabs={tabs}
+          selectedKind={selectedKind}
+          onSelectedKindChange={setSelectedKind}
           search={search}
           onSearchChange={setSearch}
           isLoading={isLoadingOptions}

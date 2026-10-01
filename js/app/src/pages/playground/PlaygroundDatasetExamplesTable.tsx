@@ -89,6 +89,7 @@ import {
   getPlaygroundTaskKind,
   getTemplateVariablesPath,
 } from "@phoenix/store/playground";
+import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
 import {
   assertUnreachable,
   isStringArray,
@@ -531,6 +532,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
+  exampleIndex,
   datasetExample,
   templateVariablesPath,
   onViewExperimentRunDetailsPress,
@@ -539,10 +541,12 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 }: {
   instanceId: number;
   exampleId: string;
+  /** The example's position in the table, for the details dialog. */
+  exampleIndex: number;
   isRunning: boolean;
   datasetExample: { input: unknown; output: unknown; metadata: unknown };
   templateVariablesPath: string | null;
-  onViewExperimentRunDetailsPress: () => void;
+  onViewExperimentRunDetailsPress: (exampleIndex: number) => void;
   onViewTracePress: (
     traceId: string,
     projectId: string,
@@ -583,6 +587,10 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
+  const onViewDetails = useCallback(
+    () => onViewExperimentRunDetailsPress(exampleIndex),
+    [onViewExperimentRunDetailsPress, exampleIndex]
+  );
   return exampleData == null ? (
     <EmptyExampleOutput
       isRunning={isRunning}
@@ -599,7 +607,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
-      onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
+      onViewExperimentRunDetailsPress={onViewDetails}
       onViewTracePress={onViewTracePress}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
       isRunning={isRunning}
@@ -855,7 +863,14 @@ export function PlaygroundDatasetExamplesTable({
   onHasMetadataChange: (hasMetadata: boolean) => void;
 }) {
   const environment = useRelayEnvironment();
-  const instances = usePlaygroundContext((state) => state.instances);
+  // Everything below hangs off the instances' shape: which tasks there are,
+  // which are running, which experiment each produced. A run streams one
+  // store write per result into the progress counters, so those are ignored
+  // here or every result would rebuild the columns and re-render every cell.
+  const instances = usePlaygroundContext(
+    (state) => state.instances,
+    arePlaygroundInstancesEqualExceptProgress
+  );
   const columnLabels = getExampleColumnLabels(getPlaygroundTaskKind(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experiment?.id);
@@ -870,6 +885,13 @@ export function PlaygroundDatasetExamplesTable({
     projectId: string;
     evaluatorName?: string;
   } | null>(null);
+  // Stable, so the memoized cells keep their memo when the columns rebuild.
+  const handleViewTracePress = useCallback(
+    (traceId: string, projectId: string, evaluatorName?: string) => {
+      setSelectedTraceInfo({ traceId, projectId, evaluatorName });
+    },
+    []
+  );
   // Scopes the autocomplete paths and the prompt cells' variable checks to
   // where the page's kind of task reads its variables from.
   const templateVariablesPath = usePlaygroundContext((state) =>
@@ -1496,13 +1518,7 @@ export function PlaygroundDatasetExamplesTable({
               position={row.index + 1}
               expectedOutputs={row.original.expectedOutputs}
               isRunning={isRunning}
-              onViewTracePress={(traceId, projectId, name) => {
-                setSelectedTraceInfo({
-                  traceId,
-                  projectId,
-                  evaluatorName: name,
-                });
-              }}
+              onViewTracePress={handleViewTracePress}
             />
           ),
           size: 320,
@@ -1527,19 +1543,12 @@ export function PlaygroundDatasetExamplesTable({
               instanceId={instance.id}
               exampleId={row.original.id}
               isRunning={isRunning}
-              datasetExample={{
-                input: row.original.input,
-                output: row.original.output,
-                metadata: row.original.metadata,
-              }}
+              datasetExample={row.original}
+              exampleIndex={row.index}
               templateVariablesPath={templateVariablesPath}
               evaluatorOutputConfigs={evaluatorOutputConfigs}
-              onViewExperimentRunDetailsPress={() => {
-                setSelectedExampleIndex(row.index);
-              }}
-              onViewTracePress={(traceId, projectId, evaluatorName) => {
-                setSelectedTraceInfo({ traceId, projectId, evaluatorName });
-              }}
+              onViewExperimentRunDetailsPress={setSelectedExampleIndex}
+              onViewTracePress={handleViewTracePress}
             />
           );
         },
@@ -1551,7 +1560,7 @@ export function PlaygroundDatasetExamplesTable({
     instances,
     runPlaygroundInstances,
     templateVariablesPath,
-    setSelectedExampleIndex,
+    handleViewTracePress,
     evaluatorOutputConfigs,
   ]);
 

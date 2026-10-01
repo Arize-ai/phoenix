@@ -82,7 +82,7 @@ export function EvaluatorTaskSaveButton({
     throw new Error(`Playground instance ${instanceId} is not an evaluator`);
   }
 
-  const saveTarget = useEvaluatorTaskSaveTarget({
+  const { target: saveTarget, savedNames } = useEvaluatorTaskSaveTarget({
     source: evaluator.source,
     datasetId,
   });
@@ -92,8 +92,9 @@ export function EvaluatorTaskSaveButton({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   /**
-   * Saves the draft to `saveTarget`, or as a new evaluator named as a copy of
-   * the draft when the dialog's "Save as new" asks for one.
+   * Saves the draft to `saveTarget`, or as a new evaluator when the dialog's
+   * "Save as new" asks for one. A new evaluator keeps the name typed for it;
+   * only a draft still named like the loaded evaluator is named as its copy.
    */
   async function save({
     asNew = false,
@@ -125,11 +126,12 @@ export function EvaluatorTaskSaveButton({
     }
 
     try {
+      const isCopy = asNew && savedNames.includes(draftName);
       // The copy's name lands in the draft too, so the task shows what was
       // saved and the user can rename it afterwards.
-      const name = asNew ? await copyName(draftName, datasetId) : draftName;
+      const name = isCopy ? await copyName(draftName, datasetId) : draftName;
 
-      if (asNew) store.getState().setEvaluatorGlobalName(name);
+      if (isCopy) store.getState().setEvaluatorGlobalName(name);
 
       const saved = await saveTask({
         target: asNew ? { action: "create" } : saveTarget,
@@ -253,6 +255,7 @@ export function EvaluatorTaskSaveButton({
       )}
       <SaveEvaluatorTaskDialog
         target={saveTarget}
+        savedNames={savedNames}
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         isSaving={isSaving}

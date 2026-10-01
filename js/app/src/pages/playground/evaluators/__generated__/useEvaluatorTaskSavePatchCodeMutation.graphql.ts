@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f63f1a3241ac48b816dd57b9ac40395>>
+ * @generated SignedSource<<9893ba235c92ef0fababe7cfdc129d0a>>
  * @lightSyntaxTransform
  */
 
@@ -65,7 +65,9 @@ export type useEvaluatorTaskSavePatchCodeMutation$variables = {
 export type useEvaluatorTaskSavePatchCodeMutation$data = {
   readonly patchCodeEvaluator: {
     readonly evaluator: {
+      readonly description: string | null;
       readonly id: string;
+      readonly name: string;
     };
   };
 };
@@ -111,6 +113,20 @@ v1 = [
             "kind": "ScalarField",
             "name": "id",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -137,16 +153,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "a800e41268f1492f41c0afc124f6a720",
+    "cacheID": "27b3cb1aefa4a4773ead5f4f2d975197",
     "id": null,
     "metadata": {},
     "name": "useEvaluatorTaskSavePatchCodeMutation",
     "operationKind": "mutation",
-    "text": "mutation useEvaluatorTaskSavePatchCodeMutation(\n  $input: PatchCodeEvaluatorInput!\n) {\n  patchCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
+    "text": "mutation useEvaluatorTaskSavePatchCodeMutation(\n  $input: PatchCodeEvaluatorInput!\n) {\n  patchCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      description\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2839f32869a015843fae0917b309581e";
+(node as any).hash = "9dd2d2fce499e7503782ccd2d353824d";
 
 export default node;
