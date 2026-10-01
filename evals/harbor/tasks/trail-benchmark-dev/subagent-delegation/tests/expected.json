@@ -1,0 +1,5 @@
+{
+  "reference": "47 traces",
+  "notes": "A count of ToolCallingAgent.run spans (60) rather than traces does not match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; traces with at least one ToolCallingAgent.run span"
+}
