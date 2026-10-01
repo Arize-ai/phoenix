@@ -15,7 +15,7 @@ from typing import Any
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 
-from evals.harbor.verifiers.__generated__.graphql_client import Client as GraphQLClient
+from evals.harbor.verifiers.graphql.__generated__ import Client as GraphQLClient
 
 PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
 ANSWER_PATH = "/app/answer.txt"
@@ -53,7 +53,7 @@ def annotation_labels(project: str, name: str) -> list[str]:
 
 
 def graphql_client() -> GraphQLClient:
-    """The typed client that ``make codegen-harbor-graphql`` compiles from evals/harbor/graphql."""
+    """The typed client that ``make codegen-harbor-graphql`` compiles from verifiers/graphql/operations."""
     return GraphQLClient(url=f"{PHOENIX_URL}/graphql")
 
 

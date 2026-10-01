@@ -342,7 +342,7 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
-  "evals/harbor/verifiers/__generated__/graphql_client/",
+  "evals/harbor/verifiers/graphql/__generated__/",
   # Staging copies evals.harbor.verifiers to /opt/verifier for task solutions to import.
   "evals/harbor/tasks/.*/environment/",
   "evals/harbor/tasks/trail-benchmark-dev/",
@@ -417,7 +417,7 @@ exclude = ["**/node_modules", "**/__pycache__", "**/.*", "packages/phoenix-sqlea
 force-exclude = true
 exclude = [
   "api_reference",
-  "evals/harbor/verifiers/__generated__/graphql_client/",
+  "evals/harbor/verifiers/graphql/__generated__/",
   "dist/",
   ".git",
   "__pycache__",
@@ -495,9 +495,9 @@ arize-phoenix-otel = { workspace = true }
 [tool.ariadne-codegen]
 # `make codegen-harbor-graphql` compiles the queries into typed models for the verifiers.
 schema_path = "js/app/schema.graphql"
-queries_path = "evals/harbor/graphql"
-target_package_path = "evals/harbor/verifiers/__generated__"
-target_package_name = "graphql_client"
+queries_path = "evals/harbor/verifiers/graphql/operations"
+target_package_path = "evals/harbor/verifiers/graphql"
+target_package_name = "__generated__"
 async_client = false
 multipart_uploads = false
 include_all_inputs = false

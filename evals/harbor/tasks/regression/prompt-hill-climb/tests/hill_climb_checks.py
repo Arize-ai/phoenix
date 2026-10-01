@@ -8,7 +8,7 @@ from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
 
 from evals.harbor.verifiers import phoenix_api
-from evals.harbor.verifiers.__generated__.graphql_client import (
+from evals.harbor.verifiers.graphql.__generated__ import (
     AnnotationConfigInput,
     BaseModel,
     CategoricalAnnotationConfigInput,

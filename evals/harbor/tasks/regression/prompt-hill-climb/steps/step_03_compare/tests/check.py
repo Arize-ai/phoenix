@@ -3,7 +3,7 @@ import json
 import hill_climb_checks as hc
 
 from evals.harbor.verifiers import llm_judge, verify
-from evals.harbor.verifiers.__generated__.graphql_client import ExperimentFields
+from evals.harbor.verifiers.graphql.__generated__ import ExperimentFields
 
 trajectory = verify.read_trajectory(verify.TRAJECTORY_PATH)
 reply = verify.final_reply(trajectory)
