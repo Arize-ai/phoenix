@@ -1749,6 +1749,11 @@ class EvaluatorMutationMixin:
                 # Use the newly created prompt_version for comparison (it will always be "new")
                 active_prompt_version = prompt_version
 
+            # The shared evaluator follows the binding's name, as a project
+            # binding's evaluator does, so lists of evaluators show the rename.
+            if dataset_evaluator.name != evaluator_name:
+                llm_evaluator.name = await _generate_unique_evaluator_name(session, evaluator_name)
+                shared_evaluator_changed = True
             dataset_evaluator.name = evaluator_name
             if input.description is not UNSET:
                 dataset_evaluator.description = input.description

@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   Flex,
@@ -62,13 +64,19 @@ export function PlaygroundEvaluatorColumnHeader({
 
   const { overlay } = usePlaygroundExpectedOutputs();
 
-  const agreement = summarizeExpectedAgreement({
-    examples,
-    responses,
-    pendingExpectedOutputs: overlay,
-    annotationName,
-    output,
-  });
+  // Walks every loaded example, so not on every render of a header that
+  // re-renders with each streamed result.
+  const agreement = useMemo(
+    () =>
+      summarizeExpectedAgreement({
+        examples,
+        responses,
+        pendingExpectedOutputs: overlay,
+        annotationName,
+        output,
+      }),
+    [examples, responses, overlay, annotationName, output]
+  );
 
   // Examples with a persisted expected output. This is dataset state, so it
   // survives a reload while run results do not — hence "with expected", not
@@ -96,10 +104,14 @@ export function PlaygroundEvaluatorColumnHeader({
           <AlphabeticIndexIcon index={index} size="XS" />
           <Truncate maxWidth="100%">{name}</Truncate>
         </Flex>
-        <Text size="XS" color="text-500" weight="normal">
-          {agreement.withExpected}/{examples.length} with expected
-          {agreementText}
-        </Text>
+        {/* One line, always: the counts change with every annotation, and a
+            line that wrapped moved the header and every row beneath it. */}
+        <Truncate maxWidth="100%">
+          <Text size="XS" color="text-500" weight="normal">
+            {agreement.withExpected}/{examples.length} with expected
+            {agreementText}
+          </Text>
+        </Truncate>
       </Flex>
       {isRunning ? (
         <View flex="none">
