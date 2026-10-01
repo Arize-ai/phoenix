@@ -8,18 +8,21 @@ import {
   Icons,
   ListBox,
   Loading,
+  SegmentedControl,
+  SegmentedControlItem,
   SelectItem,
   Text,
   View,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import type { PlaygroundTaskKind } from "@phoenix/store/playground";
 
 import {
   searchablePickerListCSS,
   searchablePickerMenuCSS,
 } from "../searchablePickerStyles";
-import type { TaskMenuSection } from "./taskMenuItems";
+import type { TaskMenuSection, TaskMenuTab } from "./taskMenuItems";
 
 const taskListCSS = css`
   .react-aria-ListBoxSection:not(:first-of-type) {
@@ -34,32 +37,101 @@ const taskListCSS = css`
 `;
 
 /**
- * The searchable, sectioned list both task menus open: the one on each
- * task and the Compare menu. It must sit inside a Select's Popover, which
- * owns the selection.
+ * The searchable list both task menus open: the one on each task and the
+ * Compare menu. One tab per kind of task the menu offers — the saved items
+ * of that kind, then its "New" actions — with the search scoped to the tab;
+ * a menu offering one kind shows that kind's list without a tab strip. It
+ * must sit inside a Select's Popover, which owns the selection.
+ *
+ * The tabs are a segmented control rather than Tabs: the Select renders its
+ * popover once more, hidden, to build its collection, and a Tabs panel in
+ * that pass has no tab state to read.
  */
 export function TaskMenuList({
-  sections,
+  tabs,
+  selectedKind,
+  onSelectedKindChange,
+  leadingSections = [],
   search,
   onSearchChange,
   isLoading,
   note,
 }: {
-  sections: TaskMenuSection[];
+  tabs: TaskMenuTab[];
+  /** The tab shown; falls back to the first when it is not among `tabs`. */
+  selectedKind: PlaygroundTaskKind;
+  onSelectedKindChange?: (kind: PlaygroundTaskKind) => void;
+  /** Sections ahead of every tab's list, e.g. the Compare menu's duplicate. */
+  leadingSections?: TaskMenuSection[];
   search: string;
   onSearchChange: (search: string) => void;
   isLoading: boolean;
   /** One line above the list, e.g. why the kind cannot change. */
   note?: string | null;
 }) {
+  const selected = tabs.find((tab) => tab.kind === selectedKind) ?? tabs[0];
+
+  const body = (
+    <TaskMenuListBody
+      sections={[...leadingSections, ...(selected?.sections ?? [])]}
+      placeholder={`Search ${selected?.title.toLowerCase() ?? "tasks"}`}
+      search={search}
+      onSearchChange={onSearchChange}
+      isLoading={isLoading}
+      note={note}
+    />
+  );
+
   return (
     <div css={searchablePickerMenuCSS}>
+      {tabs.length > 1 ? (
+        <View paddingX="size-100" paddingTop="size-100" flex="none">
+          <SegmentedControl
+            aria-label="Kind of task"
+            size="S"
+            isJustified
+            selectedKey={selected.kind}
+            onSelectionChange={(key) =>
+              onSelectedKindChange?.(key as PlaygroundTaskKind)
+            }
+          >
+            {tabs.map((tab) => (
+              <SegmentedControlItem key={tab.kind} id={tab.kind}>
+                {tab.title}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+        </View>
+      ) : null}
+      {body}
+    </div>
+  );
+}
+
+/** The search field, the note, and the sectioned list under it. */
+function TaskMenuListBody({
+  sections,
+  placeholder,
+  search,
+  onSearchChange,
+  isLoading,
+  note,
+}: {
+  sections: TaskMenuSection[];
+  placeholder: string;
+  search: string;
+  onSearchChange: (search: string) => void;
+  isLoading: boolean;
+  note?: string | null;
+}) {
+  return (
+    <>
       <View padding="size-100" flex="none">
         <DebouncedSearch
           aria-label="Search tasks"
           defaultValue={search}
           onChange={onSearchChange}
-          placeholder="Search prompts and evaluators"
+          placeholder={placeholder}
         />
       </View>
       {note ? (
@@ -105,6 +177,6 @@ export function TaskMenuList({
           </ListBoxSection>
         ))}
       </ListBox>
-    </div>
+    </>
   );
 }
