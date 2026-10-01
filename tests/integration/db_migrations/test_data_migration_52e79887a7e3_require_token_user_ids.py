@@ -111,7 +111,7 @@ def _assert_sqlite_autoincrement(
     if db_backend != "sqlite":
         return
     for name in _TABLES:
-        ddl = conn.execute(
+        ddl: str = conn.execute(
             text("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = :name"),
             {"name": name},
         ).scalar_one()
