@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c36213022d5f7d98378cb284444ea69>>
+ * @generated SignedSource<<f04b88fb053ae85b6fab7437a9049a56>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type MimeType = "json" | "text";
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "decision" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type SpanDetailsQuery$variables = {
   id: string;

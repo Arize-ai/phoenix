@@ -1409,3 +1409,22 @@ export const unparsableAttributesSpan: SpanInfoFixture = {
   documentRetrievalMetrics: [],
   documentEvaluations: [],
 };
+
+/**
+ * A decision span. Decision spans are experimental and have no cards or
+ * attribute conventions of their own yet, so an empty one shows only its
+ * attributes.
+ */
+export const decisionSpan: SpanInfoFixture = {
+  id: "U3BhbjpkZWNpc2lvbg==",
+  name: "route_request",
+  spanKind: "decision",
+  statusMessage: "",
+  attributes: JSON.stringify({
+    openinference: { span: { kind: "DECISION" } },
+  }),
+  input: null,
+  output: null,
+  documentRetrievalMetrics: [],
+  documentEvaluations: [],
+};

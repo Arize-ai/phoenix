@@ -50,7 +50,7 @@
     "@ai-sdk/openai-compatible": "3.0.16",
     "@ai-sdk/react": "^4.0.119",
     "@apollo/client": "^4.3.1",
-    "@arizeai/openinference-semantic-conventions": "^2.12.0",
+    "@arizeai/openinference-semantic-conventions": "^2.13.0",
     "@browser-ai/core": "2.1.13",
     "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "^6.11.1",
