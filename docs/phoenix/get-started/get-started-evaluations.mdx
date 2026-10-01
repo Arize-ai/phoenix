@@ -3,7 +3,13 @@ sidebarTitle: "Evaluate"
 title: "Evaluate Your Agent"
 ---
 
-Evaluations in Phoenix run offline: an evaluator scores every run of an experiment. Online evals, scoring live traffic, are in development.
+Evaluations measure your AI agent's quality with data instead of intuition: compare prompts or models, catch regressions before you ship, and prove a change helped. An evaluation in Phoenix has three parts:
+
+- **Dataset**: examples, each with an input and the output you expect.
+- **Task**: the prompt or code under test. Running it over the dataset is an **experiment**.
+- **Evaluator**: a function or LLM judge that scores every experiment run.
+
+Phoenix runs these offline. Online evals, scoring live traffic, are in development.
 
 Everything below works on a fresh Phoenix with nothing instrumented yet. It needs an OpenAI key: the agent being tested and the judge both call a model.
 
@@ -11,7 +17,7 @@ Everything below works on a fresh Phoenix with nothing instrumented yet. It need
 A coding agent or [PXI](/docs/phoenix/pxi) can run this whole flow for you. [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job) has the prompt.
 </Note>
 
-The flow is the same in every tab: a dataset of three questions about a fictional airline's Basic fare with the answer each should get, an LLM judge that compares each reply to that answer, and two experiments. The first prompt knows nothing about the airline and scores 0. The second includes the policy and scores 1.
+Every tab runs the same flow: a dataset of three questions about a fictional airline's Basic fare with the answer each should get, an LLM judge that compares each reply to that answer, and two experiments. The first prompt knows nothing about the airline and scores 0. The second includes the policy and scores 1.
 
 <Tabs>
   <Tab title="Python">
