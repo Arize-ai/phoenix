@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { css } from "@emotion/react";
+import { useMemo, useState } from "react";
 import { useStore } from "zustand";
 
 import {
@@ -16,7 +17,9 @@ import {
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 import { Switch } from "@phoenix/components/core/switch";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import { DiscardEditsDialog } from "@phoenix/components/table";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { describeUnsavedExampleChanges } from "@phoenix/pages/examples/unsavedExampleChanges";
 import type { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playground/__generated__/PlaygroundEvaluatorSelect_query.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
@@ -24,6 +27,7 @@ import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvalu
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExampleColumnSelector } from "@phoenix/pages/playground/PlaygroundExampleColumnSelector";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
+import { getEditableTableChangeCount } from "@phoenix/store/editableTableStore";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import type { EditableTableStore } from "@phoenix/types/table";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -73,6 +77,26 @@ export function PlaygroundExperimentToolbar({
     editStore,
     (state) => state.mode !== "read"
   );
+  const isSavingExamples = useStore(
+    editStore,
+    (state) => state.mode === "saving"
+  );
+  const hasExampleChanges = useStore(
+    editStore,
+    (state) => getEditableTableChangeCount(state) > 0
+  );
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  // Leaving edit mode with changes pending asks first, as the edit toolbar's
+  // own Cancel does.
+  const toggleEditing = () => {
+    if (!isEditingExamples) {
+      editStore.getState().beginEditing();
+    } else if (hasExampleChanges) {
+      setIsDiscardDialogOpen(true);
+    } else {
+      editStore.getState().cancelEditing();
+    }
+  };
   const instances = usePlaygroundContext((state) => state.instances);
   // Dataset evaluators score a prompt's outputs; an evaluator task is the
   // judge itself, so there is nothing to attach to it.
@@ -144,24 +168,35 @@ export function PlaygroundExperimentToolbar({
         />
       ) : null}
       <PlaygroundDatasetSelect isDisabled={isRunning || isEditingExamples} />
-      {/* Editing happens in the table under the floating edit toolbar, so this
-          only opens the session; it steps aside once one is under way. */}
-      {isEditingExamples ? null : (
-        <TooltipTrigger>
-          <Button
-            size="S"
-            leadingVisual={<Icon svg={<Icons.Edit />} />}
-            isDisabled={isRunning}
-            onPress={() => editStore.getState().beginEditing()}
-          >
-            Edit
-          </Button>
-          <Tooltip>
-            <TooltipArrow />
-            Edit the dataset&apos;s examples here. Saved as a new version.
-          </Tooltip>
-        </TooltipTrigger>
-      )}
+      {/* One control, one place: it opens the session and, once one is under
+          way, cancels it, so the toolbar never shifts. Editing itself happens
+          in the table under the floating edit toolbar. */}
+      <TooltipTrigger>
+        <Button
+          size="S"
+          css={editToggleCSS}
+          leadingVisual={
+            <Icon svg={isEditingExamples ? <Icons.Close /> : <Icons.Edit />} />
+          }
+          isDisabled={isEditingExamples ? isSavingExamples : isRunning}
+          onPress={toggleEditing}
+        >
+          {isEditingExamples ? "Cancel" : "Edit"}
+        </Button>
+        <Tooltip>
+          <TooltipArrow />
+          {isEditingExamples
+            ? "Stop editing the examples. Unsaved changes are discarded."
+            : "Edit the dataset's examples here. Saved as a new version."}
+        </Tooltip>
+      </TooltipTrigger>
+      <DiscardEditsDialog
+        store={editStore}
+        isOpen={isDiscardDialogOpen}
+        onOpenChange={setIsDiscardDialogOpen}
+        title="Discard example changes"
+        describeUnsavedChanges={describeUnsavedExampleChanges}
+      />
       <PlaygroundExampleColumnSelector hasMetadata={hasExampleMetadata} />
       {/* The settings include whether the metadata column hides the
           annotations, which the edit session's cells were built against. */}
@@ -172,3 +207,8 @@ export function PlaygroundExperimentToolbar({
     </Flex>
   );
 }
+
+// Wide enough for either label, so the toggle keeps its footprint.
+const editToggleCSS = css`
+  min-width: var(--global-dimension-size-1200);
+`;
