@@ -1,0 +1,68 @@
+---
+title: "Cheaper Inference Tracing"
+description: "Phoenix provides auto-instrumentation for Cheaper Inference through the OpenAI Python Library since Cheaper Inference provides an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Cheaper Inference API key as an environment variable:
+
+```bash
+export CHEAPER_INFERENCE_API_KEY='your_cheaper_inference_api_key'
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Cheaper Inference
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.cheaperinference.com/v1",
+    api_key=os.environ["CHEAPER_INFERENCE_API_KEY"]
+)
+
+response = client.chat.completions.create(
+    model="gpt-5.4-mini",
+    messages=[{"role": "user", "content": "Write a haiku about observability."}],
+)
+print(response.choices[0].message.content)
+```
+
+Model IDs are bare names, such as `gpt-5.4-mini`, `claude-sonnet-5`, `gemini-3.1-pro` or `deepseek-v4-flash`. `GET https://api.cheaperinference.com/v1/models` lists the available models.
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Cheaper Inference will be streamed to your running Phoenix for observability and evaluation.
+
+## What Gets Traced
+
+All Cheaper Inference model calls are automatically traced and include:
+
+* Request/response data and timing
+* Model name
+* Token usage
+* Error handling and debugging information
+
+## Common Issues
+
+* **API Key**: Use your Cheaper Inference API key (`ci_live_...`), not an OpenAI key
+* **Model Names**: Use bare model IDs such as `gpt-5.4-mini`. See the [Cheaper Inference model list](https://cheaperinference.com/markets) for available models
+* **Base URL**: Ensure you're using `https://api.cheaperinference.com/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Cheaper Inference Documentation" href="https://cheaperinference.com/docs" icon="book" horizontal description="Cheaper Inference setup docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

@@ -611,6 +611,13 @@
                 ]
               },
               {
+                "group": "Cheaper Inference",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/cheaperinference",
+                  "docs/phoenix/integrations/llm-providers/cheaperinference/openai-tracing"
+                ]
+              },
+              {
                 "group": "Together AI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/together",
