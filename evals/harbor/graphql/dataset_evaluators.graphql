@@ -1,0 +1,64 @@
+fragment EvaluatorOutputConfigFields on BuiltInEvaluatorOutputConfig {
+  __typename
+  ... on CategoricalAnnotationConfig {
+    name
+    description
+    optimizationDirection
+    values {
+      label
+      score
+    }
+  }
+  ... on ContinuousAnnotationConfig {
+    name
+    description
+    optimizationDirection
+    lowerBound
+    upperBound
+  }
+  ... on FreeformAnnotationConfig {
+    name
+    description
+  }
+}
+
+fragment DatasetEvaluatorFields on DatasetEvaluator {
+  id
+  name
+  inputMapping {
+    pathMapping
+    literalMapping
+  }
+  outputConfigs {
+    ...EvaluatorOutputConfigFields
+  }
+  evaluator {
+    id
+    name
+    kind
+    ... on CodeEvaluator {
+      language
+      sourceCode
+      sandboxConfig {
+        id
+      }
+      outputConfigs {
+        ...EvaluatorOutputConfigFields
+      }
+    }
+  }
+}
+
+query DatasetEvaluators($datasetId: ID!) {
+  node(id: $datasetId) {
+    ... on Dataset {
+      datasetEvaluators(first: 50) {
+        edges {
+          node {
+            ...DatasetEvaluatorFields
+          }
+        }
+      }
+    }
+  }
+}

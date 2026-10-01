@@ -10,11 +10,12 @@ import json
 import os
 import urllib.request
 from collections import defaultdict
-from pathlib import Path
 from typing import Any
 
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
+
+from evals.harbor.verifiers.graphql_client import Client as GraphQLClient
 
 PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
 ANSWER_PATH = "/app/answer.txt"
@@ -51,13 +52,9 @@ def annotation_labels(project: str, name: str) -> list[str]:
     ]
 
 
-def read_query(path: Path) -> str:
-    """The text of a ``.graphql`` file, which the unit tests validate against the schema."""
-    return path.read_text()
-
-
-def nodes(connection: dict[str, Any]) -> list[dict[str, Any]]:
-    return [edge["node"] for edge in connection["edges"]]
+def graphql_client() -> GraphQLClient:
+    """The typed client that ``make codegen-harbor-graphql`` compiles from evals/harbor/graphql."""
+    return GraphQLClient(url=f"{PHOENIX_URL}/graphql")
 
 
 def graphql(

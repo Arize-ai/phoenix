@@ -1,183 +1,137 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from datetime import date, datetime
-from pathlib import Path
 from typing import Any, Callable, NamedTuple
 
+from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
 
-from evals.harbor.verifiers import phoenix_api, verify
+from evals.harbor.verifiers import phoenix_api
+from evals.harbor.verifiers.graphql_client import (
+    AnnotationConfigInput,
+    BaseModel,
+    CategoricalAnnotationConfigInput,
+    ContinuousAnnotationConfigInput,
+    DatasetEvaluatorFields,
+    DatasetEvaluatorFieldsEvaluatorCodeEvaluator,
+    DatasetEvaluatorsNodeDataset,
+    DatasetExperimentsNodeDataset,
+    EvaluatorInputMappingInput,
+    EvaluatorKind,
+    EvaluatorPreviewInput,
+    EvaluatorPreviewItemInput,
+    EvaluatorPreviewsEvaluatorPreviewsResults,
+    EvaluatorPreviewsInput,
+    ExperimentFields,
+    ExperimentRunFields,
+    FreeformAnnotationConfigInput,
+    InlineCodeEvaluatorInput,
+)
 from phoenix.server.api.types.node import from_global_id
 
-QUERIES_DIR = Path(__file__).with_name("queries")
 DATASET_NAME = "banking_saas_dataset_clean"
 
 ExampleNodeId = str
+Scores = dict[ExampleNodeId, float | None]
 
 
 # --- the dataset -------------------------------------------------------------------
 
 
-@dataclass
-class Example:
-    node_id: ExampleNodeId
-    input: Any
-    reference: Any
-    metadata: Any
-
-    @property
-    def rowid(self) -> int:
-        return from_global_id(GlobalID.from_id(self.node_id))[1]
-
-    @property
-    def reference_text(self) -> str:
-        if isinstance(self.reference, dict):
-            return str(self.reference.get("reference", ""))
-        return str(self.reference)
-
-    @property
-    def question(self) -> str:
-        if isinstance(self.input, dict):
-            messages = self.input.get("messages") or []
-            if messages:
-                return str(messages[-1].get("content", ""))
-        return str(self.input)
-
-
-def fetch_dataset() -> tuple[str, list[Example]]:
+def fetch_dataset() -> tuple[str, list[v1.DatasetExample]]:
     """The dataset's node id and its current examples."""
     dataset = phoenix_api.client().datasets.get_dataset(dataset=DATASET_NAME)
-    examples = [
-        Example(e["node_id"], e["input"], e["output"], e["metadata"]) for e in dataset.examples
-    ]
-    return dataset.id, examples
+    return dataset.id, dataset.examples
+
+
+def rowid(node_id: str) -> int:
+    return from_global_id(GlobalID.from_id(node_id))[1]
+
+
+def reference_text(example: v1.DatasetExample) -> str:
+    return str(example["output"].get("reference", ""))
+
+
+def question(example: v1.DatasetExample) -> str:
+    messages = example["input"].get("messages") or []
+    if messages:
+        return str(messages[-1].get("content", ""))
+    return str(example["input"])
 
 
 # --- evaluators and experiments -----------------------------------------------------
 
 
-@dataclass
-class BoundEvaluator:
-    node_id: str
-    name: str
-    kind: str
-    input_mapping: dict[str, Any]
-    output_configs: list[dict[str, Any]]
-    evaluator_name: str
-    source_code: str | None = None
-    language: str | None = None
-    sandbox_config_id: str | None = None
-
-    @property
-    def builtin_key(self) -> str | None:
-        return self.evaluator_name if self.kind == "BUILTIN" else None
+def fetch_evaluators(dataset_id: str) -> list[DatasetEvaluatorFields]:
+    node = phoenix_api.graphql_client().dataset_evaluators(dataset_id, timeout=60.0).node
+    if not isinstance(node, DatasetEvaluatorsNodeDataset):
+        raise ValueError(f"{dataset_id} is not a dataset")
+    return [edge.node for edge in node.dataset_evaluators.edges]
 
 
-@dataclass
-class Experiment:
-    node_id: str
-    sequence_number: int
-    name: str
-    description: str | None
-    metadata: dict[str, Any]
-    created_at: datetime
-    run_count: int
-    error_count: int
-    scores: dict[ExampleNodeId, float | None]
-    latest_annotation_at: datetime | None
-    latency_ms: float | None
-    cost: float | None
-
-    @property
-    def rowid(self) -> int:
-        return from_global_id(GlobalID.from_id(self.node_id))[1]
-
-    @property
-    def scored_count(self) -> int:
-        return sum(1 for s in self.scores.values() if s is not None)
-
-    @property
-    def pass_count(self) -> int:
-        return sum(1 for s in self.scores.values() if s is not None and s >= 0.5)
-
-    @property
-    def mean_score(self) -> float:
-        scored = [s for s in self.scores.values() if s is not None]
-        return sum(scored) / len(scored) if scored else 0.0
-
-    def changed_after(self, instant: datetime) -> bool:
-        """Whether the experiment or any of its scores was created after ``instant``."""
-        return self.created_at > instant or (
-            self.latest_annotation_at is not None and self.latest_annotation_at > instant
-        )
+def builtin_key(evaluator: DatasetEvaluatorFields) -> str | None:
+    return evaluator.evaluator.name if evaluator.evaluator.kind is EvaluatorKind.BUILTIN else None
 
 
-def fetch_dataset_state(dataset_id: str) -> tuple[list[BoundEvaluator], list[Experiment]]:
-    """The evaluators bound to the dataset and every experiment run on it, with each run
-    scored by the latest annotation from one of those evaluators."""
-    query = phoenix_api.read_query(QUERIES_DIR / "dataset_state.graphql")
-    dataset = phoenix_api.graphql(query, {"datasetId": dataset_id})["node"]
-    evaluators = [
-        BoundEvaluator(
-            node_id=binding["evaluator"]["id"],
-            name=binding["name"],
-            kind=binding["evaluator"]["kind"],
-            input_mapping=binding["inputMapping"],
-            output_configs=binding["outputConfigs"]
-            or binding["evaluator"].get("outputConfigs")
-            or [],
-            source_code=binding["evaluator"].get("sourceCode"),
-            language=binding["evaluator"].get("language"),
-            sandbox_config_id=(binding["evaluator"].get("sandboxConfig") or {}).get("id"),
-            evaluator_name=binding["evaluator"]["name"],
-        )
-        for binding in phoenix_api.nodes(dataset["datasetEvaluators"])
+def fetch_experiments(dataset_id: str) -> list[ExperimentFields]:
+    """Every experiment run on the dataset, oldest first."""
+    node = phoenix_api.graphql_client().dataset_experiments(dataset_id, timeout=60.0).node
+    if not isinstance(node, DatasetExperimentsNodeDataset):
+        raise ValueError(f"{dataset_id} is not a dataset")
+    return sorted((edge.node for edge in node.experiments.edges), key=lambda x: x.created_at)
+
+
+def first_runs(experiment: ExperimentFields) -> list[ExperimentRunFields]:
+    return [edge.node for edge in experiment.runs.edges if edge.node.repetition_number == 1]
+
+
+def error_count(experiment: ExperimentFields) -> int:
+    return sum(1 for run in first_runs(experiment) if run.error)
+
+
+def scores(experiment: ExperimentFields, evaluators: list[DatasetEvaluatorFields]) -> Scores:
+    """Each run's score from the latest annotation left by one of the evaluators."""
+    names = {e.name for e in evaluators}
+    result: Scores = {}
+    for run in first_runs(experiment):
+        matching = [
+            edge.node.score
+            for edge in run.annotations.edges
+            if edge.node.name in names and edge.node.score is not None
+        ]
+        result[run.example.id] = matching[-1] if matching else None
+    return result
+
+
+def scored_count(scores: Scores) -> int:
+    return sum(1 for s in scores.values() if s is not None)
+
+
+def pass_count(scores: Scores) -> int:
+    return sum(1 for s in scores.values() if s is not None and s >= 0.5)
+
+
+def mean_score(scores: Scores) -> float:
+    scored = [s for s in scores.values() if s is not None]
+    return sum(scored) / len(scored) if scored else 0.0
+
+
+def changed_after(experiment: ExperimentFields, instant: datetime) -> bool:
+    """Whether the experiment or any of its annotations was created after ``instant``."""
+    annotated_at = [
+        edge.node.start_time for run in first_runs(experiment) for edge in run.annotations.edges
     ]
-    evaluator_names = {e.name for e in evaluators}
-    experiments: list[Experiment] = []
-    for node in phoenix_api.nodes(dataset["experiments"]):
-        runs = [r for r in phoenix_api.nodes(node["runs"]) if r["repetitionNumber"] == 1]
-        scores: dict[ExampleNodeId, float | None] = {}
-        annotation_times: list[datetime] = []
-        for run in runs:
-            annotations = phoenix_api.nodes(run["annotations"])
-            annotation_times.extend(verify.parse_timestamp(a["startTime"]) for a in annotations)
-            matching = [
-                a["score"]
-                for a in annotations
-                if a["name"] in evaluator_names and a["score"] is not None
-            ]
-            scores[run["example"]["id"]] = float(matching[-1]) if matching else None
-        total_cost = (node["costSummary"]["total"] or {}).get("cost")
-        experiments.append(
-            Experiment(
-                node_id=node["id"],
-                sequence_number=node["sequenceNumber"],
-                name=node["name"],
-                description=node["description"],
-                metadata=node["metadata"] or {},
-                created_at=verify.parse_timestamp(node["createdAt"]),
-                run_count=len(runs),
-                error_count=sum(1 for r in runs if r["error"]),
-                scores=scores,
-                latest_annotation_at=max(annotation_times, default=None),
-                latency_ms=node["averageRunLatencyMs"],
-                cost=float(total_cost) if total_cost is not None else None,
-            )
-        )
-    experiments.sort(key=lambda x: x.sequence_number)
-    return evaluators, experiments
+    return experiment.created_at > instant or any(t > instant for t in annotated_at)
 
 
 def moved_examples(
-    first: Experiment, last: Experiment
+    first: Scores, last: Scores
 ) -> dict[ExampleNodeId, tuple[float | None, float | None]]:
     return {
-        example_id: (first.scores.get(example_id), last.scores.get(example_id))
-        for example_id in set(first.scores) | set(last.scores)
-        if first.scores.get(example_id) != last.scores.get(example_id)
+        example_id: (first.get(example_id), last.get(example_id))
+        for example_id in set(first) | set(last)
+        if first.get(example_id) != last.get(example_id)
     }
 
 
@@ -190,8 +144,8 @@ class ProbeCase(NamedTuple):
     should_pass: bool
 
 
-def probe_cases(example: Example) -> list[ProbeCase]:
-    reference = example.reference_text
+def probe_cases(example: v1.DatasetExample) -> list[ProbeCase]:
+    reference = reference_text(example)
     altered = (
         reference.replace("user_id", "userid", 1)
         if "user_id" in reference
@@ -206,84 +160,91 @@ def probe_cases(example: Example) -> list[ProbeCase]:
     ]
 
 
-def _config_input(config: dict[str, Any]) -> dict[str, Any]:
-    kind = config["__typename"]
-    fields = {k: v for k, v in config.items() if k != "__typename"}
+def _config_input(config: BaseModel) -> AnnotationConfigInput:
+    fields = config.model_dump()
+    kind = fields.pop("typename__")
     if kind == "CategoricalAnnotationConfig":
-        return {"categorical": fields}
+        return AnnotationConfigInput(
+            categorical=CategoricalAnnotationConfigInput.model_validate(fields)
+        )
     if kind == "ContinuousAnnotationConfig":
-        return {"continuous": fields}
-    return {"freeform": fields}
+        return AnnotationConfigInput(
+            continuous=ContinuousAnnotationConfigInput.model_validate(fields)
+        )
+    return AnnotationConfigInput(freeform=FreeformAnnotationConfigInput.model_validate(fields))
 
 
-def _preview_ref(evaluator: BoundEvaluator) -> dict[str, Any]:
-    """Phoenix stores a code evaluator's output configs as annotation configs, and every
-    GraphQL surface, including the by-id preview, filters those out as the wrong type. So
-    the saved source and sandbox are sent inline, with the saved configs when the binding
-    exposes them and otherwise a freeform config, under which Phoenix passes the label and
-    score through unchanged."""
-    if evaluator.kind == "CODE":
-        if evaluator.sandbox_config_id is None:
+def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorPreviewInput:
+    """Builtins are previewed by id. Code evaluators are sent inline because the GraphQL
+    by-id preview filters them out as the wrong type: with the saved output configs when
+    the binding exposes them and otherwise a freeform config, under which Phoenix passes
+    the label and score through unchanged."""
+    inner = evaluator.evaluator
+    if isinstance(inner, DatasetEvaluatorFieldsEvaluatorCodeEvaluator):
+        if inner.sandbox_config is None:
             raise ValueError("code evaluator has no sandbox configuration")
-        configs = [_config_input(c) for c in evaluator.output_configs] or [
-            {"freeform": {"name": evaluator.name}}
+        configs = [_config_input(c) for c in evaluator.output_configs or inner.output_configs] or [
+            AnnotationConfigInput(freeform=FreeformAnnotationConfigInput(name=evaluator.name))
         ]
-        return {
-            "inlineCodeEvaluator": {
-                "name": evaluator.name,
-                "language": evaluator.language or "PYTHON",
-                "sourceCode": evaluator.source_code or "",
-                "sandboxConfigId": evaluator.sandbox_config_id,
-                "outputConfigs": configs,
-            }
-        }
-    if evaluator.kind == "BUILTIN":
-        return {"builtInEvaluatorId": evaluator.node_id}
-    raise ValueError(f"cannot preview a {evaluator.kind} evaluator")
+        return EvaluatorPreviewInput(
+            inline_code_evaluator=InlineCodeEvaluatorInput(
+                name=evaluator.name,
+                language=inner.language,
+                source_code=inner.source_code,
+                sandbox_config_id=inner.sandbox_config.id,
+                output_configs=configs,
+            )
+        )
+    if inner.kind is EvaluatorKind.BUILTIN:
+        return EvaluatorPreviewInput(built_in_evaluator_id=inner.id)
+    raise ValueError(f"cannot preview a {inner.kind.value} evaluator")
 
 
-def preview_scores(evaluator: BoundEvaluator, contexts: list[dict[str, Any]]) -> list[float]:
+def preview_scores(
+    evaluator: DatasetEvaluatorFields, contexts: list[dict[str, Any]]
+) -> list[float]:
     """Score each context with the evaluator through Phoenix, on its own sandbox and with
     its own input mapping, exactly as an experiment run would."""
-    previews = [
-        {
-            "evaluator": _preview_ref(evaluator),
-            "context": context,
-            "inputMapping": evaluator.input_mapping,
-        }
-        for context in contexts
-    ]
-    query = phoenix_api.read_query(QUERIES_DIR / "evaluator_previews.graphql")
-    results = phoenix_api.graphql(query, {"input": {"previews": previews}}, timeout=300.0)
-    scores = [_as_score(r) for r in results["evaluatorPreviews"]["results"]]
+    input_mapping = EvaluatorInputMappingInput.model_validate(evaluator.input_mapping.model_dump())
+    previews = EvaluatorPreviewsInput(
+        previews=[
+            EvaluatorPreviewItemInput(
+                evaluator=_preview_ref(evaluator), context=context, input_mapping=input_mapping
+            )
+            for context in contexts
+        ]
+    )
+    results = phoenix_api.graphql_client().evaluator_previews(previews, timeout=300.0)
+    scores = [_as_score(r) for r in results.evaluator_previews.results]
     if len(scores) != len(contexts):
         raise ValueError(f"{len(contexts)} contexts produced {len(scores)} results")
     return scores
 
 
-def _as_score(result: dict[str, Any]) -> float:
-    if result.get("error"):
-        raise ValueError(result["error"])
-    annotation = result.get("annotation") or {}
-    if isinstance(annotation.get("score"), (int, float)):
-        return float(annotation["score"])
-    label = str(annotation.get("label") or "").lower()
-    if label in {"pass", "true", "correct", "match", "yes"}:
+def _as_score(result: EvaluatorPreviewsEvaluatorPreviewsResults) -> float:
+    if result.error:
+        raise ValueError(result.error)
+    annotation = result.annotation
+    if annotation is not None and annotation.score is not None:
+        return annotation.score
+    label = (annotation.label if annotation is not None else None) or ""
+    if label.lower() in {"pass", "true", "correct", "match", "yes"}:
         return 1.0
-    if label in {"fail", "false", "incorrect", "mismatch", "no"}:
+    if label.lower() in {"fail", "false", "incorrect", "mismatch", "no"}:
         return 0.0
     raise ValueError(f"unrecognized evaluator result {result!r}")
 
 
 def probe_evaluator(
-    evaluator: BoundEvaluator, examples: list[Example]
+    evaluator: DatasetEvaluatorFields, examples: list[v1.DatasetExample]
 ) -> tuple[bool, dict[str, Any]]:
     """Passes when every probe agrees with expectation under at least one output shape: a
     bare string, as SDK tasks return, or a chat-messages dict, as playground runs store."""
-    if evaluator.kind not in {"CODE", "BUILTIN"}:
-        return False, {"reason": f"a {evaluator.kind} evaluator is not an exact-match check"}
-    if evaluator.kind == "BUILTIN" and evaluator.builtin_key != "exact_match":
-        return False, {"reason": f"builtin {evaluator.builtin_key!r} cannot check exact match"}
+    kind = evaluator.evaluator.kind
+    if kind not in {EvaluatorKind.CODE, EvaluatorKind.BUILTIN}:
+        return False, {"reason": f"a {kind.value} evaluator is not an exact-match check"}
+    if kind is EvaluatorKind.BUILTIN and builtin_key(evaluator) != "exact_match":
+        return False, {"reason": f"builtin {builtin_key(evaluator)!r} cannot check exact match"}
     shapes: dict[str, Callable[[str], Any]] = {
         "text": lambda text: text,
         "messages": lambda text: {"messages": [{"role": "assistant", "content": text}]},
@@ -295,21 +256,22 @@ def probe_evaluator(
             cases = probe_cases(example)
             contexts = [
                 {
-                    "input": example.input,
-                    "reference": example.reference,
+                    "input": example["input"],
+                    "reference": example["output"],
                     "output": shape(case.output),
-                    "metadata": example.metadata,
+                    "metadata": example["metadata"],
                 }
                 for case in cases
             ]
+            example_rowid = rowid(example["node_id"])
             try:
                 scores = preview_scores(evaluator, contexts)
             except Exception as exc:  # noqa: BLE001
-                failures.append(f"{example.rowid}: {type(exc).__name__}: {str(exc)[:200]}")
+                failures.append(f"{example_rowid}: {type(exc).__name__}: {str(exc)[:200]}")
                 continue
             for case, score in zip(cases, scores):
                 if (score >= 0.5) != case.should_pass:
-                    failures.append(f"{example.rowid}/{case.label}: score {score}")
+                    failures.append(f"{example_rowid}/{case.label}: score {score}")
         detail[shape_name] = failures[:10]
         if not failures:
             return True, {"shape": shape_name}

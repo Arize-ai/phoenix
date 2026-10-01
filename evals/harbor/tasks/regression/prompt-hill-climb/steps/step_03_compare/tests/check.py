@@ -3,29 +3,32 @@ import json
 import hill_climb_checks as hc
 
 from evals.harbor.verifiers import llm_judge, verify
+from evals.harbor.verifiers.graphql_client import ExperimentFields
 
 trajectory = verify.read_trajectory(verify.TRAJECTORY_PATH)
 reply = verify.final_reply(trajectory)
 started = verify.started_at(trajectory)
 dataset_id, examples = hc.fetch_dataset()
-evaluators, experiments = hc.fetch_dataset_state(dataset_id)
-examples_by_id = {e.node_id: e for e in examples}
+evaluators = hc.fetch_evaluators(dataset_id)
+experiments = hc.fetch_experiments(dataset_id)
+examples_by_id = {e["node_id"]: e for e in examples}
 
 first, last = experiments[0], experiments[-1]
-moved = hc.moved_examples(first, last)
+first_scores, last_scores = hc.scores(first, evaluators), hc.scores(last, evaluators)
+moved = hc.moved_examples(first_scores, last_scores)
 
 # This step is read-only apart from the note, so nothing may be created after it began.
 no_new_experiments_or_scores = started is not None and not any(
-    x.changed_after(started) for x in experiments
+    hc.changed_after(x, started) for x in experiments
 )
 
 reply_names_both_experiments = all(
-    x.name in reply or x.node_id in reply or f"#{x.rowid}" in reply for x in (first, last)
+    x.name in reply or x.id in reply or f"#{hc.rowid(x.id)}" in reply for x in (first, last)
 )
 
 links = hc.compare_links(reply)
 reply_links_comparison_view = any(
-    dataset == dataset_id and ids == {first.node_id, last.node_id} for dataset, ids in links
+    dataset == dataset_id and ids == {first.id, last.id} for dataset, ids in links
 )
 
 learning_recorded_on_last_experiment = started is not None and any(
@@ -33,28 +36,29 @@ learning_recorded_on_last_experiment = started is not None and any(
 )
 
 
-def describe(experiment: hc.Experiment) -> str:
-    latency = f"{experiment.latency_ms:.0f} ms" if experiment.latency_ms is not None else "unknown"
-    cost = f"${experiment.cost:.4f}" if experiment.cost is not None else "unknown"
+def describe(experiment: ExperimentFields, scores: hc.Scores) -> str:
+    latency_ms = experiment.average_run_latency_ms
+    cost = experiment.cost_summary.total.cost
     return (
-        f"{experiment.name!r} (id {experiment.node_id}):"
-        f" {experiment.pass_count}/{experiment.run_count} passed,"
-        f" mean run latency {latency}, total cost {cost}"
+        f"{experiment.name!r} (id {experiment.id}):"
+        f" {hc.pass_count(scores)}/{len(hc.first_runs(experiment))} passed,"
+        f" mean run latency {f'{latency_ms:.0f} ms' if latency_ms is not None else 'unknown'},"
+        f" total cost {f'${cost:.4f}' if cost is not None else 'unknown'}"
     )
 
 
 moved_text = (
     "\n".join(
-        f"- example {eid} (metadata {examples_by_id[eid].metadata}):"
-        f" {examples_by_id[eid].question!r} first={scores[0]} last={scores[1]}"
+        f"- example {eid} (metadata {examples_by_id[eid]['metadata']}):"
+        f" {hc.question(examples_by_id[eid])!r} first={scores[0]} last={scores[1]}"
         for eid, scores in sorted(moved.items())
         if eid in examples_by_id
     )
     or "(none)"
 )
 facts = (
-    f"FIRST experiment {describe(first)}\n"
-    f"LAST experiment {describe(last)}\n"
+    f"FIRST experiment {describe(first, first_scores)}\n"
+    f"LAST experiment {describe(last, last_scores)}\n"
     f"EXAMPLES WHOSE SCORE CHANGED:\n{moved_text}"
 )
 VERDICT_KEYS = {
@@ -94,8 +98,8 @@ passed = (
 )
 details = {
     "started_at": started,
-    "first": {"id": first.node_id, "name": first.name, "passed": first.pass_count},
-    "last": {"id": last.node_id, "name": last.name, "passed": last.pass_count},
+    "first": {"id": first.id, "name": first.name, "passed": hc.pass_count(first_scores)},
+    "last": {"id": last.id, "name": last.name, "passed": hc.pass_count(last_scores)},
     "moved_example_ids": sorted(moved),
     "links": [[d, sorted(ids)] for d, ids in links],
     "last_metadata": last.metadata,
