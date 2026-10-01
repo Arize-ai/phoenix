@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
 
 import {
   denormalizePlaygroundInstance,
@@ -23,13 +24,20 @@ const InstanceVariablesContext = createContext<InstanceVariablesMap>({});
  *
  * By moving the computation into a context provider, cells can read variables without
  * the table needing to pass them through column definitions.
+ *
+ * Run progress is ignored for the same reason: a run streams one store write
+ * per result, each of which replaces `instances`, and none of them changes a
+ * template.
  */
 export function InstanceVariablesProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const instances = usePlaygroundContext((state) => state.instances);
+  const instances = usePlaygroundContext(
+    (state) => state.instances,
+    arePlaygroundInstancesEqualExceptProgress
+  );
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );

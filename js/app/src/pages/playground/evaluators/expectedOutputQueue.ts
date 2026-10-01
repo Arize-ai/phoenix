@@ -10,12 +10,7 @@ export type PendingExpectedOutputs = Record<
   Record<string, ExpectedOutput | null>
 >;
 
-export type ExpectedOutputSaveStatus =
-  | "idle"
-  | "pending"
-  | "saving"
-  | "saved"
-  | "error";
+export type ExpectedOutputSaveStatus = "idle" | "pending" | "saving" | "error";
 
 export type ExpectedOutputQueueState = {
   /** Every annotation not yet confirmed by the server, in flight or not, so the
@@ -32,9 +27,6 @@ export const EXPECTED_OUTPUT_IDLE_MS = 2000;
 
 /** Never let continuous annotating postpone a write longer than this. */
 export const EXPECTED_OUTPUT_MAX_WAIT_MS = 10000;
-
-/** How long "Saved" stays up after a write lands. */
-const SAVED_NOTICE_MS = 2500;
 
 const EMPTY: PendingExpectedOutputs = {};
 
@@ -72,7 +64,9 @@ function countPending(pending: PendingExpectedOutputs) {
  * column — and each write costs a dataset version, so annotations wait for a short
  * idle gap (bounded by a maximum wait) and go out together. Annotations made while
  * a batch is in flight form the next batch; a failed batch returns to the
- * queue for retry with anything annotated since layered on top.
+ * queue for retry with anything annotated since layered on top. A successful
+ * write is silent: the table already shows the annotation as recorded, so
+ * only a failure has anything to tell the user.
  *
  * The timer is injectable so the behavior can be tested without real time.
  */
@@ -95,10 +89,8 @@ export function createExpectedOutputQueue({
   let inFlight: PendingExpectedOutputs | null = null;
   let current: Promise<UIOperationResult> | null = null;
   let error: string | null = null;
-  let showSaved = false;
   let cancelIdleTimer: CancelTimer | null = null;
   let cancelMaxTimer: CancelTimer | null = null;
-  let cancelSavedTimer: CancelTimer | null = null;
 
   function clearTimers() {
     cancelIdleTimer?.();
@@ -116,9 +108,7 @@ export function createExpectedOutputQueue({
         ? "error"
         : pendingCount
           ? "pending"
-          : showSaved
-            ? "saved"
-            : "idle";
+          : "idle";
 
     return {
       overlay: inFlight
@@ -145,7 +135,6 @@ export function createExpectedOutputQueue({
       [exampleId]: { ...pending[exampleId], [annotationName]: output },
     };
     error = null;
-    showSaved = false;
     cancelIdleTimer?.();
     cancelIdleTimer = schedule(() => void flushNow(), idleMs);
     cancelMaxTimer ??= schedule(() => void flushNow(), maxWaitMs);
@@ -179,12 +168,6 @@ export function createExpectedOutputQueue({
       // A Retry reaches here without passing through enqueue, so the failure
       // it recovered from is cleared here too.
       error = null;
-      showSaved = true;
-      cancelSavedTimer?.();
-      cancelSavedTimer = schedule(() => {
-        showSaved = false;
-        emit();
-      }, SAVED_NOTICE_MS);
     } else {
       // Back to the queue, under anything annotated meanwhile.
       pending = mergePendingExpectedOutputs(batch, pending);

@@ -7,7 +7,7 @@ import CodeMirror, {
   type BasicSetupOptions,
   type EditorView,
 } from "@uiw/react-codemirror";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -16,7 +16,6 @@ import {
   Flex,
   Icon,
   Icons,
-  Switch,
   Text,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
@@ -64,9 +63,6 @@ export const CodeEvaluatorSourceEditor = ({
     []
   );
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
-  // The auto-generated type footer is hidden by default.
-  const [showTypes, setShowTypes] = useState(false);
-
   const evaluatorMappingSourceState = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
@@ -212,15 +208,6 @@ export const CodeEvaluatorSourceEditor = ({
           >
             Copy
           </CopyToClipboardButton>
-          {typeFooter ? (
-            <Switch
-              isSelected={showTypes}
-              onChange={setShowTypes}
-              labelPlacement="start"
-            >
-              <Text size="S">Show types</Text>
-            </Switch>
-          ) : null}
         </Flex>
       </Flex>
 
@@ -254,8 +241,9 @@ export const CodeEvaluatorSourceEditor = ({
             </div>
           </Panel>
 
-          {/* Read-only type footer panel */}
-          {showTypes && typeFooter && (
+          {/* Read-only type footer: what `evaluate` receives, always in view
+              so the mapping and the code are read together. */}
+          {typeFooter && (
             <>
               <Separator css={compactResizeHandleCSS} />
               <Panel defaultSize="25%" minSize="10%" style={editorPanelStyle}>
