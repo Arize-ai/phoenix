@@ -2320,6 +2320,24 @@ export interface components {
         ChatCompletionErrorResponse: {
             error: components["schemas"]["ChatCompletionErrorDetail"];
         };
+        /** ChatCompletionImagePart */
+        ChatCompletionImagePart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "image_url";
+            image_url: components["schemas"]["ChatCompletionMediaURL"];
+        };
+        /** ChatCompletionMediaURL */
+        ChatCompletionMediaURL: {
+            /** Url */
+            url: string;
+            /** Detail */
+            detail?: ("auto" | "low" | "default" | "high") | null;
+            /** Max Long Side Pixel */
+            max_long_side_pixel?: number | null;
+        };
         /** ChatCompletionMessage */
         ChatCompletionMessage: {
             /**
@@ -2339,7 +2357,7 @@ export interface components {
              */
             role: "system" | "developer" | "user" | "assistant";
             /** Content */
-            content: string | components["schemas"]["ChatCompletionTextPart"][];
+            content: string | (components["schemas"]["ChatCompletionTextPart"] | components["schemas"]["ChatCompletionImagePart"] | components["schemas"]["ChatCompletionVideoPart"])[];
         };
         /** ChatCompletionStreamOptions */
         ChatCompletionStreamOptions: {
@@ -2352,8 +2370,8 @@ export interface components {
         /** ChatCompletionTextPart */
         ChatCompletionTextPart: {
             /**
-             * Type
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             type: "text";
             /** Text */
@@ -2373,6 +2391,26 @@ export interface components {
         ChatCompletionUsagePromptTokensDetails: {
             /** Cached Tokens */
             cached_tokens: number;
+        };
+        /** ChatCompletionVideoPart */
+        ChatCompletionVideoPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "video_url";
+            video_url: components["schemas"]["ChatCompletionVideoURL"];
+        };
+        /** ChatCompletionVideoURL */
+        ChatCompletionVideoURL: {
+            /** Url */
+            url: string;
+            /** Detail */
+            detail?: ("auto" | "low" | "default" | "high") | null;
+            /** Max Long Side Pixel */
+            max_long_side_pixel?: number | null;
+            /** Fps */
+            fps?: number | null;
         };
         /**
          * ChatContext

@@ -11169,6 +11169,66 @@
         ],
         "title": "ChatCompletionErrorResponse"
       },
+      "ChatCompletionImagePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "image_url",
+            "title": "Type"
+          },
+          "image_url": {
+            "$ref": "#/components/schemas/ChatCompletionMediaURL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "image_url"
+        ],
+        "title": "ChatCompletionImagePart"
+      },
+      "ChatCompletionMediaURL": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "low",
+                  "default",
+                  "high"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "max_long_side_pixel": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Long Side Pixel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ChatCompletionMediaURL"
+      },
       "ChatCompletionMessage": {
         "properties": {
           "role": {
@@ -11207,7 +11267,25 @@
               },
               {
                 "items": {
-                  "$ref": "#/components/schemas/ChatCompletionTextPart"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ChatCompletionTextPart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ChatCompletionImagePart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ChatCompletionVideoPart"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "image_url": "#/components/schemas/ChatCompletionImagePart",
+                      "text": "#/components/schemas/ChatCompletionTextPart",
+                      "video_url": "#/components/schemas/ChatCompletionVideoPart"
+                    }
+                  }
                 },
                 "type": "array"
               }
@@ -11297,6 +11375,79 @@
           "cached_tokens"
         ],
         "title": "ChatCompletionUsagePromptTokensDetails"
+      },
+      "ChatCompletionVideoPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "video_url",
+            "title": "Type"
+          },
+          "video_url": {
+            "$ref": "#/components/schemas/ChatCompletionVideoURL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "video_url"
+        ],
+        "title": "ChatCompletionVideoPart"
+      },
+      "ChatCompletionVideoURL": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "low",
+                  "default",
+                  "high"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "max_long_side_pixel": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Long Side Pixel"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "minimum": 0.2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ChatCompletionVideoURL"
       },
       "ChatContext": {
         "oneOf": [

@@ -586,6 +586,10 @@ def _get_pydantic_ai_model_from_builtin_provider(
         openai_provider = OpenAIProvider(
             openai_client=AsyncOpenAI(api_key=api_key, base_url=base_url)
         )
+        if params.provider is ModelProvider.MINIMAX:
+            from phoenix.server.agents.pydantic_ai.minimax import MiniMaxChatModel
+
+            return MiniMaxChatModel(params.model_name, provider=openai_provider)
         return _build_openai_model(
             model_name=params.model_name,
             provider=openai_provider,
