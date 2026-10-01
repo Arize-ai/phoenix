@@ -475,6 +475,11 @@ export interface PlaygroundProps {
    */
   isEditingExamples: boolean;
   /**
+   * Edits to the examples not yet saved, for the page's one navigation
+   * blocker. Zero while a save is in flight.
+   */
+  unsavedExampleChangeCount: number;
+  /**
    * The dataset examples the active run covers, or null for every example
    * of the dataset. A row's play button runs the tasks on that one example.
    * @default null
@@ -819,7 +824,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * set whether to record experiments
    */
   setRecordExperiments: (recordExperiments: boolean) => void;
-  setIsEditingExamples: (isEditingExamples: boolean) => void;
+  setExampleEditing: (editing: {
+    isEditingExamples: boolean;
+    unsavedExampleChangeCount: number;
+  }) => void;
   /**
    * Stage the name/description/metadata for the experiments created by the next
    * dataset-backed run. Passing null clears any staged scaffold.

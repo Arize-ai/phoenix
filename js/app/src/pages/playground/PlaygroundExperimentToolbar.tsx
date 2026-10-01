@@ -163,8 +163,10 @@ export function PlaygroundExperimentToolbar({
         </TooltipTrigger>
       )}
       <PlaygroundExampleColumnSelector hasMetadata={hasExampleMetadata} />
+      {/* The settings include whether the metadata column hides the
+          annotations, which the edit session's cells were built against. */}
       <PlaygroundExperimentSettingsButton
-        isDisabled={isRunning}
+        isDisabled={isRunning || isEditingExamples}
         datasetId={datasetId}
       />
     </Flex>

@@ -3,7 +3,6 @@ import type { Ref } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 import type { PanelImperativeHandle } from "react-resizable-panels";
-import { useStore } from "zustand";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
@@ -17,13 +16,10 @@ import {
   selectDatasetEvaluatorsOperation,
 } from "@phoenix/agent/uiOperations/operations/datasetEvaluators";
 import { Flex } from "@phoenix/components";
-import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { useUnsavedChangesBlocker } from "@phoenix/hooks";
-import { describeUnsavedExampleChanges } from "@phoenix/pages/examples/unsavedExampleChanges";
 import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
   PlaygroundDatasetSection_evaluator$data,
@@ -291,26 +287,33 @@ export function PlaygroundDatasetSection({
     return () => editStore.getState().cancelEditing();
   }, [editStore, key]);
 
-  // The rest of the page reads the session's state from the playground store:
-  // the Run button waits for the edits to be saved or discarded.
-  const setIsEditingExamples = usePlaygroundContext(
-    (state) => state.setIsEditingExamples
+  // The rest of the page reads the session's state from the playground
+  // store: the Run button waits for the edits to be saved or discarded, and
+  // the page's one navigation blocker asks before unsaved edits are lost. (A
+  // router honors a single blocker, so this section registers none.)
+  const setExampleEditing = usePlaygroundContext(
+    (state) => state.setExampleEditing
   );
   useEffect(() => {
-    const sync = () =>
-      setIsEditingExamples(editStore.getState().mode !== "read");
+    const sync = () => {
+      const state = editStore.getState();
+      setExampleEditing({
+        isEditingExamples: state.mode !== "read",
+        unsavedExampleChangeCount: hasEditableTableUnsavedChanges(state)
+          ? getEditableTableChangeCount(state)
+          : 0,
+      });
+    };
     sync();
     const unsubscribe = editStore.subscribe(sync);
     return () => {
       unsubscribe();
-      setIsEditingExamples(false);
+      setExampleEditing({
+        isEditingExamples: false,
+        unsavedExampleChangeCount: 0,
+      });
     };
-  }, [editStore, setIsEditingExamples]);
-
-  // An edit session lives only in memory, so leaving the page drops it.
-  const changeCount = useStore(editStore, getEditableTableChangeCount);
-  const hasUnsavedChanges = useStore(editStore, hasEditableTableUnsavedChanges);
-  const blocker = useUnsavedChangesBlocker({ hasUnsavedChanges });
+  }, [editStore, setExampleEditing]);
 
   return (
     <PlaygroundDatasetExamplesTablePreferencesProvider>
@@ -367,12 +370,6 @@ export function PlaygroundDatasetSection({
           </PlaygroundDatasetExamplesTableProvider>
         </Flex>
       </TitledPanel>
-      <ConfirmNavigationDialog
-        blocker={blocker}
-        message={`Leaving this page will discard ${describeUnsavedExampleChanges(
-          { count: changeCount }
-        )}.`}
-      />
     </PlaygroundDatasetExamplesTablePreferencesProvider>
   );
 }

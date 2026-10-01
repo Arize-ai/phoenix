@@ -1462,6 +1462,17 @@ export function PlaygroundDatasetExamplesTable({
   const isEditingExamples = editMode !== "read";
   const isSavingExamples = editMode === "saving";
 
+  // Whether the session's rows hide the annotations is fixed when the session
+  // starts. Pending edits are snapshots of what the cells showed, so the
+  // preference changing underneath them would mislay the hidden part on save.
+  const [hidesAnnotationsForEditing, setHidesAnnotationsForEditing] =
+    useState(hideAnnotations);
+  useEffect(() => {
+    if (!isEditingExamples) {
+      setHidesAnnotationsForEditing(hideAnnotations);
+    }
+  }, [isEditingExamples, hideAnnotations]);
+
   // In an edit session the new examples lead, and each saved example's
   // metadata is the metadata as its column shows it, with anything hidden
   // kept aside for the save. Removed examples stay, struck through.
@@ -1472,11 +1483,13 @@ export function PlaygroundDatasetExamplesTable({
             ...addedRows,
             ...savedRows.map((row) => ({
               ...row,
-              ...toEditableMetadata(row.metadata, { hideAnnotations }),
+              ...toEditableMetadata(row.metadata, {
+                hideAnnotations: hidesAnnotationsForEditing,
+              }),
             })),
           ]
         : savedRows,
-    [isEditingExamples, addedRows, savedRows, hideAnnotations]
+    [isEditingExamples, addedRows, savedRows, hidesAnnotationsForEditing]
   );
 
   const rowsById = useMemo(
