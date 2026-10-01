@@ -32,6 +32,18 @@ export type TaskMenuSection = {
   items: TaskMenuItem[];
 };
 
+/** One kind of task in the menu: its saved items and its "New" actions. */
+export type TaskMenuTab = {
+  kind: PlaygroundTaskKind;
+  title: string;
+  sections: TaskMenuSection[];
+};
+
+const TAB_TITLES: Record<PlaygroundTaskKind, string> = {
+  prompt: "Prompts",
+  evaluator: "Evaluators",
+};
+
 /** Shown in the menu while the page holds more than one task. */
 export const TASK_MENU_LOCK_NOTE =
   "Remove the other tasks to switch between prompts and evaluators.";
@@ -55,12 +67,13 @@ const NEW_ITEMS: Record<PlaygroundTaskKind, TaskMenuItem[]> = {
 };
 
 /**
- * The sections a task menu lists. With the kind unlocked every kind is
- * offered; locked, only the page's kind and its "New" actions are, so the
- * other kind cannot be mixed in. Prompts are filtered here; evaluators
- * arrive already filtered by the server.
+ * The tabs a task menu offers, one per kind of task. With the kind unlocked
+ * both kinds have a tab; locked, only the page's kind does, so the other kind
+ * cannot be mixed in. Each tab lists that kind's saved items, then its "New"
+ * actions. Prompts are filtered here; evaluators arrive already filtered by
+ * the server.
  */
-export function getTaskMenuSections({
+export function getTaskMenuTabs({
   kind,
   isLocked,
   prompts,
@@ -74,25 +87,53 @@ export function getTaskMenuSections({
   evaluators: TaskMenuEvaluator[];
   search: string;
   matches: (text: string, search: string) => boolean;
+}): TaskMenuTab[] {
+  const kinds: PlaygroundTaskKind[] = isLocked
+    ? [kind]
+    : ["prompt", "evaluator"];
+
+  return kinds.map((tabKind) => ({
+    kind: tabKind,
+    title: TAB_TITLES[tabKind],
+    sections: getKindSections({
+      kind: tabKind,
+      prompts,
+      evaluators,
+      search,
+      matches,
+    }),
+  }));
+}
+
+/** A tab's sections: the saved items, if any match, then the "New" actions. */
+function getKindSections({
+  kind,
+  prompts,
+  evaluators,
+  search,
+  matches,
+}: {
+  kind: PlaygroundTaskKind;
+  prompts: TaskMenuPrompt[];
+  evaluators: TaskMenuEvaluator[];
+  search: string;
+  matches: (text: string, search: string) => boolean;
 }): TaskMenuSection[] {
-  const showsPrompts = !isLocked || kind === "prompt";
-  const showsEvaluators = !isLocked || kind === "evaluator";
   const sections: TaskMenuSection[] = [];
 
-  if (showsPrompts) {
+  // The tab names the kind, so the saved items need no title of their own.
+  if (kind === "prompt") {
     const items = prompts
       .filter((prompt) => !search || matches(prompt.name, search))
       .map((prompt) => ({ key: `prompt:${prompt.id}`, label: prompt.name }));
 
     if (items.length) {
-      sections.push({ id: "prompts", title: "Prompts", items });
+      sections.push({ id: "prompts", title: null, items });
     }
-  }
-
-  if (showsEvaluators && evaluators.length) {
+  } else if (evaluators.length) {
     sections.push({
       id: "evaluators",
-      title: "Evaluators",
+      title: null,
       items: evaluators.map((evaluator) => ({
         key: `evaluator:${evaluator.id}`,
         label: evaluator.name,
@@ -101,14 +142,7 @@ export function getTaskMenuSections({
     });
   }
 
-  sections.push({
-    id: "new",
-    title: "New",
-    items: [
-      ...(showsPrompts ? NEW_ITEMS.prompt : []),
-      ...(showsEvaluators ? NEW_ITEMS.evaluator : []),
-    ],
-  });
+  sections.push({ id: "new", title: "New", items: NEW_ITEMS[kind] });
 
   return sections;
 }

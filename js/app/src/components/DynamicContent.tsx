@@ -17,6 +17,9 @@ const textWrapCSS = css`
   word-break: break-word;
 `;
 
+// Module-level so the editor is not reconfigured on every render.
+const JSON_BASIC_SETUP = { lineNumbers: false, foldGutter: false };
+
 export interface DynamicContentProps {
   /**
    * The value to render - can be any type (object, string, null, etc.)
@@ -54,10 +57,7 @@ export const DynamicContent = memo(function DynamicContent(
       <JSONBlock
         value={displayValue}
         css={jsonBlockCSS}
-        basicSetup={{
-          lineNumbers: false,
-          foldGutter: false,
-        }}
+        basicSetup={JSON_BASIC_SETUP}
       />
     );
   }
