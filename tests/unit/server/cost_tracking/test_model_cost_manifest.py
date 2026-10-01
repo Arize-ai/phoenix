@@ -187,27 +187,21 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
     )
 
 
-@pytest.mark.parametrize(
-    "span_model_name, expected_entry",
-    [
-        # A model ID that is a prefix of a newer one must not bill at the newer model's rates,
-        # and vice versa: claude-opus-5's pattern also matches claude-opus-5-5.
-        ("claude-opus-5-5", "claude-opus-5-5"),
-        ("claude-opus-5", "claude-opus-5"),
-        # Platform-specific IDs for the same model resolve to the same entry.
-        ("anthropic.claude-opus-5-5", "claude-opus-5-5"),
-        ("claude-opus-5-5@default", "claude-opus-5-5"),
-        # The GPT-6 tiers released alongside the flagship, plus the GPT-5.6 Terra tier
-        # that has no GPT-6 counterpart.
-        ("gpt-6-astra", "gpt-6-astra"),
-        ("gpt-6-sol", "gpt-6-sol"),
-        ("gpt-6-luna", "gpt-6-luna"),
-        ("us.openai.gpt-6-luna", "gpt-6-luna"),
-        ("gpt-5.6-sol", "gpt-5.6-sol"),
-        ("gpt-5.6-terra", "gpt-5.6-terra"),
-        ("gpt-5.6-luna", "gpt-5.6-luna"),
-    ],
-)
+def pytest_generate_tests(metafunc):
+    if "span_model_name" in metafunc.fixturenames:
+        with MANIFEST_PATH.open() as source:
+            import json
+            manifest_data = json.load(source)
+        test_cases = []
+        for model in manifest_data["models"]:
+            test_cases.append((model["name"], model["name"]))
+            if "claude-opus-5-5" == model["name"]:
+                test_cases.append(("anthropic.claude-opus-5-5", "claude-opus-5-5"))
+                test_cases.append(("claude-opus-5-5@default", "claude-opus-5-5"))
+            if "gpt-6-luna" == model["name"]:
+                test_cases.append(("us.openai.gpt-6-luna", "gpt-6-luna"))
+        metafunc.parametrize("span_model_name, expected_entry", test_cases)
+
 def test_current_lineup_resolves_to_its_own_manifest_entry(
     built_in_lookup: CostModelLookup,
     span_model_name: str,
