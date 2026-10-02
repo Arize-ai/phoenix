@@ -2,14 +2,16 @@ from secrets import token_hex
 from typing import Iterator, Mapping
 
 import pytest
-from phoenix.client import Client
 from strawberry.relay import GlobalID
+
+from phoenix.client import Client
 
 from .._helpers import (
     _AppInfo,
     _ExistingProject,
     _ExistingSpan,
     _insert_spans,
+    _is_memory_sqlite,
     _server,
 )
 
@@ -20,14 +22,22 @@ def _env(
     _env_database: Mapping[str, str],
     _env_auth: Mapping[str, str],
     _env_smtp: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> dict[str, str]:
     """Combine all environment variable configurations for testing."""
-    return {
+    env = {
         **_env_ports,
         **_env_database,
         **_env_auth,
         **_env_smtp,
     }
+    # `:memory:` is private to the server process. This app uses a file so
+    # tests can read the deployment seed the server stores.
+    database_url = env.get("PHOENIX_SQL_DATABASE_URL", "")
+    if _is_memory_sqlite(database_url):
+        database = tmp_path_factory.mktemp("client-app") / "phoenix.db"
+        env["PHOENIX_SQL_DATABASE_URL"] = f"sqlite:///{database}"
+    return env
 
 
 @pytest.fixture(scope="package")

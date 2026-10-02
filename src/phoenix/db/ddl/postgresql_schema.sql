@@ -20,6 +20,16 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: deployment_identity
+-- --------------------------
+CREATE TABLE public.deployment_identity (
+    id serial NOT NULL,
+    seed BYTEA NOT NULL,
+    CONSTRAINT pk_deployment_identity PRIMARY KEY (id),
+    CONSTRAINT "ck_deployment_identity_`singleton`" CHECK ((id = 1))
+);
+
+
 -- Table: eval_span_cursors
 -- ------------------------
 CREATE TABLE public.eval_span_cursors (
@@ -479,6 +489,7 @@ CREATE TABLE public.api_keys (
     expires_at TIMESTAMP WITH TIME ZONE,
     scopes JSONB,
     audience JSONB,
+    token_hash BYTEA,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users
         FOREIGN KEY (user_id)
@@ -1352,6 +1363,7 @@ CREATE TABLE public.password_reset_tokens (
     user_id INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    token_hash BYTEA,
     CONSTRAINT pk_password_reset_tokens PRIMARY KEY (id),
     CONSTRAINT fk_password_reset_tokens_user_id_users
         FOREIGN KEY (user_id)
@@ -1776,6 +1788,7 @@ CREATE TABLE public.refresh_tokens (
     scopes JSONB,
     audience JSONB,
     consumed_at TIMESTAMP WITH TIME ZONE,
+    token_hash BYTEA,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
     CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants
         FOREIGN KEY (oauth2_grant_id)
@@ -1805,6 +1818,7 @@ CREATE TABLE public.access_tokens (
     refresh_token_id INTEGER NOT NULL,
     scopes JSONB,
     audience JSONB,
+    token_hash BYTEA,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
         FOREIGN KEY (refresh_token_id)

@@ -18,6 +18,7 @@ import {
   RedactedCredentialField,
   Text,
 } from "@phoenix/components";
+import { PublicEncryptionKeyWarning } from "@phoenix/components/settings/PublicEncryptionKeyWarning";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -294,6 +295,7 @@ function CredentialsForm({
           across the server. They override any matching variables in the process
           environment.
         </Text>
+        <PublicEncryptionKeyWarning />
         {error ? <Alert variant="danger">{error}</Alert> : null}
         {unparsableList.map(({ key, parseError }) => (
           <Alert key={key} variant="danger" title={key}>
