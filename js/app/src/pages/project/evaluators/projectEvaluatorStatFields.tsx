@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Text } from "@phoenix/components";
+import { ContextualHelp, Text } from "@phoenix/components";
 
 const statFieldListCSS = (fillHeight: boolean) => css`
   display: grid;
@@ -28,6 +28,26 @@ const statFieldListCSS = (fillHeight: boolean) => css`
     gap: var(--global-dimension-size-25);
     min-width: 0;
   }
+
+  .project-evaluator-stat-fields__label {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-25);
+    min-width: 0;
+    .project-evaluator-stat-fields__label-text {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+`;
+
+const statHelpTooltipCSS = css`
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
 `;
 
 export function StatFieldList({
@@ -39,20 +59,40 @@ export function StatFieldList({
 
 export function StatField({
   label,
+  help,
   children,
 }: {
   label: React.ReactNode;
+  /** What the value means, behind an info tip beside the label. */
+  help?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const labelContent =
+    typeof label === "string" ? (
+      <Text size="XS" color="text-700">
+        {label}
+      </Text>
+    ) : (
+      label
+    );
   return (
     <div className="project-evaluator-stat-fields__field">
       <dt>
-        {typeof label === "string" ? (
-          <Text size="XS" color="text-700">
-            {label}
-          </Text>
+        {help ? (
+          <div className="project-evaluator-stat-fields__label">
+            <span className="project-evaluator-stat-fields__label-text">
+              {labelContent}
+            </span>
+            <ContextualHelp
+              variant="info"
+              placement="top"
+              css={statHelpTooltipCSS}
+            >
+              {help}
+            </ContextualHelp>
+          </div>
         ) : (
-          label
+          labelContent
         )}
       </dt>
       <dd>{children}</dd>
