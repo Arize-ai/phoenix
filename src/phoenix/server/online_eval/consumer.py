@@ -5,10 +5,10 @@ A consumer claims only as many work units as it holds evaluator permits for, up
 to the claim batch size, and claims again as soon as a permit frees up. The
 evaluator semaphore is shared across every target's consumers, so it bounds the
 work units a replica runs at once; a shared database semaphore bounds
-database-phase concurrency. Each unit is hydrated behind the staleness guard
-(stale units are expired, never executed), evaluated with lease heartbeats,
-annotated, then completed — or failed with a cooldown. Shutdown stops claiming,
-gives in-flight units a grace period, then cancels stragglers before sandbox
+database-phase concurrency. Each unit is hydrated with its project evaluator's
+current configuration, evaluated with lease heartbeats, annotated, then
+completed — or failed with a cooldown. Shutdown stops claiming, gives in-flight
+units a grace period, then cancels stragglers before sandbox
 teardown.
 """
 
