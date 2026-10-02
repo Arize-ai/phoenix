@@ -13,16 +13,20 @@ without it, so the headline number is Δ (with-plugin minus without-plugin), not
 
 ## Cases
 
-| Case | Fire? | Lang | What it checks |
-| ---- | ----- | ---- | -------------- |
-| `01-rag-groundedness-judge` | yes | Python | Builds a `ClassificationEvaluator` LLM judge with discrete labels; recommends validation |
-| `02-json-schema-code-eval` | yes | Python | Code-first: a deterministic `@create_evaluator(kind="code")`, no LLM for a deterministic check |
-| `03-run-evaluator-experiment` | yes | Python | Runnable `run_experiment` over a dataset with a task and evaluators |
-| `04-validate-judge-labels` | yes | Python | Measures judge/human agreement (confusion matrix, TPR/TNR) against a bar |
-| `05-faithfulness-ci-gate` | yes | Python | pytest `@pytest.mark.phoenix` gate: hard invariants asserted, LLM signal gated on an aggregate |
-| `06-ts-relevance-judge` | yes | TypeScript | `createClassificationEvaluator` from `@arizeai/phoenix-evals`, discrete choices |
-| `07-neg-instrument-tracing` | no | — | Pure instrumentation request — belongs to `phoenix-tracing`; the evals skill must stay quiet |
-| `08-neg-generic-metric-q` | no | — | A one-off BLEU question needing no Phoenix evaluator guidance |
+
+| Case                          | Fire? | Lang       | What it checks                                                                                 |
+| ----------------------------- | ----- | ---------- | ---------------------------------------------------------------------------------------------- |
+| `01-rag-groundedness-judge`   | yes   | Python     | Builds a `ClassificationEvaluator` LLM judge with discrete labels; recommends validation       |
+| `02-json-schema-code-eval`    | yes   | Python     | Code-first: a deterministic `@create_evaluator(kind="code")`, no LLM for a deterministic check |
+| `03-run-evaluator-experiment` | yes   | Python     | Runnable `run_experiment` over a dataset with a task and evaluators                            |
+| `04-validate-judge-labels`    | yes   | Python     | Measures judge/human agreement (confusion matrix, TPR/TNR) against a bar                       |
+| `05-faithfulness-ci-gate`     | yes   | Python     | pytest `@pytest.mark.phoenix` gate: hard invariants asserted, LLM signal gated on an aggregate |
+| `06-ts-relevance-judge`       | yes   | TypeScript | `createClassificationEvaluator` from `@arizeai/phoenix-evals`, discrete choices                |
+| `07-neg-instrument-tracing`   | no    | —          | Pure instrumentation request — belongs to `phoenix-tracing`; the evals skill must stay quiet   |
+| `08-neg-generic-metric-q`     | no    | —          | A one-off BLEU question needing no Phoenix evaluator guidance                                  |
+
+
+
 
 ## Run
 
@@ -45,12 +49,26 @@ no case runs the file or reaches a live Phoenix, so no mock is needed.
 Deterministic graders first (`file_exists`, `regex` over the written file and the final
 message), then one `llm` grader **per claim** at `weight: 0.5` — the runner's judge fails
 combined rubrics, so each claim is graded in isolation. `skill-fired` is reported under ablation
-but not scored. The two negatives use `skill-not-used` (`tool: Skill`, `input_match:
-phoenix-evals`, `min: 0`, `max: 0`, `arm: both`); note the match is the narrow `phoenix-evals`,
+but not scored. The two negatives use `skill-not-used` (`tool: Skill`, `input_match: phoenix-evals`, `min: 0`, `max: 0`, `arm: both`); note the match is the narrow `phoenix-evals`,
 not `phoenix`, because `07` legitimately lets the `phoenix-tracing` skill fire.
 
-## Not yet wired
+## Record to Phoenix
 
-Recording a run as a Phoenix experiment (a tracker acceptance criterion shared by all three
-skill suites) is a post-processing step with no built-in harness support. It is tracked as a
-separate task and should be modeled on `evals/pxi/harness/run_experiment.py` and `reporting.py`.
+A small post-processing script replays a run's JSON into Phoenix as an experiment (one dataset per suite, one example per case, each grader's pass/fail visible on its case). Point it at a running Phoenix:
+
+```bash
+cd plugins/claude/arize-phoenix
+claude plugin eval . --tag phoenix-evals --ablation with-without \
+  --judge-model claude-sonnet-5 --trust-plugin --no-publish \
+  --json /tmp/pe.json \
+  --allow-tools Write "Read(//$(git rev-parse --show-toplevel)/.agents/skills/**)"
+# run with the project's Python (needs arize-phoenix-client): uv run, or the venv directly
+uv run python evals/record_to_phoenix.py /tmp/pe.json   # or: ../../../.venv/bin/python …
+```
+
+`--endpoint` defaults to `$PHOENIX_COLLECTOR_ENDPOINT`, else `http://localhost:6006`.
+
+Re-running upserts the dataset (stable example ids = case names) and adds a new experiment, so
+runs accumulate for comparison over time. The script is generic; pass `--dataset-name` to record
+another suite. CI auto-recording (a persistent Phoenix + secrets, as in `pxi-evals.yml`) is not
+wired yet.
