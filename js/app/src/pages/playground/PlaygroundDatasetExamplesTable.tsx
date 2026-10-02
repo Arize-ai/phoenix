@@ -26,6 +26,7 @@ import {
 } from "react-relay";
 import { useSearchParams } from "react-router";
 import { requestSubscription } from "relay-runtime";
+import { useStore } from "zustand";
 
 import {
   createSetExpectedOutputClientAction,
@@ -72,8 +73,12 @@ import {
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
 import type { AnnotationSummary } from "@phoenix/components/experiment/ExperimentAnnotationAggregates";
-import { CellTop } from "@phoenix/components/table";
-import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { CellTop, EditableJSONCell } from "@phoenix/components/table";
+import {
+  borderedTableCSS,
+  editableTableCSS,
+  tableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -92,6 +97,10 @@ import {
   getTemplateVariablesPath,
 } from "@phoenix/store/playground";
 import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
+import type {
+  EditableTableDiff,
+  EditableTableStore,
+} from "@phoenix/types/table";
 import {
   assertUnreachable,
   isStringArray,
@@ -129,6 +138,16 @@ import {
   getExampleColumnVisibility,
   hasDisplayableMetadata,
 } from "./exampleColumns";
+import {
+  type PlaygroundExampleTableRow,
+  EditExampleCellButton,
+  getNewPlaygroundExampleTemplate,
+  PlaygroundExampleEditContent,
+  PlaygroundExampleRowActionsCell,
+  PlaygroundExamplesEditToolbar,
+  restoreHiddenMetadata,
+  toEditableMetadata,
+} from "./examplesEditing";
 import {
   createExperimentsOverDatasetRouter,
   type ExperimentsOverDatasetEvent,
@@ -619,15 +638,34 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   );
 });
 
+/** The editor's title: the column, and that the example is new when it is. */
+function getEditTitle(
+  column: string,
+  row: Pick<PlaygroundExampleTableRow, "isNew">
+): string {
+  return row.isNew ? `Edit ${column} · new example` : `Edit ${column}`;
+}
+
+/** Names a row for the edit trigger's accessible name. */
+function getEditRowLabel(row: {
+  index: number;
+  original: Pick<PlaygroundExampleTableRow, "isNew">;
+}): string {
+  return row.original.isNew ? "new example" : `example ${row.index + 1}`;
+}
+
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
   tableContainerRef,
   estimatedRowHeight,
+  deletedRowIds,
 }: {
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
   estimatedRowHeight: number;
+  /** Rows an edit session has removed, struck through until saved. */
+  deletedRowIds?: ReadonlySet<string>;
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
@@ -651,6 +689,7 @@ function TableBody<T>({
         return (
           <tr
             key={row.id}
+            data-deleted={deletedRowIds?.has(row.id) || undefined}
             style={{
               height: `${virtualRow.size}px`,
               transform: `translateY(${
@@ -851,6 +890,7 @@ export function PlaygroundDatasetExamplesTable({
   evaluatorMappings,
   evaluatorOutputConfigs,
   onHasMetadataChange,
+  editStore,
 }: {
   datasetId: string;
   splitIds?: string[];
@@ -864,6 +904,8 @@ export function PlaygroundDatasetExamplesTable({
    * toolbar's column selector, which has no rows of its own to look at.
    */
   onHasMetadataChange: (hasMetadata: boolean) => void;
+  /** The session that edits the examples in place; see the Edit button. */
+  editStore: EditableTableStore<PlaygroundExampleTableRow>;
 }) {
   const environment = useRelayEnvironment();
   // Everything below hangs off the instances' shape: which tasks there are,
@@ -1380,9 +1422,12 @@ export function PlaygroundDatasetExamplesTable({
       dataset
     );
 
-  // Refetch the data when the dataset version changes
-  const tableData = useMemo(
-    () =>
+  type TableRow = PlaygroundExampleTableRow;
+
+  // The examples as saved. While they are being edited the table shows a
+  // different list, built below.
+  const savedRows = useMemo(
+    (): TableRow[] =>
       data.examples.edges.map((edge) => {
         const example = edge.example;
         const revision = example.revision;
@@ -1392,23 +1437,74 @@ export function PlaygroundDatasetExamplesTable({
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
+          hiddenMetadata: null,
+          isNew: false,
           revisionId: revision.revisionId,
           expectedOutputs: revision.expectedOutputs,
         };
       }),
     [data]
   );
-  type TableRow = (typeof tableData)[number];
 
   const revisionIdByExampleId = useMemo(
-    () => new Map(tableData.map((row) => [row.id, row.revisionId])),
-    [tableData]
+    () => new Map(savedRows.map((row) => [row.id, row.revisionId])),
+    [savedRows]
   );
 
   // Whether the metadata cells leave the `annotations` key out; a per-browser
   // setting behind the toolbar's gear.
   const hideAnnotations = usePreferencesContext(
     (state) => state.hideExpectedAnnotationsInMetadata
+  );
+
+  const editMode = useStore(editStore, (state) => state.mode);
+  const addedRows = useStore(editStore, (state) => state.addedRows);
+  const deletedRowIds = useStore(editStore, (state) => state.deletedRowIds);
+  const isEditingExamples = editMode !== "read";
+  const isSavingExamples = editMode === "saving";
+
+  // Whether the session's rows hide the annotations is fixed when the session
+  // starts. Pending edits are snapshots of what the cells showed, so the
+  // preference changing underneath them would mislay the hidden part on save.
+  // Outside a session it follows the preference, adjusted during render so
+  // the rows below never see a stale value.
+  const [hidesAnnotationsForEditing, setHidesAnnotationsForEditing] =
+    useState(hideAnnotations);
+  if (!isEditingExamples && hidesAnnotationsForEditing !== hideAnnotations) {
+    setHidesAnnotationsForEditing(hideAnnotations);
+  }
+
+  // In an edit session the new examples lead, and each saved example's
+  // metadata is the metadata as its column shows it, with anything hidden
+  // kept aside for the save. Removed examples stay, struck through.
+  const tableData = useMemo(
+    (): TableRow[] =>
+      isEditingExamples
+        ? [
+            ...addedRows,
+            ...savedRows.map((row) => ({
+              ...row,
+              ...toEditableMetadata(row.metadata, {
+                hideAnnotations: hidesAnnotationsForEditing,
+              }),
+            })),
+          ]
+        : savedRows,
+    [isEditingExamples, addedRows, savedRows, hidesAnnotationsForEditing]
+  );
+
+  const rowsById = useMemo(
+    () => new Map(tableData.map((row) => [row.id, row])),
+    [tableData]
+  );
+  const transformDiff = useCallback(
+    (diff: EditableTableDiff<TableRow>) =>
+      restoreHiddenMetadata(diff, rowsById),
+    [rowsById]
+  );
+  const newExampleTemplate = useMemo(
+    () => getNewPlaygroundExampleTemplate(savedRows),
+    [savedRows]
   );
 
   // The metadata column shows itself while a loaded example has metadata and
@@ -1441,6 +1537,23 @@ export function PlaygroundDatasetExamplesTable({
   const reloadExamples = useCallback(() => {
     refetch({}, { fetchPolicy: "network-only" });
   }, [refetch]);
+
+  // After a save: the rows are re-read from the new version, then the edit
+  // session ends, so the pending edits never flicker away before their saved
+  // counterparts render.
+  const finishEditingWithReload = useCallback(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        refetch(
+          {},
+          {
+            fetchPolicy: "network-only",
+            onComplete: (error) => (error ? reject(error) : resolve()),
+          }
+        );
+      }).then(() => editStore.getState().finishSaving()),
+    [refetch, editStore]
+  );
 
   const exampleIds = useMemo(() => {
     return tableData.map((row) => row.id);
@@ -1502,7 +1615,7 @@ export function PlaygroundDatasetExamplesTable({
               output={annotation.output}
               examples={table.options.data}
               isRunning={isRunning}
-              canRun={!hasSomeRunIds}
+              canRun={!hasSomeRunIds && !isEditingExamples}
               onRun={() => runPlaygroundInstances([instance.id])}
             />
           ),
@@ -1517,6 +1630,7 @@ export function PlaygroundDatasetExamplesTable({
               position={row.index + 1}
               expectedOutputs={row.original.expectedOutputs}
               isRunning={isRunning}
+              canAnnotate={!isEditingExamples}
               onViewTracePress={handleViewTracePress}
             />
           ),
@@ -1556,6 +1670,7 @@ export function PlaygroundDatasetExamplesTable({
     });
   }, [
     hasSomeRunIds,
+    isEditingExamples,
     instances,
     runPlaygroundInstances,
     templateVariablesPath,
@@ -1581,37 +1696,71 @@ export function PlaygroundDatasetExamplesTable({
         size: ROW_COLUMN_WIDTH,
         minSize: ROW_COLUMN_WIDTH,
         enableResizing: false,
-        cell: ({ row }) => (
-          <PlaygroundExampleRowCell
-            exampleId={row.original.id}
-            position={row.index + 1}
-            runningInstanceIds={runningInstanceIds}
-            canRun={!hasSomeRunIds}
-            onRun={() =>
-              runPlaygroundInstances(undefined, {
-                exampleIds: [row.original.id],
-              })
-            }
-          />
-        ),
+        cell: ({ row }) =>
+          isEditingExamples ? (
+            <PlaygroundExampleRowActionsCell
+              row={row.original}
+              position={row.index + 1}
+              editStore={editStore}
+            />
+          ) : (
+            <PlaygroundExampleRowCell
+              exampleId={row.original.id}
+              position={row.index + 1}
+              runningInstanceIds={runningInstanceIds}
+              canRun={!hasSomeRunIds}
+              onRun={() =>
+                runPlaygroundInstances(undefined, {
+                  exampleIds: [row.original.id],
+                })
+              }
+            />
+          ),
       },
       {
         header: columnLabels.input,
         accessorKey: "input",
-        cell: ({ row }) => (
-          <ExperimentInputCell
-            exampleId={row.original.id}
-            externalId={row.original.externalId}
-            value={row.original.input}
-            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-            onExpand={() => {
-              setSearchParams((prev) => {
-                prev.set("exampleId", row.original.id);
-                return prev;
-              });
-            }}
-          />
-        ),
+        cell: (context) =>
+          isEditingExamples ? (
+            <EditableJSONCell
+              {...context}
+              columnId="input"
+              requireObject
+              title={getEditTitle("input", context.row.original)}
+              rowLabel={getEditRowLabel(context.row)}
+            >
+              {(value) => (
+                <PlaygroundExampleEditContent
+                  label={columnLabels.input}
+                  value={value}
+                  height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+                />
+              )}
+            </EditableJSONCell>
+          ) : (
+            <ExperimentInputCell
+              exampleId={context.row.original.id}
+              externalId={context.row.original.externalId}
+              value={context.row.original.input}
+              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+              onExpand={() => {
+                setSearchParams((prev) => {
+                  prev.set("exampleId", context.row.original.id);
+                  return prev;
+                });
+              }}
+              extra={
+                <EditExampleCellButton
+                  rowId={context.row.original.id}
+                  columnId="input"
+                  columnLabel={columnLabels.input}
+                  position={context.row.index + 1}
+                  editStore={editStore}
+                  isDisabled={hasSomeRunIds}
+                />
+              }
+            />
+          ),
         size: 200,
       },
       {
@@ -1630,21 +1779,70 @@ export function PlaygroundDatasetExamplesTable({
           </Flex>
         ),
         accessorKey: "output",
-        cell: ({ row }) => (
-          <ExperimentReferenceOutputCell
-            value={row.original.output}
-            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-            label={columnLabels.output}
-          />
-        ),
+        cell: (context) =>
+          isEditingExamples ? (
+            <EditableJSONCell
+              {...context}
+              columnId="output"
+              requireObject
+              title={getEditTitle(columnLabels.output, context.row.original)}
+              rowLabel={getEditRowLabel(context.row)}
+            >
+              {(value) => (
+                <PlaygroundExampleEditContent
+                  label={columnLabels.output}
+                  value={value}
+                  height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+                />
+              )}
+            </EditableJSONCell>
+          ) : (
+            <ExperimentReferenceOutputCell
+              value={context.row.original.output}
+              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+              label={columnLabels.output}
+              extra={
+                <EditExampleCellButton
+                  rowId={context.row.original.id}
+                  columnId="output"
+                  columnLabel={columnLabels.output}
+                  position={context.row.index + 1}
+                  editStore={editStore}
+                  isDisabled={hasSomeRunIds}
+                />
+              }
+            />
+          ),
         size: 200,
       },
       {
         header: columnLabels.metadata,
         accessorKey: "metadata",
-        cell: ({ row }) => {
+        cell: (context) => {
+          if (isEditingExamples) {
+            // The row's metadata is already the displayed metadata here; what
+            // was hidden rides along in `hiddenMetadata` and returns on save.
+            return (
+              <EditableJSONCell
+                {...context}
+                columnId="metadata"
+                requireObject
+                title={getEditTitle("metadata", context.row.original)}
+                rowLabel={getEditRowLabel(context.row)}
+              >
+                {(value) => (
+                  <PlaygroundExampleEditContent
+                    label={columnLabels.metadata}
+                    value={value}
+                    height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+                  />
+                )}
+              </EditableJSONCell>
+            );
+          }
+
           const { value, isHidingAnnotations } = getDisplayedMetadata(
-            row.original.metadata,
+            context.row.original.metadata,
             { hideAnnotations }
           );
 
@@ -1652,7 +1850,19 @@ export function PlaygroundDatasetExamplesTable({
             <ExperimentMetadataCell
               value={value}
               height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-              extra={isHidingAnnotations ? <HiddenAnnotationsNotice /> : null}
+              extra={
+                <>
+                  {isHidingAnnotations ? <HiddenAnnotationsNotice /> : null}
+                  <EditExampleCellButton
+                    rowId={context.row.original.id}
+                    columnId="metadata"
+                    columnLabel={columnLabels.metadata}
+                    position={context.row.index + 1}
+                    editStore={editStore}
+                    isDisabled={hasSomeRunIds}
+                  />
+                </>
+              }
             />
           );
         },
@@ -1663,9 +1873,11 @@ export function PlaygroundDatasetExamplesTable({
     [
       columnLabels,
       annotationListHeight,
+      editStore,
       evaluatorOutputConfigs,
       hasSomeRunIds,
       hideAnnotations,
+      isEditingExamples,
       playgroundInstanceOutputColumns,
       runningInstanceIds,
       runPlaygroundInstances,
@@ -1675,6 +1887,9 @@ export function PlaygroundDatasetExamplesTable({
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
+    // Edits are keyed by row id, so the rows must be too.
+    getRowId: (row) => row.id,
+    meta: { editing: { store: editStore } },
     state: { columnVisibility },
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
@@ -1690,16 +1905,18 @@ export function PlaygroundDatasetExamplesTable({
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
         // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        // Not while a save is in flight: the rows are about to be re-read.
         if (
           scrollHeight - scrollTop - clientHeight < 300 &&
           !isLoadingNext &&
+          !isSavingExamples &&
           hasNext
         ) {
           loadNext(PAGE_SIZE);
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, isSavingExamples, loadNext]
   );
 
   /**
@@ -1746,6 +1963,15 @@ export function PlaygroundDatasetExamplesTable({
           </Alert>
         )}
         <PlaygroundExpectedOutputsStatus onReloadExamples={reloadExamples} />
+        {isEditingExamples ? (
+          <PlaygroundExamplesEditToolbar
+            datasetId={datasetId}
+            editStore={editStore}
+            newExampleTemplate={newExampleTemplate}
+            onSaved={finishEditingWithReload}
+            transformDiff={transformDiff}
+          />
+        ) : null}
         <div
           css={css`
             flex: 1 1 auto;
@@ -1757,7 +1983,10 @@ export function PlaygroundDatasetExamplesTable({
           onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
         >
           <table
-            css={css(tableCSS, borderedTableCSS)}
+            css={css(
+              isEditingExamples ? editableTableCSS : tableCSS,
+              borderedTableCSS
+            )}
             style={{
               ...columnSizeVars,
               width: table.getTotalSize(),
@@ -1801,12 +2030,14 @@ export function PlaygroundDatasetExamplesTable({
                 table={table}
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={estimatedRowHeight}
+                deletedRowIds={deletedRowIds}
               />
             ) : (
               <TableBody
                 table={table}
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={estimatedRowHeight}
+                deletedRowIds={deletedRowIds}
               />
             )}
           </table>
