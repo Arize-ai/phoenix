@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
 from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 
 import httpx
 import pytest
@@ -344,6 +344,11 @@ async def _claim_materialized_unit(
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     return unit
+
+
+async def _cycle_to_completion(consumer: OnlineEvalConsumer) -> None:
+    await consumer._cycle()
+    await asyncio.gather(*consumer._pending_tasks)
 
 
 async def _seed_llm_criteria(
@@ -1304,7 +1309,7 @@ async def test_span_entity_path_mapping_binds_attribute(
     _patch_playground_client(monkeypatch, client)
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert len(client.requests) == 1
     assert client.requests[0]["messages"][0]["content"] == "Model: gpt-4o-mini"
@@ -1329,7 +1334,7 @@ async def test_unmapped_input_binds_the_span_input_value(
     _patch_playground_client(monkeypatch, client)
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert len(client.requests) == 1
     # The unmapped slot binds the example conversion's dict; the bare value
@@ -1365,7 +1370,7 @@ async def test_span_bound_variable_binds_through_metadata(
     _patch_playground_client(monkeypatch, client)
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert len(client.requests) == 1
     assert client.requests[0]["messages"][0]["content"] == "Latency: 2000.0"
@@ -1403,7 +1408,7 @@ async def test_session_entity_turns_path_mapping_binds_a_turn(
         decrypt=lambda value: value,
         evaluation_target="SESSION",
     )
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert len(client.requests) == 1
     assert client.requests[0]["messages"][0]["content"] == "First turn: hi"
@@ -1458,7 +1463,7 @@ async def test_a_vocabulary_name_binds_only_through_a_metadata_path(
         decrypt=lambda value: value,
         evaluation_target="SESSION",
     )
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unmapped_unit = await _get_session_unit(db, unmapped_unit_id)
     assert unmapped_unit.status == "ERROR"
@@ -1486,7 +1491,7 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "DONE"
@@ -1506,7 +1511,7 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     assert annotation.identifier == annotation_identifier(fingerprint)
 
     # Nothing is claimable afterwards; a repeat cycle writes nothing new.
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
     assert len(await _annotations(db)) == 1
 
 
@@ -1526,7 +1531,7 @@ async def test_custom_provider_materializes_claims_executes_and_annotates(
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "DONE"
@@ -1565,7 +1570,7 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
         # is the db semaphore's job in a deployed consumer too.
         db_semaphore=asyncio.Semaphore(1),
     )
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert call_sizes == [1]
     units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
@@ -1610,7 +1615,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
     monkeypatch.setattr(OnlineEvalExecutor, "_hydrate_target_context", _fail_one_target)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
 
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     bad_unit = await _get_unit(db, bad_unit_id)
     good_unit = await _get_unit(db, good_unit_id)
@@ -1640,7 +1645,7 @@ async def test_shared_hydration_failure_releases_claims_without_attempts(
     monkeypatch.setattr(executor_module, "resolve_project_evaluators_bulk", _fail_shared_query)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
 
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
     assert all(unit.status == "PENDING" for unit in units)
@@ -1669,14 +1674,14 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
         claim_batch_size=1,
     )
 
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
     async with db() as session:
         await session.execute(
             update(models.ProjectEvaluator)
             .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(sampling_rate=0.5)
         )
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
     assert [unit.status for unit in units] == ["DONE", "SUPERSEDED"]
@@ -1807,7 +1812,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         event_queue=events,
         evaluation_target="SESSION",
     )
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert (await _get_session_unit(db, unit_id)).status == "DONE"
     assert len(client.requests) == 1
@@ -1895,7 +1900,7 @@ async def test_session_publication_preserves_the_ingest_watermark(
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_session_unit(db, unit_id)
     assert unit.status == "DONE"
@@ -2275,7 +2280,7 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
     _patch_playground_client(monkeypatch, client)
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert len(client.requests) == 1
     messages = client.requests[0]["messages"]
@@ -2318,7 +2323,7 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
     unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert (await _get_unit(db, unit_id)).status == "DONE"
     (annotation,) = await _annotations(db)
@@ -2355,7 +2360,7 @@ async def test_builtin_implementation_mismatch_expires_without_counting_attempt(
     monkeypatch.setattr(ContainsEvaluator, "implementation_version", "mismatched")
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "SUPERSEDED"
@@ -2445,7 +2450,7 @@ async def test_unavailable_sandbox_runtime_expires_without_counting_attempt(
         decrypt=lambda value: value,
         sandbox_session_manager=cast(Any, _StubSandboxSessionManager()),
     )
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "EXPIRED"
@@ -2744,7 +2749,7 @@ async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
     before = datetime.now(timezone.utc)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "ERROR"
@@ -2779,7 +2784,7 @@ async def test_transient_provider_error_retries_without_burning_attempts(
     )
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "ERROR"
@@ -2797,7 +2802,7 @@ async def test_transient_provider_error_retries_without_burning_attempts(
             .values(cooldown_until=datetime.now(timezone.utc))
         )
     _patch_playground_client(monkeypatch, _StubLLMClient())
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "DONE"
@@ -2823,7 +2828,7 @@ async def test_provider_classifier_handles_provider_specific_error_shape(
     )
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "ERROR"
@@ -2938,6 +2943,60 @@ async def test_llm_execution_deadline_retries_without_counting_attempt(
     assert row.error.startswith("PROVIDER_DEADLINE_EXCEEDED:")
 
 
+async def test_lost_claim_cancels_the_evaluation_without_a_transition(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    coordinator = consumer._coordinator
+    (unit,) = await coordinator.claim(claimed_by="owner", limit=1)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(claimed_by="another-claim")
+        )
+    cancelled = asyncio.Event()
+    writes: list[str] = []
+    retry_transition = consumer._retry_transition
+    publish = coordinator.publish
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
+
+    async def _never_resolves(*_: Any, **__: Any) -> None:
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    async def _record_transition(*, action: str, **kwargs: Any) -> bool:
+        writes.append(action)
+        return await retry_transition(action=action, **kwargs)
+
+    async def _record_publish(**kwargs: Any) -> None:
+        writes.append("publish")
+        await publish(**kwargs)
+
+    monkeypatch.setattr(consumer_module, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
+    monkeypatch.setattr(consumer, "_retry_transition", _record_transition)
+    monkeypatch.setattr(coordinator, "publish", _record_publish)
+
+    await asyncio.wait_for(consumer._process_unit(unit), timeout=5)
+
+    assert cancelled.is_set()
+    assert writes == []
+    row = await _get_unit(db, unit_id)
+    assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", "another-claim", unit.attempts)
+
+
 async def test_sandbox_payload_limit_is_terminal_without_counting_attempt(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -3017,46 +3076,6 @@ async def test_process_cancellation_releases_claim_without_counting_attempt(
     assert row.claimed_at is None
 
 
-async def test_evaluator_queue_wait_renews_the_lease(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-    monkeypatch.setattr(consumer_module, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
-    saturated = asyncio.Semaphore(1)
-    await saturated.acquire()
-    consumer = OnlineEvalConsumer(
-        db,
-        decrypt=lambda value: value,
-        evaluator_semaphore=saturated,
-    )
-    (unit,) = await consumer._coordinator.claim(claimed_by=consumer._consumer_id, limit=1)
-    claimed_at = (await _get_unit(db, unit_id)).claimed_at
-    heartbeated = asyncio.Event()
-    coordinator_heartbeat = consumer._coordinator.heartbeat
-
-    async def _heartbeat(**kwargs: Any) -> bool:
-        renewed = await coordinator_heartbeat(**kwargs)
-        heartbeated.set()
-        return renewed
-
-    monkeypatch.setattr(consumer._coordinator, "heartbeat", _heartbeat)
-
-    queued = asyncio.create_task(consumer._acquire_with_heartbeat(unit, saturated))
-    await asyncio.wait_for(heartbeated.wait(), timeout=5)
-    saturated.release()
-    await queued
-    saturated.release()
-
-    renewed_at = (await _get_unit(db, unit_id)).claimed_at
-    assert claimed_at is not None and renewed_at is not None
-    assert renewed_at > claimed_at
-
-
 async def test_heartbeat_proceeds_under_db_semaphore_saturation(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
@@ -3074,7 +3093,7 @@ async def test_heartbeat_proceeds_under_db_semaphore_saturation(db: DbSessionFac
     claimed_at = (await _get_unit(db, unit_id)).claimed_at
 
     async with db_semaphore:
-        assert await asyncio.wait_for(consumer._heartbeat(unit.work_unit_id), timeout=5)
+        assert await asyncio.wait_for(consumer._heartbeat(unit), timeout=5)
 
     renewed_at = (await _get_unit(db, unit_id)).claimed_at
     assert claimed_at is not None and renewed_at is not None
@@ -3094,7 +3113,8 @@ async def test_cycle_cancellation_during_batch_hydration_releases_claims(
         (await _materialize_unit(db, first_span.id, evaluator_id, project_evaluator_id))[0],
         (await _materialize_unit(db, second_span.id, evaluator_id, project_evaluator_id))[0],
     ]
-    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    permits = asyncio.Semaphore(2)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value, evaluator_semaphore=permits)
     hydrating = asyncio.Event()
 
     async def _never_resolves(*_: Any, **__: Any) -> None:
@@ -3119,6 +3139,7 @@ async def test_cycle_cancellation_during_batch_hydration_releases_claims(
         assert row.attempts == 0
         assert row.claimed_by is None
         assert row.claimed_at is None
+    assert permits._value == 2
 
 
 async def test_storage_pause_prevents_claiming_new_work(db: DbSessionFactory) -> None:
@@ -3195,9 +3216,6 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
     active = 0
     max_active = 0
 
-    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
-        return hydrated
-
     async def _evaluate(*_: Any, **__: Any) -> None:
         nonlocal active, max_active
         active += 1
@@ -3205,22 +3223,163 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
         await asyncio.sleep(0)
         active -= 1
 
+    async def _hydrate_batch(units: Sequence[ClaimedWorkUnit]) -> list[HydratedWorkUnit]:
+        return [hydrated for _ in units]
+
     async def _complete(**_: Any) -> bool:
         return True
 
-    for consumer in (span_consumer, session_consumer):
-        monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    claims = {
+        span_consumer: AsyncMock(return_value=[_claimed_unit(1, work_unit_id=1)]),
+        session_consumer: AsyncMock(
+            return_value=[_claimed_session_unit(1, identifier="online:session", work_unit_id=2)]
+        ),
+    }
+    for consumer, claim in claims.items():
+        monkeypatch.setattr(consumer._coordinator, "claim", claim)
+        monkeypatch.setattr(consumer._executor, "hydrate_configuration_snapshots", _hydrate_batch)
         monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
         monkeypatch.setattr(consumer._coordinator, "complete", _complete)
 
     await asyncio.gather(
-        span_consumer._process_unit(_claimed_unit(1, work_unit_id=1)),
-        session_consumer._process_unit(
-            _claimed_session_unit(1, identifier="online:session", work_unit_id=2)
-        ),
+        _cycle_to_completion(span_consumer), _cycle_to_completion(session_consumer)
     )
 
     assert max_active == 1
+    for claim in claims.values():
+        claim.assert_awaited_once_with(claimed_by=ANY, limit=1)
+
+
+async def test_consumer_claims_new_work_while_a_unit_is_blocked(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(consumer_module, "DRAIN_TIMEOUT_SECONDS", 0.01)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        blocked_span = await _add_span(session, trace)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    blocked_unit_id, _ = await _materialize_unit(
+        db, blocked_span.id, evaluator_id, project_evaluator_id
+    )
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluator_semaphore=asyncio.Semaphore(2),
+    )
+    blocked = asyncio.Event()
+    completed = asyncio.Event()
+    coordinator_complete = consumer._coordinator.complete
+
+    async def _evaluate(unit: ClaimedWorkUnit, _: HydratedWorkUnit) -> None:
+        if unit.work_unit_id == blocked_unit_id:
+            blocked.set()
+            await asyncio.Event().wait()
+
+    async def _complete(**kwargs: Any) -> bool:
+        done = await coordinator_complete(**kwargs)
+        completed.set()
+        return done
+
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
+    monkeypatch.setattr(consumer._coordinator, "complete", _complete)
+
+    try:
+        await asyncio.wait_for(consumer._cycle(), timeout=5)
+        await asyncio.wait_for(blocked.wait(), timeout=5)
+        unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+        await asyncio.wait_for(consumer._cycle(), timeout=5)
+        await asyncio.wait_for(completed.wait(), timeout=5)
+
+        assert (await _get_unit(db, unit_id)).status == "DONE"
+        assert (await _get_unit(db, blocked_unit_id)).status == "RUNNING"
+    finally:
+        await consumer.stop()
+
+
+async def test_idle_consumer_publishes_gauges_while_other_work_holds_every_permit(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    evaluator_semaphore = asyncio.Semaphore(1)
+    await evaluator_semaphore.acquire()
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluator_semaphore=evaluator_semaphore,
+        tick_interval_seconds=0.01,
+    )
+    consumer._publish_metrics = True
+    published = asyncio.Event()
+
+    async def _publish() -> None:
+        published.set()
+
+    monkeypatch.setattr(consumer, "_publish_queue_metrics", _publish)
+
+    await consumer.start()
+    try:
+        await asyncio.wait_for(published.wait(), timeout=5)
+    finally:
+        await consumer.stop()
+    assert evaluator_semaphore.locked()
+
+
+async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_claim(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    coordinator = consumer._coordinator
+    process_unit = consumer._process_unit
+    started: list[ClaimedWorkUnit] = []
+
+    async def _start(unit: ClaimedWorkUnit, *_: Any) -> None:
+        started.append(unit)
+
+    async def _write_nothing(_: Any) -> None:
+        return None
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
+
+    async def _evaluate(*_: Any, **__: Any) -> None:
+        return None
+
+    monkeypatch.setattr(consumer, "_process_unit", _start)
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
+    await _cycle_to_completion(consumer)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(claimed_at=lapsed)
+        )
+    await _cycle_to_completion(consumer)
+    first, second = started
+    assert first.work_unit_id == second.work_unit_id == unit_id
+    assert first.claimed_by != second.claimed_by
+
+    stale: dict[str, Any] = {"work_unit_id": unit_id, "claimed_by": first.claimed_by}
+    assert not await consumer._heartbeat(first)
+    with pytest.raises(PublicationClaimLostError):
+        await coordinator.publish(**stale, write=_write_nothing)
+    assert not await coordinator.complete(**stale)
+    assert not await coordinator.fail(**stale, error="stale")
+    assert not await coordinator.expire(**stale, error="stale")
+    assert not await coordinator.release(**stale)
+    row = await _get_unit(db, unit_id)
+    assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", second.claimed_by, 1)
+
+    await process_unit(second)
+    assert (await _get_unit(db, unit_id)).status == "DONE"
 
 
 async def test_complete_retries_after_ambiguous_commit(
@@ -3386,7 +3545,7 @@ async def test_staleness_guard_expires_unit_without_annotating(
         )
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "SUPERSEDED"
@@ -3458,7 +3617,7 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
         )
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "EXPIRED"
@@ -3498,7 +3657,7 @@ async def test_trace_consumer_writes_a_trace_annotation(
         event_queue=events,
         evaluation_target="TRACE",
     )
-    await consumer._cycle()
+    await _cycle_to_completion(consumer)
 
     assert (await _get_trace_unit(db, unit_id)).status == "DONE"
     assert client.requests[0]["messages"][0]["content"] == (
