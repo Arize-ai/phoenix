@@ -88,6 +88,7 @@ phoenix = "phoenix.server.main:main"
 [dependency-groups]
 dev = [
   "check-wheel-contents",
+  "harbor-verifiers",
   "twine",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "aioboto3",
@@ -334,6 +335,14 @@ testpaths = [
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
+# harbor_verifiers lives under evals/harbor/verifiers/ but installs as a top-level package,
+# so name modules from these roots instead of from the highest __init__.py above them.
+explicit_package_bases = true
+mypy_path = [
+  "$MYPY_CONFIG_FILE_DIR",
+  "$MYPY_CONFIG_FILE_DIR/src",
+  "$MYPY_CONFIG_FILE_DIR/evals/harbor/verifiers",
+]
 files = [
   "evals/",
   "src/",
@@ -342,9 +351,7 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
-  "evals/harbor/verifiers/graphql/__generated__/",
-  # Staging copies evals.harbor.verifiers to /opt/verifier for task solutions to import.
-  "evals/harbor/tasks/.*/environment/",
+  "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "evals/harbor/tasks/trail-benchmark-dev/",
   "examples/",
   "packages/",
@@ -417,7 +424,7 @@ exclude = ["**/node_modules", "**/__pycache__", "**/.*", "packages/phoenix-sqlea
 force-exclude = true
 exclude = [
   "api_reference",
-  "evals/harbor/verifiers/graphql/__generated__/",
+  "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "dist/",
   ".git",
   "__pycache__",
@@ -454,6 +461,7 @@ select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
+known-first-party = ["harbor_verifiers"]
 
 [tool.ruff.format]
 line-ending = "native"
@@ -482,7 +490,7 @@ override-dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = ["packages/*", "evals/harbor/verifiers"]
 # phoenix-sqlean is a vendored setup.py-based C extension (fork of
 # nalgeon/sqlean.py), not a uv-managed project.
 exclude = ["packages/phoenix-sqlean"]
@@ -491,12 +499,13 @@ exclude = ["packages/phoenix-sqlean"]
 arize-phoenix-client = { workspace = true }
 arize-phoenix-evals = { workspace = true }
 arize-phoenix-otel = { workspace = true }
+harbor-verifiers = { workspace = true }
 
 [tool.ariadne-codegen]
 # `make codegen-harbor-graphql` compiles the queries into typed models for the verifiers.
 schema_path = "js/app/schema.graphql"
-queries_path = "evals/harbor/verifiers/graphql/operations"
-target_package_path = "evals/harbor/verifiers/graphql"
+queries_path = "evals/harbor/verifiers/harbor_verifiers/graphql/operations"
+target_package_path = "evals/harbor/verifiers/harbor_verifiers/graphql"
 target_package_name = "__generated__"
 async_client = false
 multipart_uploads = false
