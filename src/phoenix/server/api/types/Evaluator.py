@@ -32,8 +32,7 @@ from phoenix.server.api.evaluators import (
     infer_input_schema_from_prompt_template,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.evaluator_comparison import make_side_binning
-from phoenix.server.api.helpers.evaluator_distribution import get_evaluator_distribution
+from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
 from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
@@ -1408,23 +1407,13 @@ class ProjectEvaluator(Node):
         record = await self._get_record(info)
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         annotation_name, config = primary_result_annotation(record, evaluator)
-        summary = await get_evaluator_distribution(
+        return await resolve_evaluator_distribution(
             db=info.context.db,
             project_rowid=record.project_id,
             evaluation_target=record.evaluation_target,
             annotation_name=annotation_name,
             config=config,
             time_range=time_range,
-        )
-        binning = make_side_binning(annotation_name, config, None)
-        return EvaluatorDistribution(
-            evaluated_count=summary.evaluated_count,
-            threshold=binning.threshold if binning.is_thresholded else None,
-            mean_score=summary.mean_score,
-            score_bin_edges=summary.score_bin_edges,
-            score_bin_counts=summary.score_bin_counts,
-            score_value_counts=summary.score_value_counts,
-            label_counts=summary.label_counts,
         )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
