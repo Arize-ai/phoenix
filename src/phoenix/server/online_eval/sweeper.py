@@ -91,6 +91,10 @@ class _LockConflictError(Exception):
     """The tick gave up a lock wait, or was chosen to break a deadlock, and rolled back."""
 
 
+def _is_lock_conflict(error: DBAPIError) -> bool:
+    return getattr(error.orig, "sqlstate", None) in _LOCK_CONFLICT_SQLSTATES
+
+
 @dataclass(frozen=True)
 class _SweepTarget:
     """The tables, columns and predicates one evaluation target sweeps over."""
@@ -412,10 +416,7 @@ class EvalSweeper(DaemonTask):
         except Exception as error:
             if self._publish_metrics:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
-            if (
-                isinstance(error, DBAPIError)
-                and getattr(error.orig, "sqlstate", None) in _LOCK_CONFLICT_SQLSTATES
-            ):
+            if isinstance(error, DBAPIError) and _is_lock_conflict(error):
                 raise _LockConflictError(str(error.orig)) from error
             raise
         finally:
@@ -597,7 +598,8 @@ class EvalSweeper(DaemonTask):
         Each evaluator's statement reads its entities' activity together with the filter, so
         a pair is decided on the content its entity had, quiet, at the page read; the consumer
         later evaluates whatever content the entity has when it runs. A pair whose entity has
-        moved on is left out and stays undecided until a later tick sees the entity quiet.
+        moved on is left out and stays undecided until a later tick sees the entity quiet, and
+        so are the pairs of an evaluator whose filter fails when it runs.
         """
         target = self._target
         entity_model = target.entity_model
@@ -622,13 +624,27 @@ class EvalSweeper(DaemonTask):
                 if project_evaluator.filter_condition
                 else true()
             )
-            for entity_rowid, activity_through, passes in await session.execute(
-                select(
-                    entity_model.id,
-                    entity_model.last_span_ingested_at,
-                    passes_filter,
-                ).where(entity_model.id.in_(entity_rowids))
-            ):
+            try:
+                async with session.begin_nested():
+                    result = (
+                        await session.execute(
+                            select(
+                                entity_model.id,
+                                entity_model.last_span_ingested_at,
+                                passes_filter,
+                            ).where(entity_model.id.in_(entity_rowids))
+                        )
+                    ).all()
+            except (DBAPIError, OverflowError) as error:
+                if isinstance(error, DBAPIError) and _is_lock_conflict(error):
+                    raise
+                logger.warning(
+                    f"Skipping project_evaluator {project_evaluator.project_evaluator_id} this "
+                    "tick: its filter condition failed when run: "
+                    f"{error.orig if isinstance(error, DBAPIError) else error}"
+                )
+                continue
+            for entity_rowid, activity_through, passes in result:
                 if activity_through == evaluated_through[entity_rowid]:
                     verdicts[(project_evaluator.project_evaluator_id, entity_rowid)] = passes
         return verdicts
