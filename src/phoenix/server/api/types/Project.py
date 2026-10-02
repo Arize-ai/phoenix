@@ -2642,6 +2642,9 @@ class Project(Node):
             result=result,
             record_a=record_a,
             record_b=record_b,
+            config_a=config_a,
+            config_b=config_b,
+            time_range=time_range,
         )
 
     @strawberry.field
@@ -3059,8 +3062,8 @@ def _evaluator_comparison_stmts(
     multiple annotation identifiers per (entity, name) to the most recently
     updated. Rows are selected by annotation name alone, whichever source
     wrote them. The coverage statement counts entities grouped by which names
-    annotated them, and the total statement counts all entities of that target
-    in the project and range.
+    annotated them, and the total statement counts the traces or sessions in the
+    project and range: traces for span and trace targets, sessions for sessions.
     """
     level = EVALUATOR_RESULT_LEVELS.get(evaluation_target)
     if level is None:
@@ -3076,13 +3079,12 @@ def _evaluator_comparison_stmts(
             time_range=time_range,
         )
 
-    total = select(func.count(level.entity.id))
-    if level.joins_trace:
-        total = total.join_from(
-            level.entity, models.Trace, onclause=models.Span.trace_rowid == models.Trace.id
-        )
-    total = total.where(level.project_col == project_rowid).where(
-        time_range.start <= level.time_col
+    # Span targets count the traces their spans belong to.
+    counted = models.Trace if level.joins_trace else level.entity
+    total = (
+        select(func.count(counted.id))
+        .where(level.project_col == project_rowid)
+        .where(time_range.start <= level.time_col)
     )
     if time_range.end:
         total = total.where(level.time_col < time_range.end)

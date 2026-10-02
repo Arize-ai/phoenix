@@ -14,6 +14,7 @@ import {
   truncateModelName,
   useCategoryChartColors,
   useInteractiveLegend,
+  stackedBarSeparatorProps,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
@@ -131,6 +132,7 @@ export function TopModelsByToken({
             <Bar
               dataKey={tokenSeries.dataKey}
               stackId="a"
+              {...stackedBarSeparatorProps}
               fill={colorByDataKey.get(tokenSeries.dataKey)}
               hide={isDataKeyHidden(tokenSeries.dataKey)}
               key={tokenSeries.dataKey}
