@@ -492,7 +492,6 @@ class _InvocationParametersConversion:
                     adaptive_content["display"] = display_adaptive
                 content["thinking"] = adaptive_content
             elif thinking["type"] == "between_tools":
-                # anthropic>=1.11 adds this variant; Phoenix has no prompt type for it yet.
                 raise NotImplementedError("between_tools thinking is not supported")
             elif TYPE_CHECKING:
                 assert_never(thinking["type"])
