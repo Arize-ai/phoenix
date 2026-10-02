@@ -1,8 +1,6 @@
-"""Shared derivation recipes for online-eval coordination. Materializers and consumers
-compute config fingerprints, annotation identifiers, and sampling keys through this
-module — an independent recipe that drifts from these re-materializes the work backlog
-(fingerprint mismatch) or breaks annotation idempotency (identifier mismatch). All
-functions are pure; version resolution and any DB access happen in callers.
+"""Shared derivation recipes for online-eval coordination: config fingerprints,
+annotation identifiers, and sampling keys. All functions are pure; version resolution and
+any DB access happen in callers.
 """
 
 from __future__ import annotations
@@ -15,10 +13,6 @@ from typing import Any
 
 _IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
-
-# Error recorded when a claimed unit's recomputed fingerprint no longer matches the
-# stored one.
-STALE_FINGERPRINT_ERROR = "CONFIG_FINGERPRINT_MISMATCH"
 
 
 @dataclass(frozen=True)
@@ -56,9 +50,8 @@ def _canonical_default(obj: Any) -> Any:
 def config_fingerprint(resolved: ResolvedProjectEvaluator) -> str:
     """Full 64-char sha256 hex over the canonical JSON form of the resolved evaluator.
 
-    Serves as both the work-unit dedup key component and the consumer's staleness
-    guard: the consumer re-resolves the same inputs at claim time and refuses to
-    execute a unit whose recomputed fingerprint no longer matches the stored one.
+    The consumer computes it from the configuration it hydrates, so an annotation's
+    identifier names the configuration that produced it.
     """
     canonical = json.dumps(
         asdict(resolved),
@@ -71,7 +64,7 @@ def config_fingerprint(resolved: ResolvedProjectEvaluator) -> str:
 
 
 def annotation_identifier(fingerprint: str) -> str:
-    """Identifier keying the idempotent annotation write for a work unit."""
+    """Identifier keying the idempotent annotation write for one configuration."""
     return _IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
 
 
