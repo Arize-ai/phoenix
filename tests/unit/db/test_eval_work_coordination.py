@@ -368,44 +368,22 @@ async def test_project_evaluator_rejects_unknown_target(
             await session.flush()
 
 
-async def test_eval_work_cursor_defaults(db: DbSessionFactory) -> None:
+async def test_eval_span_cursor_defaults(db: DbSessionFactory) -> None:
     async with db() as session:
-        cursor = models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default")
-        session.add(cursor)
-        await session.flush()
-        cursor_id = cursor.id
+        session.add(models.EvalSpanCursor(id=1))
 
     async with db() as session:
-        fetched = await session.scalar(
-            select(models.EvalWorkCursor).where(models.EvalWorkCursor.id == cursor_id)
-        )
+        fetched = await session.get(models.EvalSpanCursor, 1)
         assert fetched is not None
         assert fetched.produced_through_id == 0
         assert fetched.observed_high_water_id is None
         assert fetched.observed_at is None
-        assert fetched.claimed_by is None
 
 
-async def test_eval_work_cursor_unique_target_group(db: DbSessionFactory) -> None:
-    async with db() as session:
-        session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
-        await session.flush()
-
+async def test_eval_span_cursor_holds_a_single_row(db: DbSessionFactory) -> None:
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
-            session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
-            await session.flush()
-
-
-async def test_eval_work_cursor_rejects_unknown_evaluation_target(db: DbSessionFactory) -> None:
-    with pytest.raises(_INTEGRITY_ERRORS):
-        async with db() as session:
-            session.add(
-                models.EvalWorkCursor(
-                    evaluation_target="BOGUS",
-                    consumer_group="default",
-                )
-            )
+            session.add(models.EvalSpanCursor(id=2))
             await session.flush()
 
 
