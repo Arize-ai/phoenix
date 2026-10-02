@@ -14,6 +14,7 @@ import { createPhoenixClient } from "../client";
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
+import { loadCodexAuth } from "./codexAuth";
 import type {
   BuiltInProvider,
   ModelSelection,
@@ -153,7 +154,7 @@ function getModelLabel({
     return `custom:${modelSelection.providerId}/${modelSelection.modelName}`;
   }
   if (modelSelection.providerType === "codex") {
-    return `codex/${modelSelection.modelName}`;
+    return `CODEX/${modelSelection.modelName}`;
   }
   return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
@@ -368,9 +369,12 @@ export async function fetchRecommendedPxiModels({
  */
 export function validatePxiModelSelection({
   data,
+  isCodexSignedIn = loadCodexAuth() !== null,
   modelSelection,
 }: {
   data: PxiModelPreflightData;
+  /** Whether a ChatGPT (Codex) sign-in is stored; defaults to reading it from disk. */
+  isCodexSignedIn?: boolean;
   modelSelection: ModelSelection;
 }): void {
   if (modelSelection.providerType === "custom") {
@@ -399,10 +403,12 @@ export function validatePxiModelSelection({
   }
 
   if (modelSelection.providerType === "codex") {
-    // The ChatGPT sign-in lives in the browser; the CLI has no token to send.
-    throw new InvalidArgumentError(
-      `This session runs on a ChatGPT (Codex) subscription, which only the Phoenix UI can sign in to. Choose a model from a built-in or custom provider instead.`
-    );
+    if (!isCodexSignedIn) {
+      throw new InvalidArgumentError(
+        `This session runs on a ChatGPT (Codex) subscription, but PXI is not signed in to ChatGPT. Run /login inside PXI, or choose a model from a built-in or custom provider instead.`
+      );
+    }
+    return;
   }
 
   const provider = data.modelProviders.find(
@@ -586,7 +592,7 @@ export function formatPxiRuntimeError({
     modelSelection.providerType === "custom"
       ? "Check the custom provider configuration in Phoenix Settings > AI Providers."
       : modelSelection.providerType === "codex"
-        ? "ChatGPT (Codex) subscription sessions can only be used from the Phoenix UI. Choose a different model."
+        ? "Run /login to sign in to ChatGPT (Codex) again, or choose a different model."
         : `Configure ${modelSelection.provider} credentials in Phoenix Settings > AI Providers, set the required environment variables on the Phoenix server, or choose a different model.`;
   return new Error(
     `PXI request failed for ${getModelLabel({ modelSelection })}: ${message} ${nextAction}`

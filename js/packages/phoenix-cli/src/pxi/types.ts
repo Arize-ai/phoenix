@@ -189,6 +189,8 @@ export type PxiSessionClient = {
   compactSession: (options: {
     sessionId: string;
     model: ModelSelection;
+    /** ChatGPT access token, required when `model` is a Codex subscription. */
+    codexAccessToken?: string | null;
   }) => Promise<PxiCompactionResult>;
 };
 

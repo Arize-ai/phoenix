@@ -369,8 +369,13 @@ export function createPxiSessionClient({
         throw error;
       }
     },
-    async compactSession({ sessionId, model }) {
+    async compactSession({ sessionId, model, codexAccessToken }) {
       const client = createPhoenixClient({ config, fetch: fetchImpl });
+      const credentials = buildPxiCredentials({
+        config,
+        modelSelection: model,
+        codexAccessToken,
+      });
       try {
         const { data: payload } = await client.POST(
           "/v1/agent_sessions/{session_id}/compact",
@@ -378,7 +383,10 @@ export function createPxiSessionClient({
             params: {
               path: { session_id: sessionId },
             },
-            body: { model },
+            body: {
+              model,
+              ...(credentials.length > 0 ? { credentials } : {}),
+            },
           }
         );
         if (!payload) {
@@ -519,26 +527,59 @@ export function buildPxiContexts({
   ];
 }
 
+type PxiRequestCredential = componentsV1["schemas"]["ChatRequestCredential"];
+
+/**
+ * Client-held credentials that ride a request ephemerally. The server injects
+ * each as transport auth for its integration and never persists it: the
+ * profile's GitHub token for the GitHub tools, and the ChatGPT access token
+ * when the session runs on a Codex subscription.
+ */
+export function buildPxiCredentials({
+  config,
+  modelSelection,
+  codexAccessToken,
+}: {
+  config: PhoenixConfig;
+  modelSelection: ModelSelection;
+  codexAccessToken?: string | null;
+}): PxiRequestCredential[] {
+  const credentials: PxiRequestCredential[] = [];
+  const githubToken = config.githubPersonalAccessToken;
+  if (githubToken) {
+    credentials.push({
+      key: "GITHUB_PERSONAL_ACCESS_TOKEN",
+      value: githubToken,
+    });
+  }
+  if (modelSelection.providerType === "codex" && codexAccessToken) {
+    credentials.push({
+      key: "OPENAI_CODEX_ACCESS_TOKEN",
+      value: codexAccessToken,
+    });
+  }
+  return credentials;
+}
+
 /** Shared request fields derived from the resolved runtime options. */
-function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
-  // The profile's GitHub token rides each request ephemerally; the server
-  // injects it as transport auth for the GitHub tools and never persists it.
-  const githubToken = options.config.githubPersonalAccessToken;
+function buildPxiRequestBase({
+  options,
+  codexAccessToken,
+}: {
+  options: PxiRuntimeOptions;
+  codexAccessToken?: string | null;
+}) {
+  const credentials = buildPxiCredentials({
+    config: options.config,
+    modelSelection: options.modelSelection,
+    codexAccessToken,
+  });
   return {
     id: options.sessionId,
     trigger: "submit-message" as const,
     // The CLI drives the headless agent rather than the browser assistant.
     headless: true,
-    ...(githubToken
-      ? {
-          credentials: [
-            {
-              key: "GITHUB_PERSONAL_ACCESS_TOKEN" as const,
-              value: githubToken,
-            },
-          ],
-        }
-      : {}),
+    ...(credentials.length > 0 ? { credentials } : {}),
     recordLocalTraces: options.ingestTraces,
     exportRemoteTraces: options.exportRemoteTraces,
     instrumentUserId: options.attachUserId,
@@ -556,9 +597,11 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
 export function buildPxiChatRequest({
   messages,
   options,
+  codexAccessToken,
 }: {
   messages: PxiMessage[];
   options: PxiRuntimeOptions;
+  codexAccessToken?: string | null;
 }): PxiChatRequest {
   const message = messages.at(-1);
   if (!message) {
@@ -576,7 +619,7 @@ export function buildPxiChatRequest({
   // persisted tail. Null while the transcript is empty.
   const lastMessageId = messages.at(-2)?.id ?? null;
   return {
-    ...buildPxiRequestBase({ options }),
+    ...buildPxiRequestBase({ options, codexAccessToken }),
     message,
     lastMessageId,
   };
@@ -587,10 +630,17 @@ export function createServerAgentTransport({
   options,
   agentSessionId,
   fetch,
+  getCodexAccessToken = () => Promise.resolve(null),
 }: {
   options: PxiRuntimeOptions;
   agentSessionId?: string;
   fetch?: typeof globalThis.fetch;
+  /**
+   * Supplies a fresh ChatGPT access token per send when the session runs on
+   * a Codex subscription; resolved at send time so a refresh mid-session is
+   * picked up.
+   */
+  getCodexAccessToken?: () => Promise<string | null>;
 }): PxiTransport {
   const endpoint = options.config.endpoint;
   if (!endpoint) {
@@ -638,7 +688,14 @@ export function createServerAgentTransport({
         endpoint,
         agentSessionId: await getAgentSessionId(),
       }),
-      body: buildPxiChatRequest({ messages, options }),
+      body: buildPxiChatRequest({
+        messages,
+        options,
+        codexAccessToken:
+          options.modelSelection.providerType === "codex"
+            ? await getCodexAccessToken()
+            : null,
+      }),
     }),
   });
 }
@@ -691,10 +748,16 @@ export async function streamAssistantMessage({
 export function createPxiChatClient({
   options,
   agentSessionId,
-  transport = createServerAgentTransport({ options, agentSessionId }),
+  getCodexAccessToken,
+  transport = createServerAgentTransport({
+    options,
+    agentSessionId,
+    getCodexAccessToken,
+  }),
 }: {
   options: PxiRuntimeOptions;
   agentSessionId?: string;
+  getCodexAccessToken?: () => Promise<string | null>;
   transport?: PxiTransport;
 }): PxiChatClient {
   return {

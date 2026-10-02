@@ -152,8 +152,11 @@ export type ResolvePxiRuntimeOptionsInput = {
   sessionId?: string;
 };
 
+/** The `--provider` value that selects the ChatGPT (Codex) subscription. */
+export const CODEX_PROVIDER_FLAG = "codex";
+
 function getExpectedProviderMessage(): string {
-  return `Expected one of: ${BUILT_IN_PROVIDERS.join(", ")}.`;
+  return `Expected one of: ${[...BUILT_IN_PROVIDERS, CODEX_PROVIDER_FLAG].join(", ")}.`;
 }
 
 function isBuiltInProvider(provider: string): provider is BuiltInProvider {
@@ -200,6 +203,14 @@ export function resolveModelSelection({
   }
 
   const rawSelectedProvider = (provider ?? DEFAULT_PXI_PROVIDER).trim();
+  if (rawSelectedProvider.toLowerCase() === CODEX_PROVIDER_FLAG) {
+    if (!trimmedModel) {
+      throw new InvalidArgumentError(
+        "Missing required flag --model when --provider codex is provided. Expected a ChatGPT model name (e.g. gpt-5.4)."
+      );
+    }
+    return { providerType: "codex", modelName: trimmedModel };
+  }
   const selectedProvider = normalizeBuiltInProvider({
     provider: rawSelectedProvider,
   });
@@ -280,7 +291,7 @@ export function createPxiProgram(): Command {
     .option("--profile <name>", "Phoenix CLI profile name")
     .option(
       "--provider <provider>",
-      `Built-in model provider (${BUILT_IN_PROVIDERS.join("|")})`
+      `Model provider: a built-in provider (${BUILT_IN_PROVIDERS.join("|")}) or codex for a ChatGPT subscription (requires --model and /login)`
     )
     .option(
       "--model <model>",
