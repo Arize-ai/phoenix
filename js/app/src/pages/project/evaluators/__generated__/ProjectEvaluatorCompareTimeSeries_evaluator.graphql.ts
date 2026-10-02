@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9804385ca724d74e040e2feba5a49807>>
+ * @generated SignedSource<<1c36a475be85b3f02aff781adb23058a>>
  * @lightSyntaxTransform
  */
 
@@ -9,14 +9,9 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
-export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
-export type ProjectEvaluatorCompareDistributions_evaluator$data = {
-  readonly distribution: {
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_side">;
-  };
-  readonly evaluationTarget: EvaluationTarget;
+export type ProjectEvaluatorCompareTimeSeries_evaluator$data = {
   readonly evaluator: {
     readonly outputConfigs: ReadonlyArray<{
       readonly annotationType?: AnnotationType;
@@ -30,13 +25,12 @@ export type ProjectEvaluatorCompareDistributions_evaluator$data = {
       }>;
     }>;
   };
-  readonly id: string;
   readonly name: string;
-  readonly " $fragmentType": "ProjectEvaluatorCompareDistributions_evaluator";
+  readonly " $fragmentType": "ProjectEvaluatorCompareTimeSeries_evaluator";
 };
-export type ProjectEvaluatorCompareDistributions_evaluator$key = {
-  readonly " $data"?: ProjectEvaluatorCompareDistributions_evaluator$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_evaluator">;
+export type ProjectEvaluatorCompareTimeSeries_evaluator$key = {
+  readonly " $data"?: ProjectEvaluatorCompareTimeSeries_evaluator$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareTimeSeries_evaluator">;
 };
 
 const node: ReaderFragment = (function(){
@@ -62,58 +56,16 @@ v2 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "timeRange"
-    }
-  ],
+  "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "ProjectEvaluatorCompareDistributions_evaluator",
+  "name": "ProjectEvaluatorCompareTimeSeries_evaluator",
   "selections": [
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
       "name": "name",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "evaluationTarget",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
-        }
-      ],
-      "concreteType": "EvaluatorDistribution",
-      "kind": "LinkedField",
-      "name": "distribution",
-      "plural": false,
-      "selections": [
-        {
-          "args": null,
-          "kind": "FragmentSpread",
-          "name": "ProjectEvaluatorCompareDistributions_side"
-        }
-      ],
       "storageKey": null
     },
     {
@@ -218,6 +170,6 @@ return {
 };
 })();
 
-(node as any).hash = "f92189554f23d596ad377cb7a9811f78";
+(node as any).hash = "6bc599c1dd9ef01a7613087cc9c87649";
 
 export default node;
