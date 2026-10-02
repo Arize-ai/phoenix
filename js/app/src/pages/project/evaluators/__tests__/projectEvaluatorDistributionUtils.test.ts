@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatScoreValue,
   getDistributionRows,
+  getDistributionScope,
   getDistributionThresholdPosition,
   getDistributionView,
+  getRankedScoreRowShades,
+  orderLabelRowsBestFirst,
   type DistributionSide,
 } from "../projectEvaluatorDistributionUtils";
 
@@ -89,5 +93,101 @@ describe("evaluator distribution chart data", () => {
     expect(getDistributionRows({ side: labels, view: "labels" })).toEqual(
       labels.labelCounts
     );
+  });
+});
+
+describe("orderLabelRowsBestFirst", () => {
+  const rows = [
+    { label: "hallucinated", score: 1, count: 6 },
+    { label: "grounded", score: 0, count: 15 },
+    { label: "unscored", score: null, count: 1 },
+    { label: "Other labels (grouped)", isOther: true, count: 2 },
+  ];
+
+  it("puts the best label first and Other last", () => {
+    const ordered = orderLabelRowsBestFirst({
+      rows,
+      direction: "MINIMIZE",
+    });
+    expect(ordered.rows.map(({ label }) => label)).toEqual([
+      "grounded",
+      "hallucinated",
+      "unscored",
+      "Other labels (grouped)",
+    ]);
+    expect(ordered.shades).toEqual([1, 0, null, null]);
+  });
+
+  it("keeps the original order without a direction", () => {
+    const ordered = orderLabelRowsBestFirst({ rows, direction: "NONE" });
+    expect(ordered.rows).toEqual(rows);
+    expect(ordered.shades).toBeNull();
+  });
+});
+
+describe("getRankedScoreRowShades", () => {
+  it("ranks exact scores along the direction without reordering", () => {
+    const rows = [
+      { label: "0", score: 0, count: 13 },
+      { label: "1", score: 1, count: 5 },
+    ];
+    expect(getRankedScoreRowShades({ rows, direction: "MINIMIZE" })).toEqual([
+      1, 0,
+    ]);
+    expect(getRankedScoreRowShades({ rows, direction: "MAXIMIZE" })).toEqual([
+      0, 1,
+    ]);
+  });
+
+  it("ranks histogram bins by midpoint", () => {
+    const rows = [
+      { label: "0–0.5", count: 1, lowerBound: 0, upperBound: 0.5 },
+      { label: "0.5–1", count: 1, lowerBound: 0.5, upperBound: 1 },
+    ];
+    expect(getRankedScoreRowShades({ rows, direction: "MAXIMIZE" })).toEqual([
+      0, 1,
+    ]);
+  });
+
+  it("is null without a direction", () => {
+    expect(
+      getRankedScoreRowShades({
+        rows: [{ label: "0", score: 0, count: 1 }],
+        direction: "NONE",
+      })
+    ).toBeNull();
+  });
+});
+
+describe("getDistributionScope", () => {
+  it("defaults to overlap and honors a request for all", () => {
+    expect(getDistributionScope({ requested: null, evaluatedByBoth: 3 })).toBe(
+      "overlap"
+    );
+    expect(getDistributionScope({ requested: "all", evaluatedByBoth: 3 })).toBe(
+      "all"
+    );
+  });
+
+  it("falls back to all when nothing overlaps", () => {
+    expect(
+      getDistributionScope({ requested: "overlap", evaluatedByBoth: 0 })
+    ).toBe("all");
+  });
+});
+
+describe("formatScoreValue", () => {
+  it("drops floating-point noise and padding zeros", () => {
+    expect(formatScoreValue(65.74000000000001)).toBe("65.74");
+    expect(formatScoreValue(110.68)).toBe("110.68");
+    expect(formatScoreValue(1)).toBe("1");
+    expect(formatScoreValue(0.5)).toBe("0.5");
+    expect(formatScoreValue(0.333)).toBe("0.33");
+    expect(formatScoreValue(0)).toBe("0");
+  });
+
+  it("keeps compact notation for very large and small values", () => {
+    expect(formatScoreValue(2500)).toBe("2.5k");
+    expect(formatScoreValue(0.005)).toBe("5.00e-3");
   });
 });

@@ -1633,6 +1633,9 @@ const chartCSS = css`
       0.84
     );
     --chart-panel-background-color: var(--global-color-gray-75);
+    /* Drawn around each segment of a stacked bar, so adjacent segments read as
+       separate; match the surface the chart sits on */
+    --chart-bar-separator-color: var(--chart-panel-background-color);
     --chart-panel-border-color: var(--global-border-color-default);
   }
   .theme--dark {
