@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useEffect, useEffectEvent, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 import invariant from "tiny-invariant";
@@ -26,23 +26,14 @@ import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import type { ProjectTab } from "@phoenix/pages/project/constants";
-import {
-  SessionFiltersProvider,
-  useSessionFilters,
-} from "@phoenix/pages/project/SessionFiltersContext";
+import { SessionFiltersProvider } from "@phoenix/pages/project/SessionFiltersContext";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
 import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
-import {
-  SpanFiltersProvider,
-  useSpanFilterCondition,
-} from "@phoenix/pages/project/SpanFiltersContext";
+import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import type { SettledSpanFilterSeed } from "@phoenix/pages/project/spanFilterSeed";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { makeFlatAnnotationColumnId } from "@phoenix/pages/project/tableUtils";
-import {
-  TraceFiltersProvider,
-  useTraceFilters,
-} from "@phoenix/pages/project/TraceFiltersContext";
+import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
@@ -105,7 +96,10 @@ function useEditableTargetsCondition({
       setTable({ seedCondition: condition, editedCondition: null });
     }
   }
-  const handleFilterConditionChange = (editedCondition: string | null) => {
+  const handleFilterConditionApplied = (condition: string) => {
+    // Re-applying the seed itself is not an edit
+    const editedCondition =
+      condition === table.seedCondition ? null : condition;
     setTable((current) =>
       current.editedCondition === editedCondition
         ? current
@@ -118,7 +112,7 @@ function useEditableTargetsCondition({
   return {
     table,
     tableCondition: table.editedCondition ?? table.seedCondition,
-    handleFilterConditionChange,
+    handleFilterConditionApplied,
   };
 }
 
@@ -201,7 +195,7 @@ export function ProjectEvaluatorCompareTargets({
     sideA,
     sideB,
   });
-  const { table, tableCondition, handleFilterConditionChange } =
+  const { table, tableCondition, handleFilterConditionApplied } =
     useEditableTargetsCondition({
       condition,
       hasActiveSelection: activeSelection != null,
@@ -300,7 +294,7 @@ export function ProjectEvaluatorCompareTargets({
                     target={target}
                     condition={table.seedCondition}
                     timeRange={timeRange}
-                    onFilterConditionChange={handleFilterConditionChange}
+                    onFilterConditionApplied={handleFilterConditionApplied}
                   />
                 </ErrorBoundary>
               </Suspense>
@@ -354,8 +348,8 @@ type TargetsProps = {
   target: CompareTarget;
   condition: string;
   timeRange: TimeRange;
-  /** Reports the user's edit of `condition`, or null when it matches */
-  onFilterConditionChange: (editedCondition: string | null) => void;
+  /** Called when the user applies a valid filter condition */
+  onFilterConditionApplied: (condition: string) => void;
 };
 
 type TargetsTableProps = Omit<TargetsProps, "target"> &
@@ -369,13 +363,11 @@ function CompareTargetsFilters(props: TargetsProps) {
   if (props.target === "TRACE")
     return (
       <TraceFiltersProvider initialFilterCondition={props.condition}>
-        <TraceFilterEditWatcher {...props} />
         <CompareTargetsTable {...props} target="TRACE" />
       </TraceFiltersProvider>
     );
   return (
     <SessionFiltersProvider initialFilterCondition={props.condition}>
-      <SessionFilterEditWatcher {...props} />
       <CompareTargetsTable {...props} target="SESSION" />
     </SessionFiltersProvider>
   );
@@ -394,10 +386,17 @@ function CompareSpanTargets(props: TargetsProps) {
       fallbackFilterCondition={seed.condition}
       persistToUrl={false}
     >
-      <SpanFilterEditWatcher {...props} />
       <ErrorBoundary
         fallback={({ error }) => (
-          <SpanFilterErrorFallback error={error} onResolved={setSeed} />
+          <SpanFilterErrorFallback
+            error={error}
+            onResolved={(nextSeed) => {
+              // The fallback remounts the table on the resolved condition,
+              // which settles silently, so report the edit from here.
+              setSeed(nextSeed);
+              props.onFilterConditionApplied(nextSeed.condition);
+            }}
+          />
         )}
       >
         <CompareTargetsTable
@@ -409,36 +408,6 @@ function CompareSpanTargets(props: TargetsProps) {
       </ErrorBoundary>
     </SpanFiltersProvider>
   );
-}
-
-type FilterEditWatcherProps = Pick<
-  TargetsProps,
-  "condition" | "onFilterConditionChange"
->;
-
-function useReportFilterEdit(
-  filterCondition: string,
-  { condition, onFilterConditionChange }: FilterEditWatcherProps
-) {
-  const report = useEffectEvent(onFilterConditionChange);
-  useEffect(() => {
-    report(filterCondition === condition ? null : filterCondition);
-  }, [filterCondition, condition]);
-}
-
-function SpanFilterEditWatcher(props: FilterEditWatcherProps) {
-  useReportFilterEdit(useSpanFilterCondition(), props);
-  return null;
-}
-
-function TraceFilterEditWatcher(props: FilterEditWatcherProps) {
-  useReportFilterEdit(useTraceFilters().filterCondition, props);
-  return null;
-}
-
-function SessionFilterEditWatcher(props: FilterEditWatcherProps) {
-  useReportFilterEdit(useSessionFilters().filterCondition, props);
-  return null;
 }
 
 function CompareTargetsTable(props: TargetsTableProps) {
@@ -504,6 +473,7 @@ function CompareTargetsTable(props: TargetsTableProps) {
         seed={props.seed}
         emptyState={emptyState}
         selectedRowId={targetId}
+        onFilterConditionApplied={props.onFilterConditionApplied}
       />
     );
   }
@@ -513,6 +483,7 @@ function CompareTargetsTable(props: TargetsTableProps) {
         project={data.project}
         emptyState={emptyState}
         selectedRowId={targetId}
+        onFilterConditionApplied={props.onFilterConditionApplied}
       />
     );
   return (
@@ -520,6 +491,7 @@ function CompareTargetsTable(props: TargetsTableProps) {
       project={data.project}
       emptyState={emptyState}
       selectedRowId={targetId}
+      onFilterConditionApplied={props.onFilterConditionApplied}
     />
   );
 }
