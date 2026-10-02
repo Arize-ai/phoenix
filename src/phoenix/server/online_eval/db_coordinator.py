@@ -1,11 +1,13 @@
 """Database-backed ``EvalWorkCoordinator`` for span, session, and trace work units.
 
 Claiming is dialect-split: PostgreSQL locks candidate rows with ``FOR UPDATE SKIP
-LOCKED`` so competing consumers never block on each other's claims; SQLite (no row
+LOCKED`` so competing consumers never block on each other's candidates; SQLite (no row
 locks) claims each candidate with a per-id compare-and-swap and keeps only the rows
-whose update landed. Every post-claim write (heartbeat / publish / complete / fail /
-expire / release) is fenced by ``claimed_by == <the claim's token> AND status ==
-'RUNNING'``; the transitions report a lost claim as False via the update rowcount.
+whose update landed. Each claim first fails lapsed work with no attempts left, in the
+same transaction; while such rows exist, a claim can wait on another claim's reap.
+Every post-claim write (heartbeat / publish / complete / fail / expire / release) is
+fenced by ``claimed_by == <the claim's token> AND status == 'RUNNING'``; the
+transitions report a lost claim as False via the update rowcount.
 """
 
 from __future__ import annotations
@@ -72,29 +74,25 @@ def work_unit_lease_lapsed(
 async def reap_lapsed_leases(
     session: AsyncSession,
     work_unit_model: _WorkUnitModel,
+    *,
+    now: datetime,
+    max_attempts: int,
 ) -> None:
-    """Terminalize RUNNING work whose lease lapsed with no attempts left.
-
-    Consumers give a claim back themselves on every path they survive; this covers the
-    ones they do not — a replica killed mid-evaluation leaves a RUNNING row that no
-    consumer will ever reclaim, because reclaiming it would exceed the retry budget.
-    Reaping is lifecycle work, so it is spelled here rather than in each materializer;
-    the materializers call it from their own tick because they already hold the
-    single-writer lease that makes it safe to run unguarded.
-    """
-    now = await _database_now(session)
+    """Fail RUNNING work whose lease lapsed with no attempts left: a consumer killed
+    mid-evaluation leaves such a row, and no consumer may reclaim it without exceeding
+    the retry budget."""
     await session.execute(
         update(work_unit_model)
         .where(
             # SQLite reads a partial index only when the query repeats its predicate.
             text(live_eval_work_index_predicate()),
             work_unit_model.status == "RUNNING",
-            work_unit_model.attempts >= MAX_ATTEMPTS - 1,
+            work_unit_model.attempts >= max_attempts - 1,
             work_unit_lease_lapsed(now, work_unit_model),
         )
         .values(
             status="FAILED",
-            attempts=MAX_ATTEMPTS,
+            attempts=max_attempts,
             error=func.coalesce(work_unit_model.error, LEASE_ATTEMPTS_EXHAUSTED_ERROR),
         )
     )
@@ -157,6 +155,12 @@ class DbEvalWorkCoordinator:
     ) -> Sequence[ClaimedWorkUnit]:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
+            await reap_lapsed_leases(
+                session,
+                work_unit_model,
+                now=await _database_now(session),
+                max_attempts=self._max_attempts,
+            )
             now = await _database_now(session)
             candidates = select(work_unit_model.id).where(
                 # SQLite reads a partial index only when the query repeats its predicate.
