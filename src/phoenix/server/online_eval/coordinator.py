@@ -7,10 +7,11 @@ Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --publish--> DONE
                        RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
-                       RUNNING --expire---> EXPIRED | CONTENT_LOST
+                       RUNNING --expire---> EXPIRED | CONTENT_LOST | DROPPED
                        RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
+    PENDING | ERROR (queue cleared) --> DROPPED
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 # session and trace work is never deleted, so all-time aggregates would grow without bound.
 TERMINAL_METRICS_WINDOW_SECONDS = 86_400.0
 
-RetiredWorkStatus = Literal["EXPIRED", "CONTENT_LOST"]
+RetiredWorkStatus = Literal["EXPIRED", "CONTENT_LOST", "DROPPED"]
 
 PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
 """Writes one unit's results, inside the transaction that fenced its publication."""

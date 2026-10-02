@@ -140,6 +140,13 @@ class ProjectEvaluatorRunSummary:
     )
     evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
     failed_count: int = strawberry.field(description="Evaluations that were given up on.")
+    dropped_count: int = strawberry.field(
+        description=(
+            "Evaluations removed from the queue before they ran, because a user cleared the "
+            "queue or turned the evaluator on or off. They are not failures and do not "
+            "affect the status."
+        )
+    )
     last_error: Optional[str] = strawberry.field(
         description="The most recent evaluation error, or null if none was recorded."
     )
@@ -163,6 +170,7 @@ def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> Project
         queued_count=counts.queued,
         evaluated_count=counts.evaluated,
         failed_count=counts.failed,
+        dropped_count=counts.dropped,
         last_error=counts.last_error,
     )
 

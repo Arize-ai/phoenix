@@ -680,7 +680,7 @@ async def _advance_liveness(
 
 
 @pytest.mark.parametrize("evaluation_target", ["SESSION", "TRACE"])
-@pytest.mark.parametrize("status", ["FAILED", "EXPIRED", "CONTENT_LOST"])
+@pytest.mark.parametrize("status", ["FAILED", "EXPIRED", "DROPPED", "CONTENT_LOST"])
 async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_ingest(
     db: DbSessionFactory,
     evaluation_target: models.EvaluationTarget,

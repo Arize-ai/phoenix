@@ -709,11 +709,26 @@ type ClassificationEvaluatorConfig {
   inputs: [EvaluatorInput!]
 }
 
+type ClearAllQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+}
+
 input ClearProjectInput {
   id: ID!
 
   """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
+}
+
+input ClearQueuedEvaluationsInput {
+  projectId: ID!
+}
+
+type ClearQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+  project: Project!
 }
 
 input ClonePromptInput {
@@ -3125,9 +3140,19 @@ type Mutation {
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Enable or disable a project evaluator. Flips only the enabled flag on the project binding, leaving the underlying evaluator untouched. Works for both LLM and CODE evaluators.
+  Enable or disable a project evaluator, leaving the underlying evaluator untouched. Changing the flag clears the evaluator's queued evaluations. Works for both LLM and CODE evaluators.
   """
   setProjectEvaluatorEnabled(input: SetProjectEvaluatorEnabledInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Clear the queued evaluations of every evaluator in a project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearQueuedEvaluations(input: ClearQueuedEvaluationsInput!): ClearQueuedEvaluationsPayload!
+
+  """
+  Clear the queued evaluations of every evaluator in every project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearAllQueuedEvaluations: ClearAllQueuedEvaluationsPayload!
   deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
@@ -3877,6 +3902,11 @@ type ProjectEvaluatorRunSummary {
 
   """Evaluations that were given up on."""
   failedCount: Int!
+
+  """
+  Evaluations removed from the queue before they ran, because a user cleared the queue or turned the evaluator on or off. They are not failures and do not affect the status.
+  """
+  droppedCount: Int!
 
   """The most recent evaluation error, or null if none was recorded."""
   lastError: String

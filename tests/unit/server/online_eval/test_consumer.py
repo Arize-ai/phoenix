@@ -40,6 +40,9 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
+from phoenix.server.api.dataloaders.project_evaluator_run_counts import (
+    ProjectEvaluatorRunCountsDataLoader,
+)
 from phoenix.server.api.evaluators import SandboxPayloadTooLargeError
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
@@ -3491,7 +3494,7 @@ async def test_stop_cancels_and_awaits_work_past_drain_timeout(
     assert cancellation_finished.is_set()
 
 
-async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
+async def test_disabled_criteria_drops_unit_without_failing_it(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -3510,9 +3513,11 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
     await _cycle_to_completion(consumer)
 
     unit = await _get_unit(db, unit_id)
-    assert unit.status == "EXPIRED"
+    assert unit.status == "DROPPED"
     assert unit.error == "PROJECT_EVALUATOR_DISABLED"
     assert await _annotations(db) == []
+    counts = await ProjectEvaluatorRunCountsDataLoader(db).load((project_evaluator_id, None, None))
+    assert (counts.failed, counts.dropped) == (0, 1)
 
 
 async def test_trace_consumer_writes_a_trace_annotation(
