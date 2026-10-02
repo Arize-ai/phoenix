@@ -3,6 +3,10 @@ import {
   getComparedOutputName,
   getFlagThresholdOperators,
   getKappaGloss,
+  getRankedLabelShades,
+  getShadeColor,
+  getPositionalShades,
+  NEUTRAL_LABEL_COLOR,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 
@@ -122,5 +126,98 @@ describe("project evaluator compare utils", () => {
     ).toBe(
       "5 sessions evaluated by both · A flagged at score ≤ 0.5 · B flagged at score ≥ 0.75"
     );
+  });
+
+  describe("getRankedLabelShades", () => {
+    it("ranks a binary pair by direction", () => {
+      expect(
+        getRankedLabelShades({ direction: "MAXIMIZE", scores: [1, 0] })
+      ).toEqual([1, 0]);
+      expect(
+        getRankedLabelShades({ direction: "MINIMIZE", scores: [1, 0] })
+      ).toEqual([0, 1]);
+    });
+
+    it("spaces distinct scores evenly regardless of their values", () => {
+      expect(
+        getRankedLabelShades({
+          direction: "MAXIMIZE",
+          scores: [0, 0.9, 1, 0.9],
+        })
+      ).toEqual([0, 0.5, 1, 0.5]);
+    });
+
+    it("leaves unscored labels null", () => {
+      expect(
+        getRankedLabelShades({ direction: "MAXIMIZE", scores: [1, null, 0] })
+      ).toEqual([1, null, 0]);
+    });
+
+    it("ranks a lone label on the configured scale", () => {
+      expect(
+        getRankedLabelShades({
+          direction: "MINIMIZE",
+          scores: [0],
+          referenceScores: [1, 0],
+        })
+      ).toEqual([1]);
+      expect(
+        getRankedLabelShades({
+          direction: "MINIMIZE",
+          scores: [1],
+          referenceScores: [1, 0],
+        })
+      ).toEqual([0]);
+    });
+
+    it("returns null without a direction or two distinct scores", () => {
+      expect(
+        getRankedLabelShades({ direction: "NONE", scores: [1, 0] })
+      ).toBeNull();
+      expect(
+        getRankedLabelShades({ direction: null, scores: [1, 0] })
+      ).toBeNull();
+      expect(
+        getRankedLabelShades({ direction: "MAXIMIZE", scores: [1, 1, null] })
+      ).toBeNull();
+    });
+  });
+
+  describe("getPositionalShades", () => {
+    it("spaces labels evenly from strongest to faintest", () => {
+      expect(getPositionalShades(3)).toEqual([1, 0.5, 0]);
+      expect(getPositionalShades(1)).toEqual([1]);
+      expect(getPositionalShades(0)).toEqual([]);
+    });
+  });
+
+  describe("getShadeColor", () => {
+    it("takes the strongest step for the best label and the faintest for the worst", () => {
+      expect(getShadeColor({ hue: "blue", shade: 1 })).toBe(
+        "var(--global-color-blue-900)"
+      );
+      expect(getShadeColor({ hue: "purple", shade: 0 })).toBe(
+        "var(--global-color-purple-400)"
+      );
+    });
+
+    it("spreads labels in between across rounded palette steps", () => {
+      expect(
+        [1, 2 / 3, 1 / 3, 0].map((shade) =>
+          getShadeColor({ hue: "blue", shade })
+        )
+      ).toEqual([
+        "var(--global-color-blue-900)",
+        "var(--global-color-blue-700)",
+        "var(--global-color-blue-600)",
+        "var(--global-color-blue-400)",
+      ]);
+    });
+
+    it("is neutral for a label without a score", () => {
+      expect(getShadeColor({ hue: "blue", shade: null })).toBe(
+        NEUTRAL_LABEL_COLOR
+      );
+    });
   });
 });

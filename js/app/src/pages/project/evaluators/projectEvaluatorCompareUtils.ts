@@ -1,3 +1,4 @@
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import type { ConfusionMatrixDatum } from "@phoenix/components/chart";
 import {
   formatEvaluationTargetPlural,
@@ -6,10 +7,36 @@ import {
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 import { formatInt } from "@phoenix/utils/numberFormatUtils";
 
-export const EVALUATOR_COMPARE_COLORS = {
-  a: "var(--global-color-blue-700)",
-  b: "var(--global-color-orange-600)",
+/**
+ * The palette hue each side draws in (a hue with 100–1400 steps in the global
+ * color tokens): step 700 is the evaluator's color, and its labels shade
+ * across the steps.
+ */
+export const EVALUATOR_COMPARE_HUES = {
+  a: "blue",
+  b: "purple",
 } as const;
+
+export type EvaluatorCompareHue =
+  (typeof EVALUATOR_COMPARE_HUES)[keyof typeof EVALUATOR_COMPARE_HUES];
+
+export const EVALUATOR_COMPARE_COLORS = {
+  a: `var(--global-color-${EVALUATOR_COMPARE_HUES.a}-700)`,
+  b: `var(--global-color-${EVALUATOR_COMPARE_HUES.b}-700)`,
+} as const;
+
+/**
+ * The scores an evaluator's output config pins down: its label scores, or its
+ * score bounds. Lets shading rank a result on the evaluator's whole scale
+ * even when only one value appears in range.
+ */
+export function getConfiguredScores(
+  config: AnnotationOptimizationConfig | undefined
+): ReadonlyArray<number | null | undefined> {
+  if (config == null) return [];
+  if (config.values) return config.values.map(({ score }) => score);
+  return [config.lowerBound, config.upperBound];
+}
 
 export function toConfusionMatrixData({
   matrix,
@@ -83,6 +110,17 @@ const getFlaggedThresholdOperator = (
     getFlagThresholdOperators(optimizationDirection).flagged
   ];
 
+/** Which scores a threshold flags, e.g. "≤ 0.5". */
+export function formatFlagCondition({
+  threshold,
+  optimizationDirection,
+}: {
+  threshold: number;
+  optimizationDirection: EvaluatorOptimizationDirection | null;
+}): string {
+  return `${getFlaggedThresholdOperator(optimizationDirection)} ${formatThreshold(threshold)}`;
+}
+
 export function formatMatrixSubtitle({
   target,
   populationSize,
@@ -122,4 +160,88 @@ export function formatMatrixSubtitle({
       : `B flagged at score ${operatorB} ${formatThreshold(thresholdB)}`,
   ].filter((value): value is string => value != null);
   return `${scope} · ${thresholds.join(" · ")}`;
+}
+
+/** Neutral fill for labels that carry no optimization meaning. */
+export const NEUTRAL_LABEL_COLOR = "var(--global-color-gray-400)";
+/**
+ * The palette steps shades span: shade 1 takes the step furthest from the
+ * background, shade 0 the nearest. Low steps sit near the background in both
+ * themes, so the ramp holds in light and dark.
+ */
+const STRONGEST_SHADE_STEP = 900;
+const LIGHTEST_SHADE_STEP = 400;
+const PALETTE_STEP = 100;
+
+/**
+ * Shades labels from worst (0) to best (1) by their mapped scores and the
+ * evaluator's optimization direction, spacing distinct scores evenly so every
+ * step reads as a visible change. A label without a score gets null.
+ *
+ * Returns null when the labels carry no such meaning: no MAXIMIZE/MINIMIZE
+ * direction, or fewer than two distinct scores to order.
+ */
+export function getRankedLabelShades({
+  direction,
+  scores,
+  referenceScores = [],
+}: {
+  direction: string | null | undefined;
+  scores: ReadonlyArray<number | null | undefined>;
+  /**
+   * The evaluator's configured scores (label scores, or score bounds), ranked
+   * alongside `scores` so a lone label present in range still gets its place
+   * on the evaluator's scale.
+   */
+  referenceScores?: ReadonlyArray<number | null | undefined>;
+}): ReadonlyArray<number | null> | null {
+  if (direction !== "MAXIMIZE" && direction !== "MINIMIZE") {
+    return null;
+  }
+  const distinctScores = Array.from(
+    new Set(
+      [...scores, ...referenceScores].filter(
+        (score): score is number => score != null
+      )
+    )
+  ).sort((left, right) => left - right);
+  if (distinctScores.length < 2) {
+    return null;
+  }
+  const lastRank = distinctScores.length - 1;
+  return scores.map((score) => {
+    if (score == null) return null;
+    const ascending = distinctScores.indexOf(score) / lastRank;
+    return direction === "MAXIMIZE" ? ascending : 1 - ascending;
+  });
+}
+
+/**
+ * Shades for labels without an optimization direction, stepped through in
+ * display order, so an evaluator's labels look the same whether or not they
+ * rank. The first label takes the strongest shade; here the shades carry no
+ * ranking.
+ */
+export function getPositionalShades(count: number): number[] {
+  return Array.from({ length: count }, (_, index) =>
+    count <= 1 ? 1 : 1 - index / (count - 1)
+  );
+}
+
+/**
+ * Turns a shade (0 = lightest, 1 = strongest) into a step of the evaluator's
+ * hue, spread evenly and rounded to a palette step. A null shade (a label
+ * without a score) is neutral gray.
+ */
+export function getShadeColor({
+  hue,
+  shade,
+}: {
+  hue: EvaluatorCompareHue;
+  shade: number | null;
+}): string {
+  if (shade == null) return NEUTRAL_LABEL_COLOR;
+  const steps = (STRONGEST_SHADE_STEP - LIGHTEST_SHADE_STEP) / PALETTE_STEP;
+  const step = LIGHTEST_SHADE_STEP + Math.round(shade * steps) * PALETTE_STEP;
+  return `var(--global-color-${hue}-${step})`;
 }
