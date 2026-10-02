@@ -71,12 +71,14 @@ import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/e
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
+import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
   EvaluatorScoreWindowProvider,
   ProjectEvaluatorMeanScoreCell,
   ProjectEvaluatorMeanScoreHeader,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
@@ -128,6 +130,13 @@ const readRow = (
           queuedCount
           evaluatedCount
           failedCount
+          droppedCount
+          oldestQueuedAt
+        }
+        evaluationLoad {
+          evaluationsPerMinute
+          meanEvaluationSeconds
+          shareOfEvaluationTime
         }
         evaluator {
           id
@@ -476,6 +485,7 @@ export function ProjectEvaluatorsTable({
               projectEvaluatorId={row.original.id}
               name={row.original.name}
               enabled={row.original.enabled}
+              queuedCount={row.original.runSummary.queuedCount}
             />
           </StopPropagation>
         ),
@@ -495,9 +505,26 @@ export function ProjectEvaluatorsTable({
         header: "status",
         size: 130,
         cell: ({ row }) => (
-          <ProjectEvaluatorStatusCell
-            enabled={row.original.enabled}
-            runSummary={row.original.runSummary}
+          <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
+        ),
+      },
+      {
+        id: "queue",
+        header: "queued",
+        size: 96,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <ProjectEvaluatorQueueCell queuedWork={row.original.runSummary} />
+        ),
+      },
+      {
+        id: "load",
+        header: "load",
+        size: 72,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <ProjectEvaluatorLoadCell
+            evaluationLoad={row.original.evaluationLoad}
           />
         ),
       },

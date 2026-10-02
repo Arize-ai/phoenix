@@ -15,13 +15,11 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export function ProjectEvaluatorStatusCell({
-  enabled,
   runSummary,
 }: {
-  enabled: boolean;
   runSummary: ProjectEvaluatorRunSummary;
 }) {
-  const status = getProjectEvaluatorStatus({ enabled, runSummary });
+  const status = getProjectEvaluatorStatus({ runSummary });
   const counts = formatProjectEvaluatorRunCounts(runSummary);
   return (
     <TooltipTrigger delay={0}>
@@ -33,7 +31,9 @@ export function ProjectEvaluatorStatusCell({
       <Tooltip>
         <TooltipArrow />
         <Flex direction="column" gap="size-50">
-          <Text size="XS">{status.explanation}</Text>
+          {status.explanation ? (
+            <Text size="XS">{status.explanation}</Text>
+          ) : null}
           <Text size="XS" color="text-700">
             {`Last run: ${formatLastRun(runSummary.lastRunAt)}`}
             {counts ? ` · ${counts}` : ""}

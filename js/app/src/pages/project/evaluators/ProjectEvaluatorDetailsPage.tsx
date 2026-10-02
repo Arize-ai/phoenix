@@ -164,6 +164,7 @@ function ProjectEvaluatorDetailsPageContent({
                 projectEvaluatorId={projectEvaluator.id}
                 name={projectEvaluator.name}
                 enabled={projectEvaluator.enabled}
+                queuedCount={projectEvaluator.runSummary.queuedCount}
               />
             </Flex>
             {canEdit && (
