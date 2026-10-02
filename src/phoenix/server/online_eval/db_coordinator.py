@@ -87,6 +87,49 @@ async def reap_lapsed_leases(
     )
 
 
+async def drop_queued_work(
+    session: AsyncSession,
+    project_evaluator_ids: Sequence[int],
+) -> int:
+    """Drop the project evaluators' work that has not started, returning how many units.
+
+    Queued work is PENDING, or ERROR awaiting a retry. RUNNING work is left alone: an
+    enabled evaluator's evaluation should finish, and publication refuses a disabled
+    one's. The status guard also skips a unit a consumer claims concurrently.
+    """
+    return await _drop_queued_work(session, project_evaluator_ids)
+
+
+async def drop_all_queued_work(session: AsyncSession) -> int:
+    """Drop every project evaluator's work that has not started, returning how many units,
+    as ``drop_queued_work`` does for some."""
+    return await _drop_queued_work(session, None)
+
+
+async def _drop_queued_work(
+    session: AsyncSession,
+    project_evaluator_ids: Optional[Sequence[int]],
+) -> int:
+    dropped = 0
+    for work_unit_model in (
+        models.EvalWorkUnit,
+        models.EvalTraceWorkUnit,
+        models.EvalSessionWorkUnit,
+    ):
+        statement = update(work_unit_model).where(
+            # SQLite reads a partial index only when the query repeats its predicate.
+            text(live_eval_work_index_predicate()),
+            work_unit_model.status.in_(("PENDING", "ERROR")),
+        )
+        if project_evaluator_ids is not None:
+            statement = statement.where(
+                work_unit_model.project_evaluator_id.in_(project_evaluator_ids)
+            )
+        result = await session.execute(statement.values(status="DROPPED"))
+        dropped += result.rowcount  # type: ignore[attr-defined]
+    return dropped
+
+
 class DbEvalWorkCoordinator:
     """Coordinates online-eval consumers through the selected work-unit table."""
 

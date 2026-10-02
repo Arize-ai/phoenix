@@ -67,6 +67,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxConfig,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.online_eval.db_coordinator import drop_all_queued_work, drop_queued_work
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
@@ -378,6 +379,17 @@ def _validate_project_evaluator_target_update(
     raise BadRequest("evaluationTarget is fixed at project evaluator creation")
 
 
+async def _set_project_evaluator_enabled(
+    session: AsyncSession,
+    project_evaluator: models.ProjectEvaluator,
+    enabled: bool,
+) -> None:
+    if project_evaluator.enabled == enabled:
+        return
+    project_evaluator.enabled = enabled
+    await drop_queued_work(session, [project_evaluator.id])
+
+
 async def _garbage_collect_evaluators(
     session: AsyncSession,
     *,
@@ -676,6 +688,22 @@ class SetProjectEvaluatorEnabledInput:
 class ProjectEvaluatorMutationPayload:
     evaluator: ProjectEvaluator
     query: Query
+
+
+@strawberry.input
+class ClearQueuedEvaluationsInput:
+    project_id: GlobalID
+
+
+@strawberry.type
+class ClearQueuedEvaluationsPayload:
+    dropped_count: int = strawberry.field(description="Queued evaluations that were cleared.")
+    project: Project
+
+
+@strawberry.type
+class ClearAllQueuedEvaluationsPayload:
+    dropped_count: int = strawberry.field(description="Queued evaluations that were cleared.")
 
 
 @strawberry.input
@@ -999,7 +1027,7 @@ class EvaluatorMutationMixin:
                     )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
-                    project_evaluator.enabled = input.enabled
+                    await _set_project_evaluator_enabled(session, project_evaluator, input.enabled)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
@@ -1352,7 +1380,7 @@ class EvaluatorMutationMixin:
                     )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
-                    project_evaluator.enabled = input.enabled
+                    await _set_project_evaluator_enabled(session, project_evaluator, input.enabled)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
@@ -1365,9 +1393,9 @@ class EvaluatorMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
-            "Enable or disable a project evaluator. Flips only the enabled flag on the "
-            "project binding, leaving the underlying evaluator untouched. Works for both "
-            "LLM and CODE evaluators."
+            "Enable or disable a project evaluator, leaving the underlying evaluator "
+            "untouched. Changing the flag clears the evaluator's queued evaluations. Works "
+            "for both LLM and CODE evaluators."
         ),
     )  # type: ignore
     async def set_project_evaluator_enabled(
@@ -1383,12 +1411,59 @@ class EvaluatorMutationMixin:
             project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
             if project_evaluator is None:
                 raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
-            project_evaluator.enabled = input.enabled
+            await _set_project_evaluator_enabled(session, project_evaluator, input.enabled)
             await session.flush()
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Clear the queued evaluations of every evaluator in a project. Evaluations "
+            "already running are not affected. Cleared evaluations count as dropped, not "
+            "failed."
+        ),
+    )  # type: ignore
+    async def clear_queued_evaluations(
+        self, info: Info[Context, None], input: ClearQueuedEvaluationsInput
+    ) -> ClearQueuedEvaluationsPayload:
+        try:
+            project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+        except ValueError:
+            raise BadRequest(f"Invalid project id: {input.project_id}")
+        async with info.context.db() as session:
+            project = await session.get(models.Project, project_id)
+            if project is None:
+                raise NotFound(f"Project not found: {input.project_id}")
+            project_evaluator_ids = list(
+                await session.scalars(
+                    select(models.ProjectEvaluator.id).where(
+                        models.ProjectEvaluator.project_id == project_id
+                    )
+                )
+            )
+            dropped_count = await drop_queued_work(session, project_evaluator_ids)
+        return ClearQueuedEvaluationsPayload(
+            dropped_count=dropped_count,
+            project=Project(id=project.id, db_record=project),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Clear the queued evaluations of every evaluator in every project. Evaluations "
+            "already running are not affected. Cleared evaluations count as dropped, not "
+            "failed."
+        ),
+    )  # type: ignore
+    async def clear_all_queued_evaluations(
+        self, info: Info[Context, None]
+    ) -> ClearAllQueuedEvaluationsPayload:
+        async with info.context.db() as session:
+            dropped_count = await drop_all_queued_work(session)
+        return ClearAllQueuedEvaluationsPayload(dropped_count=dropped_count)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_project_evaluators(
