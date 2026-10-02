@@ -870,6 +870,7 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
             )
         )
 
+    assert await coordinator.claim(claimed_by="next-consumer", limit=1) == []
     await EvalSweeper(
         db,
         evaluation_target="SESSION",

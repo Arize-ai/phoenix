@@ -2,13 +2,15 @@
 
 Materializes span-level eval work units from enabled project evaluators.
 The producer runs on every replica. The ``eval_work_cursors`` lease keeps one replica
-scanning at a time so scans aren't repeated. The unique (span, evaluator, config)
-work-unit key absorbs duplicate inserts, and the lease checks keep a producer that lost
-its lease from committing a scan or moving the cursor. Each tick renews the lease and
-reaps expired/aged work rows. When a frontier is due and the admission gate is open, it
-also scans the lag-gated span id window per project evaluator and inserts surviving
-work units. A slow-cadence backstop sweep re-covers a bounded id window behind the
-watermark to catch spans that became visible after their window was scanned.
+scanning at a time so scans aren't repeated. Work-unit inserts commit whether or not
+the lease is still held, because the unique (span, evaluator, config) work-unit key
+absorbs duplicates; the cursor is written only while this replica holds the lease. Each
+tick takes the lease and deletes aged terminal work rows. When a frontier is due and the
+admission gate is open, it also scans the lag-gated span id window per project evaluator
+and inserts surviving work units. A slow-cadence backstop sweep re-covers a bounded id
+window behind the watermark to catch spans that became visible after their window was
+scanned; it rolls back if the cursor moved while it ran, because the cursor's new holder
+may have reaped terminal work in that window.
 """
 
 from __future__ import annotations
@@ -40,7 +42,6 @@ from phoenix.db.eval_work import (
     terminal_eval_work_index_predicate,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
@@ -62,10 +63,6 @@ TICK_INTERVAL_SECONDS = 10.0
 _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
 _CONSUMER_GROUP = "default"
-
-
-class _CursorLeaseLost(Exception):
-    pass
 
 
 @dataclass(frozen=True)
@@ -168,71 +165,68 @@ class OnlineEvalProducer(DaemonTask):
             await asyncio.shield(asyncio.ensure_future(self._release_lease()))
 
     async def _tick(self) -> None:
-        try:
-            now = datetime.now(timezone.utc)
-            mutations_allowed = not self._db.should_not_insert_or_update
-            cursor = await self._acquire_cursor(now, allow_insert=mutations_allowed)
-            if cursor is None:
-                return
-            if not mutations_allowed:
-                await self._reap(now, cursor.produced_through_id, mutations_allowed=False)
-                await self._renew_lease(datetime.now(timezone.utc))
-                return
-            cursor = await self._clamp_cursor(cursor)
-            if cursor is None:
-                return
-            produced_through_id = cursor.produced_through_id
+        now = datetime.now(timezone.utc)
+        mutations_allowed = not self._db.should_not_insert_or_update
+        cursor = await self._acquire_cursor(now, allow_insert=mutations_allowed)
+        if cursor is None:
+            return
+        if not mutations_allowed:
+            await self._reap(now, cursor.produced_through_id)
+            return
+        cursor = await self._clamp_cursor(cursor)
+        if cursor is None:
+            return
+        produced_through_id = cursor.produced_through_id
 
-            await self._reap(now, produced_through_id, mutations_allowed=True)
-            await self._renew_lease(datetime.now(timezone.utc))
+        await self._reap(now, produced_through_id)
 
-            observed_high_water_id = cursor.observed_high_water_id
-            pending_observation = (
-                observed_high_water_id is not None
-                and cursor.observed_at is not None
-                and observed_high_water_id > produced_through_id
+        observed_high_water_id = cursor.observed_high_water_id
+        pending_observation = (
+            observed_high_water_id is not None
+            and cursor.observed_at is not None
+            and observed_high_water_id > produced_through_id
+        )
+        frontier: Optional[int] = None
+        if (
+            pending_observation
+            and observed_high_water_id is not None
+            and cursor.observed_at is not None
+            and (now - cursor.observed_at).total_seconds() >= self._frontier_lag_seconds
+        ):
+            frontier = min(
+                observed_high_water_id,
+                produced_through_id + self._max_span_ids_per_tick,
             )
-            frontier: Optional[int] = None
-            if (
-                pending_observation
-                and observed_high_water_id is not None
-                and cursor.observed_at is not None
-                and (now - cursor.observed_at).total_seconds() >= self._frontier_lag_seconds
-            ):
-                frontier = min(
-                    observed_high_water_id,
-                    produced_through_id + self._max_span_ids_per_tick,
-                )
 
-            budget = await self._admission_budget()
-            active = await self._load_active_project_evaluators() if budget > 0 else []
+        budget = await self._admission_budget()
+        active = await self._load_active_project_evaluators() if budget > 0 else []
 
-            advanced = False
-            if budget > 0 and frontier is not None:
-                await self._renew_lease(datetime.now(timezone.utc))
-                advanced, budget = await self._materialize_and_advance(
-                    active,
-                    produced_through_id,
-                    frontier,
-                    budget,
-                )
-                if advanced:
-                    produced_through_id = frontier
+        advanced = False
+        if budget > 0 and frontier is not None:
+            if not await self._renew_lease(datetime.now(timezone.utc)):
+                return
+            advanced, budget = await self._materialize_and_advance(
+                active,
+                produced_through_id,
+                frontier,
+                budget,
+            )
+            if advanced:
+                produced_through_id = frontier
 
-            observation_consumed = advanced and frontier == observed_high_water_id
-            if not pending_observation or observation_consumed:
-                await self._record_observation(produced_through_id)
-            else:
-                await self._refresh_gauges(produced_through_id)
+        observation_consumed = advanced and frontier == observed_high_water_id
+        if not pending_observation or observation_consumed:
+            await self._record_observation(produced_through_id)
+        else:
+            await self._refresh_gauges(produced_through_id)
 
-            if budget > 0 and time.monotonic() - self._last_backstop_at >= (
-                self._backstop_interval_seconds
-            ):
-                await self._renew_lease(datetime.now(timezone.utc))
-                await self._backstop_sweep(active, produced_through_id, budget)
-                self._last_backstop_at = time.monotonic()
-        except _CursorLeaseLost:
-            logger.warning("Online-eval producer tick aborted after losing its lease")
+        if budget > 0 and time.monotonic() - self._last_backstop_at >= (
+            self._backstop_interval_seconds
+        ):
+            if not await self._renew_lease(datetime.now(timezone.utc)):
+                return
+            await self._backstop_sweep(active, produced_through_id, budget)
+            self._last_backstop_at = time.monotonic()
 
     async def _acquire_cursor(
         self,
@@ -329,7 +323,7 @@ class OnlineEvalProducer(DaemonTask):
         except Exception:
             logger.exception("Failed to release online-eval producer lease")
 
-    async def _renew_lease(self, now: datetime) -> None:
+    async def _renew_lease(self, now: datetime) -> bool:
         async with self._db() as session:
             renewed = await session.scalar(
                 update(models.EvalWorkCursor)
@@ -343,22 +337,20 @@ class OnlineEvalProducer(DaemonTask):
             )
         if renewed is None:
             self._lease_held = False
-            raise _CursorLeaseLost
+            logger.warning("Online-eval producer lost its lease")
+            return False
+        return True
 
     async def _reap(
         self,
         now: datetime,
         produced_through_id: int,
-        *,
-        mutations_allowed: bool = True,
     ) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
         # regardless of age — they must remain to block backstop resurrection.
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
-            if mutations_allowed:
-                await reap_lapsed_leases(session, models.EvalWorkUnit)
             await session.execute(
                 delete(models.EvalWorkUnit).where(
                     # SQLite reads a partial index only when the query repeats its predicate.
@@ -501,7 +493,6 @@ class OnlineEvalProducer(DaemonTask):
                         f"Online-eval producer frontier truncated at insertion budget; "
                         f"{budget} budget remaining"
                     )
-                    await self._fence_mutating_session(session)
                     return False, budget
             advanced = await session.scalar(
                 update(models.EvalWorkCursor)
@@ -513,10 +504,7 @@ class OnlineEvalProducer(DaemonTask):
                 .values(produced_through_id=frontier)
                 .returning(models.EvalWorkCursor.id)
             )
-            if advanced is None:
-                self._lease_held = False
-                raise _CursorLeaseLost
-        return True, budget
+        return advanced is not None, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
@@ -602,23 +590,18 @@ class OnlineEvalProducer(DaemonTask):
                         f"{budget} budget remaining"
                     )
                     break
-            await self._fence_mutating_session(session)
-        return budget
-
-    async def _fence_mutating_session(self, session: AsyncSession) -> None:
-        renewed = await session.scalar(
-            update(models.EvalWorkCursor)
-            .where(
-                models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                models.EvalWorkCursor.claimed_by == self._producer_id,
+            # Once the cursor moves past the watermark, its holder may reap terminal rows in
+            # this window before a scan above reads them, and the scan recreates that work.
+            produced_through_id = await session.scalar(
+                select(models.EvalWorkCursor.produced_through_id).where(
+                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
+                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
+                )
             )
-            .values(claimed_at=datetime.now(timezone.utc))
-            .returning(models.EvalWorkCursor.id)
-        )
-        if renewed is None:
-            self._lease_held = False
-            raise _CursorLeaseLost
+            if produced_through_id != watermark:
+                await session.rollback()
+                logger.warning("Online-eval producer backstop rolled back: the cursor moved")
+        return budget
 
     async def _insert_work_units(
         self,
