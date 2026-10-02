@@ -64,12 +64,7 @@ const QUEUE_STATUS_BADGE: Record<
 > = {
   HEALTHY: { label: "Healthy", variant: "success" },
   DEGRADED: { label: "Degraded", variant: "warning" },
-};
-
-const RECORD_NOUN_BY_TARGET: Record<string, string> = {
-  SPAN: "spans",
-  TRACE: "traces",
-  SESSION: "sessions",
+  OVERLOADED: { label: "Overloaded", variant: "danger" },
 };
 
 function getQueueStatusDetail(queue: EvaluationQueue): string | null {
@@ -77,9 +72,11 @@ function getQueueStatusDetail(queue: EvaluationQueue): string | null {
     case "HEALTHY":
       return null;
     case "DEGRADED":
-      return queue.atCapacity
-        ? `Queue is full; new ${RECORD_NOUN_BY_TARGET[queue.evaluationTarget] ?? "records"} wait to be queued`
-        : "Evaluations are waiting more than 10 minutes";
+      return "Evaluations are waiting more than 10 minutes";
+    case "OVERLOADED":
+      return queue.overflowedCount === 1
+        ? "Dropped 1 evaluation in the last 10 minutes"
+        : `Dropped ${intFormatter(queue.overflowedCount)} evaluations in the last 10 minutes`;
     default:
       return assertUnreachable(queue.status);
   }
@@ -153,6 +150,7 @@ function ProjectEvaluatorQueueStatsContent({
           atCapacity
           queuedCount
           queuedLimit
+          overflowedCount
           retryingCount
           oldestQueuedAt
           queuedPerMinute
@@ -300,11 +298,7 @@ function QueueStatsRow({
         <Text
           size="L"
           fontFamily="mono"
-          color={
-            queue.status === "DEGRADED" && !queue.atCapacity
-              ? "warning"
-              : undefined
-          }
+          color={queue.status === "DEGRADED" ? "warning" : undefined}
         >
           {queue.oldestQueuedAt != null
             ? formatElapsedShort(queue.oldestQueuedAt)

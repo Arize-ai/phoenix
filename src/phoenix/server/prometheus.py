@@ -22,6 +22,7 @@ from starlette.routing import BaseRoute, Match
 from starlette.types import Scope
 
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
+from phoenix.server.online_eval.queue_health import OVERFLOW_WINDOW
 
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
@@ -143,6 +144,7 @@ _SAME_ON_EVERY_REPLICA = (
     "Every replica reports the same database-wide value, so aggregate with max(), not sum()."
 )
 _SUMS_ACROSS_REPLICAS = "Each replica counts only its own work, so aggregate with sum()."
+_OVERFLOW_WINDOW = f"the last {int(OVERFLOW_WINDOW.total_seconds() // 60)} minutes"
 
 ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
     namespace="phoenix",
@@ -194,10 +196,17 @@ ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
     f"(0 when none is pending). {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
+ONLINE_EVAL_OVERFLOWED_RECENT_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_overflowed_recent_work_units",
+    documentation="Number of online evaluations dropped rather than queued because the queue "
+    f"was full, over {_OVERFLOW_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
 ONLINE_EVAL_AT_CAPACITY = Gauge(
     namespace="phoenix",
     name="online_eval_at_capacity",
-    documentation="1 when the online-eval admission gate is closed and new work is not being "
+    documentation="1 when the online-eval queue is full, so new work is dropped rather than "
     f"queued, else 0. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
@@ -217,8 +226,8 @@ ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
     namespace="phoenix",
     name="online_eval_eligible_pair_backlog",
     documentation="Number of entity and evaluator pairs on the latest sweep page that pass "
-    "their evaluator's filter. A page holds at most one tick's work limit, and the value is "
-    "not updated while outstanding work is at its limit",
+    "their evaluator's filter. A page holds at most 1000 pairs, and no more than the queue "
+    "holds",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
@@ -270,6 +279,14 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     "(DROPPED, removed from the queue before it ran: the queue was cleared, or its evaluator "
     f"was turned on or off). {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
+)
+ONLINE_EVAL_OVERFLOWED_WORK_UNITS = Counter(
+    namespace="phoenix",
+    name="online_eval_overflowed_work_units_total",
+    documentation="Total number of online evaluations dropped rather than queued because the "
+    "queue was full: a batch that does not fit the room left is dropped whole. "
+    f"{_SUMS_ACROSS_REPLICAS}",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
 
 

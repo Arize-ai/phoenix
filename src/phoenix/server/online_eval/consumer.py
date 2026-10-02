@@ -47,6 +47,7 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
     ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS,
+    ONLINE_EVAL_OVERFLOWED_RECENT_WORK_UNITS,
     ONLINE_EVAL_PENDING_WORK_UNITS,
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
@@ -184,6 +185,7 @@ class OnlineEvalConsumer(DaemonTask):
             queue.oldest_wait_seconds or 0.0
         )
         ONLINE_EVAL_AT_CAPACITY.labels(**labels).set(int(queue.at_capacity))
+        ONLINE_EVAL_OVERFLOWED_RECENT_WORK_UNITS.labels(**labels).set(queue.overflowed_count)
         ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(ended.exhausted_error_count)
         ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(ended.expired_count)
         ONLINE_EVAL_CLEARED_WORK_UNITS.labels(**labels).set(ended.dropped_count)

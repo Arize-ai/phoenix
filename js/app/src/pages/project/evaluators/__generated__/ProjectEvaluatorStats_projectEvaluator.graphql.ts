@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2e3c2f5aa9bb85d566d6d206dcd18b10>>
+ * @generated SignedSource<<f4eacaec791961c7f4df45d593aebd16>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "OVERLOADED" | "QUEUED" | "RUNNING";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;

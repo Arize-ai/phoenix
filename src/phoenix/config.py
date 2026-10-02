@@ -387,18 +387,18 @@ Defaults to 604800 (7 days).
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 """
-The outstanding work-unit count above which the online-eval producer stops materializing
-new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+The most span evaluations queued at once: PENDING + RUNNING + retryable ERROR (non-terminal
+work). New evaluations that do not fit under it are dropped, not queued. Defaults to 10000.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING"
 """
-The outstanding session work-unit count above which the session sweeper stops materializing
-new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+The most session evaluations queued at once: PENDING + RUNNING + retryable ERROR (non-terminal
+work). New evaluations that do not fit under it are dropped, not queued. Defaults to 10000.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_TRACE_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_TRACE_OUTSTANDING"
 """
-The outstanding trace work-unit count above which the trace sweeper stops materializing
-new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+The most trace evaluations queued at once: PENDING + RUNNING + retryable ERROR (non-terminal
+work). New evaluations that do not fit under it are dropped, not queued. Defaults to 10000.
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """

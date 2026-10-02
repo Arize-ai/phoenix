@@ -1871,6 +1871,7 @@ async def test_project_evaluator_run_summary(
                         evaluatedCount
                         failedCount
                         droppedCount
+                        overflowedCount
                         lastError
                     }
                 }
@@ -1901,7 +1902,8 @@ async def test_project_evaluator_run_summary_counts_trace_work(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """A trace evaluator's funnel reads its own work-unit table, not an empty one."""
+    """A trace evaluator's funnel reads its own work-unit table, not an empty one, and its
+    dropped count is its traces dropped in the last 10 minutes."""
     now = datetime.now(timezone.utc)
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
@@ -1930,7 +1932,7 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                 start_time=now,
                 end_time=now,
             )
-            for _ in range(2)
+            for _ in range(4)
         ]
         session.add_all([project_evaluator, *traces])
         await session.flush()
@@ -1951,6 +1953,22 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                     error="ROOT_SPAN_MISSING",
                     updated_at=now - timedelta(minutes=5),
                 ),
+                # Dropped because the queue was full: an hour ago, outside the window, and
+                # five minutes ago, inside it.
+                models.EvalTraceWorkUnit(
+                    trace_rowid=traces[2].id,
+                    project_evaluator_id=project_evaluator.id,
+                    evaluated_through=now,
+                    status="OVERFLOWED",
+                    updated_at=now - timedelta(hours=1),
+                ),
+                models.EvalTraceWorkUnit(
+                    trace_rowid=traces[3].id,
+                    project_evaluator_id=project_evaluator.id,
+                    evaluated_through=now,
+                    status="OVERFLOWED",
+                    updated_at=now - timedelta(minutes=5),
+                ),
             ]
         )
         await session.flush()
@@ -1966,6 +1984,7 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                         queuedCount
                         evaluatedCount
                         failedCount
+                        overflowedCount
                         lastError
                     }
                 }
@@ -1976,9 +1995,10 @@ async def test_project_evaluator_run_summary_counts_trace_work(
 
     assert not response.errors and response.data
     run_summary = response.data["node"]["runSummary"]
-    assert run_summary["status"] == "RUNNING"
+    assert run_summary["status"] == "OVERLOADED"
     assert run_summary["evaluatedCount"] == 1
     assert run_summary["failedCount"] == 1
+    assert run_summary["overflowedCount"] == 1
     assert run_summary["queuedCount"] == 0
     assert run_summary["lastError"] == "ROOT_SPAN_MISSING"
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
@@ -2151,34 +2171,40 @@ def _span_work_unit(
 
 
 _RUN_STATUSES_QUERY = """query ($a: ID!, $b: ID!) {
-    a: node(id: $a) { ... on ProjectEvaluator { runSummary { status lastRunAt } } }
-    b: node(id: $b) { ... on ProjectEvaluator { runSummary { status lastRunAt } } }
+    a: node(id: $a) { ... on ProjectEvaluator { runSummary { ...RunStatus } } }
+    b: node(id: $b) { ... on ProjectEvaluator { runSummary { ...RunStatus } } }
+}
+fragment RunStatus on ProjectEvaluatorRunSummary {
+    status
+    lastRunAt
+    overflowedCount
 }"""
 
 
-async def test_project_evaluator_run_summary_is_degraded_while_its_queue_is_at_capacity(
+async def test_project_evaluator_run_summary_is_overloaded_while_its_queue_drops_evaluations(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The evaluator finished an evaluation seconds ago and has nothing queued, but another
-    project's evaluator has filled the shared span queue, so its new spans are not being
-    queued either."""
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
+    """The evaluator finished an evaluation seconds ago and has nothing queued, but the
+    shared span queue dropped another project's new evaluations for want of room, so its
+    new spans would be dropped too. Each evaluator counts its own drops."""
     now = datetime.now(timezone.utc)
     seconds_ago = now - timedelta(seconds=5)
     idle, (idle_span,) = await _seed_span_project_evaluator(
         db, span_start_time=now - timedelta(hours=31)
     )
-    other, (other_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
+    other, _ = await _seed_span_project_evaluator(db, span_start_time=now)
     async with db() as session:
         session.add_all(
             [
                 _span_work_unit(
                     idle, idle_span, "DONE", queued_at=seconds_ago, updated_at=seconds_ago
                 ),
-                _span_work_unit(
-                    other, other_span, "PENDING", queued_at=seconds_ago, updated_at=seconds_ago
+                models.EvalSpanCursor(
+                    id=1,
+                    overflowed_counts={
+                        now.replace(second=0, microsecond=0).isoformat(): {str(other): 2}
+                    },
                 ),
             ]
         )
@@ -2194,7 +2220,8 @@ async def test_project_evaluator_run_summary_is_degraded_while_its_queue_is_at_c
     assert not response.errors and response.data
     run_summary = response.data["a"]["runSummary"]
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == seconds_ago
-    assert run_summary["status"] == "DEGRADED"
+    assert (run_summary["status"], run_summary["overflowedCount"]) == ("OVERLOADED", 0)
+    assert response.data["b"]["runSummary"]["overflowedCount"] == 2
 
 
 async def test_project_evaluator_run_summary_is_degraded_while_its_own_evaluation_retries(

@@ -1,5 +1,5 @@
-"""Each evaluation target's admission cap: the target stops queueing new evaluations once
-this many are queued (PENDING, RUNNING, or ERROR), and resumes as they drain.
+"""Each evaluation target's admission cap: how many evaluations it holds queued (PENDING,
+RUNNING, or ERROR). New evaluations that do not fit under the cap are dropped, not queued.
 
 The span producer and the trace and session sweepers enforce their caps from here, and
 queue health reads the same values to report a target at capacity.

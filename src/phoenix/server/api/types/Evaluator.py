@@ -55,6 +55,8 @@ from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.online_eval.queue_health import (
     DEGRADED_QUEUE_WAIT,
     EVALUATION_LOAD_WINDOW,
+    OVERFLOW_WINDOW,
+    EvaluationQueue,
     QueuedWork,
     project_evaluator_run_status,
 )
@@ -120,6 +122,10 @@ class ProjectEvaluatorRunStatus(Enum):
         "ERROR",
         description="The most recent evaluation run failed and will not be retried.",
     )
+    OVERLOADED = strawberry.enum_value(
+        "OVERLOADED",
+        description="The queue it shares is full, so new evaluations are being dropped.",
+    )
     DEGRADED = strawberry.enum_value(
         "DEGRADED",
         description=(
@@ -134,6 +140,7 @@ class ProjectEvaluatorRunStatus(Enum):
 
 
 _DEGRADED_QUEUE_WAIT_MINUTES = int(DEGRADED_QUEUE_WAIT.total_seconds() // 60)
+_OVERFLOW_WINDOW_MINUTES = int(OVERFLOW_WINDOW.total_seconds() // 60)
 _EVALUATION_LOAD_WINDOW_MINUTES = int(EVALUATION_LOAD_WINDOW.total_seconds() // 60)
 
 
@@ -150,7 +157,8 @@ class ProjectEvaluatorRunSummary:
     status: ProjectEvaluatorRunStatus = strawberry.field(
         description=(
             "DISABLED when turned off. Otherwise ERROR when the newest completed run was "
-            "given up on, DEGRADED when the queue for its evaluation target is degraded or "
+            "given up on, OVERLOADED when the queue for its evaluation target is overloaded, "
+            "DEGRADED when that queue is degraded or "
             "its own oldest waiting evaluation, including ones awaiting a retry, has waited "
             f"over {_DEGRADED_QUEUE_WAIT_MINUTES} minutes, RUNNING when the newest completed "
             "run produced an annotation, QUEUED when work is waiting but none has completed, "
@@ -178,6 +186,12 @@ class ProjectEvaluatorRunSummary:
             "affect the status."
         )
     )
+    overflowed_count: int = strawberry.field(
+        description=(
+            f"Evaluations dropped in the last {_OVERFLOW_WINDOW_MINUTES} minutes because the "
+            "queue was full. They are not failures."
+        )
+    )
     last_error: Optional[str] = strawberry.field(
         description="The most recent evaluation error, or null if none was recorded."
     )
@@ -188,7 +202,8 @@ def _project_evaluator_run_summary(
     enabled: bool,
     counts: ProjectEvaluatorRunCounts,
     queued: QueuedWork,
-    target_queue_degraded: bool,
+    target_queue: EvaluationQueue,
+    project_evaluator_id: int,
 ) -> ProjectEvaluatorRunSummary:
     last_evaluated_at, last_failed_at = counts.last_evaluated_at, counts.last_failed_at
     status = project_evaluator_run_status(
@@ -196,7 +211,7 @@ def _project_evaluator_run_summary(
         last_evaluated_at=last_evaluated_at,
         last_failed_at=last_failed_at,
         queued=queued,
-        target_queue_degraded=target_queue_degraded,
+        target_queue_status=target_queue.status,
         now=datetime.now(timezone.utc),
     )
     return ProjectEvaluatorRunSummary(
@@ -207,6 +222,7 @@ def _project_evaluator_run_summary(
         evaluated_count=counts.evaluated,
         failed_count=counts.failed,
         dropped_count=counts.dropped,
+        overflowed_count=target_queue.overflowed_counts.get(project_evaluator_id, 0),
         last_error=counts.last_error,
     )
 
@@ -1441,7 +1457,8 @@ class ProjectEvaluator(Node):
             enabled=record.enabled,
             counts=counts,
             queued=queued,
-            target_queue_degraded=target_queue.status == "DEGRADED",
+            target_queue=target_queue,
+            project_evaluator_id=self.id,
         )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
