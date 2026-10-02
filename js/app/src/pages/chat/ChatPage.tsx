@@ -121,7 +121,10 @@ const chatPageCSS = css`
   .chat-page__messages {
     box-sizing: border-box;
     width: 100%;
-    max-width: 780px;
+    /* Match .chat-page__input's max width plus this element's horizontal padding. */
+    max-width: calc(
+      var(--global-dimension-size-8500) + (2 * var(--global-dimension-size-200))
+    );
     margin: 0 auto;
     display: flex;
     flex-direction: column;
