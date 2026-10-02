@@ -142,6 +142,7 @@ _TERMINAL_METRICS_WINDOW = f"{TERMINAL_METRICS_WINDOW_SECONDS / 3600:g}h"
 _SAME_ON_EVERY_REPLICA = (
     "Every replica reports the same database-wide value, so aggregate with max(), not sum()."
 )
+_SUMS_ACROSS_REPLICAS = "Each replica counts only its own work, so aggregate with sum()."
 
 ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
     namespace="phoenix",
@@ -178,11 +179,26 @@ ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
     f"last update was in the past {_TERMINAL_METRICS_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS = Gauge(
+ONLINE_EVAL_CLEARED_WORK_UNITS = Gauge(
     namespace="phoenix",
-    name="online_eval_oldest_actionable_age_seconds",
-    documentation="Age in seconds of the oldest PENDING or retryable ERROR online-eval work unit "
-    f"(0 when the backlog is empty). {_SAME_ON_EVERY_REPLICA}",
+    name="online_eval_cleared_work_units",
+    documentation="Number of online-eval work units cleared from the queue before they ran "
+    f"(DROPPED status), whose last update was in the past {_TERMINAL_METRICS_WINDOW}. "
+    f"{_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_oldest_pending_age_seconds",
+    documentation="Seconds the oldest PENDING online-eval work unit has waited to start "
+    f"(0 when none is pending). {_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_AT_CAPACITY = Gauge(
+    namespace="phoenix",
+    name="online_eval_at_capacity",
+    documentation="1 when the online-eval admission gate is closed and new work is not being "
+    f"queued, else 0. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
@@ -242,8 +258,18 @@ ONLINE_EVAL_SWEEP_DURATION_SECONDS = Histogram(
 ONLINE_EVAL_MATERIALIZED_WORK_UNITS = Counter(
     namespace="phoenix",
     name="online_eval_materialized_work_units_total",
-    documentation="Total number of online-eval work units materialized",
+    documentation="Total number of online-eval work units queued (written as PENDING). "
+    f"{_SUMS_ACROSS_REPLICAS}",
     labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
+    namespace="phoenix",
+    name="online_eval_completed_work_units_total",
+    documentation="Total number of online-eval work units that left the queue, by outcome: "
+    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), or cleared "
+    "(DROPPED, removed from the queue before it ran: the queue was cleared, or its evaluator "
+    f"was turned on or off). {_SUMS_ACROSS_REPLICAS}",
+    labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
 
 

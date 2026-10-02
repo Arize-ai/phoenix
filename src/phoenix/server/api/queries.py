@@ -86,6 +86,7 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
+from phoenix.server.api.types.EvaluationQueue import EvaluationQueue
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
@@ -163,6 +164,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.online_eval.queue_health import EVALUATION_TARGETS
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -1694,6 +1696,18 @@ class Query:
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
         )
+
+    @strawberry.field(
+        description=(
+            "The online evaluation queues, one per evaluation target. Each is shared by every "
+            "project on the server."
+        ),
+    )  # type: ignore
+    async def evaluation_queues(self, info: Info[Context, None]) -> list[EvaluationQueue]:
+        queues = await info.context.data_loaders.evaluation_queues.load_many(
+            list(EVALUATION_TARGETS)
+        )
+        return [EvaluationQueue(queue=queue) for queue in queues]
 
     @strawberry.field(
         description=(

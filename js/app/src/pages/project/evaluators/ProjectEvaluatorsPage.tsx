@@ -10,6 +10,10 @@ import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluat
 import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import {
+  ProjectEvaluatorQueueStats,
+  QueueStatsRefreshContext,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
 import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
@@ -97,8 +101,21 @@ function ProjectEvaluatorsPageContent({
   invariant(data.project, "project is required");
   const isEmptyState =
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
+  // Bumped when something on this page changes the queue, so the queue stats
+  // refetch at once instead of on their next poll.
+  const [queueRefreshKey, setQueueRefreshKey] = useState(0);
+  const refreshQueueStats = useCallback(
+    () => setQueueRefreshKey((key) => key + 1),
+    []
+  );
   return (
-    <>
+    <QueueStatsRefreshContext.Provider value={refreshQueueStats}>
+      {isEmptyState ? null : (
+        <ProjectEvaluatorQueueStats
+          projectId={projectId}
+          refreshKey={queueRefreshKey}
+        />
+      )}
       {isEmptyState ? (
         <View
           padding="size-100"
@@ -122,6 +139,7 @@ function ProjectEvaluatorsPageContent({
         </View>
       ) : (
         <ProjectEvaluatorsToolbar
+          projectId={projectId}
           filter={filter}
           onFilterChange={onFilterChange}
         />
@@ -138,6 +156,6 @@ function ProjectEvaluatorsPageContent({
         selection={selection}
         onSelectionChange={onSelectionChange}
       />
-    </>
+    </QueueStatsRefreshContext.Provider>
   );
 }

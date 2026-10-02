@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7eab754a074c30537011084cad7e86ea>>
+ * @generated SignedSource<<2ef72afd310bad20172c1b83805bb365>>
  * @lightSyntaxTransform
  */
 
@@ -294,7 +294,53 @@ return {
                           "storageKey": null
                         },
                         (v7/*:: as any*/),
-                        (v8/*:: as any*/)
+                        (v8/*:: as any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "droppedCount",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "oldestQueuedAt",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "ProjectEvaluatorEvaluationLoad",
+                      "kind": "LinkedField",
+                      "name": "evaluationLoad",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "evaluationsPerMinute",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "meanEvaluationSeconds",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "shareOfEvaluationTime",
+                          "storageKey": null
+                        }
                       ],
                       "storageKey": null
                     },

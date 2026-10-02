@@ -26,6 +26,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.online_eval.admission import max_queued
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
@@ -536,6 +537,77 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> N
         assert {s["tableName"] for s in stats} >= {
             table.name for table in models.Base.metadata.tables.values()
         }
+
+
+async def test_evaluation_queues(db: DbSessionFactory, gql_client: AsyncGraphQLClient) -> None:
+    now = datetime.now(timezone.utc)
+    session_start = now - timedelta(hours=2)
+    async with db() as session:
+        project = models.Project(name=f"project-{uuid.uuid4().hex[:8]}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"project-evaluator-{uuid.uuid4().hex[:8]}"),
+            evaluation_target="SESSION",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        project_session = models.ProjectSession(
+            session_id=uuid.uuid4().hex,
+            project_id=project.id,
+            start_time=session_start,
+            end_time=session_start,
+        )
+        session.add_all([project_evaluator, project_session])
+        await session.flush()
+        session.add(
+            models.EvalSessionWorkUnit(
+                project_session_rowid=project_session.id,
+                project_evaluator_id=project_evaluator.id,
+                evaluated_through=now,
+                created_at=now - timedelta(minutes=1),
+            )
+        )
+
+    response = await gql_client.execute(
+        """query {
+            evaluationQueues {
+                evaluationTarget
+                status
+                queuedCount
+                retryingCount
+                oldestQueuedAt
+                atCapacity
+                queuedLimit
+                evaluationsPerMinute
+                queuedPerMinute
+            }
+        }"""
+    )
+
+    assert not response.errors and response.data
+    queues = {queue["evaluationTarget"]: queue for queue in response.data["evaluationQueues"]}
+    assert list(queues) == ["SPAN", "TRACE", "SESSION"]
+    assert queues["SPAN"]["queuedCount"] == 0
+    session_queue = queues["SESSION"]
+    assert session_queue["status"] == "HEALTHY"
+    assert session_queue["queuedCount"] == 1
+    assert session_queue["retryingCount"] == 0
+    assert datetime.fromisoformat(session_queue["oldestQueuedAt"]) == now - timedelta(minutes=1)
+    assert session_queue["atCapacity"] is False
+    assert session_queue["queuedLimit"] == max_queued("SESSION")
+    assert session_queue["evaluationsPerMinute"] == 0
+    assert session_queue["queuedPerMinute"] == pytest.approx(1 / 15)
 
 
 async def test_agents_config_returns_env_values(
