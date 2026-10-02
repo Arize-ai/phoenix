@@ -39,6 +39,7 @@ export const PlaygroundEvaluatorExampleCell = memo(
     position,
     expectedOutputs,
     isRunning,
+    canAnnotate,
     onViewTracePress,
   }: {
     instanceId: number;
@@ -51,6 +52,8 @@ export const PlaygroundEvaluatorExampleCell = memo(
     position: number;
     expectedOutputs: ExpectedOutputExample["expectedOutputs"];
     isRunning: boolean;
+    /** False while the examples are being edited: nothing to annotate yet. */
+    canAnnotate: boolean;
     onViewTracePress: (
       traceId: string,
       projectId: string,
@@ -93,7 +96,7 @@ export const PlaygroundEvaluatorExampleCell = memo(
         isPending={isRunning && result == null}
         expected={expected}
         output={output}
-        isDisabled={output == null}
+        isDisabled={output == null || !canAnnotate}
         onSave={onSave}
         extra={
           <>
