@@ -10,7 +10,10 @@ from sqlalchemy import delete, event, func, select, text, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from phoenix.config import get_env_online_eval_max_session_outstanding
+from phoenix.config import (
+    get_env_online_eval_max_session_outstanding,
+    get_env_online_eval_max_trace_outstanding,
+)
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.identifier import Identifier
@@ -25,10 +28,7 @@ from phoenix.server.online_eval.leases import (
     current_database_time,
 )
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
-from phoenix.server.online_eval.sweeper import (
-    TRACE_SWEEP_MAX_OUTSTANDING,
-    EvalSweeper,
-)
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
@@ -1373,7 +1373,7 @@ async def test_materializes_due_trace_with_activity_snapshot(
     sweeper = EvalSweeper(
         db,
         evaluation_target="TRACE",
-        max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
+        max_outstanding=get_env_online_eval_max_trace_outstanding(),
     )
     await sweeper._tick()
 
@@ -1447,7 +1447,7 @@ async def test_trace_filter_is_evaluated_against_page_rowids(
         await EvalSweeper(
             db,
             evaluation_target="TRACE",
-            max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
+            max_outstanding=get_env_online_eval_max_trace_outstanding(),
         )._tick()
     finally:
         event.remove(Engine, "before_cursor_execute", capture_filter_statement)
@@ -1496,7 +1496,7 @@ async def test_trace_evaluator_with_an_uncompilable_filter_does_not_stop_the_tic
     sweeper = EvalSweeper(
         db,
         evaluation_target="TRACE",
-        max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
+        max_outstanding=get_env_online_eval_max_trace_outstanding(),
     )
     with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
         await sweeper._tick()

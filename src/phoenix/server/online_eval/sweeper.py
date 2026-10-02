@@ -67,8 +67,6 @@ logger = logging.getLogger(__name__)
 
 SWEEP_INTERVAL_SECONDS = 10.0
 
-TRACE_SWEEP_MAX_OUTSTANDING = 10_000
-
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _LOCK_TIMEOUT_MILLISECONDS = 500
 _LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, deadlock_detected

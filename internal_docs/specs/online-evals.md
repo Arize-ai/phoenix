@@ -427,9 +427,10 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   drains, then resumes from where it stopped. A full queue therefore delays span evaluations
   rather than dropping them — sampled spans are evaluated late, not skipped, unless trace
   retention deletes a span (and any work already queued for it) before its turn comes.
-  Overload shows up in two places: the producer logs a warning each time it finds the admission
-  gate closed, and the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
-  ingested but not yet offered to evaluators, keeps growing while the gate stays closed.
+  Overload shows up in three places: the producer logs a warning each time it finds the admission
+  gate closed, the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
+  ingested but not yet offered to evaluators, keeps growing while the gate stays closed, and the
+  evaluators pages show the queue as Degraded while it is full.
 - **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
   recursively enqueue the same class of project evaluations. This largely falls out of the
   architecture: if evaluator traces live in a dedicated project (as
