@@ -94,3 +94,13 @@ class TestServerVersionGuard:
         guard = ServerVersionGuard(client)
         with pytest.raises(PhoenixException, match="requires Phoenix >= 13.5.0"):
             guard.require(ROUTE)
+
+    def test_supports_every_requirement_at_or_above_its_version(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200, text="13.5.0")),
+            base_url="http://test",
+        )
+        guard = ServerVersionGuard(client)
+        assert guard.supports(ROUTE)
+        assert not guard.supports(PARAM)
+        assert not guard.supports(ROUTE, PARAM)
