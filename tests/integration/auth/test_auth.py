@@ -47,6 +47,7 @@ from .._helpers import (
     _VIEWER_ALLOWED_WRITE_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
+    _admin_auth,
     _AdminSecret,
     _ApiKey,
     _AppInfo,
@@ -182,7 +183,7 @@ class TestLogIn:
         _app: _AppInfo,
     ) -> None:
         user = _get_user(_app, role_or_user)
-        _delete_users(_app, _app.admin_secret, users=[user])
+        _delete_users(_app, _admin_auth(_app), users=[user])
         with _EXPECTATION_401:
             user.log_in(_app)
 
@@ -813,7 +814,7 @@ class TestPatchUser:
         logged_in_user.visit(_app)
 
         # Admin changes user's role
-        _patch_user(_app, user, _app.admin_secret, new_role=new_role)
+        _patch_user(_app, user, _admin_auth(_app), new_role=new_role)
 
         # Old tokens should no longer work (user should be logged out)
         logged_in_user.visit(_app, 401)
@@ -929,7 +930,7 @@ class TestDeleteUsers:
         logged_in_user = user.log_in(_app)
         tokens = logged_in_user.tokens
         logged_in_user.visit(_app)
-        _delete_users(_app, _app.admin_secret, users=[user])
+        _delete_users(_app, _admin_auth(_app), users=[user])
         with _EXPECTATION_401:
             tokens.refresh(_app)
         logged_in_user.visit(_app, 401)
@@ -1358,6 +1359,7 @@ class TestSpanExporters:
         _span_exporter: _SpanExporterFactory,
         _spans: Sequence[ReadableSpan],
         _app: _AppInfo,
+        _requires_configured_secret: None,
     ) -> None:
         if use_admin_secret:
             assert (api_key := _app.admin_secret)
@@ -1909,12 +1911,9 @@ class TestSecretsCRUDAndValueVisibility:
         assert secret["value"]["__typename"] == "DecryptedSecret"
         # Server emits the value as a RedactedString token — un-redact before
         # comparing against the original plaintext.
-        from pydantic import SecretStr
+        from .._helpers import _redactor_for_app
 
-        from phoenix.server.redaction import Redactor
-
-        _redactor = Redactor(secret=SecretStr(_app.env["PHOENIX_SECRET"]))
-        assert _redactor.unredact(secret["value"]["value"]) == secret_value
+        assert _redactor_for_app(_app).unredact(secret["value"]["value"]) == secret_value
 
         # Member and Viewer should get Unauthorized when accessing secret value field
         for logged_in_user in [logged_in_member, logged_in_viewer]:
