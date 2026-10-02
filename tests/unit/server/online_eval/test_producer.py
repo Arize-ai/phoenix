@@ -1155,12 +1155,12 @@ async def test_backstop_rolls_back_when_the_cursor_moves_while_it_runs(
         session: Any,
         project_evaluator: Any,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
         async with db() as rival_session:
             await rival_session.execute(
                 update(models.EvalSpanCursor).values(produced_through_id=span.id + 100)
             )
-        await insert_work_units(session, project_evaluator, span_ids)
+        return await insert_work_units(session, project_evaluator, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _rival_advances_then_insert)
     with caplog.at_level("WARNING"):
@@ -1210,6 +1210,37 @@ async def test_producer_publishes_its_own_frontier_and_ingest_gauges(
     await producer._tick()
     ingest_rate.set.assert_called_once()
     assert ingest_rate.set.call_args.args[0] > 0
+
+
+async def test_producer_counts_the_work_it_queues(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
+    materialized_counter = Mock()
+    monkeypatch.setattr(
+        producer_module, "ONLINE_EVAL_MATERIALIZED_WORK_UNITS", materialized_counter
+    )
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        session.add(
+            models.EvalWorkUnit(span_rowid=spans[0].id, project_evaluator_id=project_evaluator_id)
+        )
+    await _seed_cursor(
+        db,
+        produced_through_id=spans[0].id - 1,
+        observed_high_water_id=spans[-1].id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    await OnlineEvalProducer(db)._tick()
+
+    # The span that already had work is not written again, so it is not counted.
+    materialized_counter.labels.return_value.inc.assert_called_once_with(2)
 
 
 async def test_frontier_gauges_keep_updating_while_the_admission_gate_is_closed(

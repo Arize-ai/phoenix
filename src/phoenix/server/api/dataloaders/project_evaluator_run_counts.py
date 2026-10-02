@@ -9,7 +9,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.eval_work import FAILED_EVAL_WORK_STATUSES, LIVE_EVAL_WORK_STATUSES
+from phoenix.db.eval_work import FAILED_EVAL_WORK_STATUSES
 from phoenix.server.types import DbSessionFactory
 
 ProjectEvaluatorId: TypeAlias = int
@@ -27,7 +27,6 @@ _WORK_UNIT_MODELS: tuple[_WorkUnitModel, ...] = (
     models.EvalTraceWorkUnit,
 )
 
-_QUEUED = "QUEUED"
 _EVALUATED = "EVALUATED"
 _FAILED = "FAILED"
 _DROPPED = "DROPPED"
@@ -45,7 +44,6 @@ class ProjectEvaluatorRunCounts:
     orphan-session deletes remove session and trace rows too.
     """
 
-    queued: int = 0
     evaluated: int = 0
     failed: int = 0
     dropped: int = 0
@@ -60,8 +58,7 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
     Keys are ``(project_evaluator_id, start, end)``; the range is start-inclusive and
     end-exclusive, an open bound is unbounded on that side, and ``(id, None, None)``
     counts everything retained. Work is placed in time by when it last changed, so an
-    evaluation counts by when it finished or was given up on; within a bounded range
-    the queued count only means "touched in range" and is best left unread.
+    evaluation counts by when it finished or was given up on.
 
     Every range in a batch is counted in one pass over the evaluators' work: each is a
     conditional aggregate over the same rows, so the all-time status and the in-range
@@ -117,10 +114,8 @@ async def _load_run_counts(
             counts = replace(counts, evaluated=count, last_evaluated_at=latest)
         elif outcome == _FAILED:
             counts = replace(counts, failed=count, last_failed_at=latest)
-        elif outcome == _DROPPED:
-            counts = replace(counts, dropped=count)
         else:
-            counts = replace(counts, queued=count)
+            counts = replace(counts, dropped=count)
         result[key] = counts
     return result
 
@@ -173,16 +168,16 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     )
 
 
-# The funnel the user sees. CONTENT_LOST falls outside every bucket, since no
-# evaluation was ever owed for it, as do a session's FILTERED_OUT and SAMPLED_OUT
+# The funnel the user sees, past the queue. CONTENT_LOST falls outside every bucket,
+# since no evaluation was ever owed for it, as do a session's FILTERED_OUT and SAMPLED_OUT
 # decisions. DROPPED is its own bucket: removed from the queue before it ran, so nothing
-# failed. Bucketed here rather than in SQL so the scan groups by the raw status,
-# instead of evaluating a CASE on every row it reads.
+# failed. Queued work is counted by the online-eval queue health instead.
+# Bucketed here rather than in SQL so the scan groups by the raw status, instead of
+# evaluating a CASE on every row it reads.
 _OUTCOME_BY_STATUS: dict[str, str] = {
     "DONE": _EVALUATED,
     **{status: _FAILED for status in FAILED_EVAL_WORK_STATUSES},
     "DROPPED": _DROPPED,
-    **{status: _QUEUED for status in LIVE_EVAL_WORK_STATUSES},
 }
 
 

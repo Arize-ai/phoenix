@@ -15,7 +15,7 @@ success so that a write racing its own claim's publication doesn't report a lost
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from sqlalchemy import and_, case, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement, TextClause
 from typing_extensions import assert_never
 
+from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import (
     MAX_ATTEMPTS,
@@ -36,12 +37,13 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_TTL_SECONDS,
     TERMINAL_METRICS_WINDOW_SECONDS,
     ClaimedWorkUnit,
+    EndedWorkCounts,
     PublicationClaimLostError,
     PublicationWrite,
-    QueueLag,
     RetiredWorkStatus,
 )
 from phoenix.server.online_eval.leases import current_database_time
+from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
@@ -51,6 +53,15 @@ _WorkUnitModel = (
 )
 _TargetModel = type[models.Span] | type[models.ProjectSession] | type[models.Trace]
 _DATABASE_NOW = object()
+
+# The statuses a unit leaves the queue with that the completed-work counter reports. Cleared
+# is DROPPED by any path: a clear, a toggle, or hydration after the evaluator was turned off.
+_COMPLETED_OUTCOMES = {
+    "DONE": "evaluated",
+    "FAILED": "failed",
+    "EXPIRED": "expired",
+    "DROPPED": "cleared",
+}
 
 
 def work_unit_lease_lapsed(
@@ -66,11 +77,11 @@ async def reap_lapsed_leases(
     *,
     now: datetime,
     max_attempts: int,
-) -> None:
-    """Fail RUNNING work whose lease lapsed with no attempts left: a consumer killed
-    mid-evaluation leaves such a row, and no consumer may reclaim it without exceeding
-    the retry budget."""
-    await session.execute(
+) -> int:
+    """Fail RUNNING work whose lease lapsed with no attempts left, returning how many units:
+    a consumer killed mid-evaluation leaves such a row, and no consumer may reclaim it
+    without exceeding the retry budget."""
+    result = await session.execute(
         update(work_unit_model)
         .where(
             # SQLite reads a partial index only when the query repeats its predicate.
@@ -85,13 +96,15 @@ async def reap_lapsed_leases(
             error=func.coalesce(work_unit_model.error, LEASE_ATTEMPTS_EXHAUSTED_ERROR),
         )
     )
+    return int(result.rowcount)  # type: ignore[attr-defined]
 
 
 async def drop_queued_work(
     session: AsyncSession,
     project_evaluator_ids: Sequence[int],
-) -> int:
-    """Drop the project evaluators' work that has not started, returning how many units.
+) -> dict[models.EvaluationTarget, int]:
+    """Drop the project evaluators' work that has not started, returning how many units of
+    each evaluation target.
 
     Queued work is PENDING, or ERROR awaiting a retry. RUNNING work is left alone: an
     enabled evaluator's evaluation should finish, and publication refuses a disabled
@@ -100,22 +113,23 @@ async def drop_queued_work(
     return await _drop_queued_work(session, project_evaluator_ids)
 
 
-async def drop_all_queued_work(session: AsyncSession) -> int:
-    """Drop every project evaluator's work that has not started, returning how many units,
-    as ``drop_queued_work`` does for some."""
+async def drop_all_queued_work(session: AsyncSession) -> dict[models.EvaluationTarget, int]:
+    """Drop every project evaluator's work that has not started, returning how many units
+    of each evaluation target, as ``drop_queued_work`` does for some."""
     return await _drop_queued_work(session, None)
 
 
 async def _drop_queued_work(
     session: AsyncSession,
     project_evaluator_ids: Optional[Sequence[int]],
-) -> int:
-    dropped = 0
-    for work_unit_model in (
-        models.EvalWorkUnit,
-        models.EvalTraceWorkUnit,
-        models.EvalSessionWorkUnit,
-    ):
+) -> dict[models.EvaluationTarget, int]:
+    dropped: dict[models.EvaluationTarget, int] = {}
+    work_unit_models: dict[models.EvaluationTarget, _WorkUnitModel] = {
+        "SPAN": models.EvalWorkUnit,
+        "TRACE": models.EvalTraceWorkUnit,
+        "SESSION": models.EvalSessionWorkUnit,
+    }
+    for evaluation_target, work_unit_model in work_unit_models.items():
         statement = update(work_unit_model).where(
             # SQLite reads a partial index only when the query repeats its predicate.
             text(live_eval_work_index_predicate()),
@@ -126,8 +140,19 @@ async def _drop_queued_work(
                 work_unit_model.project_evaluator_id.in_(project_evaluator_ids)
             )
         result = await session.execute(statement.values(status="DROPPED"))
-        dropped += result.rowcount  # type: ignore[attr-defined]
+        dropped[evaluation_target] = result.rowcount  # type: ignore[attr-defined]
     return dropped
+
+
+def count_cleared_work(dropped: Mapping[models.EvaluationTarget, int]) -> None:
+    """Count work a user cleared, once the transaction that dropped it has committed."""
+    if not get_env_enable_prometheus():
+        return
+    for evaluation_target, count in dropped.items():
+        if count:
+            ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(
+                evaluation_target=evaluation_target, outcome=_COMPLETED_OUTCOMES["DROPPED"]
+            ).inc(count)
 
 
 class DbEvalWorkCoordinator:
@@ -143,6 +168,11 @@ class DbEvalWorkCoordinator:
         self._db = db
         self._evaluation_target: models.EvaluationTarget = evaluation_target
         self._max_attempts = max_attempts
+        self._publish_metrics = get_env_enable_prometheus()
+        for outcome in _COMPLETED_OUTCOMES.values():
+            ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(
+                evaluation_target=evaluation_target, outcome=outcome
+            )
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
@@ -187,7 +217,7 @@ class DbEvalWorkCoordinator:
     ) -> Sequence[ClaimedWorkUnit]:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
-            await reap_lapsed_leases(
+            reaped_count = await reap_lapsed_leases(
                 session,
                 work_unit_model,
                 now=await current_database_time(session, self._db.dialect),
@@ -251,6 +281,7 @@ class DbEvalWorkCoordinator:
                 else []
             )
             await session.commit()
+        self._count_completed("FAILED", reaped_count)
         lease_expires_at = now + timedelta(seconds=LEASE_TTL_SECONDS)
         return [
             ClaimedWorkUnit(
@@ -328,6 +359,7 @@ class DbEvalWorkCoordinator:
                 .where(work_unit_model.id == work_unit_id)
                 .values(status="DONE")
             )
+        self._count_completed("DONE")
 
     async def fail(
         self,
@@ -401,7 +433,7 @@ class DbEvalWorkCoordinator:
         async with self._db() as session:
             if values.get("claimed_at") is _DATABASE_NOW:
                 values["claimed_at"] = await current_database_time(session, self._db.dialect)
-            result = await session.execute(
+            new_status = await session.scalar(
                 update(work_unit_model)
                 .where(
                     work_unit_model.id == work_unit_id,
@@ -409,9 +441,9 @@ class DbEvalWorkCoordinator:
                     work_unit_model.status == "RUNNING",
                 )
                 .values(**values)
+                .returning(work_unit_model.status)
             )
-            rowcount = result.rowcount  # type: ignore[attr-defined]
-            transitioned = bool(rowcount == 1)
+            transitioned = new_status is not None
             if not transitioned:
                 status = await session.scalar(
                     select(work_unit_model.status).where(
@@ -421,42 +453,34 @@ class DbEvalWorkCoordinator:
                 )
                 transitioned = status == "DONE"
             await session.commit()
-            return transitioned
+        if new_status is not None:
+            self._count_completed(new_status)
+        return transitioned
 
-    async def lag(self) -> QueueLag:
+    def _count_completed(self, status: str, count: int = 1) -> None:
+        """Count units that left the queue, once the transaction that ended them has
+        committed."""
+        if not self._publish_metrics or not count:
+            return
+        if (outcome := _COMPLETED_OUTCOMES.get(status)) is not None:
+            ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(
+                evaluation_target=self._evaluation_target, outcome=outcome
+            ).inc(count)
+
+    async def ended_work_counts(self) -> EndedWorkCounts:
         now = datetime.now(timezone.utc)
         work_unit_model = self._work_unit_model
-        # SQLite reads through a partial index only when the query repeats the index's
-        # predicate literally; a bound IN list does not match it.
-        live = text(live_eval_work_index_predicate())
         async with self._db.read() as session:
-            live_counts = await self._count_by_status(session, live)
-            terminal_counts = await self._count_by_status(
+            counts = await self._count_by_status(
                 session,
                 self._terminal_index_predicate,
                 work_unit_model.updated_at
                 >= now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),
             )
-            oldest_work_created_at = await session.scalar(
-                select(work_unit_model.created_at)
-                .where(live, work_unit_model.status.in_(("PENDING", "ERROR")))
-                .order_by(work_unit_model.created_at)
-                .limit(1)
-            )
-        oldest_actionable_age_seconds = (
-            max((now - oldest_work_created_at).total_seconds(), 0.0)
-            if oldest_work_created_at is not None
-            else None
-        )
-        return QueueLag(
-            pending_count=live_counts.get("PENDING", 0),
-            running_count=live_counts.get("RUNNING", 0),
-            retryable_error_count=live_counts.get("ERROR", 0),
-            exhausted_error_count=terminal_counts.get("FAILED", 0),
-            expired_count=sum(
-                terminal_counts.get(status, 0) for status in ("EXPIRED", "CONTENT_LOST")
-            ),
-            oldest_actionable_age_seconds=oldest_actionable_age_seconds,
+        return EndedWorkCounts(
+            exhausted_error_count=counts.get("FAILED", 0),
+            expired_count=sum(counts.get(status, 0) for status in ("EXPIRED", "CONTENT_LOST")),
+            dropped_count=counts.get("DROPPED", 0),
         )
 
     async def _count_by_status(

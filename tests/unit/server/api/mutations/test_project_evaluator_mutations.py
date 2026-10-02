@@ -1,5 +1,7 @@
+from collections import Counter
 from datetime import datetime, timezone
 from secrets import token_hex
+from types import SimpleNamespace
 from typing import Any, Optional, Sequence
 
 import pytest
@@ -8,6 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.online_eval import db_coordinator as db_coordinator_module
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
@@ -200,6 +203,24 @@ async def _work_statuses(db: DbSessionFactory, project_evaluator_global_id: str)
                 )
             )
     return statuses
+
+
+def _count_completed_work(monkeypatch: pytest.MonkeyPatch) -> Counter[tuple[str, str]]:
+    """Record what the completed-work counter is incremented by, per target and outcome."""
+    increments: Counter[tuple[str, str]] = Counter()
+
+    def labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            inc=lambda count=1: increments.update({(evaluation_target, outcome): count})
+        )
+
+    monkeypatch.setattr(db_coordinator_module, "get_env_enable_prometheus", lambda: True)
+    monkeypatch.setattr(
+        db_coordinator_module,
+        "ONLINE_EVAL_COMPLETED_WORK_UNITS",
+        SimpleNamespace(labels=labels),
+    )
+    return increments
 
 
 def _mapping(**literal_mapping: Any) -> dict[str, Any]:
@@ -787,6 +808,7 @@ async def test_set_project_evaluator_enabled_toggles_only_enabled(
 async def test_toggling_enabled_drops_only_the_evaluators_queued_evaluations(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     project = await _add_project(db)
     project_evaluator_ids: list[str] = []
@@ -799,6 +821,7 @@ async def test_toggling_enabled_drops_only_the_evaluators_queued_evaluations(
     toggled, untouched = project_evaluator_ids
     await _queue_work(db, toggled, ["PENDING", "ERROR", "RUNNING"])
     await _queue_work(db, untouched, ["PENDING"])
+    completed = _count_completed_work(monkeypatch)
 
     result = await gql_client.execute(
         _SET_ENABLED,
@@ -808,6 +831,7 @@ async def test_toggling_enabled_drops_only_the_evaluators_queued_evaluations(
     assert result.data and not result.errors
     assert await _work_statuses(db, toggled) == ["DROPPED", "DROPPED", "RUNNING"]
     assert await _work_statuses(db, untouched) == ["PENDING"]
+    assert completed == {("TRACE", "cleared"): 2}
 
 
 async def test_clear_queued_evaluations_drops_every_target_in_the_project_only(
@@ -850,6 +874,7 @@ async def test_clear_queued_evaluations_drops_every_target_in_the_project_only(
 async def test_clear_all_queued_evaluations_drops_every_project_and_target(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     project, other_project = await _add_project(db), await _add_project(db)
     project_evaluator_ids: list[str] = []
@@ -865,11 +890,13 @@ async def test_clear_all_queued_evaluations_drops_every_project_and_target(
         project_evaluator_id = result.data["createProjectLlmEvaluator"]["evaluator"]["id"]
         await _queue_work(db, project_evaluator_id, ["PENDING", "ERROR", "RUNNING"])
         project_evaluator_ids.append(project_evaluator_id)
+    completed = _count_completed_work(monkeypatch)
 
     result = await gql_client.execute(_CLEAR_ALL_QUEUED_EVALUATIONS)
 
     assert result.data and not result.errors
     assert result.data["clearAllQueuedEvaluations"] == {"droppedCount": 6}
+    assert completed == {(target, "cleared"): 2 for target in ("SPAN", "SESSION", "TRACE")}
     for project_evaluator_id in project_evaluator_ids:
         statuses = await _work_statuses(db, project_evaluator_id)
         assert statuses == ["DROPPED", "DROPPED", "RUNNING"]

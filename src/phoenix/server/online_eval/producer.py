@@ -37,7 +37,6 @@ from phoenix.config import (
     get_env_online_eval_backstop_interval_seconds,
     get_env_online_eval_backstop_lookback_span_ids,
     get_env_online_eval_frontier_lag_seconds,
-    get_env_online_eval_max_outstanding,
     get_env_online_eval_max_span_ids_per_tick,
     get_env_online_eval_retention_seconds,
 )
@@ -47,12 +46,14 @@ from phoenix.db.eval_work import (
     terminal_eval_work_index_predicate,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.admission import max_queued
 from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
+    ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
@@ -123,9 +124,10 @@ class OnlineEvalProducer(DaemonTask):
         self._backstop_lookback_span_ids = get_env_online_eval_backstop_lookback_span_ids()
         self._max_span_ids_per_tick = get_env_online_eval_max_span_ids_per_tick()
         self._retention_seconds = get_env_online_eval_retention_seconds()
-        self._max_outstanding = get_env_online_eval_max_outstanding()
+        self._max_outstanding = max_queued("SPAN")
         self._last_backstop_at = time.monotonic()
         self._publish_metrics = get_env_enable_prometheus()
+        ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(evaluation_target="SPAN")
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
@@ -376,12 +378,15 @@ class OnlineEvalProducer(DaemonTask):
         budget: int,
     ) -> tuple[bool, int]:
         truncated = False
+        queued_count = 0
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
                 span_ids = await self._scan(session, project_evaluator, low_exclusive, frontier)
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
+                queued_count += await self._insert_work_units(
+                    session, project_evaluator, admitted_span_ids
+                )
                 budget -= len(admitted_span_ids)
                 if len(admitted_span_ids) < len(sampled_span_ids) or (
                     budget == 0 and index < len(active) - 1
@@ -411,6 +416,7 @@ class OnlineEvalProducer(DaemonTask):
                 await session.rollback()
                 logger.warning("Online-eval producer frontier rolled back: the cursor moved")
                 return False, budget
+        self._count_queued(queued_count)
         return not truncated, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
@@ -486,12 +492,15 @@ class OnlineEvalProducer(DaemonTask):
         # Window is [watermark - lookback, watermark], matching the reaper's floor
         # exactly so every retained terminal row is inside the swept range.
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
+        queued_count = 0
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
                 span_ids = await self._scan(session, project_evaluator, low_exclusive, watermark)
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
+                queued_count += await self._insert_work_units(
+                    session, project_evaluator, admitted_span_ids
+                )
                 budget -= len(admitted_span_ids)
                 if len(admitted_span_ids) < len(sampled_span_ids) or (
                     budget == 0 and index < len(active) - 1
@@ -504,6 +513,8 @@ class OnlineEvalProducer(DaemonTask):
             if not await self._cursor_is_at(session, watermark):
                 await session.rollback()
                 logger.warning("Online-eval producer backstop rolled back: the cursor moved")
+                return budget
+        self._count_queued(queued_count)
         return budget
 
     async def _scan(
@@ -548,9 +559,11 @@ class OnlineEvalProducer(DaemonTask):
         session: AsyncSession,
         project_evaluator: _ActiveProjectEvaluator,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
+        """Insert PENDING work for the spans that have none, returning how many rows."""
         if not span_ids:
-            return
+            return 0
+        inserted_count = 0
         records = [
             {
                 "span_rowid": span_rowid,
@@ -560,12 +573,19 @@ class OnlineEvalProducer(DaemonTask):
         ]
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
             batch = records[start : start + _INSERT_BATCH_SIZE]
-            await session.execute(
+            inserted_ids = await session.scalars(
                 insert_on_conflict(
                     *batch,
                     table=models.EvalWorkUnit,
                     dialect=self._db.dialect,
                     unique_by=_WORK_UNIT_UNIQUE_BY,
                     on_conflict=OnConflict.DO_NOTHING,
-                )
+                ).returning(models.EvalWorkUnit.id)
             )
+            inserted_count += len(inserted_ids.all())
+        return inserted_count
+
+    def _count_queued(self, queued_count: int) -> None:
+        """Count work queued by a scan whose transaction has committed."""
+        if self._publish_metrics and queued_count:
+            ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(evaluation_target="SPAN").inc(queued_count)

@@ -1772,7 +1772,7 @@ async def test_project_evaluator_run_summary(
                 cumulative_llm_token_count_prompt=0,
                 cumulative_llm_token_count_completion=0,
             )
-            for index in range(7)
+            for index in range(8)
         ]
         session.add_all(spans)
         await session.flush()
@@ -1796,6 +1796,15 @@ async def test_project_evaluator_run_summary(
                     span_rowid=spans[2].id,
                     project_evaluator_id=project_evaluator.id,
                     status="PENDING",
+                    created_at=now - timedelta(minutes=3),
+                    updated_at=now,
+                ),
+                # Queued first, but running, so not waiting.
+                models.EvalWorkUnit(
+                    span_rowid=spans[7].id,
+                    project_evaluator_id=project_evaluator.id,
+                    status="RUNNING",
+                    created_at=now - timedelta(minutes=30),
                     updated_at=now,
                 ),
                 # An error with attempts remaining is a retry in progress, not a
@@ -1806,6 +1815,7 @@ async def test_project_evaluator_run_summary(
                     status="ERROR",
                     attempts=1,
                     error="retrying rate limit",
+                    created_at=now - timedelta(minutes=1),
                     updated_at=now,
                 ),
                 # An expiry was given up on — it counts as failed and, being the
@@ -1857,6 +1867,7 @@ async def test_project_evaluator_run_summary(
                         status
                         lastRunAt
                         queuedCount
+                        oldestQueuedAt
                         evaluatedCount
                         failedCount
                         droppedCount
@@ -1876,8 +1887,10 @@ async def test_project_evaluator_run_summary(
     # every bucket; DROPPED has its own.
     assert run_summary["failedCount"] == 2
     assert run_summary["droppedCount"] == 1
-    # Waiting: the PENDING unit and the ERROR with attempts remaining.
-    assert run_summary["queuedCount"] == 2
+    # Queued: the PENDING unit, the RUNNING one, and the ERROR with attempts remaining.
+    assert run_summary["queuedCount"] == 3
+    # The oldest waiting is the PENDING unit, not the earlier-queued RUNNING one.
+    assert datetime.fromisoformat(run_summary["oldestQueuedAt"]) == now - timedelta(minutes=3)
     # The newest FAILED unit's error — not the retrying unit's, which is newer but
     # not a failure, and not a lifecycle expiry's.
     assert run_summary["lastError"] == "execution deadline exceeded"
@@ -2062,6 +2075,262 @@ async def test_project_evaluator_run_summary_reports_error_when_failure_is_newes
     run_summary = response.data["node"]["runSummary"]
     assert run_summary["status"] == "ERROR"
     assert run_summary["lastError"] == "credentials expired"
+
+
+async def _seed_span_project_evaluator(
+    db: DbSessionFactory, *, span_start_time: datetime, span_count: int = 1
+) -> tuple[int, list[int]]:
+    """A SPAN project evaluator and spans in its project: (project evaluator, span) ids."""
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        trace = models.Trace(
+            trace_id=token_hex(8),
+            project_rowid=project.id,
+            start_time=span_start_time,
+            end_time=span_start_time,
+        )
+        session.add_all([project_evaluator, trace])
+        await session.flush()
+        spans = [
+            models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                name="span",
+                span_kind="LLM",
+                start_time=span_start_time,
+                end_time=span_start_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            for _ in range(span_count)
+        ]
+        session.add_all(spans)
+        await session.flush()
+        return project_evaluator.id, [span.id for span in spans]
+
+
+def _span_work_unit(
+    project_evaluator_id: int,
+    span_id: int,
+    status: str,
+    *,
+    queued_at: datetime,
+    updated_at: datetime,
+) -> models.EvalWorkUnit:
+    return models.EvalWorkUnit(
+        span_rowid=span_id,
+        project_evaluator_id=project_evaluator_id,
+        status=status,
+        attempts=1 if status == "ERROR" else 0,
+        created_at=queued_at,
+        updated_at=updated_at,
+    )
+
+
+_RUN_STATUSES_QUERY = """query ($a: ID!, $b: ID!) {
+    a: node(id: $a) { ... on ProjectEvaluator { runSummary { status lastRunAt } } }
+    b: node(id: $b) { ... on ProjectEvaluator { runSummary { status lastRunAt } } }
+}"""
+
+
+async def test_project_evaluator_run_summary_is_degraded_while_its_queue_is_at_capacity(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The evaluator finished an evaluation seconds ago and has nothing queued, but another
+    project's evaluator has filled the shared span queue, so its new spans are not being
+    queued either."""
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
+    now = datetime.now(timezone.utc)
+    seconds_ago = now - timedelta(seconds=5)
+    idle, (idle_span,) = await _seed_span_project_evaluator(
+        db, span_start_time=now - timedelta(hours=31)
+    )
+    other, (other_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
+    async with db() as session:
+        session.add_all(
+            [
+                _span_work_unit(
+                    idle, idle_span, "DONE", queued_at=seconds_ago, updated_at=seconds_ago
+                ),
+                _span_work_unit(
+                    other, other_span, "PENDING", queued_at=seconds_ago, updated_at=seconds_ago
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        _RUN_STATUSES_QUERY,
+        variables={
+            "a": str(GlobalID("ProjectEvaluator", str(idle))),
+            "b": str(GlobalID("ProjectEvaluator", str(other))),
+        },
+    )
+
+    assert not response.errors and response.data
+    run_summary = response.data["a"]["runSummary"]
+    assert datetime.fromisoformat(run_summary["lastRunAt"]) == seconds_ago
+    assert run_summary["status"] == "DEGRADED"
+
+
+async def test_project_evaluator_run_summary_is_degraded_while_its_own_evaluation_retries(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A retry keeps its place in the queue but not in line, so the queue stays healthy:
+    only the evaluator stuck retrying reads degraded."""
+    now = datetime.now(timezone.utc)
+    seconds_ago = now - timedelta(seconds=5)
+    retrying, retrying_spans = await _seed_span_project_evaluator(
+        db, span_start_time=now, span_count=2
+    )
+    flowing, flowing_spans = await _seed_span_project_evaluator(
+        db, span_start_time=now, span_count=2
+    )
+    async with db() as session:
+        session.add_all(
+            [
+                _span_work_unit(
+                    retrying,
+                    retrying_spans[0],
+                    "ERROR",
+                    queued_at=now - timedelta(minutes=30),
+                    updated_at=now,
+                ),
+                _span_work_unit(
+                    retrying,
+                    retrying_spans[1],
+                    "DONE",
+                    queued_at=seconds_ago,
+                    updated_at=seconds_ago,
+                ),
+                _span_work_unit(
+                    flowing, flowing_spans[0], "DONE", queued_at=seconds_ago, updated_at=seconds_ago
+                ),
+                _span_work_unit(
+                    flowing,
+                    flowing_spans[1],
+                    "PENDING",
+                    queued_at=now - timedelta(minutes=1),
+                    updated_at=now,
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        _RUN_STATUSES_QUERY,
+        variables={
+            "a": str(GlobalID("ProjectEvaluator", str(retrying))),
+            "b": str(GlobalID("ProjectEvaluator", str(flowing))),
+        },
+    )
+
+    assert not response.errors and response.data
+    assert response.data["a"]["runSummary"]["status"] == "DEGRADED"
+    assert response.data["b"]["runSummary"]["status"] == "RUNNING"
+
+
+async def test_project_evaluator_evaluation_load(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Each evaluation's trace in its evaluator's trace project measures how long it took,
+    and each evaluator's share is of every evaluator's evaluation time on the server."""
+    now = datetime.now(timezone.utc)
+    short, long, idle = [
+        (await _seed_span_project_evaluator(db, span_start_time=now))[0] for _ in range(3)
+    ]
+
+    def evaluation_trace(
+        trace_project_id: int, *, started_ago: timedelta, seconds: float
+    ) -> models.Trace:
+        start_time = now - started_ago
+        return models.Trace(
+            trace_id=token_hex(8),
+            project_rowid=trace_project_id,
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=seconds),
+        )
+
+    async with db() as session:
+        trace_project_ids = dict(
+            (
+                await session.execute(
+                    select(models.ProjectEvaluator.id, models.ProjectEvaluator.trace_project_id)
+                )
+            ).all()
+        )
+        session.add_all(
+            [
+                evaluation_trace(
+                    trace_project_ids[short], started_ago=timedelta(minutes=10), seconds=1
+                ),
+                evaluation_trace(
+                    trace_project_ids[short], started_ago=timedelta(minutes=20), seconds=3
+                ),
+                # Started before the last hour.
+                evaluation_trace(
+                    trace_project_ids[short], started_ago=timedelta(minutes=70), seconds=100
+                ),
+                evaluation_trace(
+                    trace_project_ids[long], started_ago=timedelta(minutes=5), seconds=12
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        """query ($short: ID!, $long: ID!, $idle: ID!) {
+            short: node(id: $short) { ...EvaluationLoad }
+            long: node(id: $long) { ...EvaluationLoad }
+            idle: node(id: $idle) { ...EvaluationLoad }
+        }
+        fragment EvaluationLoad on ProjectEvaluator {
+            evaluationLoad { evaluationsPerMinute meanEvaluationSeconds shareOfEvaluationTime }
+        }""",
+        variables={
+            name: str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))
+            for name, project_evaluator_id in (("short", short), ("long", long), ("idle", idle))
+        },
+    )
+
+    assert not response.errors and response.data
+    loads = {name: node["evaluationLoad"] for name, node in response.data.items()}
+    assert loads["short"]["evaluationsPerMinute"] == pytest.approx(2 / 60)
+    assert loads["short"]["meanEvaluationSeconds"] == pytest.approx(2)
+    assert loads["short"]["shareOfEvaluationTime"] == pytest.approx(4 / 16)
+    assert loads["long"]["evaluationsPerMinute"] == pytest.approx(1 / 60)
+    assert loads["long"]["meanEvaluationSeconds"] == pytest.approx(12)
+    assert loads["long"]["shareOfEvaluationTime"] == pytest.approx(12 / 16)
+    assert loads["idle"] == {
+        "evaluationsPerMinute": 0,
+        "meanEvaluationSeconds": None,
+        "shareOfEvaluationTime": 0,
+    }
+    assert sum(load["shareOfEvaluationTime"] for load in loads.values()) == pytest.approx(1)
 
 
 async def test_project_evaluator_failure_summary_is_scoped_to_the_time_range(

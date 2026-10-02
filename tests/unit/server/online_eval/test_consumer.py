@@ -1593,6 +1593,45 @@ async def test_custom_provider_materializes_claims_executes_and_annotates(
     assert annotation.identifier == annotation_identifier(fingerprint)
 
 
+async def test_consumer_publishes_queue_health_gauges(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gauges = {
+        name: Mock()
+        for name in (
+            "ONLINE_EVAL_PENDING_WORK_UNITS",
+            "ONLINE_EVAL_RUNNING_WORK_UNITS",
+            "ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS",
+            "ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS",
+            "ONLINE_EVAL_AT_CAPACITY",
+            "ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS",
+            "ONLINE_EVAL_EXPIRED_WORK_UNITS",
+            "ONLINE_EVAL_DROPPED_WORK_UNITS",
+        )
+    }
+    for name, gauge in gauges.items():
+        monkeypatch.setattr(consumer_module, name, gauge)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+
+    await OnlineEvalConsumer(db, decrypt=lambda value: value)._publish_queue_metrics()
+
+    for gauge in gauges.values():
+        gauge.labels.assert_called_once_with(evaluation_target="SPAN")
+        gauge.labels.return_value.set.assert_called_once()
+
+    def published(name: str) -> Any:
+        return gauges[name].labels.return_value.set.call_args.args[0]
+
+    assert published("ONLINE_EVAL_PENDING_WORK_UNITS") == 1
+    assert published("ONLINE_EVAL_AT_CAPACITY") == 0
+
+
 async def test_configuration_versions_are_resolved_once_per_claim_batch(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
