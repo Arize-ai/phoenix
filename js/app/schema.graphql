@@ -709,6 +709,10 @@ type ClassificationEvaluatorConfig {
   inputs: [EvaluatorInput!]
 }
 
+input ClearProjectEvaluatorQueueInput {
+  projectEvaluatorId: ID!
+}
+
 input ClearProjectInput {
   id: ID!
 
@@ -3121,6 +3125,11 @@ type Mutation {
   Enable or disable a project evaluator. Flips only the enabled flag on the project binding, leaving the underlying evaluator untouched. Works for both LLM and CODE evaluators.
   """
   setProjectEvaluatorEnabled(input: SetProjectEvaluatorEnabledInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Remove pending and retryable work for a project evaluator without changing its enabled state. Running and completed work are preserved. An enabled evaluator may enqueue new work after the queue is cleared.
+  """
+  clearProjectEvaluatorQueue(input: ClearProjectEvaluatorQueueInput!): ProjectEvaluatorMutationPayload!
   deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!

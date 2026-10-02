@@ -672,6 +672,11 @@ class SetProjectEvaluatorEnabledInput:
     enabled: bool
 
 
+@strawberry.input
+class ClearProjectEvaluatorQueueInput:
+    project_evaluator_id: GlobalID
+
+
 @strawberry.type
 class ProjectEvaluatorMutationPayload:
     evaluator: ProjectEvaluator
@@ -1385,6 +1390,43 @@ class EvaluatorMutationMixin:
                 raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
             project_evaluator.enabled = input.enabled
             await session.flush()
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Remove pending and retryable work for a project evaluator without changing its "
+            "enabled state. Running and completed work are preserved. An enabled evaluator "
+            "may enqueue new work after the queue is cleared."
+        ),
+    )  # type: ignore
+    async def clear_project_evaluator_queue(
+        self, info: Info[Context, None], input: ClearProjectEvaluatorQueueInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            project_evaluator_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        async with info.context.db() as session:
+            project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+            if project_evaluator is None:
+                raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
+            for work_unit_model in (
+                models.EvalWorkUnit,
+                models.EvalSessionWorkUnit,
+                models.EvalTraceWorkUnit,
+            ):
+                await session.execute(
+                    delete(work_unit_model).where(
+                        work_unit_model.project_evaluator_id == project_evaluator_id,
+                        work_unit_model.status.in_(("PENDING", "ERROR")),
+                    )
+                )
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
