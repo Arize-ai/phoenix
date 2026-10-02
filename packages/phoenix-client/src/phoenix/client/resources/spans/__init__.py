@@ -110,8 +110,13 @@ DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 _SPAN_PAGE_SIZE = 100
 _DATAFRAME_PAGE_SIZE = 1000
-_LEGACY_EXPORT_MAX_LIMIT = 1000
-"""Limits up to this are served in one request by the legacy ``POST /v1/spans`` route."""
+_SPAN_LIST_EXPORT_REQUIREMENTS = (
+    GET_PROJECTS_BY_NAME,
+    GET_SPANS_ATTRIBUTES_FORMAT,
+    GET_SPANS_FILTER_EXPRESSION,
+    GET_SPANS_SORT,
+)
+"""What ``get_spans_dataframe`` needs from the server to page through the span list endpoint."""
 _DEFAULT_PROJECT_NAME = "default"
 _ROOT_SPANS_CONDITION = "parent_span is None"
 _ROOT_SPANS_ONLY_DEPRECATION = (
@@ -308,7 +313,7 @@ class Spans:
         if root_spans_only is not None:
             warnings.warn(_ROOT_SPANS_ONLY_DEPRECATION, DeprecationWarning, stacklevel=2)
         query = query if query else SpanQuery()
-        if limit <= _LEGACY_EXPORT_MAX_LIMIT:
+        if not self._guard.supports(*_SPAN_LIST_EXPORT_REQUIREMENTS):
             return self._legacy_spans_dataframe(
                 query=query,
                 start_time=start_time,
@@ -320,10 +325,6 @@ class Spans:
                 timeout=timeout,
             )
         condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
-        self._guard.require(GET_SPANS_SORT)
-        self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
-        if condition:
-            self._guard.require(GET_SPANS_FILTER_EXPRESSION)
         project_id = self._resolve_project_id(
             project_identifier or project_name or _DEFAULT_PROJECT_NAME, timeout=timeout
         )
@@ -359,7 +360,7 @@ class Spans:
         project_name: Optional[str],
         timeout: Optional[int],
     ) -> "pd.DataFrame":
-        """Export through the legacy ``POST /v1/spans`` route, which answers in one request."""
+        """Export through the legacy ``POST /v1/spans`` route of servers without the span list."""
         if project_identifier and is_node_id(project_identifier, node_type="Project"):
             project_response = self._client.get(
                 url=f"v1/projects/{project_identifier}",
@@ -1691,7 +1692,7 @@ class AsyncSpans:
         if root_spans_only is not None:
             warnings.warn(_ROOT_SPANS_ONLY_DEPRECATION, DeprecationWarning, stacklevel=2)
         query = query if query else SpanQuery()
-        if limit <= _LEGACY_EXPORT_MAX_LIMIT:
+        if not await self._guard.supports(*_SPAN_LIST_EXPORT_REQUIREMENTS):
             return await self._legacy_spans_dataframe(
                 query=query,
                 start_time=start_time,
@@ -1703,10 +1704,6 @@ class AsyncSpans:
                 timeout=timeout,
             )
         condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
-        await self._guard.require(GET_SPANS_SORT)
-        await self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
-        if condition:
-            await self._guard.require(GET_SPANS_FILTER_EXPRESSION)
         project_id = await self._resolve_project_id(
             project_identifier or project_name or _DEFAULT_PROJECT_NAME, timeout=timeout
         )
@@ -1742,7 +1739,7 @@ class AsyncSpans:
         project_name: Optional[str],
         timeout: Optional[int],
     ) -> "pd.DataFrame":
-        """Export through the legacy ``POST /v1/spans`` route, which answers in one request."""
+        """Export through the legacy ``POST /v1/spans`` route of servers without the span list."""
         if project_identifier and is_node_id(project_identifier, node_type="Project"):
             project_response = await self._client.get(
                 url=f"v1/projects/{project_identifier}",

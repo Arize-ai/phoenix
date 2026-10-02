@@ -21,9 +21,6 @@ from phoenix.client.types.spans import SpanQuery
 
 SERVER_VERSION = "20.17.0"
 
-ABOVE_LEGACY_LIMIT = 1001
-"""Limits of 1000 or fewer use the legacy route; these tests exercise the span list endpoint."""
-
 
 @dataclass(frozen=True)
 class SpanRow:
@@ -457,12 +454,11 @@ def _export(
     rows: Sequence[SpanRow] = ALL_ROWS,
     filter_results: Optional[dict[str, Sequence[str]]] = None,
     project_name: Optional[str] = "abc",
-    limit: int = ABOVE_LEGACY_LIMIT,
     **kwargs: Any,
 ) -> tuple[pd.DataFrame, FakeSpanListServer]:
     server = FakeSpanListServer(rows, filter_results)
     frame = Spans(server.client()).get_spans_dataframe(
-        query=query, project_name=project_name, limit=limit, **kwargs
+        query=query, project_name=project_name, **kwargs
     )
     return frame, server
 

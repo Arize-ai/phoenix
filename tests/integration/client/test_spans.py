@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from random import choice, random, sample
 from secrets import token_hex
 from typing import Any, Sequence, cast
+from unittest.mock import AsyncMock
 
 import pandas as pd
 import pytest
@@ -2558,11 +2559,14 @@ class TestClientGetSpansSort:
 
 class TestClientGetSpansDataframeQuery:
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("limit", [1000, 1001], ids=["legacy_route", "span_list_endpoint"])
+    @pytest.mark.parametrize(
+        "server_has_span_list_export", [False, True], ids=["legacy_route", "span_list_endpoint"]
+    )
     async def test_query_is_served_the_same_by_either_route(
         self,
         is_async: bool,
-        limit: int,
+        server_has_span_list_export: bool,
+        monkeypatch: pytest.MonkeyPatch,
         _existing_project: _ExistingProject,
         _app: _AppInfo,
     ) -> None:
@@ -2571,8 +2575,15 @@ class TestClientGetSpansDataframeQuery:
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
         from phoenix.client.types.spans import SpanQuery
+        from phoenix.client.utils.server_requirements import (
+            AsyncServerVersionGuard,
+            ServerVersionGuard,
+        )
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        if not server_has_span_list_export:
+            monkeypatch.setattr(ServerVersionGuard, "supports", lambda *_: False)
+            monkeypatch.setattr(AsyncServerVersionGuard, "supports", AsyncMock(return_value=False))
 
         project_name = _existing_project.name
         trace_id = f"trace_df_{token_hex(16)}"
@@ -2626,7 +2637,6 @@ class TestClientGetSpansDataframeQuery:
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
                 project_identifier=project_name,
                 query=SpanQuery().where("name == 'child'"),
-                limit=limit,
             )
         )
         assert by_name.index.to_list() == [child_id]
@@ -2637,7 +2647,6 @@ class TestClientGetSpansDataframeQuery:
                 Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
                     project_identifier=project_name,
                     root_spans_only=True,
-                    limit=limit,
                 )
             )
         assert sorted(roots.index.to_list()) == sorted([root_id, orphan_id])
@@ -2648,7 +2657,6 @@ class TestClientGetSpansDataframeQuery:
                 query=SpanQuery()
                 .where("span_kind == 'RETRIEVER'")
                 .explode("retrieval.documents", reference="document.content"),
-                limit=limit,
             )
         )
         assert documents["reference"].to_list() == ["doc a", "doc b"]
