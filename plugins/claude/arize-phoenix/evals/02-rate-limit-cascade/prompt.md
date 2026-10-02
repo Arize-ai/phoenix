@@ -3,6 +3,7 @@ max_turns: 8
 timeout_seconds: 300
 allowed_tools: [Skill, Read]
 runs: 3
+tags: [phoenix-cli]
 ---
 Since about 9am today roughly half the traces in my Phoenix project `research-agent` are erroring. It was fine all week. Here's `px trace list --last-n-minutes 120 --format raw --no-progress` trimmed to the id, status, duration and start time, then `px trace get --format raw` for one of the errored ones. You can't reach my Phoenix from here. What is going on, is it my agent's fault, and how do I measure how many traces this hit?
 

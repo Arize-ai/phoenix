@@ -1,8 +1,16 @@
 name: Plugin Evals
 
 # Runs the claude plugin eval suite for the arize-phoenix Claude Code plugin
-# whenever the plugin or the skill it tests changes. See
-# plugins/claude/arize-phoenix/evals/README.md for the suite and its flags.
+# whenever the plugin or any of the three skills it ships changes, and on
+# workflow_dispatch. See plugins/claude/arize-phoenix/evals/README.md for the
+# suite and its flags.
+#
+# One matrix leg per skill, selected with `--tag <skill>`, so a regression is
+# reported per skill (and each skill gets its own cost ceiling and uplift gate
+# instead of sharing one). REQUIREMENT: every case must carry its skill's tag in
+# prompt.md front matter (`tags: [phoenix-evals]`, etc.). A leg whose tag matches
+# no cases skips cleanly, so skills whose cases are not tagged yet are simply not
+# evaluated here until they are.
 
 on:
   pull_request:
@@ -28,6 +36,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        skill: [phoenix-cli, phoenix-evals, phoenix-tracing]
+    name: evals (${{ matrix.skill }})
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -51,17 +64,39 @@ jobs:
         # Pinned so scores stay comparable; bump deliberately.
         run: npm install -g @anthropic-ai/claude-code@2.1.273
 
+      - name: Detect tagged cases
+        id: detect
+        working-directory: plugins/claude/arize-phoenix
+        env:
+          SKILL: ${{ matrix.skill }}
+        # A leg only runs if at least one case carries this skill's tag in its
+        # prompt.md front matter (inline list form, e.g. `tags: [phoenix-evals]`).
+        # Skills whose cases are not tagged yet — or not built yet — are skipped
+        # rather than failing the run on a zero-match tag.
+        run: |
+          if grep -rqsE "^tags:.*\b${SKILL}\b" evals --include=prompt.md; then
+            echo "has_cases=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has_cases=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::no cases tagged '${SKILL}' found under evals/; skipping this leg"
+          fi
+
       - name: Run eval suite
+        if: steps.detect.outputs.has_cases == 'true'
         working-directory: plugins/claude/arize-phoenix
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           WORKSPACE: ${{ github.workspace }}
-        # --threshold gates the with-plugin score; Δ is gated in the next step.
-        # --allow-tools: Write lets the script case create its file; the Read
-        # grants let the skill open its references/ from inside the sandbox.
+          SKILL: ${{ matrix.skill }}
+        # --tag selects this skill's cases. --threshold gates each with-plugin
+        # score; Δ is gated in the next step. --allow-tools: Write lets a
+        # file-writing case create its file; the Read grants let the skill open
+        # its references/ from inside the sandbox. Each skill gets its own
+        # --max-cost-usd so one suite can't starve another's budget.
         run: |
           mkdir -p evals/results
           claude plugin eval . \
+            --tag "${SKILL}" \
             --trust-plugin \
             --ablation with-without \
             --json evals/results/ci-results.json \
@@ -76,29 +111,41 @@ jobs:
             -j 3
 
       - name: Gate on uplift (Δ)
+        if: steps.detect.outputs.has_cases == 'true'
         working-directory: plugins/claude/arize-phoenix
         # Δ = with-plugin score minus without-plugin score. Should-not-fire
         # cases (neg-*) score 1.0 in both arms by design, so they are left out
-        # of the mean. Baseline for the fire cases is about +0.25 (Sep 2026);
-        # 0.15 leaves room for run-to-run noise while catching a real drop.
+        # of the mean. 0.15 leaves room for run-to-run noise while catching a
+        # real drop. A tag that matched no (fire) cases skips the gate so an
+        # untagged or not-yet-built skill does not red the matrix.
         env:
           MIN_DELTA: "0.15"
         run: |
+          if [ ! -s evals/results/ci-results.json ]; then
+            echo "no results for tag '${{ matrix.skill }}' (no cases matched); skipping Δ gate"
+            exit 0
+          fi
+          fire_count=$(jq '[.cases[] | select(.name | test("-neg-") | not)] | length' \
+            evals/results/ci-results.json)
+          if [ "${fire_count}" -eq 0 ]; then
+            echo "no fire cases for tag '${{ matrix.skill }}'; skipping Δ gate"
+            exit 0
+          fi
           printf 'case\twith\twithout\tdelta\n' > /tmp/delta-table.tsv
           jq -r '.cases[] | "\(.name)\t\(.aggregates.score)\t\(.aggregates.scoreWithout)\t\(.aggregates.delta)"' \
             evals/results/ci-results.json >> /tmp/delta-table.tsv
           column -t -s $'\t' /tmp/delta-table.tsv
           delta=$(jq -r '[.cases[] | select(.name | test("-neg-") | not) | .aggregates.delta] | add / length' \
             evals/results/ci-results.json)
-          echo "mean Δ over fire cases: ${delta} (minimum ${MIN_DELTA})"
+          echo "mean Δ over fire cases for '${{ matrix.skill }}': ${delta} (minimum ${MIN_DELTA})"
           awk -v d="${delta}" -v m="${MIN_DELTA}" 'BEGIN { exit !(d+0 >= m+0) }' \
-            || { echo "::error::mean Δ ${delta} is below ${MIN_DELTA}; the plugin adds less uplift than it used to"; exit 1; }
+            || { echo "::error::mean Δ ${delta} for ${{ matrix.skill }} is below ${MIN_DELTA}; the plugin adds less uplift than it used to"; exit 1; }
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: plugin-eval-results
+          name: plugin-eval-results-${{ matrix.skill }}
           if-no-files-found: ignore
           path: |
             plugins/claude/arize-phoenix/evals/results/ci-results.json
