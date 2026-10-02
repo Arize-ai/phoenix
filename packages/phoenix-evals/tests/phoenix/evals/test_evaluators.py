@@ -425,6 +425,17 @@ class TestClassificationEvaluator:
         assert evaluator.label_score_map == expected_score_map
         assert evaluator.include_explanation is True
 
+    @pytest.mark.parametrize("choices", [[], {}, None], ids=["empty-list", "empty-dict", "none"])
+    def test_classification_evaluator_rejects_empty_choices(self, choices):
+        """Invalid choices fail at construction, before any LLM call."""
+        with pytest.raises(ValueError, match=r"^Labels must be a non-empty list or dictionary\.$"):
+            ClassificationEvaluator(
+                name="test_evaluator",
+                llm=MockLLM(),
+                prompt_template="Test template with {input}",
+                choices=choices,
+            )
+
     def test_classification_evaluator_evaluate_success(self):
         """Test successful classification evaluation."""
         llm = MockLLM()
@@ -868,6 +879,17 @@ class TestFactoryFunctions:
         assert evaluator.name == "test_classifier"
         assert evaluator.labels == expected_labels
         assert evaluator.llm == llm
+
+    @pytest.mark.parametrize("choices", [[], {}, None], ids=["empty-list", "empty-dict", "none"])
+    def test_create_classifier_rejects_empty_choices(self, choices):
+        """The public factory shares the evaluator's early validation."""
+        with pytest.raises(ValueError, match=r"^Labels must be a non-empty list or dictionary\.$"):
+            create_classifier(
+                name="test_classifier",
+                prompt_template="Test template with {input}",
+                llm=MockLLM(),
+                choices=choices,
+            )
 
 
 class TestIntrospectionAndSchema:
