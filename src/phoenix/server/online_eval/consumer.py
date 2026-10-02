@@ -223,7 +223,7 @@ class OnlineEvalConsumer(DaemonTask):
                 permits -= 1
                 self._pending_tasks.add(task)
                 task.add_done_callback(self._unit_finished)
-            # A failed batch hydration releases its claims; back off rather than
+            # A shared hydration failure releases its claims; back off rather than
             # re-claim the same units at once.
             return not any(isinstance(c, SharedHydrationFailure) for c in configurations)
         finally:
