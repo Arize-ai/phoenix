@@ -6,9 +6,8 @@ import pytest
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator, reap_lapsed_leases
+from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
@@ -49,13 +48,6 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
             coordinator = DbEvalWorkCoordinator(db, evaluation_target=coordinator_target)
             await coordinator.lag()
             await coordinator.claim(claimed_by="query-plan", limit=1)
-        async with db() as session:
-            for work_unit_model in (
-                models.EvalWorkUnit,
-                models.EvalSessionWorkUnit,
-                models.EvalTraceWorkUnit,
-            ):
-                await reap_lapsed_leases(session, work_unit_model)
     finally:
         event.remove(connection.sync_engine, "before_cursor_execute", explain)
 
