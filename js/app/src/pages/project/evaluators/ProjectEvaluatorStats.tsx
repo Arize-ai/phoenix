@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { startOfMinute, subDays } from "date-fns";
+import { addMinutes, startOfMinute, subDays } from "date-fns";
 import { Suspense, useState } from "react";
 import { Focusable } from "react-aria";
 import { useFragment, useLazyLoadQuery } from "react-relay";
@@ -139,7 +139,8 @@ function ProjectEvaluatorActivityPanel({
   const { shortDateFormatter, fullTimeFormatter } = useTimeFormatters();
   // Held here, outside the suspending rates, so their retries reuse one range and query.
   const [dailyRateTimeRange] = useState(() => {
-    const end = startOfMinute(new Date());
+    // Through the end of the current minute, so the latest runs count.
+    const end = addMinutes(startOfMinute(new Date()), 1);
     return {
       start: subDays(end, DAILY_RATE_DAYS).toISOString(),
       end: end.toISOString(),

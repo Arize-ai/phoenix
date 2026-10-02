@@ -1607,7 +1607,7 @@ async def test_consumer_publishes_queue_health_gauges(
             "ONLINE_EVAL_AT_CAPACITY",
             "ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS",
             "ONLINE_EVAL_EXPIRED_WORK_UNITS",
-            "ONLINE_EVAL_DROPPED_WORK_UNITS",
+            "ONLINE_EVAL_CLEARED_WORK_UNITS",
         )
     }
     for name, gauge in gauges.items():

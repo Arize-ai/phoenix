@@ -79,7 +79,7 @@ function getQueueStatusDetail(queue: EvaluationQueue): string | null {
     case "DEGRADED":
       return queue.atCapacity
         ? `Queue is full; new ${RECORD_NOUN_BY_TARGET[queue.evaluationTarget] ?? "records"} wait to be queued`
-        : "Next evaluation has waited more than 10 minutes";
+        : "Evaluations are waiting more than 10 minutes";
     default:
       return assertUnreachable(queue.status);
   }
