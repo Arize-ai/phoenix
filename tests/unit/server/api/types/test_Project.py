@@ -6819,7 +6819,7 @@ class TestAnnotationMetricsTimeSeries:
                     "start": "2024-01-01T10:00:00+00:00",
                     "end": "2024-01-01T10:20:00+00:00",
                 },
-                "timeBinConfig": {"scale": "MINUTE", "utcOffsetMinutes": 0, "interval": 5},
+                "timeBinConfig": {"scale": "MINUTE", "utcOffsetMinutes": 0, "unitsPerBin": 5},
             },
         )
 
@@ -6857,11 +6857,11 @@ class TestAnnotationMetricsTimeSeries:
     @pytest.mark.parametrize(
         "time_bin_config",
         [
-            pytest.param({"scale": "MONTH", "interval": 2}, id="calendar_scale"),
-            pytest.param({"scale": "MINUTE", "interval": 0}, id="zero_interval"),
+            pytest.param({"scale": "MONTH", "unitsPerBin": 2}, id="calendar_scale"),
+            pytest.param({"scale": "MINUTE", "unitsPerBin": 0}, id="zero_units_per_bin"),
         ],
     )
-    async def test_rejects_unsupported_intervals(
+    async def test_rejects_unsupported_units_per_bin(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -6892,7 +6892,7 @@ class TestAnnotationMetricsTimeSeries:
             },
         )
         assert response.errors
-        assert "interval" in response.errors[0].message
+        assert "unitsPerBin" in response.errors[0].message
 
 
 async def test_trace_resolves_by_otel_id_and_global_node_id(

@@ -17,38 +17,38 @@ import { assertUnreachable } from "@phoenix/typeUtils";
  * @param params - time bin parameters
  * @param params.binStartMs - bin start in epoch milliseconds
  * @param params.scale - scale used to query the chart data
- * @param params.interval - bin width in `scale` units
+ * @param params.unitsPerBin - number of `scale` units in each bin
  * @param params.utcOffsetMinutes - fixed UTC offset used to query the chart
  */
 export function getTimeBinRange({
   binStartMs,
   scale,
-  interval = 1,
+  unitsPerBin = 1,
   utcOffsetMinutes,
 }: {
   binStartMs: number;
   scale: TimeBinScale;
-  interval?: number;
+  unitsPerBin?: number;
   utcOffsetMinutes: number;
 }): TimeRange {
   const start = new Date(binStartMs);
   switch (scale) {
     case "MINUTE":
-      return { start, end: new Date(binStartMs + interval * ONE_MINUTE_MS) };
+      return { start, end: new Date(binStartMs + unitsPerBin * ONE_MINUTE_MS) };
     case "HOUR":
-      return { start, end: new Date(binStartMs + interval * ONE_HOUR_MS) };
+      return { start, end: new Date(binStartMs + unitsPerBin * ONE_HOUR_MS) };
     case "DAY":
-      return { start, end: new Date(binStartMs + interval * ONE_DAY_MS) };
+      return { start, end: new Date(binStartMs + unitsPerBin * ONE_DAY_MS) };
     case "WEEK":
-      return { start, end: new Date(binStartMs + interval * ONE_WEEK_MS) };
+      return { start, end: new Date(binStartMs + unitsPerBin * ONE_WEEK_MS) };
     case "MONTH":
     case "YEAR": {
       const utcOffsetMs = utcOffsetMinutes * ONE_MINUTE_MS;
       const shiftedEnd = new Date(binStartMs + utcOffsetMs);
       if (scale === "MONTH") {
-        shiftedEnd.setUTCMonth(shiftedEnd.getUTCMonth() + interval);
+        shiftedEnd.setUTCMonth(shiftedEnd.getUTCMonth() + unitsPerBin);
       } else {
-        shiftedEnd.setUTCFullYear(shiftedEnd.getUTCFullYear() + interval);
+        shiftedEnd.setUTCFullYear(shiftedEnd.getUTCFullYear() + unitsPerBin);
       }
       return {
         start,

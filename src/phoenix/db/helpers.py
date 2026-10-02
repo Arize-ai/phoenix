@@ -476,7 +476,7 @@ def date_trunc(
     field: TimeBinUnit,
     source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
-    interval: int = 1,
+    units_per_bin: int = 1,
 ) -> SQLColumnExpression[datetime]:
     """
     Truncate a datetime to the specified field with optional UTC offset adjustment.
@@ -499,7 +499,7 @@ def date_trunc(
             Positive values represent time zones ahead of UTC (e.g., +60 for UTC+1).
             Negative values represent time zones behind UTC (e.g., -300 for UTC-5).
             Defaults to 0 (no offset).
-        interval: The bucket width as a multiple of `field`. Defaults to 1. Values
+        units_per_bin: The number of `field` units per bucket. Defaults to 1. Values
             above 1 require a minute, hour, day, or week field.
 
     Returns:
@@ -549,8 +549,8 @@ def date_trunc(
         time_fmt_datetime(time_unix(((time_to_unix(time_parse(start_time)) + 19800) -
         ((time_to_unix(time_parse(start_time)) + 19800) % 300 + 300) % 300) - 19800))
     """
-    if interval != 1:
-        return _multi_unit_date_trunc(dialect, field, source, utc_offset_minutes, interval)
+    if units_per_bin != 1:
+        return _multi_unit_date_trunc(dialect, field, source, utc_offset_minutes, units_per_bin)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         # Note: the usage of the timezone parameter in the form of e.g. "+05:00"
         # appears to be an undocumented feature of PostgreSQL's date_trunc function.
@@ -578,10 +578,10 @@ def _multi_unit_date_trunc(
     field: TimeBinUnit,
     source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int,
-    interval: int,
+    units_per_bin: int,
 ) -> SQLColumnExpression[datetime]:
-    """Bucket `source` into bins `interval` units of `field` wide."""
-    width, shift = multi_unit_time_bin_params(field, interval, utc_offset_minutes)
+    """Bucket `source` into bins of `units_per_bin` × `field`."""
+    width, shift = multi_unit_time_bin_params(field, units_per_bin, utc_offset_minutes)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         seconds = sa.extract("epoch", source) + shift
         return sa.func.to_timestamp(sa.func.floor(seconds / width) * width - shift)

@@ -28,11 +28,11 @@ _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 def multi_unit_time_bin_params(
     unit: TimeBinUnit,
-    interval: int,
+    units_per_bin: int,
     utc_offset_minutes: int,
 ) -> tuple[int, int]:
     """
-    Return `(width_seconds, shift_seconds)` for bins `interval` units wide.
+    Return `(width_seconds, shift_seconds)` for bins of `units_per_bin` × `unit`.
 
     A Unix timestamp `t` falls in the bin that starts at
     `floor((t + shift) / width) * width - shift`. Bins follow local clock time
@@ -46,11 +46,11 @@ def multi_unit_time_bin_params(
         >>> multi_unit_time_bin_params("week", 2, 0)
         (1209600, 259200)
     """
-    if interval < 1:
-        raise ValueError(f"interval must be at least 1, got {interval}")
+    if units_per_bin < 1:
+        raise ValueError(f"units_per_bin must be at least 1, got {units_per_bin}")
     if unit not in FIXED_LENGTH_TIME_BIN_UNIT_SECONDS:
         raise ValueError(f"multi-unit bins require a fixed-length unit, got {unit!r}")
-    width_seconds = interval * FIXED_LENGTH_TIME_BIN_UNIT_SECONDS[unit]
+    width_seconds = units_per_bin * FIXED_LENGTH_TIME_BIN_UNIT_SECONDS[unit]
     # The epoch is a Thursday, so count weeks from the Monday before it.
     origin_seconds = -3 * FIXED_LENGTH_TIME_BIN_UNIT_SECONDS["day"] if unit == "week" else 0
     return width_seconds, utc_offset_minutes * 60 - origin_seconds
@@ -162,7 +162,7 @@ def get_timestamp_range(
     end_time: datetime,
     stride: TimeBinUnit = "minute",
     utc_offset_minutes: int = 0,
-    interval: int = 1,
+    units_per_bin: int = 1,
 ) -> Iterator[datetime]:
     """
     Generate a sequence of datetime objects at regular intervals between start and end times.
@@ -185,7 +185,7 @@ def get_timestamp_range(
         utc_offset_minutes: Timezone offset in minutes from UTC. Used to determine
                            the correct stride boundaries in local time. Positive values
                            are east of UTC, negative values are west of UTC.
-        interval: The number of stride units between timestamps. Values above 1
+        units_per_bin: The number of stride units per bin. Values above 1
                   require a minute, hour, day, or week stride.
 
     Returns:
@@ -212,7 +212,7 @@ def get_timestamp_range(
         >>> # 5-minute bins start on a 5-minute boundary
         >>> start = datetime(2024, 1, 1, 12, 7, 30, tzinfo=timezone.utc)
         >>> end = datetime(2024, 1, 1, 12, 20, 0, tzinfo=timezone.utc)
-        >>> list(get_timestamp_range(start, end, "minute", interval=5))
+        >>> list(get_timestamp_range(start, end, "minute", units_per_bin=5))
         [datetime.datetime(2024, 1, 1, 12, 5, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 1, 12, 10, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 1, 12, 15, tzinfo=datetime.timezone.utc)]
@@ -226,9 +226,9 @@ def get_timestamp_range(
     if not is_timezone_aware(start_time) or not is_timezone_aware(end_time):
         raise ValueError("start_time and end_time must be timezone-aware")
 
-    if interval != 1:
+    if units_per_bin != 1:
         width_seconds, shift_seconds = multi_unit_time_bin_params(
-            stride, interval, utc_offset_minutes
+            stride, units_per_bin, utc_offset_minutes
         )
         # Drop sub-second precision, as the SQL does.
         start_seconds = (start_time - _EPOCH) // timedelta(seconds=1)

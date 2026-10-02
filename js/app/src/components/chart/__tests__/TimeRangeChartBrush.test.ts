@@ -37,7 +37,7 @@ describe("getBrushGestureTimeRange", () => {
           plotArea,
         },
         scale: "MINUTE",
-        interval: 5,
+        unitsPerBin: 5,
         utcOffsetMinutes: 0,
         clickMaxDragPx: 4,
       })

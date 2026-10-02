@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<243cb90a3511861d1883b2bfe864b1cf>>
+ * @generated SignedSource<<a40dc94e80659d0ad4a70b761d241422>>
  * @lightSyntaxTransform
  */
 
@@ -21,8 +21,8 @@ export type TimeRange = {
   start?: string | null;
 };
 export type TimeBinConfig = {
-  interval?: number;
   scale?: TimeBinScale;
+  unitsPerBin?: number;
   utcOffsetMinutes?: number;
 };
 export type projectEvaluatorsLoaderQuery$variables = {
