@@ -14,6 +14,10 @@ export type CommandContext = {
    * after the command is sent as a follow-up message once compaction finishes.
    */
   compactSession: (pendingText?: string) => void;
+  /** Start the ChatGPT (Codex) device-code sign-in. */
+  login: () => void;
+  /** Sign out of ChatGPT (Codex), after confirmation. */
+  logout: () => void;
   exit: () => void;
 };
 
@@ -34,6 +38,16 @@ export const SLASH_COMMANDS: PxiCommand[] = [
     name: "compact",
     description: "Compact older conversation context",
     handler: (args, ctx) => ctx.compactSession(args || undefined),
+  },
+  {
+    name: "login",
+    description: "Sign in with a ChatGPT (Codex) subscription",
+    handler: (_args, ctx) => ctx.login(),
+  },
+  {
+    name: "logout",
+    description: "Sign out of ChatGPT (Codex)",
+    handler: (_args, ctx) => ctx.logout(),
   },
   {
     name: "model",

@@ -2,6 +2,7 @@ import type { EventEmitter } from "node:events";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
+import { openBrowser } from "../oauth";
 import {
   createPxiChatClient,
   createPxiSessionClient,
@@ -10,6 +11,21 @@ import {
   isSessionMessagesStaleError,
   isSessionModelStaleError,
 } from "./client";
+import {
+  clearCodexAuth,
+  type CodexAuthFile,
+  type CodexBrowserAuthorization,
+  type CodexDeviceAuthorization,
+  completeCodexBrowserAuthorization,
+  ensureFreshCodexAuth,
+  listCodexModels,
+  loadCodexAuth,
+  readCodexEmail,
+  saveCodexAuth,
+  startCodexBrowserAuthorization,
+  startCodexDeviceAuthorization,
+  waitForCodexDeviceAuthorization,
+} from "./codexAuth";
 import {
   getSlashCommandName,
   matchingCommands,
@@ -74,7 +90,39 @@ type ModelPickerState = {
   query: string;
   selectedIndex: number;
   error: string | null;
+  /** Whether the picker can offer ChatGPT (Codex) models. */
+  isCodexSignedIn: boolean;
 };
+/** How the user wants to complete the ChatGPT sign-in. */
+type CodexLoginMethod = "browser" | "device";
+const CODEX_LOGIN_METHODS: ReadonlyArray<{
+  method: CodexLoginMethod;
+  label: string;
+  description: string;
+}> = [
+  {
+    method: "browser",
+    label: "Sign in with browser",
+    description: "opens ChatGPT in your browser and returns here automatically",
+  },
+  {
+    method: "device",
+    label: "Sign in with device code",
+    description: "shows a code to enter at chatgpt.com from any device",
+  },
+];
+/** The `/login` panel: method choice, the sign-in in flight, or the summary. */
+type LoginPanelState =
+  | { status: "signed-in"; email: string | null }
+  | { status: "choose-method"; selectedIndex: number }
+  | { status: "starting"; method: CodexLoginMethod }
+  | {
+      status: "waiting-browser";
+      authorizationUrl: string;
+      browserOpened: boolean;
+    }
+  | { status: "waiting-device"; userCode: string; verificationUri: string }
+  | { status: "error"; error: string };
 type PxiMessagePart = PxiMessage["parts"][number];
 type DraftSegment = {
   text: string;
@@ -165,14 +213,62 @@ const COMPACT_DRAFT_SESSION_ERROR_TEXT =
   "There is no persisted conversation to compact.";
 const COMPACTION_DIVIDER_TEXT = "── Conversation compacted ──";
 
+/**
+ * The ChatGPT (Codex) sign-in operations the app drives. Defaults to the disk
+ * store and the Phoenix relay; tests substitute fakes.
+ */
+export type PxiCodexAuthClient = {
+  load: () => CodexAuthFile | null;
+  save: (auth: CodexAuthFile) => void;
+  clear: () => void;
+  /** The stored sign-in with a fresh access token, refreshed if needed. */
+  ensureFresh: () => Promise<CodexAuthFile | null>;
+  startBrowserAuthorization: () => Promise<CodexBrowserAuthorization>;
+  /** Listen for the browser redirect and exchange its code; null when cancelled. */
+  completeBrowserAuthorization: (options: {
+    authorization: CodexBrowserAuthorization;
+    signal: AbortSignal;
+  }) => Promise<CodexAuthFile | null>;
+  startDeviceAuthorization: () => Promise<CodexDeviceAuthorization>;
+  waitForDeviceAuthorization: (options: {
+    authorization: CodexDeviceAuthorization;
+    signal: AbortSignal;
+  }) => Promise<CodexAuthFile | null>;
+  listModels: (options: { accessToken: string }) => Promise<string[]>;
+  openBrowser: (url: string) => Promise<void>;
+};
+
+export function createPxiCodexAuthClient({
+  config,
+}: {
+  config: PxiRuntimeOptions["config"];
+}): PxiCodexAuthClient {
+  return {
+    load: () => loadCodexAuth(),
+    save: (auth) => saveCodexAuth({ auth }),
+    clear: () => clearCodexAuth(),
+    ensureFresh: () => ensureFreshCodexAuth({ config }),
+    startBrowserAuthorization: () => startCodexBrowserAuthorization({ config }),
+    completeBrowserAuthorization: ({ authorization, signal }) =>
+      completeCodexBrowserAuthorization({ config, authorization, signal }),
+    startDeviceAuthorization: () => startCodexDeviceAuthorization({ config }),
+    waitForDeviceAuthorization: ({ authorization, signal }) =>
+      waitForCodexDeviceAuthorization({ config, authorization, signal }),
+    listModels: ({ accessToken }) => listCodexModels({ config, accessToken }),
+    openBrowser,
+  };
+}
+
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
   client?: PxiChatClient;
   clientFactory?: (options: {
     options: PxiRuntimeOptions;
     agentSessionId: string;
+    getCodexAccessToken: () => Promise<string | null>;
   }) => PxiChatClient;
   modelLoader?: () => Promise<ModelSelection[]>;
+  codexAuthClient?: PxiCodexAuthClient;
   sessionClient?: PxiSessionClient;
   sessionModelResolver?: (model: ModelSelection) => Promise<ModelSelection>;
   initialMessages?: PxiMessage[];
@@ -231,7 +327,7 @@ function getModelLabel({
     return `custom:${modelSelection.providerId}/${modelSelection.modelName}`;
   }
   if (modelSelection.providerType === "codex") {
-    return `codex/${modelSelection.modelName}`;
+    return `CODEX/${modelSelection.modelName}`;
   }
   return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
@@ -705,6 +801,32 @@ function getFilteredModels({
   );
 }
 
+/**
+ * Splice the ChatGPT (Codex) models in after the last Anthropic model so the
+ * picker reads in provider order (ANTHROPIC, CODEX, then the rest) without
+ * disturbing the order of the recommended list itself.
+ */
+function insertCodexModels({
+  models,
+  codexModels,
+}: {
+  models: ModelSelection[];
+  codexModels: ModelSelection[];
+}): ModelSelection[] {
+  if (codexModels.length === 0) return models;
+  let insertAt = 0;
+  models.forEach((model, index) => {
+    if (model.providerType === "builtin" && model.provider === "ANTHROPIC") {
+      insertAt = index + 1;
+    }
+  });
+  return [
+    ...models.slice(0, insertAt),
+    ...codexModels,
+    ...models.slice(insertAt),
+  ];
+}
+
 /** Model-selection mode rendered in place of the normal composer. */
 function ModelPicker({ state }: { state: ModelPickerState }) {
   const filteredModels = getFilteredModels({
@@ -759,11 +881,122 @@ function ModelPicker({ state }: { state: ModelPickerState }) {
           </Text>
         );
       })}
+      {state.status === "ready" && !state.isCodexSignedIn ? (
+        <Text dimColor>
+          Sign in with /login to use ChatGPT (Codex) subscription models.
+        </Text>
+      ) : null}
       <Text dimColor>
         {state.status === "error"
           ? "esc close and retry"
           : "type to filter · ↑↓ navigate · enter select · esc cancel"}
       </Text>
+    </Box>
+  );
+}
+
+/**
+ * A URL as an OSC 8 terminal hyperlink. Long URLs wrap across several rows,
+ * which breaks cmd+click on the raw text; a hyperlink keeps the whole URL
+ * clickable in terminals that support it, and the text still shows in full.
+ */
+function Hyperlink({ url }: { url: string }) {
+  const OSC = "\u001B]8;;";
+  const BEL = "\u0007";
+  return (
+    <Text color="cyan">
+      {OSC}
+      {url}
+      {BEL}
+      {url}
+      {OSC}
+      {BEL}
+    </Text>
+  );
+}
+
+/** The `/login` panel rendered in place of the composer. */
+function LoginPanel({ state }: { state: LoginPanelState }) {
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="cyan"
+      paddingX={1}
+      marginTop={1}
+    >
+      <Text bold>Sign in with ChatGPT (Codex)</Text>
+      {state.status === "signed-in" ? (
+        <>
+          <Text>Signed in{state.email ? ` as ${state.email}` : ""}.</Text>
+          <Text dimColor>r re-authenticate · o sign out · esc close</Text>
+        </>
+      ) : state.status === "choose-method" ? (
+        <>
+          {CODEX_LOGIN_METHODS.map((option, index) => {
+            const isSelected = index === state.selectedIndex;
+            return (
+              <Text key={option.method} color={isSelected ? "cyan" : undefined}>
+                {isSelected ? "› " : "  "}
+                <Text bold={isSelected}>{option.label}</Text>
+                <Text dimColor> — {option.description}</Text>
+              </Text>
+            );
+          })}
+          <Text dimColor>↑↓ navigate · enter select · esc cancel</Text>
+        </>
+      ) : state.status === "starting" ? (
+        <StatusSpinnerLine
+          text={
+            state.method === "browser"
+              ? "Preparing the browser sign-in…"
+              : "Requesting a sign-in code…"
+          }
+        />
+      ) : state.status === "waiting-browser" ? (
+        <>
+          <Text>
+            {state.browserOpened
+              ? "A browser window should open. If it did not, open: "
+              : "Open this URL in a browser: "}
+          </Text>
+          <Hyperlink url={state.authorizationUrl} />
+          <StatusSpinnerLine text="Waiting for you to finish signing in…" />
+          <Text dimColor>esc cancel</Text>
+        </>
+      ) : state.status === "waiting-device" ? (
+        <>
+          <Text>
+            On any device, open <Hyperlink url={state.verificationUri} />
+          </Text>
+          <Text>
+            and enter the code <Text bold>{state.userCode}</Text>
+          </Text>
+          <StatusSpinnerLine text="Waiting for approval…" />
+          <Text dimColor>esc cancel</Text>
+        </>
+      ) : (
+        <>
+          <Text color="red">{state.error}</Text>
+          <Text dimColor>r retry · esc close</Text>
+        </>
+      )}
+    </Box>
+  );
+}
+
+/** The `/logout` confirmation rendered in place of the composer. */
+function LogoutConfirm({ email }: { email: string | null }) {
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="yellow"
+      paddingX={1}
+      marginTop={1}
+    >
+      <Text>Sign out of ChatGPT (Codex){email ? ` as ${email}` : ""}?</Text>
+      <Text dimColor>y sign out · n / esc keep</Text>
     </Box>
   );
 }
@@ -963,6 +1196,7 @@ export function PxiApp({
   client,
   clientFactory,
   modelLoader,
+  codexAuthClient,
   sessionClient,
   sessionModelResolver,
   initialMessages = [],
@@ -1012,6 +1246,31 @@ export function PxiApp({
   const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
     null
   );
+  const codexAuth = useMemo(
+    () =>
+      codexAuthClient ?? createPxiCodexAuthClient({ config: options.config }),
+    [codexAuthClient, options.config]
+  );
+  // The stored ChatGPT (Codex) sign-in, mirrored in state so the header and
+  // model picker react to /login and /logout.
+  const [codexSignIn, setCodexSignIn] = useState<CodexAuthFile | null>(() =>
+    codexAuth.load()
+  );
+  const [loginPanel, setLoginPanel] = useState<LoginPanelState | null>(null);
+  const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
+  // One-shot notice after /login or /logout; shown until the next send.
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const loginAbortRef = useRef<AbortController | null>(null);
+  const loginRequestIdRef = useRef(0);
+  /**
+   * A fresh ChatGPT access token for a Codex-subscription send, or null when
+   * signed out. Refreshes are written back to disk and mirrored in state.
+   */
+  const getCodexAccessToken = async (): Promise<string | null> => {
+    const fresh = await codexAuth.ensureFresh();
+    setCodexSignIn(fresh);
+    return fresh?.tokens.access_token ?? null;
+  };
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
   const modelRequestIdRef = useRef(0);
@@ -1302,25 +1561,44 @@ export function PxiApp({
     modelRequestIdRef.current = requestId;
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
     setError(null);
+    const isCodexSignedIn = codexSignIn !== null;
     setModelPicker({
       status: "loading",
       models: [],
       query: "",
       selectedIndex: 0,
       error: null,
+      isCodexSignedIn,
     });
     const loadModels =
       modelLoader ??
       (() => fetchRecommendedPxiModels({ config: options.config }));
-    void loadModels()
-      .then((models) => {
+    // Subscription models are appended after the recommended list; a failure
+    // to list them leaves the picker usable with the rest.
+    const loadCodexModels = async (): Promise<ModelSelection[]> => {
+      if (modelLoader || !isCodexSignedIn) return [];
+      const accessToken = await getCodexAccessToken();
+      if (!accessToken) return [];
+      try {
+        const modelNames = await codexAuth.listModels({ accessToken });
+        return modelNames.map((modelName) => ({
+          providerType: "codex",
+          modelName,
+        }));
+      } catch {
+        return [];
+      }
+    };
+    void Promise.all([loadModels(), loadCodexModels()])
+      .then(([models, codexModels]) => {
         if (modelRequestIdRef.current !== requestId) return;
         setModelPicker({
           status: "ready",
-          models,
+          models: insertCodexModels({ models, codexModels }),
           query: "",
           selectedIndex: 0,
           error: null,
+          isCodexSignedIn,
         });
       })
       .catch((modelError: unknown) => {
@@ -1334,8 +1612,131 @@ export function PxiApp({
             modelError instanceof Error
               ? modelError.message
               : String(modelError),
+          isCodexSignedIn,
         });
       });
+  };
+
+  const closeLoginPanel = () => {
+    loginAbortRef.current?.abort();
+    loginAbortRef.current = null;
+    loginRequestIdRef.current += 1;
+    setLoginPanel(null);
+  };
+
+  /** Persist a completed sign-in and announce it. */
+  const finishCodexLogin = (auth: CodexAuthFile) => {
+    codexAuth.save(auth);
+    setCodexSignIn(auth);
+    setLoginPanel(null);
+    const email = readCodexEmail(auth);
+    setAuthNotice(
+      `Signed in to ChatGPT (Codex)${email ? ` as ${email}` : ""}.`
+    );
+  };
+
+  /** Run the chosen grant through Phoenix and store the result. */
+  const startCodexLogin = (method: CodexLoginMethod) => {
+    loginAbortRef.current?.abort();
+    const abortController = new AbortController();
+    loginAbortRef.current = abortController;
+    const requestId = loginRequestIdRef.current + 1;
+    loginRequestIdRef.current = requestId;
+    const isCurrent = () => loginRequestIdRef.current === requestId;
+    setLoginPanel({ status: "starting", method });
+    void (async () => {
+      if (method === "browser") {
+        const authorization = await codexAuth.startBrowserAuthorization();
+        if (!isCurrent()) return;
+        // Listen before opening the browser so a fast redirect is not missed.
+        const completion = codexAuth.completeBrowserAuthorization({
+          authorization,
+          signal: abortController.signal,
+        });
+        const browserOpened = await codexAuth
+          .openBrowser(authorization.authorization_url)
+          .then(() => true)
+          .catch(() => false);
+        if (!isCurrent()) return;
+        setLoginPanel({
+          status: "waiting-browser",
+          authorizationUrl: authorization.authorization_url,
+          browserOpened,
+        });
+        const auth = await completion;
+        if (!isCurrent() || auth === null) return;
+        finishCodexLogin(auth);
+        return;
+      }
+      const authorization = await codexAuth.startDeviceAuthorization();
+      if (!isCurrent()) return;
+      setLoginPanel({
+        status: "waiting-device",
+        userCode: authorization.user_code,
+        verificationUri: authorization.verification_uri,
+      });
+      const auth = await codexAuth.waitForDeviceAuthorization({
+        authorization,
+        signal: abortController.signal,
+      });
+      if (!isCurrent() || auth === null) return;
+      finishCodexLogin(auth);
+    })().catch((loginError: unknown) => {
+      if (!isCurrent()) return;
+      setLoginPanel({
+        status: "error",
+        error:
+          loginError instanceof Error ? loginError.message : String(loginError),
+      });
+    });
+  };
+
+  const openLoginMethodPicker = () => {
+    loginAbortRef.current?.abort();
+    loginAbortRef.current = null;
+    loginRequestIdRef.current += 1;
+    setLoginPanel({ status: "choose-method", selectedIndex: 0 });
+  };
+
+  const login = () => {
+    sessionRequestIdRef.current += 1;
+    setSessionPicker(null);
+    modelRequestIdRef.current += 1;
+    setModelPicker(null);
+    setIsConfirmingLogout(false);
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    setError(null);
+    setAuthNotice(null);
+    if (codexSignIn) {
+      setLoginPanel({
+        status: "signed-in",
+        email: readCodexEmail(codexSignIn),
+      });
+      return;
+    }
+    openLoginMethodPicker();
+  };
+
+  const logout = () => {
+    closeLoginPanel();
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    setError(null);
+    if (!codexSignIn) {
+      setAuthNotice("Not signed in to ChatGPT (Codex).");
+      return;
+    }
+    setIsConfirmingLogout(true);
+  };
+
+  const confirmLogout = () => {
+    codexAuth.clear();
+    setCodexSignIn(null);
+    setIsConfirmingLogout(false);
+    setAuthNotice(
+      activeModelSelection.providerType === "codex"
+        ? "Signed out of ChatGPT (Codex). The session model needs a sign-in: use /login or /model."
+        : "Signed out of ChatGPT (Codex)."
+    );
   };
 
   const selectModel = () => {
@@ -1486,11 +1887,18 @@ export function PxiApp({
     const baseMessages = messages;
     setError(null);
     setIsCompacting(true);
-    void serverSessionClient
-      .compactSession({
-        sessionId: compactionSessionId,
-        model: activeModelSelection,
-      })
+    void (
+      activeModelSelection.providerType === "codex"
+        ? getCodexAccessToken()
+        : Promise.resolve(null)
+    )
+      .then((codexAccessToken) =>
+        serverSessionClient.compactSession({
+          sessionId: compactionSessionId,
+          model: activeModelSelection,
+          codexAccessToken,
+        })
+      )
       .then((result) => {
         if (sessionRequestIdRef.current !== requestId) return;
         const checkpoint = result.compactionMessage;
@@ -1569,6 +1977,8 @@ export function PxiApp({
         openModelPicker,
         openSessionPicker,
         compactSession,
+        login,
+        logout,
         exit: handleExit,
       });
       if (result.type === "help") {
@@ -1624,6 +2034,7 @@ export function PxiApp({
     setShowStaleRefreshNotice(false);
     setShowModelStaleNotice(false);
     setCompactionNotice(null);
+    setAuthNotice(null);
     setModelValidationWarning(null);
     setStatus("streaming");
     setMessages(nextMessages);
@@ -1644,12 +2055,14 @@ export function PxiApp({
           resolvedClient = createClient({
             options: activeOptions,
             agentSessionId: session.id,
+            getCodexAccessToken,
           });
         }
       } else if (!resolvedClient && activeSession) {
         resolvedClient = createClient({
           options: activeOptions,
           agentSessionId: activeSession.id,
+          getCodexAccessToken,
         });
       }
       if (!resolvedClient) {
@@ -1773,6 +2186,7 @@ export function PxiApp({
       return;
     }
     if (isBackspaceInput({ input })) {
+      if (loginPanel || isConfirmingLogout) return;
       if (modelPicker) {
         setModelPicker((current) =>
           current
@@ -1801,7 +2215,8 @@ export function PxiApp({
       return;
     }
     if (isForwardDeleteInput({ input })) {
-      if (modelPicker || sessionPicker) return;
+      if (modelPicker || sessionPicker || loginPanel || isConfirmingLogout)
+        return;
       setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
     }
   };
@@ -1822,6 +2237,50 @@ export function PxiApp({
   useInput((input, key) => {
     if ((key.ctrl && input === "c") || (key.ctrl && input === "d")) {
       handleExit();
+      return;
+    }
+    if (loginPanel) {
+      if (key.escape) {
+        closeLoginPanel();
+        return;
+      }
+      if (
+        (loginPanel.status === "signed-in" || loginPanel.status === "error") &&
+        input === "r"
+      ) {
+        openLoginMethodPicker();
+        return;
+      }
+      if (loginPanel.status === "choose-method") {
+        const lastIndex = CODEX_LOGIN_METHODS.length - 1;
+        if (key.upArrow) {
+          setLoginPanel({
+            status: "choose-method",
+            selectedIndex: Math.max(0, loginPanel.selectedIndex - 1),
+          });
+        } else if (key.downArrow) {
+          setLoginPanel({
+            status: "choose-method",
+            selectedIndex: Math.min(lastIndex, loginPanel.selectedIndex + 1),
+          });
+        } else if (key.return) {
+          const choice = CODEX_LOGIN_METHODS[loginPanel.selectedIndex];
+          if (choice) startCodexLogin(choice.method);
+        }
+        return;
+      }
+      if (loginPanel.status === "signed-in" && input === "o") {
+        closeLoginPanel();
+        setIsConfirmingLogout(true);
+      }
+      return;
+    }
+    if (isConfirmingLogout) {
+      if (input === "y") {
+        confirmLogout();
+      } else if (key.escape || input === "n") {
+        setIsConfirmingLogout(false);
+      }
       return;
     }
     if (modelPicker) {
@@ -2054,6 +2513,7 @@ export function PxiApp({
   // web app's: compaction result, then model moved elsewhere, then transcript
   // refreshed, then the persisted-model validation warning.
   const noticeText =
+    authNotice ??
     compactionNotice ??
     (showModelStaleNotice
       ? getSessionModelStaleStatusText({
@@ -2074,6 +2534,9 @@ export function PxiApp({
           : isDraftTemporary
             ? "new temporary session"
             : "new session"}
+        {codexSignIn
+          ? ` | chatgpt: ${readCodexEmail(codexSignIn) ?? "signed in"}`
+          : ""}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Transcript
@@ -2100,7 +2563,13 @@ export function PxiApp({
       ) : noticeText ? (
         <Text color="yellow">{noticeText}</Text>
       ) : null}
-      {modelPicker ? (
+      {loginPanel ? (
+        <LoginPanel state={loginPanel} />
+      ) : isConfirmingLogout ? (
+        <LogoutConfirm
+          email={codexSignIn ? readCodexEmail(codexSignIn) : null}
+        />
+      ) : modelPicker ? (
         <ModelPicker state={modelPicker} />
       ) : sessionPicker ? (
         <SessionPicker state={sessionPicker} />

@@ -19,6 +19,12 @@ describe("SLASH_COMMANDS", () => {
     expect(names).toContain("exit");
     expect(names).toContain("help");
   });
+
+  it("includes the ChatGPT (Codex) sign-in commands", () => {
+    const names = SLASH_COMMANDS.map((c) => c.name);
+    expect(names).toContain("login");
+    expect(names).toContain("logout");
+  });
 });
 
 describe("runSlashCommand", () => {
@@ -28,6 +34,8 @@ describe("runSlashCommand", () => {
       openModelPicker: vi.fn(),
       openSessionPicker: vi.fn(),
       compactSession: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
       exit: vi.fn(),
     };
   }
@@ -55,6 +63,18 @@ describe("runSlashCommand", () => {
     const context = createContext();
     runSlashCommand("/sessions", context);
     expect(context.openSessionPicker).toHaveBeenCalledOnce();
+  });
+
+  it("starts the sign-in for /login", () => {
+    const context = createContext();
+    runSlashCommand("/login", context);
+    expect(context.login).toHaveBeenCalledOnce();
+  });
+
+  it("starts the sign-out for /logout", () => {
+    const context = createContext();
+    runSlashCommand("/logout", context);
+    expect(context.logout).toHaveBeenCalledOnce();
   });
 
   it("opens the model picker for /model", () => {

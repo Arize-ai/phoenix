@@ -397,7 +397,7 @@ function withTimeout<T>({
   });
 }
 
-async function openBrowser(url: string): Promise<void> {
+export async function openBrowser(url: string): Promise<void> {
   const platform = process.platform;
   const command =
     platform === "darwin" ? "open" : platform === "win32" ? "cmd" : "xdg-open";

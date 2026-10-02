@@ -2363,6 +2363,7 @@ describe("PXI /compact command", () => {
         provider: "OPENAI",
         modelName: "gpt-5.4",
       },
+      codexAccessToken: null,
     });
     const frame = stripAnsi(lastFrame() ?? "");
     expect(frame).toContain("Conversation compacted");
