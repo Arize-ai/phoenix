@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00b3c94851cd55a8195f039a4537c078>>
+ * @generated SignedSource<<f9b08033ef5e65c0ddba2112e77e9225>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 export type EvaluatorTaskEditorQuery$variables = Record<PropertyKey, never>;
 export type EvaluatorTaskEditorQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
