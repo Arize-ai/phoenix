@@ -5,6 +5,7 @@ import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPa
 import { isEvaluatorSlotName } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
+import type { ProjectEvaluatorRunStatus } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import {
   EVALUATOR_RECORD_KINDS,
   getEvaluatorMetadataEntryNames,
@@ -261,19 +262,21 @@ export function formatSamplingRate(samplingRate: number): string {
 }
 
 export type ProjectEvaluatorRunSummary = {
-  status: string;
+  status: ProjectEvaluatorRunStatus;
   lastRunAt: string | null;
   queuedCount: number;
   evaluatedCount: number;
   failedCount: number;
+  droppedCount: number;
+  oldestQueuedAt?: string | null;
 };
 
 export type ProjectEvaluatorStatus = {
   label: string;
   color: string;
   variant: BadgeVariant;
-  /** Why the evaluator is in this state, shown on hover and on the details page. */
-  explanation: string;
+  /** Why the evaluator is in this state, for states whose label doesn't say. */
+  explanation: string | null;
 };
 
 /** `Badge` takes the variant; `Token` takes the color. One choice, two spellings. */
@@ -285,47 +288,51 @@ const STATUS_COLOR_BY_VARIANT: Record<BadgeVariant, string> = {
   default: "var(--global-color-gray-300)",
 };
 
-/** The one status a row reports: disabled, or read from its most recent runs. */
+const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
+  ProjectEvaluatorRunStatus,
+  Omit<ProjectEvaluatorStatus, "color">
+> = {
+  DISABLED: {
+    label: "Disabled",
+    variant: "default",
+    explanation: null,
+  },
+  ERROR: {
+    label: "Error",
+    variant: "danger",
+    explanation: "Last evaluation failed",
+  },
+  DEGRADED: {
+    label: "Degraded",
+    variant: "warning",
+    explanation:
+      "Evaluations are waiting more than 10 minutes, or the queue is full",
+  },
+  RUNNING: {
+    label: "Running",
+    variant: "success",
+    explanation: null,
+  },
+  QUEUED: {
+    label: "Queued",
+    variant: "info",
+    explanation: null,
+  },
+  NEVER_RUN: {
+    label: "Never ran",
+    variant: "default",
+    explanation: null,
+  },
+};
+
+/** The one status a row reports, as the server derives it. */
 export function getProjectEvaluatorStatus({
-  enabled,
   runSummary,
 }: {
-  enabled: boolean;
   // Narrowed so status cells can render without fetching run counts.
   runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
-  const status = !enabled
-    ? {
-        label: "Disabled",
-        variant: "default" as const,
-        explanation: "Turned off. No new evaluations are scheduled.",
-      }
-    : runSummary.status === "ERROR"
-      ? {
-          label: "Error",
-          variant: "danger" as const,
-          explanation:
-            "The most recent evaluation run failed and will not be retried.",
-        }
-      : runSummary.status === "RUNNING"
-        ? {
-            label: "Running",
-            variant: "success" as const,
-            explanation:
-              "Evaluation runs are completing and writing annotations.",
-          }
-        : runSummary.status === "QUEUED"
-          ? {
-              label: "Queued",
-              variant: "info" as const,
-              explanation: "Evaluations are waiting to run.",
-            }
-          : {
-              label: "Never ran",
-              variant: "default" as const,
-              explanation:
-                "No evaluations have been scheduled for this evaluator yet.",
-            };
+  const status = PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS[runSummary.status];
   return { ...status, color: STATUS_COLOR_BY_VARIANT[status.variant] };
 }
 
@@ -337,6 +344,33 @@ export function formatLastRun(lastRunAt: string | null): string {
 
 const countFormatter = new Intl.NumberFormat();
 
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+/** A duration in its largest whole unit: "<1m", "12m", "3h", "2d". */
+export function formatDurationShort(milliseconds: number): string {
+  const duration = Math.max(0, milliseconds);
+  if (duration >= DAY_MS) {
+    return `${Math.floor(duration / DAY_MS)}d`;
+  }
+  if (duration >= HOUR_MS) {
+    return `${Math.floor(duration / HOUR_MS)}h`;
+  }
+  if (duration >= MINUTE_MS) {
+    return `${Math.floor(duration / MINUTE_MS)}m`;
+  }
+  return "<1m";
+}
+
+/** Time elapsed since `since`, in its largest whole unit. */
+export function formatElapsedShort(
+  since: string,
+  now: number = Date.now()
+): string {
+  return formatDurationShort(now - new Date(since).getTime());
+}
+
 /** "118 evaluated · 2 failed · 3 queued", dropping the parts that are zero. */
 export function formatProjectEvaluatorRunCounts(
   runSummary: ProjectEvaluatorRunSummary
@@ -345,6 +379,7 @@ export function formatProjectEvaluatorRunCounts(
     [
       [runSummary.evaluatedCount, "evaluated"],
       [runSummary.failedCount, "failed"],
+      [runSummary.droppedCount, "cleared"],
       [runSummary.queuedCount, "queued"],
     ] as const
   )

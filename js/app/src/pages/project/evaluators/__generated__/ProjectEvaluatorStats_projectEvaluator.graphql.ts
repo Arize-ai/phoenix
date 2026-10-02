@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b08b5fc5b255f27f5a9812a53336b404>>
+ * @generated SignedSource<<2e3c2f5aa9bb85d566d6d206dcd18b10>>
  * @lightSyntaxTransform
  */
 
@@ -9,29 +9,26 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;
-  readonly enabled: boolean;
-  readonly evaluationTarget: EvaluationTarget;
-  readonly evaluator: {
-    readonly kind: EvaluatorKind;
+  readonly evaluationLoad: {
+    readonly evaluationsPerMinute: number;
+    readonly meanEvaluationSeconds: number | null;
+    readonly shareOfEvaluationTime: number | null;
   };
+  readonly evaluationTarget: EvaluationTarget;
+  readonly id: string;
   readonly project: {
     readonly id: string;
   };
   readonly runSummary: {
-    readonly evaluatedCount: number;
-    readonly failedCount: number;
     readonly lastError: string | null;
     readonly lastRunAt: string | null;
+    readonly oldestQueuedAt: string | null;
     readonly queuedCount: number;
     readonly status: ProjectEvaluatorRunStatus;
-  };
-  readonly traceProject: {
-    readonly id: string;
   };
   readonly " $fragmentSpreads": FragmentRefs<"useProjectEvaluatorResultAnnotationsFragment">;
   readonly " $fragmentType": "ProjectEvaluatorStats_projectEvaluator";
@@ -42,33 +39,25 @@ export type ProjectEvaluatorStats_projectEvaluator$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  }
-];
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "ProjectEvaluatorStats_projectEvaluator",
   "selections": [
+    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
       "name": "createdAt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "enabled",
       "storageKey": null
     },
     {
@@ -85,17 +74,9 @@ return {
       "kind": "LinkedField",
       "name": "project",
       "plural": false,
-      "selections": (v0/*:: as any*/),
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "Project",
-      "kind": "LinkedField",
-      "name": "traceProject",
-      "plural": false,
-      "selections": (v0/*:: as any*/),
+      "selections": [
+        (v0/*:: as any*/)
+      ],
       "storageKey": null
     },
     {
@@ -131,14 +112,7 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "evaluatedCount",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "failedCount",
+          "name": "oldestQueuedAt",
           "storageKey": null
         },
         {
@@ -154,16 +128,30 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": null,
+      "concreteType": "ProjectEvaluatorEvaluationLoad",
       "kind": "LinkedField",
-      "name": "evaluator",
+      "name": "evaluationLoad",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "kind",
+          "name": "evaluationsPerMinute",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "meanEvaluationSeconds",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "shareOfEvaluationTime",
           "storageKey": null
         }
       ],
@@ -180,6 +168,6 @@ return {
 };
 })();
 
-(node as any).hash = "266154b507c93306ef8e1b25af1a0e16";
+(node as any).hash = "2ff43f0c43e91cc5a31f41510a917e37";
 
 export default node;

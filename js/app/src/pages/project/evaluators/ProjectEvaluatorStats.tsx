@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
+import { startOfMinute, subDays } from "date-fns";
+import { Suspense, useState } from "react";
 import { Focusable } from "react-aria";
-import { useFragment } from "react-relay";
+import { useFragment, useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import {
@@ -23,16 +25,15 @@ import type {
   ProjectEvaluatorStats_projectEvaluator$data,
   ProjectEvaluatorStats_projectEvaluator$key,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorStats_projectEvaluator.graphql";
-import {
-  EvaluatorCostMetricPanel,
-  EvaluatorResultAnnotationMetricPanel,
-  EvaluatorRunsMetricPanel,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorMetricPanels";
+import type { ProjectEvaluatorStatsDailyRatesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorStatsDailyRatesQuery.graphql";
+import { ProjectEvaluatorLoad } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
+import { EvaluatorResultAnnotationMetricPanel } from "@phoenix/pages/project/evaluators/projectEvaluatorMetricPanels";
 import {
   StatField,
   StatFieldList,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorStatFields";
 import {
+  formatElapsedShort,
   formatLastRun,
   getAnnotationLevel,
   getProjectEvaluatorStatus,
@@ -45,9 +46,9 @@ const stripCSS = css`
 `;
 
 /**
- * The stats strip at the top of the evaluator overview: the evaluator's metric
- * panels over the page's selected time range, its lifetime activity, and the
- * last run error as a banner above.
+ * The stats strip at the top of the evaluator overview: the evaluator's results
+ * over the page's selected time range, its activity, and the last run error as
+ * a banner above. Run volume, latency and cost are on the Metrics tab.
  */
 export function ProjectEvaluatorStats({
   projectEvaluatorRef,
@@ -63,25 +64,23 @@ export function ProjectEvaluatorStats({
   const projectEvaluator = useFragment(
     graphql`
       fragment ProjectEvaluatorStats_projectEvaluator on ProjectEvaluator {
+        id
         createdAt
-        enabled
         evaluationTarget
         project {
-          id
-        }
-        traceProject {
           id
         }
         runSummary {
           status
           lastRunAt
           queuedCount
-          evaluatedCount
-          failedCount
+          oldestQueuedAt
           lastError
         }
-        evaluator {
-          kind
+        evaluationLoad {
+          evaluationsPerMinute
+          meanEvaluationSeconds
+          shareOfEvaluationTime
         }
         ...useProjectEvaluatorResultAnnotationsFragment
       }
@@ -107,22 +106,6 @@ export function ProjectEvaluatorStats({
         {...panelProps}
       />
     )),
-    <EvaluatorRunsMetricPanel
-      key="evaluations"
-      traceProjectId={projectEvaluator.traceProject.id}
-      {...panelProps}
-    />,
-    // Code evaluators make no LLM calls; a cost panel would always read $0.
-    ...(projectEvaluator.evaluator.kind === "LLM"
-      ? [
-          <EvaluatorCostMetricPanel
-            key="cost"
-            traceProjectId={projectEvaluator.traceProject.id}
-            title="Cost"
-            {...panelProps}
-          />,
-        ]
-      : []),
     <ProjectEvaluatorActivityPanel
       key="activity"
       projectEvaluator={projectEvaluator}
@@ -145,32 +128,40 @@ export function ProjectEvaluatorStats({
   );
 }
 
-/** The evaluator's status and lifetime run totals, tiled like the metric panels. */
+/** The evaluator's status, queue, load and daily rates, tiled like the metric panels. */
 function ProjectEvaluatorActivityPanel({
   projectEvaluator,
 }: {
   projectEvaluator: ProjectEvaluatorStats_projectEvaluator$data;
 }) {
-  const { enabled, runSummary } = projectEvaluator;
-  const status = getProjectEvaluatorStatus({ enabled, runSummary });
+  const { runSummary } = projectEvaluator;
+  const status = getProjectEvaluatorStatus({ runSummary });
   const { shortDateFormatter, fullTimeFormatter } = useTimeFormatters();
+  // Held here, outside the suspending rates, so their retries reuse one range and query.
+  const [dailyRateTimeRange] = useState(() => {
+    const end = startOfMinute(new Date());
+    return {
+      start: subDays(end, DAILY_RATE_DAYS).toISOString(),
+      end: end.toISOString(),
+    };
+  });
   return (
-    <ChartPanel
-      title="Activity"
-      subtitle="Run recency and lifetime totals"
-      fillHeight
-    >
+    <ChartPanel title="Activity" subtitle="Status, queue, and load" fillHeight>
       <StatFieldList>
         <StatField label="status">
-          <TooltipTrigger delay={0}>
-            <Focusable>
-              <Badge variant={status.variant}>{status.label}</Badge>
-            </Focusable>
-            <Tooltip>
-              <TooltipArrow />
-              <Text size="XS">{status.explanation}</Text>
-            </Tooltip>
-          </TooltipTrigger>
+          {status.explanation ? (
+            <TooltipTrigger delay={0}>
+              <Focusable>
+                <Badge variant={status.variant}>{status.label}</Badge>
+              </Focusable>
+              <Tooltip>
+                <TooltipArrow />
+                <Text size="XS">{status.explanation}</Text>
+              </Tooltip>
+            </TooltipTrigger>
+          ) : (
+            <Badge variant={status.variant}>{status.label}</Badge>
+          )}
         </StatField>
         <StatField label="last run">
           {runSummary.lastRunAt == null ? (
@@ -189,19 +180,29 @@ function ProjectEvaluatorActivityPanel({
           )}
         </StatField>
         <StatField label="queued">
-          <Text size="S">{intFormatter(runSummary.queuedCount)}</Text>
-        </StatField>
-        <StatField label="evaluated">
-          <Text size="S">{intFormatter(runSummary.evaluatedCount)}</Text>
-        </StatField>
-        <StatField label="failed">
-          <Text
-            size="S"
-            color={runSummary.failedCount > 0 ? "danger" : undefined}
-          >
-            {intFormatter(runSummary.failedCount)}
+          <Text size="S">
+            {intFormatter(runSummary.queuedCount)}
+            {runSummary.oldestQueuedAt != null
+              ? ` · ${formatElapsedShort(runSummary.oldestQueuedAt)} waiting`
+              : ""}
           </Text>
         </StatField>
+        <StatField label="load">
+          <ProjectEvaluatorLoad
+            evaluationLoad={projectEvaluator.evaluationLoad}
+            size="S"
+          />
+        </StatField>
+        <Suspense
+          fallback={
+            <ProjectEvaluatorDailyRateField evaluated={null} failed={null} />
+          }
+        >
+          <ProjectEvaluatorDailyRates
+            projectEvaluatorId={projectEvaluator.id}
+            timeRange={dailyRateTimeRange}
+          />
+        </Suspense>
         <StatField label="created">
           <Text size="S">
             <time dateTime={projectEvaluator.createdAt}>
@@ -211,5 +212,69 @@ function ProjectEvaluatorActivityPanel({
         </StatField>
       </StatFieldList>
     </ChartPanel>
+  );
+}
+
+const DAILY_RATE_DAYS = 7;
+
+const dailyRateFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 1,
+});
+
+/** Evaluations completed and given up on per day, averaged over the last week. */
+function ProjectEvaluatorDailyRates({
+  projectEvaluatorId,
+  timeRange,
+}: {
+  projectEvaluatorId: string;
+  timeRange: { start: string; end: string };
+}) {
+  const data = useLazyLoadQuery<ProjectEvaluatorStatsDailyRatesQuery>(
+    graphql`
+      query ProjectEvaluatorStatsDailyRatesQuery(
+        $projectEvaluatorId: ID!
+        $timeRange: TimeRange!
+      ) {
+        projectEvaluator: node(id: $projectEvaluatorId) {
+          ... on ProjectEvaluator {
+            failureSummary(timeRange: $timeRange) {
+              evaluatedCount
+              failedCount
+            }
+          }
+        }
+      }
+    `,
+    { projectEvaluatorId, timeRange }
+  );
+  const summary = data.projectEvaluator?.failureSummary;
+  return (
+    <ProjectEvaluatorDailyRateField
+      evaluated={(summary?.evaluatedCount ?? 0) / DAILY_RATE_DAYS}
+      failed={(summary?.failedCount ?? 0) / DAILY_RATE_DAYS}
+    />
+  );
+}
+
+function ProjectEvaluatorDailyRateField({
+  evaluated,
+  failed,
+}: {
+  evaluated: number | null;
+  failed: number | null;
+}) {
+  return (
+    <StatField label={`per day (${DAILY_RATE_DAYS}d)`}>
+      {evaluated == null || failed == null ? (
+        <Text size="S">--</Text>
+      ) : (
+        <Text size="S">
+          {`${dailyRateFormatter.format(evaluated)} evaluated · `}
+          <Text size="S" color={failed > 0 ? "danger" : undefined}>
+            {`${dailyRateFormatter.format(failed)} failed`}
+          </Text>
+        </Text>
+      )}
+    </StatField>
   );
 }

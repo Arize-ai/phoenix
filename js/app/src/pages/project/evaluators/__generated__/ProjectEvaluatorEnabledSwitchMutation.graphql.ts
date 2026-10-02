@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb5be3317d58d3985d75d58c0484a044>>
+ * @generated SignedSource<<daad469549f9c69434684cf7a4c4070b>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
 export type SetProjectEvaluatorEnabledInput = {
   enabled: boolean;
   projectEvaluatorId: string;
@@ -20,6 +21,12 @@ export type ProjectEvaluatorEnabledSwitchMutation$data = {
     readonly evaluator: {
       readonly enabled: boolean;
       readonly id: string;
+      readonly runSummary: {
+        readonly droppedCount: number;
+        readonly oldestQueuedAt: string | null;
+        readonly queuedCount: number;
+        readonly status: ProjectEvaluatorRunStatus;
+      };
     };
   };
 };
@@ -72,6 +79,45 @@ v1 = [
             "kind": "ScalarField",
             "name": "enabled",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "ProjectEvaluatorRunSummary",
+            "kind": "LinkedField",
+            "name": "runSummary",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "status",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "queuedCount",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "droppedCount",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "oldestQueuedAt",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -98,16 +144,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "eda7eb3c87442902fbec6b033ad5f131",
+    "cacheID": "1b3a911c3a403e9918f53d15d7e702d4",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectEvaluatorEnabledSwitchMutation(\n  $input: SetProjectEvaluatorEnabledInput!\n) {\n  setProjectEvaluatorEnabled(input: $input) {\n    evaluator {\n      id\n      enabled\n    }\n  }\n}\n"
+    "text": "mutation ProjectEvaluatorEnabledSwitchMutation(\n  $input: SetProjectEvaluatorEnabledInput!\n) {\n  setProjectEvaluatorEnabled(input: $input) {\n    evaluator {\n      id\n      enabled\n      runSummary {\n        status\n        queuedCount\n        droppedCount\n        oldestQueuedAt\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "73ce82e589024920957e8533f692f30a";
+(node as any).hash = "90ec866f78a8d9447a9b3c59796b1f9a";
 
 export default node;
