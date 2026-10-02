@@ -19,24 +19,16 @@ CREATE TABLE annotation_configs (
 );
 
 
--- Table: eval_work_cursors
+-- Table: eval_span_cursors
 -- ------------------------
-CREATE TABLE eval_work_cursors (
-    id INTEGER NOT NULL,
-    evaluation_target VARCHAR NOT NULL
-        CONSTRAINT "ck_eval_work_cursors_`valid_evaluation_target`"
-        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
-    consumer_group VARCHAR NOT NULL,
+CREATE TABLE eval_span_cursors (
+    id INTEGER NOT NULL CONSTRAINT "ck_eval_span_cursors_`single_row`" CHECK (id = 1),
     produced_through_id INTEGER DEFAULT '0' NOT NULL,
     observed_high_water_id INTEGER,
     observed_at TIMESTAMP,
-    claimed_at TIMESTAMP,
-    claimed_by VARCHAR,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_eval_work_cursors PRIMARY KEY (id),
-    CONSTRAINT uq_eval_work_cursors_evaluation_target_consumer_group
-        UNIQUE (evaluation_target, consumer_group)
+    CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id)
 );
 
 
