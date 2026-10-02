@@ -3,16 +3,12 @@ import { Focusable } from "react-aria";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
-import { Text, TooltipTrigger } from "@phoenix/components";
-import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
+import { TooltipTrigger } from "@phoenix/components";
 import { SpanPreviewTooltip } from "@phoenix/components/trace/SpanPreviewTooltip";
+import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "@phoenix/components/trace/TokenDetailsBreakdown";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 
-import {
-  annotationConfigsByName,
-  spanAnnotationsBySpanId,
-  summarizeSpanAnnotations,
-} from "../../constants/annotationFixtures";
+import { annotationConfigsByName } from "../../constants/annotationFixtures";
 import { buildSpan } from "../../constants/spanFixtures";
 
 const llmSpan = buildSpan({
@@ -25,213 +21,77 @@ const llmSpan = buildSpan({
   costSummary: { total: { cost: 1.49 } },
 });
 
-const toolSpan = buildSpan({
-  id: "tool-call",
-  name: "Bash",
-  spanKind: "tool",
-  startOffsetMs: 3217,
-  latencyMs: 6767,
-});
+const llmSpanDetails = {
+  __typename: "Span",
+  id: llmSpan.id,
+  tokenCountTotal: 144604,
+  tokenCountPrompt: 144293,
+  tokenCountCompletion: 311,
+  costSummary: {
+    total: { cost: 1.49 },
+    prompt: { cost: 1.47 },
+    completion: { cost: 0.02 },
+  },
+  costDetailSummaryEntries: [
+    {
+      tokenType: "input",
+      isPrompt: true,
+      value: { tokens: 2, cost: 0.000006 },
+    },
+    {
+      tokenType: "cache_read",
+      isPrompt: true,
+      value: { tokens: 26830, cost: 0.008 },
+    },
+    {
+      tokenType: "cache_write",
+      isPrompt: true,
+      value: { tokens: 117461, cost: 1.462 },
+    },
+    {
+      tokenType: "output",
+      isPrompt: false,
+      value: { tokens: 311, cost: 0.02 },
+    },
+  ],
+};
 
-const decisionSpan = buildSpan({
-  id: "decision-call",
-  name: "route_request",
-  spanKind: "decision",
-  startOffsetMs: 180,
-  latencyMs: 42,
-});
-
-const openSpan = buildSpan({
-  id: "open-span",
-  name: "agent-loop",
-  spanKind: "agent",
-  startOffsetMs: 0,
-  latencyMs: null,
-});
-
-const errorSpan = buildSpan({
-  id: "error-span",
-  name: "retrieve",
-  spanKind: "retriever",
-  startOffsetMs: 220,
-  latencyMs: 640,
-  statusCode: "ERROR",
-});
-
-const longNameSpan = buildSpan({
-  id: "long-name",
-  name: "a-very-long-span-name-that-keeps-going-until-the-card-has-to-truncate-it",
-  spanKind: "chain",
-  startOffsetMs: 7000,
-  latencyMs: 4900,
-});
-
-const unpricedSpan = buildSpan({
-  id: "unpriced",
-  name: "local-model (no pricing)",
-  spanKind: "llm",
-  startOffsetMs: 500,
-  latencyMs: 2200,
-  tokenCountTotal: 812,
-});
-
-/** The draft answer from the RAG trace after its evals ran. */
-const annotatedSpan = buildSpan({
-  id: "llm-draft",
-  name: "gpt-5.5 · draft",
-  spanKind: "llm",
-  startOffsetMs: 2215,
-  latencyMs: 2980,
-  tokenCountTotal: 4821,
-  costSummary: { total: { cost: 0.0212 } },
-  spanAnnotationSummaries: summarizeSpanAnnotations(
-    spanAnnotationsBySpanId["llm-draft"] ?? []
-  ),
-});
-
-/**
- * The breakdown the tooltip loads for the LLM span: a prompt/completion
- * split with cache reads and writes, priced. The unpriced span answers with
- * tokens alone; every other span has no breakdown.
- */
-function buildSpanDetails(nodeId: string) {
-  const base = {
-    __typename: "Span",
-    id: nodeId,
-  };
-  if (nodeId === annotatedSpan.id) {
-    return {
-      ...base,
-      tokenCountTotal: 4821,
-      tokenCountPrompt: 3471,
-      tokenCountCompletion: 1350,
-      costSummary: {
-        total: { cost: 0.0212 },
-        prompt: { cost: 0.0087 },
-        completion: { cost: 0.0125 },
-      },
-      costDetailSummaryEntries: [
-        {
-          tokenType: "input",
-          isPrompt: true,
-          value: { tokens: 3471, cost: 0.0087 },
-        },
-        {
-          tokenType: "output",
-          isPrompt: false,
-          value: { tokens: 1350, cost: 0.0125 },
-        },
-      ],
-    };
-  }
-  if (nodeId === llmSpan.id) {
-    return {
-      ...base,
-      tokenCountTotal: 144604,
-      tokenCountPrompt: 144293,
-      tokenCountCompletion: 311,
-      costSummary: {
-        total: { cost: 1.49 },
-        prompt: { cost: 1.47 },
-        completion: { cost: 0.02 },
-      },
-      costDetailSummaryEntries: [
-        {
-          tokenType: "input",
-          isPrompt: true,
-          value: { tokens: 2, cost: 0.000006 },
-        },
-        {
-          tokenType: "cache_read",
-          isPrompt: true,
-          value: { tokens: 26830, cost: 0.008 },
-        },
-        {
-          tokenType: "cache_write",
-          isPrompt: true,
-          value: { tokens: 117461, cost: 1.462 },
-        },
-        {
-          tokenType: "output",
-          isPrompt: false,
-          value: { tokens: 311, cost: 0.02 },
-        },
-      ],
-    };
-  }
-  if (nodeId === unpricedSpan.id) {
-    return {
-      ...base,
-      tokenCountTotal: 812,
-      tokenCountPrompt: 600,
-      tokenCountCompletion: 212,
-      costSummary: null,
-      costDetailSummaryEntries: [
-        {
-          tokenType: "input",
-          isPrompt: true,
-          value: { tokens: 600, cost: null },
-        },
-        {
-          tokenType: "output",
-          isPrompt: false,
-          value: { tokens: 212, cost: null },
-        },
-      ],
-    };
-  }
-  return {
-    ...base,
-    tokenCountTotal: null,
-    tokenCountPrompt: null,
-    tokenCountCompletion: null,
-    costSummary: null,
-    costDetailSummaryEntries: [],
-  };
+function createRelayEnvironment(delayMs: number | null) {
+  return new Environment({
+    network: Network.create(async () => {
+      if (delayMs === null) {
+        return new Promise(() => {});
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return { data: { node: llmSpanDetails } };
+    }),
+    store: new Store(new RecordSource()),
+  });
 }
 
-/** Answers the details query from the fixtures after a short, visible delay. */
-const mockRelayEnvironment = new Environment({
-  network: Network.create(async (_request, variables) => {
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    return { data: { node: buildSpanDetails(String(variables.nodeId)) } };
-  }),
-  store: new Store(new RecordSource()),
-});
-
-/** Never answers, so the tooltip keeps showing the skeleton it opened with. */
-const pendingRelayEnvironment = new Environment({
-  network: Network.create(() => new Promise(() => {})),
-  store: new Store(new RecordSource()),
-});
+/**
+ * The height reserved for the open tooltip, which is portaled and takes no
+ * layout space itself.
+ */
+const PREVIEW_HEIGHT = 400;
 
 /**
- * A stand-in for a trace tree row, with the tooltip held open beside it as
- * it is in the tree. The row sits to the right so the tooltip has room, and
- * like a tree row its box starts well left of its icon: the tooltip anchors
- * to the box's edge, which every row shares, not to the icon.
+ * The preview held open against an empty anchor at the right of its frame,
+ * where it opens to the left as it does beside a tree row.
  */
 function OpenPreview({ span }: { span: ISpanItem }) {
   return (
-    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH + 48,
+        height: PREVIEW_HEIGHT,
+      }}
+    >
       <TooltipTrigger isOpen>
         <Focusable>
-          <div
-            role="button"
-            tabIndex={0}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              width: 360,
-              padding: "8px 8px 8px 48px",
-              border: "1px solid var(--global-border-color-default)",
-              borderRadius: "var(--global-rounding-small)",
-            }}
-          >
-            <SpanKindIcon spanKind={span.spanKind} />
-            <Text>{span.name}</Text>
-          </div>
+          <span tabIndex={-1} style={{ display: "block", height: 32 }} />
         </Focusable>
         <SpanPreviewTooltip
           span={span}
@@ -243,70 +103,48 @@ function OpenPreview({ span }: { span: ISpanItem }) {
 }
 
 /**
- * The connected tooltip each trace tree row opens: a `Span Preview Card`
- * that loads its token and cost breakdown once it has settled. A canned
- * Relay environment answers after a short delay; no requests leave the
- * story.
+ * The tooltip each trace tree row opens: a `Span Preview Card` that loads
+ * the span's token and cost breakdown once the tooltip has settled, with the
+ * row's totals and annotations shown at once. A span with no usage has
+ * nothing to load. `Span Preview Card` shows every shape of the content.
+ *
+ * React Aria positions a tooltip against the viewport and offers no other
+ * boundary, so each story renders in a frame of its own on this page.
+ *
+ * Not yet covered: the error fallback shown when the details fail to load.
  */
 const meta: Meta<typeof SpanPreviewTooltip> = {
   title: "Domains/Tracing/Span Preview Tooltip",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: SpanPreviewTooltip,
-  decorators: [
-    (Story) => (
-      <RelayEnvironmentProvider environment={mockRelayEnvironment}>
-        <Story />
-      </RelayEnvironmentProvider>
-    ),
-  ],
   parameters: {
-    width: 800,
+    layout: "centered",
+    themeLayout: "column",
     controls: { disable: true },
+    // One frame holds both themes, stacked.
+    docs: { story: { inline: false, height: `${PREVIEW_HEIGHT * 2 + 96}px` } },
   },
 };
 
 export default meta;
 type Story = StoryObj<typeof SpanPreviewTooltip>;
 
-/** An LLM span: timing, then the token and cost breakdown once loaded. */
-export const LLMSpan: Story = {
+const delayedRelayEnvironment = createRelayEnvironment(600);
+
+/** The breakdown loads after a short delay; no requests leave the story. */
+export const Default: Story = {
+  tags: ["!dev"],
+  decorators: [
+    (Story) => (
+      <RelayEnvironmentProvider environment={delayedRelayEnvironment}>
+        <Story />
+      </RelayEnvironmentProvider>
+    ),
+  ],
   render: () => <OpenPreview span={llmSpan} />,
 };
 
-/** An evaluated span; its annotations show at once, from the tree row. */
-export const WithAnnotations: Story = {
-  render: () => <OpenPreview span={annotatedSpan} />,
-};
-
-/** A local model: tokens are counted but nothing is priced. */
-export const TokensWithoutCost: Story = {
-  render: () => <OpenPreview span={unpricedSpan} />,
-};
-
-/** A tool span has no usage, so timing is the whole tooltip. */
-export const ToolSpan: Story = {
-  render: () => <OpenPreview span={toolSpan} />,
-};
-
-/** A decision span: a model choosing among candidates, timing only. */
-export const DecisionSpan: Story = {
-  render: () => <OpenPreview span={decisionSpan} />,
-};
-
-/** A span that has not ended yet has no end time and no latency. */
-export const OpenSpan: Story = {
-  render: () => <OpenPreview span={openSpan} />,
-};
-
-/** An error span carries its status beside the name. */
-export const ErrorSpan: Story = {
-  render: () => <OpenPreview span={errorSpan} />,
-};
-
-/** A long name truncates rather than widening the tooltip. */
-export const LongName: Story = {
-  render: () => <OpenPreview span={longNameSpan} />,
-};
+const pendingRelayEnvironment = createRelayEnvironment(null);
 
 /**
  * While the breakdown is in flight a skeleton of it holds its place, with
@@ -315,6 +153,8 @@ export const LongName: Story = {
  * never completes.
  */
 export const DetailsPending: Story = {
+  name: "Details Pending",
+  tags: ["!dev"],
   decorators: [
     (Story) => (
       <RelayEnvironmentProvider environment={pendingRelayEnvironment}>
@@ -325,21 +165,11 @@ export const DetailsPending: Story = {
   render: () => <OpenPreview span={llmSpan} />,
 };
 
-/**
- * Answers the details query at once, so the thumbnail photographs the loaded
- * breakdown rather than the skeleton the delayed environment shows first.
- */
-const immediateRelayEnvironment = new Environment({
-  network: Network.create(async (_request, variables) => ({
-    data: { node: buildSpanDetails(String(variables.nodeId)) },
-  })),
-  store: new Store(new RecordSource()),
-});
+const immediateRelayEnvironment = createRelayEnvironment(0);
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: Story = {
   tags: ["!dev", "!autodocs"],
-  // The row and the tooltip beside it are wider than the frame at 1:1.
   parameters: { thumbnail: { scale: 0.4 } },
   decorators: [
     (Story) => (
