@@ -28,6 +28,7 @@ from secrets import token_hex
 from typing import Optional
 
 from sqlalchemy import Select, delete, exists, func, select, text, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
@@ -377,11 +378,7 @@ class OnlineEvalProducer(DaemonTask):
         truncated = False
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
-                span_ids = list(
-                    await session.scalars(
-                        project_evaluator.materializable_scan_stmt(low_exclusive, frontier)
-                    )
-                )
+                span_ids = await self._scan(session, project_evaluator, low_exclusive, frontier)
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
                 await self._insert_work_units(session, project_evaluator, admitted_span_ids)
@@ -491,8 +488,7 @@ class OnlineEvalProducer(DaemonTask):
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
-                stmt = project_evaluator.materializable_scan_stmt(low_exclusive, watermark)
-                span_ids = list(await session.scalars(stmt))
+                span_ids = await self._scan(session, project_evaluator, low_exclusive, watermark)
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
                 await self._insert_work_units(session, project_evaluator, admitted_span_ids)
@@ -509,6 +505,30 @@ class OnlineEvalProducer(DaemonTask):
                 await session.rollback()
                 logger.warning("Online-eval producer backstop rolled back: the cursor moved")
         return budget
+
+    async def _scan(
+        self,
+        session: AsyncSession,
+        project_evaluator: _ActiveProjectEvaluator,
+        low_exclusive: int,
+        high_inclusive: int,
+    ) -> list[int]:
+        """Span ids in the window that still need work for this evaluator; none when its
+        filter fails when run, so one broken filter does not hold the cursor for the rest."""
+        try:
+            async with session.begin_nested():
+                return list(
+                    await session.scalars(
+                        project_evaluator.materializable_scan_stmt(low_exclusive, high_inclusive)
+                    )
+                )
+        except (DBAPIError, OverflowError) as error:
+            logger.warning(
+                f"Skipping project evaluator {project_evaluator.project_evaluator_id} for span "
+                f"ids {low_exclusive + 1} to {high_inclusive}: its filter condition failed when "
+                f"run: {error.orig if isinstance(error, DBAPIError) else error}"
+            )
+            return []
 
     async def _cursor_is_at(self, session: AsyncSession, position: int) -> bool:
         """Whether the cursor still holds the position a scan was taken against.
