@@ -28,6 +28,7 @@ members = [
     "arize-phoenix-client",
     "arize-phoenix-evals",
     "arize-phoenix-otel",
+    "harbor-verifiers",
 ]
 overrides = [
     { name = "openai", specifier = ">=3.1.0,<4" },
@@ -588,6 +589,7 @@ dev = [
     { name = "grpc-interceptor", extra = ["testing"] },
     { name = "grpcio" },
     { name = "grpcio-tools" },
+    { name = "harbor-verifiers" },
     { name = "httpx" },
     { name = "httpx2" },
     { name = "jinja2" },
@@ -787,6 +789,7 @@ dev = [
     { name = "grpc-interceptor", extras = ["testing"] },
     { name = "grpcio" },
     { name = "grpcio-tools", specifier = ">=1.78.0" },
+    { name = "harbor-verifiers", editable = "evals/harbor/verifiers" },
     { name = "httpx" },
     { name = "httpx2" },
     { name = "jinja2", specifier = ">=3.1.6" },
@@ -2826,6 +2829,29 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/2a/3a/b05d0e8752d5d531e56fbb2955f0e656c0a9b5fbcd202dbad7313b29d4df/harbor-0.23.0.tar.gz", hash = "sha256:a8b87e98db59877228bb36d2c24757cc422a3144ffaf31a1f88955c65c911e4d", size = 1907464, upload-time = "2026-09-12T04:55:11.919Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/19/c7/607ff037dff1f40d1f941b9854742d66fd43630274fd4e7b8de8480dad34/harbor-0.23.0-py3-none-any.whl", hash = "sha256:8747400dbb2a5e2298e1338e17e88eba38433c0433fd700f34d1a9021bba5c37", size = 2142100, upload-time = "2026-09-12T04:55:10.014Z" },
+]
+
+[[package]]
+name = "harbor-verifiers"
+version = "0.0.0"
+source = { editable = "evals/harbor/verifiers" }
+dependencies = [
+    { name = "arize-phoenix" },
+    { name = "arize-phoenix-client" },
+    { name = "arize-phoenix-evals" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "strawberry-graphql" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "arize-phoenix", editable = "." },
+    { name = "arize-phoenix-client", editable = "packages/phoenix-client" },
+    { name = "arize-phoenix-evals", editable = "packages/phoenix-evals" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "strawberry-graphql" },
 ]
 
 [[package]]

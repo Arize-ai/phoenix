@@ -1,2 +1,2 @@
 #!/bin/bash
-PYTHONPATH=/opt/verifier:/tests exec python /tests/check.py
+exec python /tests/check.py
