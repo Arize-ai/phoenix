@@ -352,3 +352,110 @@ async def test_expected_outputs_are_computed_only_when_requested(
             read_expected.assert_not_called()
             assert to_gql_expected_outputs(revision.metadata)[0].label == "good"
             read_expected.assert_called_once_with(stored.metadata_)
+
+
+_EXAMPLE_EXPECTED_OUTPUTS_QUERY = """
+  query ($datasetId: ID!, $datasetVersionId: ID, $splitIds: [ID!]) {
+    node(id: $datasetId) {
+      ... on Dataset {
+        exampleExpectedOutputs(datasetVersionId: $datasetVersionId, splitIds: $splitIds) {
+          exampleId
+          expectedOutputs { annotationName label score }
+        }
+      }
+    }
+  }
+"""
+
+
+class TestDatasetExampleExpectedOutputs:
+    async def _query(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: int,
+        **variables: Any,
+    ) -> list[dict[str, Any]]:
+        response = await gql_client.execute(
+            _EXAMPLE_EXPECTED_OUTPUTS_QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id))), **variables},
+        )
+        assert response.data and not response.errors
+        return list(response.data["node"]["exampleExpectedOutputs"])
+
+    async def test_lists_every_example_with_an_expected_output(
+        self,
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, (first, second) = expected_outputs_dataset
+        assert await self._query(gql_client, dataset_id) == []
+        async with db() as session:
+            seed_version_id = await session.scalar(
+                select(func.min(models.DatasetVersion.id)).where(
+                    models.DatasetVersion.dataset_id == dataset_id
+                )
+            )
+            split = models.DatasetSplit(name="holdout", color="#000000", metadata_={})
+            session.add(split)
+            await session.flush()
+            session.add(
+                models.DatasetSplitDatasetExample(
+                    dataset_split_id=split.id, dataset_example_id=second[0]
+                )
+            )
+        response = await gql_client.execute(
+            _MUTATION,
+            variables=_input(
+                dataset_id,
+                _label(first, annotationName="quality", label="good"),
+                _label(second, annotationName="refusal", label=None, score=0.5),
+            ),
+        )
+        assert response.data and not response.errors
+
+        assert await self._query(gql_client, dataset_id) == [
+            {
+                "exampleId": str(GlobalID("DatasetExample", str(first[0]))),
+                "expectedOutputs": [{"annotationName": "quality", "label": "good", "score": None}],
+            },
+            {
+                "exampleId": str(GlobalID("DatasetExample", str(second[0]))),
+                "expectedOutputs": [{"annotationName": "refusal", "label": None, "score": 0.5}],
+            },
+        ]
+        # The version before the write had none.
+        assert (
+            await self._query(
+                gql_client,
+                dataset_id,
+                datasetVersionId=str(GlobalID("DatasetVersion", str(seed_version_id))),
+            )
+            == []
+        )
+        in_split = await self._query(
+            gql_client,
+            dataset_id,
+            splitIds=[str(GlobalID("DatasetSplit", str(split.id)))],
+        )
+        assert [item["exampleId"] for item in in_split] == [
+            str(GlobalID("DatasetExample", str(second[0])))
+        ]
+
+        async with db() as session:
+            version = models.DatasetVersion(dataset_id=dataset_id, metadata_={})
+            session.add(version)
+            await session.flush()
+            session.add(
+                models.DatasetExampleRevision(
+                    dataset_example_id=second[0],
+                    dataset_version_id=version.id,
+                    input={},
+                    output={},
+                    metadata_={},
+                    revision_kind="DELETE",
+                )
+            )
+        assert [item["exampleId"] for item in await self._query(gql_client, dataset_id)] == [
+            str(GlobalID("DatasetExample", str(first[0])))
+        ]

@@ -22,6 +22,7 @@ import {
   graphql,
   useLazyLoadQuery,
   usePaginationFragment,
+  useRefetchableFragment,
   useRelayEnvironment,
 } from "react-relay";
 import { useSearchParams } from "react-router";
@@ -56,7 +57,6 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
-import type { ExecutionState } from "@phoenix/components/core/types";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   type AnnotationError,
@@ -66,13 +66,11 @@ import {
   CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
-  type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
   ExperimentMetadataCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
-import type { AnnotationSummary } from "@phoenix/components/experiment/ExperimentAnnotationAggregates";
 import { CellTop, EditableJSONCell } from "@phoenix/components/table";
 import {
   borderedTableCSS,
@@ -114,6 +112,8 @@ import {
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
+import type { PlaygroundDatasetExamplesTableExpectedOutputsFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsFragment.graphql";
+import type { PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery.graphql";
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import type { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import type { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
@@ -172,6 +172,7 @@ import {
 import { usePlaygroundDatasetExamplesTablePreferences } from "./PlaygroundDatasetExamplesTablePreferences";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundExampleRowCell } from "./PlaygroundExampleRowCell";
+import { PlaygroundInstanceRunAggregates } from "./PlaygroundInstanceRunAggregates";
 import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
@@ -739,21 +740,6 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-function getExecutionState({
-  hasData,
-  isRunning,
-  experimentId,
-}: {
-  hasData: boolean;
-  isRunning: boolean;
-  experimentId: string | null | undefined;
-}): ExecutionState {
-  if (hasData) return "complete";
-  if (isRunning) return "running";
-  if (experimentId != null) return "complete";
-  return "idle";
-}
-
 function PlaygroundInstanceOutputColumnHeader({
   instanceId,
   index,
@@ -767,79 +753,14 @@ function PlaygroundInstanceOutputColumnHeader({
   isRunning: boolean;
   evaluatorOutputConfigs: readonly AnnotationConfig[];
 }) {
-  const annotationAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.runAnnotationAggregateMetrics[instanceId] ?? null
-  );
-  const costAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.runCostAggregateMetrics[instanceId] ?? null
-  );
-  const annotationSummaries = useMemo<AnnotationSummary[]>(() => {
-    if (annotationAggregateMetrics == null) {
-      return [];
-    }
-    return Object.entries(annotationAggregateMetrics).map(
-      ([annotationName, metric]) => ({
-        annotationName,
-        meanScore: metric.count > 0 ? metric.sum / metric.count : null,
-      })
-    );
-  }, [annotationAggregateMetrics]);
-  const costSummary =
-    useMemo<ExperimentCostAndLatencySummaryExperiment | null>(() => {
-      const resolvedExperimentId = experimentId ?? null;
-      if (
-        resolvedExperimentId == null ||
-        costAggregateMetrics == null ||
-        costAggregateMetrics.runCount === 0
-      ) {
-        return null;
-      }
-      return {
-        id: resolvedExperimentId,
-        averageRunLatencyMs:
-          costAggregateMetrics.latencyCount > 0
-            ? costAggregateMetrics.latencySum /
-              costAggregateMetrics.latencyCount
-            : null,
-        runCount: costAggregateMetrics.runCount,
-        costSummary: {
-          total: {
-            cost:
-              costAggregateMetrics.costCount > 0
-                ? costAggregateMetrics.costSum
-                : null,
-            tokens:
-              costAggregateMetrics.tokenCountCount > 0
-                ? costAggregateMetrics.tokenCountSum
-                : null,
-          },
-        },
-      };
-    }, [experimentId, costAggregateMetrics]);
-
-  const costExecutionState = getExecutionState({
-    hasData: costSummary != null,
-    isRunning,
-    experimentId,
-  });
-
-  const annotationExecutionState = getExecutionState({
-    hasData: annotationSummaries.length > 0,
-    isRunning,
-    experimentId,
-  });
-
   return (
     <Flex direction="column" gap="size-50" width="100%">
       <PlaygroundOutputHeader instanceId={instanceId} index={index} />
-      <ExperimentCostAndLatencySummary
-        executionState={costExecutionState}
-        experiment={costSummary}
-      />
-      <ExperimentAnnotationAggregates
-        executionState={annotationExecutionState}
+      <PlaygroundInstanceRunAggregates
+        instanceId={instanceId}
+        experimentId={experimentId}
+        isRunning={isRunning}
         annotationConfigs={evaluatorOutputConfigs}
-        annotationSummaries={annotationSummaries}
       />
     </Flex>
   );
@@ -1068,6 +989,8 @@ export function PlaygroundDatasetExamplesTable({
       ) {
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
+            @arguments(splitIds: $splitIds)
+          ...PlaygroundDatasetExamplesTableExpectedOutputsFragment
             @arguments(splitIds: $splitIds)
           ... on Dataset {
             exampleCount(splitIds: $splitIds)
@@ -1422,6 +1345,33 @@ export function PlaygroundDatasetExamplesTable({
       dataset
     );
 
+  // Every example's expected outputs and the example count, read apart from
+  // the paginated rows so the evaluator headers count the whole dataset.
+  const [expectedOutputsData, refetchExpectedOutputs] = useRefetchableFragment<
+    PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery,
+    PlaygroundDatasetExamplesTableExpectedOutputsFragment$key
+  >(
+    graphql`
+      fragment PlaygroundDatasetExamplesTableExpectedOutputsFragment on Dataset
+      @refetchable(
+        queryName: "PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery"
+      )
+      @argumentDefinitions(splitIds: { type: "[ID!]" }) {
+        exampleCount(splitIds: $splitIds)
+        exampleExpectedOutputs(splitIds: $splitIds) {
+          exampleId
+          expectedOutputs {
+            annotationName
+            label
+            score
+            explanation
+          }
+        }
+      }
+    `,
+    dataset
+  );
+
   type TableRow = PlaygroundExampleTableRow;
 
   // The examples as saved. While they are being edited the table shows a
@@ -1536,7 +1486,8 @@ export function PlaygroundDatasetExamplesTable({
 
   const reloadExamples = useCallback(() => {
     refetch({}, { fetchPolicy: "network-only" });
-  }, [refetch]);
+    refetchExpectedOutputs({}, { fetchPolicy: "network-only" });
+  }, [refetch, refetchExpectedOutputs]);
 
   // After a save: the rows are re-read from the new version, then the edit
   // session ends, so the pending edits never flicker away before their saved
@@ -1544,6 +1495,7 @@ export function PlaygroundDatasetExamplesTable({
   const finishEditingWithReload = useCallback(
     () =>
       new Promise<void>((resolve, reject) => {
+        refetchExpectedOutputs({}, { fetchPolicy: "network-only" });
         refetch(
           {},
           {
@@ -1552,7 +1504,7 @@ export function PlaygroundDatasetExamplesTable({
           }
         );
       }).then(() => editStore.getState().finishSaving()),
-    [refetch, editStore]
+    [refetch, refetchExpectedOutputs, editStore]
   );
 
   const exampleIds = useMemo(() => {
@@ -1612,8 +1564,12 @@ export function PlaygroundDatasetExamplesTable({
               index={index}
               name={evaluatorName}
               annotationName={annotation.name}
+              annotationConfig={annotation.config}
               output={annotation.output}
-              examples={table.options.data}
+              experimentId={experimentId}
+              exampleCount={expectedOutputsData.exampleCount}
+              storedExpectedOutputs={expectedOutputsData.exampleExpectedOutputs}
+              loadedExamples={table.options.data}
               isRunning={isRunning}
               canRun={!hasSomeRunIds && !isEditingExamples}
               onRun={() => runPlaygroundInstances([instance.id])}
@@ -1676,6 +1632,7 @@ export function PlaygroundDatasetExamplesTable({
     templateVariablesPath,
     handleViewTracePress,
     evaluatorOutputConfigs,
+    expectedOutputsData,
   ]);
 
   const runningInstanceIds = useMemo(

@@ -6,6 +6,7 @@ import {
   getEvaluatorCellResult,
   getEvaluatorTaskAnnotation,
   getExpectedOutput,
+  mergeExpectedOutputExamples,
   summarizeExpectedAgreement,
 } from "../evaluatorCellResults";
 
@@ -60,6 +61,15 @@ describe("getEvaluatorTaskAnnotation", () => {
       })
     ).toEqual({
       name: "no_sql",
+      config: {
+        name: "no_sql",
+        annotationType: "CATEGORICAL",
+        optimizationDirection: "MAXIMIZE",
+        values: [
+          { label: "pass", score: 1 },
+          { label: "fail", score: 0 },
+        ],
+      },
       output: {
         name: "result",
         labels: ["pass", "fail"],
@@ -87,13 +97,85 @@ describe("getEvaluatorTaskAnnotation", () => {
     ).toBe("judge.result");
   });
 
+  it("keeps a numeric output's bounds and gives an unscored label a null score", () => {
+    expect(
+      getEvaluatorTaskAnnotation({
+        evaluator: {
+          name: "confidence",
+          outputConfigs: [
+            {
+              name: "confidence",
+              optimizationDirection: "MAXIMIZE",
+              lowerBound: 0,
+              upperBound: 0.5,
+            },
+          ],
+        },
+        position: 0,
+      }).config
+    ).toEqual({
+      name: "confidence",
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 0.5,
+    });
+    expect(
+      getEvaluatorTaskAnnotation({
+        evaluator: {
+          name: "tone",
+          outputConfigs: [
+            {
+              name: "tone",
+              optimizationDirection: "NONE",
+              values: [{ label: "friendly" }],
+            },
+          ],
+        },
+        position: 0,
+      }).config
+    ).toMatchObject({ values: [{ label: "friendly", score: null }] });
+  });
+
   it("names an unnamed draft by its column and has no output without a config", () => {
     expect(
       getEvaluatorTaskAnnotation({
         evaluator: { name: "  ", outputConfigs: [] },
         position: 2,
       })
-    ).toEqual({ name: "evaluator_3", output: undefined });
+    ).toEqual({ name: "evaluator_3", config: undefined, output: undefined });
+  });
+});
+
+describe("mergeExpectedOutputExamples", () => {
+  const good = {
+    annotationName: "quality",
+    label: "good",
+    score: null,
+    explanation: null,
+  };
+  const bad = { ...good, label: "bad" };
+
+  it("counts examples that are not loaded, and prefers a loaded row's revision", () => {
+    expect(
+      mergeExpectedOutputExamples({
+        stored: [
+          { exampleId: "loaded-cleared", expectedOutputs: [good] },
+          { exampleId: "loaded-changed", expectedOutputs: [good] },
+          { exampleId: "not-loaded", expectedOutputs: [good] },
+        ],
+        loaded: [
+          { id: "loaded-cleared", expectedOutputs: [] },
+          { id: "loaded-changed", expectedOutputs: [bad] },
+          { id: "loaded-new", expectedOutputs: [good] },
+        ],
+      })
+    ).toEqual([
+      { id: "loaded-cleared", expectedOutputs: [] },
+      { id: "loaded-changed", expectedOutputs: [bad] },
+      { id: "not-loaded", expectedOutputs: [good] },
+      { id: "loaded-new", expectedOutputs: [good] },
+    ]);
   });
 });
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<33610205b9705cc5b82407db9813ac99>>
+ * @generated SignedSource<<64008ce61cac5437fb4a5c141ee4431b>>
  * @lightSyntaxTransform
  */
 
@@ -23,7 +23,7 @@ export type PlaygroundDatasetExamplesTableQuery$data = {
         };
       }>;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"PlaygroundDatasetExamplesTableFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"PlaygroundDatasetExamplesTableExpectedOutputsFragment" | "PlaygroundDatasetExamplesTableFragment">;
   };
 };
 export type PlaygroundDatasetExamplesTableQuery = {
@@ -135,7 +135,46 @@ v8 = [
     "value": 20
   },
   (v2/*:: as any*/)
-];
+],
+v9 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DatasetExampleExpectedOutput",
+  "kind": "LinkedField",
+  "name": "expectedOutputs",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotationName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "score",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "explanation",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -155,6 +194,11 @@ return {
             "args": (v3/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "PlaygroundDatasetExamplesTableFragment"
+          },
+          {
+            "args": (v3/*:: as any*/),
+            "kind": "FragmentSpread",
+            "name": "PlaygroundDatasetExamplesTableExpectedOutputsFragment"
           },
           {
             "kind": "InlineFragment",
@@ -259,45 +303,7 @@ return {
                                 "name": "revisionId",
                                 "storageKey": null
                               },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "DatasetExampleExpectedOutput",
-                                "kind": "LinkedField",
-                                "name": "expectedOutputs",
-                                "plural": true,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "annotationName",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "label",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "score",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "explanation",
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              }
+                              (v9/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -368,6 +374,25 @@ return {
                 "name": "examples"
               },
               (v4/*:: as any*/),
+              {
+                "alias": null,
+                "args": (v3/*:: as any*/),
+                "concreteType": "DatasetExampleExpectedOutputs",
+                "kind": "LinkedField",
+                "name": "exampleExpectedOutputs",
+                "plural": true,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "exampleId",
+                    "storageKey": null
+                  },
+                  (v9/*:: as any*/)
+                ],
+                "storageKey": null
+              },
               (v6/*:: as any*/)
             ],
             "type": "Dataset",
@@ -379,16 +404,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "18e3e96e3acfd681c2b3ba77e6192d0f",
+    "cacheID": "e19ac9d2a6f0e565bd681976773739b7",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  exampleCount(splitIds: $splitIds)\n  exampleExpectedOutputs(splitIds: $splitIds) {\n    exampleId\n    expectedOutputs {\n      annotationName\n      label\n      score\n      explanation\n    }\n  }\n  id\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "44d9415e3e26d5a2f4e279aa9c6c4730";
+(node as any).hash = "dfc712c9bd67a66a18dfa149d2c2a35b";
 
 export default node;
