@@ -46,9 +46,12 @@ from phoenix.db.eval_work import (
     LIVE_EVAL_WORK_STATUSES,
     SESSION_DECLINED_STATUSES,
     live_eval_session_work_index_predicate,
+    live_eval_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     config_fingerprint,
@@ -81,9 +84,6 @@ _TRACE_SWEEP_LEASE_NAME = "trace-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _LOCK_TIMEOUT_MILLISECONDS = 500
 _LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, deadlock_detected
-# Only work terminated within this window feeds the watermark-lag gauge; the table has
-# no retention, so an unbounded aggregate would scan more rows on every tick forever.
-_WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
 _EntityModel = type[models.ProjectSession] | type[models.Trace]
 _WorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
@@ -968,9 +968,11 @@ class EvalSweeper(DaemonTask):
                 getattr(work_unit_model, target.work_unit_target_column) == entity_model.id,
             )
             .where(
+                # SQLite reads a partial index only when the query repeats its predicate.
+                text(terminal_eval_session_work_index_predicate()),
                 work_unit_model.status == "DONE",
                 work_unit_model.updated_at
-                >= database_now - timedelta(seconds=_WATERMARK_LAG_WINDOW_SECONDS),
+                >= database_now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),
                 entity_model.last_span_ingested_at.is_not(None),
             )
         )
@@ -983,7 +985,8 @@ class EvalSweeper(DaemonTask):
         outstanding = (
             select(1)
             .select_from(work_unit_model)
-            .where(work_unit_model.status.in_(LIVE_EVAL_WORK_STATUSES))
+            # SQLite reads a partial index only when the query repeats its predicate.
+            .where(text(live_eval_work_index_predicate()))
             .limit(self._max_outstanding)
             .subquery()
         )
