@@ -7,11 +7,13 @@ the defaults. The task's ``[verifier]`` table must allow the provider host.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from phoenix.evals import LLM, ClassificationEvaluator, Score
 
 JUDGE_PROVIDER = os.environ.get("PHOENIX_EVAL_JUDGE_PROVIDER", "openai")
 JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "gpt-5-nano")
+_API_KEYS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 
 _REFERENCE_TEMPLATE = """You are grading the final reply of an AI agent that was asked a question about data in an observability tool. You are given the reference answer.
 
@@ -41,3 +43,15 @@ def matches_reference(reply: str, reference: str, notes: str = "") -> Score:
         {"reply": reply or "(empty reply)", "reference": reference, "notes": guidance}
     )
     return scores[0]
+
+
+def judge(system: str, user: str, schema: dict[str, Any]) -> dict[str, Any] | None:
+    """A verdict matching ``schema``; ``None`` when the judge provider has no API key."""
+    key = _API_KEYS.get(JUDGE_PROVIDER)
+    if key and not os.environ.get(key):
+        return None
+    llm = LLM(provider=JUDGE_PROVIDER, model=JUDGE_MODEL)
+    verdict: dict[str, Any] = llm.generate_object(
+        [{"role": "system", "content": system}, {"role": "user", "content": user}], schema
+    )
+    return verdict

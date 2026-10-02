@@ -105,3 +105,32 @@ def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
         "extra": 0.5,
     }
     assert json.loads(reward_path.read_text()) == scores
+    assert not (tmp_path / "details.json").exists()
+
+
+def test_write_reward_keeps_non_numeric_components_out_of_the_reward(tmp_path: Path) -> None:
+    reward_path = tmp_path / "reward.json"
+    scores = verify.write_reward(
+        0.0,
+        {"count": 3},
+        trajectory_path=tmp_path / "none",
+        reward_path=reward_path,
+        linked=True,
+        judge={"verdict": "no"},
+    )
+    assert scores == {"reward": 0.0, "linked": 1.0}
+    assert json.loads((tmp_path / "details.json").read_text()) == {
+        "count": 3,
+        "judge": {"verdict": "no"},
+    }
+
+
+def test_started_at_ignores_copied_context() -> None:
+    steps = [
+        {"source": "user", "timestamp": "2026-09-16T00:10:00Z", "is_copied_context": True},
+        {"source": "agent", "timestamp": "2026-09-16T00:20:50.981841Z"},
+        {"source": "user", "timestamp": "2026-09-16T00:17:57Z"},
+    ]
+    started = verify.started_at({"steps": steps})
+    assert started is not None and started.isoformat() == "2026-09-16T00:17:57+00:00"
+    assert verify.started_at({"steps": [{"source": "user"}]}) is None
