@@ -3542,6 +3542,37 @@ def is_loopback_host(host: Optional[str]) -> bool:
     return address.is_loopback
 
 
+def is_unspecified_host(host: str) -> bool:
+    """Whether ``host`` is an unspecified address, such as 0.0.0.0 or ::."""
+    try:
+        return ipaddress.ip_address(host.strip().strip("[]")).is_unspecified
+    except ValueError:
+        return False
+
+
+def url_host(host: str) -> str:
+    """``host`` as the host part of a URL. An IPv6 literal is bracketed."""
+    candidate = host.strip().strip("[]")
+    try:
+        address = ipaddress.ip_address(candidate)
+    except ValueError:
+        return host.strip()
+    return f"[{candidate}]" if isinstance(address, ipaddress.IPv6Address) else candidate
+
+
+def local_url_host(host: str) -> str:
+    """
+    URL host that reaches, from the same machine, a server bound to ``host``.
+
+    An unspecified address maps to the loopback address of its family: 0.0.0.0 to
+    127.0.0.1 and :: to [::1]. Other hosts are returned by ``url_host``.
+    """
+    if is_unspecified_host(host):
+        unspecified = ipaddress.ip_address(host.strip().strip("[]"))
+        return "127.0.0.1" if isinstance(unspecified, ipaddress.IPv4Address) else "[::1]"
+    return url_host(host)
+
+
 def get_env_host_root_path() -> str:
     if not (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)):
         return HOST_ROOT_PATH
@@ -3855,18 +3886,14 @@ def get_env_root_url() -> URL:
                 f"The environment variable `{ENV_PHOENIX_ROOT_URL}` must be a valid URL."
             )
         return URL(root_url)
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
+    host = local_url_host(get_env_host())
     scheme = "https" if get_env_tls_enabled_for_http() else "http"
     return URL(urljoin(f"{scheme}://{host}:{get_env_port()}", get_env_host_root_path()))
 
 
 def get_base_url() -> str:
     """Deprecated: Use get_env_root_url() instead, but note the difference in behavior."""
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
+    host = local_url_host(get_env_host())
     scheme = "https" if get_env_tls_enabled_for_http() else "http"
     base_url = get_env_collector_endpoint() or f"{scheme}://{host}:{get_env_port()}"
     return base_url if base_url.endswith("/") else base_url + "/"

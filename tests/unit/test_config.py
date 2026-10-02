@@ -600,6 +600,24 @@ class TestGetEnvRootUrl:
             ),
             pytest.param(
                 {
+                    "PHOENIX_HOST": "::",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "",
+                },
+                URL("http://[::1]:6006"),
+                id="constructed_url_with_ipv6_unspecified_host",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_HOST": "fd00::5",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "",
+                },
+                URL("http://[fd00::5]:6006"),
+                id="constructed_url_with_ipv6_host",
+            ),
+            pytest.param(
+                {
                     "PHOENIX_HOST": "example.com",
                     "PHOENIX_PORT": "443",
                     "PHOENIX_HOST_ROOT_PATH": "/app",
@@ -1124,6 +1142,34 @@ class TestLoopbackBindRule:
     )
     def test_is_loopback_host(self, host: Optional[str], expected: bool) -> None:
         assert phoenix_config.is_loopback_host(host) is expected
+
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("0.0.0.0", "127.0.0.1", id="ipv4_unspecified"),
+            pytest.param("::", "[::1]", id="ipv6_unspecified"),
+            pytest.param("[::]", "[::1]", id="bracketed_ipv6_unspecified"),
+            pytest.param("::1", "[::1]", id="ipv6_loopback"),
+            pytest.param("[::1]", "[::1]", id="bracketed_ipv6_loopback"),
+            pytest.param("fd00::5", "[fd00::5]", id="ipv6_address"),
+            pytest.param("192.168.1.5", "192.168.1.5", id="ipv4_address"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_local_url_host(self, host: str, expected: str) -> None:
+        assert phoenix_config.local_url_host(host) == expected
+
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("::", "[::]", id="ipv6_unspecified"),
+            pytest.param("0.0.0.0", "0.0.0.0", id="ipv4_unspecified"),
+            pytest.param("fd00::5", "[fd00::5]", id="ipv6_address"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_url_host(self, host: str, expected: str) -> None:
+        assert phoenix_config.url_host(host) == expected
 
     def test_ipv4_mapped_loopback_is_loopback(self) -> None:
         assert phoenix_config.is_loopback_host("::ffff:127.0.0.1") is True
