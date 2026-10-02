@@ -881,8 +881,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+         * List spans
+         * @description Return spans within a project filtered by time range and filters. Supports cursor-based pagination.
          */
         get: operations["getSpans"];
         put?: never;
@@ -10606,6 +10606,8 @@ export interface operations {
                 status_code?: string[] | null;
                 /** @description Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:"12345"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value). */
                 attribute?: string[] | null;
+                /** @description Span filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -10623,6 +10625,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpansResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
