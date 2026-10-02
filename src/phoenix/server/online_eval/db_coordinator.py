@@ -20,6 +20,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from typing_extensions import assert_never
 
 from phoenix.db import models
+from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
@@ -30,7 +31,7 @@ from phoenix.server.online_eval.coordinator import (
     QueueLag,
     RetiredWorkStatus,
 )
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
+from phoenix.server.online_eval.derivation import annotation_identifier
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
