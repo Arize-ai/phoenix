@@ -16,6 +16,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
+from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.helpers import delete_traces
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
@@ -74,7 +75,6 @@ from phoenix.server.online_eval.coordinator import (
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
-    MAX_ATTEMPTS,
     annotation_identifier,
     config_fingerprint,
 )
