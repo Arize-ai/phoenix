@@ -1,0 +1,5 @@
+{
+  "reference": "What is the latest chronological year date written in the image on the webpage found when following the first citation reference link on the latest version of Carl Nebel's Wikipedia page as of August 2023?",
+  "notes": "A match identifies the question about the image reached from the first citation on Carl Nebel's Wikipedia page; paraphrases match. Any other question does not.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; that trace cost $1.085, next is $1.078"
+}
