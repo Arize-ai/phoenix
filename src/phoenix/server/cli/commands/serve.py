@@ -47,6 +47,9 @@ from phoenix.config import (
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
     get_pids_path,
+    is_unspecified_host,
+    local_url_host,
+    url_host,
 )
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import aio_sqlite_read_engine, create_engine, get_async_db_url
@@ -229,10 +232,11 @@ def run(args: Namespace) -> None:
         force_fixture_ingestion = args.force_fixture_ingestion
         scaffold_datasets = args.scaffold_datasets
 
-    host: Optional[str] = get_env_host()
+    host = get_env_host()
     auth_settings = get_env_auth_settings()
-    if host == "::":
-        host = None
+    # Bind every interface for ::. URLs keep using ``host``.
+    bind_host: Optional[str] = None if host == "::" else host
+    local_host = local_url_host(host)
 
     port = args.port or get_env_port()
     grpc_port = _resolve_grpc_port(args)
@@ -248,13 +252,13 @@ def run(args: Namespace) -> None:
         if not read_only:
             Thread(
                 target=send_dataset_fixtures,
-                args=(f"http://{host}:{port}", dataset_fixtures),
+                args=(f"http://{local_host}:{port}", dataset_fixtures),
             ).start()
 
     if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
-        start_prometheus(host)
+        start_prometheus(bind_host)
 
     read_replica_connection_str = get_env_read_replica_url()
     factory, shutdown_callbacks = _create_db_session_factory(
@@ -275,8 +279,8 @@ def run(args: Namespace) -> None:
 
     http_scheme = "https" if tls_enabled_for_http else "http"
     grpc_scheme = "https" if tls_enabled_for_grpc else "http"
-    display_host = "localhost" if host in ("0.0.0.0", "::") else host
-    root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
+    display_host = "localhost" if is_unspecified_host(host) else url_host(host)
+    root_path = urljoin(f"{http_scheme}://{local_host}:{port}", host_root_path)
     display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
     oauth2_client_configs = get_env_oauth2_settings()
     smtp_hostname = get_env_smtp_hostname()
@@ -362,7 +366,7 @@ def run(args: Namespace) -> None:
         serve_ui=not args.no_ui,
         read_only=read_only,
         grpc_port=grpc_port,
-        grpc_host=host,
+        grpc_host=bind_host,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_annotation_precursors=fixture_annotation_precursors,
@@ -377,7 +381,7 @@ def run(args: Namespace) -> None:
 
     server_config = Config(
         app=app,
-        host=host,  # type: ignore[arg-type]
+        host=bind_host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
         log_level=Settings.logging_level,
