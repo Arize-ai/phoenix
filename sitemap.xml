@@ -1285,6 +1285,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/vector-databases/qdrant</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/e2b</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
   </url>
@@ -1299,6 +1303,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/modal</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/docker</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab</loc>
