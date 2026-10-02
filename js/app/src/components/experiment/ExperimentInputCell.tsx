@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import {
   ExpandableContent,
@@ -43,6 +44,11 @@ export interface ExperimentInputCellProps {
    * Callback when the expand button is pressed
    */
   onExpand: () => void;
+  /**
+   * Further controls at the right of the cell's header strip, before the
+   * expand button
+   */
+  extra?: ReactNode;
 }
 
 /**
@@ -55,24 +61,28 @@ export function ExperimentInputCell({
   value,
   height,
   onExpand,
+  extra,
 }: ExperimentInputCellProps) {
   return (
     <Flex direction="column" height="100%">
       <CellTop
         extra={
-          <TooltipTrigger>
-            <IconButton
-              size="S"
-              aria-label="View example details"
-              onPress={onExpand}
-            >
-              <Icon svg={<Icons.Expand />} />
-            </IconButton>
-            <Tooltip>
-              <TooltipArrow />
-              view example
-            </Tooltip>
-          </TooltipTrigger>
+          <>
+            {extra}
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                aria-label="View example details"
+                onPress={onExpand}
+              >
+                <Icon svg={<Icons.Expand />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                view example
+              </Tooltip>
+            </TooltipTrigger>
+          </>
         }
       >
         <Flex direction="row" gap="size-100" alignItems="center">
