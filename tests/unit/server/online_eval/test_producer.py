@@ -565,10 +565,15 @@ async def test_materialization_budget_truncates_without_advancing(
     coordinator = DbEvalWorkCoordinator(db)
     admitted = await coordinator.claim(claimed_by="consumer", limit=3)
     assert len(admitted) == 3
+
+    async def _write_nothing(_: Any) -> None:
+        return None
+
     for unit in admitted:
-        assert await coordinator.complete(
+        await coordinator.publish(
             work_unit_id=unit.work_unit_id,
             claimed_by="consumer",
+            write=_write_nothing,
         )
 
     await producer._tick()
