@@ -56,13 +56,19 @@ const llmSpanDetails = {
   ],
 };
 
-function createRelayEnvironment(delayMs: number | null) {
+function createRelayEnvironment(
+  delayMs: number | null,
+  outcome: "data" | "error" = "data"
+) {
   return new Environment({
     network: Network.create(async () => {
       if (delayMs === null) {
         return new Promise(() => {});
       }
       await new Promise((resolve) => setTimeout(resolve, delayMs));
+      if (outcome === "error") {
+        throw new TypeError("Failed to fetch");
+      }
       return { data: { node: llmSpanDetails } };
     }),
     store: new Store(new RecordSource()),
@@ -79,14 +85,20 @@ const PREVIEW_HEIGHT = 400;
  * The preview held open against an empty anchor at the right of its frame,
  * where it opens to the left as it does beside a tree row.
  */
-function OpenPreview({ span }: { span: ISpanItem }) {
+function OpenPreview({
+  span,
+  height = PREVIEW_HEIGHT,
+}: {
+  span: ISpanItem;
+  height?: number;
+}) {
   return (
     <div
       style={{
         display: "flex",
         justifyContent: "flex-end",
         width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH + 48,
-        height: PREVIEW_HEIGHT,
+        height,
       }}
     >
       <TooltipTrigger isOpen>
@@ -110,12 +122,10 @@ function OpenPreview({ span }: { span: ISpanItem }) {
  *
  * React Aria positions a tooltip against the viewport and offers no other
  * boundary, so each story renders in a frame of its own on this page.
- *
- * Not yet covered: the error fallback shown when the details fail to load.
  */
 const meta: Meta<typeof SpanPreviewTooltip> = {
   title: "Domains/Tracing/Span Preview Tooltip",
-  tags: ["updated", "unreviewed", "incomplete"],
+  tags: ["updated", "complete", "unreviewed"],
   component: SpanPreviewTooltip,
   parameters: {
     layout: "centered",
@@ -163,6 +173,32 @@ export const DetailsPending: Story = {
     ),
   ],
   render: () => <OpenPreview span={llmSpan} />,
+};
+
+const failedRelayEnvironment = createRelayEnvironment(600, "error");
+
+const FAILED_PREVIEW_HEIGHT = 120;
+
+/**
+ * When the breakdown fails to load, the preview gives way to an `error`
+ * label. Hovering the label shows the request's error message.
+ */
+export const DetailsFailed: Story = {
+  name: "Details Failed",
+  tags: ["!dev"],
+  parameters: {
+    docs: {
+      story: { inline: false, height: `${FAILED_PREVIEW_HEIGHT * 2 + 96}px` },
+    },
+  },
+  decorators: [
+    (Story) => (
+      <RelayEnvironmentProvider environment={failedRelayEnvironment}>
+        <Story />
+      </RelayEnvironmentProvider>
+    ),
+  ],
+  render: () => <OpenPreview span={llmSpan} height={FAILED_PREVIEW_HEIGHT} />,
 };
 
 const immediateRelayEnvironment = createRelayEnvironment(0);

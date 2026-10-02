@@ -382,7 +382,7 @@ function TraceTreeFrame({
   height?: CSSProperties["height"];
 }) {
   const [selectedSpanNodeId, setSelectedSpanNodeId] = useState(
-    initialSelectedSpanId ?? spans[0].id
+    initialSelectedSpanId ?? spans[0]?.id ?? ""
   );
   return (
     <div style={{ ...frameStyle, width, height: height ?? frameStyle.height }}>
@@ -453,7 +453,9 @@ const breakpointWidths = [
  * breakpoints and the same "show metrics" preference.
  *
  * Not yet covered: the tree-wide collapse and the search filter that the
- * trace toolbar drives through `TraceTreeProvider`.
+ * trace toolbar drives through `TraceTreeProvider`, including the message
+ * shown when no span matches; a single row collapsed by its own toggle; and
+ * the hover and focus fills of rows and their collapse toggles.
  */
 const meta: Meta<typeof TraceTree> = {
   title: "Domains/Tracing/Trace Tree",
@@ -488,6 +490,7 @@ export const ContentTypes: Story = {
   render: () => (
     <OptionGrid
       rows={[
+        { label: "No spans", spans: [] },
         {
           label: "Several LLM calls and an error",
           spans: ragSpans,
