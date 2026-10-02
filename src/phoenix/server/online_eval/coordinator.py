@@ -89,7 +89,10 @@ class EvalWorkCoordinator(Protocol):
         """Lease up to ``limit`` claimable work units for ``claimed_by``. A unit is
         claimable when it is PENDING, or RUNNING with a lapsed lease, or ERROR past
         its cooldown. Returns an empty sequence when no
-        claimable work exists."""
+        claimable work exists.
+
+        Every later write for a unit is fenced on the ``claimed_by`` it was claimed
+        with, so each call should pass a value no earlier claim used."""
         ...
 
     async def heartbeat(
