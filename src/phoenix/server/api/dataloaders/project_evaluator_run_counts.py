@@ -149,9 +149,8 @@ def _in_range(
 def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     """A unit that was given up on — the only units whose errors the user is owed.
 
-    SUPERSEDED (the evaluator's configuration changed under it) and CONTENT_LOST (the
-    subject's content was gone by the time the unit was hydrated) are lifecycle events,
-    not evaluation failures.
+    CONTENT_LOST (the subject's content was gone by the time the unit was hydrated) is a
+    lifecycle event, not an evaluation failure.
 
     The statuses render as literals so the condition matches the partial
     ``ix_*_project_evaluator_failed`` indexes' predicate. SQLite needs this: with bound
@@ -169,10 +168,10 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     )
 
 
-# The funnel the user sees. SUPERSEDED and CONTENT_LOST fall outside every bucket,
-# since no evaluation was ever owed for them, as do a session's FILTERED_OUT and
-# SAMPLED_OUT decisions. Bucketed here rather than in SQL so the scan groups by the
-# raw status, instead of evaluating a CASE on every row it reads.
+# The funnel the user sees. CONTENT_LOST falls outside every bucket, since no
+# evaluation was ever owed for it, as do a session's FILTERED_OUT and SAMPLED_OUT
+# decisions. Bucketed here rather than in SQL so the scan groups by the raw status,
+# instead of evaluating a CASE on every row it reads.
 _OUTCOME_BY_STATUS: dict[str, str] = {
     "DONE": _EVALUATED,
     **{status: _FAILED for status in FAILED_EVAL_WORK_STATUSES},

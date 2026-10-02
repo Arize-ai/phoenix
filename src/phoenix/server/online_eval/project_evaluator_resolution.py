@@ -1,9 +1,9 @@
 """Resolve project evaluators into fingerprint inputs.
 
 ``derivation`` owns the pure fingerprint recipe and explicitly cedes version resolution
-and DB access to its callers; this module is that caller. Both materializers (the span
-producer and the session sweeper) and the consumer's staleness guard resolve through
-here, so the fingerprint they compute is the same one by construction.
+and DB access to its callers; this module is that caller. The materializers resolve to
+skip project evaluators that have no resolvable version; the consumer resolves the
+configuration it runs and derives the annotation identifier from it.
 """
 
 from __future__ import annotations
@@ -41,9 +41,6 @@ async def resolve_project_evaluators_bulk(
     evaluators, the latest CodeEvaluatorVersion id for CODE, and
     (key, synced_at, implementation_version) for BUILTIN. Each unresolved row
     produces None.
-
-    The consumer's staleness guard must recompute fingerprints through this same
-    function — an independent resolution recipe re-materializes the backlog.
     """
     tagged_llm_evaluators: dict[int, models.LLMEvaluator] = {}
     latest_llm_evaluators: dict[int, models.LLMEvaluator] = {}
