@@ -1520,6 +1520,47 @@ async def test_trace_evaluator_with_an_uncompilable_filter_does_not_stop_the_tic
     ) in caplog.text
 
 
+async def test_filter_that_fails_when_run_skips_only_its_own_evaluator(
+    db: DbSessionFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _add_session_liveness(db, age_seconds=600, project_id=project_id)
+    other_project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, broken_project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        # Compiles, but the literal is out of range for the column it is compared with.
+        filter_condition="token_count_total > 99999999999999999999",
+    )
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    _, other_project_evaluator_id = await _seed_criteria(
+        db, other_project_id, evaluation_target="SESSION"
+    )
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+
+    with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
+        await sweeper._tick()
+
+    async with db() as session:
+        work_counts = {
+            project_evaluator_id: count
+            for project_evaluator_id, count in await session.execute(
+                select(models.EvalSessionWorkUnit.project_evaluator_id, func.count())
+                .where(models.EvalSessionWorkUnit.status == "PENDING")
+                .group_by(models.EvalSessionWorkUnit.project_evaluator_id)
+            )
+        }
+    assert work_counts == {project_evaluator_id: 2, other_project_evaluator_id: 1}
+    (record,) = [
+        record
+        for record in caplog.records
+        if f"project_evaluator {broken_project_evaluator_id} " in record.getMessage()
+    ]
+    assert "filter condition failed when run" in record.getMessage()
+
+
 async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
