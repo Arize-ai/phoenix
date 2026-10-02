@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -61,6 +62,16 @@ const cellTriggerCSS = css`
   &[data-disabled] {
     cursor: default;
   }
+`;
+
+// A trigger around a consumer's own cell content: the content lays itself
+// out and pads itself, the trigger only supplies the click target and the
+// hover and dirty treatment the table draws on it.
+const cellTriggerFillCSS = css`
+  ${cellTriggerCSS};
+  display: block;
+  padding: 0;
+  cursor: pointer;
 `;
 
 // Full-bleed editor: flush against the dialog header and footer so the
@@ -136,6 +147,12 @@ export type EditableJSONCellProps<
    * would recognize.
    */
   rowLabel?: string;
+  /**
+   * Renders the cell's content from its current value, in place of the
+   * one-line JSON text. For tables whose cells are taller than a line, so
+   * editing keeps the look the read mode has.
+   */
+  children?: (value: unknown) => ReactNode;
 };
 
 /**
@@ -151,6 +168,7 @@ export function EditableJSONCell<
     requireObject = false,
     title: titleProp,
     rowLabel,
+    children: renderValue,
     ...cellContext
   } = props;
   // The default is assigned outside the destructuring pattern: a template
@@ -161,17 +179,118 @@ export function EditableJSONCell<
     columnId,
   });
   const [isOpen, setIsOpen] = useState(false);
-  const [editorValue, setEditorValue] = useState("");
-  // Read once when the editor mounts, so it only ever places the opening cursor.
-  const [editorSelection, setEditorSelection] = useState({ anchor: 0 });
-  // The current text's problem, updated on every keystroke; gates Done.
-  const [editorError, setEditorError] = useState<JSONEditorError | null>(null);
-  // The problem shown in the footer: follows `editorError` once typing pauses.
-  const [settledError, setSettledError] = useState<JSONEditorError | null>(
-    null
-  );
-  const modifierKey = useModifierKey();
 
+  // A session begun from this cell opens its editor as soon as the cell is
+  // editable. The request stays in the store until the editor closes, so the
+  // editor is open from the first render after the table rebuilds its cells
+  // for the session, and stays open if they rebuild again.
+  const isOpenForPending =
+    cell.isPendingOpen && cell.isEditing && cell.isEditable;
+  const isEditorOpen = isOpen || isOpenForPending;
+
+  const closeEditor = () => {
+    setIsOpen(false);
+    cell.clearPendingOpen();
+  };
+
+  if (!cell.isEditing || !cell.isEditable) {
+    return renderValue ? (
+      renderValue(cell.value)
+    ) : (
+      <span css={cellTextCSS}>
+        <JSONText json={cell.value} maxLength={100} />
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <AriaButton
+        data-cell-edit-trigger
+        data-dirty={cell.isDirty}
+        css={renderValue ? cellTriggerFillCSS : cellTriggerCSS}
+        isDisabled={cell.isSaving}
+        onClick={(event) => event.stopPropagation()}
+        onPress={() => setIsOpen(true)}
+        // Built from the column, not the dialog title: the title already carries
+        // the row's context ("Edit input · new example"), and reusing it here
+        // would announce that context twice.
+        aria-label={`Edit ${columnId} for ${rowLabel ?? `row ${cellContext.row.id}`}`}
+      >
+        {renderValue ? (
+          renderValue(cell.value)
+        ) : (
+          <span css={cellTextCSS}>
+            {/* Show the full object while editing: a single-key object collapsed
+                to its value reads as an empty cell once that value is blank. */}
+            <JSONText
+              json={cell.value}
+              maxLength={100}
+              collapseSingleKey={false}
+            />
+          </span>
+        )}
+      </AriaButton>
+      <ModalOverlay
+        isOpen={isEditorOpen}
+        onOpenChange={(nextIsOpen) => {
+          if (nextIsOpen) {
+            setIsOpen(true);
+          } else {
+            closeEditor();
+          }
+        }}
+        isDismissable
+      >
+        {/* The overlay mounts its content when it opens and drops it once it
+            has closed, so the editor's state starts fresh with every opening
+            and needs no resetting. */}
+        <EditableJSONCellEditor
+          title={title}
+          isOpen={isEditorOpen}
+          initialValue={cell.value}
+          originalValue={cell.originalValue}
+          requireObject={requireObject}
+          canRevert={cell.canRevert}
+          onRevert={cell.revertValue}
+          onApply={(json) => {
+            cell.updateValue(json as Row[ColumnId]);
+            closeEditor();
+          }}
+        />
+      </ModalOverlay>
+    </>
+  );
+}
+
+/**
+ * The open editor: the text being edited, its validation and the footer
+ * controls. Its state is read from the cell when it mounts, so it lives only
+ * as long as one opening of the dialog.
+ */
+function EditableJSONCellEditor({
+  title,
+  isOpen,
+  initialValue,
+  originalValue,
+  requireObject,
+  canRevert,
+  onRevert,
+  onApply,
+}: {
+  title: string;
+  /** False while the dialog animates out: the shortcuts stop first. */
+  isOpen: boolean;
+  /** The cell's value as the editor opens. */
+  initialValue: unknown;
+  /** The cell's value as the server has it, for Undo. */
+  originalValue: unknown;
+  requireObject: boolean;
+  /** The cell holds a pending change that Undo drops. */
+  canRevert: boolean;
+  onRevert: () => void;
+  onApply: (json: unknown) => void;
+}) {
   const validateEditorValue = (value: string): JSONEditorValidation => {
     const result = safelyParseJSON(value);
     if (result.parseError) {
@@ -193,14 +312,31 @@ export function EditableJSONCell<
     return { error: null, json: result.json };
   };
 
+  const [editorValue, setEditorValue] = useState(() =>
+    formatJSONEditorValue(initialValue)
+  );
+  // Read once when the editor mounts, so it only ever places the opening cursor.
+  const [editorSelection] = useState(() => ({
+    anchor: getJSONEditorInitialCursor(editorValue),
+  }));
+  // The current text's problem, updated on every keystroke; gates Done.
+  const [editorError, setEditorError] = useState<JSONEditorError | null>(
+    () => validateEditorValue(editorValue).error
+  );
+  // The problem shown in the footer: follows `editorError` once typing pauses.
+  const [settledError, setSettledError] = useState<JSONEditorError | null>(
+    editorError
+  );
+  const modifierKey = useModifierKey();
+
   const settleError = useDebouncedChange<string>({
     onChange: (value) => setSettledError(validateEditorValue(value).error),
     debounceMs: VALIDATION_BADGE_SETTLE_MS,
   });
 
   // Applies a fresh text to every piece of editor state at once. The footer
-  // badge follows immediately when the text was not typed (opening, undo) and
-  // after a pause when it was.
+  // badge follows immediately when the text was not typed (undo) and after a
+  // pause when it was.
   const replaceEditorText = (text: string, { typed }: { typed: boolean }) => {
     const { error } = validateEditorValue(text);
     setEditorValue(text);
@@ -214,20 +350,6 @@ export function EditableJSONCell<
     }
   };
 
-  const openEditor = () => {
-    const text = formatJSONEditorValue(cell.value);
-    setEditorSelection({ anchor: getJSONEditorInitialCursor(text) });
-    replaceEditorText(text, { typed: false });
-    setIsOpen(true);
-  };
-
-  const closeEditor = () => {
-    settleError.cancel();
-    setEditorError(null);
-    setSettledError(null);
-    setIsOpen(false);
-  };
-
   const saveEditorValue = () => {
     const validation = validateEditorValue(editorValue);
     if (validation.error !== null) {
@@ -236,29 +358,25 @@ export function EditableJSONCell<
       setSettledError(validation.error);
       return;
     }
-    cell.updateValue(validation.json as Row[ColumnId]);
-    closeEditor();
+    settleError.cancel();
+    onApply(validation.json);
   };
 
   // Something to undo: a pending change already applied to the cell, or text
-  // typed in the editor that has not been applied yet. The original value is
-  // only serialized while the editor is open.
+  // typed in the editor that has not been applied yet.
   const canUndo =
-    cell.canRevert ||
-    (isOpen && editorValue !== formatJSONEditorValue(cell.originalValue));
+    canRevert || editorValue !== formatJSONEditorValue(originalValue);
 
-  // Restores the original value in both the store and the open editor.
+  // Restores the original value in both the store and the editor.
   const undoEditorChange = () => {
-    if (cell.canRevert) {
-      cell.revertValue();
+    if (canRevert) {
+      onRevert();
     }
-    replaceEditorText(formatJSONEditorValue(cell.originalValue), {
-      typed: false,
-    });
+    replaceEditorText(formatJSONEditorValue(originalValue), { typed: false });
   };
 
-  // Cmd+Enter commits the cell. Scoped to this cell's open dialog — every other
-  // mounted cell keeps its shortcut disabled.
+  // Cmd+Enter commits the cell. Scoped to this open dialog — every other
+  // mounted cell has no editor, so no shortcut.
   useHotkeys("mod+enter", () => saveEditorValue(), {
     enabled: isOpen,
     enableOnFormTags: true,
@@ -266,123 +384,79 @@ export function EditableJSONCell<
     preventDefault: true,
   });
 
-  if (!cell.isEditing || !cell.isEditable) {
-    return (
-      <span css={cellTextCSS}>
-        <JSONText json={cell.value} maxLength={100} />
-      </span>
-    );
-  }
-
   return (
-    <>
-      <AriaButton
-        data-cell-edit-trigger
-        data-dirty={cell.isDirty}
-        css={cellTriggerCSS}
-        isDisabled={cell.isSaving}
-        onClick={(event) => event.stopPropagation()}
-        onPress={openEditor}
-        // Built from the column, not the dialog title: the title already carries
-        // the row's context ("Edit input · new example"), and reusing it here
-        // would announce that context twice.
-        aria-label={`Edit ${columnId} for ${rowLabel ?? `row ${cellContext.row.id}`}`}
-      >
-        <span css={cellTextCSS}>
-          {/* Show the full object while editing: a single-key object collapsed
-              to its value reads as an empty cell once that value is blank. */}
-          <JSONText
-            json={cell.value}
-            maxLength={100}
-            collapseSingleKey={false}
-          />
-        </span>
-      </AriaButton>
-      <ModalOverlay
-        isOpen={isOpen}
-        onOpenChange={(nextIsOpen) => {
-          if (nextIsOpen) {
-            setIsOpen(true);
-          } else {
-            closeEditor();
-          }
-        }}
-        isDismissable
-      >
-        <Modal size="L">
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{title}</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <div css={editorContainerCSS}>
-                <JSONEditor
-                  value={editorValue}
-                  selection={editorSelection}
-                  autoFocus
-                  minHeight="240px"
-                  maxHeight="60vh"
-                  onChange={(nextValue) =>
-                    replaceEditorText(nextValue, { typed: true })
-                  }
-                />
-              </div>
-              <DialogFooter>
-                <span css={footerStatusCSS}>
-                  {settledError ? (
-                    <TooltipTrigger delay={0}>
-                      <ValidationBadge aria-label="Validation error">
-                        {settledError.message}
-                      </ValidationBadge>
-                      <ValidationTooltip title={settledError.message}>
-                        <Text size="S" color="text-700">
-                          {settledError.detail}
-                        </Text>
-                      </ValidationTooltip>
-                    </TooltipTrigger>
-                  ) : (
-                    <>
-                      <KeyboardToken variant="quiet">
-                        <VisuallyHidden>{modifierKey}</VisuallyHidden>
-                        <span aria-hidden="true">
-                          {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
-                        </span>{" "}
-                        <VisuallyHidden>enter</VisuallyHidden>
-                        <span aria-hidden="true">⏎</span>
-                      </KeyboardToken>
-                      <Text size="XS" color="text-500">
-                        to apply
-                      </Text>
-                    </>
-                  )}
-                </span>
-                <Button
-                  variant="quiet"
-                  isDisabled={!canUndo}
-                  leadingVisual={<Icon svg={<Icons.RotateCcw />} />}
-                  onPress={undoEditorChange}
-                >
-                  Undo
-                </Button>
-                <Button variant="default" slot="close">
-                  Close
-                </Button>
-                <Button
-                  variant="primary"
-                  isDisabled={editorError !== null}
-                  leadingVisual={<Icon svg={<Icons.Checkmark />} />}
-                  onPress={saveEditorValue}
-                >
-                  Done
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </>
+    <Modal size="L">
+      <Dialog>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogTitleExtra>
+              <DialogCloseButton />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <div css={editorContainerCSS}>
+            <JSONEditor
+              value={editorValue}
+              selection={editorSelection}
+              autoFocus
+              minHeight="240px"
+              maxHeight="60vh"
+              onChange={(nextValue) =>
+                replaceEditorText(nextValue, { typed: true })
+              }
+            />
+          </div>
+          <DialogFooter>
+            <span css={footerStatusCSS}>
+              {settledError ? (
+                <TooltipTrigger delay={0}>
+                  <ValidationBadge aria-label="Validation error">
+                    {settledError.message}
+                  </ValidationBadge>
+                  <ValidationTooltip title={settledError.message}>
+                    <Text size="S" color="text-700">
+                      {settledError.detail}
+                    </Text>
+                  </ValidationTooltip>
+                </TooltipTrigger>
+              ) : (
+                <>
+                  <KeyboardToken variant="quiet">
+                    <VisuallyHidden>{modifierKey}</VisuallyHidden>
+                    <span aria-hidden="true">
+                      {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
+                    </span>{" "}
+                    <VisuallyHidden>enter</VisuallyHidden>
+                    <span aria-hidden="true">⏎</span>
+                  </KeyboardToken>
+                  <Text size="XS" color="text-500">
+                    to apply
+                  </Text>
+                </>
+              )}
+            </span>
+            <Button
+              variant="quiet"
+              isDisabled={!canUndo}
+              leadingVisual={<Icon svg={<Icons.RotateCcw />} />}
+              onPress={undoEditorChange}
+            >
+              Undo
+            </Button>
+            <Button variant="default" slot="close">
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              isDisabled={editorError !== null}
+              leadingVisual={<Icon svg={<Icons.Checkmark />} />}
+              onPress={saveEditorValue}
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Modal>
   );
 }
