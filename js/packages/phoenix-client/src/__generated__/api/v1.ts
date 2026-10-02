@@ -888,7 +888,7 @@ export interface paths {
         put?: never;
         /**
          * Create spans
-         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted.
+         * @description Submit spans to be inserted into a project. If any spans are invalid or duplicates, no spans will be inserted. Each span's `attributes` must be flattened (dotted keys), as the span list endpoint returns them by default; spans fetched with `attributes_format=nested` cannot be posted back as is.
          */
         post: operations["createSpans"];
         delete?: never;
@@ -10608,6 +10608,8 @@ export interface operations {
                 attribute?: string[] | null;
                 /** @description Span filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. */
                 filter?: string | null;
+                /** @description Shape of each span's `attributes`: `flattened` uses dotted keys; `nested` returns them as a nested JSON object. */
+                attributes_format?: "flattened" | "nested";
             };
             header?: never;
             path: {
