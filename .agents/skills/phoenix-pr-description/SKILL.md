@@ -13,10 +13,20 @@ metadata:
 
 # Phoenix PR Description
 
-A PR body has two jobs. The top tells a reviewer what the change does and how to see it working.
-The bottom tells them how the change came to be, so they can decide how carefully to read a diff
-before they read it. A one-prompt fix and a twelve-turn full-stack change deserve different
-review depth, and the body is where the reviewer learns which one they are looking at.
+A PR body exists so a developer can answer three questions at a glance:
+
+1. Do I need to review this?
+2. How long will it take to review and test?
+3. Should I hand the review to my agent?
+
+Everything in the body serves those three decisions. The top says what the change does and how
+to see it working. The bottom says how the change came to be, so the reader can pick a review
+depth before opening the diff. Dense explanation belongs in the code, the docs, or the ticket,
+not here.
+
+Glanceability test: the reader should be able to answer all three questions from the headings,
+the first line of What, the bold text, and the provenance table alone. If they have to read a
+paragraph to get there, cut.
 
 This skill is not a scorecard. Many tasks are worth one short prompt and no steering, and the
 provenance section says so plainly when that is what happened.
@@ -36,26 +46,25 @@ resolves #<issue>            <- only when an issue exists; keep the template's f
 ## How this PR was made
 ```
 
-Body length scales with the number of distinct behaviors, not with the diff. A 1,500-line change
-with six behaviors gets six bullets. Target: a reviewer reads everything above the provenance
-section in under two minutes.
+Body length scales with the number of distinct behaviors, not with the diff. Target: everything
+above the provenance section fits on one screen and reads in under a minute.
 
 ### What
 
 Lead with media when the change is visible: a short video for an interaction, one screenshot
 otherwise. Then one line that names the change, its ticket, and any dependency ("Stacked on
-#16660"). Then bullets.
+#16660"). That line carries most of the weight. Then bullets.
 
-- One bullet per user-visible behavior. One to three sentences each.
-- Attach the design reason as a trailing clause of the same sentence: "It is a toggle, so the
-  toolbar never shifts." Reasons never get their own paragraph.
-- Describe behavior, not files. The diff lists files. Name a mechanism or a file only when the
-  reviewer needs it to judge correctness, such as a key that is hidden and restored on save.
-- Edge cases that could lose or corrupt data get their own bullet, with the evidence in the same
-  sentence: "Verified live: an edited example kept its recorded expected output."
+- Three to six bullets, one per user-visible behavior, one sentence each, about twenty words.
+- Add the design reason as a trailing clause only when it is not obvious: "It is a toggle, so
+  the toolbar never shifts." Reasons never get their own sentence.
+- Describe behavior, not files. Name a mechanism or file only when the reviewer needs it to
+  judge correctness, such as a key that is hidden and restored on save.
+- An edge case that could lose or corrupt data gets its own bullet with the evidence attached:
+  "Verified live: an edited example kept its expected output."
 - Bold the names of on-screen controls exactly as they appear (**Save dataset version**). Use
   code font for identifiers. Nothing else is bold.
-- No nested bullets, no "Summary" or "Changes" headings, no per-file lists.
+- No nested bullets, no "Summary" or "Changes" headings, no per-file lists, no closing paragraph.
 
 ### Why
 
@@ -84,7 +93,9 @@ behavior: what a caller receives, what a migration does to existing rows, what a
 ## How this PR was made
 
 This section is fixed-shape so reviewers learn to read it at a glance and compare across PRs.
-It consists of a table, five labeled lines, and a stamp.
+It consists of a table, five labeled lines, and a stamp. Each labeled line is one line: a
+fragment or a short sentence, fifteen words or so, no explanation. The table answers "how much
+steering"; the lines answer "where is the risk".
 
 ```markdown
 ## How this PR was made
@@ -93,11 +104,11 @@ It consists of a table, five labeled lines, and a stamp.
 |---|---|---|---|---|
 | Claude Code (claude-fable-5-1) | 11 | 3 | 1 | 2 |
 
-**Starting point:** <paraphrase of the first ask and how specific it was>
-**Steering:** <what changed, by category> or "none"
-**Abandoned:** <approaches tried and reverted, with the reason> or "none"
-**Verified:** <what the agent checked, what the user checked>. Not verified: <gaps> or "none"
-**Look hardest at:** <one line pointing at the riskiest hunks>
+**Starting point:** <one phrase: the ask, then bare / with constraints / with spec>
+**Steering:** <category: what changed> or "none"
+**Abandoned:** <approach, reason> or "none"
+**Verified:** <what ran>. Not verified: <gap> or "none"
+**Look hardest at:** <the riskiest hunks>
 
 <sub>Stats as of <short sha>, counted from <method>.</sub>
 ```
@@ -119,19 +130,17 @@ Use these definitions, not your impression of them.
 
 ### Labeled lines
 
-- **Starting point.** Paraphrase the first ask in one sentence, then classify it: a bare task
-  ("implement X"), a task with constraints (preferences, cautions, file pointers), or a task with
-  a plan or spec. Paraphrase, do not quote. Prompts can contain internal names or pasted secrets.
-- **Steering.** What changed and why, grouped as scope, approach, correctness, or style. Describe
-  the work, not the person: "direction changed to regenerate schemas rather than hand-edit", not
-  "the user corrected me".
-- **Abandoned.** Approaches tried and reverted, each with the reason it lost. This is the field
-  reviewers value most and the one agents most often omit. Write "none" rather than leaving it out.
-- **Verified.** Split what the agent ran (tests, typecheck, clicked through the UI) from what the
-  user confirmed. Follow with "Not verified:" and the honest gaps.
-- **Look hardest at.** One line. Point at hunks the agent did not read closely, generated code,
-  migrations, or anything touched by an abandoned approach. Never grade the PR ("low risk",
-  "thorough"). Report facts and let the reviewer judge.
+- **Starting point.** The ask in a few words, then one of: bare task, with constraints, with
+  spec. Paraphrase, do not quote. Prompts can contain internal names or pasted secrets.
+- **Steering.** Category and what changed, as fragments: "approach: regenerate schemas, not
+  hand-edit". Categories are scope, approach, correctness, style. Describe the work, not the
+  person.
+- **Abandoned.** Approach and the reason it lost, in one clause. Reviewers value this field most
+  and agents omit it most. Write "none" rather than leaving it out.
+- **Verified.** What ran and who confirmed what, then "Not verified:" and the honest gap.
+- **Look hardest at.** The hunks the agent did not read closely, generated code, migrations, or
+  anything an abandoned approach touched. Never grade the PR ("low risk", "thorough"). Facts
+  only; the reviewer judges.
 
 ### Counting turns
 
@@ -173,7 +182,7 @@ message is borderline, count it.
 ## Worked example
 
 A UI change of about 1,500 lines, six behaviors, two sessions. The top half follows
-Arize-ai/phoenix#16662, which is the reference for the right size of body for a large change.
+Arize-ai/phoenix#16662, the reference for the right size of body for a large change.
 
 ```markdown
 ## What
@@ -182,31 +191,28 @@ Arize-ai/phoenix#16662, which is the reference for the right size of body for a 
 
 Edit a dataset's examples without leaving the playground (PHX-1116). Stacked on #16660.
 
-- **Edit** in the Experiment toolbar starts the same edit session the dataset examples page
-  runs. It is a toggle, so the toolbar never shifts.
-- A pencil in each cell's header strip, shown while the row is hovered, starts the session and
-  opens that cell's editor in one press. Disabled during a run, like **Edit**.
-- The metadata column may hide the `annotations` key that holds expected outputs. Edits are made
-  against the displayed metadata and the hidden part is put back on save, so a metadata edit
-  cannot drop an example's expected outputs. Verified live: an edited example kept its recorded
-  expected output.
+- **Edit** in the Experiment toolbar starts the examples page's edit session in place. It is a
+  toggle, so the toolbar never shifts.
+- A pencil on a hovered row's cells opens that cell's editor in one press. Disabled during a run.
+- Metadata edits keep the hidden `annotations` key, so expected outputs survive. Verified live.
+- Runs, the dataset picker, and expected-output annotation pause while editing.
 
 ## Why
 
-PHX-1116. Reviewing evaluator results is where people notice an example is wrong; fixing it
-should not mean a trip to the dataset page and back.
+PHX-1116. People notice a wrong example while reviewing evaluator results; fixing it should not
+mean a trip to the dataset page.
 
 ## Screenshots
 
-**Edit mode: a new example on top, the edit toolbar along the bottom, Run disabled**
+**Edit mode: new example on top, edit toolbar at the bottom, Run disabled**
 
 ![Playground table in edit mode](...)
 
 ## Try it
 
 1. Open the playground with a dataset and an evaluator, run it.
-2. Press **Edit**, change a metadata value, **Done**, then **Save changes**. The cell shows the
-   new value and the expected output band is unchanged.
+2. **Edit**, change a metadata value, **Done**, **Save changes**. The cell updates and the
+   expected output band is unchanged.
 
 ## How this PR was made
 
@@ -214,18 +220,15 @@ should not mean a trip to the dataset page and back.
 |---|---|---|---|---|
 | Claude Code (claude-fable-5-1) | 14 | 4 | 1 | 2 |
 
-**Starting point:** add inline example editing to the playground table, with a pointer to reuse
-the dataset examples page's edit session. Task with constraints.
-**Steering:** scope (dropped the per-cell undo, follow-up); approach (toggle button instead of a
-separate Done button, so the toolbar does not shift); correctness (hidden `annotations` key must
-survive a metadata edit); style (one caption rewrite).
-**Abandoned:** a separate edit toolbar component for the playground, reverted because the
-examples page's toolbar already handled add, remove, and save once it took a dataset version id.
-**Verified:** `pnpm test` and `pnpm typecheck` by the agent; the agent and the user both edited
-an example live and checked the expected output band. Not verified: behavior with more than
-one dataset loaded.
-**Look hardest at:** the save path that merges hidden metadata back in, and the Relay
-fragments regenerated for the toolbar.
+**Starting point:** inline example editing in the playground table, reuse the examples page's
+session. With constraints.
+**Steering:** scope: per-cell undo dropped; approach: toggle instead of a Done button;
+correctness: hidden `annotations` key must survive edits; style: one caption.
+**Abandoned:** separate playground edit toolbar; the examples page's toolbar already did it.
+**Verified:** `pnpm test`, `pnpm typecheck`; agent and user edited an example live. Not
+verified: more than one dataset loaded.
+**Look hardest at:** the save path that merges hidden metadata back in; regenerated Relay
+fragments.
 
 <sub>Stats as of 3f9c2a1, counted from the Claude Code transcripts for two sessions.</sub>
 ```
