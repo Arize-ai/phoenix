@@ -30,7 +30,6 @@ _WORK_UNIT_MODELS: tuple[_WorkUnitModel, ...] = (
 _QUEUED = "QUEUED"
 _EVALUATED = "EVALUATED"
 _FAILED = "FAILED"
-_DROPPED = "DROPPED"
 
 
 @dataclass(frozen=True)
@@ -48,7 +47,6 @@ class ProjectEvaluatorRunCounts:
     queued: int = 0
     evaluated: int = 0
     failed: int = 0
-    dropped: int = 0
     last_evaluated_at: Optional[datetime] = None
     last_failed_at: Optional[datetime] = None
     last_error: Optional[str] = None
@@ -117,8 +115,6 @@ async def _load_run_counts(
             counts = replace(counts, evaluated=count, last_evaluated_at=latest)
         elif outcome == _FAILED:
             counts = replace(counts, failed=count, last_failed_at=latest)
-        elif outcome == _DROPPED:
-            counts = replace(counts, dropped=count)
         else:
             counts = replace(counts, queued=count)
         result[key] = counts
@@ -156,7 +152,6 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     SUPERSEDED (the evaluator's configuration changed under it) and CONTENT_LOST (the
     subject's content was gone by the time the unit was hydrated) are lifecycle events,
     not evaluation failures.
-    DROPPED (shed from the backlog under load) is the system's doing, not the evaluator's.
 
     The statuses render as literals so the condition matches the partial
     ``ix_*_project_evaluator_failed`` indexes' predicate. SQLite needs this: with bound
@@ -176,13 +171,11 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
 
 # The funnel the user sees. SUPERSEDED and CONTENT_LOST fall outside every bucket,
 # since no evaluation was ever owed for them, as do a session's FILTERED_OUT and
-# SAMPLED_OUT decisions. DROPPED is its own bucket: the evaluation was owed and never
-# ran, but nothing failed. Bucketed here rather than in SQL so the scan groups by the
+# SAMPLED_OUT decisions. Bucketed here rather than in SQL so the scan groups by the
 # raw status, instead of evaluating a CASE on every row it reads.
 _OUTCOME_BY_STATUS: dict[str, str] = {
     "DONE": _EVALUATED,
     **{status: _FAILED for status in FAILED_EVAL_WORK_STATUSES},
-    "DROPPED": _DROPPED,
     **{status: _QUEUED for status in LIVE_EVAL_WORK_STATUSES},
 }
 
