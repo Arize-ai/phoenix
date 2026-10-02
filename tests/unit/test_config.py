@@ -51,12 +51,6 @@ class TestGetEnvOnlineEval:
                 0.001,
             ),
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS,
-                phoenix_config.get_env_online_eval_pending_ttl_seconds,
-                "0",
-                0.0,
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
                 phoenix_config.get_env_online_eval_retention_seconds,
                 "0.001",
@@ -100,11 +94,6 @@ class TestGetEnvOnlineEval:
                 "0",
             ),
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS,
-                phoenix_config.get_env_online_eval_pending_ttl_seconds,
-                "-1",
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
                 phoenix_config.get_env_online_eval_retention_seconds,
                 "-1",
@@ -137,10 +126,6 @@ class TestGetEnvOnlineEval:
             (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
                 phoenix_config.get_env_online_eval_backstop_interval_seconds,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS,
-                phoenix_config.get_env_online_eval_pending_ttl_seconds,
             ),
             (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
