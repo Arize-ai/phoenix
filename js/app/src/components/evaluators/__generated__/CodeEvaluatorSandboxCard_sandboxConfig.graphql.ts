@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f4a336293148ce6076889710221a3a6>>
+ * @generated SignedSource<<ddb5987c071b562ec9f7bcef6755eeee>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type InternetAccessChoice = "ALLOW" | "DENY";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type CodeEvaluatorSandboxCard_sandboxConfig$data = {
   readonly config: {
