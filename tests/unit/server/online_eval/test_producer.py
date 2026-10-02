@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
+from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -33,7 +34,6 @@ from phoenix.server.online_eval.coordinator import (
 )
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
-    MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
     annotation_identifier,
     config_fingerprint,

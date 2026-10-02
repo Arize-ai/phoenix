@@ -8,6 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
+from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.helpers import delete_traces
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
@@ -20,7 +21,7 @@ from phoenix.server.online_eval.db_coordinator import (
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
     DbEvalWorkCoordinator,
 )
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, STALE_FINGERPRINT_ERROR
+from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
