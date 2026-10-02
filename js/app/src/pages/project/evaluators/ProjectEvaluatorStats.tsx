@@ -75,6 +75,7 @@ export function ProjectEvaluatorStats({
           lastRunAt
           queuedCount
           oldestQueuedAt
+          overflowedCount
           lastError
         }
         evaluationLoad {

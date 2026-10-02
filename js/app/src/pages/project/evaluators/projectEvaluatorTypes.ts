@@ -268,6 +268,7 @@ export type ProjectEvaluatorRunSummary = {
   evaluatedCount: number;
   failedCount: number;
   droppedCount: number;
+  overflowedCount: number;
   oldestQueuedAt?: string | null;
 };
 
@@ -302,11 +303,15 @@ const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
     variant: "danger",
     explanation: "Last evaluation failed",
   },
+  OVERLOADED: {
+    label: "Overloaded",
+    variant: "danger",
+    explanation: "Queue dropped new evaluations in the last 10 minutes",
+  },
   DEGRADED: {
     label: "Degraded",
     variant: "warning",
-    explanation:
-      "Evaluations are waiting more than 10 minutes, or the queue is full",
+    explanation: "Evaluations are waiting more than 10 minutes",
   },
   RUNNING: {
     label: "Running",
@@ -325,15 +330,27 @@ const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
   },
 };
 
+const countFormatter = new Intl.NumberFormat();
+
 /** The one status a row reports, as the server derives it. */
 export function getProjectEvaluatorStatus({
   runSummary,
 }: {
   // Narrowed so status cells can render without fetching run counts.
-  runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
+  runSummary: Pick<ProjectEvaluatorRunSummary, "status"> &
+    Partial<Pick<ProjectEvaluatorRunSummary, "overflowedCount">>;
 }): ProjectEvaluatorStatus {
   const status = PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS[runSummary.status];
-  return { ...status, color: STATUS_COLOR_BY_VARIANT[status.variant] };
+  const overflowedCount = runSummary.overflowedCount ?? 0;
+  const explanation =
+    runSummary.status === "OVERLOADED" && overflowedCount > 0
+      ? `Dropped ${countFormatter.format(overflowedCount)} ${overflowedCount === 1 ? "evaluation" : "evaluations"} in the last 10 minutes`
+      : status.explanation;
+  return {
+    ...status,
+    explanation,
+    color: STATUS_COLOR_BY_VARIANT[status.variant],
+  };
 }
 
 export function formatLastRun(lastRunAt: string | null): string {
@@ -341,8 +358,6 @@ export function formatLastRun(lastRunAt: string | null): string {
     ? "Never"
     : formatDistanceToNow(new Date(lastRunAt), { addSuffix: true });
 }
-
-const countFormatter = new Intl.NumberFormat();
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;

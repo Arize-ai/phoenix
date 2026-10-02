@@ -131,6 +131,7 @@ const readRow = (
           evaluatedCount
           failedCount
           droppedCount
+          overflowedCount
           oldestQueuedAt
         }
         evaluationLoad {

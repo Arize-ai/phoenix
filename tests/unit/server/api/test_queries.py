@@ -589,6 +589,7 @@ async def test_evaluation_queues(db: DbSessionFactory, gql_client: AsyncGraphQLC
                 oldestQueuedAt
                 atCapacity
                 queuedLimit
+                overflowedCount
                 evaluationsPerMinute
                 queuedPerMinute
             }
@@ -606,6 +607,7 @@ async def test_evaluation_queues(db: DbSessionFactory, gql_client: AsyncGraphQLC
     assert datetime.fromisoformat(session_queue["oldestQueuedAt"]) == now - timedelta(minutes=1)
     assert session_queue["atCapacity"] is False
     assert session_queue["queuedLimit"] == max_queued("SESSION")
+    assert session_queue["overflowedCount"] == 0
     assert session_queue["evaluationsPerMinute"] == 0
     assert session_queue["queuedPerMinute"] == pytest.approx(1 / 15)
 

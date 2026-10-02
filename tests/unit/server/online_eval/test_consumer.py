@@ -1605,6 +1605,7 @@ async def test_consumer_publishes_queue_health_gauges(
             "ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS",
             "ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS",
             "ONLINE_EVAL_AT_CAPACITY",
+            "ONLINE_EVAL_OVERFLOWED_RECENT_WORK_UNITS",
             "ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS",
             "ONLINE_EVAL_EXPIRED_WORK_UNITS",
             "ONLINE_EVAL_CLEARED_WORK_UNITS",
@@ -1618,6 +1619,15 @@ async def test_consumer_publishes_queue_health_gauges(
         span = await _add_span(session, trace)
     evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
     await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+    # The span producer's recent drops, which leave no work rows.
+    minute = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    async with db() as session:
+        session.add(
+            models.EvalSpanCursor(
+                id=1,
+                overflowed_counts={minute.isoformat(): {str(project_evaluator_id): 3}},
+            )
+        )
 
     await OnlineEvalConsumer(db, decrypt=lambda value: value)._publish_queue_metrics()
 
@@ -1630,6 +1640,7 @@ async def test_consumer_publishes_queue_health_gauges(
 
     assert published("ONLINE_EVAL_PENDING_WORK_UNITS") == 1
     assert published("ONLINE_EVAL_AT_CAPACITY") == 0
+    assert published("ONLINE_EVAL_OVERFLOWED_RECENT_WORK_UNITS") == 3
 
 
 async def test_configuration_versions_are_resolved_once_per_claim_batch(

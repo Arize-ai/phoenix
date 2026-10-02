@@ -22,12 +22,12 @@ _EVAL_WORK_STATUS_CHECK = (
 )
 _EVAL_SESSION_WORK_STATUS_CHECK = (
     "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED', "
-    "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
+    "'OVERFLOWED', 'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
 )
 _LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
 _TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
 _TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
-    "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
+    "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'OVERFLOWED', 'CONTENT_LOST')"
 )
 _FAILED_EVAL_WORK_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
 
@@ -116,7 +116,7 @@ def _create_session_work_units_table() -> None:
     op.create_index(
         "ix_eval_session_work_units_terminal",
         "eval_session_work_units",
-        ["updated_at"],
+        ["status", "updated_at"],
         postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
         sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
     )
@@ -192,7 +192,7 @@ def _create_trace_work_units_table() -> None:
     op.create_index(
         "ix_eval_trace_work_units_terminal",
         "eval_trace_work_units",
-        ["updated_at"],
+        ["status", "updated_at"],
         postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
         sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
     )
@@ -262,6 +262,8 @@ def upgrade() -> None:
         ),
         sa.Column("observed_high_water_id", _Integer, nullable=True),
         sa.Column("observed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("overflowed_through_id", _Integer, nullable=True),
+        sa.Column("overflowed_counts", JSON_, nullable=False, server_default="{}"),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

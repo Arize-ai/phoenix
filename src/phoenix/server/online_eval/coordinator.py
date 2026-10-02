@@ -12,6 +12,7 @@ Work-unit lifecycle:
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
     PENDING | ERROR (queue cleared) --> DROPPED
+    OVERFLOWED (trace and session): never queued, because the queue was full when offered
 """
 
 from __future__ import annotations
