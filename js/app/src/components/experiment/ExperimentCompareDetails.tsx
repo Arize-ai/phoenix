@@ -192,6 +192,8 @@ export function ExperimentCompareDetails({
                       name
                       optimizationDirection
                       threshold
+                      lowerBound
+                      upperBound
                     }
                   }
                 }

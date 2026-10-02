@@ -1,4 +1,7 @@
-import { getPositiveOptimizationFromConfig } from "@phoenix/components/annotation/optimizationUtils";
+import {
+  getOptimizationBounds,
+  getPositiveOptimizationFromConfig,
+} from "@phoenix/components/annotation/optimizationUtils";
 
 import {
   datasetEvaluatorToAnnotationConfigs,
@@ -143,5 +146,30 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
 
     const [config] = datasetEvaluatorToAnnotationConfigs(evaluator);
     expect(config.annotationType).toBe("CONTINUOUS");
+  });
+
+  it("maps a categorical MINIMIZE config to a lower-is-better optimization", () => {
+    const evaluator: DatasetEvaluatorForConfig = {
+      name: "hallucination",
+      outputConfigs: [
+        {
+          __typename: "CategoricalAnnotationConfig",
+          name: "hallucination",
+          optimizationDirection: "MINIMIZE",
+          values: [
+            { label: "hallucinated", score: 1 },
+            { label: "factual", score: 0 },
+          ],
+        },
+      ],
+    };
+
+    const [config] = datasetEvaluatorToAnnotationConfigs(evaluator);
+    expect(getOptimizationBounds(config)).toEqual({
+      lowerBound: 0,
+      upperBound: 1,
+      threshold: undefined,
+      optimizationDirection: "MINIMIZE",
+    });
   });
 });
