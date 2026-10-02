@@ -143,6 +143,12 @@ type SpansTableProps = {
    * for views that can say something more specific about why.
    */
   emptyState?: ReactNode;
+  /**
+   * Called when the user applies a valid filter condition: typed, added from
+   * an annotation, or set by an agent. Not called for the mount-time seed or
+   * for in-progress edits.
+   */
+  onFilterConditionApplied?: (condition: string) => void;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -275,6 +281,11 @@ export function SpansTable(props: SpansTableProps) {
   useEffect(() => {
     setSearchParamsRef.current = setSearchParams;
   }, [setSearchParams]);
+  // A stable ref keeps a parent's re-renders out of the field's validation.
+  const onFilterConditionAppliedRef = useRef(props.onFilterConditionApplied);
+  useEffect(() => {
+    onFilterConditionAppliedRef.current = props.onFilterConditionApplied;
+  }, [props.onFilterConditionApplied]);
   const writeFilterConditionParam = useCallback(
     (condition: string) => {
       if (!persistToUrl) return;
@@ -315,6 +326,7 @@ export function SpansTable(props: SpansTableProps) {
       // exists to prevent.
       if (!isInitialSettlement) {
         writeFilterConditionParam(condition);
+        onFilterConditionAppliedRef.current?.(condition);
       }
     },
     [writeFilterConditionParam]
