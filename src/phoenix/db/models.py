@@ -201,9 +201,7 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
-EvalWorkStatus: TypeAlias = Literal[
-    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "SUPERSEDED"
-]
+EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED"]
 EvalSessionWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",
@@ -211,7 +209,6 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "ERROR",
     "FAILED",
     "EXPIRED",
-    "SUPERSEDED",
     "CONTENT_LOST",
     "FILTERED_OUT",
     "SAMPLED_OUT",
@@ -3768,17 +3765,11 @@ class EvalWorkUnit(HasId):
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     project_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
 
     status: Mapped[EvalWorkStatus] = mapped_column(
         CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
@@ -3799,11 +3790,10 @@ class EvalWorkUnit(HasId):
     )
 
     span: Mapped["Span"] = relationship("Span")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
-        UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
+        UniqueConstraint("span_rowid", "project_evaluator_id"),
         Index(
             "ix_eval_work_units_claimable",
             "status",
@@ -3834,17 +3824,11 @@ class EvalSessionWorkUnit(HasId):
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     project_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     status: Mapped[EvalSessionWorkStatus] = mapped_column(
         CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
@@ -3862,15 +3846,13 @@ class EvalSessionWorkUnit(HasId):
     )
 
     project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
         Index(
             "uq_eval_session_work_units_live_key",
             "project_session_rowid",
-            "evaluator_id",
-            "config_fingerprint",
+            "project_evaluator_id",
             unique=True,
             postgresql_where=text(live_eval_session_work_index_predicate()),
             sqlite_where=text(live_eval_session_work_index_predicate()),
@@ -3891,8 +3873,7 @@ class EvalSessionWorkUnit(HasId):
         Index(
             "ix_eval_session_work_units_terminal_watermark",
             "project_session_rowid",
-            "evaluator_id",
-            "config_fingerprint",
+            "project_evaluator_id",
         ),
         # The newest failure per evaluator, found without walking its successes.
         Index(
@@ -3913,17 +3894,11 @@ class EvalTraceWorkUnit(HasId):
         ForeignKey("traces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     project_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     status: Mapped[EvalSessionWorkStatus] = mapped_column(
         CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
@@ -3941,15 +3916,13 @@ class EvalTraceWorkUnit(HasId):
     )
 
     trace: Mapped["Trace"] = relationship("Trace")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
         Index(
             "uq_eval_trace_work_units_live_key",
             "trace_rowid",
-            "evaluator_id",
-            "config_fingerprint",
+            "project_evaluator_id",
             unique=True,
             postgresql_where=text(live_eval_session_work_index_predicate()),
             sqlite_where=text(live_eval_session_work_index_predicate()),
@@ -3970,8 +3943,7 @@ class EvalTraceWorkUnit(HasId):
         Index(
             "ix_eval_trace_work_units_terminal_watermark",
             "trace_rowid",
-            "evaluator_id",
-            "config_fingerprint",
+            "project_evaluator_id",
         ),
         # The newest failure per evaluator, found without walking its successes.
         Index(
