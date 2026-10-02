@@ -1,31 +1,15 @@
 import { css } from "@emotion/react";
 import { graphql, useFragment } from "react-relay";
-import { Pie, PieChart, Sector, type PieSectorShapeProps } from "recharts";
 
-import {
-  ColorSwatch,
-  Flex,
-  RichTooltip,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
-} from "@phoenix/components";
-import {
-  type AnnotationOptimizationConfig,
-  getPositiveOptimizationFromConfig,
-  toAnnotationOptimizationConfig,
-} from "@phoenix/components/annotation";
-import {
-  ChartPanel,
-  ChartPanelStrip,
-  ChartTooltipItem,
-} from "@phoenix/components/chart";
+import { Card, ColorSwatch, Text, View } from "@phoenix/components";
 import type { ProjectEvaluatorCompareStats_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_comparison.graphql";
-import type { ProjectEvaluatorCompareStats_evaluator$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_evaluator.graphql";
+import type {
+  ProjectEvaluatorCompareStats_evaluator$data,
+  ProjectEvaluatorCompareStats_evaluator$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_evaluator.graphql";
 import {
   EVALUATOR_COMPARE_COLORS,
-  getComparedOutputName,
+  formatFlagCondition,
   getKappaGloss,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 import {
@@ -39,14 +23,12 @@ import {
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
 
-const COMPARE_STATS_HEIGHT_PIXELS = 208;
-
-const stripCSS = css`
-  height: ${COMPARE_STATS_HEIGHT_PIXELS}px;
-
-  .chart-panel .chart-panel__title.heading {
-    font-size: var(--global-font-size-m);
-    line-height: var(--global-line-height-m);
+const statsGridCSS = css`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--global-dimension-size-200);
+  @media (max-width: 1100px) {
+    grid-template-columns: minmax(0, 1fr);
   }
 `;
 
@@ -54,13 +36,6 @@ const statValueCSS = css`
   display: flex;
   align-items: baseline;
   gap: var(--global-dimension-size-50);
-`;
-
-const sideBySideGridCSS = css`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--global-dimension-size-100);
-  height: 100%;
 `;
 
 const evaluatorNameCSS = css`
@@ -75,49 +50,6 @@ const evaluatorNameCSS = css`
     white-space: nowrap;
   }
 `;
-
-const evaluatorSummaryCSS = css`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--global-dimension-size-50);
-  min-width: 0;
-`;
-
-const evaluatorSummaryHeaderCSS = css`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--global-dimension-size-50);
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-
-  .text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-`;
-
-const donutTooltipListCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-50);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-`;
-
-const DONUT_SIZE = 104;
-const DONUT_INNER_RADIUS = 40;
-const DONUT_OUTER_RADIUS = 50;
-
-function DonutSector({ payload, ...props }: PieSectorShapeProps) {
-  return <Sector {...props} fill={payload?.color} />;
-}
 
 const formatNullableFloat = (value: number | null) =>
   value == null ? "--" : formatFloat(value);
@@ -145,234 +77,61 @@ function StatValueWithDetail({
   );
 }
 
-function FlagRateDonut({
-  color,
-  populationSize,
-  evaluationTargetsPlural,
-  flaggedCount,
-  flagRate,
-}: {
-  color: string;
-  populationSize: number;
-  evaluationTargetsPlural: string;
-  flaggedCount: number | null;
-  flagRate: number | null;
-}) {
-  const notFlaggedCount = Math.max(populationSize - (flaggedCount ?? 0), 0);
-  const chartData = [
-    { name: "flagged", value: flaggedCount ?? 0, color },
-    {
-      name: "not flagged",
-      value: notFlaggedCount,
-      color: "var(--global-color-gray-300)",
-    },
-  ];
-  const formattedRate = formatNullableRate(flagRate);
-  const formattedCount = formatNullableInt(flaggedCount);
-  const hasFlaggedMetrics = flaggedCount != null && flagRate != null;
-
-  return (
-    <TooltipTrigger delay={0}>
-      <TriggerWrap>
-        <div
-          role="img"
-          aria-label={`${formattedRate}; ${formattedCount} flagged`}
-        >
-          <PieChart
-            width={DONUT_SIZE}
-            height={DONUT_SIZE}
-            aria-hidden="true"
-            accessibilityLayer={false}
-          >
-            <Pie
-              data={chartData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={DONUT_INNER_RADIUS}
-              outerRadius={DONUT_OUTER_RADIUS}
-              stroke="transparent"
-              strokeWidth={0}
-              startAngle={90}
-              endAngle={-270}
-              isAnimationActive={false}
-              rootTabIndex={-1}
-              shape={DonutSector}
-            />
-            <text
-              x="50%"
-              y="42%"
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="var(--global-text-color-900)"
-              fontFamily="var(--global-font-family-mono)"
-              fontSize="var(--global-font-size-s)"
-              fontWeight="var(--font-weight-heavy)"
-            >
-              {formattedRate}
-            </text>
-            <text
-              x="50%"
-              y="58%"
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="var(--global-text-color-700)"
-              fontFamily="var(--global-font-family-mono)"
-              fontSize="var(--global-font-size-xxs)"
-            >
-              {`${formattedCount} flagged`}
-            </text>
-          </PieChart>
-        </div>
-      </TriggerWrap>
-      <RichTooltip placement="bottom">
-        <View width="size-2400">
-          {hasFlaggedMetrics ? (
-            <ul css={donutTooltipListCSS}>
-              <li>
-                <ChartTooltipItem
-                  color={color}
-                  name="flagged"
-                  shape="square"
-                  value={`${formattedCount} · ${formattedRate}`}
-                />
-              </li>
-              <li>
-                <ChartTooltipItem
-                  color="var(--global-color-gray-300)"
-                  name="not flagged"
-                  shape="square"
-                  value={`${formatInt(notFlaggedCount)} · ${formatPercent(
-                    (1 - flagRate) * 100
-                  )}`}
-                />
-              </li>
-            </ul>
-          ) : (
-            <Flex direction="column" gap="size-50">
-              <ChartTooltipItem
-                color="var(--global-color-gray-300)"
-                name={`shared ${evaluationTargetsPlural}`}
-                shape="square"
-                value={formatInt(populationSize)}
-              />
-              <Text color="text-700" size="S">
-                No optimization direction
-              </Text>
-            </Flex>
-          )}
-        </View>
-      </RichTooltip>
-    </TooltipTrigger>
-  );
-}
-
-function getMeanScoreColor({
-  meanScore,
-  optimizationConfig,
-}: {
-  meanScore: number | null;
-  optimizationConfig: AnnotationOptimizationConfig | undefined;
-}): "success" | "danger" | undefined {
-  const positiveOptimization = getPositiveOptimizationFromConfig({
-    config: optimizationConfig,
-    score: meanScore,
-  });
-  return positiveOptimization == null
-    ? undefined
-    : positiveOptimization
-      ? "success"
-      : "danger";
-}
-
-function EvaluatorSummary({
-  name,
-  annotationName,
-  color,
-  populationSize,
-  evaluationTargetsPlural,
-  flaggedCount,
-  flagRate,
-  meanScore,
-  optimizationConfig,
-}: {
-  name: string;
-  annotationName: string;
-  color: string;
-  populationSize: number;
-  evaluationTargetsPlural: string;
-  flaggedCount: number | null;
-  flagRate: number | null;
-  meanScore: number | null;
-  optimizationConfig: AnnotationOptimizationConfig | undefined;
-}) {
-  const outputName = getComparedOutputName({
-    evaluatorName: name,
-    annotationName,
-  });
-  const displayName = outputName ? `${name} · ${outputName}` : name;
-  return (
-    <section css={evaluatorSummaryCSS}>
-      <div css={evaluatorSummaryHeaderCSS}>
-        <ColorSwatch color={color} size="M" />
-        <Text size="XS" fontFamily="mono" title={displayName}>
-          {displayName}
-        </Text>
-      </div>
-      <FlagRateDonut
-        color={color}
-        populationSize={populationSize}
-        evaluationTargetsPlural={evaluationTargetsPlural}
-        flaggedCount={flaggedCount}
-        flagRate={flagRate}
-      />
-      <Text
-        size="M"
-        fontFamily="mono"
-        color={getMeanScoreColor({
-          meanScore,
-          optimizationConfig,
-        })}
-      >
-        <span aria-label="mean score">μ</span>&nbsp;
-        {formatNullableFloat(meanScore)}
-      </Text>
-    </section>
-  );
-}
-
 const evaluatorFragment = graphql`
   fragment ProjectEvaluatorCompareStats_evaluator on ProjectEvaluator {
     name
     evaluator {
       outputConfigs {
-        ... on AnnotationConfigBase {
-          name
-          annotationType
-        }
         ... on CategoricalAnnotationConfig {
           optimizationDirection
-          values {
-            label
-            score
-          }
         }
         ... on ContinuousAnnotationConfig {
           optimizationDirection
-          lowerBound
-          upperBound
         }
         ... on FreeformAnnotationConfig {
           optimizationDirection
-          threshold
-          lowerBound
-          upperBound
         }
       }
     }
   }
 `;
+
+/** Paragraphs for a stat's info tip. */
+function StatHelp({ children }: { children: ReadonlyArray<string | null> }) {
+  return (
+    <>
+      {children
+        .filter((line): line is string => line != null)
+        .map((line) => (
+          <Text key={line} size="S">
+            {line}
+          </Text>
+        ))}
+    </>
+  );
+}
+
+/** The flag rule each thresholded side reduces its scores with. */
+function formatFlagRules(
+  sides: ReadonlyArray<{
+    evaluator: ProjectEvaluatorCompareStats_evaluator$data;
+    threshold: number | null;
+  }>
+): string | null {
+  const rules = sides.flatMap(({ evaluator, threshold }) =>
+    threshold == null
+      ? []
+      : [
+          `${evaluator.name} ${formatFlagCondition({
+            threshold,
+            optimizationDirection:
+              evaluator.evaluator.outputConfigs[0]?.optimizationDirection ??
+              null,
+          })}`,
+        ]
+  );
+  return rules.length === 0 ? null : `Flagged at ${rules.join(", ")}`;
+}
 
 export function ProjectEvaluatorCompareStats({
   comparisonRef,
@@ -385,12 +144,6 @@ export function ProjectEvaluatorCompareStats({
 }) {
   const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
   const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
-  const evaluatorAOptimizationConfig = toAnnotationOptimizationConfig(
-    evaluatorA.evaluator.outputConfigs[0] ?? {}
-  );
-  const evaluatorBOptimizationConfig = toAnnotationOptimizationConfig(
-    evaluatorB.evaluator.outputConfigs[0] ?? {}
-  );
   const comparison = useFragment(
     graphql`
       fragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {
@@ -403,16 +156,10 @@ export function ProjectEvaluatorCompareStats({
         }
         populationSize
         a {
-          annotationName
-          flaggedCount
-          flagRate
-          meanScore
+          threshold
         }
         b {
-          annotationName
-          flaggedCount
-          flagRate
-          meanScore
+          threshold
         }
         statistics {
           agreement
@@ -429,43 +176,91 @@ export function ProjectEvaluatorCompareStats({
     comparison.evaluationTarget
   );
   const kappaGloss = getKappaGloss(statistics.cohensKappa);
-  const evaluatedByBothShareOfRange =
-    coverage.totalInRange === 0
-      ? null
-      : coverage.evaluatedByBoth / coverage.totalInRange;
-  const onlyAShareOfRange =
-    coverage.totalInRange === 0 ? null : coverage.onlyA / coverage.totalInRange;
-  const onlyBShareOfRange =
-    coverage.totalInRange === 0 ? null : coverage.onlyB / coverage.totalInRange;
+  // Span evaluators' total counts the traces in range, not the spans.
+  const totalInRangeTargets =
+    comparison.evaluationTarget === "SPAN" ? "traces" : evaluationTargetsPlural;
+  const capitalizedTargets =
+    evaluationTargetsPlural.charAt(0).toUpperCase() +
+    evaluationTargetsPlural.slice(1);
+  const flagRules = formatFlagRules([
+    { evaluator: evaluatorA, threshold: comparison.a.threshold },
+    { evaluator: evaluatorB, threshold: comparison.b.threshold },
+  ]);
   const disagreementShare =
     statistics.disagreementCount == null || comparison.populationSize === 0
       ? null
       : statistics.disagreementCount / comparison.populationSize;
 
   return (
-    <div css={stripCSS}>
-      <ChartPanelStrip chartCount={3}>
-        <ChartPanel title="Agreement" headingLevel={3} fillHeight>
-          <StatFieldList>
-            <StatField label="agreement">
+    <div css={statsGridCSS}>
+      <Card
+        title="Agreement"
+        titleSeparator={false}
+        extra={
+          <Text size="S" color="text-700">
+            {`${formatInt(comparison.populationSize)} ${evaluationTargetsPlural} evaluated by both`}
+          </Text>
+        }
+      >
+        <View paddingX="size-200" paddingBottom="size-200">
+          <StatFieldList fillHeight={false}>
+            <StatField
+              label="agreement"
+              help={
+                <StatHelp>
+                  {[
+                    "How often both evaluators reach the same verdict: both flagged, both not, or the same label.",
+                    flagRules,
+                  ]}
+                </StatHelp>
+              }
+            >
               <Text size="S">
                 {statistics.agreement == null
                   ? "--"
                   : formatPercent(statistics.agreement * 100)}
               </Text>
             </StatField>
-            <StatField label="Cohen's κ">
+            <StatField
+              label="Cohen's κ"
+              help={
+                <StatHelp>
+                  {[
+                    "Agreement adjusted for chance.",
+                    "1 = perfect · 0 = chance · < 0 = worse",
+                  ]}
+                </StatHelp>
+              }
+            >
               <StatValueWithDetail
                 value={formatNullableFloat(statistics.cohensKappa)}
                 detail={kappaGloss}
               />
             </StatField>
-            <StatField label="score correlation (ρ)">
+            <StatField
+              label="score correlation (ρ)"
+              help={
+                <StatHelp>
+                  {[
+                    "Do the raw scores rank results the same way?",
+                    "1 = same order · 0 = unrelated · −1 = reversed",
+                    "Needs continuous scores from both.",
+                  ]}
+                </StatHelp>
+              }
+            >
               <Text size="S">
                 {formatNullableFloat(statistics.spearmanRho)}
               </Text>
             </StatField>
-            <StatField label="disagreements">
+            <StatField
+              label="disagreements"
+              help={
+                <StatHelp>
+                  {[`${capitalizedTargets} where the verdicts differ.`]}
+                </StatHelp>
+              }
+            >
               <StatValueWithDetail
                 value={formatNullableInt(statistics.disagreementCount)}
                 detail={
@@ -476,23 +271,43 @@ export function ProjectEvaluatorCompareStats({
               />
             </StatField>
           </StatFieldList>
-        </ChartPanel>
-        <ChartPanel title="Coverage" headingLevel={3} fillHeight>
+        </View>
+      </Card>
+      <Card title="Coverage" titleSeparator={false}>
+        <View paddingX="size-200" paddingBottom="size-200">
           <StatFieldList fillHeight={false}>
-            <StatField label="evaluated by both">
-              <StatValueWithDetail
-                value={formatInt(coverage.evaluatedByBoth)}
-                detail={
-                  evaluatedByBothShareOfRange == null
-                    ? null
-                    : formatNullableRate(evaluatedByBothShareOfRange)
-                }
-              />
+            <StatField
+              label="evaluated by both"
+              help={
+                <StatHelp>
+                  {[
+                    `${capitalizedTargets} with a result from both evaluators.`,
+                  ]}
+                </StatHelp>
+              }
+            >
+              <Text size="S">{formatInt(coverage.evaluatedByBoth)}</Text>
             </StatField>
-            <StatField label={`${evaluationTargetsPlural} in range`}>
+            <StatField
+              label={`${totalInRangeTargets} in range`}
+              help={
+                <StatHelp>
+                  {[
+                    `All ${totalInRangeTargets} in the time range, evaluated or not.`,
+                  ]}
+                </StatHelp>
+              }
+            >
               <Text size="S">{formatInt(coverage.totalInRange)}</Text>
             </StatField>
             <StatField
+              help={
+                <StatHelp>
+                  {[
+                    `${capitalizedTargets} with a result from ${evaluatorA.name} only.`,
+                  ]}
+                </StatHelp>
+              }
               label={
                 <div css={evaluatorNameCSS}>
                   <ColorSwatch color={EVALUATOR_COMPARE_COLORS.a} size="M" />
@@ -502,16 +317,16 @@ export function ProjectEvaluatorCompareStats({
                 </div>
               }
             >
-              <StatValueWithDetail
-                value={formatInt(coverage.onlyA)}
-                detail={
-                  onlyAShareOfRange == null
-                    ? null
-                    : formatNullableRate(onlyAShareOfRange)
-                }
-              />
+              <Text size="S">{formatInt(coverage.onlyA)}</Text>
             </StatField>
             <StatField
+              help={
+                <StatHelp>
+                  {[
+                    `${capitalizedTargets} with a result from ${evaluatorB.name} only.`,
+                  ]}
+                </StatHelp>
+              }
               label={
                 <div css={evaluatorNameCSS}>
                   <ColorSwatch color={EVALUATOR_COMPARE_COLORS.b} size="M" />
@@ -521,54 +336,11 @@ export function ProjectEvaluatorCompareStats({
                 </div>
               }
             >
-              <StatValueWithDetail
-                value={formatInt(coverage.onlyB)}
-                detail={
-                  onlyBShareOfRange == null
-                    ? null
-                    : formatNullableRate(onlyBShareOfRange)
-                }
-              />
+              <Text size="S">{formatInt(coverage.onlyB)}</Text>
             </StatField>
           </StatFieldList>
-        </ChartPanel>
-        <ChartPanel
-          title="Side by side"
-          actions={
-            <Text size="S" color="text-700">
-              {formatInt(comparison.populationSize)} shared{" "}
-              {evaluationTargetsPlural}
-            </Text>
-          }
-          headingLevel={3}
-          fillHeight
-        >
-          <div css={sideBySideGridCSS}>
-            <EvaluatorSummary
-              name={evaluatorA.name}
-              annotationName={comparison.a.annotationName}
-              color={EVALUATOR_COMPARE_COLORS.a}
-              populationSize={comparison.populationSize}
-              evaluationTargetsPlural={evaluationTargetsPlural}
-              flaggedCount={comparison.a.flaggedCount}
-              flagRate={comparison.a.flagRate}
-              meanScore={comparison.a.meanScore}
-              optimizationConfig={evaluatorAOptimizationConfig}
-            />
-            <EvaluatorSummary
-              name={evaluatorB.name}
-              annotationName={comparison.b.annotationName}
-              color={EVALUATOR_COMPARE_COLORS.b}
-              populationSize={comparison.populationSize}
-              evaluationTargetsPlural={evaluationTargetsPlural}
-              flaggedCount={comparison.b.flaggedCount}
-              flagRate={comparison.b.flagRate}
-              meanScore={comparison.b.meanScore}
-              optimizationConfig={evaluatorBOptimizationConfig}
-            />
-          </div>
-        </ChartPanel>
-      </ChartPanelStrip>
+        </View>
+      </Card>
     </div>
   );
 }
