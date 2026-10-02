@@ -13,7 +13,7 @@ This module provides [OpenInference](https://github.com/Arize-ai/openinference) 
 ## Install
 
 ```bash
-npm install @arizeai/openinference-instrumentation-claude-agent-sdk @arizeai/phoenix-otel
+npm install @anthropic-ai/claude-agent-sdk @arizeai/openinference-instrumentation-claude-agent-sdk @arizeai/phoenix-otel
 ```
 
 ## Setup
@@ -25,10 +25,10 @@ Create the `instrumentation.ts` file:
 ```typescript expandable
 import { register } from "@arizeai/phoenix-otel";
 import { ClaudeAgentSDKInstrumentation } from "@arizeai/openinference-instrumentation-claude-agent-sdk";
-import * as ClaudeAgentSDK from "@anthropic-ai/claude-agent-sdk";
+import * as ClaudeAgentSDKModule from "@anthropic-ai/claude-agent-sdk";
 
 // Initialize Phoenix tracing
-const tracerProvider = register({
+export const tracerProvider = register({
   projectName: "claude-agent-sdk-app",
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
@@ -39,32 +39,37 @@ const tracerProvider = register({
 
 // Set up Claude Agent SDK instrumentation
 const instrumentation = new ClaudeAgentSDKInstrumentation();
-instrumentation.manuallyInstrument(ClaudeAgentSDK);
+
+// manuallyInstrument() returns an instrumented copy of the SDK module.
+// Export it and use it in your application instead of importing the SDK directly.
+export const ClaudeAgentSDK = instrumentation.manuallyInstrument(ClaudeAgentSDKModule);
 
 console.log("Claude Agent SDK instrumentation registered");
 ```
 
 <Note>
-The Claude Agent SDK is ESM-only, so `manuallyInstrument()` is used instead of `enable()` to ensure compatibility. You must import the SDK namespace and pass it to `manuallyInstrument()`.
+The Claude Agent SDK is ESM-only, so `manuallyInstrument()` is used instead of `enable()`. Because ES module exports are read-only, the instrumentation can't patch the SDK in place — `manuallyInstrument()` returns an instrumented copy of the module instead. Call `query()` on that returned copy. If you import `query` directly from `@anthropic-ai/claude-agent-sdk`, no spans are created.
 </Note>
 
 ## Usage
 
 ```typescript expandable
-import "./instrumentation.js";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { ClaudeAgentSDK, tracerProvider } from "./instrumentation.js";
 
 async function main() {
-  for await (const message of query({
-    prompt: "What is the weather in San Francisco?",
+  for await (const message of ClaudeAgentSDK.query({
+    prompt: "What files are in this directory?",
     options: {
-      model: "claude-sonnet-4-5-20250514",
+      allowedTools: ["Glob"],
     },
   })) {
-    if (message.type === "assistant") {
-      console.log(message.content);
+    if (message.type === "result" && message.subtype === "success") {
+      console.log(message.result);
     }
   }
+
+  // Export buffered spans before the process exits
+  await tracerProvider.forceFlush();
 }
 
 main();
@@ -90,7 +95,7 @@ const instrumentation = new ClaudeAgentSDKInstrumentation({
     hideOutputs: true, // Omit output content from spans
   },
 });
-instrumentation.manuallyInstrument(ClaudeAgentSDK);
+export const ClaudeAgentSDK = instrumentation.manuallyInstrument(ClaudeAgentSDKModule);
 ```
 
 ## Resources
