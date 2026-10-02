@@ -63,7 +63,6 @@ const runSummary = {
   queuedCount: 3,
   evaluatedCount: 118,
   failedCount: 2,
-  droppedCount: 0,
 };
 
 describe("getProjectEvaluatorStatus", () => {
@@ -87,9 +86,6 @@ describe("formatProjectEvaluatorRunCounts", () => {
     expect(
       formatProjectEvaluatorRunCounts({ ...runSummary, failedCount: 0 })
     ).toBe("118 evaluated · 3 queued");
-    expect(
-      formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
-    ).toBe("118 evaluated · 2 failed · 4 dropped · 3 queued");
   });
 });
 
