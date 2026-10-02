@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import type { Ref } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
@@ -30,6 +31,7 @@ import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
+import { usePlaygroundExampleEditStore } from "./examplesEditing";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundDatasetExamplesTablePreferencesProvider } from "./PlaygroundDatasetExamplesTablePreferences";
@@ -268,6 +270,12 @@ export function PlaygroundDatasetSection({
 
   // We want to re-mount the context when the dataset or the splits change
   const key = `${datasetId}-${splitIds?.join("-")}`;
+
+  // The page's edit session for the examples: the toolbar opens it and the
+  // table edits in it. The Run button and the navigation blocker read the
+  // same store, so nothing here mirrors its state elsewhere.
+  const editStore = usePlaygroundExampleEditStore();
+
   return (
     <PlaygroundDatasetExamplesTablePreferencesProvider>
       <TitledPanel
@@ -295,16 +303,19 @@ export function PlaygroundDatasetSection({
             onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
             editingEvaluator={editingEvaluator}
             onEditingEvaluatorChange={setEditingEvaluator}
+            editStore={editStore}
           />
         }
         panelProps={IO_PANEL_PROPS}
         onCollapseChange={onPanelCollapseChange}
       >
-        <Flex direction={"column"} height={"100%"}>
+        {/* Positioned: the table's floating edit toolbar anchors to it. */}
+        <Flex direction={"column"} height={"100%"} css={sectionBodyCSS}>
           <PlaygroundDatasetExamplesTableProvider key={key}>
             <PlaygroundDatasetExamplesTable
               datasetId={datasetId}
               splitIds={splitIds}
+              editStore={editStore}
               evaluatorMappings={
                 isEvaluatorKind
                   ? NO_EVALUATOR_MAPPINGS
@@ -323,3 +334,7 @@ export function PlaygroundDatasetSection({
     </PlaygroundDatasetExamplesTablePreferencesProvider>
   );
 }
+
+const sectionBodyCSS = css`
+  position: relative;
+`;
