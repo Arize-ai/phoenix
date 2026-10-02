@@ -225,6 +225,116 @@ class TestPrompts:
         response = await httpx_client.delete(url)
         assert response.status_code == 404
 
+    @pytest.mark.parametrize("use_global_id", [False, True])
+    async def test_clone_prompt_copies_all_versions(
+        self,
+        use_global_id: bool,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        source_prompt, source_versions = await self._insert_prompt_versions(db)
+        source_prompt.description = "Source prompt"
+        source_prompt.metadata_ = {"team": "support"}
+        async with db() as session:
+            session.add(source_prompt)
+        await self._tag_prompt_version(db, source_versions[0])
+        identifier = (
+            str(GlobalID(Prompt.__name__, str(source_prompt.id)))
+            if use_global_id
+            else source_prompt.name.root
+        )
+
+        response = await httpx_client.post(
+            f"v1/prompts/{quote_plus(identifier)}/clone",
+            json={"name": "cloned-prompt"},
+        )
+
+        assert response.status_code == 201, response.text
+        data = response.json()["data"]
+        assert data["name"] == "cloned-prompt"
+        assert data["description"] == "Source prompt"
+        assert data["metadata"] == {"team": "support"}
+        assert data["source_prompt_id"] == str(GlobalID(Prompt.__name__, str(source_prompt.id)))
+        cloned_prompt_id = from_global_id_with_expected_type(
+            GlobalID.from_id(data["id"]), Prompt.__name__
+        )
+        async with db() as session:
+            cloned_versions = list(
+                await session.scalars(
+                    select(models.PromptVersion)
+                    .filter_by(prompt_id=cloned_prompt_id)
+                    .order_by(models.PromptVersion.id)
+                )
+            )
+            cloned_tags = list(
+                await session.scalars(
+                    select(models.PromptVersionTag).filter_by(prompt_id=cloned_prompt_id)
+                )
+            )
+        assert len(cloned_versions) == len(source_versions)
+        for cloned, source in zip(cloned_versions, source_versions):
+            self._assert_version_content_matches(cloned, source)
+            assert cloned.user_id == source.user_id
+            assert cloned.custom_provider_id == source.custom_provider_id
+        assert not cloned_tags
+
+    async def test_clone_prompt_allows_explicit_field_clears(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        source_prompt, _ = await self._insert_prompt_versions(db)
+        source_prompt.description = "Source prompt"
+        source_prompt.metadata_ = {"team": "support"}
+        async with db() as session:
+            session.add(source_prompt)
+
+        response = await httpx_client.post(
+            f"v1/prompts/{quote_plus(source_prompt.name.root)}/clone",
+            json={"name": "cloned-prompt", "description": None, "metadata": None},
+        )
+
+        assert response.status_code == 201, response.text
+        data = response.json()["data"]
+        assert data["description"] is None
+        assert data["metadata"] == {}
+
+    async def test_clone_prompt_rejects_duplicate_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        source_prompt, _ = await self._insert_prompt_versions(db)
+
+        response = await httpx_client.post(
+            f"v1/prompts/{quote_plus(source_prompt.name.root)}/clone",
+            json={"name": source_prompt.name.root},
+        )
+
+        assert response.status_code == 409
+
+    async def test_clone_prompt_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/prompts/nonexistent-prompt-name/clone",
+            json={"name": "cloned-prompt"},
+        )
+
+        assert response.status_code == 404
+
+    async def test_clone_prompt_rejects_invalid_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/prompts/nonexistent-prompt-name/clone",
+            json={"name": "invalid prompt!"},
+        )
+
+        assert response.status_code == 422
+
     async def test_patch_prompt_by_name(
         self,
         httpx_client: httpx.AsyncClient,

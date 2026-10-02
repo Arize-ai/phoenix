@@ -119,6 +119,16 @@ class CreatePromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
+class ClonePromptRequestBody(V1RoutesBaseModel):
+    name: Identifier
+    description: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
+
+
+class ClonePromptResponseBody(ResponseBody[Prompt]):
+    pass
+
+
 class PatchPromptRequestBody(V1RoutesBaseModel):
     """
     Fields to update on a prompt. Omit a field to leave it unchanged.
@@ -894,6 +904,94 @@ async def delete_prompt_version_tag(
             raise HTTPException(404)
         await session.delete(tag)
     return None
+
+
+@router.post(
+    "/prompts/{prompt_identifier}/clone",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="clonePrompt",
+    summary="Clone a prompt",
+    description="Clone a prompt and all of its versions. Tags are not copied.",
+    response_description="The cloned prompt",
+    status_code=201,
+    responses=add_errors_to_responses(
+        [
+            404,
+            {"status_code": 409, "description": "A prompt with the given name already exists."},
+            422,
+        ]
+    ),
+)
+async def clone_prompt(
+    request: Request,
+    request_body: ClonePromptRequestBody,
+    prompt_identifier: str = Path(
+        description="The identifier of the prompt to clone, i.e. name or ID."
+    ),
+) -> ClonePromptResponseBody:
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        where_clause = models.Prompt.id == int(identifier)
+    elif isinstance(identifier, Identifier):
+        where_clause = models.Prompt.name == identifier
+    else:
+        assert_never(identifier)
+
+    async with request.app.state.db() as session:
+        result = await session.execute(
+            select(models.Prompt)
+            .options(joinedload(models.Prompt.prompt_versions))
+            .where(where_clause)
+        )
+        source_prompt = result.unique().scalar_one_or_none()
+        if source_prompt is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+
+        description = (
+            request_body.description.strip() if request_body.description is not None else None
+        )
+        if "description" not in request_body.model_fields_set:
+            description = source_prompt.description
+        metadata = request_body.metadata or {}
+        if "metadata" not in request_body.model_fields_set:
+            metadata = source_prompt.metadata_
+
+        cloned_prompt = models.Prompt(
+            name=request_body.name,
+            source_prompt_id=source_prompt.id,
+            description=description,
+            metadata_=metadata,
+            prompt_versions=[
+                models.PromptVersion(
+                    user_id=version.user_id,
+                    description=version.description,
+                    template_type=version.template_type,
+                    template_format=version.template_format,
+                    template=version.template,
+                    invocation_parameters=normalize_invocation_parameters_for_write(
+                        version.invocation_parameters
+                    ),
+                    tools=version.tools,
+                    response_format=version.response_format,
+                    model_provider=version.model_provider,
+                    model_name=version.model_name,
+                    custom_provider_id=version.custom_provider_id,
+                    metadata_=version.metadata_,
+                )
+                for version in source_prompt.prompt_versions
+            ],
+        )
+        session.add(cloned_prompt)
+        try:
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A prompt named '{request_body.name}' already exists",
+            )
+
+        data = _prompt_from_orm_prompt(cloned_prompt)
+    return ClonePromptResponseBody(data=data)
 
 
 @router.patch(
