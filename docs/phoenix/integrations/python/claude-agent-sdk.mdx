@@ -67,14 +67,17 @@ If you need to hide sensitive data, use the instrumentor directly instead of `au
 
 ```python
 from phoenix.otel import register
+from openinference.instrumentation import TraceConfig
 from openinference.instrumentation.claude_agent_sdk import ClaudeAgentSDKInstrumentor
 
 tracer_provider = register(project_name="claude-agent-sdk")
 
 ClaudeAgentSDKInstrumentor().instrument(
     tracer_provider=tracer_provider,
-    hide_inputs=True,
-    hide_outputs=True,
+    config=TraceConfig(
+        hide_inputs=True,  # Omit input content from spans
+        hide_outputs=True,  # Omit output content from spans
+    ),
 )
 ```
 
