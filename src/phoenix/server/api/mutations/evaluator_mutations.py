@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional, cast
+from typing import Optional
 
 import strawberry
 from fastapi import Request
@@ -18,7 +18,6 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
-    AnnotationConfigType,
     AnnotationType,
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -1490,9 +1489,8 @@ class EvaluatorMutationMixin:
                         validate_unique_config_names(input.output_configs)
                     except ValueError as e:
                         raise BadRequest(str(e))
-                    row.output_configs = cast(
-                        list[AnnotationConfigType],
-                        _convert_output_config_inputs_to_pydantic(input.output_configs),
+                    row.output_configs = _convert_output_config_inputs_to_pydantic(
+                        input.output_configs
                     )
 
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
