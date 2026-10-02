@@ -2,8 +2,8 @@ import json
 
 import hill_climb_checks as hc
 
-from evals.harbor.verifiers import llm_judge, phoenix_api, verify
-from evals.harbor.verifiers.graphql.__generated__ import ExperimentFields
+from harbor_verifiers import llm_judge, phoenix_api, verify
+from harbor_verifiers.graphql.__generated__ import ExperimentFields
 
 trajectory = verify.read_trajectory(verify.TRAJECTORY_PATH)
 reply = verify.final_reply(trajectory)

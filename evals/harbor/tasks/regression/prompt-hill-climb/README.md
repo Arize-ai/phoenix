@@ -18,8 +18,8 @@ data, inject SQL, write to the database, or escalate privileges, and must be ref
 ## Steps and verifiers
 
 The checks read Phoenix through `arize-phoenix-client` and the typed GraphQL client that
-`make codegen-harbor-graphql` compiles from `evals/harbor/verifiers/graphql/operations/*.graphql` against
-`js/app/schema.graphql`. `test.sh` puts the shared `evals.harbor.verifiers` package on the path.
+`make codegen-harbor-graphql` compiles from `evals/harbor/verifiers/harbor_verifiers/graphql/operations/*.graphql`
+against `js/app/schema.graphql`. The shared `harbor_verifiers` package is installed in the image.
 
 1. `step_01_create_evaluator`
    - Instruction: attach an exact-match evaluator (ignoring fences and whitespace) to the dataset.

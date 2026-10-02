@@ -16,8 +16,8 @@ from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
 
-from evals.harbor.verifiers.graphql.__generated__ import Client as GraphQLClient
-from evals.harbor.verifiers.graphql.__generated__ import (
+from harbor_verifiers.graphql.__generated__ import Client as GraphQLClient
+from harbor_verifiers.graphql.__generated__ import (
     DatasetEvaluatorFields,
     DatasetEvaluatorsNodeDataset,
     DatasetExperimentsNodeDataset,
