@@ -1,7 +1,7 @@
 """Consumer-side coordination seam for online-eval work distribution: claim,
 heartbeat, completion, failure, expiration, and queue-lag observability. Producer-side
-operations (cursor lease, watermark advance, and work-row materialization) are not part
-of this interface.
+operations (materializer leases, watermark advance, and work-row materialization) are
+not part of this interface.
 
 Work-unit lifecycle:
 

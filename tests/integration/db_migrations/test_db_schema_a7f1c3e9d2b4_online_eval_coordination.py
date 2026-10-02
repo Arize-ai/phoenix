@@ -142,39 +142,28 @@ class _OnlineEvalSchemaTest(ABC):
         assert (await _run_async(_engine, _get)) is None, "Table should not exist after downgrade"
 
 
-class TestEvalWorkCursors(_OnlineEvalSchemaTest):
-    table_name = "eval_work_cursors"
+class TestEvalSpanCursors(_OnlineEvalSchemaTest):
+    table_name = "eval_span_cursors"
 
     @override
     @classmethod
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
         column_names = {
             "id",
-            "evaluation_target",
-            "consumer_group",
             "produced_through_id",
             "observed_high_water_id",
             "observed_at",
-            "claimed_at",
-            "claimed_by",
             "created_at",
             "updated_at",
         }
-        index_names: set[str] = set()
         constraint_names = {
-            "pk_eval_work_cursors",
-            "uq_eval_work_cursors_evaluation_target_consumer_group",
-            "ck_eval_work_cursors_`valid_evaluation_target`",
+            "pk_eval_span_cursors",
+            "ck_eval_span_cursors_`single_row`",
         }
         if db_backend == "postgresql":
-            index_names.update(
-                {
-                    "pk_eval_work_cursors",
-                    "uq_eval_work_cursors_evaluation_target_consumer_group",
-                }
-            )
+            index_names = {"pk_eval_span_cursors"}
         elif db_backend == "sqlite":
-            index_names.update({"sqlite_autoindex_eval_work_cursors_1"})
+            index_names = {"sqlite_autoindex_eval_span_cursors_1"}
         else:
             assert_never(db_backend)
         return _TableSchemaInfo(
@@ -182,9 +171,7 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(
-                ["observed_high_water_id", "observed_at", "claimed_at", "claimed_by"]
-            ),
+            nullable_column_names=frozenset(["observed_high_water_id", "observed_at"]),
         )
 
 
