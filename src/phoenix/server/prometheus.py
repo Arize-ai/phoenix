@@ -190,7 +190,9 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
 ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
     namespace="phoenix",
     name="online_eval_eligible_pair_backlog",
-    documentation="Current number of entity and evaluator pairs eligible for work",
+    documentation="Number of entity and evaluator pairs on the latest sweep page that pass "
+    "their evaluator's filter. A page holds at most one tick's work limit, and the value is "
+    "not updated while outstanding work is at its limit",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
