@@ -65,6 +65,7 @@ const runSummary = {
   evaluatedCount: 118,
   failedCount: 2,
   droppedCount: 0,
+  overflowedCount: 0,
 };
 
 describe("getProjectEvaluatorStatus", () => {
@@ -91,6 +92,9 @@ describe("formatProjectEvaluatorRunCounts", () => {
     expect(
       formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
     ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
+    expect(
+      formatProjectEvaluatorRunCounts({ ...runSummary, overflowedCount: 12 })
+    ).toBe("118 evaluated · 2 failed · 12 dropped · 3 queued");
   });
 });
 
