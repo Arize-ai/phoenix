@@ -20,28 +20,17 @@ CREATE TABLE public.annotation_configs (
 );
 
 
--- Table: eval_work_cursors
+-- Table: eval_span_cursors
 -- ------------------------
-CREATE TABLE public.eval_work_cursors (
-    id bigserial NOT NULL,
-    evaluation_target VARCHAR NOT NULL,
-    consumer_group VARCHAR NOT NULL,
+CREATE TABLE public.eval_span_cursors (
+    id BIGINT NOT NULL,
     produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
     observed_high_water_id BIGINT,
     observed_at TIMESTAMP WITH TIME ZONE,
-    claimed_at TIMESTAMP WITH TIME ZONE,
-    claimed_by VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_eval_work_cursors PRIMARY KEY (id),
-    CONSTRAINT uq_eval_work_cursors_evaluation_target_consumer_group
-        UNIQUE (evaluation_target, consumer_group),
-    CONSTRAINT "ck_eval_work_cursors_`valid_evaluation_target`"
-        CHECK (((evaluation_target)::text = ANY ((ARRAY[
-            'SPAN'::character varying,
-            'TRACE'::character varying,
-            'SESSION'::character varying
-        ])::text[])))
+    CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id),
+    CONSTRAINT "ck_eval_span_cursors_`single_row`" CHECK ((id = 1))
 );
 
 
