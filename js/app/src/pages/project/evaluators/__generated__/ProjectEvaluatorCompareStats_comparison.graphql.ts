@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1003743e0e46d609c3d3745782463efa>>
+ * @generated SignedSource<<757d9f5f7d0c4778286cf572fdce39da>>
  * @lightSyntaxTransform
  */
 
@@ -12,16 +12,10 @@ export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorCompareStats_comparison$data = {
   readonly a: {
-    readonly annotationName: string;
-    readonly flagRate: number | null;
-    readonly flaggedCount: number | null;
-    readonly meanScore: number | null;
+    readonly threshold: number | null;
   };
   readonly b: {
-    readonly annotationName: string;
-    readonly flagRate: number | null;
-    readonly flaggedCount: number | null;
-    readonly meanScore: number | null;
+    readonly threshold: number | null;
   };
   readonly coverage: {
     readonly evaluatedByBoth: number;
@@ -50,28 +44,7 @@ var v0 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
-    "name": "annotationName",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "flaggedCount",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "flagRate",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "meanScore",
+    "name": "threshold",
     "storageKey": null
   }
 ];
@@ -199,6 +172,6 @@ return {
 };
 })();
 
-(node as any).hash = "e87e43201b6d8648271cb86e2f5ab36c";
+(node as any).hash = "e3906cea3f77e906602a4ba101bf683f";
 
 export default node;

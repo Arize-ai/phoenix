@@ -14,6 +14,7 @@ import {
   truncateModelName,
   useCategoryChartColors,
   useInteractiveLegend,
+  stackedBarSeparatorProps,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
@@ -159,6 +160,7 @@ export function TopModelsByCost({
                 />
               }
               stackId="a"
+              {...stackedBarSeparatorProps}
             />
           ))}
           <InteractiveLegend
