@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2688bc84c1ec872671acdd56e7fa6bf9>>
+ * @generated SignedSource<<4f67e0b0ebaf36d6d0043d0c7e47aa0f>>
  * @lightSyntaxTransform
  */
 
@@ -23,7 +23,6 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
     readonly id: string;
   };
   readonly runSummary: {
-    readonly droppedCount: number;
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastError: string | null;
@@ -146,13 +145,6 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "droppedCount",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
           "name": "lastError",
           "storageKey": null
         }
@@ -188,6 +180,6 @@ return {
 };
 })();
 
-(node as any).hash = "c1f10eab7d3a50359d3d024916da01dc";
+(node as any).hash = "266154b507c93306ef8e1b25af1a0e16";
 
 export default node;
