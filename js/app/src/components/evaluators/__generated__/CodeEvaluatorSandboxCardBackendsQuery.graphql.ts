@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1a888bd8e4075e479df96ddcb089b3f5>>
+ * @generated SignedSource<<19b831c6005bb92feefafd83d5ba7767>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type InternetAccessMode = "BOOLEAN" | "NONE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 export type CodeEvaluatorSandboxCardBackendsQuery$variables = Record<PropertyKey, never>;
 export type CodeEvaluatorSandboxCardBackendsQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
