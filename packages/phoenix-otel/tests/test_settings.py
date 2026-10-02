@@ -66,6 +66,15 @@ def test_parse_env_headers_skips_malformed_segments(headers: str, expected: dict
     assert parse_env_headers(headers) == expected
 
 
+def test_parse_env_headers_names_the_header_it_url_encodes(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level("WARNING"):
+        assert parse_env_headers("my key=my value") == {"my key": "my value"}
+    assert "URL encode header: my key: ****" in caplog.text
+    assert "my value" not in caplog.text
+
+
 @pytest.mark.parametrize(
     "env, expected",
     [

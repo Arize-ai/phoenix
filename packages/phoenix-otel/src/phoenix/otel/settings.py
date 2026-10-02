@@ -440,7 +440,8 @@ def parse_env_headers(s: str) -> Dict[str, str]:
                 continue
             logger.warning(
                 "Header values in environment variables should be URL encoded, attempting to "
-                "URL encode header: {name}: ****"
+                "URL encode header: %s",
+                f"{name}: ****",
             )
 
         name, value = header.split("=", 1)
