@@ -270,22 +270,22 @@ function QueueStatsRow({
             size="L"
             fontFamily="mono"
             color={
-              queue.status === "OVERLOADED"
-                ? "danger"
-                : queue.atCapacity
-                  ? "warning"
-                  : undefined
+              queue.atCapacity
+                ? queue.status === "OVERLOADED"
+                  ? "danger"
+                  : "warning"
+                : undefined
             }
           >
             {intFormatter(queue.queuedCount)}
           </Text>
           <span
             css={
-              queue.status === "OVERLOADED"
-                ? overloadedMeterCSS
-                : queue.atCapacity
-                  ? fullMeterCSS
-                  : undefined
+              queue.atCapacity
+                ? queue.status === "OVERLOADED"
+                  ? overloadedMeterCSS
+                  : fullMeterCSS
+                : undefined
             }
           >
             <ProgressBar
