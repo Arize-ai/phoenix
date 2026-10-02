@@ -1478,8 +1478,7 @@ CHECK (status IN (
             'DONE',
             'FAILED',
             'EXPIRED',
-            'SUPERSEDED',
-            'DROPPED'
+            'SUPERSEDED'
         )),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
@@ -1514,7 +1513,7 @@ CREATE INDEX ix_eval_work_units_project_evaluator_failed ON eval_work_units
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON eval_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
-    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'DROPPED');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED');
 
 
 -- Table: project_session_annotations
