@@ -970,6 +970,52 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
     assert cursor.produced_through_id == span.id
 
 
+async def test_filter_that_fails_when_run_skips_only_its_own_evaluator(
+    db: DbSessionFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        span = await _add_span(session, await _add_trace(session, project))
+        other_project = await _add_project(session)
+        other_span = await _add_span(session, await _add_trace(session, other_project))
+    _, broken_project_evaluator_id = await _seed_criteria(
+        db,
+        project.id,
+        # Compiles, but the literal is out of range for the column it is compared with.
+        filter_condition="llm.token_count.total > 99999999999999999999",
+    )
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    _, other_project_evaluator_id = await _seed_criteria(db, other_project.id)
+    await _seed_cursor(
+        db,
+        observed_high_water_id=other_span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    producer = OnlineEvalProducer(db)
+
+    with caplog.at_level("WARNING", logger=producer_module.__name__):
+        await producer._tick()
+        await producer._backstop_sweep(
+            await producer._load_active_project_evaluators(), other_span.id, 10
+        )
+
+    async with db() as session:
+        units = list(await session.scalars(select(models.EvalWorkUnit)))
+    assert {(unit.project_evaluator_id, unit.span_rowid) for unit in units} == {
+        (project_evaluator_id, span.id),
+        (other_project_evaluator_id, other_span.id),
+    }
+    assert (await _get_cursor(db)).produced_through_id == other_span.id
+    skipped = [
+        record.getMessage()
+        for record in caplog.records
+        if f"project evaluator {broken_project_evaluator_id} " in record.getMessage()
+    ]
+    assert len(skipped) == 2  # once for the frontier, once for the backstop
+    assert all("filter condition failed when run" in message for message in skipped)
+
+
 async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
