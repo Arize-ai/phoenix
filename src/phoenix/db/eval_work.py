@@ -1,10 +1,15 @@
 """Work-unit status vocabulary and the schema predicates derived from it.
 
-This module has no Phoenix imports so the schema (``models``), the queries
-(``online_eval``), and the migrations can all read the same values.
+This module imports nothing from Phoenix at runtime so the schema (``models``), the
+queries (``online_eval``), and the migrations can all read the same values.
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from phoenix.db.models import EvalSessionWorkStatus
 
 MAX_ATTEMPTS = 3
 
@@ -15,6 +20,13 @@ FAILED_EVAL_WORK_STATUSES = ("FAILED", "EXPIRED")
 EVAL_WORK_STATUSES = (*LIVE_EVAL_WORK_STATUSES, *TERMINAL_EVAL_WORK_STATUSES)
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
+# Session and trace work that ended without a result is offered again once its entity has
+# newer activity. DONE and declined rows are final.
+SESSION_REOFFERED_STATUSES: tuple[EvalSessionWorkStatus, ...] = (
+    "FAILED",
+    "EXPIRED",
+    "CONTENT_LOST",
+)
 TERMINAL_EVAL_SESSION_WORK_STATUSES = (*TERMINAL_EVAL_WORK_STATUSES, "CONTENT_LOST")
 EVAL_SESSION_WORK_STATUSES = (
     *LIVE_EVAL_WORK_STATUSES,
@@ -45,11 +57,6 @@ def live_eval_work_index_predicate() -> str:
     migration that creates it must all spell this the same way.
     """
     return _status_in(LIVE_EVAL_WORK_STATUSES)
-
-
-def live_eval_session_work_index_predicate() -> str:
-    """SQL text selecting session work and decisions that hold their dedup key."""
-    return _status_in((*LIVE_EVAL_WORK_STATUSES, *SESSION_DECLINED_STATUSES))
 
 
 def terminal_eval_work_index_predicate() -> str:
