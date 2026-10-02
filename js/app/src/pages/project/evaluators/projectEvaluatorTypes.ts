@@ -268,6 +268,7 @@ export type ProjectEvaluatorRunSummary = {
   evaluatedCount: number;
   failedCount: number;
   droppedCount: number;
+  overflowedCount: number;
   oldestQueuedAt?: string | null;
 };
 
@@ -384,6 +385,7 @@ export function formatProjectEvaluatorRunCounts(
       [runSummary.evaluatedCount, "evaluated"],
       [runSummary.failedCount, "failed"],
       [runSummary.droppedCount, "cleared"],
+      [runSummary.overflowedCount, "dropped"],
       [runSummary.queuedCount, "queued"],
     ] as const
   )
