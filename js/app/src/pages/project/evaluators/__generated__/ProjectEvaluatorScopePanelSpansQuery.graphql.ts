@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa185184fe8ece2c0858b5bc11ef905d>>
+ * @generated SignedSource<<56b4c5a64fd4077133b695f93351d37c>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "decision" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type TimeRange = {
   end?: string | null;
   start?: string | null;
