@@ -1984,7 +1984,7 @@ type EvaluatorComparisonCoverage {
   onlyB: Int!
 
   """
-  All entities of the compared evaluation target in the project and time range.
+  Traces in the project and time range for span and trace targets, or sessions for session targets. Span targets count traces rather than spans.
   """
   totalInRange: Int!
 }
@@ -2015,10 +2015,10 @@ type EvaluatorComparisonStatistics {
 }
 
 """
-One evaluator's numbers within a comparison. Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both.
+One evaluator's side of a comparison: the labels and threshold that bin its results into the confusion matrix, and its distribution over the entities both evaluators annotated.
 """
 type EvaluatorComparisonSummary {
-  """The project evaluator these numbers describe."""
+  """The project evaluator on this side of the comparison."""
   evaluator: ProjectEvaluator!
 
   """
@@ -2036,14 +2036,10 @@ type EvaluatorComparisonSummary {
   """
   threshold: Float
 
-  """Entities this evaluator flags, over the shared population."""
-  flaggedCount: Int
-
-  """flaggedCount over `populationSize`."""
-  flagRate: Float
-
-  """Mean of this evaluator's non-null scores over the shared population."""
-  meanScore: Float
+  """
+  Distribution of this evaluator's primary result over the entities in range that both evaluators annotated, whether or not both results are binnable.
+  """
+  sharedDistribution: EvaluatorDistribution!
 }
 
 """A connection to a list of items."""

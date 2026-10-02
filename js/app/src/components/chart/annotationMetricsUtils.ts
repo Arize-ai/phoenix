@@ -187,3 +187,50 @@ export function normalizeAnnotationMetrics({
     })
     .filter(({ views }) => views.length > 0);
 }
+
+/** One series' values within one bin of a grouped chart. */
+export type AnnotationMetricsGroupedValue = {
+  readonly meanScore?: number;
+  /** Aligned with the series' labels. */
+  readonly fractions: ReadonlyArray<number | undefined>;
+  /** Share of results in the bin without a label. */
+  readonly otherFraction?: number;
+};
+
+export type AnnotationMetricsGroupedRow = {
+  readonly x: number;
+  /** Keyed by group; undefined where that group has no summary in the bin. */
+  readonly values: Readonly<
+    Record<string, AnnotationMetricsGroupedValue | undefined>
+  >;
+};
+
+/**
+ * Aligns several series on their x values for a grouped chart. A bin a series
+ * has no summary for leaves its value undefined, so its line skips the bin
+ * and its bar is absent instead of reading as zero.
+ */
+export function mergeAnnotationMetricsSeries(
+  seriesByKey: Readonly<Record<string, AnnotationMetricsSeries | undefined>>
+): AnnotationMetricsGroupedRow[] {
+  const valuesByX = new Map<
+    number,
+    Record<string, AnnotationMetricsGroupedValue | undefined>
+  >();
+  for (const [key, series] of Object.entries(seriesByKey)) {
+    for (const point of series?.data ?? []) {
+      const values = valuesByX.get(point.x) ?? {};
+      values[key] = point.hasAnnotationSummary
+        ? {
+            meanScore: point.meanScore,
+            fractions: point.fractions,
+            otherFraction: getAnnotationOtherFraction({ point }),
+          }
+        : undefined;
+      valuesByX.set(point.x, values);
+    }
+  }
+  return Array.from(valuesByX, ([x, values]) => ({ x, values })).sort(
+    (left, right) => left.x - right.x
+  );
+}
