@@ -179,11 +179,11 @@ ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
     f"last update was in the past {_TERMINAL_METRICS_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_DROPPED_WORK_UNITS = Gauge(
+ONLINE_EVAL_CLEARED_WORK_UNITS = Gauge(
     namespace="phoenix",
-    name="online_eval_dropped_work_units",
-    documentation="Number of online-eval work units in DROPPED status, removed from the queue "
-    f"before they ran, whose last update was in the past {_TERMINAL_METRICS_WINDOW}. "
+    name="online_eval_cleared_work_units",
+    documentation="Number of online-eval work units cleared from the queue before they ran "
+    f"(DROPPED status), whose last update was in the past {_TERMINAL_METRICS_WINDOW}. "
     f"{_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
