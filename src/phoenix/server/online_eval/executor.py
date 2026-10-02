@@ -1,8 +1,8 @@
 """Execution glue for claimed online-eval work units: configuration-first hydration,
 target context assembly, evaluator invocation, and idempotent annotation writes.
-Publication runs through the coordinator, which fences the claim and records any
-coverage watermark in the same transaction; every lifecycle transition, including
-completion, stays with the coordinator and its caller.
+Publication runs through the coordinator, which fences the claim in the transaction that
+writes the annotations; every lifecycle transition, including completion, stays with the
+coordinator and its caller.
 """
 
 from __future__ import annotations
