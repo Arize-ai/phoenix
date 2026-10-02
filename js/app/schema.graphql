@@ -1208,6 +1208,11 @@ type Dataset implements Node {
     """
     filterIds: [ID!]
   ): DatasetExampleConnection!
+
+  """
+  The expected outputs recorded on the examples of a specific version if version is specified, or of the latest version if version is not specified. Only examples with at least one expected output are listed.
+  """
+  exampleExpectedOutputs(datasetVersionId: ID, splitIds: [ID!]): [DatasetExampleExpectedOutputs!]!
   splits: [DatasetSplit!]!
 
   """
@@ -1371,6 +1376,11 @@ input DatasetExampleExpectedOutputInput {
   label: String
   score: Float = null
   explanation: String = null
+}
+
+type DatasetExampleExpectedOutputs {
+  exampleId: ID!
+  expectedOutputs: [DatasetExampleExpectedOutput!]!
 }
 
 type DatasetExampleExpectedOutputsPayload {

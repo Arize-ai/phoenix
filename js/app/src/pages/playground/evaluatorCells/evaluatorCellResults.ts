@@ -1,3 +1,4 @@
+import type { AnnotationConfig } from "@phoenix/components/annotation";
 import type { PlaygroundEvaluatorTask } from "@phoenix/store/playground";
 
 import type {
@@ -28,9 +29,43 @@ export type ExpectedOutputExample = {
   }>;
 };
 
+/** One example's stored expected outputs, as the dataset lists them. */
+export type StoredExpectedOutputs = {
+  exampleId: string;
+  expectedOutputs: ExpectedOutputExample["expectedOutputs"];
+};
+
+/**
+ * Every example's expected outputs: the dataset's, read for all examples at
+ * once, with each loaded row's revision in its place. Writes land on the
+ * loaded rows, so those are the freshest copy.
+ */
+export function mergeExpectedOutputExamples({
+  stored,
+  loaded,
+}: {
+  stored: ReadonlyArray<StoredExpectedOutputs>;
+  loaded: ReadonlyArray<ExpectedOutputExample>;
+}): ExpectedOutputExample[] {
+  const byExampleId = new Map<string, ExpectedOutputExample["expectedOutputs"]>(
+    stored.map((example) => [example.exampleId, example.expectedOutputs])
+  );
+
+  for (const example of loaded) {
+    byExampleId.set(example.id, example.expectedOutputs);
+  }
+
+  return Array.from(byExampleId, ([id, expectedOutputs]) => ({
+    id,
+    expectedOutputs,
+  }));
+}
+
 export type EvaluatorTaskAnnotation = {
   /** The annotation name the task's runs write, and expected outputs use. */
   name: string;
+  /** The reviewed output's config, renamed to the annotation it writes. */
+  config: AnnotationConfig | undefined;
   /** The reviewed output's labels and bounds; undefined without an output. */
   output: EvaluatorOutput | undefined;
 };
@@ -51,16 +86,52 @@ export function getEvaluatorTaskAnnotation({
   const config = evaluator.outputConfigs[0];
 
   if (!config) {
-    return { name: evaluatorName, output: undefined };
+    return { name: evaluatorName, config: undefined, output: undefined };
+  }
+
+  const name = getEvaluatorAnnotationName({
+    evaluatorName,
+    outputName: config.name,
+    outputCount: evaluator.outputConfigs.length,
+  });
+
+  return {
+    name,
+    config: toAnnotationConfig({ config, name }),
+    output: toEvaluatorOutput(config),
+  };
+}
+
+/**
+ * An evaluator task's output config in the shape the annotation components
+ * take, under the annotation name its runs write. Numeric outputs keep their
+ * bounds whether or not they are declared continuous.
+ */
+function toAnnotationConfig({
+  config,
+  name,
+}: {
+  config: PlaygroundEvaluatorTask["outputConfigs"][number];
+  name: string;
+}): AnnotationConfig {
+  if ("values" in config) {
+    return {
+      name,
+      annotationType: "CATEGORICAL",
+      optimizationDirection: config.optimizationDirection,
+      values: config.values.map((value) => ({
+        label: value.label,
+        score: value.score ?? null,
+      })),
+    };
   }
 
   return {
-    name: getEvaluatorAnnotationName({
-      evaluatorName,
-      outputName: config.name,
-      outputCount: evaluator.outputConfigs.length,
-    }),
-    output: toEvaluatorOutput(config),
+    name,
+    annotationType: "CONTINUOUS",
+    optimizationDirection: config.optimizationDirection,
+    lowerBound: config.lowerBound ?? null,
+    upperBound: config.upperBound ?? null,
   };
 }
 
@@ -162,8 +233,8 @@ export type ExpectedAgreement = {
 };
 
 /**
- * How the evaluator stands against the expected outputs of the loaded
- * examples, counted over the first repetition. Agreement is counted over
+ * How the evaluator stands against the expected outputs of `examples`,
+ * counted over the first repetition. Agreement is counted over
  * expectations the output config can still produce, so "2/2 agree" cannot be
  * mistaken for a share of the whole sample.
  */

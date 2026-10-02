@@ -27,6 +27,14 @@ class DatasetExampleExpectedOutput:
     explanation: str | None
 
 
+@strawberry.type
+class DatasetExampleExpectedOutputs:
+    """The expected outputs recorded on one dataset example."""
+
+    example_id: GlobalID
+    expected_outputs: list[DatasetExampleExpectedOutput]
+
+
 def to_gql_expected_outputs(metadata: Any) -> list[DatasetExampleExpectedOutput]:
     """The expected outputs stored on an example's metadata, one per annotation name."""
     return [
