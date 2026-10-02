@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+from phoenix.db.eval_work import MAX_ATTEMPTS, live_eval_session_work_index_predicate
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import sweeper as sweeper_module
@@ -22,7 +22,6 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_TTL_SECONDS,
 )
 from phoenix.server.online_eval.derivation import (
-    MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
     ResolvedProjectEvaluator,
     sample_key,
