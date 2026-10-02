@@ -87,6 +87,11 @@ const fullMeterCSS = css`
   --mod-barloader-fill-color: var(--global-color-warning);
 `;
 
+/** Fills the meter in the danger color, matching the Overloaded badge. */
+const overloadedMeterCSS = css`
+  --mod-barloader-fill-color: var(--global-color-danger);
+`;
+
 const wholeRateFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 });
@@ -264,11 +269,25 @@ function QueueStatsRow({
           <Text
             size="L"
             fontFamily="mono"
-            color={queue.atCapacity ? "warning" : undefined}
+            color={
+              queue.status === "OVERLOADED"
+                ? "danger"
+                : queue.atCapacity
+                  ? "warning"
+                  : undefined
+            }
           >
             {intFormatter(queue.queuedCount)}
           </Text>
-          <span css={queue.atCapacity ? fullMeterCSS : undefined}>
+          <span
+            css={
+              queue.status === "OVERLOADED"
+                ? overloadedMeterCSS
+                : queue.atCapacity
+                  ? fullMeterCSS
+                  : undefined
+            }
+          >
             <ProgressBar
               width="80px"
               value={Math.min(queue.queuedCount, queue.queuedLimit)}
