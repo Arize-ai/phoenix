@@ -25,6 +25,7 @@ const createEmptyEditState = <
   Row extends object,
 >(): EditableTableState<Row> => ({
   mode: "read",
+  pendingEditCell: null,
   addedRows: [],
   addedRowIds: new Set<string>(),
   updatedRows: {},
@@ -51,8 +52,13 @@ export function createEditableTableStore<Row extends object>({
     };
     return {
       ...createEmptyEditState<Row>(),
-      beginEditing: () => {
-        set({ mode: "editing" });
+      beginEditing: (options) => {
+        set({ mode: "editing", pendingEditCell: options?.cell ?? null });
+      },
+      clearPendingEditCell: () => {
+        set((state) =>
+          state.pendingEditCell === null ? state : { pendingEditCell: null }
+        );
       },
       cancelEditing: endSession,
       startSaving: () => {

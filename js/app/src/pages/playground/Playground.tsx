@@ -110,7 +110,12 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { describeUnsavedExampleChanges } from "@phoenix/pages/examples/unsavedExampleChanges";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
+import {
+  PlaygroundExampleEditingProvider,
+  usePlaygroundExampleEditing,
+} from "@phoenix/pages/playground/examplesEditing";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import {
   arePlaygroundTaskParamsEqual,
@@ -123,6 +128,10 @@ import {
   type AgentClientActionResult,
   waitForRegisteredClientActions,
 } from "@phoenix/store/agentStore";
+import {
+  getEditableTableChangeCount,
+  hasEditableTableUnsavedChanges,
+} from "@phoenix/store/editableTableStore";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
@@ -215,23 +224,29 @@ export function Playground(
       defaultModelProvider={defaultModelProvider}
       defaultModelName={defaultModelName}
     >
-      <div css={playgroundWrapCSS}>
-        {/* The panels below shrink, not the header, so the header controls
-            stay put whatever kind of task the page holds. */}
-        <View borderBottomColor="default" borderBottomWidth="thin" flex="none">
-          <PageHeader
-            title="Playground"
-            extra={
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <PlaygroundCredentialsDropdown />
-                <PlaygroundConfigButton />
-                <PlaygroundRunButton />
-              </Flex>
-            }
-          />
-        </View>
-        <PlaygroundContent />
-      </div>
+      <PlaygroundExampleEditingProvider>
+        <div css={playgroundWrapCSS}>
+          {/* The panels below shrink, not the header, so the header controls
+              stay put whatever kind of task the page holds. */}
+          <View
+            borderBottomColor="default"
+            borderBottomWidth="thin"
+            flex="none"
+          >
+            <PageHeader
+              title="Playground"
+              extra={
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <PlaygroundCredentialsDropdown />
+                  <PlaygroundConfigButton />
+                  <PlaygroundRunButton />
+                </Flex>
+              }
+            />
+          </View>
+          <PlaygroundContent />
+        </div>
+      </PlaygroundExampleEditingProvider>
       <Suspense>
         <PlaygroundExamplePage />
       </Suspense>
@@ -306,6 +321,13 @@ function PlaygroundContent() {
 
   const anyDirtyInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
+  );
+  // Edits to the dataset's examples the table has not saved. They are read
+  // here because a router honors one blocker, and this is it.
+  const unsavedExampleChangeCount = usePlaygroundExampleEditing((session) =>
+    hasEditableTableUnsavedChanges(session)
+      ? getEditableTableChangeCount(session)
+      : 0
   );
   const recordExperiments = usePlaygroundContext(
     (state) => state.recordExperiments
@@ -729,31 +751,37 @@ function PlaygroundContent() {
   // - Ephemeral experiment running: will stop on disconnect, user must stay or accept
   // - Non-ephemeral experiment running: daemon continues, but ask if user wants to stop
   // - Dirty prompts: unsaved changes warning
+  // - Unsaved edits to the dataset's examples: they live only in memory
+  const hasUnsavedExampleChanges = unsavedExampleChangeCount > 0;
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
       const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
 
-      return (isRunning || anyDirtyInstances) && goingToNewPage;
+      return (
+        (isRunning || anyDirtyInstances || hasUnsavedExampleChanges) &&
+        goingToNewPage
+      );
     },
-    [isRunning, anyDirtyInstances]
+    [isRunning, anyDirtyInstances, hasUnsavedExampleChanges]
   );
   const blocker = useBlocker(shouldBlockUnload);
 
-  // Hard block at the browser level when an experiment is running
+  // Hard block at the browser level when an experiment is running or example
+  // edits are unsaved
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = true;
     };
 
-    if (isRunning) {
+    if (isRunning || hasUnsavedExampleChanges) {
       window.addEventListener("beforeunload", handleBeforeUnload);
       return () => {
         window.removeEventListener("beforeunload", handleBeforeUnload);
       };
     }
     return undefined;
-  }, [isRunning]);
+  }, [isRunning, hasUnsavedExampleChanges]);
 
   // The mounted panel set varies with the input; passing panelIds keys each
   // set's saved layout separately so switching doesn't clobber the other's.
@@ -946,7 +974,13 @@ function PlaygroundContent() {
       ) : (
         <ConfirmNavigationDialog
           blocker={blocker}
-          message="You have unsaved changes. Are you sure you want to leave?"
+          message={
+            hasUnsavedExampleChanges
+              ? `Leaving this page will discard ${describeUnsavedExampleChanges(
+                  { count: unsavedExampleChangeCount }
+                )}.`
+              : "You have unsaved changes. Are you sure you want to leave?"
+          }
         />
       )}
     </EvaluatorTaskAgentProvider>

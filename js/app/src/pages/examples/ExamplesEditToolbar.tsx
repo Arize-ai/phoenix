@@ -14,6 +14,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import { EditableTableToolbar } from "@phoenix/components/table";
+import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import type { EditableTableStore } from "@phoenix/types/table";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
@@ -67,6 +68,11 @@ export function ExamplesEditToolbar({
   );
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
+  // The table stays in "saving" until the new version's rows have rendered;
+  // ExamplesTable ends the session once they have.
+  const refreshLatestVersion = useDatasetContext(
+    (state) => state.refreshLatestVersion
+  );
   return (
     <>
       <EditableTableToolbar
@@ -140,6 +146,7 @@ export function ExamplesEditToolbar({
           editStore={editStore}
           isOpen
           onOpenChange={setIsSaveDialogOpen}
+          onSaved={refreshLatestVersion}
         />
       ) : null}
     </>
