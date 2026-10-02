@@ -11,10 +11,16 @@ import { ProjectEvaluatorCompareStats } from "@phoenix/pages/project/evaluators/
 import { ProjectEvaluatorCompareDistributions } from "./ProjectEvaluatorCompareDistributions";
 import { CompareSelectionProvider } from "./ProjectEvaluatorCompareSelectionContext";
 import { ProjectEvaluatorCompareTargets } from "./ProjectEvaluatorCompareTargets";
+import { ProjectEvaluatorCompareTimeSeries } from "./ProjectEvaluatorCompareTimeSeries";
 
-const comparisonPanelsCSS = css`
+// A fixed row height, so toggling a chart's view (and with it the legend or
+// headers it shows) never shifts the page; each plot absorbs the difference.
+const COMPARISON_CHARTS_ROW_HEIGHT_PX = 380;
+
+const comparisonChartsCSS = css`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: ${COMPARISON_CHARTS_ROW_HEIGHT_PX}px;
   gap: var(--global-dimension-size-200);
   @media (max-width: 1100px) {
     grid-template-columns: minmax(0, 1fr);
@@ -28,6 +34,7 @@ const evaluatorFragment = graphql`
     ...ProjectEvaluatorCompareStats_evaluator
     ...ProjectEvaluatorCompareMatrix_evaluator
     ...ProjectEvaluatorCompareTargets_evaluator
+    ...ProjectEvaluatorCompareTimeSeries_evaluator
   }
 `;
 
@@ -70,6 +77,8 @@ export function ProjectEvaluatorCompareContent({
               ...ProjectEvaluatorCompareTargets_comparison
               ...ProjectEvaluatorCompareStats_comparison
               ...ProjectEvaluatorCompareMatrix_comparison
+              ...ProjectEvaluatorCompareDistributions_comparison
+              ...ProjectEvaluatorCompareTimeSeries_comparison
             }
           }
         }
@@ -113,22 +122,30 @@ export function ProjectEvaluatorCompareContent({
   return (
     <CompareSelectionProvider>
       <Flex direction="column" gap="size-200">
-        <ProjectEvaluatorCompareStats
-          comparisonRef={comparison}
-          evaluatorARef={evaluatorA}
-          evaluatorBRef={evaluatorB}
-        />
-        <div css={comparisonPanelsCSS}>
-          <ProjectEvaluatorCompareMatrix
+        <div css={comparisonChartsCSS}>
+          <ProjectEvaluatorCompareTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
             comparisonRef={comparison}
             evaluatorARef={evaluatorA}
             evaluatorBRef={evaluatorB}
           />
           <ProjectEvaluatorCompareDistributions
+            comparisonRef={comparison}
             evaluatorARef={data.evaluatorA}
             evaluatorBRef={data.evaluatorB}
           />
         </div>
+        <ProjectEvaluatorCompareStats
+          comparisonRef={comparison}
+          evaluatorARef={evaluatorA}
+          evaluatorBRef={evaluatorB}
+        />
+        <ProjectEvaluatorCompareMatrix
+          comparisonRef={comparison}
+          evaluatorARef={evaluatorA}
+          evaluatorBRef={evaluatorB}
+        />
         <ProjectEvaluatorCompareTargets
           projectId={projectId}
           comparisonRef={comparison}

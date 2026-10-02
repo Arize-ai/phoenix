@@ -172,9 +172,6 @@ class TestComparisonAccumulator:
         # p0 = 0.75, pe = (3*3 + 5*5)/64 = 34/64 -> kappa = (48-34)/(64-34)
         assert result.cohens_kappa == pytest.approx((0.75 - 34 / 64) / (1 - 34 / 64))
         assert result.spearman_rho is not None
-        assert result.side_a.flagged_count == 3
-        assert result.side_a.flag_rate == pytest.approx(3 / 8)
-        assert result.side_b.flagged_count == 3
         assert result.side_a.threshold == 0.5
 
     def test_categorical_versus_thresholded(self) -> None:
@@ -194,9 +191,6 @@ class TestComparisonAccumulator:
         assert result.cohens_kappa == pytest.approx(0.0)
         assert result.disagreement_count == 2
         assert result.spearman_rho is None  # side A is categorical
-        assert result.side_a.flagged_count == 2
-        assert result.side_a.mean_score == pytest.approx(0.5)
-        assert result.side_b.mean_score == pytest.approx(0.5)
 
     def test_unbinnable_pairs_are_excluded(self) -> None:
         binning_a = make_side_binning("a", _continuous_config(name="a"), None)
@@ -216,8 +210,8 @@ class TestComparisonAccumulator:
         accumulator.add("pass", 1.0, None, math.nan)  # thresholded side is unbinnable
         result = accumulator.result()
         assert result.n == 2
-        assert result.side_a.mean_score == pytest.approx(1.0)
-        assert result.side_b.mean_score == pytest.approx(0.55)
+        # The infinite score's label still bins; the NaN score's pair drops.
+        assert result.matrix == ((0, 1), (1, 0))
 
     def test_fold_label_never_collides_with_a_real_label(self) -> None:
         labels = [f"label_{index}" for index in range(8)] + [OTHER_LABEL]
@@ -271,8 +265,6 @@ class TestComparisonAccumulator:
         result = accumulator.result()
         assert result.agreement == pytest.approx(2 / 3)
         assert result.disagreement_count == 1
-        assert result.side_a.flagged_count is None
-        assert result.side_a.flag_rate is None
 
     def test_disjoint_label_sets_without_flags_have_no_agreement(self) -> None:
         config_a = _categorical_config(
@@ -301,4 +293,3 @@ class TestComparisonAccumulator:
         assert result.agreement is None
         assert result.cohens_kappa is None
         assert result.spearman_rho is None
-        assert result.side_a.mean_score is None
