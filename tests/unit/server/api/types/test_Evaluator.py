@@ -1748,7 +1748,13 @@ async def test_project_evaluator_run_summary(
             start_time=now,
             end_time=now,
         )
-        session.add_all([project_evaluator, trace, project_session])
+        emptied_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add_all([project_evaluator, trace, project_session, emptied_session])
         await session.flush()
         spans = [
             models.Span(
@@ -1821,7 +1827,7 @@ async def test_project_evaluator_run_summary(
                 # The session's traces were deleted before the evaluation ran — a
                 # lifecycle event outside every bucket, and never the last error.
                 models.EvalSessionWorkUnit(
-                    project_session_rowid=project_session.id,
+                    project_session_rowid=emptied_session.id,
                     project_evaluator_id=project_evaluator.id,
                     evaluated_through=now,
                     status="CONTENT_LOST",
