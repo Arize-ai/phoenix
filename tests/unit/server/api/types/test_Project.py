@@ -7326,9 +7326,7 @@ class TestEvaluatorComparison:
                             annotationName
                             labels
                             threshold
-                            flaggedCount
-                            flagRate
-                            meanScore
+                            sharedDistribution { ...DistributionFields }
                         }
                         b {
                             evaluator {
@@ -7338,9 +7336,7 @@ class TestEvaluatorComparison:
                             annotationName
                             labels
                             threshold
-                            flaggedCount
-                            flagRate
-                            meanScore
+                            sharedDistribution { ...DistributionFields }
                         }
                         confusionMatrix
                         statistics {
@@ -7618,7 +7614,8 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 5,
             "onlyA": 1,
             "onlyB": 1,
-            "totalInRange": 7,
+            # Span targets count traces: the in-range spans share one trace.
+            "totalInRange": 1,
         }
         assert comparison["populationSize"] == 4
         side_a = comparison["a"]
@@ -7629,16 +7626,11 @@ class TestEvaluatorComparison:
         assert side_a["annotationName"] == "correctness"
         assert side_a["labels"] == ["pass", "fail"]
         assert side_a["threshold"] is None
-        assert side_a["flaggedCount"] == 2
-        assert side_a["flagRate"] == pytest.approx(0.5)
-        assert side_a["meanScore"] == pytest.approx(0.5)
         side_b = comparison["b"]
         assert side_b["evaluator"]["name"] == "toxicity"
         assert side_b["annotationName"] == "toxicity"
         assert side_b["labels"] == ["flagged", "not flagged"]
         assert side_b["threshold"] == pytest.approx(0.5)
-        assert side_b["flaggedCount"] == 2
-        assert side_b["meanScore"] == pytest.approx(0.5)
         assert comparison["confusionMatrix"] == [[1, 1], [1, 1]]
         statistics = comparison["statistics"]
         assert statistics["agreement"] == pytest.approx(0.5)
@@ -7654,7 +7646,7 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 4,
             "onlyA": 2,
             "onlyB": 0,
-            "totalInRange": 7,
+            "totalInRange": 1,
         }
         assert comparison["populationSize"] == 4
         assert comparison["confusionMatrix"] == [[2, 0], [0, 2]]
@@ -7671,7 +7663,6 @@ class TestEvaluatorComparison:
             gql_client, _comparison_data, "correctness", "toxicity", threshold_b=0.85
         )
         assert comparison["b"]["threshold"] == pytest.approx(0.85)
-        assert comparison["b"]["flaggedCount"] == 1
         assert comparison["confusionMatrix"] == [[0, 2], [1, 1]]
         statistics = comparison["statistics"]
         assert statistics["agreement"] == pytest.approx(0.75)
@@ -7728,10 +7719,31 @@ class TestEvaluatorComparison:
         assert distribution_b["evaluatedCount"] == coverage["evaluatedByBoth"] + coverage["onlyB"]
         assert distribution_b["scoreBinCounts"] == [0, 1, 1, 0, 0, 1, 0, 0, 1, 1]
         assert sum(distribution_b["scoreBinCounts"]) == distribution_b["evaluatedCount"] - 1
-        # The comparison's mean covers only the shared population; the
-        # distribution's mean covers every in-range result.
-        assert comparison["a"]["meanScore"] == pytest.approx(0.5)
+        # The distribution's mean covers every in-range result.
         assert distribution_a["meanScore"] == pytest.approx(4 / 6)
+
+    async def test_shared_distributions_cover_only_entities_evaluated_by_both(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(_comparison_data, "correctness", "toxicity"),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison = data["node"]["evaluatorComparison"]
+        evaluated_by_both = comparison["coverage"]["evaluatedByBoth"]
+        shared_a = comparison["a"]["sharedDistribution"]
+        shared_b = comparison["b"]["sharedDistribution"]
+        # The exclusive results the independent distributions include drop out.
+        assert shared_a["evaluatedCount"] == evaluated_by_both
+        assert shared_b["evaluatedCount"] == evaluated_by_both
+        assert shared_a["evaluatedCount"] < data["evaluatorA"]["distribution"]["evaluatedCount"]
+        assert shared_b["evaluatedCount"] < data["evaluatorB"]["distribution"]["evaluatedCount"]
+        assert sum(point["count"] for point in shared_a["labelCounts"]) == evaluated_by_both
+        # A shared result with a null score is evaluated but not binnable.
+        assert sum(shared_b["scoreBinCounts"]) == evaluated_by_both - 1
+        assert shared_a["threshold"] == data["evaluatorA"]["distribution"]["threshold"]
 
     @pytest.mark.parametrize("target", ["SPAN", "TRACE", "SESSION"])
     async def test_distribution_membership_is_independent_of_value_eligibility(
@@ -7809,8 +7821,6 @@ class TestEvaluatorComparison:
             assert sum(distribution["scoreBinCounts"]) == 3
             assert distribution["evaluatedCount"] == 4
         assert sum(map(sum, comparison["confusionMatrix"])) == 1
-        assert comparison["a"]["meanScore"] == pytest.approx(0.9)
-        assert comparison["b"]["meanScore"] == pytest.approx(0.8)
         assert data["evaluatorA"]["distribution"]["meanScore"] == pytest.approx(0.4)
 
     async def test_same_evaluator_twice_is_rejected(
