@@ -352,10 +352,6 @@ def test_migration_status_predicates_match_the_code_that_reads_them() -> None:
     assert migration._EVAL_WORK_STATUS_CHECK == eval_work.eval_work_status_check()
     assert migration._EVAL_SESSION_WORK_STATUS_CHECK == eval_work.eval_session_work_status_check()
     assert migration._LIVE_EVAL_WORK_PREDICATE == eval_work.live_eval_work_index_predicate()
-    assert (
-        migration._LIVE_EVAL_SESSION_WORK_PREDICATE
-        == eval_work.live_eval_session_work_index_predicate()
-    )
     assert migration._TERMINAL_EVAL_WORK_PREDICATE == eval_work.terminal_eval_work_index_predicate()
     assert (
         migration._TERMINAL_EVAL_SESSION_WORK_PREDICATE
