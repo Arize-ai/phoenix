@@ -1,13 +1,14 @@
 """Online-eval producer daemon.
 
 Materializes span-level eval work units from enabled project evaluators.
-The producer runs on every replica but self-elects each tick via the
-``eval_work_cursors`` CAS lease, so exactly one replica per evaluation target
-scans spans and writes work rows at a time. Each tick: renew the lease, reap
-expired/aged work rows, scan the lag-gated span id window per project evaluator, and
-idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
-backstop sweep re-covers a bounded id window behind the watermark to catch spans
-that became visible after their window was scanned.
+The producer runs on every replica. The ``eval_work_cursors`` lease keeps one replica
+scanning at a time so scans aren't repeated. The unique (span, evaluator, config)
+work-unit key absorbs duplicate inserts, and the lease checks keep a producer that lost
+its lease from committing a scan or moving the cursor. Each tick renews the lease and
+reaps expired/aged work rows. When a frontier is due and the admission gate is open, it
+also scans the lag-gated span id window per project evaluator and inserts surviving
+work units. A slow-cadence backstop sweep re-covers a bounded id window behind the
+watermark to catch spans that became visible after their window was scanned.
 """
 
 from __future__ import annotations
@@ -121,10 +122,13 @@ class _ActiveProjectEvaluator:
 class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
-    ``produced_through_id`` is a position in that log: every span at or below it has
-    been offered to every enabled SPAN project evaluator. Session work is materialized from
-    entity state instead, by ``EvalSweeper`` — a session becomes eligible when it
-    goes quiet, which no position in an arrival log can express.
+    ``produced_through_id`` is a scan position in that log: spans above it are still to be
+    scanned, and spans at or below it were scanned for the SPAN project evaluators active
+    when the position passed them. It starts at the newest span, so older spans, and spans
+    an evaluator missed because it was enabled later, are reached only by the backstop's
+    lookback (``backstop_lookback_span_ids``). Session and trace work are
+    materialized from entity state instead, by ``EvalSweeper`` — a session or trace
+    becomes eligible when it goes quiet, which no position in an arrival log can express.
     """
 
     def __init__(
@@ -538,8 +542,9 @@ class OnlineEvalProducer(DaemonTask):
             # preceding this call can consume a large fraction of the frontier
             # lag (unboundedly so on a first-run backfill), and a stale stamp
             # makes the next tick over-age the observation — eroding the
-            # commit-visibility guard that is the only defense against the
-            # id-vs-commit-order race. A post-read stamp errs conservative.
+            # commit-visibility guard against the id-vs-commit-order race and
+            # leaving late-visible spans to the slower backstop. A post-read
+            # stamp errs conservative.
             observed_at = datetime.now(timezone.utc)
             await session.execute(
                 update(models.EvalWorkCursor)

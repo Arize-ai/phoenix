@@ -238,9 +238,9 @@ Example: judge every final-answer LLM span, or a sampled subset, for hallucinati
 
 Traces do not have an explicit "done" event. **How to detect completion is still open:** root
 span end, an idle period after the last span, or both for different evaluator types. One viable
-approach is to use a quiet period (same mechanism as sessions). If new spans arrive after an
-evaluation, the trace can be re-evaluated when it goes quiet again. The visible trace annotation
-reflects the latest evaluation.
+approach is to use a quiet period (same mechanism as sessions). As with sessions, v1 evaluates each
+trace once, when its first quiet period elapses; spans that arrive after the evaluation do not
+schedule another one.
 
 Trace evaluation has two flavors. Treating a trace as its root span makes the simple case easy:
 evaluate the root span's I/O ("did the agent answer my question?"). The harder case evaluates
@@ -260,6 +260,10 @@ v1 evaluates each session once, when its first quiet period elapses. Later activ
 schedule another evaluation. This deliberate initial limitation is tracked in
 [#14903](https://github.com/Arize-ai/phoenix/issues/14903), which owns result identity, re-entry and
 frequency, recovery after permanent failure, and staleness detection for in-flight evaluation.
+
+An evaluation that produced no result is the exception: a session or trace whose evaluation
+failed, expired, or found its content gone is retried once new spans arrive after the failure and
+it goes quiet again. Spans that arrived while the evaluation was running might not trigger a retry.
 
 When re-evaluation lands, it should **override** rather than stack: if a session was judged
 "incomplete" and later completes, the newer judgment should replace the earlier one (see
@@ -467,13 +471,13 @@ Results appear as span annotations (optionally hoisted onto the trace).
 ### Trace-level task success judge
 
 Filter to traces matching a product workflow. Evaluate every matching trace after a quiet period.
-Results appear as trace annotations. Late-arriving spans trigger a fresh evaluation.
+Results appear as trace annotations. Spans that arrive after the evaluation do not trigger another
+one.
 
 ### Session-level coherence judge
 
 Sample 10% of sessions. Evaluate after the user goes idle. Results appear as session
-annotations. Resumed sessions can be evaluated again on the next idle period, overriding the
-prior annotation.
+annotations. A session that resumes after its evaluation is not evaluated again.
 
 ## Open Questions
 
