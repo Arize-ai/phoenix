@@ -34,14 +34,14 @@ _FAILED = "FAILED"
 
 @dataclass(frozen=True)
 class ProjectEvaluatorRunCounts:
-    """How much evaluation work a project evaluator has produced, and when.
+    """How many spans, traces, and sessions a project evaluator has evaluated, and when.
 
-    Counts are over the work rows that still exist, by their current status. Terminal span
-    rows are reaped once they are older than the online-eval retention period and below
-    ``produced_through_id - backstop_lookback_span_ids``, so old span rows can outlive that
-    period. Session and trace rows have no reaper. Any row is deleted with its span,
-    session, trace, or project evaluator, so trace retention and orphan-session deletes
-    remove session and trace rows too.
+    Each target has one work row, and counts are over the rows that still exist, by their
+    current status. Terminal span rows are reaped once they are older than the online-eval
+    retention period and below ``produced_through_id - backstop_lookback_span_ids``, so old
+    span rows can outlive that period. Session and trace rows have no reaper. Any row is
+    deleted with its span, session, trace, or project evaluator, so trace retention and
+    orphan-session deletes remove session and trace rows too.
     """
 
     queued: int = 0

@@ -875,6 +875,77 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
     assert units[0].attempts == MAX_ATTEMPTS
 
 
+async def test_a_stale_claim_cannot_write_to_its_unit_re_offered_to_the_same_consumer(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    offered_through = datetime.now(timezone.utc) - timedelta(minutes=10)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        project_session.last_span_ingested_at = offered_through
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(
+        db, project.id, evaluation_target="SESSION"
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db, project_session.id, evaluator_id, project_evaluator_id
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
+            .values(created_at=offered_through - timedelta(days=1))
+        )
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
+    started: list[ClaimedWorkUnit] = []
+
+    async def _start(unit: ClaimedWorkUnit, *_: Any) -> None:
+        started.append(unit)
+
+    async def _write_nothing(_: Any) -> None:
+        return None
+
+    monkeypatch.setattr(consumer, "_process_unit", _start)
+    await _cycle_to_completion(consumer)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
+            .values(
+                attempts=MAX_ATTEMPTS - 1,
+                claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1),
+            )
+        )
+    await _cycle_to_completion(consumer)
+    assert (await _get_session_unit(db, unit_id)).status == "FAILED"
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session.id)
+            .values(last_span_ingested_at=datetime.now(timezone.utc) - timedelta(minutes=6))
+        )
+    await EvalSweeper(
+        db,
+        evaluation_target="SESSION",
+        max_outstanding=get_env_online_eval_max_session_outstanding(),
+    )._tick()
+    assert (await _get_session_unit(db, unit_id)).status == "PENDING"
+    await _cycle_to_completion(consumer)
+    first, second = started
+    assert first.work_unit_id == second.work_unit_id == unit_id
+    assert first.claimed_by != second.claimed_by
+
+    stale: dict[str, Any] = {"work_unit_id": unit_id, "claimed_by": first.claimed_by}
+    with pytest.raises(PublicationClaimLostError):
+        await consumer._coordinator.publish(**stale, write=_write_nothing)
+    assert not await consumer._coordinator.fail(**stale, error="stale")
+    assert not await consumer._coordinator.expire(**stale, error="stale")
+    row = await _get_session_unit(db, unit_id)
+    assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", second.claimed_by, 0)
+    assert await _session_annotations(db) == []
+
+
 async def test_pending_session_with_deleted_trace_is_claimed_hydrated_and_published(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
