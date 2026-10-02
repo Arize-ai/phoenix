@@ -17,6 +17,7 @@ import {
   useInteractiveLegend,
   useSemanticChartColors,
   useSequentialChartColors,
+  stackedBarSeparatorProps,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -150,18 +151,21 @@ export function SpanCountTimeSeries({
               <Bar
                 dataKey="error"
                 stackId="a"
+                {...stackedBarSeparatorProps}
                 fill={SemanticChartColors.danger}
                 hide={isDataKeyHidden("error")}
               />
               <Bar
                 dataKey="unset"
                 stackId="a"
+                {...stackedBarSeparatorProps}
                 fill={colors.gray500}
                 hide={isDataKeyHidden("unset")}
               />
               <Bar
                 dataKey="ok"
                 stackId="a"
+                {...stackedBarSeparatorProps}
                 fill={colors.gray300}
                 hide={isDataKeyHidden("ok")}
                 radius={[2, 2, 0, 0]}

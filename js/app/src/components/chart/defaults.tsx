@@ -164,3 +164,14 @@ export const compactLegendProps: LegendProps = {
     paddingTop: "var(--global-dimension-size-50)",
   },
 };
+
+/**
+ * Spread onto every `Bar` in a stack: a hairline in the chart surface color
+ * around each segment leaves a 1px gap between adjacent segments, so they
+ * read as separate even when their colors are close. Works for vertical and
+ * horizontal stacks, and for custom bar shapes that forward Rectangle props.
+ */
+export const stackedBarSeparatorProps = {
+  stroke: "var(--chart-bar-separator-color)",
+  strokeWidth: 1,
+} as const;
