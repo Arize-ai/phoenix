@@ -32,7 +32,6 @@ from phoenix.config import (
     get_env_online_eval_frontier_lag_seconds,
     get_env_online_eval_max_outstanding,
     get_env_online_eval_max_span_ids_per_tick,
-    get_env_online_eval_pending_ttl_seconds,
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
@@ -60,7 +59,6 @@ TICK_INTERVAL_SECONDS = 10.0
 _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
 _CONSUMER_GROUP = "default"
-_PENDING_TTL_EXCEEDED_ERROR = "pending ttl exceeded"
 
 
 class _CursorLeaseLost(Exception):
@@ -146,8 +144,6 @@ class OnlineEvalProducer(DaemonTask):
         self._backstop_interval_seconds = get_env_online_eval_backstop_interval_seconds()
         self._backstop_lookback_span_ids = get_env_online_eval_backstop_lookback_span_ids()
         self._max_span_ids_per_tick = get_env_online_eval_max_span_ids_per_tick()
-        # Disabled by default because expiry is terminal and blocks backstop re-materialization.
-        self._pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
         self._retention_seconds = get_env_online_eval_retention_seconds()
         self._max_outstanding = get_env_online_eval_max_outstanding()
         self._last_backstop_at = time.monotonic()
@@ -223,6 +219,8 @@ class OnlineEvalProducer(DaemonTask):
             observation_consumed = advanced and frontier == observed_high_water_id
             if not pending_observation or observation_consumed:
                 await self._record_observation(produced_through_id)
+            else:
+                await self._refresh_gauges(produced_through_id)
 
             if budget > 0 and time.monotonic() - self._last_backstop_at >= (
                 self._backstop_interval_seconds
@@ -358,22 +356,6 @@ class OnlineEvalProducer(DaemonTask):
         async with self._db() as session:
             if mutations_allowed:
                 await reap_lapsed_leases(session, models.EvalWorkUnit)
-            if mutations_allowed and self._pending_ttl_seconds > 0:
-                pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
-                await session.execute(
-                    update(models.EvalWorkUnit)
-                    .where(
-                        models.EvalWorkUnit.status == "PENDING",
-                        models.EvalWorkUnit.created_at < pending_cutoff,
-                    )
-                    .values(
-                        status="DROPPED",
-                        error=func.coalesce(
-                            models.EvalWorkUnit.error,
-                            _PENDING_TTL_EXCEEDED_ERROR,
-                        ),
-                    )
-                )
             await session.execute(
                 delete(models.EvalWorkUnit).where(
                     models.EvalWorkUnit.status.in_(TERMINAL_EVAL_WORK_STATUSES),
@@ -557,6 +539,16 @@ class OnlineEvalProducer(DaemonTask):
             )
         self._publish_frontier_gap(high_water - produced_through_id)
         self._publish_ingest_rate(high_water, observed_at)
+
+    async def _refresh_gauges(self, produced_through_id: int) -> None:
+        """Publish the frontier gap and ingest rate on a tick that leaves its pending
+        observation unconsumed, e.g. while the admission gate is closed."""
+        if not self._publish_metrics:
+            return
+        async with self._db() as session:
+            high_water = await session.scalar(select(func.max(models.Span.id))) or 0
+        self._publish_frontier_gap(max(high_water - produced_through_id, 0))
+        self._publish_ingest_rate(high_water, datetime.now(timezone.utc))
 
     def _publish_frontier_gap(self, gap: int) -> None:
         """How far the arrival log has run ahead of what this producer has materialized."""

@@ -27,6 +27,7 @@ from typing import (
 )
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
 from strawberry.relay import GlobalID
@@ -85,7 +86,7 @@ from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
     config_fingerprint,
 )
-from phoenix.server.online_eval.failure_policy import FailureDisposition
+from phoenix.server.online_eval.failure_policy import FailureDisposition, is_transient_error
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
@@ -219,6 +220,12 @@ class SharedHydrationFailure:
     """A batch-level database failure that must not consume any unit's retry budget."""
 
     error: Exception
+
+
+def _batch_hydration_failure(error: Exception) -> SharedHydrationFailure | Exception:
+    if isinstance(error, DBAPIError) or is_transient_error(error):
+        return SharedHydrationFailure(error)
+    return error
 
 
 ConfigurationSnapshotOutcome = (
@@ -662,7 +669,7 @@ class OnlineEvalExecutor:
                 async with self._db() as session:
                     return await self._hydrate_configuration_snapshots(session, units)
         except Exception as error:
-            return [SharedHydrationFailure(error) for _ in units]
+            return [_batch_hydration_failure(error) for _ in units]
 
     async def _hydrate_configuration_snapshots(
         self,
@@ -771,7 +778,7 @@ class OnlineEvalExecutor:
                     )
             except Exception as error:
                 for index in pending:
-                    outcomes[index] = SharedHydrationFailure(error)
+                    outcomes[index] = _batch_hydration_failure(error)
 
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
         applied_policies: list[Optional[dict[str, Any]]] = [None for _ in units]
