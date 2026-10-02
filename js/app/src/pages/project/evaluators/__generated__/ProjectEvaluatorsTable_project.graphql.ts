@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d207d54d774d5d5476631fb61a8cc1c>>
+ * @generated SignedSource<<7eab754a074c30537011084cad7e86ea>>
  * @lightSyntaxTransform
  */
 
@@ -294,14 +294,7 @@ return {
                           "storageKey": null
                         },
                         (v7/*:: as any*/),
-                        (v8/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "droppedCount",
-                          "storageKey": null
-                        }
+                        (v8/*:: as any*/)
                       ],
                       "storageKey": null
                     },

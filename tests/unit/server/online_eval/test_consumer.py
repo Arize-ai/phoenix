@@ -1653,6 +1653,41 @@ async def test_shared_hydration_failure_releases_claims_without_attempts(
     assert all(unit.claimed_by is None and unit.claimed_at is None for unit in units)
 
 
+async def test_batch_hydration_error_outside_the_database_fails_the_unit(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+
+    async def _fail_outside_the_database(session: Any, rows: Any) -> Any:
+        raise ValueError("unreadable configuration")
+
+    monkeypatch.setattr(
+        executor_module, "resolve_project_evaluators_bulk", _fail_outside_the_database
+    )
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+
+    for _ in range(MAX_ATTEMPTS):
+        async with db() as session:
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(models.EvalWorkUnit.id == unit_id)
+                .values(cooldown_until=datetime.now(timezone.utc))
+            )
+        await _cycle_to_completion(consumer)
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status == "FAILED"
+    assert unit.attempts == MAX_ATTEMPTS
+    assert unit.error is not None
+    assert "unreadable configuration" in unit.error
+
+
 async def test_configuration_snapshot_is_discarded_after_claim_batch(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,

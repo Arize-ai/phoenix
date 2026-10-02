@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7348ac9787c3fa0f78ab680bcb7c7708>>
+ * @generated SignedSource<<f2fb5d45fdadd8cf550cab411e936d6b>>
  * @lightSyntaxTransform
  */
 
@@ -59,7 +59,6 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly id: string;
   readonly name: string;
   readonly runSummary: {
-    readonly droppedCount: number;
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastRunAt: string | null;
@@ -80,6 +79,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "59c1291da76c538e8fc6ca162c55b56f";
+(node as any).hash = "06f3d437ca26d0878117f68a7356da3b";
 
 export default node;

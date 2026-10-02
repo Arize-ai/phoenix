@@ -128,7 +128,6 @@ const readRow = (
           queuedCount
           evaluatedCount
           failedCount
-          droppedCount
         }
         evaluator {
           id
