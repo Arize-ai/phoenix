@@ -6754,6 +6754,146 @@ class TestAnnotationMetricsTimeSeries:
         assert third_summary["scoreCount"] == 1
         assert third_summary["labelFractions"] == []
 
+    async def test_multi_unit_bins_summarize_entities_per_bin(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # Two passing spans at 10:01 and one failing span at 10:03 share the 10:00
+        # bin. Summarizing per entity gives pass 2/3 and a mean score of 0.6;
+        # merging the 10:01 and 10:03 minute bins would give 1/2 and 0.45.
+        annotated_spans = (
+            ("2024-01-01T10:01:00+00:00", "pass", 1.0),
+            ("2024-01-01T10:01:30+00:00", "pass", 0.8),
+            ("2024-01-01T10:03:00+00:00", "fail", 0.0),
+            ("2024-01-01T10:12:00+00:00", "fail", 0.2),
+        )
+        async with db() as session:
+            project = await _add_project(session)
+            for index, (start_time, label, score) in enumerate(annotated_spans):
+                timestamp = datetime.fromisoformat(start_time)
+                trace = await _add_trace(session, project, start_time=timestamp)
+                span = await _add_span(session, trace, start_time=timestamp)
+                session.add(
+                    models.SpanAnnotation(
+                        span_rowid=span.id,
+                        name="quality",
+                        label=label,
+                        score=score,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="CODE",
+                        identifier=str(index),
+                        source="APP",
+                        user_id=None,
+                    )
+                )
+
+        query = """
+          query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+            node(id: $id) {
+              ... on Project {
+                spanAnnotationMetricsTimeSeries(
+                  timeRange: $timeRange
+                  timeBinConfig: $timeBinConfig
+                ) {
+                  data {
+                    timestamp
+                    annotationSummaries {
+                      name
+                      count
+                      meanScore
+                      labelFractions { label fraction }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T10:00:00+00:00",
+                    "end": "2024-01-01T10:20:00+00:00",
+                },
+                "timeBinConfig": {"scale": "MINUTE", "utcOffsetMinutes": 0, "interval": 5},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        data = response.data["node"]["spanAnnotationMetricsTimeSeries"]["data"]
+        assert [point["timestamp"] for point in data] == [
+            "2024-01-01T10:00:00+00:00",
+            "2024-01-01T10:05:00+00:00",
+            "2024-01-01T10:10:00+00:00",
+            "2024-01-01T10:15:00+00:00",
+        ]
+        assert data[0]["annotationSummaries"] == [
+            {
+                "name": "quality",
+                "count": 3,
+                "meanScore": pytest.approx(0.6),
+                "labelFractions": [
+                    {"label": "fail", "fraction": pytest.approx(1 / 3)},
+                    {"label": "pass", "fraction": pytest.approx(2 / 3)},
+                ],
+            }
+        ]
+        assert data[1]["annotationSummaries"] == []
+        assert data[2]["annotationSummaries"] == [
+            {
+                "name": "quality",
+                "count": 1,
+                "meanScore": pytest.approx(0.2),
+                "labelFractions": [{"label": "fail", "fraction": pytest.approx(1.0)}],
+            }
+        ]
+        assert data[3]["annotationSummaries"] == []
+
+    @pytest.mark.parametrize(
+        "time_bin_config",
+        [
+            pytest.param({"scale": "MONTH", "interval": 2}, id="calendar_scale"),
+            pytest.param({"scale": "MINUTE", "interval": 0}, id="zero_interval"),
+        ],
+    )
+    async def test_rejects_unsupported_intervals(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        time_bin_config: dict[str, Any],
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+        response = await gql_client.execute(
+            query="""
+              query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                  ... on Project {
+                    spanAnnotationMetricsTimeSeries(
+                      timeRange: $timeRange
+                      timeBinConfig: $timeBinConfig
+                    ) { data { timestamp } }
+                  }
+                }
+              }
+            """,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T00:00:00+00:00",
+                    "end": "2024-06-01T00:00:00+00:00",
+                },
+                "timeBinConfig": time_bin_config,
+            },
+        )
+        assert response.errors
+        assert "interval" in response.errors[0].message
+
 
 async def test_trace_resolves_by_otel_id_and_global_node_id(
     db: DbSessionFactory,

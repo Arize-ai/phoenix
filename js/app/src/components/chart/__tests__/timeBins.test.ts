@@ -129,3 +129,24 @@ describe("getTimeBinRange", () => {
     }
   );
 });
+
+describe("getTimeBinRange with an interval", () => {
+  it.each([
+    { scale: "MINUTE" as const, interval: 5, durationMs: 5 * ONE_MINUTE_MS },
+    { scale: "MINUTE" as const, interval: 15, durationMs: 15 * ONE_MINUTE_MS },
+    { scale: "HOUR" as const, interval: 3, durationMs: 3 * ONE_HOUR_MS },
+    { scale: "DAY" as const, interval: 2, durationMs: 2 * ONE_DAY_MS },
+    { scale: "WEEK" as const, interval: 2, durationMs: 2 * ONE_WEEK_MS },
+  ])("spans $interval $scale units", ({ scale, interval, durationMs }) => {
+    const binStartMs = Date.UTC(2026, 5, 9, 10, 40);
+    const range = getTimeBinRange({
+      binStartMs,
+      scale,
+      interval,
+      utcOffsetMinutes: 330,
+    });
+
+    expect(range.start.getTime()).toBe(binStartMs);
+    expect(range.end.getTime()).toBe(binStartMs + durationMs);
+  });
+});
