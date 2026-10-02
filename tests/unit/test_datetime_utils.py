@@ -321,9 +321,9 @@ class TestGetTimestampRange:
         assert result3 == result1
 
 
-class TestGetTimestampRangeWithInterval:
+class TestGetTimestampRangeWithUnitsPerBin:
     @pytest.mark.parametrize(
-        "start_time, end_time, stride, utc_offset_minutes, interval, expected",
+        "start_time, end_time, stride, utc_offset_minutes, units_per_bin, expected",
         [
             pytest.param(
                 datetime(2024, 1, 1, 12, 7, 30, tzinfo=timezone.utc),
@@ -398,16 +398,16 @@ class TestGetTimestampRangeWithInterval:
         end_time: datetime,
         stride: Literal["minute", "hour", "day", "week"],
         utc_offset_minutes: int,
-        interval: int,
+        units_per_bin: int,
         expected: List[datetime],
     ) -> None:
         result = list(
-            get_timestamp_range(start_time, end_time, stride, utc_offset_minutes, interval)
+            get_timestamp_range(start_time, end_time, stride, utc_offset_minutes, units_per_bin)
         )
         assert result == expected
         assert all(ts.tzinfo == timezone.utc for ts in result)
 
-    def test_interval_of_one_matches_default(self) -> None:
+    def test_one_unit_per_bin_matches_default(self) -> None:
         start_time = datetime(2024, 1, 1, 12, 7, 30, tzinfo=timezone.utc)
         end_time = datetime(2024, 1, 1, 18, 0, tzinfo=timezone.utc)
         assert list(get_timestamp_range(start_time, end_time, "hour", 90, 1)) == list(
@@ -415,15 +415,15 @@ class TestGetTimestampRangeWithInterval:
         )
 
     @pytest.mark.parametrize(
-        "stride, interval",
+        "stride, units_per_bin",
         [("month", 2), ("year", 2), ("minute", 0), ("hour", -1)],
     )
-    def test_rejects_unsupported_intervals(
+    def test_rejects_unsupported_units_per_bin(
         self,
         stride: Literal["minute", "hour", "day", "week", "month", "year"],
-        interval: int,
+        units_per_bin: int,
     ) -> None:
         start_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end_time = datetime(2024, 6, 1, tzinfo=timezone.utc)
         with pytest.raises(ValueError):
-            list(get_timestamp_range(start_time, end_time, stride, 0, interval))
+            list(get_timestamp_range(start_time, end_time, stride, 0, units_per_bin))

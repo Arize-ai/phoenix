@@ -5394,7 +5394,7 @@ input TimeBinConfig {
   """
   Number of scale units per bin, from 1 to 1000. Values above 1 are allowed for MINUTE, HOUR, DAY, and WEEK. Bins follow local clock time (for example, 5-minute bins start at :00, :05, ...), and week bins start on Monday.
   """
-  interval: Int! = 1
+  unitsPerBin: Int! = 1
 }
 
 enum TimeBinScale {

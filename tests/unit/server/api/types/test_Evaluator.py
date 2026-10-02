@@ -2546,7 +2546,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
         assert resp.errors
         assert "start and an end" in resp.errors[0].message
 
-    async def test_series_honors_bin_interval_alongside_single_unit_bins(
+    async def test_series_honors_units_per_bin_alongside_single_unit_bins(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         # Requesting both widths at once checks that the data loader keeps them apart.
@@ -2561,7 +2561,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                         ) { series { timestamp meanScore count } }
                         twoHourly: annotationScoreMetrics(
                             timeRange: $timeRange
-                            timeBinConfig: { scale: HOUR, interval: 2 }
+                            timeBinConfig: { scale: HOUR, unitsPerBin: 2 }
                         ) { series { timestamp meanScore count } }
                     }
                 }

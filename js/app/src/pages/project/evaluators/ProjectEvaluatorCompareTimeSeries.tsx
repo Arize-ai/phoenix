@@ -238,7 +238,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
   sides: [CompareSide, CompareSide];
 }) {
   const [sideA, sideB] = sides;
-  const { scale, interval } = useTimeBinSpec({
+  const { scale, unitsPerBin } = useTimeBinSpec({
     timeRange,
     maxBins: MAX_COMPARE_TIME_BINS,
   });
@@ -375,7 +375,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      timeBinConfig: { scale, interval, utcOffsetMinutes },
+      timeBinConfig: { scale, unitsPerBin, utcOffsetMinutes },
       isSpan: evaluationTarget === "SPAN",
       isTrace: evaluationTarget === "TRACE",
       isSession: evaluationTarget === "SESSION",
@@ -454,7 +454,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
         <TimeRangeChartBrush
           onTimeRangeSelected={setCustomTimeRange}
           scale={scale}
-          interval={interval}
+          unitsPerBin={unitsPerBin}
         >
           {({ chartProps }) => (
             <AnnotationMetricsGroupedChart
@@ -498,7 +498,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                     getTimeBinRange({
                       binStartMs: x,
                       scale,
-                      interval,
+                      unitsPerBin,
                       utcOffsetMinutes,
                     })
                   )}

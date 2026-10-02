@@ -366,7 +366,7 @@ class TestDateTrunc:
         assert actual == expected_dt
 
     @pytest.mark.parametrize(
-        "field, interval",
+        "field, units_per_bin",
         [
             ("minute", 5),
             ("minute", 15),
@@ -381,14 +381,14 @@ class TestDateTrunc:
         self,
         db: DbSessionFactory,
         field: Literal["minute", "hour", "day", "week"],
-        interval: int,
+        units_per_bin: int,
         utc_offset_minutes: int,
     ) -> None:
         """Each SQL bucket is the generated bin start that contains the timestamp."""
         range_start = datetime(2024, 2, 26, 13, 7, 41, 123456, tzinfo=timezone.utc)
         range_end = range_start + timedelta(days=45)
         bin_starts = list(
-            get_timestamp_range(range_start, range_end, field, utc_offset_minutes, interval)
+            get_timestamp_range(range_start, range_end, field, utc_offset_minutes, units_per_bin)
         )
         bin_width = bin_starts[1] - bin_starts[0]
         assert all(
@@ -411,7 +411,7 @@ class TestDateTrunc:
                     field,
                     sa.text(":dt").bindparams(dt=timestamp),
                     utc_offset_minutes,
-                    interval,
+                    units_per_bin,
                 )
             )
             async with db() as session:

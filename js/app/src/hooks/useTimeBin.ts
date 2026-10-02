@@ -56,17 +56,17 @@ export function useTimeBinScale({
 }
 
 /**
- * A bin width of `interval` × `scale`, as sent in `TimeBinConfig`.
+ * A bin width of `unitsPerBin` × `scale`, as sent in `TimeBinConfig`.
  */
 export type TimeBinSpec = {
   scale: TimeBinScale;
-  interval: number;
+  unitsPerBin: number;
 };
 
 /**
  * Natural multiples of each scale, smallest first.
  */
-const TIME_BIN_INTERVALS: Record<TimeBinScale, ReadonlyArray<number>> = {
+const UNITS_PER_BIN_CHOICES: Record<TimeBinScale, ReadonlyArray<number>> = {
   MINUTE: [1, 2, 5, 10, 15, 30],
   HOUR: [1, 2, 3, 6, 12],
   DAY: [1, 2],
@@ -83,8 +83,8 @@ const FIXED_TIME_BIN_SCALE_MS: Partial<Record<TimeBinScale, number>> = {
 };
 
 /**
- * Picks the scale from {@link getTimeBinScale} and the smallest interval that
- * keeps the range within `maxBins` bins, or the largest interval if none does.
+ * Picks the scale from {@link getTimeBinScale} and the smallest `unitsPerBin`
+ * that keeps the range within `maxBins` bins, or the largest if none does.
  */
 export function getTimeBinSpec({
   timeRange,
@@ -96,18 +96,18 @@ export function getTimeBinSpec({
   const scale = getTimeBinScale({ timeRange });
   const scaleMs = FIXED_TIME_BIN_SCALE_MS[scale];
   if (scaleMs == null || timeRange.start == null) {
-    return { scale, interval: 1 };
+    return { scale, unitsPerBin: 1 };
   }
   const endTime = timeRange.end ?? new Date();
   const binCount = Math.ceil(
     (endTime.getTime() - timeRange.start.getTime()) / scaleMs
   );
-  const intervals = TIME_BIN_INTERVALS[scale];
-  const interval =
-    intervals.find((candidate) => Math.ceil(binCount / candidate) <= maxBins) ??
-    intervals[intervals.length - 1] ??
+  const choices = UNITS_PER_BIN_CHOICES[scale];
+  const unitsPerBin =
+    choices.find((candidate) => Math.ceil(binCount / candidate) <= maxBins) ??
+    choices[choices.length - 1] ??
     1;
-  return { scale, interval };
+  return { scale, unitsPerBin };
 }
 
 /**

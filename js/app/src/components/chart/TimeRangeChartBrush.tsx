@@ -65,10 +65,10 @@ type TimeRangeChartBrushProps = {
    */
   scale?: TimeBinScale;
   /**
-   * Must match the `timeBinConfig.interval` used to query the chart. Defaults
+   * Must match the `timeBinConfig.unitsPerBin` used to query the chart. Defaults
    * to 1.
    */
-  interval?: number;
+  unitsPerBin?: number;
 };
 
 type BrushSelection = {
@@ -178,20 +178,20 @@ function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
  * @param params - completed gesture parameters
  * @param params.selection - snapped timestamps and clamped pointer positions
  * @param params.scale - chart query scale, if bin clicking is enabled
- * @param params.interval - bin width in `scale` units
+ * @param params.unitsPerBin - number of `scale` units in each bin
  * @param params.utcOffsetMinutes - fixed UTC offset used for chart binning
  * @param params.clickMaxDragPx - maximum pointer movement treated as a click
  */
 export function getBrushGestureTimeRange({
   selection,
   scale,
-  interval,
+  unitsPerBin,
   utcOffsetMinutes,
   clickMaxDragPx = CLICK_MAX_DRAG_PX,
 }: {
   selection: BrushSelection;
   scale?: TimeBinScale;
-  interval?: number;
+  unitsPerBin?: number;
   utcOffsetMinutes: number;
   clickMaxDragPx?: number;
 }): TimeRange | null {
@@ -200,7 +200,7 @@ export function getBrushGestureTimeRange({
     return getTimeBinRange({
       binStartMs: selection.end,
       scale,
-      interval,
+      unitsPerBin,
       utcOffsetMinutes,
     });
   }
@@ -222,7 +222,7 @@ export function TimeRangeChartBrush({
   children,
   onTimeRangeSelected,
   scale,
-  interval,
+  unitsPerBin,
 }: TimeRangeChartBrushProps) {
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const [selection, setSelection] = useState<BrushSelection | null>(null);
@@ -319,7 +319,7 @@ export function TimeRangeChartBrush({
       const timeRange = getBrushGestureTimeRange({
         selection: nextSelection,
         scale,
-        interval,
+        unitsPerBin,
         utcOffsetMinutes,
       });
       if (timeRange) {
