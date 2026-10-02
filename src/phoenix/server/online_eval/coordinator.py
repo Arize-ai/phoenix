@@ -1,11 +1,11 @@
 """Consumer-side coordination seam for online-eval work distribution: claim,
-heartbeat, completion, failure, expiration, and queue-lag observability. Producer-side
+heartbeat, publication, failure, expiration, and queue-lag observability. Producer-side
 operations (materializer leases, watermark advance, and work-row materialization) are
 not part of this interface.
 
 Work-unit lifecycle:
 
-    PENDING --claim--> RUNNING --complete--> DONE
+    PENDING --claim--> RUNNING --publish--> DONE
                        RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
                        RUNNING --expire---> EXPIRED | CONTENT_LOST
                        RUNNING --release--> PENDING
@@ -81,7 +81,11 @@ class QueueLag:
 
 
 class EvalWorkCoordinator(Protocol):
-    """Coordinates online-eval work across replicas behind a swappable backend."""
+    """Coordinates online-eval work across replicas behind a swappable backend.
+
+    Heartbeat, fail, expire and release return False once the claim is lost, and True,
+    changing nothing, when the claim's own publication already finished the unit, so a
+    call that raced that publication doesn't report a lost claim."""
 
     async def claim(
         self,
@@ -104,19 +108,9 @@ class EvalWorkCoordinator(Protocol):
         work_unit_id: int,
         claimed_by: str,
     ) -> bool:
-        """Renew the lease on a claimed unit. Returns False if the claim was lost —
-        never silent success."""
-        ...
-
-    async def complete(
-        self,
-        *,
-        work_unit_id: int,
-        claimed_by: str,
-    ) -> bool:
-        """Transition a claimed unit RUNNING -> DONE. Returns True when the unit is
-        already DONE so callers can safely retry an ambiguous commit. Returns False for
-        any other lost claim."""
+        """Renew the lease on a claimed unit. Returns False once the claim is lost, and True
+        without renewing when the claim's own publication already finished the unit, so a
+        heartbeat that waited on that publication doesn't report a lost claim."""
         ...
 
     async def publish(
@@ -126,15 +120,14 @@ class EvalWorkCoordinator(Protocol):
         claimed_by: str,
         write: PublicationWrite,
     ) -> None:
-        """Fence a claimed unit for publication and run ``write`` in that transaction.
+        """Fence a claimed unit, run ``write``, and mark the unit DONE, all in one
+        transaction, so a unit is never left RUNNING with its results published.
 
         The fence holds the unit's target against deletion and locks the unit, which must
         still be owned and RUNNING, then requires its project evaluator to be enabled. A
         deletion of the target either waits for the write or leaves nothing to fence.
 
-        Raises ``PublicationClaimLostError`` when the fence fails. Does not complete the
-        unit — publication and completion are separate steps, so a lost acknowledgement
-        re-runs an idempotent write rather than a lost result."""
+        Raises ``PublicationClaimLostError`` when the fence fails."""
         ...
 
     async def fail(
