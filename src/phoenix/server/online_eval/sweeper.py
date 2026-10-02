@@ -16,8 +16,6 @@ from sqlalchemy import (
     Insert,
     Integer,
     String,
-    any_,
-    bindparam,
     case,
     cast,
     column,
@@ -30,9 +28,9 @@ from sqlalchemy import (
     type_coerce,
     update,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
 from sqlalchemy.sql.elements import TextClause
@@ -81,12 +79,28 @@ _CONSUMER_GROUP = "default"
 _SESSION_SWEEP_LEASE_NAME = "session-sweep"
 _TRACE_SWEEP_LEASE_NAME = "trace-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
+_LOCK_TIMEOUT_MILLISECONDS = 500
+_LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, deadlock_detected
 # Only work terminated within this window feeds the watermark-lag gauge; the table has
 # no retention, so an unbounded aggregate would scan more rows on every tick forever.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
 _EntityModel = type[models.ProjectSession] | type[models.Trace]
 _WorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
+
+
+class _PageRowDeletedError(Exception):
+    """A project evaluator or entity on the page was deleted before its work was inserted.
+
+    The page is read without locks, so the insert's foreign keys are what catch the
+    deletion; the tick rolls back and the next tick's page no longer holds the row. On
+    PostgreSQL the tick waits on a deletion that hasn't committed, and if it doesn't
+    commit within the lock timeout the tick ends in ``_LockConflictError`` instead.
+    """
+
+
+class _LockConflictError(Exception):
+    """The tick gave up a lock wait, or was chosen to break a deadlock, and rolled back."""
 
 
 @dataclass(frozen=True)
@@ -102,8 +116,8 @@ class _SweepTarget:
     filtered_entity_rowids_subquery: Callable[
         [str, Sequence[int], Sequence[int]], ScalarSelect[int]
     ]
-    # A due-horizon watermark is written before lock-time re-filtering can drop a page row,
-    # so this gate must never let a dropped row become eligible again.
+    # The due-horizon watermark advances past rows this gate excludes, so a row it excludes
+    # must not become eligible later without new activity.
     is_evaluable: Callable[[], ColumnElement[bool]]
     lease_name_prefix: str
 
@@ -337,7 +351,7 @@ def _work_insert_statement(
     decisions: Sequence[dict[str, Any]],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Insert scheduling decisions whose PostgreSQL evaluator and entity rows are locked."""
+    """Insert scheduling decisions, skipping any whose key already holds live work."""
     work_unit_model = target.work_unit_model
     index_elements = (
         getattr(work_unit_model, target.work_unit_target_column),
@@ -407,6 +421,17 @@ class EvalSweeper(DaemonTask):
             while self._running:
                 try:
                     await self._tick()
+                except _PageRowDeletedError as error:
+                    logger.warning(
+                        f"{self._evaluation_target} evaluation sweep rolled back: a project "
+                        f"evaluator or {self._evaluation_target.lower()} on its page was "
+                        f"deleted before its work was inserted ({error})"
+                    )
+                except _LockConflictError as error:
+                    logger.warning(
+                        f"{self._evaluation_target} evaluation sweep rolled back: it gave way "
+                        f"to a concurrent transaction holding a row it needed ({error})"
+                    )
                 except Exception:
                     logger.exception(f"{self._evaluation_target} evaluation sweep failed")
                 await asyncio.sleep(self._tick_interval_seconds)
@@ -496,6 +521,12 @@ class EvalSweeper(DaemonTask):
         renewed: Optional[int] = None
         try:
             async with self._db() as session:
+                if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+                    # The sweep retries every tick, so it gives up a lock wait before
+                    # PostgreSQL's deadlock check (1 s by default) picks which side to abort.
+                    await session.execute(
+                        text(f"SET LOCAL lock_timeout = '{_LOCK_TIMEOUT_MILLISECONDS}ms'")
+                    )
                 database_now = await self._database_now(session)
                 materialized_work_count, eligible_pair_count = await self._sweep(
                     session, database_now
@@ -512,9 +543,14 @@ class EvalSweeper(DaemonTask):
                 )
                 if renewed is None:
                     await session.rollback()
-        except Exception:
+        except Exception as error:
             if self._publish_metrics:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
+            if (
+                isinstance(error, DBAPIError)
+                and getattr(error.orig, "sqlstate", None) in _LOCK_CONFLICT_SQLSTATES
+            ):
+                raise _LockConflictError(str(error.orig)) from error
             raise
         finally:
             if self._publish_metrics:
@@ -653,144 +689,32 @@ class EvalSweeper(DaemonTask):
             database_now,
             self._db.dialect,
         )
-        eligible_pair_count = 0 if self._publish_metrics else None
-        eligible_page = (
-            select(relation)
-            .order_by(
-                relation.c.effective_due_time,
-                relation.c.entity_rowid,
-                relation.c.project_evaluator_id,
+        rows = (
+            await session.execute(
+                select(relation)
+                .order_by(
+                    relation.c.effective_due_time,
+                    relation.c.entity_rowid,
+                    relation.c.project_evaluator_id,
+                )
+                .limit(limit)
             )
-            .limit(limit)
-            .subquery("eligible_pair_page")
-        )
-        rows: Sequence[Any] = ()
-        page_project_evaluator_id_per_row: Sequence[int] = ()
-        page_entity_rowids: Sequence[int] = ()
-        if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-            page_keys = (
-                await session.execute(
-                    select(eligible_page.c.project_evaluator_id, eligible_page.c.entity_rowid)
-                )
-            ).all()
-            page_project_evaluator_id_per_row = tuple(key.project_evaluator_id for key in page_keys)
-            page_entity_rowids = tuple(key.entity_rowid for key in page_keys)
-            page_row_count = len(page_keys)
-        else:
-            rows = (await session.execute(select(eligible_page))).all()
-            page_row_count = len(rows)
-        locked_project_evaluator_ids: tuple[int, ...] = ()
-        page_project_evaluator_ids: tuple[int, ...] = ()
-        if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-            page_project_evaluator_ids = tuple(dict.fromkeys(page_project_evaluator_id_per_row))
-            watermark_project_evaluator_ids = (
-                tuple(evaluator.project_evaluator_id for evaluator in project_evaluators)
-                if page_row_count < limit
-                else page_project_evaluator_ids
-            )
-            if watermark_project_evaluator_ids:
-                watermark_project_evaluator_ids_parameter = bindparam(
-                    "watermark_project_evaluator_ids",
-                    watermark_project_evaluator_ids,
-                    type_=ARRAY(Integer),
-                )
-                locked_project_evaluator_ids = tuple(
-                    await session.scalars(
-                        select(models.ProjectEvaluator.id)
-                        .where(
-                            models.ProjectEvaluator.id
-                            == any_(watermark_project_evaluator_ids_parameter),
-                        )
-                        .order_by(models.ProjectEvaluator.id)
-                        .with_for_update()
-                    )
-                )
-                if len(locked_project_evaluator_ids) != len(watermark_project_evaluator_ids):
-                    return 0, eligible_pair_count
-        if page_row_count < limit:
+        ).all()
+        if len(rows) < limit:
             await self._advance_watermarks_to_due_horizon(
                 session,
                 project_evaluators,
                 database_now,
             )
-        if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-            if not page_project_evaluator_ids:
-                return 0, eligible_pair_count
-            page_ids = tuple(dict.fromkeys(page_entity_rowids))
-            if not page_ids:
-                return 0, eligible_pair_count
-            page_ids_parameter = bindparam(
-                "page_ids",
-                page_ids,
-                type_=ARRAY(Integer),
-            )
-            locked_entity_rowids = tuple(
-                await session.scalars(
-                    select(target.entity_model.id)
-                    .where(
-                        target.entity_model.id == any_(page_ids_parameter),
-                        target.is_evaluable(),
-                    )
-                    .order_by(target.entity_model.id)
-                    .with_for_update()
-                )
-            )
-            if not locked_entity_rowids:
-                return 0, eligible_pair_count
-            rows = (
-                await session.execute(
-                    select(eligible_page).where(
-                        eligible_page.c.project_evaluator_id.in_(locked_project_evaluator_ids),
-                        eligible_page.c.entity_rowid.in_(locked_entity_rowids),
-                    )
-                )
-            ).all()
-        if page_row_count >= limit:
+        else:
             await self._advance_watermarks_through_swept_rows(session, rows)
-        project_evaluators_by_id = {
-            project_evaluator.project_evaluator_id: project_evaluator
-            for project_evaluator in project_evaluators
-        }
-        matching_entity_rowids_by_project_evaluator_id: dict[int, set[int]] = {}
-        for project_evaluator in project_evaluators:
-            if not project_evaluator.filter_condition:
-                continue
-            candidate_entity_rowids = tuple(
-                dict.fromkeys(
-                    row.entity_rowid
-                    for row in rows
-                    if row.project_evaluator_id == project_evaluator.project_evaluator_id
-                )
-            )
-            if not candidate_entity_rowids:
-                continue
-            matching_entity_rowids_by_project_evaluator_id[
-                project_evaluator.project_evaluator_id
-            ] = set(
-                await session.scalars(
-                    select(target.entity_model.id).where(
-                        target.entity_model.id.in_(
-                            target.filtered_entity_rowids_subquery(
-                                project_evaluator.filter_condition,
-                                [project_evaluator.project_id],
-                                candidate_entity_rowids,
-                            )
-                        )
-                    )
-                )
-            )
+        filter_verdicts = await self._read_filter_verdicts(session, project_evaluators, rows)
         decisions: list[dict[str, Any]] = []
         for row in rows:
-            project_evaluator = project_evaluators_by_id[row.project_evaluator_id]
-            filter_matches = (
-                not project_evaluator.filter_condition
-                or row.entity_rowid
-                in matching_entity_rowids_by_project_evaluator_id.get(
-                    row.project_evaluator_id,
-                    set(),
-                )
-            )
-            if not filter_matches:
+            passes_filter = filter_verdicts.get((row.project_evaluator_id, row.entity_rowid))
+            if passes_filter is None:
+                continue
+            if not passes_filter:
                 status: models.EvalSessionWorkStatus = "FILTERED_OUT"
             elif sample_key(row.sample_identity) >= row.sampling_rate:
                 status = "SAMPLED_OUT"
@@ -806,28 +730,70 @@ class EvalSweeper(DaemonTask):
                     "status": status,
                 }
             )
-        if self._publish_metrics:
-            eligible_pair_count = sum(
-                not project_evaluators_by_id[row.project_evaluator_id].filter_condition
-                or row.entity_rowid
-                in matching_entity_rowids_by_project_evaluator_id.get(
-                    row.project_evaluator_id,
-                    set(),
-                )
-                for row in rows
-            )
+        eligible_pair_count = sum(filter_verdicts.values()) if self._publish_metrics else None
         if not decisions:
             return 0, eligible_pair_count
-        inserted_statuses = (
-            await session.scalars(
-                _work_insert_statement(
-                    target,
-                    decisions,
-                    self._db.dialect,
+        try:
+            inserted_statuses = (
+                await session.scalars(
+                    _work_insert_statement(
+                        target,
+                        decisions,
+                        self._db.dialect,
+                    )
                 )
-            )
-        ).all()
+            ).all()
+        except IntegrityError as error:
+            raise _PageRowDeletedError(str(error.orig)) from error
         return inserted_statuses.count("PENDING"), eligible_pair_count
+
+    async def _read_filter_verdicts(
+        self,
+        session: AsyncSession,
+        project_evaluators: Sequence[_SweepProjectEvaluator],
+        rows: Sequence[Any],
+    ) -> dict[tuple[int, int], bool]:
+        """Whether each page pair passes its evaluator's filter, keyed by (project evaluator,
+        entity), for pairs whose entity is still at the activity the page read.
+
+        Each evaluator's statement reads its entities' activity together with the filter, so
+        a pair is decided on the content its entity had, quiet, at the page read; the consumer
+        later evaluates whatever content the entity has when it runs. A pair whose entity has
+        moved on is left out and stays undecided until a later tick sees the entity quiet.
+        """
+        target = self._target
+        entity_model = target.entity_model
+        evaluated_through = {row.entity_rowid: row.evaluated_through for row in rows}
+        verdicts: dict[tuple[int, int], bool] = {}
+        for project_evaluator in project_evaluators:
+            entity_rowids = tuple(
+                row.entity_rowid
+                for row in rows
+                if row.project_evaluator_id == project_evaluator.project_evaluator_id
+            )
+            if not entity_rowids:
+                continue
+            passes_filter: ColumnElement[bool] = (
+                entity_model.id.in_(
+                    target.filtered_entity_rowids_subquery(
+                        project_evaluator.filter_condition,
+                        [project_evaluator.project_id],
+                        entity_rowids,
+                    )
+                )
+                if project_evaluator.filter_condition
+                else true()
+            )
+            for entity_rowid, activity_through, passes in await session.execute(
+                select(
+                    entity_model.id,
+                    entity_model.last_span_ingested_at,
+                    passes_filter,
+                ).where(entity_model.id.in_(entity_rowids))
+            ):
+                if activity_through == evaluated_through[entity_rowid]:
+                    verdicts[(project_evaluator.project_evaluator_id, entity_rowid)] = passes
+        return verdicts
 
     async def _revive_stale_fingerprint_work(
         self,
