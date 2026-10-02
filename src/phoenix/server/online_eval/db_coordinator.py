@@ -3,9 +3,9 @@
 Claiming is dialect-split: PostgreSQL locks candidate rows with ``FOR UPDATE SKIP
 LOCKED`` so competing consumers never block on each other's claims; SQLite (no row
 locks) claims each candidate with a per-id compare-and-swap and keeps only the rows
-whose update landed. Every post-claim transition (heartbeat / complete / fail /
-expire) is fenced by ``claimed_by == me AND status == 'RUNNING'`` and reports a lost
-claim as False via the update rowcount.
+whose update landed. Every post-claim write (heartbeat / publish / complete / fail /
+expire / release) is fenced by ``claimed_by == <the claim's token> AND status ==
+'RUNNING'``; the transitions report a lost claim as False via the update rowcount.
 """
 
 from __future__ import annotations
