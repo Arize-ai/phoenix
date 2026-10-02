@@ -239,8 +239,8 @@ Example: judge every final-answer LLM span, or a sampled subset, for hallucinati
 Traces do not have an explicit "done" event. **How to detect completion is still open:** root
 span end, an idle period after the last span, or both for different evaluator types. One viable
 approach is to use a quiet period (same mechanism as sessions). As with sessions, v1 evaluates each
-trace once, when its first quiet period elapses; spans that arrive after the evaluation do not
-schedule another one.
+trace once per project evaluator, when its first quiet period elapses; spans that arrive after the
+evaluation do not schedule another one.
 
 Trace evaluation has two flavors. Treating a trace as its root span makes the simple case easy:
 evaluate the root span's I/O ("did the agent answer my question?"). The harder case evaluates
@@ -256,10 +256,11 @@ session is treated as ready for evaluation after no new activity arrives for som
 duration. This is only a pragmatic proxy for "complete" — e.g. sessions idle for a day may be
 considered done, even though that is not strictly true.
 
-v1 evaluates each session once, when its first quiet period elapses. Later activity does not
-schedule another evaluation. This deliberate initial limitation is tracked in
-[#14903](https://github.com/Arize-ai/phoenix/issues/14903), which owns result identity, re-entry and
-frequency, recovery after permanent failure, and staleness detection for in-flight evaluation.
+v1 evaluates each session once per project evaluator, when its first quiet period elapses. Neither
+later activity nor an edit to the project evaluator schedules another evaluation. This deliberate
+initial limitation is tracked in [#14903](https://github.com/Arize-ai/phoenix/issues/14903), which
+owns result identity, re-entry and frequency, recovery after permanent failure, and staleness
+detection for in-flight evaluation.
 
 An evaluation that produced no result is the exception: a session or trace whose evaluation
 failed, expired, or found its content gone is retried once new spans arrive after the failure and
