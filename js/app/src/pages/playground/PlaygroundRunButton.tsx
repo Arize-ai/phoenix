@@ -17,10 +17,12 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
+import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 const EVALUATORS_NEED_A_DATASET = "Select a dataset to run evaluators";
+const EXAMPLES_ARE_BEING_EDITED = "Save or cancel the example edits to run";
 
 export function PlaygroundRunButton() {
   const modifierKey = useModifierKey();
@@ -49,8 +51,14 @@ export function PlaygroundRunButton() {
   const hasDataset =
     resolvePlaygroundDatasetId({ searchParams, storeDatasetId }) != null;
 
+  const isEditingExamples = usePlaygroundExampleEditing(
+    (session) => session.mode !== "read"
+  );
+
   // Evaluators judge dataset examples; prompts can also run on manual input.
-  const canRun = !isEvaluatorKind || hasDataset;
+  // Neither runs while the examples are being edited: the server would judge
+  // the saved examples, not the ones on screen.
+  const canRun = (!isEvaluatorKind || hasDataset) && !isEditingExamples;
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {
@@ -107,7 +115,14 @@ export function PlaygroundRunButton() {
 
   if (!canRun && !isRunning) {
     return (
-      <DisabledButtonTooltip label="Run" reason={EVALUATORS_NEED_A_DATASET}>
+      <DisabledButtonTooltip
+        label="Run"
+        reason={
+          isEditingExamples
+            ? EXAMPLES_ARE_BEING_EDITED
+            : EVALUATORS_NEED_A_DATASET
+        }
+      >
         {button}
       </DisabledButtonTooltip>
     );
