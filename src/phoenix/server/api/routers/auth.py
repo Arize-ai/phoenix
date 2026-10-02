@@ -18,6 +18,7 @@ from phoenix.auth import (
     Token,
     compute_password_hash,
     delete_access_token_cookie,
+    delete_oauth2_login_context_cookie,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     delete_refresh_token_cookie,
@@ -208,6 +209,7 @@ async def _logout(request: Request) -> Response:
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
     response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_login_context_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
     return response
 

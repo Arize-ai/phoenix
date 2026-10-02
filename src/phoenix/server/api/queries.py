@@ -164,6 +164,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -1694,8 +1695,17 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> ServerStatus:
+        # Admins, and every viewer when authentication is disabled, see whether
+        # the key is public. Other authenticated viewers get null.
+        if info.context.auth_enabled and not (
+            isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        ):
+            database_encryption_key_is_public = None
+        else:
+            database_encryption_key_is_public = info.context.database_encryption_key_is_public
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
+            database_encryption_key_is_public=database_encryption_key_is_public,
         )
 
     @strawberry.field(

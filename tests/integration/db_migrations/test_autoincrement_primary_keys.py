@@ -63,6 +63,14 @@ def _insert_token(connection: sa.Connection, table_name: str, user_id: int) -> i
         values["name"] = token_hex(8)
     elif table_name == "access_tokens":
         values["refresh_token_id"] = _insert_token(connection, "refresh_tokens", user_id)
+    elif table_name == "password_reset_tokens":
+        # user_id is unique.
+        role_id: int = connection.execute(
+            sa.text("SELECT user_role_id FROM users WHERE id = :user_id"),
+            {"user_id": user_id},
+        ).scalar_one()
+        assert isinstance(role_id, int)
+        values["user_id"] = _insert_user(connection, role_id)
     token_id: int = connection.execute(
         table.insert().values(**values).returning(table.c.id)
     ).scalar_one()
@@ -162,6 +170,10 @@ async def test_prompt_versions_autoincrement_at_head(
         ("132d988c5bef", "eaf1907ae453", "refresh_tokens"),
         ("132d988c5bef", "eaf1907ae453", "access_tokens"),
         ("132d988c5bef", "eaf1907ae453", "api_keys"),
+        ("ac59da3e4035", "a7f1c3e9d2b4", "api_keys"),
+        ("ac59da3e4035", "a7f1c3e9d2b4", "access_tokens"),
+        ("ac59da3e4035", "a7f1c3e9d2b4", "refresh_tokens"),
+        ("ac59da3e4035", "a7f1c3e9d2b4", "password_reset_tokens"),
     ],
 )
 @pytest.mark.parametrize("direction", ["upgrade", "downgrade"])

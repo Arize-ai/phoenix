@@ -1,4 +1,4 @@
-from secrets import token_hex
+from secrets import token_bytes, token_hex
 from typing import Any
 
 from pydantic import SecretStr
@@ -15,20 +15,16 @@ from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
-# Matches the redactor the test `app` fixture constructs: create_app is called
-# without a secret, so the server-side Redactor is keyed off SecretStr("").
-_REDACTOR = Redactor(secret=SecretStr(""))
 _REDACTED_PREFIX = "\ue000REDACTED\ue000"
 
 
-def _assert_redacted_equals(value: Any, expected: str) -> None:
-    """Assert a RedactedString field was actually redacted on the wire AND un-redacts
-    to the expected plaintext. Catches both missing-redaction regressions and
-    key-mismatch regressions in a single line.
+def _assert_redacted_equals(redactor: Redactor, value: Any, expected: str) -> None:
+    """Assert a RedactedString field was redacted on the wire and un-redacts
+    to the expected plaintext.
     """
     assert isinstance(value, str), f"expected str, got {type(value).__name__}: {value!r}"
     assert value.startswith(_REDACTED_PREFIX), f"field was not redacted on output: {value!r}"
-    assert _REDACTOR.unredact(value) == expected, (
+    assert redactor.unredact(value) == expected, (
         f"redacted value did not round-trip to {expected!r}"
     )
 
@@ -182,6 +178,7 @@ class TestGenerativeModelCustomProviderMutations:
     async def test_all_provider_mutations_comprehensive(
         self,
         gql_client: AsyncGraphQLClient,
+        redactor: Redactor,
     ) -> None:
         """Comprehensive test of all provider mutations to minimize server overhead.
 
@@ -232,7 +229,9 @@ class TestGenerativeModelCustomProviderMutations:
         assert isinstance(openai_provider["createdAt"], str)
         assert isinstance(openai_provider["updatedAt"], str)
         config = openai_provider["config"]
-        _assert_redacted_equals(config["openaiAuthenticationMethod"]["apiKey"], "sk-test-key")
+        _assert_redacted_equals(
+            redactor, config["openaiAuthenticationMethod"]["apiKey"], "sk-test-key"
+        )
         assert config["openaiClientKwargs"]["baseUrl"] == "https://api.openai.com/v1"
         assert config["openaiClientKwargs"]["organization"] == "org-123"
         assert config["openaiClientKwargs"]["project"] == "proj-456"
@@ -270,7 +269,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert azure_provider["provider"] == "azure"
         azure_config = azure_provider["config"]
         _assert_redacted_equals(
-            azure_config["azureOpenaiAuthenticationMethod"]["apiKey"], "azure-key-123"
+            redactor, azure_config["azureOpenaiAuthenticationMethod"]["apiKey"], "azure-key-123"
         )
         assert azure_config["azureOpenaiAuthenticationMethod"]["azureAdTokenProvider"] is None
         assert (
@@ -320,7 +319,7 @@ class TestGenerativeModelCustomProviderMutations:
         ]
         assert token_provider["azureTenantId"] == "tenant-123"
         assert token_provider["azureClientId"] == "client-456"
-        _assert_redacted_equals(token_provider["azureClientSecret"], "secret-789")
+        _assert_redacted_equals(redactor, token_provider["azureClientSecret"], "secret-789")
         assert token_provider["scope"] == "https://cognitiveservices.azure.com/.default"
 
         # Create Anthropic provider
@@ -358,7 +357,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert anthropic_provider["provider"] == "anthropic"
         anthropic_config = anthropic_provider["config"]
         _assert_redacted_equals(
-            anthropic_config["anthropicAuthenticationMethod"]["apiKey"], "sk-ant-test-key"
+            redactor, anthropic_config["anthropicAuthenticationMethod"]["apiKey"], "sk-ant-test-key"
         )
         assert anthropic_config["anthropicClientKwargs"]["baseUrl"] == "https://api.anthropic.com"
 
@@ -398,7 +397,9 @@ class TestGenerativeModelCustomProviderMutations:
         assert google_provider["provider"] == "google"
         google_config = google_provider["config"]
         _assert_redacted_equals(
-            google_config["googleGenaiAuthenticationMethod"]["apiKey"], "google-api-key-123"
+            redactor,
+            google_config["googleGenaiAuthenticationMethod"]["apiKey"],
+            "google-api-key-123",
         )
         assert "httpOptions" in google_config["googleGenaiClientKwargs"]
         http_options = google_config["googleGenaiClientKwargs"]["httpOptions"]
@@ -443,7 +444,7 @@ class TestGenerativeModelCustomProviderMutations:
         access_keys = aws_config["awsBedrockAuthenticationMethod"]["accessKeys"]
         assert access_keys["awsAccessKeyId"] == "AKIAIOSFODNN7EXAMPLE"
         _assert_redacted_equals(
-            access_keys["awsSecretAccessKey"], "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+            redactor, access_keys["awsSecretAccessKey"], "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
         )
         assert access_keys["awsSessionToken"] is None
         assert aws_config["awsBedrockClientKwargs"]["regionName"] == "us-east-1"
@@ -486,7 +487,9 @@ class TestGenerativeModelCustomProviderMutations:
         assert aws_session_provider is not None
         assert aws_session_provider["name"] == aws_session_name
         access_keys = aws_session_provider["config"]["awsBedrockAuthenticationMethod"]["accessKeys"]
-        _assert_redacted_equals(access_keys["awsSessionToken"], "FwoGZXIvYXdzEBYaDExample")
+        _assert_redacted_equals(
+            redactor, access_keys["awsSessionToken"], "FwoGZXIvYXdzEBYaDExample"
+        )
         assert aws_session_provider["config"]["awsBedrockClientKwargs"]["regionName"] == "us-west-2"
 
         # ===== DEFAULT CREDENTIALS TESTS =====
@@ -693,7 +696,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert updated_provider_config is not None
         updated_config = updated_provider_config["config"]
         _assert_redacted_equals(
-            updated_config["openaiAuthenticationMethod"]["apiKey"], "sk-updated-key"
+            redactor, updated_config["openaiAuthenticationMethod"]["apiKey"], "sk-updated-key"
         )
         assert updated_config["openaiClientKwargs"]["baseUrl"] == "https://updated.openai.com"
         assert updated_config["openaiClientKwargs"]["organization"] == "updated-org"
@@ -782,7 +785,9 @@ class TestGenerativeModelCustomProviderMutations:
         # Verify Azure OpenAI config is present
         switched_config = switched_provider["config"]
         _assert_redacted_equals(
-            switched_config["azureOpenaiAuthenticationMethod"]["apiKey"], "azure-key-compat"
+            redactor,
+            switched_config["azureOpenaiAuthenticationMethod"]["apiKey"],
+            "azure-key-compat",
         )
         assert (
             switched_config["azureOpenaiClientKwargs"]["azureEndpoint"]
@@ -824,12 +829,14 @@ class TestGenerativeModelCustomProviderMutations:
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
+        redactor: Redactor,
     ) -> None:
         """A redacted apiKey — sent on create, or echoed back on patch — must
-        un-redact to the original plaintext in the DB, not persist as [REDACTED]...
+        un-redact to the original plaintext in the DB.
 
-        The `app` fixture builds create_app without a secret, so the server's
-        EncryptionService and Redactor are both keyed off SecretStr("").
+        The `app` fixture builds create_app without a secret. Credential
+        encryption uses that empty secret. The redactor uses the deployment
+        seed and the same empty secret.
         """
         encryption = EncryptionService(secret=SecretStr(""))
 
@@ -857,7 +864,7 @@ class TestGenerativeModelCustomProviderMutations:
                     "provider": "openai",
                     "clientConfig": {
                         "openai": {
-                            "openaiAuthenticationMethod": {"apiKey": _REDACTOR.redact(secret)},
+                            "openaiAuthenticationMethod": {"apiKey": redactor.redact(secret)},
                         }
                     },
                 }
@@ -896,8 +903,8 @@ class TestGenerativeModelCustomProviderMutations:
         """A redacted token from a different redactor must produce a user-facing
         error, not the generic 'an unexpected error occurred' mask.
         """
-        # Token minted by a DIFFERENT redactor, so the server's Fernet can't decrypt it.
-        other_redactor = Redactor(secret=SecretStr("different-secret-than-server"))
+        # Token minted by a different redactor, so the server's Fernet can't decrypt it.
+        other_redactor = Redactor(token_bytes(32))
         stale_token = other_redactor.redact("sk-original")
 
         result = await gql_client.execute(

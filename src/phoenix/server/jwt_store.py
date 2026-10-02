@@ -1,7 +1,7 @@
-import logging
+import secrets
 from abc import ABC, abstractmethod
 from asyncio import create_task, gather, sleep
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Mapping
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -11,13 +11,15 @@ from typing import Any, Generic, Optional, TypeVar
 from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
-from pydantic import SecretStr
 from sqlalchemy import Select, delete, select, update
 
 from phoenix.auth import (
     JWT_ALGORITHM,
+    TOKEN_RANDOM_BYTES,
+    TOKEN_RANDOM_CLAIM,
     ClaimSet,
     Token,
+    compute_token_hash,
 )
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
@@ -45,8 +47,6 @@ from phoenix.server.types import (
     UserId,
 )
 
-logger = logging.getLogger(__name__)
-
 
 def _scopes_tuple(scopes: Optional[list[str]]) -> Optional[tuple[str, ...]]:
     if scopes is None:
@@ -70,24 +70,51 @@ def _fail_closed_subject(
     return UserId(user_id)
 
 
+class _SigningKey:
+    """HMAC key installed at startup. An absent key rejects every token."""
+
+    def __init__(self) -> None:
+        self._key: Optional[OctKey] = None
+        self.require_stored_hash = True
+
+    def set(self, key: str | bytes, *, require_stored_hash: bool) -> None:
+        self._key = OctKey.import_key(key)
+        self.require_stored_hash = require_stored_hash
+
+    def get(self) -> Optional[OctKey]:
+        return self._key
+
+
 class JwtStore:
+    """The only encoder and decoder of Phoenix tokens."""
+
     def __init__(
         self,
         db: DbSessionFactory,
-        secret: SecretStr,
         algorithm: str = JWT_ALGORITHM,
         sleep_seconds: int = 10,
         **kwargs: Any,
     ) -> None:
-        assert secret
+        """
+        Args:
+            sleep_seconds: How often each store reloads its token cache from the database.
+        """
         super().__init__(**kwargs)
         self._db = db
-        self._secret = secret
-        args = (db, secret, algorithm, sleep_seconds)
+        self._signing = _SigningKey()
+        args = (db, self._signing, algorithm, sleep_seconds)
         self._password_reset_token_store = _PasswordResetTokenStore(*args, **kwargs)
         self._access_token_store = _AccessTokenStore(*args, **kwargs)
         self._refresh_token_store = _RefreshTokenStore(*args, **kwargs)
         self._api_key_store = _ApiKeyStore(*args, **kwargs)
+
+    def set_signing_key(self, key: str | bytes, *, require_stored_hash: bool) -> None:
+        """Install the HMAC key used to encode and decode tokens.
+
+        ``key`` is a configured ``PHOENIX_SECRET``, or the 32 bytes derived from the
+        deployment seed. ``require_stored_hash`` rejects a row that has no stored hash.
+        """
+        self._signing.set(key, require_stored_hash=require_stored_hash)
 
     @cached_property
     def _stores(self) -> tuple[DaemonTask, ...]:
@@ -100,18 +127,39 @@ class JwtStore:
         await gather(*(s.__aexit__(*args, **kwargs) for s in self._stores))
 
     def _parse_token_id(self, token: Token) -> Optional[TokenId]:
-        try:
-            decoded = jwt.decode(str(token), OctKey.import_key(self._secret.get_secret_value()))
-        except JoseError:
+        if (key := self._signing.get()) is None:
             return None
-        if (jti := decoded.claims.get("jti")) is None:
+        try:
+            decoded = jwt.decode(str(token), key)
+        except (JoseError, ValueError, TypeError, RecursionError):
+            return None
+        claims = decoded.claims
+        if not isinstance(claims, Mapping):
+            return None
+        jti = claims.get("jti")
+        if not isinstance(jti, str):
             return None
         return TokenId.parse(jti)
 
     async def read(self, token: Token) -> Optional[ClaimSet]:
         if (token_id := self._parse_token_id(token)) is None:
             return None
-        return await self._get(token_id)
+        if (claims := await self._get(token_id)) is None:
+            return None
+        if not self._store_for(token_id).matches(token_id, token):
+            return None
+        return claims
+
+    def _store_for(self, token_id: TokenId) -> "_Store[Any, Any, Any, Any]":
+        if isinstance(token_id, PasswordResetTokenId):
+            return self._password_reset_token_store
+        if isinstance(token_id, AccessTokenId):
+            return self._access_token_store
+        if isinstance(token_id, RefreshTokenId):
+            return self._refresh_token_store
+        if isinstance(token_id, ApiKeyId):
+            return self._api_key_store
+        raise TypeError(f"Unsupported token id: {token_id!r}")
 
     async def consumed_refresh_token_grant_id(self, token: Token) -> Optional[int]:
         """Return the grant of a refresh token that was already spent in a rotation.
@@ -125,7 +173,7 @@ class JwtStore:
         token_id = self._parse_token_id(token)
         if not isinstance(token_id, RefreshTokenId):
             return None
-        return await self._refresh_token_store.consumed_grant_id(token_id)
+        return await self._refresh_token_store.consumed_grant_id(token_id, token)
 
     @singledispatchmethod
     async def _get(self, _: TokenId) -> Optional[ClaimSet]:
@@ -246,6 +294,14 @@ _RecordT = TypeVar(
 class _Claims(Generic[_TokenIdT, _ClaimSetT]):
     def __init__(self) -> None:
         self._cache: dict[_TokenIdT, _ClaimSetT] = {}
+        self._token_hashes: dict[_TokenIdT, Optional[bytes]] = {}
+
+    def put(self, token_id: _TokenIdT, claim: _ClaimSetT, token_hash: Optional[bytes]) -> None:
+        self[token_id] = claim
+        self._token_hashes[token_id] = token_hash
+
+    def token_hash(self, token_id: _TokenIdT) -> Optional[bytes]:
+        return self._token_hashes.get(token_id)
 
     def __getitem__(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         claim = self._cache.get(token_id)
@@ -261,6 +317,7 @@ class _Claims(Generic[_TokenIdT, _ClaimSetT]):
     def pop(
         self, token_id: _TokenIdT, default: Optional[_ClaimSetT] = None
     ) -> Optional[_ClaimSetT]:
+        self._token_hashes.pop(token_id, None)
         claim = self._cache.pop(token_id, default)
         return deepcopy(claim) if claim else None
 
@@ -273,23 +330,40 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     def __init__(
         self,
         db: DbSessionFactory,
-        secret: SecretStr,
+        signing: _SigningKey,
         algorithm: str = JWT_ALGORITHM,
         sleep_seconds: int = 10,
         **kwargs: Any,
     ) -> None:
-        assert secret
         super().__init__(**kwargs)
         self._db = db
         self._seconds = sleep_seconds
         self._claims: _Claims[_TokenIdT, _ClaimSetT] = _Claims()
-        self._secret = secret
+        self._signing = signing
         self._algorithm = algorithm
 
     def _encode(self, claim: ClaimSet) -> str:
-        payload: dict[str, Any] = dict(jti=claim.token_id)
+        key = self._signing.get()
+        if key is None:
+            raise RuntimeError("token signing key is not configured")
+        payload: dict[str, Any] = {
+            "jti": claim.token_id,
+            TOKEN_RANDOM_CLAIM: secrets.token_urlsafe(TOKEN_RANDOM_BYTES),
+        }
         header = {"alg": self._algorithm}
-        return jwt.encode(header, payload, OctKey.import_key(self._secret.get_secret_value()))
+        return jwt.encode(header, payload, key)
+
+    def matches(self, token_id: _TokenIdT, token: Token) -> bool:
+        """Whether the presented token is the one recorded for this id."""
+        return self._hash_matches(self._claims.token_hash(token_id), token)
+
+    def _hash_matches(self, stored_hash: Optional[bytes], token: Token) -> bool:
+        if stored_hash is None:
+            # Anyone who can read the database can derive the seed key, so without a
+            # configured secret a row with no hash would be forgeable by signing its jti.
+            return not self._signing.require_stored_hash
+        # Both sides are SHA-256 digests, so a timing difference reveals nothing usable.
+        return stored_hash == compute_token_hash(str(token))
 
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         if claims := self._claims.get(token_id):
@@ -301,7 +375,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             return None
         token, role = record
         _, claims = self._from_db(token, role)
-        self._claims[token_id] = claims
+        self._claims.put(token_id, claims, token.token_hash)
         return claims
 
     async def evict(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
@@ -336,11 +410,12 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         async with self._db() as session:
             session.add(record)
             await session.flush()
-        token_id = self._token_id(record.id)
-        claim = replace(claim, token_id=token_id)
-        self._claims[token_id] = claim
-        token = self._token(self._encode(claim))
-        return token, token_id
+            token_id = self._token_id(record.id)
+            claim = replace(claim, token_id=token_id)
+            encoded = self._encode(claim)
+            record.token_hash = compute_token_hash(encoded)
+        self._claims.put(token_id, claim, record.token_hash)
+        return self._token(encoded), token_id
 
     async def _update(self) -> None:
         claims: _Claims[_TokenIdT, _ClaimSetT] = _Claims()
@@ -350,7 +425,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             async with session.begin_nested():
                 async for record, role in await session.stream(self._update_stmt):
                     token_id, claim_set = self._from_db(record, role)
-                    claims[token_id] = claim_set
+                    claims.put(token_id, claim_set, record.token_hash)
         self._claims = claims
 
     @cached_property
@@ -463,7 +538,7 @@ class _AccessTokenStore(
             return None
         token, role, grant_id = record
         _, claims = self._from_db(token, role, grant_id=grant_id)
-        self._claims[token_id] = claims
+        self._claims.put(token_id, claims, token.token_hash)
         return claims
 
     async def _update(self) -> None:
@@ -474,7 +549,7 @@ class _AccessTokenStore(
             async with session.begin_nested():
                 async for record, role, grant_id in await session.stream(self._update_stmt):
                     token_id, claim_set = self._from_db(record, role, grant_id=grant_id)
-                    claims[token_id] = claim_set
+                    claims.put(token_id, claim_set, record.token_hash)
         self._claims = claims
 
     def _from_db(
@@ -596,13 +671,21 @@ class _RefreshTokenStore(
         await self.evict(token_id)
         return True
 
-    async def consumed_grant_id(self, token_id: RefreshTokenId) -> Optional[int]:
-        stmt = select(self._table.oauth2_grant_id).where(
+    async def consumed_grant_id(self, token_id: RefreshTokenId, token: Token) -> Optional[int]:
+        stmt = select(self._table.oauth2_grant_id, self._table.token_hash).where(
             self._table.id == int(token_id),
             self._table.consumed_at.is_not(None),
         )
         async with self._db() as session:
-            return await session.scalar(stmt)
+            row = (await session.execute(stmt)).first()
+        if row is None:
+            return None
+        grant_id, stored_hash = row
+        # Reporting a replay revokes the whole grant, so a forged token must not
+        # trigger it for someone else's grant.
+        if not self._hash_matches(stored_hash, token):
+            return None
+        return grant_id
 
     async def _update(self) -> None:
         await super()._update()

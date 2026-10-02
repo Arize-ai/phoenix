@@ -57,6 +57,7 @@ class GrpcServer:
         self,
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
         port: int,
+        host: Optional[str] = None,
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
         disabled: bool = False,
@@ -69,6 +70,7 @@ class GrpcServer:
         self._enable_prometheus = enable_prometheus
         self._disabled = disabled
         self._port = port
+        self._bind_address = _bind_address(host, port)
         self._token_store = token_store
         self._interceptors = list(interceptors)
 
@@ -104,9 +106,9 @@ class GrpcServer:
                 if isinstance(tls_config, TLSConfigVerifyClient)
                 else grpc.ssl_server_credentials(private_key_certificate_chain_pairs)
             )
-            server.add_secure_port(f"[::]:{self._port}", server_credentials)
+            server.add_secure_port(self._bind_address, server_credentials)
         else:
-            server.add_insecure_port(f"[::]:{self._port}")
+            server.add_insecure_port(self._bind_address)
         add_TraceServiceServicer_to_server(Servicer(self._enqueue_span), server)  # type: ignore[no-untyped-call,unused-ignore]
         await server.start()
         self._server = server
@@ -120,3 +122,17 @@ class GrpcServer:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
             GrpcAioInstrumentorServer().uninstrument()  # type: ignore
+
+
+def _bind_address(host: Optional[str], port: int) -> str:
+    """
+    gRPC bind address for the given host.
+
+    None binds all interfaces. IPv6 literals are bracketed.
+    """
+    if host is None:
+        return f"[::]:{port}"
+    address = host.strip().strip("[]")
+    if ":" in address:
+        return f"[{address}]:{port}"
+    return f"{address}:{port}"

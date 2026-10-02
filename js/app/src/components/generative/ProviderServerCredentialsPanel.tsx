@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { PublicEncryptionKeyWarning } from "@phoenix/components/settings/PublicEncryptionKeyWarning";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ProviderServerCredentialsPanelSecretsQuery } from "./__generated__/ProviderServerCredentialsPanelSecretsQuery.graphql";
@@ -257,6 +258,7 @@ function ServerCredentials({
   return (
     <Flex direction="column" gap="size-100">
       {error && <Alert variant="danger">{error}</Alert>}
+      <PublicEncryptionKeyWarning />
       {setViaServerEnvironment && (
         <Alert variant="info">
           Set via a server environment variable. This can only be cleared by
