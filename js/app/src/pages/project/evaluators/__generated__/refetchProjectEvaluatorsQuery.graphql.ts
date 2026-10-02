@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<90a5722d9b380108794f94ffd8bf0917>>
+ * @generated SignedSource<<df4dc74fcf6191471ff05c1306f2e627>>
  * @lightSyntaxTransform
  */
 
@@ -175,6 +175,13 @@ v14 = {
       "args": null,
       "kind": "ScalarField",
       "name": "droppedCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "overflowedCount",
       "storageKey": null
     },
     {
@@ -918,7 +925,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dfa4bc7effd7f02d5d89a27529f99a52",
+    "cacheID": "9d91a32c3641c46e945687258349a9e6",
     "id": null,
     "metadata": {
       "connection": [
@@ -935,7 +942,7 @@ return {
     },
     "name": "refetchProjectEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            ...ProjectEvaluatorsTable_costs_3E0ZE6\n            ...ProjectEvaluatorsTable_failures_3E0ZE6\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_failures_3E0ZE6 on ProjectEvaluator {\n  failureSummary(timeRange: $timeRange) {\n    failedCount\n    evaluatedCount\n    failureRate\n    lastFailedAt\n    lastError\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    runningCount\n    evaluatedCount\n    failedCount\n    droppedCount\n    oldestQueuedAt\n  }\n  evaluationLoad {\n    evaluationCount\n    meanEvaluationSeconds\n    shareOfEvaluationTime\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            ...ProjectEvaluatorsTable_costs_3E0ZE6\n            ...ProjectEvaluatorsTable_failures_3E0ZE6\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_failures_3E0ZE6 on ProjectEvaluator {\n  failureSummary(timeRange: $timeRange) {\n    failedCount\n    evaluatedCount\n    failureRate\n    lastFailedAt\n    lastError\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    runningCount\n    evaluatedCount\n    failedCount\n    droppedCount\n    overflowedCount\n    oldestQueuedAt\n  }\n  evaluationLoad {\n    evaluationCount\n    meanEvaluationSeconds\n    shareOfEvaluationTime\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
