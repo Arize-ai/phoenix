@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89c83deaae2dd159e07756dc90b7251a>>
+ * @generated SignedSource<<7c69aaed7453cac2f9a15b660ba29ec4>>
  * @lightSyntaxTransform
  */
 
@@ -74,15 +74,30 @@ export type ExperimentCompareTable_comparisons$data = {
         readonly node: {
           readonly name: string;
           readonly outputConfigs: ReadonlyArray<{
-            readonly lowerBound?: number | null;
-            readonly name?: string;
-            readonly optimizationDirection?: OptimizationDirection;
-            readonly threshold?: number | null;
-            readonly upperBound?: number | null;
-            readonly values?: ReadonlyArray<{
+            readonly __typename: "CategoricalAnnotationConfig";
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly values: ReadonlyArray<{
               readonly label: string;
               readonly score: number | null;
             }>;
+          } | {
+            readonly __typename: "ContinuousAnnotationConfig";
+            readonly lowerBound: number | null;
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly upperBound: number | null;
+          } | {
+            readonly __typename: "FreeformAnnotationConfig";
+            readonly lowerBound: number | null;
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly threshold: number | null;
+            readonly upperBound: number | null;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
           }>;
         };
       }>;
@@ -223,24 +238,31 @@ v9 = {
   "name": "metadata",
   "storageKey": null
 },
-v10 = [
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v11 = [
   (v1/*:: as any*/)
 ],
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -563,13 +585,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
-                  "storageKey": null
-                }
+                (v10/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -688,7 +704,7 @@ return {
                           "kind": "LinkedField",
                           "name": "datasetVersion",
                           "plural": false,
-                          "selections": (v10/*:: as any*/),
+                          "selections": (v11/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -698,7 +714,7 @@ return {
                           "kind": "LinkedField",
                           "name": "project",
                           "plural": false,
-                          "selections": (v10/*:: as any*/),
+                          "selections": (v11/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -804,11 +820,12 @@ return {
                           "name": "outputConfigs",
                           "plural": true,
                           "selections": [
+                            (v10/*:: as any*/),
                             {
                               "kind": "InlineFragment",
                               "selections": [
                                 (v6/*:: as any*/),
-                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -830,9 +847,9 @@ return {
                               "kind": "InlineFragment",
                               "selections": [
                                 (v6/*:: as any*/),
-                                (v11/*:: as any*/),
                                 (v12/*:: as any*/),
-                                (v13/*:: as any*/)
+                                (v13/*:: as any*/),
+                                (v14/*:: as any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -841,7 +858,7 @@ return {
                               "kind": "InlineFragment",
                               "selections": [
                                 (v6/*:: as any*/),
-                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -849,8 +866,8 @@ return {
                                   "name": "threshold",
                                   "storageKey": null
                                 },
-                                (v12/*:: as any*/),
-                                (v13/*:: as any*/)
+                                (v13/*:: as any*/),
+                                (v14/*:: as any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null
@@ -880,6 +897,6 @@ return {
 };
 })();
 
-(node as any).hash = "bc7d16b07e75d7362393b5acf3c80db2";
+(node as any).hash = "118d9417ca2454ab95e1e081fe625a2e";
 
 export default node;
