@@ -3,9 +3,21 @@ title: "09.29.2026: Editable Dataset Examples, Trace Metrics, and Custom Skills"
 description: "Edit dataset examples in the table and save the batch as one version, read latency, tokens, and cost on every trace tree row, and mount your own skills into MCP and PXI."
 ---
 
-Correct a dataset's examples directly in the table and save them as a single new version. Trace
-tree rows now carry latency, tokens, and cost, and Phoenix can serve your own Agent Skills over MCP
-and in PXI.
+Edit a dataset's examples directly in the table and save them as one new version. Trace tree rows
+now show latency, tokens, and cost, and Phoenix serves your own Agent Skills over MCP and in PXI.
+
+# Breaking Changes in the GraphQL API
+
+September 16, 2026
+
+**Breaking change in arize-phoenix 20.13.0**
+
+- **`rootSpansOnly` and `orphanSpanAsRootSpan` are removed** from `Project.spans` and
+  `Trace.spans`. Use `filterCondition: "parent_id is None"` instead, or `"parent_span is None"` to
+  count orphans as roots.
+- **`Project.traceAnnotationsNames` is now `Project.traceAnnotationNames`.**
+- **`applyDatasetExampleChanges` is now `patchDatasetExamples`.** It takes an ordered, JSON
+  Patch-style list of operations that commits as one dataset version, and requires `datasetId`.
 
 # Edit Dataset Examples in Place
 
@@ -13,24 +25,22 @@ September 16, 2026
 
 **Available in arize-phoenix 20.13.0+**
 
-Press **Edit** above the examples table to fix input, output, and metadata JSON without opening one
-example at a time. The whole batch saves as a single new dataset version.
+Click **Edit** above the examples table to fix input, output, and metadata JSON without opening
+examples one at a time. The whole batch saves as one new dataset version.
 
 - **Edit JSON cells in place**, add rows with an optional custom ID, and remove or restore rows
-  before committing anything.
-- **Save with `⌘S`.** The toolbar counts the pending changes, the save dialog takes an optional
-  version description, and leaving the page with unsaved edits asks first.
-- **Duplicate custom IDs are flagged before save**, so a batch cannot land two examples under the
-  same ID.
-- **Search and split filters stay live while editing.** The toolbar reports changes the current
-  search hides, and the Versions tab picks up the new version without a reload.
+  before you save. Phoenix flags duplicate custom IDs before the save goes through.
+- **Save with `⌘S`.** The toolbar counts pending changes, the save dialog takes an optional version
+  description, and Phoenix warns before you leave the page with unsaved edits.
+- **Search and split filters stay live while you edit**, and the toolbar reports any changes the
+  current search hides.
 
 <CardGroup cols={2}>
   <Card title="Updating Datasets" icon="pen-to-square" href="/docs/phoenix/datasets-and-experiments/how-to-datasets/updating-datasets">
     Ways to change an existing dataset
   </Card>
   <Card title="Splits" icon="table-columns" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/splits">
-    Group examples while you edit them
+    Group examples into named subsets
   </Card>
 </CardGroup>
 
@@ -40,20 +50,13 @@ September 22 to 23, 2026
 
 **Available in arize-phoenix 20.16.0+**
 
-Each row of the trace tree now ends with a footer reading latency · tokens · cost, so you can find
-the slow or expensive span without opening one. Hovering a row previews its timing and its token
-and cost breakdown.
+Each trace tree row now ends with latency, tokens, and cost, so you can spot the slow or expensive
+span without opening it.
 
-- **One hover preview follows the pointer** down the tree. It opens from the totals the row already
-  holds and loads the breakdown only after the pointer settles, so scrubbing a large trace does not
-  fetch details for every row it passes.
-- **Tokens and cost share one breakdown.** A bar per measure splits into token types with a tick
-  where the prompt ends and the completion begins, and a table gives each type's value and share —
-  so a type's share of the tokens reads against its share of the cost.
-- **Table tooltips open to the side** of the cell, leaving the column clear for a pointer scanning
-  down it.
-- **Loading keeps the loaded layout.** The breakdown skeleton holds the tooltip's heading, labels,
-  and totals, so nothing resizes when the details land.
+- **Hover a row to preview its breakdown.** One preview follows the pointer down the tree and loads
+  details only once the pointer settles, so large traces stay responsive.
+- **Tokens and cost share one breakdown.** Each measure splits into token types, so you can compare
+  a type's share of tokens with its share of cost.
 
 # PXI: Custom Skills, Schema Search, and Slash-Command Keys
 
@@ -62,25 +65,20 @@ September 21 to 29, 2026
 **Available in arize-phoenix 20.15.0+ (server) and @arizeai/phoenix-cli 1.18.6+**
 
 Point Phoenix at your own [Agent Skills](https://agentskills.io/specification) and it serves them
-next to the built-in ones — in the MCP server's instructions and in the Phoenix Assistant's skill
-picker.
+next to the built-in ones, both in the MCP server's instructions and in PXI's skill picker.
 
 ```bash
 PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
 ```
 
-- **Point at skills or at directories of skills.** Each skill is a directory whose name matches the
-  `name` in its `SKILL.md` frontmatter; files under an optional `references/` directory become
-  loadable references. Unparseable skills are skipped, and the startup banner lists what mounted.
-  Use absolute paths in deployments — a relative path resolves against the directory the server
-  started in.
-- **PXI searches the GraphQL schema** instead of reading 134 KB of SDL.
+- **Each path is a skill or a directory of skills.** A skill's directory name must match the `name`
+  in its `SKILL.md` frontmatter, and the startup banner lists what mounted. Use absolute paths in
+  deployments.
+- **PXI searches the GraphQL schema** instead of reading the full SDL:
   `phoenix-gql schema --search <terms>` returns ranked field signatures, and
-  `phoenix-gql schema --names <Type.field>` prints one definition with its argument types, return
-  members, and the paths that reach it from a read root.
-- **Slash-command hints are keyboard-driven** in the `pxi` terminal client: arrow keys move the
-  highlighted row and wrap at either end, Tab completes it, and Enter runs it, so `/he` plus Enter
-  runs `/help`.
+  `phoenix-gql schema --names <Type.field>` prints one definition and the paths that reach it.
+- **Slash-command hints respond to the keyboard** in the `pxi` terminal client. Arrow keys move the
+  highlight, Tab completes, and Enter runs, so `/he` plus Enter runs `/help`.
 
 <CardGroup cols={2}>
   <Card title="Remote MCP Server" icon="plug" href="/docs/phoenix/integrations/remote-mcp">
@@ -99,8 +97,7 @@ September 21, 2026
 
 Pass an AI SDK evaluation model, such as TypeSafe's Jev, to any classification evaluator. Evaluation
 models answer one typed choice question instead of generating text, so a single-label eval runs
-faster and costs less than it would on a chat model. Install `@ai-sdk/typesafe-ai` alongside
-`@arizeai/phoenix-evals` to use Jev.
+faster and costs less than on a chat model.
 
 ```typescript
 import { typeSafeAi } from "@ai-sdk/typesafe-ai";
@@ -111,20 +108,16 @@ const evaluator = createHallucinationEvaluator({
 });
 
 const result = await evaluator.evaluate({
-  input:
-    "Retrieved document: Arize Phoenix is an open-source platform for tracing and evaluating AI applications.\n\nUser: Is Arize Phoenix open source?",
+  input: "Retrieved document: Arize Phoenix is open source.\n\nUser: Is Arize Phoenix open source?",
   output: "Yes, Arize Phoenix is open source.",
 });
-console.log(result.label); // "grounded"
-console.log(result.metadata?.probabilities);
+console.log(result.label, result.metadata?.probabilities);
 ```
 
-- **Same evaluators, same labels.** Phoenix detects the evaluation model and routes the call through
-  `experimental_evaluate` as a single choice question rather than `generateObject`.
-- **Results carry a `label` and `score` but no `explanation`**, since evaluation models never
-  generate text.
-- **`metadata` reports the full label distribution** as `probabilities`, along with the `modelId`
-  that produced it.
+- **Same evaluators, same labels.** Phoenix detects the evaluation model and sends the call through
+  `experimental_evaluate` instead of `generateObject`.
+- **Results carry a `label` and `score` but no `explanation`.** `metadata` reports the full label
+  distribution as `probabilities`, along with the `modelId`.
 
 <CardGroup cols={2}>
   <Card title="TypeSafe AI" icon="plug" href="/docs/phoenix/integrations/llm-providers/typesafe">
@@ -141,17 +134,15 @@ September 23, 2026
 
 **Available in arize-phoenix 20.16.0+**
 
-All three models are selectable in the playground and priced in the built-in cost manifest,
+All three models are available in the playground and priced in the built-in cost manifest,
 including the 272k long-context tier for the GPT-6 pair.
 
-- **GPT-6 Sol and GPT-6 Luna are reasoning models**, so Phoenix routes them to the Responses API on
+- **GPT-6 Sol and GPT-6 Luna are reasoning models**, so Phoenix sends them to the Responses API on
   OpenAI and Azure OpenAI, where tool calls work.
-- **Claude Opus 5.5 thinks adaptively and always on**, so the playground does not send temperature,
-  top-p, top-k, or extended-thinking settings for it. `anthropic.claude-opus-5-5` is in the Bedrock
-  catalog too.
-- **Cost attribution is exact.** A span reporting `claude-opus-5-5` used to match the
-  `claude-opus-5` pattern and bill at Opus 5's higher rates; each model in the lineup now resolves
-  to its own manifest entry, including platform-prefixed IDs.
+- **Claude Opus 5.5 always uses adaptive thinking**, so the playground omits temperature, top-p,
+  top-k, and extended-thinking settings. Bedrock lists it as `anthropic.claude-opus-5-5`.
+- **Opus 5.5 spans bill at Opus 5.5 rates.** They previously matched the `claude-opus-5` pattern and
+  billed at Opus 5's higher rates.
 
 # TypeScript Client: Secrets, Splits, Prompt Tags, and Filters
 
@@ -159,8 +150,8 @@ September 21 to 29, 2026
 
 **Available in @arizeai/phoenix-client 7.12.0+**
 
-New helpers cover secrets, dataset splits, and prompt version tags, which previously needed a
-hand-written REST call, and trace and session listing now accept filter expressions.
+New helpers manage secrets, dataset splits, and prompt version tags without a hand-written REST
+call, and trace and session listing now accept filter expressions.
 
 ```typescript
 import { createDatasetSplit } from "@arizeai/phoenix-client/datasets";
@@ -195,43 +186,22 @@ const { traces } = await getTraces({
 });
 ```
 
-- **`upsertOrDeleteSecrets`** (7.13.0) applies an ordered batch atomically — a value creates or
-  updates a key, `null` deletes it — and returns key names only, never the submitted values.
-- **`createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit`** (7.14.0) select a dataset
-  by name or GlobalID, add or remove example memberships idempotently, and delete a split without
-  deleting its examples. Requires Phoenix server 19.20.0+.
+- **`upsertOrDeleteSecrets`** (7.13.0) applies a batch atomically: a value creates or updates a
+  key, and `null` deletes it. The response lists key names only, never values.
+- **`createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit`** (7.14.0) manage splits
+  on a dataset selected by name or GlobalID. Requires Phoenix server 19.20.0+.
 - **`upsertPromptVersionTag` and `deletePromptVersionTag`** (7.15.0) create, move, and remove
-  prompt-scoped version tags; upserting an existing name moves the tag to the selected version.
-- **`filter` on `getTraces` and `listSessions`** (7.12.0) takes the same expressions the UI uses. On
-  `getTraces` it deprecates the discrete `error`, `minLatencyMs`, and `maxLatencyMs` parameters.
-  Requires Phoenix server 20.12.0+.
-
-<CardGroup cols={2}>
-  <Card title="Secrets" icon="key" href="/docs/phoenix/settings/secrets">
-    Store provider credentials on the server
-  </Card>
-  <Card title="Tag a Prompt" icon="tag" href="/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt">
-    Promote a prompt version with a tag
-  </Card>
-</CardGroup>
-
-# GraphQL API Changes
-
-September 16, 2026
-
-**Breaking changes in arize-phoenix 20.13.0**
-
-- **`applyDatasetExampleChanges` is now `patchDatasetExamples`.** It takes an ordered, JSON
-  Patch-style list of additions, patches, and deletions applied as one version; `datasetId` is
-  required and null patch fields are rejected.
-- **`Project.traceAnnotationsNames` is now `Project.traceAnnotationNames`.**
-- **`rootSpansOnly` and `orphanSpanAsRootSpan` are removed** from `Project.spans` and
-  `Trace.spans`. Use `filterCondition: "parent_id is None"`, or `"parent_span is None"` to count
-  orphans as roots — the filter composes with every other clause.
+  prompt version tags.
+- **`filter` on `getTraces` and `listSessions`** (7.12.0) takes the same expressions as the UI and
+  deprecates the `error`, `minLatencyMs`, and `maxLatencyMs` parameters. Requires Phoenix server
+  20.12.0+.
 
 <CardGroup cols={2}>
   <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
-    Filter vocabulary for spans, traces, sessions
+    Filter vocabulary for spans, traces, and sessions
+  </Card>
+  <Card title="Tag a Prompt" icon="tag" href="/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt">
+    Promote a prompt version with a tag
   </Card>
 </CardGroup>
 
@@ -241,38 +211,28 @@ September 23, 2026
 
 **Available in arize-phoenix 20.16.0+**
 
-- **`sort` and `order` on `GET /v1/projects/{project_identifier}/spans`.** `sort=start_time` orders
-  by when a span started, breaking ties by `id`, so a page limit selects the latest spans rather
-  than the most recently ingested ones. The default `sort=id` keeps the previous insertion order,
-  and the cursor carries the boundary start time so pages stay consistent across ties.
-
-```bash
-curl -G "$PHOENIX_ENDPOINT/v1/projects/my-project/spans" \
-  --data-urlencode "sort=start_time" \
-  --data-urlencode "order=desc" \
-  --data-urlencode "limit=100" \
-  -H "Authorization: Bearer $PHOENIX_API_KEY"
-```
+- **`GET /v1/projects/{project_identifier}/spans` accepts `sort=start_time`**, so a page limit
+  returns the latest spans rather than the most recently ingested ones. The default `sort=id` keeps
+  insertion order.
 
 # Additional Improvements
 
 September 15 to 29, 2026
 
-**Available in arize-phoenix 20.13.0+, arize-phoenix-evals 3.9.0+ (Python), arize-phoenix-otel 0.17.2+**
+**Available in arize-phoenix 20.13.0+, arize-phoenix-evals 3.9.0+, and arize-phoenix-otel 0.17.2+**
 
-- **Experiment names and descriptions are editable** from the experiments table, and both can be set
-  when launching an experiment from the playground.
-- **`register()` no longer crashes** on `opentelemetry-exporter-otlp-proto-http` 1.45 in
-  `arize-phoenix-otel` 0.17.2.
-- **Analytics SQL on SQLite gains the bundled time extension** — `time_trunc`, `time_parse`,
-  `time_fmt_datetime`, and `time_sub` are allowed in queries, and `latency_ms` is nanosecond-exact.
-- **PXI streams faster** with smoother transcript scrolling, closes its turn trace when a server
-  tool raises, keeps partial output on an interrupted turn, and links each reference from the skill
-  that owns it.
-- **`PromptTemplate` message lists accept role aliases**, and the rate limiter rejects an invalid
-  initial request rate up front.
-- **SQLite autoincrement counters survive migrations** that rebuild a table, so a primary key is
-  never reused after a schema upgrade.
-- **Metric chart time ranges stay stable**, and the table load-more control stays at the footer in
+- **Experiment names and descriptions are editable** from the experiments table and when you launch
+  an experiment from the playground.
+- **`register()` no longer crashes** with `opentelemetry-exporter-otlp-proto-http` 1.45.
+- **Analytics SQL on SQLite supports the bundled time functions** (`time_trunc`, `time_parse`,
+  `time_fmt_datetime`, and `time_sub`), and `latency_ms` is nanosecond-exact.
+- **PXI streams faster**, keeps partial output when you interrupt a turn, and closes the turn's
+  trace when a server tool raises.
+- **`PromptTemplate` message lists accept role aliases** such as `developer`, `human`, `ai`, and
+  `model`.
+- **The rate limiter rejects an invalid initial request rate** up front.
+- **SQLite autoincrement counters survive migrations** that rebuild a table, so upgrades never reuse
+  a primary key.
+- **Metric chart time ranges stay stable**, and the table's load-more control stays in the footer in
   Safari.
-- **Built-in token prices are refreshed** across the cost manifest.
+- **The cost manifest carries refreshed token prices** for built-in models.
