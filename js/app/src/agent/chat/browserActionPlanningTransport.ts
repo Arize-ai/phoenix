@@ -25,12 +25,10 @@ export function createBrowserActionPlanningStream({
         chunk.type === "tool-input-start" &&
         chunk.toolName === EXECUTE_BROWSER_ACTION_TOOL_NAME
       ) {
-        agentStore
-          .getState()
-          .markBrowserActionPlanned({
-            toolCallId: chunk.toolCallId,
-            sessionId,
-          });
+        agentStore.getState().markBrowserActionPlanned({
+          toolCallId: chunk.toolCallId,
+          sessionId,
+        });
       }
       controller.enqueue(chunk);
     },
