@@ -1,0 +1,198 @@
+---
+title: "09.22.2026: Editable Dataset Examples and Mountable Skills"
+description: "Edit dataset examples inline and commit them as one version, serve your own Agent Skills through MCP and PXI, and classify with decision-only evaluation models."
+---
+
+You can now edit dataset examples directly in the table, and Phoenix serves your own Agent Skills
+to every connected agent. GraphQL callers should review the breaking changes below.
+
+# Breaking Changes in the GraphQL API
+
+September 16, 2026
+
+**Breaking change in arize-phoenix 20.13.0**
+
+- **`rootSpansOnly` and `orphanSpanAsRootSpan` are removed** from `Project.spans` and
+  `Trace.spans`. Use a filter clause instead: `parent_span is None` counts orphans as roots, and
+  `parent_id is None` does not.
+- **`Project.traceAnnotationsNames` is now `traceAnnotationNames`.**
+- **`applyDatasetExampleChanges` is now `patchDatasetExamples`.** It takes an ordered list of
+  `add`, `replace`, and `remove` operations that commits as one dataset version or not at all.
+
+```graphql
+query RootSpans($name: String!) {
+  getProjectByName(name: $name) {
+    spans(first: 50, filterCondition: "parent_span is None") {
+      edges { node { id name latencyMs } }
+    }
+  }
+}
+```
+
+# Edit Dataset Examples in the Table
+
+September 16, 2026
+
+**Available in arize-phoenix 20.13.0+**
+
+Fix a batch of examples without leaving the dataset. Click **Edit** above the examples table, change
+`input`, `output`, and `metadata` JSON in place, and save the whole batch as one new dataset
+version.
+
+- **Add and remove rows in the same session.** A new example takes an optional custom ID, Phoenix
+  flags duplicate IDs before you save, and removed rows stay restorable until then.
+- **Search and split filters stay live while you edit**, and the toolbar reports how many of your
+  changes the current search hides.
+- **One save, one version.** Press `⌘S` or use the save dialog, which takes an optional version
+  description. Phoenix warns before you discard or navigate away from unsaved edits.
+
+<CardGroup cols={2}>
+  <Card title="Updating Datasets" icon="pen-to-square" href="/docs/phoenix/datasets-and-experiments/how-to-datasets/updating-datasets">
+    Update examples from the SDKs
+  </Card>
+  <Card title="Splits" icon="table-columns" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/splits">
+    Group examples into named subsets
+  </Card>
+</CardGroup>
+
+# Mount Your Own Skills in MCP and PXI
+
+September 21, 2026
+
+**Available in arize-phoenix 20.15.0+**
+
+Point Phoenix at your own [Agent Skills](https://agentskills.io/specification) and it serves them
+next to the built-in ones, both to every client connected to `/mcp` and in PXI's skill picker.
+
+```bash
+PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
+```
+
+- **Each path is a skill or a directory of skills.** Use absolute paths in deployments, since a
+  relative path resolves against the directory the server started in.
+- **A skill is a directory** whose name matches the `name` in its `SKILL.md` frontmatter. Files
+  under an optional `references/` directory become loadable references.
+- **Phoenix skips clashing or broken skills.** It logs and ignores a skill whose name is already
+  taken or whose `SKILL.md` does not parse, and the startup banner lists what mounted.
+
+<CardGroup cols={2}>
+  <Card title="Remote MCP Server" icon="plug" href="/docs/phoenix/integrations/remote-mcp">
+    Configure the built-in MCP endpoint
+  </Card>
+  <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
+    The agent that loads these skills
+  </Card>
+</CardGroup>
+
+# Classify With AI SDK Evaluation Models
+
+September 21, 2026
+
+**Available in @arizeai/phoenix-evals 2.6.0+**
+
+Pass an AI SDK evaluation model, such as TypeSafe's Jev, as the `model` of any classification
+evaluator. Jev picks a label without generating text, so a single-label eval runs faster and costs
+less than on a chat model.
+
+```typescript
+import { typeSafeAi } from "@ai-sdk/typesafe-ai";
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+
+const evaluator = createHallucinationEvaluator({
+  model: typeSafeAi.evaluationModel("jev-latest"),
+});
+
+const result = await evaluator.evaluate({
+  input: "Retrieved document: Arize Phoenix is open source.\n\nUser: Is Phoenix open source?",
+  output: "Yes, Arize Phoenix is open source.",
+});
+console.log(result.label, result.metadata?.probabilities);
+```
+
+- **The call goes through `experimental_evaluate`** as one choice question instead of
+  `generateObject`.
+- **Results carry `label` and `score` but no `explanation`.** `metadata` reports the full label
+  distribution as `probabilities`, plus the resolved `modelId`.
+
+<CardGroup cols={2}>
+  <Card title="Configuring the LLM" icon="sliders" href="/docs/phoenix/evaluation/how-to-evals/configuring-the-llm">
+    Choose and configure judge models
+  </Card>
+  <Card title="Pre-Built Metrics" icon="ruler" href="/docs/phoenix/evaluation/pre-built-metrics">
+    Every evaluator that ships with Phoenix
+  </Card>
+</CardGroup>
+
+# TypeScript Client: Filters, Dataset Splits, and Secrets
+
+September 21 to 22, 2026
+
+**Available in @arizeai/phoenix-client 7.12.0+**
+
+`getTraces` and `listSessions` now take the same filter expressions as the UI, and new helpers
+manage dataset splits and secrets without a hand-written REST call.
+
+```typescript
+import { createDatasetSplit } from "@arizeai/phoenix-client/datasets";
+import { upsertOrDeleteSecrets } from "@arizeai/phoenix-client/secrets";
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const { traces } = await getTraces({
+  project: { projectName: "my-project" },
+  filter: "error_count > 0 and latency_ms >= 1000",
+});
+
+await createDatasetSplit({
+  dataset: { datasetName: "support-eval" },
+  name: "test",
+  exampleIds: ["ticket-104", "ticket-231"],
+});
+
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) throw new Error("OPENAI_API_KEY is required");
+
+await upsertOrDeleteSecrets({
+  secrets: [
+    { key: "OPENAI_API_KEY", value: apiKey },
+    { key: "OLD_PROVIDER_API_KEY", value: null },
+  ],
+});
+```
+
+- **`filter` on `getTraces` and `listSessions`** (7.12.0) combines with the other parameters using
+  AND and deprecates the trace `error`, `minLatencyMs`, and `maxLatencyMs` parameters. Requires
+  Phoenix server 20.12.0+.
+- **`upsertOrDeleteSecrets`** (7.13.0) applies a batch atomically: a value creates or updates a key,
+  and `null` deletes it. The response lists key names only, never values.
+- **`createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit`** (7.14.0) manage splits on
+  a dataset selected by name or GlobalID. Requires Phoenix server 19.20.0+.
+
+<CardGroup cols={2}>
+  <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    The expression language `filter` accepts
+  </Card>
+  <Card title="Datasets" icon="table" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets">
+    Dataset and split helpers
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+September 16 to 22, 2026
+
+**Available in arize-phoenix 20.13.0+ and arize-phoenix-evals 3.9.0+**
+
+- **PXI searches the GraphQL schema** with `phoenix-gql schema --search <terms>` for ranked field
+  signatures, or `phoenix-gql schema --names <Type.field>` for one definition and its paths.
+- **Experiment names and descriptions are editable** from the experiments table row menu and when
+  you launch an experiment from the playground.
+- **Time bucketing and latency on SQLite use the bundled sqlean time extension**, and `latency_ms`
+  is nanosecond-exact.
+- **SQLite autoincrement counters survive migrations**, so IDs no longer restart after an upgrade.
+- **PXI keeps partial output when you stop a turn** and links the turn's trace as soon as output
+  starts streaming.
+- **`PromptTemplate` message lists accept role aliases** such as `developer`, `human`, `ai`, and
+  `model`.
+- **Metric chart time ranges stay stable** while you interact with a chart, and the traces table's
+  load-more control stays in the footer in Safari.
+- **The cost manifest carries refreshed token prices** for built-in models.
