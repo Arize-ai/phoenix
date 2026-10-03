@@ -255,6 +255,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   node {
                     name
                     outputConfigs {
+                      __typename
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection
