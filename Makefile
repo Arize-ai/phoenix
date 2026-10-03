@@ -7,7 +7,7 @@ SHELL := /bin/bash
 # Tools
 TOX := tox
 PNPM := pnpm
-UV := uv
+UV := $(CURDIR)/scripts/uv.sh
 NODE := node
 
 # Directories

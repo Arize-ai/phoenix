@@ -152,7 +152,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -176,7 +176,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -199,7 +199,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   test-json-canonicalization-schema:
@@ -235,7 +235,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Install make (Windows)
         if: runner.os == 'Windows'
         run: choco install make --no-progress -y
@@ -269,7 +269,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -295,7 +295,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
@@ -328,7 +328,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Check UI filter DSL snippets against the Python filters
         run: make check-filter-dsl-snippets
 
@@ -353,7 +353,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Check skill GraphQL examples against the exported schema
         run: make check-skill-graphql-examples
       - name: Check skill filter conditions against the Python filters
@@ -380,7 +380,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Run doctests
         run: make doctest
 
@@ -405,7 +405,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Build OpenAPI schema
         run: make schema-openapi
       - run: git diff --exit-code
@@ -431,7 +431,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Create virtual environment
         # `make schema-ddl` installs its dependencies with `uv pip install`,
         # which requires an existing environment.
@@ -461,7 +461,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Compile Prompts
         run: make codegen-prompts
       - name: Check for changes
@@ -510,7 +510,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -534,7 +534,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Run formatter and linter
         run: |
           make format-python
@@ -571,7 +571,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -610,7 +610,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql'
         # The floor version from the PGDG repository, not whatever the
@@ -684,7 +684,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --durations=20 --reruns 5 --timeout 360 -n 16
@@ -724,9 +724,8 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           # Literal pin: this job installs Phoenix from PyPI and only checks out
-          # the repository afterwards, so there is no pyproject.toml for setup-uv
-          # to read `required-version` from. Keep in sync with [tool.uv]
-          # required-version in pyproject.toml.
+          # the repository afterwards, so there is no .tool-versions for setup-uv
+          # to read. Keep in sync with .tool-versions.
           version: "0.12.19"
       - name: Install arize-phoenix and database dependencies
         run: |
@@ -800,7 +799,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
 

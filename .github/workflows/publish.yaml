@@ -110,7 +110,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.11"
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - name: Build distribution
         run: rm -rf dist && uv build
       - name: Verify bundled UI assets in wheel
@@ -219,7 +219,7 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.11"
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
       - run: uv build
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
@@ -544,7 +544,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.11"
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
           enable-cache: false
       - name: Stamp dev version
         env:
@@ -616,7 +616,7 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.11"
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
           enable-cache: false
       - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'

@@ -45,7 +45,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: ".tool-versions"
           enable-cache: true
       - name: Sync dependencies
         run: uv sync --frozen
