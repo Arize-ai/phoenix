@@ -1,5 +1,17 @@
 # Changelog
 
+## [20.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.19.0...arize-phoenix-v20.20.0) (2026-10-03)
+
+
+### Features
+
+* **sandbox:** add Docker Sandboxes provider ([#16538](https://github.com/Arize-ai/phoenix/issues/16538)) ([a3966b2](https://github.com/Arize-ai/phoenix/commit/a3966b2104e7daf20891171ab55ba127ea4a4d62))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#16692](https://github.com/Arize-ai/phoenix/issues/16692)) ([20b9159](https://github.com/Arize-ai/phoenix/commit/20b9159e119a3f66aa6bfe1e8edc2a80acc3c849))
+
 ## [20.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.18.0...arize-phoenix-v20.19.0) (2026-10-01)
 
 
