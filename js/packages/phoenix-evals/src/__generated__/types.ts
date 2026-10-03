@@ -7,5 +7,5 @@ export type ClassificationEvaluatorConfig = {
   description: string;
   optimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NEUTRAL";
   template: PromptTemplate;
-  choices: Record<string, number>;
+  choices: Record<string, number> | readonly string[];
 };

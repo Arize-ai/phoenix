@@ -76,6 +76,13 @@ export interface ClassificationChoice {
 export type ClassificationChoicesMap = Record<string, number>;
 
 /**
+ * Classification choices: a label-to-score map, or a list of labels with no scores.
+ */
+export type ClassificationChoices =
+  | ClassificationChoicesMap
+  | readonly string[];
+
+/**
  * The arguments for creating a classification-based evaluator
  */
 export interface CreateClassifierArgs extends WithTelemetry {
@@ -85,9 +92,10 @@ export interface CreateClassifierArgs extends WithTelemetry {
   model: LanguageModel | EvaluationModel;
   /**
    * The choices to classify the example into.
-   * e.g. { "correct": 1, "incorrect": 0 }
+   * A map attaches a score to each label, e.g. { "correct": 1, "incorrect": 0 }.
+   * A list of labels returns the label and no score.
    */
-  choices: ClassificationChoicesMap;
+  choices: ClassificationChoices;
   /**
    * The prompt template to use for classification
    */
