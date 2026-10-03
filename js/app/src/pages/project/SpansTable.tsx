@@ -97,7 +97,7 @@ import {
   SpanOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
-import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
+import { RetrievalMetricLabel } from "./RetrievalMetricLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import {
@@ -523,19 +523,19 @@ export function SpansTable(props: SpansTableProps) {
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
               return (
                 <>
-                  <RetrievalEvaluationLabel
+                  <RetrievalMetricLabel
                     key="ndcg"
                     name={retrievalMetric.evaluationName}
                     metric="ndcg"
                     score={retrievalMetric.ndcg}
                   />
-                  <RetrievalEvaluationLabel
+                  <RetrievalMetricLabel
                     key="precision"
                     name={retrievalMetric.evaluationName}
                     metric="precision"
                     score={retrievalMetric.precision}
                   />
-                  <RetrievalEvaluationLabel
+                  <RetrievalMetricLabel
                     key="hit"
                     name={retrievalMetric.evaluationName}
                     metric="hit"

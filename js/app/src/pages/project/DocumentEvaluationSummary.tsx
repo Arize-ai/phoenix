@@ -8,7 +8,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import type { DocumentEvaluationSummaryQuery } from "./__generated__/DocumentEvaluationSummaryQuery.graphql";
 import type { DocumentEvaluationSummaryValueFragment$key } from "./__generated__/DocumentEvaluationSummaryValueFragment.graphql";
-import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
+import { RetrievalMetricLabel } from "./RetrievalMetricLabel";
 
 type DocumentEvaluationSummaryProps = {
   evaluationName: string;
@@ -97,17 +97,13 @@ function EvaluationSummaryValue(props: {
   return (
     <Flex direction="row" alignItems="center" gap="size-50" height="28px">
       <>
-        <RetrievalEvaluationLabel
-          key="ndcg"
-          metric="ndcg"
-          score={averageNdcg}
-        />
-        <RetrievalEvaluationLabel
+        <RetrievalMetricLabel key="ndcg" metric="ndcg" score={averageNdcg} />
+        <RetrievalMetricLabel
           key="precision"
           metric="precision"
           score={averagePrecision}
         />
-        <RetrievalEvaluationLabel key="hit" metric="hit rate" score={hitRate} />
+        <RetrievalMetricLabel key="hit" metric="hit rate" score={hitRate} />
       </>
     </Flex>
   );
