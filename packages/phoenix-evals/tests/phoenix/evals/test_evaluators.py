@@ -727,6 +727,62 @@ class TestCreateEvaluatorDecorator:
         assert score.label == "very good"
         assert score.explanation == "This is a comprehensive evaluation"
 
+    @pytest.mark.parametrize(
+        "returned, expected_label, expected_explanation",
+        [
+            pytest.param((1.0, "good", "Length: 42"), "good", "Length: 42", id="docstring-example"),
+            pytest.param(
+                (0.2, "not relevant at all", "short"),
+                "not relevant at all",
+                "short",
+                id="long-label-short-explanation",
+            ),
+            pytest.param((0.5, "ok", "fine"), "ok", "fine", id="two-short-strings"),
+            pytest.param(
+                (0.5, "a long label here", "a long explanation here"),
+                "a long label here",
+                "a long explanation here",
+                id="two-long-strings",
+            ),
+        ],
+    )
+    def test_create_evaluator_tuple_strings_are_positional(
+        self, returned, expected_label, expected_explanation
+    ):
+        @create_evaluator(name="positional_tuple", kind="code")
+        def test_func(input_text: str) -> tuple:
+            return returned
+
+        score = test_func.evaluate({"input_text": "test"})[0]
+        assert score.score == returned[0]
+        assert score.label == expected_label
+        assert score.explanation == expected_explanation
+
+    def test_create_evaluator_tuple_single_string_uses_word_count(self):
+        @create_evaluator(name="single_string_tuple", kind="code")
+        def test_func(input_text: str) -> tuple:
+            return (0.3, "this is a longer explanation")
+
+        score = test_func.evaluate({"input_text": "test"})[0]
+        assert score.score == 0.3
+        assert score.label is None
+        assert score.explanation == "this is a longer explanation"
+
+    @pytest.mark.parametrize(
+        "returned",
+        [
+            pytest.param((0.1, 0.2, "label"), id="two-numbers"),
+            pytest.param((0.1, "a", "b", "c"), id="three-strings"),
+        ],
+    )
+    def test_create_evaluator_ambiguous_tuple_raises(self, returned):
+        @create_evaluator(name="ambiguous_tuple", kind="code")
+        def test_func(input_text: str) -> tuple:
+            return returned
+
+        with pytest.raises(ValueError):
+            test_func.evaluate({"input_text": "test"})
+
     def test_create_evaluator_with_mixed_tuple_return(self):
         """Test create_evaluator with mixed tuple including nested dict."""
 
