@@ -291,7 +291,7 @@ harbor run -p "<task-path>" -a oracle \
 On a `public` baseline, run-time host flags emit a warning and are ignored.
 
 Examples: `examples/tasks/network-policy-matrix/`. Full reference:
-`docs/content/docs/tasks/index.mdx` (Network policy section).
+`docs-mintlify/core-concepts/tasks/network-policies.mdx`.
 
 For Reward Kit judges needing API keys:
 ```toml
@@ -454,7 +454,7 @@ aggregation strategy.
 
 ### Full reference + worked example
 
-- Docs: `docs/content/docs/tasks/multi-step.mdx`
+- Docs: `docs-mintlify/core-concepts/tasks/multi-step.mdx`
 - Example task: `examples/tasks/hello-multi-step-advanced/`
 
 ## Special features (mention if relevant)

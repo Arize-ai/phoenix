@@ -69,7 +69,7 @@ Schema: **CreateSecret**
 |------|-----|------|----------|-------------|
 | `X-Daytona-Organization-ID` | header | string | No | Use with JWT to specify the organization ID |
 | `cursor` | query | string | No | Pagination cursor from a previous response |
-| `limit` | query | number | No | Number of results per page |
+| `limit` | query | integer | No | Number of results per page |
 | `name` | query | string | No | Filter by partial name match |
 | `sort` | query | string | No | Field to sort by |
 | `order` | query | string | No | Direction to sort by |
