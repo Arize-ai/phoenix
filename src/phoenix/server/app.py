@@ -130,7 +130,7 @@ from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.system_settings import SystemSettings
-from phoenix.server.deployment_identity import (
+from phoenix.server.deployment_secret import (
     REDACTION_KEY_PURPOSE,
     TOKEN_SIGNING_KEY_PURPOSE,
     derive_deployment_key,

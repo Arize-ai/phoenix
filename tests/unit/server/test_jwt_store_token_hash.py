@@ -27,7 +27,7 @@ from phoenix.config import get_env_app_auth_kwargs
 from phoenix.db import models
 from phoenix.db.engines import create_engine
 from phoenix.server.app import _db, create_app
-from phoenix.server.deployment_identity import (
+from phoenix.server.deployment_secret import (
     TOKEN_SIGNING_KEY_PURPOSE,
     derive_deployment_key,
     load_deployment_seed,

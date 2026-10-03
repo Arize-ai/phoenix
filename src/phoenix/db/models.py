@@ -2408,17 +2408,18 @@ class User(HasId):
     )
 
 
-class DeploymentIdentity(HasId):
+class DeploymentSecret(HasId):
     """Exactly one row.
 
     Created once with insert-if-absent and never updated. Per-purpose values
     are derived from the seed with HKDF and never stored. The seed is readable
     by anyone who can read the database, so a derived value that must stay
     secret from such a reader mixes in ``PHOENIX_SECRET``. Deleting the row
-    changes every derived value.
+    changes every derived value. The seed must never be logged, returned by an
+    API, or included in telemetry.
     """
 
-    __tablename__ = "deployment_identity"
+    __tablename__ = "deployment_secret"
     seed: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     __table_args__ = (CheckConstraint("id = 1", name="singleton"),)
 

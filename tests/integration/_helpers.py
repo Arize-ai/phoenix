@@ -534,7 +534,7 @@ def _load_deployment_seed(database_url: str, schema: str) -> bytes:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from phoenix.db.helpers import SupportedSQLDialect
-    from phoenix.server.deployment_identity import load_deployment_seed
+    from phoenix.server.deployment_secret import load_deployment_seed
     from phoenix.server.types import DbSessionFactory
 
     url = get_async_db_url(database_url)
@@ -569,7 +569,7 @@ def _redactor_for_app_key(database_url: str, schema: str, secret: str) -> Redact
     """Redactor for a running server, keyed by its deployment seed and secret."""
     from pydantic import SecretStr
 
-    from phoenix.server.deployment_identity import REDACTION_KEY_PURPOSE, derive_deployment_key
+    from phoenix.server.deployment_secret import REDACTION_KEY_PURPOSE, derive_deployment_key
     from phoenix.server.redaction import Redactor
 
     return Redactor(
