@@ -14,18 +14,12 @@
 - DELETE `/organizations/{organizationId}`}
 - GET `/organizations/{organizationId}/usage`/usage}
 - GET `/organizations/{organizationId}/available-sandbox-classes`/available-sandbox-classes}
-- PATCH `/organizations/{organizationId}/quota`/quota}
-- PATCH `/organizations/{organizationId}/quota/{regionId}`/quota/{regionId}}
 - POST `/organizations/{organizationId}/leave`/leave}
-- POST `/organizations/{organizationId}/suspend`/suspend}
-- POST `/organizations/{organizationId}/unsuspend`/unsuspend}
 - GET `/organizations/otel-config/by-sandbox-auth-token/{authToken}`}
+- GET `/organizations/sandbox-identity/by-sandbox-auth-token/{authToken}`}
 - GET `/organizations/{organizationId}/otel-config`/otel-config}
 - PUT `/organizations/{organizationId}/otel-config`/otel-config}
 - DELETE `/organizations/{organizationId}/otel-config`/otel-config}
-- POST `/organizations/{organizationId}/sandbox-default-limited-network-egress`/sandbox-default-limited-network-egress}
-- POST `/organizations/{organizationId}/preview-warning`/preview-warning}
-- POST `/organizations/{organizationId}/sso-enabled`/sso-enabled}
 - PUT `/organizations/{organizationId}/experimental-config`/experimental-config}
 - GET `/organizations/{organizationId}/roles`/roles}
 - POST `/organizations/{organizationId}/roles`/roles}
@@ -46,12 +40,15 @@
 - POST `/regions/{id}/regenerate-proxy-api-key`/regenerate-proxy-api-key}
 - POST `/regions/{id}/regenerate-ssh-gateway-api-key`/regenerate-ssh-gateway-api-key}
 - POST `/regions/{id}/regenerate-snapshot-manager-credentials`/regenerate-snapshot-manager-credentials}
+- POST `/organizations/{organizationId}/identity-providers/workos-admin-portal-link`/identity-providers/workos-admin-portal-link}
+- GET `/organizations/{organizationId}/identity-providers/workos-sso-connections`/identity-providers/workos-sso-connections}
 - GET `/organizations/{organizationId}/identity-providers`/identity-providers}
 - POST `/organizations/{organizationId}/identity-providers`/identity-providers}
 - GET `/organizations/{organizationId}/identity-providers/{id}`/identity-providers/{id}}
 - PATCH `/organizations/{organizationId}/identity-providers/{id}`/identity-providers/{id}}
 - DELETE `/organizations/{organizationId}/identity-providers/{id}`/identity-providers/{id}}
 - POST `/organizations/{organizationId}/identity-providers/test-connection`/identity-providers/test-connection}
+- GET `/organizations/{organizationId}/gpu-capacity`/gpu-capacity}
 
 ## GET `/organizations/invitations` {#daytona/tag/organizations/GET/organizations/invitations}
 
@@ -244,87 +241,6 @@ Schema: **UpdateOrganizationDefaultRegion**
 
 ---
 
-## PATCH `/organizations/{organizationId}/quota` {#daytona/tag/organizations/PATCH/organizations/{organizationId}/quota}
-
-**Update organization quota**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `organizationId` | path | string | Yes | Organization ID |
-
-### Request Body
-
-Schema: **UpdateOrganizationQuota**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `maxCpuPerSandbox` | number | Yes |  |
-| `maxMemoryPerSandbox` | number | Yes |  |
-| `maxDiskPerSandbox` | number | Yes |  |
-| `snapshotQuota` | number | Yes |  |
-| `maxSnapshotSize` | number | Yes |  |
-| `volumeQuota` | number | Yes |  |
-| `secretQuota` | number | Yes |  |
-| `maxSecretsPerSandbox` | number | Yes | Maximum number of secrets that can be mounted to a single sandbox |
-| `authenticatedRateLimit` | number | Yes |  |
-| `sandboxCreateRateLimit` | number | Yes |  |
-| `sandboxLifecycleRateLimit` | number | Yes |  |
-| `authenticatedRateLimitTtlSeconds` | number | Yes |  |
-| `sandboxCreateRateLimitTtlSeconds` | number | Yes |  |
-| `sandboxLifecycleRateLimitTtlSeconds` | number | Yes |  |
-| `snapshotDeactivationTimeoutMinutes` | number | Yes | Time in minutes before an unused snapshot is deactivated |
-| `maxConcurrentSnapshotProcessing` | number | Yes | Maximum number of snapshots an organization can process (building or pulling) concurrently. Excess are queued. <= 0 means unlimited. |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | Organization quota updated successfully |  |
-
----
-
-## PATCH `/organizations/{organizationId}/quota/{regionId}` {#daytona/tag/organizations/PATCH/organizations/{organizationId}/quota/{regionId}}
-
-**Update organization region quota**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `organizationId` | path | string | Yes | Organization ID |
-| `regionId` | path | string | Yes | ID of the region where the updated quota will be applied |
-
-### Request Body
-
-Schema: **UpdateOrganizationRegionQuota**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `sandboxClass` | object | No |  |
-| `totalCpuQuota` | number | Yes |  |
-| `totalMemoryQuota` | number | Yes |  |
-| `totalDiskQuota` | number | Yes |  |
-| `totalGpuQuota` | number | Yes |  |
-| `allowedGpuTypes` | array of [GpuType](#schema-gputype) | No |  |
-| `maxCpuPerSandbox` | number | No |  |
-| `maxMemoryPerSandbox` | number | No |  |
-| `maxDiskPerSandbox` | number | No |  |
-| `maxDiskPerNonEphemeralSandbox` | number | No |  |
-| `maxCpuPerGpu` | number | No | CPU maximum per requested GPU unit for GPU sandboxes. |
-| `maxMemoryPerGpu` | number | No | Memory maximum per requested GPU unit for GPU sandboxes. |
-| `maxDiskPerGpu` | number | No | Disk maximum per requested GPU unit for GPU sandboxes. |
-| `maxSandboxLifespan` | number | No | Maximum sandbox lifespan in minutes, measured from sandbox creation to its auto-destroy deadline. If null or 0, lifespan is unrestricted. When set, sandboxes created without a TTL default to this lifespan and TTL cannot be disabled. |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | Region quota updated successfully |  |
-
----
-
 ## POST `/organizations/{organizationId}/leave` {#daytona/tag/organizations/POST/organizations/{organizationId}/leave}
 
 **Leave organization**
@@ -343,52 +259,6 @@ Schema: **UpdateOrganizationRegionQuota**
 
 ---
 
-## POST `/organizations/{organizationId}/suspend` {#daytona/tag/organizations/POST/organizations/{organizationId}/suspend}
-
-**Suspend organization**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `organizationId` | path | string | Yes | Organization ID |
-
-### Request Body
-
-Schema: **OrganizationSuspension**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `reason` | string | Yes | Suspension reason |
-| `until` | string (date-time) | Yes | Suspension until |
-| `suspensionCleanupGracePeriodHours` | number | No | Suspension cleanup grace period hours |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | Organization suspended successfully |  |
-
----
-
-## POST `/organizations/{organizationId}/unsuspend` {#daytona/tag/organizations/POST/organizations/{organizationId}/unsuspend}
-
-**Unsuspend organization**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `organizationId` | path | string | Yes | Organization ID |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | Organization unsuspended successfully |  |
-
----
-
 ## GET `/organizations/otel-config/by-sandbox-auth-token/{authToken}` {#daytona/tag/organizations/GET/organizations/otel-config/by-sandbox-auth-token/{authToken}}
 
 **Get organization OTEL config by sandbox auth token**
@@ -404,6 +274,24 @@ Schema: **OrganizationSuspension**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | OTEL Config | OtelConfig |
+
+---
+
+## GET `/organizations/sandbox-identity/by-sandbox-auth-token/{authToken}` {#daytona/tag/organizations/GET/organizations/sandbox-identity/by-sandbox-auth-token/{authToken}}
+
+**Get sandbox identity by sandbox auth token**
+
+### Parameters
+
+| Name | In | Type | Required | Description |
+|------|-----|------|----------|-------------|
+| `authToken` | path | string | Yes | Sandbox Auth Token |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | Sandbox identity | SandboxIdentity |
 
 ---
 
@@ -468,84 +356,6 @@ Schema: **OtelConfig**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 204 | OpenTelemetry configuration deleted successfully |  |
-
----
-
-## POST `/organizations/{organizationId}/sandbox-default-limited-network-egress` {#daytona/tag/organizations/POST/organizations/{organizationId}/sandbox-default-limited-network-egress}
-
-**Update sandbox default limited network egress**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `organizationId` | path | string | Yes | Organization ID |
-
-### Request Body
-
-Schema: **OrganizationSandboxDefaultLimitedNetworkEgress**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `sandboxDefaultLimitedNetworkEgress` | boolean | Yes | Sandbox default limited network egress |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | Sandbox default limited network egress updated successfully |  |
-
----
-
-## POST `/organizations/{organizationId}/preview-warning` {#daytona/tag/organizations/POST/organizations/{organizationId}/preview-warning}
-
-**Update organization preview warning**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `organizationId` | path | string | Yes | Organization ID |
-
-### Request Body
-
-Schema: **OrganizationPreviewWarning**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `previewWarningEnabled` | boolean | Yes | Whether the proxy shows the preview URL warning page for this organization |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | Preview warning updated successfully |  |
-
----
-
-## POST `/organizations/{organizationId}/sso-enabled` {#daytona/tag/organizations/POST/organizations/{organizationId}/sso-enabled}
-
-**Update organization SSO entitlement**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `organizationId` | path | string | Yes | Organization ID |
-
-### Request Body
-
-Schema: **OrganizationSsoEnabled**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ssoEnabled` | boolean | Yes | Whether this organization may configure SSO identity providers |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | SSO entitlement updated successfully |  |
 
 ---
 
@@ -999,6 +809,50 @@ Schema: **UpdateRegion**
 
 ---
 
+## POST `/organizations/{organizationId}/identity-providers/workos-admin-portal-link` {#daytona/tag/organizations/POST/organizations/{organizationId}/identity-providers/workos-admin-portal-link}
+
+**Generate a WorkOS Admin Portal link for configuring SSO or SCIM directory sync**
+
+### Parameters
+
+| Name | In | Type | Required | Description |
+|------|-----|------|----------|-------------|
+| `organizationId` | path | string | Yes | Organization ID |
+
+### Request Body
+
+Schema: **GenerateWorkosAdminPortalLink**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `intent` | object | Yes | Which setup flow to open: sso for a single sign-on connection, dsync for SCIM directory sync |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 201 | Admin Portal link generated; it expires five minutes after issuance | WorkosAdminPortalLink |
+
+---
+
+## GET `/organizations/{organizationId}/identity-providers/workos-sso-connections` {#daytona/tag/organizations/GET/organizations/{organizationId}/identity-providers/workos-sso-connections}
+
+**List the SSO connections configured for the organization in WorkOS**
+
+### Parameters
+
+| Name | In | Type | Required | Description |
+|------|-----|------|----------|-------------|
+| `organizationId` | path | string | Yes | Organization ID |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | SSO connections as configured in the WorkOS Admin Portal; empty when none exist | array of WorkosSsoConnection |
+
+---
+
 ## GET `/organizations/{organizationId}/identity-providers` {#daytona/tag/organizations/GET/organizations/{organizationId}/identity-providers}
 
 **List organization identity providers**
@@ -1143,5 +997,26 @@ Schema: **TestIdentityProviderConnection**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | Connection test result | TestIdentityProviderConnectionResponse |
+
+---
+
+## GET `/organizations/{organizationId}/gpu-capacity` {#daytona/tag/organizations/GET/organizations/{organizationId}/gpu-capacity}
+
+**Get shared GPU capacity**
+
+Returns a short-lived observation of the shared GPU fleet. Organization quotas and entitlements are not applied. Capacity can change immediately and sandbox creation remains authoritative.
+
+### Parameters
+
+| Name | In | Type | Required | Description |
+|------|-----|------|----------|-------------|
+| `organizationId` | path | string | Yes | Organization ID |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | Shared GPU capacity grouped by GPU type. | GpuCapacityResponse |
+| 403 | GPU capacity is not enabled for this organization. |  |
 
 ---

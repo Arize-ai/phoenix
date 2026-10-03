@@ -4,10 +4,10 @@
 ## Contents
 
 - GET `/users/me`
+- POST `/users/me/logins`
+- POST `/users/privacy-policies/accept`
 - GET `/users/account-providers`
 - POST `/users/linked-accounts`
-- DELETE `/users/linked-accounts/{provider}/{providerUserId}`/{providerUserId}}
-- POST `/users/mfa/sms/enroll`
 - GET `/users/me/pending-sso-links`
 - POST `/users/me/pending-sso-links/{id}/confirm`/confirm}
 - DELETE `/users/me/pending-sso-links/{id}`}
@@ -24,21 +24,51 @@
 
 ---
 
-## GET `/users/account-providers` {#daytona/tag/users/GET/users/account-providers}
+## POST `/users/me/logins` {#daytona/tag/users/POST/users/me/logins}
 
-**Get available account providers**
+**Record a completed login**
+
+Called by the dashboard once per completed sign-in. The email access gate evaluates the user and reports the login to analytics; a refused user receives 403 with code EMAIL_ACCESS_DENIED.
 
 ### Responses
 
 | Status | Description | Schema |
 |--------|-------------|--------|
-| 200 | Available account providers | array of AccountProvider |
+| 204 | Login recorded |  |
+
+---
+
+## POST `/users/privacy-policies/accept` {#daytona/tag/users/POST/users/privacy-policies/accept}
+
+**Accept the current privacy policies**
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 204 | Privacy policies accepted |  |
+
+---
+
+## GET `/users/account-providers` {#daytona/tag/users/GET/users/account-providers}
+
+**Get account providers**
+
+Social sign-in providers (Google, GitHub, ...) enabled for this environment, each flagged with whether the authenticated user has an identity linked through it.
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | Account providers | array of AccountProvider |
 
 ---
 
 ## POST `/users/linked-accounts` {#daytona/tag/users/POST/users/linked-accounts}
 
-**Link account**
+**Link account (withdrawn)**
+
+Withdrawn. This operation is no longer supported and always responds 410.
 
 ### Request Body
 
@@ -53,38 +83,7 @@ Schema: **CreateLinkedAccount**
 
 | Status | Description | Schema |
 |--------|-------------|--------|
-| 204 | Account linked successfully |  |
-
----
-
-## DELETE `/users/linked-accounts/{provider}/{providerUserId}` {#daytona/tag/users/DELETE/users/linked-accounts/{provider}/{providerUserId}}
-
-**Unlink account**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `provider` | path | string | Yes |  |
-| `providerUserId` | path | string | Yes |  |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 204 | Account unlinked successfully |  |
-
----
-
-## POST `/users/mfa/sms/enroll` {#daytona/tag/users/POST/users/mfa/sms/enroll}
-
-**Enroll in SMS MFA**
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 200 | SMS MFA enrollment URL | string |
+| 410 | Account linking is no longer supported |  |
 
 ---
 

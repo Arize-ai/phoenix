@@ -100,7 +100,7 @@ For extras, install with `uv tool install harbor-rewardkit[all]`.
 ## Custom criteria
 
 Use the `@criterion` decorator. First parameter is always `workspace: Path`. Returns 
-`bool` or `float`:
+`bool`, `float`, or a dict with `score` plus optional `reasoning`, `confidence`, and `model`:
 
 ```python
 from pathlib import Path
@@ -131,7 +131,7 @@ For subjective checks (quality, readability, edge cases), create a TOML file:
 
 ```toml
 [judge]
-judge = "anthropic/claude-sonnet-5"   # LiteLLM model string
+judge = "anthropic/claude-opus-5-5"   # LiteLLM model string
 files = ["/app/main.py"]
 
 [[criterion]]
@@ -158,7 +158,7 @@ Agent judges shell out to a CLI and can explore the filesystem:
 ```toml
 [judge]
 judge = "claude-code"
-model = "anthropic/claude-sonnet-5"
+model = "anthropic/claude-opus-5-5"
 isolated = true
 
 [[criterion]]
@@ -197,7 +197,13 @@ TypeSafe SDK verifies TLS against the system trust store.
 
 `timeout` (default 300), `reasoning_effort` (`low`|`medium`|`high`), `reference` (path to 
 reference solution), `atif-trajectory` (evaluate the agent's trajectory), `weight`, 
-`prompt_template` (custom prompt with `{criteria}` placeholder).
+`prompt_template` (custom prompt with `{criteria}` placeholder), `samples` (run the judge 
+N times and score each criterion with its median sample), `guard` (protects the judge 
+from instructions the agent wrote into the graded files; `"flag"` reports them under `guard` 
+in the details, `"penalize"` also scores a flagged submission 0), `isolated` (agent judges 
+only: read-only overlayfs copy of the workspace). More than one agent run in a task (several agent judges, `samples` above 1, or 
+individual mode with several criteria) requires `isolated = true` on each agent judge, which needs a separate verifier with `fuse-overlayfs` 
+and mount privileges; `--yolo` skips the check.
 
 ### Scoring aggregation (within one judge TOML)
 
