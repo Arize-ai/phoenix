@@ -8,6 +8,7 @@ from pydantic import SecretStr
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
+from phoenix.config import ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS
 from phoenix.db import models
 from phoenix.db.models import SandboxBackendType
 from phoenix.db.types.annotation_configs import (
@@ -25,6 +26,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.exceptions import _GENERIC_MASK_MESSAGE
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
@@ -1841,6 +1843,43 @@ class TestApplyChatTemplate:
         assert len(messages) == 1
         assert messages[0]["role"] == "USER"
         assert messages[0]["content"][0]["text"]["text"] == "Hello, Alice! How are you?"
+
+    async def test_apply_f_string_template_with_invalid_syntax_returns_bad_request(
+        self,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A stray brace in an F_STRING template is a client error, not a masked server error."""
+        monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
+        query = """
+          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
+            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+              messages {
+                role
+              }
+            }
+          }
+        """
+        variables = {
+            "template": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": [{"text": {"text": "Reply with JSON: {answer}}"}}],
+                    },
+                ]
+            },
+            "templateOptions": {
+                "format": "F_STRING",
+                "variables": {"answer": "42"},
+            },
+        }
+
+        response = await gql_client.execute(query=query, variables=variables)
+        assert response.errors is not None
+        assert len(response.errors) == 1
+        assert response.errors[0].message != _GENERIC_MASK_MESSAGE
+        assert "Invalid f-string template" in response.errors[0].message
 
     async def test_apply_no_template_format(
         self,
