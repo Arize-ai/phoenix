@@ -224,7 +224,7 @@ jobs:
       - name: Hand off to Claude (fix regressions)
         id: claude_fix
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure'
-        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
+        uses: anthropics/claude-code-action@ed670b4cf9de2a5a570d130d2f6197b9e543cd64 # v1.0.240
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -328,7 +328,7 @@ jobs:
               - a short test-plan checklist for human review
 
             Then exit. The next workflow step will commit and push.
-          claude_args: '--model opus --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(uv:*)","Bash(pnpm:*)","Bash(make:*)","Bash(node:*)","Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(find:*)","Bash(grep:*)","Bash(sed:*)","Bash(awk:*)","Bash(jq:*)","Bash(cat:*)","Bash(ls:*)","Bash(head:*)","Bash(tail:*)","Bash(sort:*)","Bash(comm:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(rm:*)","Bash(cp:*)","Bash(mv:*)","Bash(date:*)","Bash(echo:*)","Bash(printf:*)"'
+          claude_args: '--model claude-opus-5-5 --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(uv:*)","Bash(pnpm:*)","Bash(make:*)","Bash(node:*)","Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(find:*)","Bash(grep:*)","Bash(sed:*)","Bash(awk:*)","Bash(jq:*)","Bash(cat:*)","Bash(ls:*)","Bash(head:*)","Bash(tail:*)","Bash(sort:*)","Bash(comm:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(rm:*)","Bash(cp:*)","Bash(mv:*)","Bash(date:*)","Bash(echo:*)","Bash(printf:*)"'
 
       - name: Commit & open PR (after Claude fix)
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure' && steps.claude_fix.outcome == 'success'
