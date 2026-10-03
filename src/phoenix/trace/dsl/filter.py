@@ -190,14 +190,25 @@ _SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
     }
 )
 _SPAN_COST_DETAILS = "cost_details"
+ElementKind: TypeAlias = typing.Literal["string", "float", "datetime", "boolean"]
+
+
+class ElementField(typing.NamedTuple):
+    """One field a loop variable exposes: the element-model attribute and how it is typed."""
+
+    attribute: str
+    kind: ElementKind
+
+
 # Detail fields remain nullable; a missing element value fails every comparison.
-_COST_DETAIL_FIELDS: typing.Mapping[str, str] = MappingProxyType(
+# Shared by the span, trace, and session grains so the vocabulary has one source of truth.
+COST_DETAIL_ELEMENT_FIELDS: typing.Mapping[str, ElementField] = MappingProxyType(
     {
-        "token_type": "string",
-        "is_prompt": "boolean",
-        "cost": "float",
-        "tokens": "float",
-        "cost_per_token": "float",
+        "token_type": ElementField("token_type", "string"),
+        "is_prompt": ElementField("is_prompt", "boolean"),
+        "cost": ElementField("cost", "float"),
+        "tokens": ElementField("tokens", "float"),
+        "cost_per_token": ElementField("cost_per_token", "float"),
     }
 )
 
@@ -332,19 +343,19 @@ class ElementFieldReference(typing.NamedTuple):
     scope_depth: int
     source_iterable: str
     path: tuple[str, ...]
-    kind: typing.Literal["string", "float", "datetime", "boolean"]
+    kind: ElementKind
     uppercase: bool
 
 
 def _cost_detail_bindings() -> _FilterBindings:
     """Return the closed, strictly typed language for cost-detail elements."""
 
-    def columns(kind: str) -> NameMap:
+    def columns(kind: ElementKind) -> NameMap:
         return MappingProxyType(
             {
-                name: getattr(models.SpanCostDetail, name)
-                for name, field_kind in _COST_DETAIL_FIELDS.items()
-                if field_kind == kind
+                name: getattr(models.SpanCostDetail, element_field.attribute)
+                for name, element_field in COST_DETAIL_ELEMENT_FIELDS.items()
+                if element_field.kind == kind
             }
         )
 

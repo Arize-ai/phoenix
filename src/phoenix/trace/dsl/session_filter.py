@@ -38,9 +38,11 @@ from phoenix.db.session_aggregates import (
 )
 from phoenix.trace.dsl.filter import (
     COMPREHENSION_NAMES,
+    COST_DETAIL_ELEMENT_FIELDS,
     QUANTIFIER_NAMES,
     AliasedAnnotationRelation,
     ComprehensionSpec,
+    ElementField,
     NameMap,
     _compile_condition,
     _eval_globals,
@@ -128,13 +130,6 @@ _SESSION_DATETIME_NAMES: NameMap = MappingProxyType(
 )
 
 
-class _ElementField(typing.NamedTuple):
-    """One field a loop variable exposes: the element-model attribute and how it is typed."""
-
-    attribute: str
-    kind: typing.Literal["string", "float", "datetime", "boolean"]
-
-
 class _NestedIterable(typing.NamedTuple):
     """An iterable reached from an element of another one, e.g. ``trace.spans`` for a trace."""
 
@@ -150,7 +145,7 @@ class _IterableSpec(typing.NamedTuple):
     """
 
     model: typing.Any
-    fields: typing.Mapping[str, _ElementField]
+    fields: typing.Mapping[str, ElementField]
     joins: tuple[typing.Any, ...]
     session_key: typing.Callable[[typing.Any], typing.Any]
     project_key: typing.Optional[typing.Callable[[typing.Any], typing.Any]] = None
@@ -160,39 +155,30 @@ class _IterableSpec(typing.NamedTuple):
 
 # Leaf per-span token counts, never the cumulative_* rollups: summing cumulative counts over a
 # session multi-counts tokens through wrapping agent/tool spans (#12768).
-_SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+_SPAN_ELEMENT_FIELDS: typing.Mapping[str, ElementField] = MappingProxyType(
     {
-        "name": _ElementField("name", "string"),
-        "span_kind": _ElementField("span_kind", "string"),
-        "status_code": _ElementField("status_code", "string"),
-        "latency_ms": _ElementField("latency_ms", "float"),
-        "llm_token_count_prompt": _ElementField("llm_token_count_prompt", "float"),
-        "llm_token_count_completion": _ElementField("llm_token_count_completion", "float"),
-        "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
+        "name": ElementField("name", "string"),
+        "span_kind": ElementField("span_kind", "string"),
+        "status_code": ElementField("status_code", "string"),
+        "latency_ms": ElementField("latency_ms", "float"),
+        "llm_token_count_prompt": ElementField("llm_token_count_prompt", "float"),
+        "llm_token_count_completion": ElementField("llm_token_count_completion", "float"),
+        "llm_token_count_total": ElementField("llm_token_count_total", "float"),
     }
 )
-_TRACE_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+_TRACE_ELEMENT_FIELDS: typing.Mapping[str, ElementField] = MappingProxyType(
     {
-        "start_time": _ElementField("start_time", "datetime"),
-        "end_time": _ElementField("end_time", "datetime"),
-        "latency_ms": _ElementField("latency_ms", "float"),
+        "start_time": ElementField("start_time", "datetime"),
+        "end_time": ElementField("end_time", "datetime"),
+        "latency_ms": ElementField("latency_ms", "float"),
     }
 )
-_ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+_ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, ElementField] = MappingProxyType(
     {
-        "name": _ElementField("name", "string"),
-        "label": _ElementField("label", "string"),
-        "score": _ElementField("score", "float"),
-        "identifier": _ElementField("identifier", "string"),
-    }
-)
-_COST_DETAIL_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
-    {
-        "token_type": _ElementField("token_type", "string"),
-        "is_prompt": _ElementField("is_prompt", "boolean"),
-        "cost": _ElementField("cost", "float"),
-        "tokens": _ElementField("tokens", "float"),
-        "cost_per_token": _ElementField("cost_per_token", "float"),
+        "name": ElementField("name", "string"),
+        "label": ElementField("label", "string"),
+        "score": ElementField("score", "float"),
+        "identifier": ElementField("identifier", "string"),
     }
 )
 
@@ -235,7 +221,7 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
         ),
         "span_cost_details": _IterableSpec(
             model=models.SpanCostDetail,
-            fields=_COST_DETAIL_ELEMENT_FIELDS,
+            fields=COST_DETAIL_ELEMENT_FIELDS,
             joins=(models.SpanCost, models.Trace),
             session_key=lambda element: models.Trace.project_session_rowid,
             project_key=lambda element: models.Trace.project_rowid,
