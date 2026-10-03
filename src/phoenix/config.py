@@ -528,10 +528,11 @@ and one special character. Defaults to false.
 """
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-The initial password for the default admin account, which defaults to 'admin' if not
-explicitly set. Note that changing this value will have no effect if the default admin
-record already exists in the database. In such cases, the default admin password must
-be updated manually in the application.
+The initial password for the default admin account. When unset, the account is created
+with the password 'admin', which cannot open a session until it is changed. Note that
+changing this value will have no effect if the default admin record already exists in
+the database. In such cases, the default admin password must be updated manually in
+the application.
 """
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
