@@ -190,6 +190,7 @@ function ApplicationFrame() {
           >
             <div
               data-testid="application-viewport"
+              data-overlay-container="application"
               css={applicationViewportCSS}
               ref={frame?.setApplicationViewportElement}
             >

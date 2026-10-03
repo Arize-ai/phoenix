@@ -59,6 +59,7 @@ import {
   createDSLFilterCompletionSource,
   type DSLFilterCompletionRequest,
 } from "./dslFilterConditionFieldUtils";
+import { findDSLFilterTooltipParent } from "./dslFilterTooltipParent";
 import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
@@ -576,14 +577,12 @@ export function DSLFilterConditionField<
     [ariaLabel]
   );
 
-  // A centered modal transforms and overflow-clips its dialog. That makes
-  // CodeMirror's fixed tooltip relative to the dialog and hides the
-  // completion menu outside the input's row. Reparent all editor tooltips to
-  // the modal overlay: they stay in the modal's interaction subtree while
-  // escaping the dialog's clip. The parent is discovered once the editor
-  // mounts (see onCreateEditor) and lives in the extensions array — an
-  // appended config would be silently dropped by the root reconfigure that
-  // any extensions change dispatches.
+  // CodeMirror tooltips are clipped by the table toolbar and dialog overflow.
+  // Reparent them to the nearest application or modal overlay so they escape
+  // those clips while staying inside the correct interaction subtree. The
+  // parent is discovered once the editor mounts (see onCreateEditor) and lives
+  // in the extensions array — an appended config would be silently dropped by
+  // the root reconfigure that any extensions change dispatches.
   const [tooltipParent, setTooltipParent] = useState<HTMLElement | null>(null);
 
   // The extensions must be referentially stable across renders — a new
@@ -867,9 +866,7 @@ export function DSLFilterConditionField<
           readOnly={isReadOnly}
           onCreateEditor={(editorView) => {
             editorViewRef.current = editorView;
-            const overlay = editorView.dom.closest<HTMLElement>(
-              '[data-overlay-container="modal"]'
-            );
+            const overlay = findDSLFilterTooltipParent(editorView.dom);
             if (overlay) {
               overlay.classList.add("dsl-filter-tooltip-root");
               setTooltipParent(overlay);
