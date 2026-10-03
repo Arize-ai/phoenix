@@ -115,7 +115,10 @@ async def test_thread_session_login_with_auth(
                 "/auth/login",
                 json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
             )
-    assert response.status_code == 204
+    assert response.status_code == 403
+    body = response.json()
+    assert isinstance(body.get("password_reset_token"), str)
+    assert body["password_reset_token"]
 
 
 def test_thread_session_binds_canonical_grpc_host(

@@ -75,7 +75,6 @@ from typing_extensions import Self, TypeAlias, assert_never, override
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
-    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
@@ -275,12 +274,15 @@ class _User:
 
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
+# Generated once per process and shared with the auth env fixture. The public
+# default "admin" cannot open a session, so integration tests use another value.
+_DEFAULT_ADMIN_INITIAL_PASSWORD = token_hex(16)
 _DEFAULT_ADMIN = _User(
     _GqlId(GlobalID("User", "2")),
     _ADMIN,
     _Profile(
         email=DEFAULT_ADMIN_EMAIL,
-        password=DEFAULT_ADMIN_PASSWORD,
+        password=_DEFAULT_ADMIN_INITIAL_PASSWORD,
         username=DEFAULT_ADMIN_USERNAME,
     ),
     profile_picture_url=None,
