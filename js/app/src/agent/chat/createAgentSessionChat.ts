@@ -1,7 +1,8 @@
 import { Chat } from "@ai-sdk/react";
-import { DefaultChatTransport, isToolUIPart } from "ai";
+import { isToolUIPart } from "ai";
 import { commitLocalUpdate } from "react-relay";
 
+import { BrowserActionPlanningTransport } from "@phoenix/agent/chat/browserActionPlanningTransport";
 import {
   buildAgentChatRequestBody,
   enrichMessageWithClientToolMetadata,
@@ -202,7 +203,9 @@ export function createAgentSessionChat({
     id: sessionId,
     messages: seedMessages,
     generateId: () => crypto.randomUUID(),
-    transport: new DefaultChatTransport({
+    transport: new BrowserActionPlanningTransport({
+      agentStore: store,
+      sessionId,
       api: chatApiUrl,
       fetch: authFetch,
       prepareSendMessagesRequest: ({ body, id, messages }) => {
@@ -285,6 +288,7 @@ export function createAgentSessionChat({
       });
     },
     onError: (error) => {
+      store.getState().endPlannedBrowserActions(sessionId);
       transcriptPersistence.cancelPendingWaiters();
       turnCompletionGate.fail(error);
       const conflictCode = parseAgentSessionConflictCode(error.message);
@@ -356,6 +360,9 @@ export function createAgentSessionChat({
       store.getState().setSessionBusyElsewhere(sessionId, true);
     },
     onFinish: ({ messages: finalMessages, message }) => {
+      // A call whose input never completed, or failed to parse, never reaches
+      // a sandbox run that would clear its planned marker.
+      store.getState().endPlannedBrowserActions(sessionId);
       turnCompletionGate.handleFinish({ finalMessages, message });
     },
   });

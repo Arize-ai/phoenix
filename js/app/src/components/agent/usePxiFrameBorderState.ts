@@ -10,7 +10,7 @@ export const DEFAULT_MINIMUM_VISIBLE_MS = 600;
 export const DEFAULT_GAP_GRACE_MS = 250;
 
 export type UsePxiFrameBorderStateParams = {
-  /** How long runs must stay active before the border reads as acting. */
+  /** How long a sandbox run must last before the border reads as acting. */
   longRunThresholdMs?: number;
   /** The shortest time the border stays visible once a run starts. */
   minimumVisibleMs?: number;
@@ -18,13 +18,11 @@ export type UsePxiFrameBorderStateParams = {
   gapGraceMs?: number;
 };
 
-function getEarliestStartedAt(
-  runs: Record<string, BrowserActionRun>
-): number | null {
+function getEarliest(values: Array<number | null>): number | null {
   let earliest: number | null = null;
-  for (const run of Object.values(runs)) {
-    if (earliest == null || run.startedAt < earliest) {
-      earliest = run.startedAt;
+  for (const value of values) {
+    if (value != null && (earliest == null || value < earliest)) {
+      earliest = value;
     }
   }
   return earliest;
@@ -32,7 +30,8 @@ function getEarliestStartedAt(
 
 /**
  * Derives the app-frame border state from the active `execute_browser_action`
- * sandbox runs across every session.
+ * calls across every session. A call reads as quick from the moment it is
+ * planned; it turns long only once its sandbox run passes the threshold.
  */
 export function usePxiFrameBorderState({
   longRunThresholdMs = DEFAULT_LONG_RUN_THRESHOLD_MS,
@@ -49,13 +48,21 @@ export function usePxiFrameBorderState({
     let longTimer: ReturnType<typeof setTimeout> | undefined;
     let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const sync = (runs: Record<string, BrowserActionRun>) => {
-      const earliestStartedAt = getEarliestStartedAt(runs);
+    const sync = (runsByToolCallId: Record<string, BrowserActionRun>) => {
+      const runs = Object.values(runsByToolCallId);
       clearTimeout(longTimer);
-      if (earliestStartedAt != null) {
+      if (runs.length > 0) {
         clearTimeout(idleTimer);
-        spanStartedAt ??= earliestStartedAt;
-        const untilLongMs = spanStartedAt + longRunThresholdMs - Date.now();
+        spanStartedAt ??= getEarliest(runs.map((run) => run.startedAt));
+        const earliestRunStartedAt = getEarliest(
+          runs.map((run) => run.runStartedAt)
+        );
+        if (earliestRunStartedAt == null) {
+          setState((current) => (current === "long" ? "long" : "quick"));
+          return;
+        }
+        const untilLongMs =
+          earliestRunStartedAt + longRunThresholdMs - Date.now();
         if (untilLongMs <= 0) {
           setState("long");
           return;

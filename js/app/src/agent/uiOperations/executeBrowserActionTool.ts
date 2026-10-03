@@ -530,6 +530,9 @@ export const executeBrowserActionTool = defineTool<ExecuteBrowserActionInput>({
       agentStore.getState().permissions.edits === "manual";
     let isScriptApproved = !requiresManualApproval;
     if (requiresManualApproval && input.writeDescription != null) {
+      // The frame border marks PXI acting on the page; hide it while the user
+      // decides, and let the run below bring it back.
+      agentStore.getState().endBrowserActionRun(toolCall.toolCallId);
       const decision = await stageScriptApproval({
         toolCallId: toolCall.toolCallId,
         description: input.writeDescription,

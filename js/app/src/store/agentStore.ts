@@ -139,8 +139,10 @@ export type PendingAgentMessage = {
 
 export type BrowserActionRun = {
   sessionId: string | null;
-  /** Epoch milliseconds when the sandbox run started. */
+  /** Epoch milliseconds when the model started streaming the call. */
   startedAt: number;
+  /** Epoch milliseconds when the sandbox run started; null while planning. */
+  runStartedAt: number | null;
 };
 
 /**
@@ -516,17 +518,23 @@ export interface AgentState extends AgentProps {
   requestToolPartOpen: (toolCallId: string) => void;
   releaseToolPartOpen: (toolCallId: string) => void;
 
-  // -- Active execute_browser_action sandbox runs --
+  // -- Active execute_browser_action calls --
   //
-  // Set while a script's sandbox is running — after any whole-script approval
-  // wait, which is a user decision rather than PXI acting on the page — and
-  // keyed by the host tool-call id. Drives the app-frame border.
+  // Set from the moment the model starts streaming the call until its sandbox
+  // run settles, except while a whole-script approval waits on the user, which
+  // is a user decision rather than PXI acting on the page. Keyed by the host
+  // tool-call id. Drives the app-frame border.
   browserActionRunsByToolCallId: Record<string, BrowserActionRun>;
+  markBrowserActionPlanned: (params: {
+    toolCallId: string;
+    sessionId: string | null;
+  }) => void;
   startBrowserActionRun: (params: {
     toolCallId: string;
     sessionId: string | null;
   }) => void;
   endBrowserActionRun: (toolCallId: string) => void;
+  endPlannedBrowserActions: (sessionId: string) => void;
 
   // -- Approval-gated tool proposals advertised by agent tool calls --
   // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
@@ -1166,16 +1174,61 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
 
     browserActionRunsByToolCallId: {},
+    markBrowserActionPlanned: ({ toolCallId, sessionId }) => {
+      set(
+        (state) => {
+          if (toolCallId in state.browserActionRunsByToolCallId) {
+            return state;
+          }
+          return {
+            browserActionRunsByToolCallId: {
+              ...state.browserActionRunsByToolCallId,
+              [toolCallId]: {
+                sessionId,
+                startedAt: Date.now(),
+                runStartedAt: null,
+              },
+            },
+          };
+        },
+        false,
+        { type: "markBrowserActionPlanned" }
+      );
+    },
     startBrowserActionRun: ({ toolCallId, sessionId }) => {
       set(
-        (state) => ({
-          browserActionRunsByToolCallId: {
-            ...state.browserActionRunsByToolCallId,
-            [toolCallId]: { sessionId, startedAt: Date.now() },
-          },
-        }),
+        (state) => {
+          const now = Date.now();
+          const existing = state.browserActionRunsByToolCallId[toolCallId];
+          return {
+            browserActionRunsByToolCallId: {
+              ...state.browserActionRunsByToolCallId,
+              [toolCallId]: {
+                sessionId,
+                startedAt: existing?.startedAt ?? now,
+                runStartedAt: now,
+              },
+            },
+          };
+        },
         false,
         { type: "startBrowserActionRun" }
+      );
+    },
+    endPlannedBrowserActions: (sessionId) => {
+      set(
+        (state) => {
+          const entries = Object.entries(state.browserActionRunsByToolCallId);
+          const kept = entries.filter(
+            ([, run]) => run.sessionId !== sessionId || run.runStartedAt != null
+          );
+          if (kept.length === entries.length) {
+            return state;
+          }
+          return { browserActionRunsByToolCallId: Object.fromEntries(kept) };
+        },
+        false,
+        { type: "endPlannedBrowserActions" }
       );
     },
     endBrowserActionRun: (toolCallId) => {

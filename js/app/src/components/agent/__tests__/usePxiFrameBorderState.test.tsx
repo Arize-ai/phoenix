@@ -82,6 +82,22 @@ describe("usePxiFrameBorderState", () => {
     expect(readState()).toBe("idle");
   });
 
+  it("reads quick while the script is planned and long only after its run passes the threshold", () => {
+    act(() => {
+      store
+        .getState()
+        .markBrowserActionPlanned({ toolCallId: "run-1", sessionId: "s-1" });
+    });
+    expect(readState()).toBe("quick");
+    advance(DEFAULT_LONG_RUN_THRESHOLD_MS * 2);
+    expect(readState()).toBe("quick");
+    startRun();
+    advance(DEFAULT_LONG_RUN_THRESHOLD_MS - 1);
+    expect(readState()).toBe("quick");
+    advance(1);
+    expect(readState()).toBe("long");
+  });
+
   it("holds a sub-second run as quick for the minimum dwell, then idles", () => {
     startRun();
     advance(30);

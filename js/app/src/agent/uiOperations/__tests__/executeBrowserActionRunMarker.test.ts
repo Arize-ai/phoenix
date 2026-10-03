@@ -46,4 +46,17 @@ describe("execute_browser_action run marker", () => {
 
     expect(agentStore.getState().browserActionRunsByToolCallId).toEqual({});
   });
+
+  it("clears a session's planned calls when its stream ends, leaving running calls", () => {
+    const agentStore = createAgentStore();
+    const state = agentStore.getState();
+    state.markBrowserActionPlanned({ toolCallId: "planned", sessionId: "s-1" });
+    state.startBrowserActionRun({ toolCallId: "running", sessionId: "s-1" });
+
+    agentStore.getState().endPlannedBrowserActions("s-1");
+
+    expect(
+      Object.keys(agentStore.getState().browserActionRunsByToolCallId)
+    ).toEqual(["running"]);
+  });
 });
