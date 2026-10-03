@@ -91,7 +91,8 @@ export const ProjectPageQueryReferenceContext = createContext<{
    */
   resolveSpansSeed: (
     seed: SettledSpanFilterSeed,
-    persistToUrl?: boolean
+    persistToUrl?: boolean,
+    history?: "push" | "replace"
   ) => void;
   sessionsQueryReference: PreloadedQuery<ProjectPageSessionsQueryType> | null;
   /**
@@ -99,11 +100,19 @@ export const ProjectPageQueryReferenceContext = createContext<{
    * validates one. See `spansFilterSeed`.
    */
   sessionsFilterSeed: string | null;
-  resolveSessionsSeed: (condition: string, persistToUrl?: boolean) => void;
+  resolveSessionsSeed: (
+    condition: string,
+    persistToUrl?: boolean,
+    history?: "push" | "replace"
+  ) => void;
   tracesQueryReference: PreloadedQuery<ProjectPageTracesQueryType> | null;
   /** The traces counterpart of `sessionsFilterSeed`. */
   tracesFilterSeed: string | null;
-  resolveTracesSeed: (condition: string, persistToUrl?: boolean) => void;
+  resolveTracesSeed: (
+    condition: string,
+    persistToUrl?: boolean,
+    history?: "push" | "replace"
+  ) => void;
   projectConfigQueryReference: PreloadedQuery<ProjectPageProjectConfigQueryType> | null;
 }>({
   spansQueryReference: null,

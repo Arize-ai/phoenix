@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelayModule from "react-relay";
-import { MemoryRouter, useLocation } from "react-router";
+import { MemoryRouter, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -157,6 +157,7 @@ describe("SpansTable seed loading integration", () => {
     root = createRoot(container);
     fieldMocks.props = null;
     probedSearch = "";
+    navigate = null;
     relayMocks.refetch.mockReset();
     relayMocks.usePaginationFragment.mockReturnValue({
       data: {
@@ -188,6 +189,7 @@ describe("SpansTable seed loading integration", () => {
               seed={settledSeed}
             />
             <SearchProbe />
+            <NavigationProbe />
           </MemoryRouter>
         </ThemeProvider>
       );
@@ -265,6 +267,25 @@ describe("SpansTable seed loading integration", () => {
 
     expect(probedSearch).toContain("spanFilterCondition=span_kind");
   });
+
+  it("pushes user-applied conditions so Back restores the prior URL", async () => {
+    await renderTable();
+
+    await act(async () => {
+      fieldMocks.props?.onValidCondition({
+        condition: "span_kind == 'LLM'",
+        selectsRootSpansOnly: false,
+        isInitialSettlement: false,
+      });
+    });
+    expect(probedSearch).toContain("spanFilterCondition=span_kind");
+
+    act(() => {
+      navigate?.(-1);
+    });
+
+    expect(probedSearch).not.toContain("spanFilterCondition");
+  });
 });
 
 let probedSearch = "";
@@ -272,5 +293,13 @@ let probedSearch = "";
 function SearchProbe() {
   // eslint-disable-next-line react/globals
   probedSearch = useLocation().search;
+  return null;
+}
+
+let navigate: ReturnType<typeof useNavigate> | null = null;
+/** Exposes navigation so tests can exercise browser Back. */
+function NavigationProbe() {
+  // eslint-disable-next-line react/globals
+  navigate = useNavigate();
   return null;
 }

@@ -260,19 +260,16 @@ export function SpansTable(props: SpansTableProps) {
     setSearchParamsRef.current = setSearchParams;
   }, [setSearchParams]);
   const writeFilterConditionParam = useCallback((condition: string) => {
-    setSearchParamsRef.current(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        // Written even when empty. An absent param means "no filter was
-        // applied here", which seeds the default; an empty one means the
-        // filter was deliberately cleared. Deleting it instead would make
-        // those two indistinguishable, so clearing the filter would not
-        // survive a reload -- the default would come back.
-        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
-        return next;
-      },
-      { replace: true }
-    );
+    setSearchParamsRef.current((prev) => {
+      const next = new URLSearchParams(prev);
+      // Written even when empty. An absent param means "no filter was
+      // applied here", which seeds the default; an empty one means the
+      // filter was deliberately cleared. Deleting it instead would make
+      // those two indistinguishable, so clearing the filter would not
+      // survive a reload -- the default would come back.
+      next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+      return next;
+    });
   }, []);
   const handleValidFilterCondition = useCallback(
     ({

@@ -85,8 +85,18 @@ export const ProjectTracesPage = () => {
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
                 <PendingDSLFilter
-                  onValidCondition={({ condition }: { condition: string }) =>
-                    resolveTracesSeed(condition)
+                  onValidCondition={({
+                    condition,
+                    isInitialSettlement,
+                  }: {
+                    condition: string;
+                    isInitialSettlement: boolean;
+                  }) =>
+                    resolveTracesSeed(
+                      condition,
+                      true,
+                      isInitialSettlement ? "replace" : "push"
+                    )
                   }
                   onRejected={() => resolveTracesSeed("", false)}
                   renderField={(fieldProps) => (

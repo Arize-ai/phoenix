@@ -169,9 +169,9 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
    *
    * The URL write is declarative: a last-N key is written as just the key
    * (clearing any bounds) and a custom range as just its bounds. The write
-   * replaces history by default and any last-N key is persisted as the user's
-   * preference. Callers can explicitly push discrete changes that should be
-   * undoable with browser Back.
+   * pushes history by default so user edits are undoable with browser Back.
+   * Callers can replace history for non-user-driven synchronization, and any
+   * last-N key is persisted as the user's preference.
    */
   const setTimeRange = (
     timeRange: OpenTimeRangeWithKey,
@@ -187,7 +187,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
             searchParams: currentSearchParams,
             timeRange,
           }),
-        { replace: options?.history !== "push" }
+        { replace: options?.history === "replace" }
       );
       // Persist the preset and re-anchor "now" so the live window refreshes.
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {

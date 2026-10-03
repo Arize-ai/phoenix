@@ -77,8 +77,18 @@ export const ProjectSessionsPage = () => {
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
                 <PendingDSLFilter
-                  onValidCondition={({ condition }: { condition: string }) =>
-                    resolveSessionsSeed(condition)
+                  onValidCondition={({
+                    condition,
+                    isInitialSettlement,
+                  }: {
+                    condition: string;
+                    isInitialSettlement: boolean;
+                  }) =>
+                    resolveSessionsSeed(
+                      condition,
+                      true,
+                      isInitialSettlement ? "replace" : "push"
+                    )
                   }
                   onRejected={() => resolveSessionsSeed("", false)}
                   renderField={(fieldProps) => (

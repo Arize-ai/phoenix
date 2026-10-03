@@ -303,7 +303,11 @@ function ProjectPageContentBody({
    * default is left out entirely, so the other tab does not inherit it.
    */
   const resolveSpansSeed = useCallback(
-    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
+    (
+      seed: SettledSpanFilterSeed,
+      persistToUrl = true,
+      history: "push" | "replace" = "push"
+    ) => {
       startTransition(() => {
         setSpansFilterSeed(seed);
         // Before the new condition re-keys `SpanFiltersProvider` and it re-reads
@@ -319,7 +323,7 @@ function ProjectPageContentBody({
               next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
               return next;
             },
-            { replace: true }
+            { replace: history === "replace" }
           );
         }
         loadSpansQuery({
@@ -338,7 +342,11 @@ function ProjectPageContentBody({
    * for a fallback after a rejection, so the URL keeps the rejected text.
    */
   const resolveTracesSeed = useCallback(
-    (condition: string, persistToUrl = true) => {
+    (
+      condition: string,
+      persistToUrl = true,
+      history: "push" | "replace" = "push"
+    ) => {
       startTransition(() => {
         setTracesFilterSeed(condition);
         if (
@@ -352,7 +360,7 @@ function ProjectPageContentBody({
                 TRACE_FILTER_CONDITION_PARAM,
                 condition
               ),
-            { replace: true }
+            { replace: history === "replace" }
           );
         }
         loadTracesQuery({
@@ -367,7 +375,11 @@ function ProjectPageContentBody({
 
   /** The sessions counterpart of `resolveTracesSeed`. */
   const resolveSessionsSeed = useCallback(
-    (condition: string, persistToUrl = true) => {
+    (
+      condition: string,
+      persistToUrl = true,
+      history: "push" | "replace" = "push"
+    ) => {
       startTransition(() => {
         setSessionsFilterSeed(condition);
         if (
@@ -384,7 +396,7 @@ function ProjectPageContentBody({
                 SESSION_FILTER_CONDITION_PARAM,
                 condition
               ),
-            { replace: true }
+            { replace: history === "replace" }
           );
         }
         loadSessionsQuery({
@@ -429,7 +441,7 @@ function ProjectPageContentBody({
           // share one param but default differently -- spans to root spans,
           // traces to every span -- so writing a tab's own default would
           // impose it on the other one at the next tab switch.
-          resolveSpansSeed(seed, fromUrl !== null);
+          resolveSpansSeed(seed, fromUrl !== null, "replace");
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
         const condition = readFilterConditionParam(
