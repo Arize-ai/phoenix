@@ -1,4 +1,4 @@
-"""add deployment identity
+"""add deployment secret
 
 Revision ID: f3b8c2d14e70
 Revises: ac59da3e4035
@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "deployment_identity",
+        "deployment_secret",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("seed", sa.LargeBinary(), nullable=False),
         sa.CheckConstraint("id = 1", name="singleton"),
@@ -28,4 +28,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("deployment_identity")
+    op.drop_table("deployment_secret")

@@ -20,13 +20,13 @@ CREATE TABLE public.annotation_configs (
 );
 
 
--- Table: deployment_identity
--- --------------------------
-CREATE TABLE public.deployment_identity (
+-- Table: deployment_secret
+-- ------------------------
+CREATE TABLE public.deployment_secret (
     id serial NOT NULL,
     seed BYTEA NOT NULL,
-    CONSTRAINT pk_deployment_identity PRIMARY KEY (id),
-    CONSTRAINT "ck_deployment_identity_`singleton`" CHECK ((id = 1))
+    CONSTRAINT pk_deployment_secret PRIMARY KEY (id),
+    CONSTRAINT "ck_deployment_secret_`singleton`" CHECK ((id = 1))
 );
 
 

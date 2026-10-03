@@ -19,13 +19,13 @@ CREATE TABLE annotation_configs (
 );
 
 
--- Table: deployment_identity
--- --------------------------
-CREATE TABLE deployment_identity (
+-- Table: deployment_secret
+-- ------------------------
+CREATE TABLE deployment_secret (
     id INTEGER NOT NULL,
     seed BLOB NOT NULL,
-    CONSTRAINT pk_deployment_identity PRIMARY KEY (id),
-    CONSTRAINT "ck_deployment_identity_`singleton`" CHECK (id = 1)
+    CONSTRAINT pk_deployment_secret PRIMARY KEY (id),
+    CONSTRAINT "ck_deployment_secret_`singleton`" CHECK (id = 1)
 );
 
 

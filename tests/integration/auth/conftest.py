@@ -581,7 +581,7 @@ def _assert_issued_token_verifies_with_signing_mode(app: _AppInfo, mode: str) ->
     from joserfc.jwk import OctKey
     from pydantic import SecretStr
 
-    from phoenix.server.deployment_identity import TOKEN_SIGNING_KEY_PURPOSE, derive_deployment_key
+    from phoenix.server.deployment_secret import TOKEN_SIGNING_KEY_PURPOSE, derive_deployment_key
 
     from .._helpers import _DEFAULT_ADMIN, _deployment_seed_for_app
 

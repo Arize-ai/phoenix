@@ -7,7 +7,7 @@ from pydantic import SecretStr
 from sqlalchemy import func, select
 
 from phoenix.db import models
-from phoenix.server.deployment_identity import (
+from phoenix.server.deployment_secret import (
     REDACTION_KEY_PURPOSE,
     derive_deployment_key,
     load_deployment_seed,
@@ -24,7 +24,7 @@ async def test_load_deployment_seed_skips_insert_when_present(
     def fail(*args: object, **kwargs: object) -> None:
         raise AssertionError("insert")
 
-    monkeypatch.setattr("phoenix.server.deployment_identity.insert_on_conflict", fail)
+    monkeypatch.setattr("phoenix.server.deployment_secret.insert_on_conflict", fail)
     assert len(await load_deployment_seed(db)) == 32
 
 
@@ -34,7 +34,7 @@ async def test_load_deployment_seed_converges(db: DbSessionFactory) -> None:
     assert len(seeds[0]) == 32
     assert await load_deployment_seed(db) == seeds[0]
     async with db() as session:
-        count = await session.scalar(select(func.count()).select_from(models.DeploymentIdentity))
+        count = await session.scalar(select(func.count()).select_from(models.DeploymentSecret))
     assert count == 1
 
 

@@ -1,6 +1,6 @@
 """Per-deployment seed and HKDF derivation of purpose-specific keys.
 
-``deployment_identity`` is read only here.
+``deployment_secret`` is read only here.
 """
 
 import secrets
@@ -20,7 +20,7 @@ TOKEN_SIGNING_KEY_PURPOSE = b"phoenix/token-signing/v1"
 
 _HKDF_SALT = b"phoenix-deployment-v1"
 _SEED_LENGTH = 32
-_PK_CONSTRAINT = "pk_deployment_identity"
+_PK_CONSTRAINT = "pk_deployment_secret"
 
 
 async def load_deployment_seed(db: DbSessionFactory) -> bytes:
@@ -31,14 +31,14 @@ async def load_deployment_seed(db: DbSessionFactory) -> bytes:
     Returns:
         The 32-byte seed.
     """
-    seed_stmt = select(models.DeploymentIdentity.seed).where(models.DeploymentIdentity.id == 1)
+    seed_stmt = select(models.DeploymentSecret.seed).where(models.DeploymentSecret.id == 1)
     async with db() as session:
         stored = await session.scalar(seed_stmt)
         if stored is None:
             await session.execute(
                 insert_on_conflict(
                     {"id": 1, "seed": secrets.token_bytes(_SEED_LENGTH)},
-                    table=models.DeploymentIdentity,
+                    table=models.DeploymentSecret,
                     dialect=db.dialect,
                     unique_by=("id",),
                     on_conflict=OnConflict.DO_NOTHING,
