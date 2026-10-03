@@ -90,6 +90,12 @@ class ChatCompletionErrorResponse(TypedDict):
     error: ChatCompletionErrorDetail
 
 
+class ChatCompletionMediaURL(TypedDict):
+    url: str
+    detail: NotRequired[Literal["auto", "low", "default", "high"]]
+    max_long_side_pixel: NotRequired[int]
+
+
 class ChatCompletionMessage(TypedDict):
     content: str
     role: NotRequired[Literal["assistant"]]
@@ -106,6 +112,13 @@ class ChatCompletionTextPart(TypedDict):
 
 class ChatCompletionUsagePromptTokensDetails(TypedDict):
     cached_tokens: int
+
+
+class ChatCompletionVideoURL(TypedDict):
+    url: str
+    detail: NotRequired[Literal["auto", "low", "default", "high"]]
+    max_long_side_pixel: NotRequired[int]
+    fps: NotRequired[float]
 
 
 class ChatRequestCredential(TypedDict):
@@ -1466,9 +1479,9 @@ class ChatCompletionChoice(TypedDict):
     index: NotRequired[int]
 
 
-class ChatCompletionRequestMessage(TypedDict):
-    role: Literal["system", "developer", "user", "assistant"]
-    content: Union[str, Sequence[ChatCompletionTextPart]]
+class ChatCompletionImagePart(TypedDict):
+    type: Literal["image_url"]
+    image_url: ChatCompletionMediaURL
 
 
 class ChatCompletionUsage(TypedDict):
@@ -1476,6 +1489,11 @@ class ChatCompletionUsage(TypedDict):
     completion_tokens: int
     total_tokens: int
     prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
+
+
+class ChatCompletionVideoPart(TypedDict):
+    type: Literal["video_url"]
+    video_url: ChatCompletionVideoURL
 
 
 class ContinuousAnnotationConfigData(TypedDict):
@@ -1497,25 +1515,6 @@ class CreateAgentSessionResponseBody(TypedDict):
 
 class CreateApiKeyResponseBody(TypedDict):
     data: CreatedApiKey
-
-
-class CreateChatCompletionRequestBody(TypedDict):
-    model: str
-    messages: Sequence[ChatCompletionRequestMessage]
-    stream: NotRequired[bool]
-    temperature: NotRequired[float]
-    top_p: NotRequired[float]
-    max_tokens: NotRequired[int]
-    max_completion_tokens: NotRequired[int]
-    stop: NotRequired[Union[str, Sequence[str]]]
-    frequency_penalty: NotRequired[float]
-    presence_penalty: NotRequired[float]
-    seed: NotRequired[int]
-    n: NotRequired[int]
-    stream_options: NotRequired[ChatCompletionStreamOptions]
-    tools: NotRequired[Sequence[Any]]
-    tool_choice: NotRequired[Any]
-    response_format: NotRequired[Mapping[str, Any]]
 
 
 class CreateDatasetLabelResponseBody(TypedDict):
@@ -2020,6 +2019,14 @@ class ChatCompletion(TypedDict):
     object: NotRequired[Literal["chat.completion"]]
 
 
+class ChatCompletionRequestMessage(TypedDict):
+    role: Literal["system", "developer", "user", "assistant"]
+    content: Union[
+        str,
+        Sequence[Union[ChatCompletionTextPart, ChatCompletionImagePart, ChatCompletionVideoPart]],
+    ]
+
+
 class CompactAgentSessionRequestBody(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
 
@@ -2032,6 +2039,25 @@ class CreateAgentSessionRequestBody(TypedDict):
 
 class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class CreateChatCompletionRequestBody(TypedDict):
+    model: str
+    messages: Sequence[ChatCompletionRequestMessage]
+    stream: NotRequired[bool]
+    temperature: NotRequired[float]
+    top_p: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    stop: NotRequired[Union[str, Sequence[str]]]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    seed: NotRequired[int]
+    n: NotRequired[int]
+    stream_options: NotRequired[ChatCompletionStreamOptions]
+    tools: NotRequired[Sequence[Any]]
+    tool_choice: NotRequired[Any]
+    response_format: NotRequired[Mapping[str, Any]]
 
 
 class CreateSpansRequestBody(TypedDict):
