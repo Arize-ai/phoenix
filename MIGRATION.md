@@ -16,6 +16,10 @@ The upgrade from v20.x to v21.0.0 changes the default bind address and how authe
   already enables auth explicitly and is unaffected. Trace exporters and other clients that send data without an
   API key will be rejected (HTTP 401 / gRPC unauthenticated) after upgrading, so operators must create an API key
   and configure their exporters with it, or set `PHOENIX_ENABLE_AUTH=false`.
+- **The public default password cannot open a session.** Logging in with the password `admin` while the account
+  still requires a password reset returns HTTP 403 and a password reset token instead of access and refresh
+  tokens. The password must be changed via `POST /auth/password-reset` before signing in. A custom
+  `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` is not subject to this restriction.
 - **`PHOENIX_SECRET` is optional when auth is enabled.** Without it, tokens are signed with a key derived from a
   random per-deployment value stored in the database, and each token must also match a hash stored when it was
   issued, so database readers cannot forge tokens. Saved credentials (provider API keys, workspace secrets,

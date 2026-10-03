@@ -23,6 +23,7 @@ from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from ._helpers import (
     _DB_BACKEND,
+    _DEFAULT_ADMIN_INITIAL_PASSWORD,
     _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
@@ -301,6 +302,7 @@ def _env_auth() -> dict[str, str]:
         "PHOENIX_ENABLE_AUTH": "true",
         "PHOENIX_SECRET": token_hex(16),
         "PHOENIX_ADMIN_SECRET": token_hex(16),
+        "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": _DEFAULT_ADMIN_INITIAL_PASSWORD,
         "PHOENIX_DISABLE_RATE_LIMIT": "true",
         "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,",
     }
