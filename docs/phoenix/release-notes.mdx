@@ -16,10 +16,10 @@ GitHub
 <ReleaseUpdate label="09.22.2026" href="/docs/phoenix/release-notes/09-2026/09-22-2026-editable-dataset-examples-and-mountable-skills" title="Editable Dataset Examples and Mountable Skills">
 **Available in arize-phoenix 20.13.0–20.15.0, @arizeai/phoenix-client 7.12.0–7.14.0, @arizeai/phoenix-evals 2.6.0+, arize-phoenix-evals 3.9.0+**
 
-Edit dataset examples inline and commit them as one version, and serve your own Agent Skills to every agent connected to Phoenix.
+Edit dataset examples inline and save them as one version, and serve your own Agent Skills to every agent connected to Phoenix.
 
 - **Editable dataset examples table** — change `input`, `output`, and `metadata` in place, add and remove rows, and save the session as one new dataset version
-- **Mount your own Agent Skills** with `PHOENIX_SKILLS_PATHS`, served through `/mcp` and the Phoenix Assistant's skill picker
+- **Mount your own Agent Skills** with `PHOENIX_SKILLS_PATHS`, served through `/mcp` and PXI's skill picker
 - **Breaking GraphQL changes** — `rootSpansOnly` and `orphanSpanAsRootSpan` removed, `traceAnnotationNames` renamed, and `patchDatasetExamples` now takes an ordered operation list
 - **Classification evals on AI SDK evaluation models** such as TypeSafe's Jev, which classify without generating text
 - **Trace and session filter expressions** in `getTraces` and `listSessions`, deprecating the individual error and latency parameters
