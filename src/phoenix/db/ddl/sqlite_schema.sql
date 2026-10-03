@@ -19,6 +19,33 @@ CREATE TABLE annotation_configs (
 );
 
 
+-- Table: eval_span_cursors
+-- ------------------------
+CREATE TABLE eval_span_cursors (
+    id INTEGER NOT NULL CONSTRAINT "ck_eval_span_cursors_`single_row`" CHECK (id = 1),
+    produced_through_id INTEGER DEFAULT '0' NOT NULL,
+    observed_high_water_id INTEGER,
+    observed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id)
+);
+
+
+-- Table: eval_work_leases
+-- -----------------------
+CREATE TABLE eval_work_leases (
+    id INTEGER NOT NULL,
+    name VARCHAR NOT NULL,
+    holder VARCHAR,
+    heartbeat_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_work_leases PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_leases_name UNIQUE (name)
+);
+
+
 -- Table: generative_models
 -- ------------------------
 CREATE TABLE generative_models (
@@ -138,6 +165,7 @@ CREATE TABLE project_sessions (
     project_id INTEGER NOT NULL,
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
+    last_span_ingested_at TIMESTAMP,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id UNIQUE (session_id),
     CONSTRAINT fk_project_sessions_project_id_projects
@@ -148,6 +176,9 @@ CREATE TABLE project_sessions (
 
 CREATE INDEX ix_project_sessions_project_id_end_time ON project_sessions
     (project_id, end_time DESC);
+CREATE INDEX ix_project_sessions_project_id_last_span_ingested_at ON project_sessions
+    (project_id, last_span_ingested_at)
+    WHERE last_span_ingested_at IS NOT NULL;
 CREATE INDEX ix_project_sessions_project_id_start_time ON project_sessions
     (project_id, start_time DESC);
 
@@ -236,6 +267,7 @@ CREATE TABLE traces (
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     project_session_rowid INTEGER,
+    last_span_ingested_at TIMESTAMP,
     CONSTRAINT pk_traces PRIMARY KEY (id),
     CONSTRAINT uq_traces_trace_id UNIQUE (trace_id),
     CONSTRAINT fk_traces_project_rowid_projects
@@ -248,6 +280,9 @@ CREATE TABLE traces (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_traces_project_rowid_last_span_ingested_at ON traces
+    (project_rowid, last_span_ingested_at)
+    WHERE last_span_ingested_at IS NOT NULL;
 CREATE INDEX ix_traces_project_rowid_start_time ON traces
     (project_rowid, start_time DESC);
 CREATE INDEX ix_traces_project_session_rowid ON traces (project_session_rowid);
@@ -286,12 +321,14 @@ CREATE TABLE spans (
 CREATE INDEX ix_cumulative_llm_token_count_total ON spans
     ((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion));
 CREATE INDEX ix_spans_parent_id ON spans (parent_id);
-CREATE INDEX ix_spans_session_id ON spans (JSON_EXTRACT(attributes, '$."session"."id"'))
-    WHERE JSON_EXTRACT(attributes, '$."session"."id"') IS NOT NULL;
+CREATE INDEX ix_spans_session_id ON spans
+    (CAST(JSON_EXTRACT(attributes, '$."session"."id"') AS VARCHAR))
+    WHERE CAST(JSON_EXTRACT(attributes, '$."session"."id"') AS VARCHAR) IS NOT NULL;
 CREATE INDEX ix_spans_start_time ON spans (start_time);
 CREATE INDEX ix_spans_trace_rowid ON spans (trace_rowid);
-CREATE INDEX ix_spans_user_id ON spans (JSON_EXTRACT(attributes, '$."user"."id"'))
-    WHERE JSON_EXTRACT(attributes, '$."user"."id"') IS NOT NULL;
+CREATE INDEX ix_spans_user_id ON spans
+    (CAST(JSON_EXTRACT(attributes, '$."user"."id"') AS VARCHAR))
+    WHERE CAST(JSON_EXTRACT(attributes, '$."user"."id"') AS VARCHAR) IS NOT NULL;
 
 
 -- Table: span_costs
@@ -790,19 +827,19 @@ CREATE INDEX ix_experiments_user_id ON experiments (user_id);
 -- ----------------------
 CREATE TABLE experiment_jobs (
     id INTEGER NOT NULL,
-    type VARCHAR NOT NULL
-        CONSTRAINT "ck_experiment_jobs_`valid_type`"
-        CHECK (type IN ('PROMPT', 'EVAL_ONLY')),
-    status VARCHAR DEFAULT 'STOPPED' NOT NULL
-        CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
-        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
+    type VARCHAR NOT NULL,
+    status VARCHAR DEFAULT 'STOPPED' NOT NULL,
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     cooldown_until TIMESTAMP,
     max_concurrency INTEGER DEFAULT '10' NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id UNIQUE (type, id),
+    CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
+        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
+    CONSTRAINT "ck_experiment_jobs_`valid_type`"
+        CHECK (type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')),
     CONSTRAINT fk_experiment_jobs_id_experiments
         FOREIGN KEY (id)
         REFERENCES experiments (id)
@@ -829,6 +866,28 @@ CREATE TABLE experiment_dataset_evaluators (
 
 CREATE INDEX ix_experiment_dataset_evaluators_dataset_evaluator_id ON experiment_dataset_evaluators
     (dataset_evaluator_id);
+
+
+-- Table: experiment_evaluator_tasks
+-- ---------------------------------
+CREATE TABLE experiment_evaluator_tasks (
+    id INTEGER NOT NULL,
+    type VARCHAR DEFAULT 'EVALUATOR' NOT NULL
+        CONSTRAINT "ck_experiment_evaluator_tasks_`valid_type`"
+        CHECK (type = 'EVALUATOR'),
+    name VARCHAR NOT NULL,
+    evaluator_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_experiment_evaluator_tasks_`valid_evaluator_kind`"
+        CHECK (evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')),
+    definition JSONB NOT NULL,
+    input_mapping JSONB NOT NULL,
+    output_configs JSONB NOT NULL,
+    CONSTRAINT pk_experiment_evaluator_tasks PRIMARY KEY (id),
+    CONSTRAINT fk_experiment_evaluator_tasks_type_experiment_jobs
+        FOREIGN KEY (type, id)
+        REFERENCES experiment_jobs (type, id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: experiment_logs
@@ -1112,8 +1171,8 @@ CREATE TABLE agent_session_messages (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     agent_session_id INTEGER NOT NULL,
     message JSONB NOT NULL,
-    message_id VARCHAR NOT NULL GENERATED ALWAYS AS (JSON_EXTRACT(message, '$."id"')) STORED,
-    is_compaction_message BOOLEAN NOT NULL GENERATED ALWAYS AS (coalesce(JSON_EXTRACT(message, '$."metadata"."phoenix"."isCompactionMessage"'), 0)) STORED,
+    message_id VARCHAR NOT NULL GENERATED ALWAYS AS (CAST(JSON_EXTRACT(message, '$."id"') AS VARCHAR)) STORED,
+    is_compaction_message BOOLEAN NOT NULL GENERATED ALWAYS AS (coalesce(CAST(JSON_EXTRACT(message, '$."metadata"."phoenix"."isCompactionMessage"') AS BOOLEAN), 0)) STORED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT uq_agent_session_messages_message_id UNIQUE (message_id),
@@ -1220,6 +1279,194 @@ CREATE TABLE password_reset_tokens (
 
 CREATE INDEX ix_password_reset_tokens_expires_at ON password_reset_tokens (expires_at);
 CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens (user_id);
+
+
+-- Table: project_evaluators
+-- -------------------------
+CREATE TABLE project_evaluators (
+    id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    evaluator_id INTEGER NOT NULL,
+    trace_project_id INTEGER NOT NULL,
+    name VARCHAR NOT NULL,
+    filter_condition VARCHAR DEFAULT '' NOT NULL,
+    sampling_rate FLOAT NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`"
+        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
+    evaluation_target VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
+        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    evaluation_delay_seconds INTEGER DEFAULT '300' NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
+        CHECK (evaluation_delay_seconds >= 10),
+    input_mapping JSONB,
+    enabled BOOLEAN DEFAULT true NOT NULL,
+    swept_through_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_project_evaluators_project_id_name UNIQUE (project_id, name),
+    CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
+        REFERENCES evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluators_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES projects (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluators_trace_project_id_projects
+        FOREIGN KEY (trace_project_id)
+        REFERENCES projects (id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_project_evaluators_evaluator_id ON project_evaluators (evaluator_id);
+CREATE INDEX ix_project_evaluators_project_id ON project_evaluators (project_id);
+CREATE INDEX ix_project_evaluators_trace_project_id ON project_evaluators
+    (trace_project_id);
+
+
+-- Table: eval_session_work_units
+-- ------------------------------
+CREATE TABLE eval_session_work_units (
+    id INTEGER NOT NULL,
+    project_session_rowid INTEGER NOT NULL,
+    project_evaluator_id INTEGER NOT NULL,
+    evaluated_through TIMESTAMP NOT NULL,
+    status VARCHAR DEFAULT 'PENDING' NOT NULL
+        CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
+CHECK (status IN (
+            'PENDING',
+            'RUNNING',
+            'ERROR',
+            'DONE',
+            'FAILED',
+            'EXPIRED',
+            'CONTENT_LOST',
+            'FILTERED_OUT',
+            'SAMPLED_OUT'
+        )),
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR,
+    attempts INTEGER DEFAULT '0' NOT NULL,
+    error VARCHAR,
+    cooldown_until TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_session_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_session_work_units_project_session_rowid_project_evaluator_id
+        UNIQUE (project_session_rowid, project_evaluator_id),
+    CONSTRAINT fk_eval_session_work_units_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_session_work_units_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_session_work_units_claimable ON eval_session_work_units
+    (status, id)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
+CREATE INDEX ix_eval_session_work_units_project_evaluator_failed ON eval_session_work_units
+    (project_evaluator_id, updated_at)
+    WHERE status IN ('FAILED', 'EXPIRED');
+CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
+    (project_evaluator_id);
+CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST');
+
+
+-- Table: eval_trace_work_units
+-- ----------------------------
+CREATE TABLE eval_trace_work_units (
+    id INTEGER NOT NULL,
+    trace_rowid INTEGER NOT NULL,
+    project_evaluator_id INTEGER NOT NULL,
+    evaluated_through TIMESTAMP NOT NULL,
+    status VARCHAR DEFAULT 'PENDING' NOT NULL
+        CONSTRAINT "ck_eval_trace_work_units_`valid_eval_work_status`"
+CHECK (status IN (
+            'PENDING',
+            'RUNNING',
+            'ERROR',
+            'DONE',
+            'FAILED',
+            'EXPIRED',
+            'CONTENT_LOST',
+            'FILTERED_OUT',
+            'SAMPLED_OUT'
+        )),
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR,
+    attempts INTEGER DEFAULT '0' NOT NULL,
+    error VARCHAR,
+    cooldown_until TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_trace_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_trace_work_units_trace_rowid_project_evaluator_id
+        UNIQUE (trace_rowid, project_evaluator_id),
+    CONSTRAINT fk_eval_trace_work_units_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_trace_work_units_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
+        REFERENCES traces (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_trace_work_units_claimable ON eval_trace_work_units (status, id)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_failed ON eval_trace_work_units
+    (project_evaluator_id, updated_at)
+    WHERE status IN ('FAILED', 'EXPIRED');
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON eval_trace_work_units
+    (project_evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_terminal ON eval_trace_work_units (updated_at)
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST');
+
+
+-- Table: eval_work_units
+-- ----------------------
+CREATE TABLE eval_work_units (
+    id INTEGER NOT NULL,
+    span_rowid INTEGER NOT NULL,
+    project_evaluator_id INTEGER NOT NULL,
+    status VARCHAR DEFAULT 'PENDING' NOT NULL
+        CONSTRAINT "ck_eval_work_units_`valid_eval_work_status`"
+        CHECK (status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED')),
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR,
+    attempts INTEGER DEFAULT '0' NOT NULL,
+    error VARCHAR,
+    cooldown_until TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_units_span_rowid_project_evaluator_id
+        UNIQUE (span_rowid, project_evaluator_id),
+    CONSTRAINT fk_eval_work_units_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_work_units_span_rowid_spans
+        FOREIGN KEY (span_rowid)
+        REFERENCES spans (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_work_units_claimable ON eval_work_units (status, id)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
+CREATE INDEX ix_eval_work_units_project_evaluator_failed ON eval_work_units
+    (project_evaluator_id, updated_at)
+    WHERE status IN ('FAILED', 'EXPIRED');
+CREATE INDEX ix_eval_work_units_project_evaluator_id ON eval_work_units
+    (project_evaluator_id);
+CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED');
 
 
 -- Table: project_session_annotations

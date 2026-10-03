@@ -1,0 +1,173 @@
+"""Consumer-side coordination seam for online-eval work distribution: claim,
+heartbeat, publication, failure, expiration, and queue-lag observability. Producer-side
+operations (materializer leases, watermark advance, and work-row materialization) are
+not part of this interface.
+
+Work-unit lifecycle:
+
+    PENDING --claim--> RUNNING --publish--> DONE
+                       RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
+                       RUNNING --expire---> EXPIRED | CONTENT_LOST
+                       RUNNING --release--> PENDING
+    RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
+    ERROR (cooldown elapsed) --> retried
+"""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal, Optional, Protocol
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from phoenix.db import models
+from phoenix.server.online_eval.failure_policy import FailureDisposition
+
+LEASE_TTL_SECONDS = 90
+HEARTBEAT_INTERVAL_SECONDS = 30
+LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
+# Metrics over terminal work read only rows that reached their status within this window;
+# session and trace work is never deleted, so all-time aggregates would grow without bound.
+TERMINAL_METRICS_WINDOW_SECONDS = 86_400.0
+
+RetiredWorkStatus = Literal["EXPIRED", "CONTENT_LOST"]
+
+PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
+"""Writes one unit's results, inside the transaction that fenced its publication."""
+
+
+class PublicationClaimLostError(Exception):
+    """A work unit stopped being publishable before its results could be written."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="PUBLICATION_CLAIM_LOST",
+    )
+
+
+@dataclass(frozen=True)
+class ClaimedWorkUnit:
+    """A leased work unit: one project evaluator to run against one target row."""
+
+    work_unit_id: int
+    evaluation_target: models.EvaluationTarget
+    target_rowid: int
+    project_evaluator_id: int
+    attempts: int
+    claimed_by: str
+    lease_expires_at: datetime
+
+
+@dataclass(frozen=True)
+class QueueLag:
+    """Observable backlog for one evaluation target.
+
+    ``pending_count``, ``running_count`` and ``retryable_error_count`` are the current
+    live work. ``exhausted_error_count`` (FAILED) and ``expired_count`` (EXPIRED and
+    CONTENT_LOST) count work in those statuses last updated within
+    ``TERMINAL_METRICS_WINDOW_SECONDS``.
+    ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is None
+    when that backlog is empty."""
+
+    pending_count: int
+    running_count: int
+    retryable_error_count: int
+    exhausted_error_count: int
+    expired_count: int
+    oldest_actionable_age_seconds: Optional[float]
+
+
+class EvalWorkCoordinator(Protocol):
+    """Coordinates online-eval work across replicas behind a swappable backend.
+
+    Heartbeat, fail, expire and release return False once the claim is lost, and True,
+    changing nothing, when the claim's own publication already finished the unit, so a
+    call that raced that publication doesn't report a lost claim."""
+
+    async def claim(
+        self,
+        *,
+        claimed_by: str,
+        limit: int,
+    ) -> Sequence[ClaimedWorkUnit]:
+        """Lease up to ``limit`` claimable work units for ``claimed_by``. A unit is
+        claimable when it is PENDING, or RUNNING with a lapsed lease, or ERROR past
+        its cooldown. Returns an empty sequence when no
+        claimable work exists.
+
+        Every later write for a unit is fenced on the ``claimed_by`` it was claimed
+        with, so each call should pass a value no earlier claim used."""
+        ...
+
+    async def heartbeat(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Renew the lease on a claimed unit. Returns False once the claim is lost, and True
+        without renewing when the claim's own publication already finished the unit, so a
+        heartbeat that waited on that publication doesn't report a lost claim."""
+        ...
+
+    async def publish(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        write: PublicationWrite,
+    ) -> None:
+        """Fence a claimed unit, run ``write``, and mark the unit DONE, all in one
+        transaction, so a unit is never left RUNNING with its results published.
+
+        The fence holds the unit's target against deletion and locks the unit, which must
+        still be owned and RUNNING, then requires its project evaluator to be enabled. A
+        deletion of the target either waits for the write or leaves nothing to fence.
+
+        Raises ``PublicationClaimLostError`` when the fence fails."""
+        ...
+
+    async def fail(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        error: str,
+        cooldown_until: Optional[datetime] = None,
+        count_attempt: bool = True,
+    ) -> bool:
+        """Transition a claimed unit RUNNING -> ERROR, or -> FAILED once the retry budget
+        is spent, recording the error and setting an optional retry cooldown.
+        ``count_attempt=True`` (the default) increments attempts; pass False for transient
+        infrastructure failures (provider outage, network timeout) so the unit retries after
+        its cooldown without ever being exhausted by an outage. Returns False if the claim
+        was lost."""
+        ...
+
+    async def expire(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        error: str,
+        status: RetiredWorkStatus = "EXPIRED",
+    ) -> bool:
+        """Retire a claimed unit RUNNING -> ``status`` with a stable reason."""
+        ...
+
+    async def release(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Return a still-owned RUNNING unit to PENDING without incrementing attempts."""
+        ...
+
+    async def lag(self) -> QueueLag:
+        """Report the live backlog and recently terminated work. Returns zeroed metrics
+        when neither exists."""
+        ...

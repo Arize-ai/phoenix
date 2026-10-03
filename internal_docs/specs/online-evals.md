@@ -220,6 +220,12 @@ Design questions include:
 
 Project evaluators run after ingestion. They must never delay or fail ingestion.
 
+The live path uses project-evaluator creation as its boundary: an artifact's latest activity must
+be at or after the criterion's `created_at`. Older quiet artifacts belong to backfill. Disabling
+and later re-enabling a criterion deliberately retains that creation boundary, so activity after
+creation can still become eligible. If re-enablement should reset the live boundary, that requires
+a dedicated enablement timestamp and is future work rather than an inference from `enabled`.
+
 ### Spans
 
 Spans are eligible as soon as they are stored. When a matching span is ingested, the project
@@ -232,9 +238,9 @@ Example: judge every final-answer LLM span, or a sampled subset, for hallucinati
 
 Traces do not have an explicit "done" event. **How to detect completion is still open:** root
 span end, an idle period after the last span, or both for different evaluator types. One viable
-approach is to use a quiet period (same mechanism as sessions). If new spans arrive after an
-evaluation, the trace can be re-evaluated when it goes quiet again. The visible trace annotation
-reflects the latest evaluation.
+approach is to use a quiet period (same mechanism as sessions). As with sessions, v1 evaluates each
+trace once per project evaluator, when its first quiet period elapses; spans that arrive after the
+evaluation do not schedule another one.
 
 Trace evaluation has two flavors. Treating a trace as its root span makes the simple case easy:
 evaluate the root span's I/O ("did the agent answer my question?"). The harder case evaluates
@@ -248,12 +254,22 @@ Example: after an agent trace finishes, score whether the user got a correct ans
 Sessions are open-ended and can resume. The likely readiness mechanism is an idle timeout: a
 session is treated as ready for evaluation after no new activity arrives for some configured
 duration. This is only a pragmatic proxy for "complete" — e.g. sessions idle for a day may be
-considered done, even though that is not strictly true. If the session resumes and later goes idle
-again, it can be evaluated again. The visible session annotation reflects the latest evaluation.
+considered done, even though that is not strictly true.
 
-Re-evaluation **overrides** rather than stacks: if a session was judged "incomplete" and later
-completes, the newer judgment should replace the earlier one (see [Output](#output) for override-key
-requirements). Run history still preserves prior evaluations for audit.
+v1 evaluates each session once per project evaluator, when its first quiet period elapses. Neither
+later activity nor an edit to the project evaluator schedules another evaluation. This deliberate
+initial limitation is tracked in [#14903](https://github.com/Arize-ai/phoenix/issues/14903), which
+owns result identity, re-entry and frequency, recovery after permanent failure, and staleness
+detection for in-flight evaluation.
+
+An evaluation that produced no result is the exception: a session or trace whose evaluation
+failed, expired, or found its content gone is retried once new spans arrive after the failure and
+it goes quiet again. Spans that arrived while the evaluation was running might not trigger a retry.
+
+When re-evaluation lands, it should **override** rather than stack: if a session was judged
+"incomplete" and later completes, the newer judgment should replace the earlier one (see
+[Output](#output) for override-key requirements). Run history should still preserve prior
+evaluations for audit.
 
 Example: after a support chat ends, assess whether the agent stayed coherent and moved toward
 resolution.
@@ -282,10 +298,11 @@ database, so some evaluation happens in Python, which makes them open-endedly ex
 not need to solve all levels at launch; a subset is still useful, and we can carve out room for
 the rest.
 
-Session filtering is the hardest: there is no obvious filter vocabulary for a session yet (it may
-come down to consistent metadata on root spans), and it is unclear whether a condition should
-apply to *any* or *all* of the session's spans. v1 should either define a small set of session
-filter options or omit session filters until that exists.
+The session filter DSL shipped in [#14101](https://github.com/Arize-ai/phoenix/pull/14101), closing
+[#14041](https://github.com/Arize-ai/phoenix/issues/14041). SESSION online evaluation applies this
+filter at the session's first eligible quiet period, then applies deterministic sampling to
+matches. A filter non-match or sampling miss is recorded permanently for that evaluator
+configuration, and later activity does not reopen the decision.
 
 Changing a filter affects only future artifacts; it does not backfill or re-run past data.
 
@@ -354,9 +371,9 @@ already distinguishes automated annotations from human ones at the data level, s
 gap is UI treatment and traceability back to the specific project evaluator and run — not captured
 today (there is no FK from an annotation to a project evaluator).
 
-Re-evaluation maps onto an existing mechanism: the annotation tables enforce
+When re-evaluation lands, it can map onto an existing mechanism: the annotation tables enforce
 `UniqueConstraint(name, <target>_rowid, identifier)`, so writing with a stable `identifier` gives
-upsert/override for free — a later run replaces its own prior annotation. Deriving that
+upsert/override for free — a later run would replace its own prior annotation. Deriving that
 `identifier` takes care, because `<target>_rowid` is the *attachment* artifact, not the source.
 When the annotation lands on the artifact it evaluated, keying `identifier` on the project
 evaluator configuration is enough. But when a span-level judgment is hoisted onto its enclosing
@@ -372,18 +389,19 @@ preserved for audit not by the annotation row (overwritten) but by the run recor
 
 ## Run Records and Audit
 
-The upsert-by-`identifier` mechanism in [Output](#output) is intentionally destructive: a re-run
-overwrites its own prior annotation, and a decision that produces *no* annotation (filtered out,
-sampled out, overload-dropped, pending, failed) writes nothing at all. Several requirements in
-this spec presuppose a durable record that the annotation tables cannot provide:
+v1 does not overwrite: online evals keep the first annotation written under an `identifier`, and
+each work unit publishes at most once, so a project evaluator writes its annotations for a target
+at most once. SESSION filter and sampling declines are durable terminal
+work-unit states, but other decisions that produce *no* annotation (including span filter/sample
+misses) still lack a complete cross-target run history. Several requirements in this spec
+presuppose a durable record that the annotation tables cannot provide:
 
-- **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out,
-  overload-dropped, pending, failed, and succeeded apart — none of which an absent annotation row
-  can express.
+- **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out, pending,
+  failed, and succeeded apart — none of which an absent annotation row can express.
 - **Override history** — prior evaluations should stay inspectable even though the visible
   annotation was overwritten.
-- **Overload-skip visibility** and the [failure taxonomy](#open-q-10) both need somewhere to
-  write a decision that produced no annotation.
+- **Failure taxonomy** — the classes in [open question #10](#open-q-10) need somewhere to write a
+  decision that produced no annotation.
 
 None of this fits the annotation tables (no `error` column, no status column, one row per
 `(name, target, identifier)`). It needs its own run/decision record — roughly one row per
@@ -399,9 +417,14 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   is unhealthy, Phoenix should still ingest and display traces normally.
 - Disabling a project evaluator stops new runs immediately.
 - **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
-  rate, a backstop must shed load so the queue does not blow up. When artifacts are skipped for
-  this reason, the user must be able to see that they were skipped ("this set was meant to be
-  sampled but was dropped because ingest was too high"), not have them silently disappear.
+  rate, the queue must not blow up. An admission gate caps how much span work may be waiting to
+  run: once the backlog reaches the cap, Phoenix stops creating new span work until the backlog
+  drains, then resumes from where it stopped. A full queue therefore delays span evaluations
+  rather than dropping them — sampled spans are evaluated late, not skipped, unless trace
+  retention deletes a span (and any work already queued for it) before its turn comes.
+  Overload shows up in two places: the producer logs a warning each time it finds the admission
+  gate closed, and the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
+  ingested but not yet offered to evaluators, keeps growing while the gate stays closed.
 - **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
   recursively enqueue the same class of project evaluations. This largely falls out of the
   architecture: if evaluator traces live in a dedicated project (as
@@ -454,13 +477,13 @@ Results appear as span annotations (optionally hoisted onto the trace).
 ### Trace-level task success judge
 
 Filter to traces matching a product workflow. Evaluate every matching trace after a quiet period.
-Results appear as trace annotations. Late-arriving spans trigger a fresh evaluation.
+Results appear as trace annotations. Spans that arrive after the evaluation do not trigger another
+one.
 
 ### Session-level coherence judge
 
 Sample 10% of sessions. Evaluate after the user goes idle. Results appear as session
-annotations. Resumed sessions can be evaluated again on the next idle period, overriding the
-prior annotation.
+annotations. A session that resumes after its evaluation is not evaluated again.
 
 ## Open Questions
 
@@ -500,7 +523,7 @@ Scope-defining questions come first.
    compatibility guarantee — determinism across retries and restarts is only as good as the hash
    staying fixed across Phoenix versions?
 10. <a id="open-q-10"></a>What is the failure taxonomy: retryable failure, terminal failure, configuration error,
-    sampled out, overload drop, disabled evaluator, and skipped because the target changed?
+    sampled out, disabled evaluator, and skipped because the target changed?
 
 ### Can follow v1
 

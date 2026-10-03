@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4eaeab798f70be49bd132345482c0968>>
+ * @generated SignedSource<<9b61a9f2616b20d3741b8a356042c4d7>>
  * @lightSyntaxTransform
  */
 
@@ -57,6 +57,9 @@ export type ExperimentsTableFragment$data = {
         readonly isBaseline: boolean;
         readonly job: {
           readonly status: ExperimentJobStatus;
+          readonly taskConfig: {
+            readonly __typename: string;
+          } | null;
         } | null;
         readonly metadata: any;
         readonly name: string;
@@ -121,6 +124,15 @@ v4 = [
     "args": null,
     "kind": "ScalarField",
     "name": "cost",
+    "storageKey": null
+  }
+],
+v5 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "__typename",
     "storageKey": null
   }
 ];
@@ -458,6 +470,16 @@ return {
                       "kind": "ScalarField",
                       "name": "status",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "taskConfig",
+                      "plural": false,
+                      "selections": (v5/*:: as any*/),
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -479,15 +501,7 @@ return {
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
-                  "storageKey": null
-                }
-              ],
+              "selections": (v5/*:: as any*/),
               "storageKey": null
             }
           ],
@@ -527,6 +541,6 @@ return {
 };
 })();
 
-(node as any).hash = "13f75158c220eb8e198b35d2c30bba40";
+(node as any).hash = "65e6af6ed8c56678014e8197f56afb34";
 
 export default node;

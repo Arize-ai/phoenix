@@ -6,16 +6,12 @@ from typing import Any, Optional, cast
 
 import strawberry
 from openinference.semconv.trace import (
-    MessageAttributes,
-    MessageContentAttributes,
     SpanAttributes,
-    ToolAttributes,
-    ToolCallAttributes,
 )
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import contains_eager, joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
@@ -28,8 +24,10 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
+    get_dataset_example_metadata,
     get_dataset_example_output,
 )
+from phoenix.server.api.helpers.expected_outputs import set_expected_output
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
@@ -41,8 +39,14 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
+from phoenix.server.api.input_types.SetDatasetExampleExpectedOutputsInput import (
+    DatasetExampleExpectedOutputInput,
+    SetDatasetExampleExpectedOutputsInput,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
@@ -159,6 +163,14 @@ class DatasetMutationPayload:
 
 
 @strawberry.type
+class DatasetExampleExpectedOutputsPayload:
+    dataset: Dataset
+    version: DatasetVersion
+    # The touched examples, each resolving its revision as of the new version.
+    examples: list[DatasetExample]
+
+
+@strawberry.type
 class DatasetMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset(
@@ -272,9 +284,10 @@ class DatasetMutationMixin:
                         )
                         .where(models.Span.id.in_(span_rowids))
                         .options(
+                            joinedload(models.Span.trace),
                             contains_eager(models.Span.span_annotations).contains_eager(
                                 models.SpanAnnotation.user
-                            )
+                            ),
                         )
                     )
                 )
@@ -301,17 +314,6 @@ class DatasetMutationMixin:
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
 
-            all_span_attributes = {
-                **SpanAttributes.__dict__,
-                **MessageAttributes.__dict__,
-                **MessageContentAttributes.__dict__,
-                **ToolCallAttributes.__dict__,
-                **ToolAttributes.__dict__,
-            }
-            nonprivate_span_attributes = {
-                k: v for k, v in all_span_attributes.items() if not k.startswith("_")
-            }
-
             await session.execute(
                 insert(DatasetExampleRevision),
                 [
@@ -320,16 +322,11 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.dataset_version_id.key: dataset_version.id,
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
-                        DatasetExampleRevision.metadata_.key: {
-                            **(span.attributes.get(SpanAttributes.METADATA) or dict()),
-                            **{
-                                k: v
-                                for k, v in span.attributes.items()
-                                if k in nonprivate_span_attributes
-                            },
-                            "span_kind": span.span_kind,
-                            "annotations": _gather_span_annotations_by_name(span.span_annotations),
-                        },
+                        DatasetExampleRevision.metadata_.key: get_dataset_example_metadata(
+                            span,
+                            trace_id=span.trace.trace_id,
+                            annotations=span.span_annotations,
+                        ),
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
@@ -690,6 +687,130 @@ class DatasetMutationMixin:
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def set_dataset_example_expected_outputs(
+        self,
+        info: Info[Context, None],
+        input: SetDatasetExampleExpectedOutputsInput,
+    ) -> DatasetExampleExpectedOutputsPayload:
+        """Write a batch of human expected outputs as one dataset version.
+
+        Annotating is bursty — a person works down a column of results — so the
+        client coalesces annotations and sends them together. One version per batch
+        keeps the dataset's history proportional to sittings, not clicks.
+        """
+        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+        expected_outputs_by_example: dict[int, list[DatasetExampleExpectedOutputInput]] = {}
+        expected_revision_ids: dict[int, int] = {}
+        for item in input.expected_outputs:
+            example_id = from_global_id_with_expected_type(item.example_id, DatasetExample.__name__)
+            revision_id = from_global_id_with_expected_type(
+                item.expected_revision_id, DatasetExampleRevision.__name__
+            )
+            if expected_revision_ids.setdefault(example_id, revision_id) != revision_id:
+                raise BadRequest(
+                    "An example's annotations must all name the same expected revision."
+                )
+            expected_outputs_by_example.setdefault(example_id, []).append(item)
+        async with info.context.db() as session:
+            # Lock the examples for the rest of the transaction so concurrent
+            # expected-output writes serialize and the stale-revision check below is
+            # reliable. SQLAlchemy drops FOR UPDATE on SQLite, whose single writer
+            # lock serializes the transactions instead.
+            examples = {
+                example.id: example
+                for example in await session.scalars(
+                    select(models.DatasetExample)
+                    .where(
+                        models.DatasetExample.id.in_(expected_outputs_by_example),
+                        models.DatasetExample.dataset_id == dataset_id,
+                    )
+                    .with_for_update()
+                )
+            }
+            if len(examples) != len(expected_outputs_by_example):
+                raise NotFound("Example not found in the selected dataset.")
+            latest_revision_id = (
+                select(func.max(models.DatasetExampleRevision.id))
+                .where(
+                    models.DatasetExampleRevision.dataset_example_id.in_(
+                        expected_outputs_by_example
+                    )
+                )
+                .group_by(models.DatasetExampleRevision.dataset_example_id)
+                .scalar_subquery()
+            )
+            revisions = {
+                revision.dataset_example_id: revision
+                for revision in await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.id.in_(latest_revision_id)
+                    )
+                )
+            }
+            user_id = info.context.user_id
+            user = await session.get(models.User, user_id) if user_id is not None else None
+            user_global_id = (
+                str(GlobalID(models.User.__name__, str(user_id))) if user_id is not None else None
+            )
+            next_metadata: dict[int, dict[str, Any]] = {}
+            for example_id, items in expected_outputs_by_example.items():
+                revision = revisions.get(example_id)
+                if revision is None or revision.revision_kind == "DELETE":
+                    raise NotFound("Example not found.")
+                if revision.id != expected_revision_ids[example_id]:
+                    raise Conflict("An example has changed. Reload the sample before saving.")
+                metadata: dict[str, Any] = dict(revision.metadata_)
+                for item in items:
+                    try:
+                        # The same record shape the span→example converter writes,
+                        # so an example annotated here reads like one built from
+                        # an annotated span.
+                        metadata = set_expected_output(
+                            metadata,
+                            annotation_name=item.annotation_name,
+                            label=item.label,
+                            score=item.score,
+                            explanation=item.explanation,
+                            user_id=user_global_id,
+                            username=user.username if user is not None else None,
+                            email=user.email if user is not None else None,
+                        )
+                    except ValueError as error:
+                        raise BadRequest(str(error)) from error
+                next_metadata[example_id] = metadata
+            count = len(next_metadata)
+            noun = "example" if count == 1 else "examples"
+            version = models.DatasetVersion(
+                dataset_id=dataset_id,
+                description=f"Update expected outputs for {count} {noun}",
+                metadata_={},
+                user_id=user_id,
+            )
+            session.add(version)
+            await session.flush()
+            session.add_all(
+                models.DatasetExampleRevision(
+                    dataset_example_id=example_id,
+                    dataset_version_id=version.id,
+                    input=revisions[example_id].input,
+                    output=revisions[example_id].output,
+                    metadata_=metadata,
+                    revision_kind="PATCH",
+                )
+                for example_id, metadata in next_metadata.items()
+            )
+            await session.flush()
+        info.context.event_queue.put(DatasetInsertEvent((dataset_id,)))
+        return DatasetExampleExpectedOutputsPayload(
+            dataset=Dataset(id=dataset_id),
+            version=DatasetVersion(id=version.id, db_record=version),
+            examples=[
+                DatasetExample(id=example_id, db_record=examples[example_id], version_id=version.id)
+                for example_id in next_metadata
+            ],
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
@@ -791,19 +912,6 @@ def _check_dataset_scope(dataset: models.Dataset, dataset_gid: Optional[GlobalID
         raise BadRequest(
             f"The examples belong to dataset '{dataset.name}', not the specified dataset."
         )
-
-
-def _span_attribute(semconv: str) -> Any:
-    """
-    Extracts an attribute from the ORM span attributes column and labels the
-    result.
-
-    E.g., "input.value" -> Span.attributes["input"]["value"].label("input_value")
-    """
-    attribute_value: Any = models.Span.attributes
-    for key in semconv.split("."):
-        attribute_value = attribute_value[key]
-    return attribute_value.label(semconv.replace(".", "_"))
 
 
 def _to_orm_revision(

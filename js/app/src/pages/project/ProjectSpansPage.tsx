@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -42,6 +42,7 @@ function SpansTabContent({
     ProjectPageQueriesSpansQuery,
     queryReference
   );
+  const { traceId } = useParams();
 
   if (!data.project.hasTraces) {
     return (
@@ -49,7 +50,9 @@ function SpansTabContent({
     );
   }
 
-  return <SpansTable project={data.project} seed={seed} />;
+  return (
+    <SpansTable project={data.project} seed={seed} selectedRowId={traceId} />
+  );
 }
 
 export const ProjectSpansPage = () => {

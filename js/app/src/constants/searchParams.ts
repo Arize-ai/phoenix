@@ -63,6 +63,26 @@ export const TIME_RANGE_END_PARAM = "timeRangeEnd";
  */
 export const LABEL_ID_PARAM = "labelId";
 
+/**
+ * The evaluator name search applied to an evaluators list. Absent means
+ * unfiltered — a cleared search removes the param rather than writing an
+ * empty one. Persisting to the URL makes the search shareable and lets the
+ * route loader preload the already-filtered first page.
+ */
+export const EVALUATOR_FILTER_PARAM = "evaluatorsFilter";
+
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
+
+/**
+ * The template category the project evaluator gallery opens on. Uses the
+ * stable GraphQL enum value rather than the display label.
+ */
+export const PROJECT_EVALUATOR_GALLERY_CATEGORY_PARAM = "category";
+
+/** Ordered ProjectEvaluator Relay ids selected on the compare page. */
+export const PROJECT_EVALUATOR_COMPARE_PARAM = "evaluatorId";
+
+/** The matrix cell whose matching targets the compare page lists. */
+export const PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM = "compareSelection";

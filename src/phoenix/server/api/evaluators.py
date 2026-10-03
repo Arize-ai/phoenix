@@ -5,9 +5,10 @@ import logging
 import re
 import traceback as _traceback
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar, cast
 
 import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
@@ -30,21 +31,34 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
-    FreeformOutputConfig,
     OptimizationDirection,
     OutputConfigType,
+    as_output_configs,
+)
+from phoenix.db.types.evaluator_definition import (
+    BuiltInEvaluatorDefinition,
+    EvaluatorDefinition,
+    InlineCodeEvaluatorDefinition,
+    InlineLLMEvaluatorDefinition,
+    StoredCodeEvaluatorDefinition,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptInvocationParameters,
+    PromptStringTemplate,
+    PromptTemplate,
     PromptTemplateFormat,
     PromptTools,
     RoleConversion,
     TextContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.evaluators import (
+    result_annotation_names,
+    validate_evaluator_prompt_and_configs,
+)
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundClient,
@@ -62,6 +76,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.monty_runtime import MontyServiceError
+from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
     SecretsContext,
@@ -84,8 +99,56 @@ from phoenix.server.sandbox.types import (
     SandboxRuntimeContext,
     UnsupportedOperation,
 )
+from phoenix.utilities.template_formatters import ParsedVariables
 
 logger = logging.getLogger(__name__)
+
+
+class RenderedMessageTooLargeError(Exception):
+    """Rendered LLM messages exceed the configured online-eval limit."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="RENDERED_MESSAGE_TOO_LARGE",
+    )
+
+
+class SandboxPayloadTooLargeError(Exception):
+    """Rendered sandbox source exceeds the configured online-eval limit."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        terminal=True,
+        code="SANDBOX_PAYLOAD_TOO_LARGE",
+    )
+
+
+class SandboxBackendTimeoutError(TimeoutError):
+    """The sandbox backend reported its own execution timeout."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=False,
+        code="SANDBOX_BACKEND_TIMEOUT",
+    )
+
+
+class SandboxRunnerTimeoutError(TimeoutError):
+    """The evaluator runner's guard deadline expired."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        code="SANDBOX_RUNNER_TIMEOUT",
+    )
+
+
+class SandboxBackendExecutionError(Exception):
+    """A sandbox backend returned an unsuccessful execution outcome."""
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=True,
+        code="SANDBOX_BACKEND_ERROR",
+    )
 
 
 def _mask_attrs(
@@ -219,6 +282,7 @@ class LLMEvaluator(BaseEvaluator):
         llm_client: PlaygroundClient[Any],
         output_configs: Sequence[CategoricalOutputConfig],
         prompt_name: str,
+        max_message_bytes: Optional[int] = None,
     ):
         self._name = name
         self._description = description
@@ -230,6 +294,7 @@ class LLMEvaluator(BaseEvaluator):
         self._llm_client = llm_client
         self._output_configs = output_configs
         self._prompt_name = prompt_name
+        self._max_message_bytes = max_message_bytes
 
     @property
     def name(self) -> str:
@@ -249,39 +314,10 @@ class LLMEvaluator(BaseEvaluator):
 
     @property
     def input_schema(self) -> dict[str, Any]:
-        formatter = get_template_formatter(self._template_format)
-        section_vars: set[str] = set()
-        string_vars: set[str] = set()
-
-        for msg in self._template.messages:
-            if isinstance(msg.content, str):
-                parsed = formatter.parse_with_types(msg.content)
-                section_vars.update(parsed.section_variables())
-                string_vars.update(parsed.string_variables())
-            elif isinstance(msg.content, list):
-                for part in msg.content:
-                    if isinstance(part, TextContentPart):
-                        parsed = formatter.parse_with_types(part.text)
-                        section_vars.update(parsed.section_variables())
-                        string_vars.update(parsed.string_variables())
-            else:
-                assert_never(msg.content)
-
-        # Section vars get empty schema (accepts any type), string vars get type: string
-        # Sort iteration order for deterministic key ordering in the resulting dict
-        properties: dict[str, dict[str, Any]] = {}
-        for var in sorted(section_vars):
-            properties[var] = {}  # Empty schema accepts any JSON type
-        for var in sorted(string_vars):
-            if var not in section_vars:  # Section type takes precedence
-                properties[var] = {"type": "string"}
-
-        all_vars = section_vars | string_vars
-        return {
-            "type": "object",
-            "properties": properties,
-            "required": sorted(all_vars),
-        }
+        return infer_input_schema_from_prompt_template(
+            template=self._template,
+            template_format=self._template_format,
+        )
 
     async def evaluate(
         self,
@@ -304,10 +340,12 @@ class LLMEvaluator(BaseEvaluator):
                 )
             categorical_configs.append(config)
 
-        multi_output = len(categorical_configs) > 1
         configs_by_name: dict[str, CategoricalOutputConfig] = {
             config.name: config for config in categorical_configs
         }
+        annotation_name_by_config_name = dict(
+            zip(configs_by_name, result_annotation_names(name, categorical_configs))
+        )
 
         tracer_ = tracer or NoOpTracer()
 
@@ -380,6 +418,20 @@ class LLMEvaluator(BaseEvaluator):
                                     text_parts.append(formatted_text)
                             formatted_content = "".join(text_parts)
                         messages.append(create_playground_message(role, formatted_content))
+
+                    rendered_message_bytes = sum(
+                        len(message["content"].encode("utf-8")) for message in messages
+                    )
+                    if (
+                        self._max_message_bytes is not None
+                        and rendered_message_bytes > self._max_message_bytes
+                    ):
+                        raise RenderedMessageTooLargeError(
+                            f"Rendered online-eval messages are {rendered_message_bytes} bytes, "
+                            f"exceeding the {self._max_message_bytes}-byte limit. Narrow the "
+                            "slot with a path mapping, shorten the prompt, or raise the limit "
+                            "with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
+                        )
 
                     formatted_messages = [
                         oi.Message(role=msg["role"].value.lower(), content=msg["content"])
@@ -461,7 +513,7 @@ class LLMEvaluator(BaseEvaluator):
                         }
                         score = scores_by_label.get(label)
                         explanation = args.get("explanation")
-                        annotation_name = f"{name}.{matched_config.name}" if multi_output else name
+                        annotation_name = annotation_name_by_config_name[matched_config.name]
                         end_time = datetime.now(timezone.utc)
                         results.append(
                             EvaluationResult(
@@ -552,6 +604,7 @@ class BuiltInEvaluator(BaseEvaluator):
     # It should be lowercase snake_case and should NEVER change once an evaluator
     # is released to ensure stable references.
     _key: str
+    implementation_version: str
     # Class-level attributes that define the evaluator's identity
     # These satisfy the abstract properties from the BaseEvaluator ABC
     name: str
@@ -579,10 +632,9 @@ class BuiltInEvaluator(BaseEvaluator):
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
-        multi_output = len(output_configs) > 1
         results: list[EvaluationResult] = []
-        for config in output_configs:
-            annotation_name = f"{name}.{config.name}" if multi_output else name
+        annotation_names = result_annotation_names(name, output_configs)
+        for annotation_name, config in zip(annotation_names, output_configs):
             result = await self._evaluate(
                 context=context,
                 input_mapping=input_mapping,
@@ -632,6 +684,9 @@ T = TypeVar("T", bound=BuiltInEvaluator)
 
 
 def register_builtin_evaluator(cls: type[T]) -> type[T]:
+    implementation_version = getattr(cls, "implementation_version", None)
+    if not isinstance(implementation_version, str) or not implementation_version.strip():
+        raise ValueError(f"{cls.__name__}.implementation_version must be a non-empty string")
     _BUILTIN_EVALUATORS[cls.name] = cls
     _BUILTIN_EVALUATORS_BY_KEY[cls._key] = cls
     return cls
@@ -902,13 +957,7 @@ async def get_evaluators(
             eval_description = evaluator_base.description if evaluator_base else None
 
             if backend is not None:
-                output_cfgs: list[OutputConfigType] = [
-                    c
-                    for c in code_row.output_configs
-                    if isinstance(
-                        c, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
-                    )
-                ]
+                output_cfgs: list[OutputConfigType] = as_output_configs(code_row.output_configs)
                 runner = CodeEvaluatorRunner(
                     name=eval_name,
                     description=eval_description,
@@ -920,13 +969,10 @@ async def get_evaluators(
                     evaluator_version_id=str(
                         GlobalID("CodeEvaluatorVersion", str(code_version.id))
                     ),
-                    # Partition by evaluator × experiment × replica so
-                    # concurrent runs never converge on the same provider
-                    # sandbox while intra-experiment reuse still amortizes.
-                    session_key=(
-                        f"evaluator:{code_row.id}"
-                        f":exp:{experiment_id}"
-                        f":{sandbox_session_manager.replica_id}"
+                    session_key=code_evaluator_sandbox_session_key(
+                        evaluator=str(code_row.id),
+                        experiment_id=experiment_id,
+                        replica_id=sandbox_session_manager.replica_id,
                     ),
                     sandbox_session_manager=sandbox_session_manager,
                 )
@@ -1038,6 +1084,20 @@ def apply_input_mapping(
     return result
 
 
+class _JSONRenderedDict(dict[str, Any]):
+    """
+    A mapping a template can both walk into and name on its own.
+
+    A variable a dotted token reads into has to reach the renderer as a mapping,
+    so it cannot be serialized up front the way a string variable is. Naming the
+    same variable on its own then renders it, and this renders it as JSON rather
+    than as a Python repr.
+    """
+
+    def __str__(self) -> str:
+        return json.dumps(self, default=str)
+
+
 def cast_template_variable_types(
     *,
     template_variables: dict[str, Any],
@@ -1048,9 +1108,18 @@ def cast_template_variable_types(
 
     for key, prop_schema in properties.items():
         if key in casted_template_variables:
+            value = casted_template_variables[key]
             prop_type = prop_schema.get("type")
-            if prop_type == "string" and not isinstance(casted_template_variables[key], str):
-                casted_template_variables[key] = str(casted_template_variables[key])
+            if prop_type == "string" and not isinstance(value, str):
+                # A whole entity bound to a string variable renders into a prompt, so
+                # it has to be JSON rather than a Python repr.
+                casted_template_variables[key] = (
+                    json.dumps(value, default=str)
+                    if isinstance(value, (dict, list))
+                    else str(value)
+                )
+            elif prop_type is None and isinstance(value, dict):
+                casted_template_variables[key] = _JSONRenderedDict(value)
 
     return casted_template_variables
 
@@ -1066,45 +1135,84 @@ def validate_template_variables(
         raise ValueError(f"Input validation failed: {e.message}")
 
 
-def infer_input_schema_from_template(
-    *,
-    template: PromptChatTemplateInput,
-    template_format: PromptTemplateFormat,
+def input_schema_from_parsed_variables(
+    parsed_variables: Iterable[ParsedVariables],
 ) -> dict[str, Any]:
     """
-    Infer the input schema from an evaluator template.
+    Build an evaluator input schema from the variables a template names.
 
-    Uses parse_with_types() to detect variable types:
-    - Section variables ({{#name}} or {{^name}}) get empty schema (accepts any JSON type)
-    - String variables ({{name}}) get {"type": "string"} schema
+    A template variable is bound by its root name, so `{{input}}` and
+    `{{input.input}}` both require one variable named `input`. What the schema
+    says about that variable is what the root has to hold for the template to
+    render:
+    - A variable a section or a dotted token reads into gets an empty schema, so
+      it accepts any JSON type and reaches the renderer with its structure
+      intact for the section or the path to walk.
+    - A variable named on its own gets {"type": "string"}, so a whole entity
+      bound to it is serialized before it lands in the prompt.
     """
-    formatter = get_template_formatter(template_format)
-    section_vars: set[str] = set()
+    structured_vars: set[str] = set()
     string_vars: set[str] = set()
+    for parsed in parsed_variables:
+        structured_vars.update(parsed.section_variables())
+        structured_vars.update(parsed.traversed_variables())
+        string_vars.update(parsed.string_variables())
 
-    for msg in template.messages:
-        content = msg.content
-        for part in content:
-            if isinstance(part.text, TextContentValueInput):
-                parsed = formatter.parse_with_types(part.text.text)
-                section_vars.update(parsed.section_variables())
-                string_vars.update(parsed.string_variables())
-
-    # Section vars get empty schema (accepts any type), string vars get type: string
     # Sort iteration order for deterministic key ordering in the resulting dict
     properties: dict[str, dict[str, Any]] = {}
-    for var in sorted(section_vars):
+    for var in sorted(structured_vars):
         properties[var] = {}  # Empty schema accepts any JSON type
     for var in sorted(string_vars):
-        if var not in section_vars:  # Section type takes precedence
+        if var not in structured_vars:
             properties[var] = {"type": "string"}
 
-    all_vars = section_vars | string_vars
+    all_vars = structured_vars | string_vars
     return {
         "type": "object",
         "properties": properties,
         "required": sorted(all_vars),
     }
+
+
+def infer_input_schema_from_prompt_template(
+    *,
+    template: PromptTemplate,
+    template_format: PromptTemplateFormat,
+) -> dict[str, Any]:
+    """Infer an evaluator input schema from a stored prompt template."""
+    formatter = get_template_formatter(template_format)
+    parsed: list[ParsedVariables] = []
+    if isinstance(template, PromptStringTemplate):
+        parsed.append(formatter.parse_with_types(template.template))
+    elif isinstance(template, PromptChatTemplate):
+        for message in template.messages:
+            if isinstance(message.content, str):
+                parsed.append(formatter.parse_with_types(message.content))
+            elif isinstance(message.content, list):
+                parsed.extend(
+                    formatter.parse_with_types(part.text)
+                    for part in message.content
+                    if isinstance(part, TextContentPart)
+                )
+            else:
+                assert_never(message.content)
+    else:
+        assert_never(template)
+    return input_schema_from_parsed_variables(parsed)
+
+
+def infer_input_schema_from_template(
+    *,
+    template: PromptChatTemplateInput,
+    template_format: PromptTemplateFormat,
+) -> dict[str, Any]:
+    formatter = get_template_formatter(template_format)
+    return input_schema_from_parsed_variables(
+        formatter.parse_with_types(part.text.text)
+        for msg in template.messages
+        for part in msg.content
+        if isinstance(part.text, TextContentValueInput)
+    )
 
 
 def evaluation_result_to_model(
@@ -1148,40 +1256,344 @@ def evaluation_result_to_span_annotation(
     )
 
 
-def create_llm_evaluator_from_inline(
-    *,
-    prompt_version_orm: models.PromptVersion,
-    llm_client: "PlaygroundClient[Any]",
-    output_configs: Sequence[CategoricalOutputConfig],
-    name: str,
-    description: Optional[str] = None,
-) -> LLMEvaluator:
-    """
-    Creates an LLMEvaluator instance from inline definition without database persistence.
-    Used for evaluator preview functionality.
-    """
-    template = prompt_version_orm.template
-    assert isinstance(template, PromptChatTemplate)
-    tools = prompt_version_orm.tools
-    assert tools is not None
+# What a code evaluator's payload-limit error suggests when the caller sets no remediation.
+DEFAULT_PAYLOAD_LIMIT_REMEDIATION = "Reduce the mapped inputs or raise the caller's payload limit."
 
-    return LLMEvaluator(
-        name=name,
-        description=description,
-        template=template,
-        template_format=prompt_version_orm.template_format,
-        tools=tools,
-        invocation_parameters=prompt_version_orm.invocation_parameters,
-        model_provider=prompt_version_orm.model_provider,
-        llm_client=llm_client,
-        output_configs=output_configs,
-        prompt_name="preview-prompt",
+
+def code_evaluator_sandbox_session_key(
+    *, evaluator: str, experiment_id: int, replica_id: str
+) -> str:
+    """The sandbox session key for a code evaluator running in an experiment.
+
+    Partitioned by evaluator, experiment and replica so concurrent runs never converge on
+    the same provider sandbox while reuse within one experiment still amortizes. Dataset
+    evaluators pass their id; an experiment's own evaluator task passes ``"task"``.
+    """
+    return f"evaluator:{evaluator}:exp:{experiment_id}:{replica_id}"
+
+
+async def pin_evaluator_definition(
+    definition: EvaluatorDefinition, *, session: AsyncSession
+) -> EvaluatorDefinition:
+    """The definition with every mutable reference resolved to a version.
+
+    A stored code evaluator names a row that its owner can edit; before an experiment
+    freezes the definition its current version, sandbox configuration and language are
+    pinned, so every start and resume of the experiment runs the same code in the same
+    environment.
+    """
+    if not isinstance(definition, StoredCodeEvaluatorDefinition) or (
+        definition.code_evaluator_version_id is not None
+        and definition.sandbox_config_id is not None
+        and definition.language is not None
+    ):
+        return definition
+    record = await session.get(models.CodeEvaluator, definition.code_evaluator_id)
+    if record is None:
+        raise BadRequest(f"Code evaluator with id {definition.code_evaluator_id} not found")
+    version_id = definition.code_evaluator_version_id
+    if version_id is None:
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id([record.id], session)
+        version = latest_versions.get(record.id)
+        if version is None:
+            raise BadRequest(
+                f"Code evaluator with id {definition.code_evaluator_id} has no current version"
+            )
+        version_id = version.id
+    return definition.model_copy(
+        update={
+            "code_evaluator_version_id": version_id,
+            "sandbox_config_id": definition.sandbox_config_id or record.sandbox_config_id,
+            "language": definition.language or record.language,
+        }
     )
+
+
+async def build_evaluator_from_definition(
+    *,
+    definition: EvaluatorDefinition,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+    sandbox_runtime: Optional[SandboxRuntimeContext] = None,
+    sandbox_session_manager: Optional[SandboxSessionManager] = None,
+    session_key: Optional[str] = None,
+    max_message_bytes: Optional[int] = None,
+    max_payload_bytes: Optional[int] = None,
+    payload_limit_remediation: Optional[str] = None,
+) -> BaseEvaluator:
+    """
+    Build the runtime evaluator a definition describes.
+
+    Evaluator previews and experiment evaluator tasks both construct their evaluator here,
+    so a preview exercises the evaluator that an experiment will run.
+
+    Args:
+        definition: An inline LLM or code evaluator, or a reference to a stored one.
+        session: Database session for stored evaluators, sandbox configurations and secrets.
+        decrypt: Decrypts stored secrets for model and sandbox credentials.
+        credentials: Ephemeral model credentials supplied with the request, if any.
+        sandbox_runtime: Runtime context handed to sandbox backends.
+        sandbox_session_manager: When given, a code evaluator reuses one sandbox session per
+            ``session_key`` instead of creating an ephemeral sandbox for each evaluation.
+        session_key: Partitions sandbox sessions; required with a session manager.
+        max_message_bytes: Cap on the rendered LLM messages, or None for no cap.
+        max_payload_bytes: Cap on the rendered sandbox payload, or None for no cap.
+        payload_limit_remediation: What the payload-limit error tells the user to do; it
+            names the cap the caller applied, so the caller that sets ``max_payload_bytes``
+            sets this too.
+
+    Raises:
+        BadRequest: The definition cannot be honoured: a missing or disabled sandbox
+            configuration, a judge prompt whose tools do not match its output configs,
+            or a stored evaluator that no longer exists.
+    """
+    if isinstance(definition, BuiltInEvaluatorDefinition):
+        return await _build_builtin_evaluator(definition, session=session)
+    if isinstance(definition, InlineLLMEvaluatorDefinition):
+        return await _build_inline_llm_evaluator(
+            definition,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+            max_message_bytes=max_message_bytes,
+        )
+    if isinstance(definition, StoredCodeEvaluatorDefinition):
+        return await _build_stored_code_evaluator(
+            definition,
+            session=session,
+            decrypt=decrypt,
+            sandbox_runtime=sandbox_runtime,
+            sandbox_session_manager=sandbox_session_manager,
+            session_key=session_key,
+            max_payload_bytes=max_payload_bytes,
+            payload_limit_remediation=payload_limit_remediation,
+        )
+    if isinstance(definition, InlineCodeEvaluatorDefinition):
+        return await _build_inline_code_evaluator(
+            definition,
+            session=session,
+            decrypt=decrypt,
+            sandbox_runtime=sandbox_runtime,
+            sandbox_session_manager=sandbox_session_manager,
+            session_key=session_key,
+            max_payload_bytes=max_payload_bytes,
+            payload_limit_remediation=payload_limit_remediation,
+        )
+    assert_never(definition)
+
+
+async def _build_builtin_evaluator(
+    definition: BuiltInEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+) -> BuiltInEvaluator:
+    record = await session.get(models.BuiltinEvaluator, definition.builtin_evaluator_id)
+    if record is None:
+        raise BadRequest(f"Built-in evaluator with id {definition.builtin_evaluator_id} not found")
+    evaluator_class = get_builtin_evaluator_by_key(record.key)
+    if evaluator_class is None:
+        raise BadRequest(f"Built-in evaluator class for key '{record.key}' not found")
+    return evaluator_class()
+
+
+async def _build_inline_llm_evaluator(
+    definition: InlineLLMEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    max_message_bytes: Optional[int],
+) -> LLMEvaluator:
+    prompt_version = definition.prompt_version
+    llm_client = await get_playground_client(
+        model_provider=prompt_version.model_provider,
+        model_name=prompt_version.model_name,
+        session=session,
+        decrypt=decrypt,
+        credentials=credentials,
+        connection=prompt_version.custom_provider_id,
+    )
+    try:
+        validate_evaluator_prompt_and_configs(
+            prompt_tools=prompt_version.tools,
+            prompt_response_format=prompt_version.response_format,
+            evaluator_output_configs=list(definition.output_configs),
+            evaluator_description=definition.description,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
+    tools = prompt_version.tools
+    assert tools is not None  # the validation above requires tools
+    return LLMEvaluator(
+        name=definition.name,
+        description=definition.description,
+        template=prompt_version.template,
+        template_format=prompt_version.template_format,
+        tools=tools,
+        invocation_parameters=prompt_version.invocation_parameters,
+        model_provider=prompt_version.model_provider,
+        llm_client=llm_client,
+        output_configs=definition.output_configs,
+        prompt_name=definition.name,
+        max_message_bytes=max_message_bytes,
+    )
+
+
+async def _build_stored_code_evaluator(
+    definition: StoredCodeEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    sandbox_runtime: Optional[SandboxRuntimeContext],
+    sandbox_session_manager: Optional[SandboxSessionManager],
+    session_key: Optional[str],
+    max_payload_bytes: Optional[int],
+    payload_limit_remediation: Optional[str],
+) -> "CodeEvaluatorRunner":
+    record = await session.get(models.CodeEvaluator, definition.code_evaluator_id)
+    if record is None:
+        raise BadRequest(f"Code evaluator with id {definition.code_evaluator_id} not found")
+    if definition.code_evaluator_version_id is not None:
+        version = await session.get(
+            models.CodeEvaluatorVersion, definition.code_evaluator_version_id
+        )
+        if version is None or version.code_evaluator_id != record.id:
+            raise BadRequest(
+                f"Code evaluator version with id {definition.code_evaluator_version_id} "
+                f"not found for code evaluator {record.id}"
+            )
+    else:
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id([record.id], session)
+        latest = latest_versions.get(record.id)
+        if latest is None:
+            raise BadRequest(
+                f"Code evaluator with id {definition.code_evaluator_id} has no current version"
+            )
+        version = latest
+    evaluator_name = record.name.root
+    language = definition.language or record.language
+    sandbox_config_id = definition.sandbox_config_id or record.sandbox_config_id
+    if sandbox_config_id is None:
+        raise BadRequest(
+            f"Code evaluator '{evaluator_name}' has no sandbox backend configured"
+            f" for language '{language}'. "
+            "Please configure a sandbox provider at /settings/sandboxes."
+        )
+    sandbox_backend, sandbox_timeout = await _resolve_sandbox_backend(
+        session=session,
+        sandbox_config_id=sandbox_config_id,
+        language=language,
+        decrypt=decrypt,
+        sandbox_runtime=sandbox_runtime,
+    )
+    return CodeEvaluatorRunner(
+        name=evaluator_name,
+        description=record.description,
+        source_code=version.source_code,
+        stored_output_configs=as_output_configs(record.output_configs),
+        sandbox_backend=sandbox_backend,
+        language=language,
+        timeout=sandbox_timeout,
+        evaluator_version_id=str(GlobalID("CodeEvaluatorVersion", str(version.id))),
+        sandbox_session_manager=sandbox_session_manager,
+        session_key=session_key,
+        max_payload_bytes=max_payload_bytes,
+        payload_limit_remediation=(payload_limit_remediation or DEFAULT_PAYLOAD_LIMIT_REMEDIATION),
+    )
+
+
+async def _build_inline_code_evaluator(
+    definition: InlineCodeEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    sandbox_runtime: Optional[SandboxRuntimeContext],
+    sandbox_session_manager: Optional[SandboxSessionManager],
+    session_key: Optional[str],
+    max_payload_bytes: Optional[int],
+    payload_limit_remediation: Optional[str],
+) -> "CodeEvaluatorRunner":
+    sandbox_backend, sandbox_timeout = await _resolve_sandbox_backend(
+        session=session,
+        sandbox_config_id=definition.sandbox_config_id,
+        language=definition.language,
+        decrypt=decrypt,
+        sandbox_runtime=sandbox_runtime,
+    )
+    return CodeEvaluatorRunner(
+        name=definition.name,
+        description=definition.description,
+        source_code=definition.source_code,
+        stored_output_configs=definition.output_configs,
+        sandbox_backend=sandbox_backend,
+        language=definition.language,
+        timeout=sandbox_timeout,
+        sandbox_session_manager=sandbox_session_manager,
+        session_key=session_key,
+        max_payload_bytes=max_payload_bytes,
+        payload_limit_remediation=(payload_limit_remediation or DEFAULT_PAYLOAD_LIMIT_REMEDIATION),
+    )
+
+
+async def _resolve_sandbox_backend(
+    *,
+    session: AsyncSession,
+    sandbox_config_id: int,
+    language: str,
+    decrypt: Callable[[bytes], bytes],
+    sandbox_runtime: Optional[SandboxRuntimeContext],
+) -> tuple[SandboxBackend, Optional[int]]:
+    """Return the backend and timeout of an enabled sandbox configuration for a language."""
+    sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+    if sandbox_config is None:
+        raise BadRequest(f"Sandbox configuration with id {sandbox_config_id} was not found")
+    if not sandbox_config.enabled:
+        raise BadRequest(
+            f"Sandbox configuration '{sandbox_config.name}' is disabled. "
+            "Enable it before testing this evaluator."
+        )
+    provider = await session.scalar(
+        select(models.SandboxProvider).where(
+            models.SandboxProvider.backend_type == sandbox_config.backend_type
+        )
+    )
+    if provider is None:
+        raise BadRequest(
+            f"Sandbox provider for configuration '{sandbox_config.name}' was not found"
+        )
+    if not provider.enabled:
+        raise BadRequest(
+            f"Sandbox provider '{provider.backend_type}' is disabled. "
+            "Enable it before testing this evaluator."
+        )
+    if sandbox_config.language != language:
+        raise BadRequest("Sandbox provider language does not match code evaluator language")
+    try:
+        sandbox_backend = await build_sandbox_backend(
+            sandbox_config,
+            secrets=SecretsContext(session=session, decrypt=decrypt),
+            runtime=sandbox_runtime,
+        )
+    except (
+        MissingSecretError,
+        UnsupportedOperation,
+        PydanticValidationError,
+        ValueError,
+    ) as error:
+        raise BadRequest(str(error))
+    if sandbox_backend is None:
+        raise BadRequest(
+            f"Sandbox backend '{provider.backend_type}' is unavailable for language "
+            f"'{language}'. Ensure the backend is installed and configured."
+        )
+    return sandbox_backend, sandbox_config.timeout
 
 
 @register_builtin_evaluator
 class ContainsEvaluator(BuiltInEvaluator):
     _key = "contains"
+    implementation_version = "1"
     name = "contains"
     description = (
         "Evaluates whether the text contains any (or all) of the specified comma-separated words"
@@ -1438,6 +1850,7 @@ class ContainsEvaluator(BuiltInEvaluator):
 @register_builtin_evaluator
 class ExactMatchEvaluator(BuiltInEvaluator):
     _key = "exact_match"
+    implementation_version = "1"
     name = "exact_match"
     description = "Evaluates whether the actual text exactly matches the expected text"
     metadata = {"type": "string_matching"}
@@ -1637,6 +2050,7 @@ class ExactMatchEvaluator(BuiltInEvaluator):
 @register_builtin_evaluator
 class RegexEvaluator(BuiltInEvaluator):
     _key = "regex"
+    implementation_version = "1"
     name = "regex"
     description = "Evaluates whether the text matches a regex pattern"
     metadata = {"type": "pattern_matching"}
@@ -1869,6 +2283,7 @@ def levenshtein_distance(s1: str, s2: str) -> int:
 @register_builtin_evaluator
 class LevenshteinDistanceEvaluator(BuiltInEvaluator):
     _key = "levenshtein_distance"
+    implementation_version = "1"
     name = "levenshtein_distance"
     description = "Calculates the Levenshtein (edit) distance between two strings"
     metadata = {"type": "string_distance"}
@@ -2089,6 +2504,7 @@ def json_diff_count(expected: Any, actual: Any) -> int:
 @register_builtin_evaluator
 class JSONDistanceEvaluator(BuiltInEvaluator):
     _key = "json_distance"
+    implementation_version = "1"
     name = "json_distance"
     description = "Compares two JSON structures and returns the number of differences"
     metadata = {"type": "json_comparison"}
@@ -2403,28 +2819,6 @@ def _make_object_input_schema(
     }
 
 
-_SUPPORTED_CODE_EVALUATOR_INPUT_NAMES = ("output", "reference", "input", "metadata")
-
-
-def _validate_code_evaluator_input_names(
-    parameter_names: Sequence[str],
-    *,
-    language: str,
-) -> Optional[str]:
-    unsupported_names = [
-        name for name in parameter_names if name not in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES
-    ]
-    if not unsupported_names:
-        return None
-    supported_names = ", ".join(f"`{name}`" for name in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES)
-    invalid_names = ", ".join(f"`{name}`" for name in unsupported_names)
-    return (
-        f"Could not infer the {language} evaluator inputs because the `evaluate(...)` signature "
-        f"uses unsupported parameter names: {invalid_names}. Supported parameter names are "
-        f"{supported_names}."
-    )
-
-
 def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any], Optional[str]]:
     try:
         module = ast.parse(source_code)
@@ -2467,13 +2861,6 @@ def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any
 
     parameter_names = [arg.arg for arg in positional_args]
     parameter_names.extend(arg.arg for arg in args.kwonlyargs)
-
-    invalid_name_error = _validate_code_evaluator_input_names(
-        parameter_names,
-        language="Python",
-    )
-    if invalid_name_error is not None:
-        return ({}, invalid_name_error)
 
     return (_make_object_input_schema(parameter_names, required_names), None)
 
@@ -2532,13 +2919,6 @@ def _infer_typescript_evaluate_input_schema(
             ),
         )
 
-    invalid_name_error = _validate_code_evaluator_input_names(
-        parameter_names,
-        language="TypeScript",
-    )
-    if invalid_name_error is not None:
-        return ({}, invalid_name_error)
-
     return (_make_object_input_schema(parameter_names, required_names), None)
 
 
@@ -2555,8 +2935,11 @@ class CodeEvaluatorRunner(BaseEvaluator):
         language: str,
         sandbox_session_manager: Optional[SandboxSessionManager],
         timeout: Optional[int] = None,
+        runner_timeout: Optional[float] = None,
         evaluator_version_id: Optional[str] = None,
         session_key: Optional[str] = None,
+        max_payload_bytes: Optional[int] = None,
+        payload_limit_remediation: str = DEFAULT_PAYLOAD_LIMIT_REMEDIATION,
     ) -> None:
         self._name = name
         self._description = description
@@ -2565,7 +2948,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._sandbox_backend: SandboxBackend = sandbox_backend
         self._language = language.upper()
         self._timeout = timeout
+        self._runner_timeout = runner_timeout if runner_timeout is not None else timeout
         self._evaluator_version_id = evaluator_version_id
+        self._max_payload_bytes = max_payload_bytes
+        self._payload_limit_remediation = payload_limit_remediation
         # ``session_key`` is required on the managed path; the ephemeral
         # path does not consult it.
         if sandbox_session_manager is not None and session_key is None:
@@ -2634,8 +3020,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
         error: str,
         start_time: datetime,
         trace_id: Optional[str] = None,
+        error_exc: Optional[Exception] = None,
     ) -> EvaluationResult:
-        return EvaluationResult(
+        result = EvaluationResult(
             name=name,
             annotator_kind="CODE",
             label=None,
@@ -2647,6 +3034,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             start_time=start_time,
             end_time=datetime.now(timezone.utc),
         )
+        if error_exc is not None:
+            result["error_exc"] = error_exc
+        return result
 
     async def evaluate(
         self,
@@ -2725,18 +3115,52 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
             if self._language == "PYTHON":
-                code = (
-                    self._build_monty_harness()
-                    if self._sandbox_backend.provider == "MONTY"
-                    else self._build_python_harness(mapped_inputs)
-                )
+                if self._sandbox_backend.provider == "MONTY":
+                    code = self._build_monty_harness()
+                    baseline_code = code
+                else:
+                    code = self._build_python_harness(mapped_inputs)
+                    baseline_code = self._build_python_harness({})
             else:
                 code = self._build_typescript_harness(mapped_inputs)
+                baseline_code = self._build_typescript_harness({})
+
+            if self._max_payload_bytes is not None:
+                payload_bytes = len(code.encode("utf-8"))
+                if payload_bytes > self._max_payload_bytes:
+                    source_and_harness_bytes = len(baseline_code.encode("utf-8"))
+                    mapped_input_bytes = max(payload_bytes - source_and_harness_bytes, 0)
+                    dominant_component = (
+                        "evaluator source and harness"
+                        if source_and_harness_bytes >= mapped_input_bytes
+                        else "mapped inputs"
+                    )
+                    err = (
+                        f"Rendered sandbox payload is {payload_bytes} bytes, which exceeds the "
+                        f"allowed {self._max_payload_bytes} bytes. The dominant component is "
+                        f"{dominant_component} ({source_and_harness_bytes} source/harness bytes; "
+                        f"{mapped_input_bytes} mapped-input bytes). "
+                        f"{self._payload_limit_remediation}"
+                    )
+                    error_exc = SandboxPayloadTooLargeError(err)
+                    evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                    return [
+                        self._make_error_result(
+                            name,
+                            err,
+                            start_time,
+                            trace_id=trace_id,
+                            error_exc=error_exc,
+                        )
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
 
             session_key = self._session_key or ""
 
@@ -2772,14 +3196,22 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     ):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
+                        async def _ephemeral_execute() -> ExecutionResult:
+                            try:
+                                return await self._sandbox_backend.execute_with_inputs(
+                                    code,
+                                    session_key=session_key,
+                                    inputs={"_inputs": mapped_inputs},
+                                    timeout=self._timeout,
+                                )
+                            except asyncio.TimeoutError as exc:
+                                raise SandboxBackendTimeoutError(
+                                    "SANDBOX_BACKEND_TIMEOUT: sandbox backend deadline exceeded"
+                                ) from exc
+
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute_with_inputs(
-                                code,
-                                session_key=session_key,
-                                inputs={"_inputs": mapped_inputs},
-                                timeout=self._timeout,
-                            ),
-                            timeout=self._timeout,
+                            _ephemeral_execute(),
+                            timeout=self._runner_timeout,
                         )
                     else:
                         # Managed path: ``wait_for`` brackets acquire+execute
@@ -2789,20 +3221,32 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         async def _managed_execute() -> ExecutionResult:
                             assert self._sandbox_session_manager is not None
                             manager = self._sandbox_session_manager
+
+                            async def _execute(session: Any) -> ExecutionResult:
+                                try:
+                                    return cast(
+                                        ExecutionResult,
+                                        await session.execute(code, timeout=self._timeout),
+                                    )
+                                except asyncio.TimeoutError as exc:
+                                    raise SandboxBackendTimeoutError(
+                                        "SANDBOX_BACKEND_TIMEOUT: sandbox backend deadline exceeded"
+                                    ) from exc
+
                             try:
                                 async with manager.acquire(
                                     self._sandbox_backend, session_key
                                 ) as session:
-                                    return await session.execute(code, timeout=self._timeout)
+                                    return await _execute(session)
                             except SessionInvalidated:
                                 await manager.wait_for_drain(session_key, self._sandbox_backend)
                                 async with manager.acquire(
                                     self._sandbox_backend, session_key
                                 ) as session:
-                                    return await session.execute(code, timeout=self._timeout)
+                                    return await _execute(session)
 
                         execution = await asyncio.wait_for(
-                            _managed_execute(), timeout=self._timeout
+                            _managed_execute(), timeout=self._runner_timeout
                         )
                 except SessionLimitExceeded as exc:
                     err = SessionLimitExceeded.MESSAGE
@@ -2811,7 +3255,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
                 except SessionInvalidated as exc:
@@ -2821,7 +3267,21 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except SandboxBackendTimeoutError as exc:
+                    err = str(exc)
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
                 except asyncio.TimeoutError as exc:
@@ -2834,22 +3294,29 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         self._sandbox_session_manager.schedule_eviction(
                             session_key, self._sandbox_backend
                         )
-                    execution = ExecutionResult(stdout="", stderr="", error="timeout")
+                    timeout_exc = SandboxRunnerTimeoutError(
+                        "SANDBOX_RUNNER_TIMEOUT: sandbox runner deadline exceeded"
+                    )
+                    execution = ExecutionResult(stdout="", stderr="", error=str(timeout_exc))
                     sandbox_span.set_attributes(
                         _mask_attrs(
                             oi.get_metadata_attributes(
-                                metadata={**sandbox_metadata, "error": "timeout"}
+                                metadata={**sandbox_metadata, "error": str(timeout_exc)}
                             ),
                             masker,
                         )
                     )
                     _record_masked_exception(sandbox_span, exc, masker)
-                    sandbox_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    sandbox_span.set_status(Status(StatusCode.ERROR, str(timeout_exc)))
                     _record_masked_exception(evaluator_span, exc, masker)
-                    evaluator_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    evaluator_span.set_status(Status(StatusCode.ERROR, str(timeout_exc)))
                     return [
                         self._make_error_result(
-                            name, execution.error or "timeout", start_time, trace_id=trace_id
+                            name,
+                            execution.error or str(timeout_exc),
+                            start_time,
+                            trace_id=trace_id,
+                            error_exc=timeout_exc,
                         )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
@@ -2866,7 +3333,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
                 except MontyServiceError:
@@ -2884,7 +3353,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     _record_masked_exception(evaluator_span, exc, masker)
                     _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
-                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        self._make_error_result(
+                            name, err, start_time, trace_id=trace_id, error_exc=exc
+                        )
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
@@ -2937,8 +3408,17 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
             if execution.error:
                 _set_masked_status(evaluator_span, StatusCode.ERROR, execution.error, masker)
+                execution_error_exc = SandboxBackendExecutionError(
+                    f"SANDBOX_BACKEND_ERROR: {execution.error}"
+                )
                 return [
-                    self._make_error_result(name, execution.error, start_time, trace_id=trace_id)
+                    self._make_error_result(
+                        name,
+                        execution.error,
+                        start_time,
+                        trace_id=trace_id,
+                        error_exc=execution_error_exc,
+                    )
                     for _ in (output_configs or [None])  # type: ignore[list-item]
                 ]
 
@@ -2977,8 +3457,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 record_exception=False,
                 set_status_on_exception=False,
             ) as parse_span:
-                for config in output_configs:
-                    annotation_name = f"{name}.{config.name}" if multi_output else name
+                for annotation_name, config in zip(
+                    result_annotation_names(name, output_configs), output_configs
+                ):
                     if parse_error is not None:
                         any_coerce_error = True
                         last_coerce_error = parse_error

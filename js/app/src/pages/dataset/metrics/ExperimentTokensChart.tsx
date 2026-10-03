@@ -10,6 +10,7 @@ import {
   defaultTooltipProps,
   useCategoryChartColors,
   useInteractiveLegend,
+  stackedBarSeparatorProps,
 } from "@phoenix/components/chart";
 import {
   intFormatter,
@@ -91,6 +92,7 @@ export function ExperimentTokensChart({
           <Bar
             dataKey="prompt"
             stackId="a"
+            {...stackedBarSeparatorProps}
             fill={colors.category1}
             hide={isDataKeyHidden("prompt")}
             legendType="circle"
@@ -98,6 +100,7 @@ export function ExperimentTokensChart({
           <Bar
             dataKey="completion"
             stackId="a"
+            {...stackedBarSeparatorProps}
             fill={colors.category2}
             hide={isDataKeyHidden("completion")}
             legendType="circle"

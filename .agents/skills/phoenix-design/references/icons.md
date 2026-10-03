@@ -13,6 +13,12 @@ Phoenix has a curated icon set in `js/app/src/components/core/icon/Icons.tsx`. U
 | Trace | `Icons.Trace` | A single trace. |
 | Span | `Icons.Workflow` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
 | Span filter | `Icons.Funnel` | A validated span filter expression. |
+| Grounding / retrieval evaluation | `Icons.ScanSearch` | Evaluations that check whether a response is supported by retrieved context. |
+| Agent evaluation | `Icons.Agent` | Evaluations of agent behavior, tool use, and task completion. |
+| Response-quality evaluation | `Icons.BadgeCheck` | Evaluations of response correctness, relevance, and overall quality. |
+| Safety / security evaluation | `Icons.SafetySecurity` | Evaluations that detect harmful, insecure, or sensitive behavior. |
+| User-experience evaluation | `Icons.Smile` | Evaluations of tone, clarity, and the user experience. |
+| Custom evaluator | `Icons.SquarePen` | Evaluators created by a user rather than supplied as gallery templates. |
 | Source / citation | `Icons.Book` | Source documents surfaced from RAG / search. |
 | Document (generic) | `Icons.FileText` | Text-bearing documents (PDF, txt, md). |
 | File (generic / unknown) | `Icons.File` | Default file fallback when the media type is not specifically handled. |
@@ -34,6 +40,7 @@ Phoenix has a curated icon set in `js/app/src/components/core/icon/Icons.tsx`. U
 | MCP (Model Context Protocol) | `McpSVG` (from `@phoenix/components/project/IntegrationIcons`) | The official MCP mark (filled, evenodd). Used for the MCP settings tab and anything referencing the built-in `/mcp` endpoint. |
 | Model | `Icons.Cube` | Lucide box glyph (cube). Used for the Models settings tab and anything representing a model as an entity. Prefer this over `LLMOutput` for the model noun. |
 | Note | `Icons.MessageCircle` | Notes left on a span or session (annotations named `note`). Use `Icons.MessageCirclePlus` for the affordance that adds one. |
+| Optimization direction | `Icons.ArrowUp` / `Icons.ArrowDown` / `Icons.Minus` | Use the up arrow for maximize, down arrow for minimize, and minus for neutral. |
 | User preferences | `Icons.Options` | User-selectable theme, timezone, and code presentation preferences. |
 | Custom AI provider | `Icons.Sparkle` | Used for custom provider configuration and its empty state. |
 | PXI ask tool | `Icons.MessagesSquare` | Tool calls that pause for an answer from the user. |

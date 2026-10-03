@@ -15,7 +15,11 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
-from phoenix.server.api.types.ExperimentTaskConfig import PromptTaskConfig
+from phoenix.server.api.types.ExperimentTaskConfig import (
+    EvaluatorTaskConfig,
+    ExperimentTaskConfig,
+    PromptTaskConfig,
+)
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
 if TYPE_CHECKING:
@@ -113,15 +117,25 @@ class ExperimentJob(Node):
         return val
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Task configuration snapshot. "
-        "Use to rehydrate the playground with the exact settings used for this experiment.",
+        description="Snapshot of the task this experiment ran, a prompt or an evaluator. "
+        "Use to rehydrate the playground with the exact settings used for this experiment. "
+        "Null for eval-only experiments.",
     )
-    async def task_config(self, info: Info[Context, None]) -> PromptTaskConfig | None:
+    async def task_config(self, info: Info[Context, None]) -> ExperimentTaskConfig | None:
+        # A loaded job knows its kind but not its subclass columns, which load separately.
+        record = self.db_record
+        if isinstance(record, models.ExperimentEvalOnlyConfig):
+            return None
         async with info.context.db.read() as session:
-            config = await session.get(models.ExperimentPromptTask, self.id)
-            if config is None:
-                return None
-            return PromptTaskConfig.from_orm(config)
+            if not isinstance(record, models.ExperimentEvaluatorTask) and (
+                prompt_task := await session.get(models.ExperimentPromptTask, self.id)
+            ):
+                return PromptTaskConfig.from_orm(prompt_task)
+            if not isinstance(record, models.ExperimentPromptTask) and (
+                evaluator_task := await session.get(models.ExperimentEvaluatorTask, self.id)
+            ):
+                return EvaluatorTaskConfig.from_orm(evaluator_task)
+        return None
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Dataset evaluators attached to this experiment job.",
