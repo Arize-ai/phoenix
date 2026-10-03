@@ -82,7 +82,6 @@
 
 ## Evaluation
 
-
 ### Overview
 
 - [LLM Evals](https://arize.com/docs/phoenix/evaluation/llm-evals): Run LLM-as-judge evaluations with pre-built or custom evaluators
@@ -121,7 +120,6 @@
 - [Server Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to server-side evaluator input variables
 - [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): Pick a server-side code or LLM metric — contains, exact match, regex, distances, tool calling
 
-
 ### Pre-Built Metrics — Individual Pages
 
 - [Completeness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/completeness): Evaluate whether every active user request in a conversation was actually completed
@@ -140,6 +138,8 @@
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks
 - [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Detect toxic, harmful, or offensive content in LLM responses
 - [User Friction](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/user-friction): Detect when a user expresses friction or frustration with an assistant's preceding response
+
+### Server-Side Pre-Built Metrics — Individual Pages
 
 - [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check whether a text contains one or more specified words
 - [Server Correctness](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness): Score answer correctness server-side with a Phoenix-managed judge model
@@ -182,13 +182,13 @@
 
 ### Experiments
 
-- [Run Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments): Run task functions against datasets with evaluators
+- [Run Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments): Run task functions against datasets with evaluators
 - [Using Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators): Configure code and LLM evaluators for experiments
 - [Dataset Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators): Attach evaluators to datasets for automatic scoring
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
 - [Splits](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits): Organize datasets into train/test/validation splits
 - [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run evals as pytest tests with arize-phoenix-client[pytest], recorded as experiments and gating CI
-- [Run Experiments in the Background](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background): Start Playground experiments that keep running after you close the browser
+- [Run Experiments in the Background](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background): Start Playground experiments that keep running after you close the browser
 
 ## Prompt Engineering
 
@@ -509,6 +509,7 @@
 - [Phoenix Client Experiments (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments): Run experiments via @arizeai/phoenix-client
 - [Phoenix Client Prompts (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts): Manage prompts via @arizeai/phoenix-client
 - [Phoenix Client Projects (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/projects): List projects and assign trace retention policies via @arizeai/phoenix-client
+- [Phoenix Client Secrets (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/secrets): Upsert, rotate, or delete encrypted provider credentials with upsertOrDeleteSecrets
 - [Phoenix Client Session Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations): Log session-level annotations for conversation evaluation via @arizeai/phoenix-client
 - [Phoenix Client Sessions (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions): Work with sessions via @arizeai/phoenix-client
 - [Phoenix Client Span Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/span-annotations): Log and retrieve span-level annotations via @arizeai/phoenix-client
@@ -546,7 +547,6 @@
 - [OpenInference Python](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python): Build custom Python instrumentors with OpenInference semantic conventions
 - [OpenInference Java](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java): Build custom Java instrumentors with OpenInference semantic conventions
 - [OpenInference JavaScript](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript): Build custom JS instrumentors with OpenInference semantic conventions
-
 
 ### REST API — Agent Sessions
 
@@ -738,7 +738,6 @@
 
 - [Cookbook Index](https://arize.com/docs/phoenix/cookbook): Browse worked examples across agents, evaluation, tracing, prompts, and experiments
 
-
 ### Individual Cookbook Pages
 
 - [Agent Workflow Patterns](https://arize.com/docs/phoenix/cookbook/agent-workflow-patterns): Compare router, chaining, and parallel agent workflow patterns and trace each in Phoenix
@@ -855,6 +854,7 @@
 - [08.25.2026: Smarter PXI Workflows and Retrieval Evaluation](https://arize.com/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance): Run approval-gated multi-step PXI workflows across the UI and score retrievals from any source
 - [09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates): File GitHub issues from PXI, screen conversations for PII, and create prompt versions over REST
 - [09.08.2026: New Model Providers, Trace Filters, and PXI Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi): Run Z.ai, MiniMax, and Meta models in the Playground and PXI; filter traces by error status and latency
+- [09.14.2026: Coding Agent Plugins and Error Analysis](https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis): Install Phoenix as a Claude Code, Cursor, or Codex plugin; run error analysis over MCP; score completeness
 
 ### 2025
 
