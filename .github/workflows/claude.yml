@@ -109,5 +109,5 @@ jobs:
           # Listing the edit tools explicitly guarantees they are allowed
           # independent of permission mode; the action merges them with its own
           # git/Read/Grep tools.
-          claude_args: '--model opus --allowedTools Edit,Write'
+          claude_args: '--model claude-opus-5-5 --allowedTools Edit,Write'
 
