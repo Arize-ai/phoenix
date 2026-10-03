@@ -10,6 +10,7 @@ import {
   AgentChatWidget,
   ASSISTANT_RAIL_PANEL_ID,
   FloatingAgentChatPanel,
+  PxiFrameBorderMount,
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
 import {
@@ -243,6 +244,7 @@ function ApplicationFrame() {
               </div>
               <DrawerPlane css={drawerPlaneCellCSS} />
               <ViewportModalPlane css={viewportModalPlaneCellCSS} />
+              <PxiFrameBorderMount />
             </div>
             {isAgentFabFloating ? (
               <AgentChatWidget boundaryRef={contentRef} />

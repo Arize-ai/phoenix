@@ -12,7 +12,7 @@ type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
 /**
  * Cleans up everything an interrupted or dropped `execute_browser_action` call owns:
  * aborts the script run (terminating its worker) or its parked whole-script
- * approval, then clears the staged script-approval entry.
+ * approval, then clears the staged script-approval entry and the run marker.
  */
 function cleanupExecuteBrowserActionToolState(
   state: AgentState,
@@ -25,6 +25,7 @@ function cleanupExecuteBrowserActionToolState(
   // Usually a no-op: a locally parked approval is already cleared by the
   // abort above. This also covers entries whose abort callback is gone.
   state.setPendingScriptApproval(toolCallId, null);
+  state.endBrowserActionRun(toolCallId);
 }
 
 /**

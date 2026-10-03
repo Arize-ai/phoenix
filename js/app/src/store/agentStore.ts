@@ -137,6 +137,12 @@ export type PendingAgentMessage = {
   requestedSkills: string[];
 };
 
+export type BrowserActionRun = {
+  sessionId: string | null;
+  /** Epoch milliseconds when the sandbox run started. */
+  startedAt: number;
+};
+
 /**
  * Dismissable per-session notices raised by a rejected send or compaction
  * (HTTP 409).
@@ -509,6 +515,18 @@ export interface AgentState extends AgentProps {
   toolPartOpenRequests: Record<string, number>;
   requestToolPartOpen: (toolCallId: string) => void;
   releaseToolPartOpen: (toolCallId: string) => void;
+
+  // -- Active execute_browser_action sandbox runs --
+  //
+  // Set while a script's sandbox is running — after any whole-script approval
+  // wait, which is a user decision rather than PXI acting on the page — and
+  // keyed by the host tool-call id. Drives the app-frame border.
+  browserActionRunsByToolCallId: Record<string, BrowserActionRun>;
+  startBrowserActionRun: (params: {
+    toolCallId: string;
+    sessionId: string | null;
+  }) => void;
+  endBrowserActionRun: (toolCallId: string) => void;
 
   // -- Approval-gated tool proposals advertised by agent tool calls --
   // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
@@ -1144,6 +1162,34 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "releaseToolPartOpen" }
+      );
+    },
+
+    browserActionRunsByToolCallId: {},
+    startBrowserActionRun: ({ toolCallId, sessionId }) => {
+      set(
+        (state) => ({
+          browserActionRunsByToolCallId: {
+            ...state.browserActionRunsByToolCallId,
+            [toolCallId]: { sessionId, startedAt: Date.now() },
+          },
+        }),
+        false,
+        { type: "startBrowserActionRun" }
+      );
+    },
+    endBrowserActionRun: (toolCallId) => {
+      set(
+        (state) => {
+          if (!(toolCallId in state.browserActionRunsByToolCallId)) {
+            return state;
+          }
+          const next = { ...state.browserActionRunsByToolCallId };
+          delete next[toolCallId];
+          return { browserActionRunsByToolCallId: next };
+        },
+        false,
+        { type: "endBrowserActionRun" }
       );
     },
 

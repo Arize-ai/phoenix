@@ -570,6 +570,10 @@ export const executeBrowserActionTool = defineTool<ExecuteBrowserActionInput>({
     // worker protocol stays untouched.
     const callRecords: UICallRecord[] = [];
     let run: Awaited<ReturnType<typeof runJSSandboxScript>>;
+    agentStore.getState().startBrowserActionRun({
+      toolCallId: toolCall.toolCallId,
+      sessionId,
+    });
     try {
       run = await runJSSandboxScript({
         script: input.script,
@@ -604,6 +608,7 @@ export const executeBrowserActionTool = defineTool<ExecuteBrowserActionInput>({
         },
       });
     } finally {
+      agentStore.getState().endBrowserActionRun(toolCall.toolCallId);
       revokeScriptApproval(toolCall.toolCallId);
       activeRunAborts.delete(toolCall.toolCallId);
     }

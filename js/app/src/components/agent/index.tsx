@@ -16,6 +16,10 @@ export { AgentChatTopNavButton } from "./AgentChatTopNavButton";
 export { AgentChatWidget } from "./AgentChatWidget";
 export { PxiGlyphOutline } from "./PxiGlyph";
 export { PxiButton } from "./PxiButton";
+export { PxiFrameBorder } from "./PxiFrameBorder";
+export type { PxiFrameBorderState } from "./PxiFrameBorder";
+export { PxiFrameBorderMount } from "./PxiFrameBorderMount";
+export { usePxiFrameBorderState } from "./usePxiFrameBorderState";
 export type {
   PxiButtonProps,
   PxiButtonSize,
