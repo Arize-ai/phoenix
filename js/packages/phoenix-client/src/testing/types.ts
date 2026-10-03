@@ -120,12 +120,12 @@ export interface TestConfig {
 /**
  * How a criterion aggregates an annotation's scores to gate the suite:
  *
- * - `"average"` — gate on overall quality: the **mean** score across all runs
- *   must clear the criterion's `threshold`. A few weak runs are tolerated as
- *   long as the mean holds.
+ * - `"average"` — gate on overall quality: the **mean** score across the runs
+ *   that logged the annotation must clear the criterion's `threshold`. A few
+ *   weak runs are tolerated as long as the mean holds.
  * - `"passRate"` — gate on consistency: each run **passes** when the
  *   criterion's `passFn` predicate returns `true` for its annotation, and the
- *   suite passes when the **fraction** of runs that pass is at least
+ *   suite passes when the **fraction** of annotated runs that pass is at least
  *   `minPassRate` (e.g. `minPassRate: 0.9` ⇒ 90% must pass; `1` ⇒ all).
  */
 export type AcceptanceMetric = "average" | "passRate";
@@ -179,9 +179,10 @@ export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
    */
   passFn: (annotation: Annotation) => boolean;
   /**
-   * Minimum fraction of runs (`0`–`1`) that must pass for the suite to pass —
-   * e.g. `0.9` requires 90% of runs to satisfy `passFn`, `1` requires all of
-   * them. The suite passes when `passRate >= minPassRate`.
+   * Minimum fraction of annotated runs (`0`–`1`) that must pass for the suite
+   * to pass — e.g. `0.9` requires 90% of the runs that logged the annotation
+   * to satisfy `passFn`, `1` requires all of them. The suite passes when
+   * `passRate >= minPassRate`.
    */
   minPassRate: number;
 }
@@ -195,6 +196,12 @@ export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
  * - Boolean scores count as `1` (`true`) / `0` (`false`).
  * - If a run logs the same annotation more than once, the last one counts.
  * - Skipped tests are excluded; dry-run tests are included (they still run).
+ * - A criterion is computed over the runs that logged its annotation. A run
+ *   that did not log it is outside the criterion, not a failure: suites may
+ *   log different annotations on different tests. A run that throws is
+ *   already a failed test in Vitest / Jest, so it is not counted again here.
+ *   Compare `sampleCount` with `eligibleRunCount` to see how many runs a
+ *   criterion covered.
  * - A criterion whose annotation was never logged on any run fails (rather
  *   than passing vacuously) — see {@link AcceptanceResultFields.failureReason}.
  */
@@ -207,12 +214,18 @@ export interface AcceptanceResultFields {
   /**
    * The aggregate the criterion gated on, or `null` when there were no runs to
    * aggregate. For `"average"` this is the mean score; for `"passRate"` it is
-   * the fraction of runs that passed (so a fully-passing `"passRate"` criterion
-   * reports `1`).
+   * the fraction of annotated runs that passed (so a fully-passing
+   * `"passRate"` criterion reports `1`).
    */
   value: number | null;
-  /** Number of runs included in the aggregate. */
+  /**
+   * Number of runs the aggregate was computed over: the runs that logged the
+   * annotation for `"passRate"`, and those with a numeric or boolean score for
+   * `"average"`.
+   */
   sampleCount: number;
+  /** Number of non-skipped runs in the suite, whether or not they logged the annotation. */
+  eligibleRunCount: number;
   /** Whether the aggregate cleared the criterion. */
   passed: boolean;
   /** Human-readable failure reason for invalid or empty aggregates. */

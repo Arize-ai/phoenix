@@ -490,11 +490,13 @@ px.describe("text-to-sql scorecard", () => {
 | Field | Description |
 |---|---|
 | `annotationName` | Annotation to aggregate. If a run logs the same annotation more than once, the last one counts. |
-| `metric` | `"average"` checks the mean of all numeric/boolean scores against `threshold`; `"passRate"` counts runs whose `passFn` returns `true` and requires that fraction to reach `minPassRate`. |
+| `metric` | `"average"` checks the mean of the numeric/boolean scores logged for `annotationName` against `threshold`; `"passRate"` counts the annotated runs whose `passFn` returns `true` and requires that fraction to reach `minPassRate`. |
 | `threshold` | **`average` only.** The bar the mean must clear. |
 | `direction` | **`average` only.** `"maximize"` (default — higher is better, clears when `>=`) or `"minimize"` (lower is better, clears when `<=`). Use `"minimize"` for latency, cost, and error rates. |
 | `passFn` | **`passRate` only.** `(annotation) => boolean` predicate deciding whether a single run passes. |
-| `minPassRate` | **`passRate` only.** Minimum fraction of runs (`0`–`1`) that must pass (`1` = all). |
+| `minPassRate` | **`passRate` only.** Minimum fraction of annotated runs (`0`–`1`) that must pass (`1` = all). |
+
+A criterion only covers the runs that logged its annotation, so tests in a suite can log different annotations. A test that throws already fails in Vitest / Jest and isn't counted again. The reporter shows each criterion's coverage, e.g. `70 of 100 runs`.
 
 <Tip>
 `passFn` receives the full annotation object — `score`, `label`, `explanation`, `metadata` — so you can gate on any combination. For example, `a.label === "correct" && a.score >= 0.8` or `a.score >= 0.5 && a.score <= 0.9`.
