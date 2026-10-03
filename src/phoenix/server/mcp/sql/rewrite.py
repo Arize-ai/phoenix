@@ -394,7 +394,24 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
             saw_bare_date = True
         if ctx.dialect != "sqlite":
             continue
-        rendered = format_timestamp_for_sqlite(parsed.value)
+        try:
+            rendered = format_timestamp_for_sqlite(parsed.value)
+        except OverflowError:
+            # The instant is real but cannot be written here: converting
+            # `0001-01-01T00:00:00+00:30` to UTC lands in year 0, and a
+            # datetime holds neither that nor year 10000. Left alone this
+            # raised OverflowError, which is not an AnalyticsSqlError and so
+            # bypassed the error envelope.
+            raise AnalyticsSqlError(
+                code=ErrorCode.UNSUPPORTED_SYNTAX,
+                message=(
+                    f"`{literal.this}` resolves to an instant outside the years "
+                    "0001-9999 once converted to UTC, so it cannot be compared "
+                    "against a timestamp on this backend. Write the boundary in "
+                    "UTC, for example `0001-01-01T00:00:00+00:00` or "
+                    "`9999-12-31T23:59:59.999999+00:00`."
+                ),
+            )
         if rendered != literal.this:
             literal.set("this", rendered)
             changed = True
