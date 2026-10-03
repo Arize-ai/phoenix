@@ -74,9 +74,10 @@ PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
   loadable references. Unparseable skills are skipped, and the startup banner lists what mounted.
   Use absolute paths in deployments — a relative path resolves against the directory the server
   started in.
-- **PXI searches the GraphQL schema** instead of reading 134 KB of SDL. `phoenix-gql schema <terms>`
-  returns ranked field signatures, and `phoenix-gql schema <Type.field>` prints one definition with
-  its argument types, return members, and the paths that reach it from a read root.
+- **PXI searches the GraphQL schema** instead of reading 134 KB of SDL.
+  `phoenix-gql schema --search <terms>` returns ranked field signatures, and
+  `phoenix-gql schema --names <Type.field>` prints one definition with its argument types, return
+  members, and the paths that reach it from a read root.
 - **Slash-command hints are keyboard-driven** in the `pxi` terminal client: arrow keys move the
   highlighted row and wrap at either end, Tab completes it, and Enter runs it, so `/he` plus Enter
   runs `/help`.
@@ -98,7 +99,8 @@ September 21, 2026
 
 Pass an AI SDK evaluation model, such as TypeSafe's Jev, to any classification evaluator. Evaluation
 models answer one typed choice question instead of generating text, so a single-label eval runs
-faster and costs less than it would on a chat model.
+faster and costs less than it would on a chat model. Install `@ai-sdk/typesafe-ai` alongside
+`@arizeai/phoenix-evals` to use Jev.
 
 ```typescript
 import { typeSafeAi } from "@ai-sdk/typesafe-ai";
@@ -157,7 +159,8 @@ September 21 to 29, 2026
 
 **Available in @arizeai/phoenix-client 7.12.0+**
 
-Four new helper groups cover surfaces that previously needed a hand-written REST call.
+New helpers cover secrets, dataset splits, and prompt version tags, which previously needed a
+hand-written REST call, and trace and session listing now accept filter expressions.
 
 ```typescript
 import { createDatasetSplit } from "@arizeai/phoenix-client/datasets";
@@ -199,9 +202,9 @@ const { traces } = await getTraces({
   deleting its examples. Requires Phoenix server 19.20.0+.
 - **`upsertPromptVersionTag` and `deletePromptVersionTag`** (7.15.0) create, move, and remove
   prompt-scoped version tags; upserting an existing name moves the tag to the selected version.
-- **`filter` on `getTraces` and `listSessions`** (7.12.0) takes the same expressions the UI uses and
-  deprecates the discrete `error`, `minLatencyMs`, and `maxLatencyMs` parameters. Requires Phoenix
-  server 20.12.0+.
+- **`filter` on `getTraces` and `listSessions`** (7.12.0) takes the same expressions the UI uses. On
+  `getTraces` it deprecates the discrete `error`, `minLatencyMs`, and `maxLatencyMs` parameters.
+  Requires Phoenix server 20.12.0+.
 
 <CardGroup cols={2}>
   <Card title="Secrets" icon="key" href="/docs/phoenix/settings/secrets">
@@ -216,13 +219,13 @@ const { traces } = await getTraces({
 
 September 16, 2026
 
-**Breaking changes and deprecations in arize-phoenix 20.13.0**
+**Breaking changes in arize-phoenix 20.13.0**
 
 - **`applyDatasetExampleChanges` is now `patchDatasetExamples`.** It takes an ordered, JSON
   Patch-style list of additions, patches, and deletions applied as one version; `datasetId` is
   required and null patch fields are rejected.
 - **`Project.traceAnnotationsNames` is now `Project.traceAnnotationNames`.**
-- **`rootSpansOnly` and `orphanSpanAsRootSpan` are deprecated** on `Project.spans` and
+- **`rootSpansOnly` and `orphanSpanAsRootSpan` are removed** from `Project.spans` and
   `Trace.spans`. Use `filterCondition: "parent_id is None"`, or `"parent_span is None"` to count
   orphans as roots — the filter composes with every other clause.
 
@@ -262,7 +265,7 @@ September 15 to 29, 2026
 - **`register()` no longer crashes** on `opentelemetry-exporter-otlp-proto-http` 1.45 in
   `arize-phoenix-otel` 0.17.2.
 - **Analytics SQL on SQLite gains the bundled time extension** — `time_trunc`, `time_parse`,
-  `time_fmt_datetime`, and `time_sub` are admitted, and `latency_ms` is nanosecond-exact.
+  `time_fmt_datetime`, and `time_sub` are allowed in queries, and `latency_ms` is nanosecond-exact.
 - **PXI streams faster** with smoother transcript scrolling, closes its turn trace when a server
   tool raises, keeps partial output on an interrupted turn, and links each reference from the skill
   that owns it.
