@@ -20,7 +20,7 @@ from uvicorn import Config, Server
 
 from phoenix.config import (
     TLSConfigVerifyClient,
-    get_env_access_token_expiry,
+    app_auth_kwargs,
     get_env_allow_external_resources,
     get_env_allowed_origins,
     get_env_allowed_sandbox_providers,
@@ -38,22 +38,18 @@ from phoenix.config import (
     get_env_log_sql,
     get_env_management_url,
     get_env_oauth2_settings,
-    get_env_password_reset_token_expiry,
     get_env_port,
     get_env_read_replica_url,
-    get_env_refresh_token_expiry,
     get_env_skills_paths,
     get_env_smtp_hostname,
-    get_env_smtp_mail_from,
-    get_env_smtp_password,
-    get_env_smtp_port,
-    get_env_smtp_username,
-    get_env_smtp_validate_certs,
     get_env_telemetry_enabled,
     get_env_tls_config,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
     get_pids_path,
+    is_unspecified_host,
+    local_url_host,
+    url_host,
 )
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import aio_sqlite_read_engine, create_engine, get_async_db_url
@@ -68,8 +64,7 @@ from phoenix.server.app import (
 )
 from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
 from phoenix.server.daemons.system_settings import SystemSettings
-from phoenix.server.email.sender import SimpleEmailSender
-from phoenix.server.email.types import EmailSender
+from phoenix.server.email.sender import email_sender_from_env
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -145,7 +140,6 @@ def _render_boot_message(
 def _add_server_args(parser: ArgumentParser) -> None:
     """Add args shared by both `serve` and `trace-fixture`."""
     parser.add_argument("--database-url", required=False, help=SUPPRESS)
-    parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
     parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
     parser.add_argument("--grpc-port", type=int, required=False, help=SUPPRESS)
     parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
@@ -238,16 +232,16 @@ def run(args: Namespace) -> None:
         force_fixture_ingestion = args.force_fixture_ingestion
         scaffold_datasets = args.scaffold_datasets
 
-    host: Optional[str] = args.host or get_env_host()
-    if host == "::":
-        host = None
+    host = get_env_host()
+    auth_settings = get_env_auth_settings()
+    # Bind every interface for ::. URLs keep using ``host``.
+    bind_host: Optional[str] = None if host == "::" else host
+    local_host = local_url_host(host)
 
     port = args.port or get_env_port()
     grpc_port = _resolve_grpc_port(args)
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
-
-    auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
     fixture_annotation_precursors: list[AnnotationPrecursor] = []
@@ -258,13 +252,13 @@ def run(args: Namespace) -> None:
         if not read_only:
             Thread(
                 target=send_dataset_fixtures,
-                args=(f"http://{host}:{port}", dataset_fixtures),
+                args=(f"http://{local_host}:{port}", dataset_fixtures),
             ).start()
 
     if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
-        start_prometheus()
+        start_prometheus(bind_host)
 
     read_replica_connection_str = get_env_read_replica_url()
     factory, shutdown_callbacks = _create_db_session_factory(
@@ -285,8 +279,8 @@ def run(args: Namespace) -> None:
 
     http_scheme = "https" if tls_enabled_for_http else "http"
     grpc_scheme = "https" if tls_enabled_for_grpc else "http"
-    display_host = "localhost" if host in ("0.0.0.0", "::") else host
-    root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
+    display_host = "localhost" if is_unspecified_host(host) else url_host(host)
+    root_path = urljoin(f"{http_scheme}://{local_host}:{port}", host_root_path)
     display_root_path = urljoin(f"{http_scheme}://{display_host}:{port}", host_root_path)
     oauth2_client_configs = get_env_oauth2_settings()
     smtp_hostname = get_env_smtp_hostname()
@@ -352,20 +346,7 @@ def run(args: Namespace) -> None:
         phoenix_url=root_path,
     )
 
-    email_sender: Optional[EmailSender] = None
-    if mail_server := get_env_smtp_hostname():
-        assert (mail_username := get_env_smtp_username()), "SMTP username is required"
-        assert (mail_password := get_env_smtp_password()), "SMTP password is required"
-        assert (sender_email := get_env_smtp_mail_from()), "SMTP mail_from is required"
-        email_sender = SimpleEmailSender(
-            smtp_server=mail_server,
-            smtp_port=get_env_smtp_port(),
-            username=mail_username,
-            password=mail_password,
-            sender_email=sender_email,
-            connection_method="STARTTLS",
-            validate_certs=get_env_smtp_validate_certs(),
-        )
+    email_sender = email_sender_from_env()
 
     if args.debug:
         phoenix_logger = logging.getLogger("phoenix")
@@ -379,33 +360,28 @@ def run(args: Namespace) -> None:
     app = create_app(
         db=factory,
         authentication_enabled=auth_settings.enable_auth,
-        basic_auth_disabled=auth_settings.disable_basic_auth,
         debug=args.debug,
         dev=args.dev,
         dev_vite_port=args.dev_vite_port,
         serve_ui=not args.no_ui,
         read_only=read_only,
         grpc_port=grpc_port,
+        grpc_host=bind_host,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_annotation_precursors=fixture_annotation_precursors,
         welcome_message=partial(_render_boot_message, boot_message, agents_env),
         shutdown_callbacks=shutdown_callbacks,
-        secret=auth_settings.phoenix_secret,
-        password_reset_token_expiry=get_env_password_reset_token_expiry(),
-        access_token_expiry=get_env_access_token_expiry(),
-        refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
-        oauth2_client_configs=get_env_oauth2_settings(),
-        ldap_config=auth_settings.ldap_config,
         allowed_origins=allowed_origins,
         management_url=management_url,
+        **app_auth_kwargs(auth_settings),
     )
 
     server_config = Config(
         app=app,
-        host=host,  # type: ignore[arg-type]
+        host=bind_host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
         log_level=Settings.logging_level,

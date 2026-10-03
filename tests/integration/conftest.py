@@ -13,19 +13,21 @@ from _pytest.fixtures import SubRequest
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.client.__generated__ import v1
 from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import _generate_certs
 from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
+from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from ._helpers import (
     _DB_BACKEND,
+    _DEFAULT_ADMIN_INITIAL_PASSWORD,
     _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
+    _admin_auth,
     _AppInfo,
     _delete_users,
     _Email,
@@ -183,7 +185,7 @@ def _users(
                 role=role_str,
             )
             json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=False)
-            resp = _httpx_client(app, app.admin_secret).post(url=url, json=json_)
+            resp = _httpx_client(app, _admin_auth(app)).post(url=url, json=json_)
             resp.raise_for_status()
             gid = _GqlId(cast(v1.CreateUserResponseBody, resp.json())["data"]["id"])
             app, role, profile = yield _User(gid, role, profile, profile_picture_url=None)
@@ -207,7 +209,7 @@ def _new_user(
         profile: Optional[_Profile] = None,
     ) -> _User:
         user = _users.send((app, role, profile))
-        clean_ups.append(lambda: _delete_users(app, app.admin_secret, users=[user]))
+        clean_ups.append(lambda: _delete_users(app, _admin_auth(app), users=[user]))
         return user
 
     yield _
@@ -300,6 +302,7 @@ def _env_auth() -> dict[str, str]:
         "PHOENIX_ENABLE_AUTH": "true",
         "PHOENIX_SECRET": token_hex(16),
         "PHOENIX_ADMIN_SECRET": token_hex(16),
+        "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": _DEFAULT_ADMIN_INITIAL_PASSWORD,
         "PHOENIX_DISABLE_RATE_LIMIT": "true",
         "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,",
     }

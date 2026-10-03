@@ -17,6 +17,7 @@ from .._helpers import (
     _OK,
     _OK_OR_DENIED,
     _VIEWER,
+    _admin_auth,
     _ApiKey,
     _AppInfo,
     _create_api_key,
@@ -172,7 +173,9 @@ class TestGraphQLApiKeys:
         assert response["data"] is None
         assert response["errors"]
 
-    def test_admin_secret_can_issue_system_keys_but_not_user_keys(self, _app: _AppInfo) -> None:
+    def test_admin_secret_can_issue_system_keys_but_not_user_keys(
+        self, _app: _AppInfo, _requires_configured_secret: None
+    ) -> None:
         """The admin secret is an issuance origin for system keys only."""
         api_key = _create_api_key(_app, _app.admin_secret, "System")
         _delete_api_key(_app, api_key, _app.admin_secret)
@@ -265,7 +268,7 @@ class TestUserApiKeys:
         # The key authenticates while its owner exists.
         assert _httpx_client(_app, key).get("v1/user").status_code == 200
 
-        _delete_users(_app, _app.admin_secret, users=[owner])
+        _delete_users(_app, _admin_auth(_app), users=[owner])
 
         # Once the owner is deleted, the key no longer authenticates.
         assert _httpx_client(_app, key).get("v1/user").status_code == 401
@@ -394,7 +397,7 @@ class TestSystemApiKeys:
         assert all(k["id"] != created["id"] for k in _list(_app, admin, "system").json()["data"])
 
     def test_admin_secret_is_system_admin_but_has_no_personal_key_identity(
-        self, _get_user: _GetUser, _app: _AppInfo
+        self, _get_user: _GetUser, _app: _AppInfo, _requires_configured_secret: None
     ) -> None:
         owner = _get_user(_app, _MEMBER)
         admin_secret = _app.admin_secret

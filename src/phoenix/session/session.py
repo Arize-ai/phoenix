@@ -19,7 +19,10 @@ from phoenix.config import (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_PORT,
+    app_auth_kwargs,
+    canonicalize_host,
     ensure_working_dir_if_needed,
+    get_env_auth_settings,
     get_env_database_connection_str,
     get_env_host,
     get_env_host_root_path,
@@ -34,6 +37,7 @@ from phoenix.server.app import (
     create_app,
     instrument_engine_if_enabled,
 )
+from phoenix.server.email.sender import email_sender_from_env
 from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
@@ -88,7 +92,7 @@ class Session(ABC):
     ):
         self._database_url = database_url
         self.trace_dataset = trace_dataset
-        self.host = host or get_env_host()
+        self.host = canonicalize_host(host) if host else get_env_host()
         self.port = port or get_env_port()
         self.temp_dir = TemporaryDirectory()
         self.notebook_env = notebook_env or _get_notebook_environment()
@@ -200,6 +204,7 @@ class ThreadSession(Session):
             root_path=root_path,
             notebook_env=notebook_env,
         )
+        auth_settings = get_env_auth_settings(self.host)
         # Initialize an app service that keeps the server running
         engine = create_engine(
             connection_str=database_url,
@@ -214,7 +219,8 @@ class ThreadSession(Session):
         factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
         self.app = create_app(
             db=factory,
-            authentication_enabled=False,
+            authentication_enabled=auth_settings.enable_auth,
+            grpc_host=self.host,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
             initial_annotation_precursors=(
                 [p for e in trace_dataset.evaluations for p in evaluations_to_precursors(e)]
@@ -222,6 +228,8 @@ class ThreadSession(Session):
                 else None
             ),
             shutdown_callbacks=shutdown_callbacks,
+            email_sender=email_sender_from_env(),
+            **app_auth_kwargs(auth_settings),
         )
         self.server = ThreadServer(
             app=self.app,

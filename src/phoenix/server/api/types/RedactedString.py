@@ -26,9 +26,9 @@ redacted_string_scalar_definition = strawberry.scalar(
     name="RedactedString",
     description=(
         "A string that is automatically redacted on output and un-redacted on input. "
-        "Values are symmetrically encrypted with a key derived from PHOENIX_SECRET; "
-        "tokens remain valid across replicas and restarts as long as the secret is "
-        "unchanged."
+        "Values are symmetrically encrypted with a key derived from the deployment seed "
+        "and PHOENIX_SECRET, so redacted values stay valid across replicas and restarts "
+        "as long as both are unchanged."
     ),
     serialize=lambda v: get_redactor().redact(str(v)),
     parse_value=_parse_value,

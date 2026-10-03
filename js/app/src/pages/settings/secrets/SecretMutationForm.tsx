@@ -13,6 +13,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { PublicEncryptionKeyWarning } from "@phoenix/components/settings/PublicEncryptionKeyWarning";
 import { SECRET_KEY_PATTERN } from "@phoenix/constants";
 
 import type { SecretFormParams } from "./types";
@@ -58,6 +59,7 @@ export function SecretMutationForm({
           </View>
         ) : null}
         <Flex direction="column" gap="size-200">
+          <PublicEncryptionKeyWarning />
           {fixedKey ? (
             <View>
               <Text>{fixedKey}</Text>

@@ -160,6 +160,7 @@ ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 ENV PATH="/usr/local/bin:/usr/bin:/bin:/phoenix/.venv/bin"
 ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
+ENV PHOENIX_HOST=0.0.0.0
 # Expose the Phoenix port.
 EXPOSE 6006
 # Expose the Phoenix gRPC port.

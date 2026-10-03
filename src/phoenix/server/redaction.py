@@ -6,10 +6,9 @@ per HTTP request by `RedactorMiddleware` from `app.state.redactor`. Access via
 missing middleware or a call from a background task / thread pool fails loudly
 instead of silently passing plaintext secrets through.
 
-The `Redactor` key is derived from `PHOENIX_SECRET` via PBKDF2, so redacted
-tokens issued by one replica are decryptable by any other replica sharing the
-same secret. A domain-separating salt keeps the redaction key distinct from
-`EncryptionService`'s DB-persistence key.
+The `Redactor` key is derived from the deployment seed and `PHOENIX_SECRET`,
+so redacted values stay valid across replicas and restarts as long as both
+are unchanged.
 
 Redacted strings optionally carry the last 4 characters of the plaintext as
 a preview, so the UI can hint at which key is stored without revealing the
@@ -24,14 +23,7 @@ import base64
 from contextvars import ContextVar
 
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from pydantic import SecretStr
 
-# Domain separation: redaction keys must not equal DB-encryption keys even when
-# derived from the same PHOENIX_SECRET.
-_REDACTION_KEY_DERIVATION_SALT = b"phoenix-redaction-2a7f1d9b4e6c8a0f2d3b5c7e9a1f4b6d"
-_PBKDF2_ITERATIONS = 600_000
 _FERNET_KEY_LENGTH = 32
 
 # U+E000 (Private Use Area) as a universal delimiter. Unassigned in Unicode
@@ -52,21 +44,12 @@ _WIRE_PREFIX = f"{_DELIM}{_MARKER}{_DELIM}"
 
 
 class Redactor:
-    """Symmetric redact/unredact keyed off PHOENIX_SECRET."""
+    """Symmetric redact/unredact with the deployment redaction key."""
 
-    def __init__(self, secret: SecretStr) -> None:
-        self._fernet = Fernet(self._derive_key(secret))
-
-    @staticmethod
-    def _derive_key(secret: SecretStr) -> bytes:
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=_FERNET_KEY_LENGTH,
-            salt=_REDACTION_KEY_DERIVATION_SALT,
-            iterations=_PBKDF2_ITERATIONS,
-        )
-        key_bytes = kdf.derive(secret.get_secret_value().encode("utf-8"))
-        return base64.urlsafe_b64encode(key_bytes)
+    def __init__(self, key: bytes) -> None:
+        if len(key) != _FERNET_KEY_LENGTH:
+            raise ValueError("redaction key must be 32 bytes")
+        self._fernet = Fernet(base64.urlsafe_b64encode(key))
 
     @staticmethod
     def _build_preview(data: str) -> str:

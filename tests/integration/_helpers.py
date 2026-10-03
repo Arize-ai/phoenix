@@ -16,7 +16,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from email.message import Message
-from functools import cached_property
+from functools import cached_property, lru_cache
 from io import BytesIO
 from itertools import chain
 from random import random
@@ -26,6 +26,7 @@ from threading import Lock, Thread
 from time import sleep, time
 from types import MappingProxyType, TracebackType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -62,7 +63,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
 from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, text
+from sqlalchemy import URL, make_url, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
@@ -74,9 +75,9 @@ from typing_extensions import Self, TypeAlias, assert_never, override
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
-    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
@@ -273,12 +274,15 @@ class _User:
 
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
+# Generated once per process and shared with the auth env fixture. The public
+# default "admin" cannot open a session, so integration tests use another value.
+_DEFAULT_ADMIN_INITIAL_PASSWORD = token_hex(16)
 _DEFAULT_ADMIN = _User(
     _GqlId(GlobalID("User", "2")),
     _ADMIN,
     _Profile(
         email=DEFAULT_ADMIN_EMAIL,
-        password=DEFAULT_ADMIN_PASSWORD,
+        password=_DEFAULT_ADMIN_INITIAL_PASSWORD,
         username=DEFAULT_ADMIN_USERNAME,
     ),
     profile_picture_url=None,
@@ -315,6 +319,20 @@ class _ApiKey(str):
 
 
 class _AdminSecret(str): ...
+
+
+def _admin_auth(app: _AppInfo) -> Union[_AdminSecret, _User]:
+    """Admin credential for requests that are not about the admin secret itself."""
+    if app.env.get("PHOENIX_ADMIN_SECRET"):
+        return app.admin_secret
+    return _DEFAULT_ADMIN
+
+
+def _admin_bearer(app: _AppInfo) -> str:
+    auth = _admin_auth(app)
+    if isinstance(auth, _AdminSecret):
+        return str(auth)
+    return str(auth.log_in(app).tokens.access_token)
 
 
 class _Token(str, ABC): ...
@@ -496,6 +514,88 @@ class _AppInfo:
     @cached_property
     def client_key_file(self) -> Optional[str]:
         return self.env.get("PHOENIX_TLS_CA_FILE")
+
+
+def _is_memory_sqlite(database_url: str) -> bool:
+    """Whether the URL is an in-memory SQLite database.
+
+    The rendered URL percent-encodes the database name, so `:memory:` is read
+    from the parsed URL.
+    """
+    return database_url.startswith("sqlite") and make_url(database_url).database == ":memory:"
+
+
+if TYPE_CHECKING:
+    from phoenix.server.redaction import Redactor
+
+
+def _load_deployment_seed(database_url: str, schema: str) -> bytes:
+    """The deployment seed stored by a running server."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from phoenix.db.helpers import SupportedSQLDialect
+    from phoenix.server.deployment_identity import load_deployment_seed
+    from phoenix.server.types import DbSessionFactory
+
+    url = get_async_db_url(database_url)
+    connect_args: dict[str, Any] = {}
+    if url.get_backend_name() == "postgresql" and schema:
+        connect_args["server_settings"] = {"search_path": schema}
+    elif url.get_backend_name() == "sqlite":
+        connect_args["timeout"] = 30.0
+    engine = create_async_engine(url, poolclass=NullPool, connect_args=connect_args)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def sessions() -> AsyncIterator[Any]:
+        async with session_factory.begin() as session:
+            yield session
+
+    async def load() -> bytes:
+        try:
+            db = DbSessionFactory(
+                db=sessions,
+                dialect=SupportedSQLDialect(url.get_backend_name()).value,
+            )
+            return await load_deployment_seed(db)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(load())
+
+
+@lru_cache(maxsize=None)
+def _redactor_for_app_key(database_url: str, schema: str, secret: str) -> Redactor:
+    """Redactor for a running server, keyed by its deployment seed and secret."""
+    from pydantic import SecretStr
+
+    from phoenix.server.deployment_identity import REDACTION_KEY_PURPOSE, derive_deployment_key
+    from phoenix.server.redaction import Redactor
+
+    return Redactor(
+        derive_deployment_key(
+            seed=_load_deployment_seed(database_url, schema),
+            secret=SecretStr(secret),
+            purpose=REDACTION_KEY_PURPOSE,
+        )
+    )
+
+
+def _redactor_for_app(app: _AppInfo) -> Redactor:
+    """Redactor using the running server's deployment seed and ``PHOENIX_SECRET``."""
+    return _redactor_for_app_key(
+        app.env[ENV_PHOENIX_SQL_DATABASE_URL],
+        app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),
+        app.env.get("PHOENIX_SECRET", ""),
+    )
+
+
+def _deployment_seed_for_app(app: _AppInfo) -> bytes:
+    """Deployment seed stored by a running server."""
+    return _load_deployment_seed(
+        app.env[ENV_PHOENIX_SQL_DATABASE_URL],
+        app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),
+    )
 
 
 def _http_span_exporter(
@@ -752,7 +852,7 @@ _SCHEMA_PREFIX = f"_{token_hex(3)}"
 
 
 @contextmanager
-def _server(app: _AppInfo) -> Iterator[_AppInfo]:
+def _server(app: _AppInfo, *, unset_env: tuple[str, ...] = ()) -> Iterator[_AppInfo]:
     if not (sql_database_url := app.env.get(ENV_PHOENIX_SQL_DATABASE_URL)):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_URL} is required.")
     if sql_database_url.startswith("postgresql") and not str(
@@ -761,6 +861,8 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve --debug"
     env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
+    for key in unset_env:
+        env.pop(key, None)
     # The server's stdio and this pipe's reader must agree on an encoding, and
     # the reader must never die on a byte it cannot decode: it is the only
     # thing draining the pipe, and a server whose pipe is full blocks on its
@@ -1267,6 +1369,7 @@ _COOKIE_NAMES = (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
 )
 
@@ -2102,7 +2205,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
         ).end()
     assert len(spans := memory.get_finished_spans()) == n
 
-    headers = {"authorization": f"Bearer {app.admin_secret}"}
+    headers = {"authorization": f"Bearer {_admin_bearer(app)}"}
     assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
 
     span_ids = set()
@@ -2124,6 +2227,9 @@ def _get_existing_spans(
     span_ids: Iterable[_SpanId],
 ) -> set[_ExistingSpan]:
     ids = list(span_ids)
+    auth = _admin_auth(app)
+    if not isinstance(auth, _AdminSecret):
+        auth = auth.log_in(app)
     query = """
       query ($spanId: String!) {
         getSpanByOtelId(spanId: $spanId) {
@@ -2148,7 +2254,7 @@ def _get_existing_spans(
     def fetch_span(span_id: _SpanId) -> _ExistingSpan | None:
         res, _ = _gql(
             app,
-            app.admin_secret,
+            auth,
             query=query,
             variables={"spanId": span_id},
         )

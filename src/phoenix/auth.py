@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
-from hashlib import pbkdf2_hmac
+from hashlib import pbkdf2_hmac, sha256
 from typing import Any, Literal, Optional, Protocol
 
 from pydantic import SecretStr
@@ -134,6 +134,18 @@ def set_oauth2_state_cookie(
     )
 
 
+def set_oauth2_login_context_cookie(
+    *, response: ResponseType, login_context: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
+        response=response,
+        cookie_name=PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
+        cookie_max_age=max_age,
+        samesite="lax",
+        value=login_context,
+    )
+
+
 def set_oauth2_nonce_cookie(
     *, response: ResponseType, nonce: str, max_age: timedelta
 ) -> ResponseType:
@@ -179,27 +191,36 @@ def _set_cookie(
 
 
 def delete_access_token_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME, path=get_env_cookies_path())
     return response
 
 
 def delete_refresh_token_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME, path=get_env_cookies_path())
     return response
 
 
 def delete_oauth2_state_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_OAUTH2_STATE_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_OAUTH2_STATE_COOKIE_NAME, path=get_env_cookies_path())
+    return response
+
+
+def delete_oauth2_login_context_cookie(response: ResponseType) -> ResponseType:
+    response.delete_cookie(
+        key=PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME, path=get_env_cookies_path()
+    )
     return response
 
 
 def delete_oauth2_nonce_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_OAUTH2_NONCE_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_OAUTH2_NONCE_COOKIE_NAME, path=get_env_cookies_path())
     return response
 
 
 def delete_oauth2_code_verifier_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME)
+    response.delete_cookie(
+        key=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME, path=get_env_cookies_path()
+    )
     return response
 
 
@@ -306,12 +327,38 @@ REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(
 """The requirements for the Phoenix secret key."""
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
+TOKEN_RANDOM_CLAIM = "phx_rnd"
+"""
+Private claim (RFC 7519 section 4.3) carrying random bytes in every issued token.
+
+Distinct from the registered `nonce` claim, which OpenID Connect defines as an echo
+of the client's authorization request.
+"""
+TOKEN_RANDOM_BYTES = 32
+"""
+The number of random bytes in the random claim (256 bits).
+
+When the signing key is derived from the deployment seed, a database reader can
+recompute it, so every other part of a token is predictable. This claim is what that
+reader must guess to match a stored hash. RFC 6749 section 10.10 requires a guessing
+probability of at most 2^-128 and recommends 2^-160; 256 bits leaves margin for the
+many tokens a database holds.
+"""
+
+
+def compute_token_hash(token: str) -> bytes:
+    """Return the SHA-256 digest of a complete encoded token, as stored in the database."""
+    return sha256(token.encode("utf-8")).digest()
+
+
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
 """The name of the cookie that stores the Phoenix access token."""
 PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
 """The name of the cookie that stores the Phoenix refresh token."""
 PHOENIX_OAUTH2_STATE_COOKIE_NAME = "phoenix-oauth2-state"
 """The name of the cookie that stores the state used for the OAuth2 authorization code flow."""
+PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME = "phoenix-oauth2-login-context"
+"""The name of the cookie that stores the origin and return URL for the OAuth2 login."""
 PHOENIX_OAUTH2_NONCE_COOKIE_NAME = "phoenix-oauth2-nonce"
 """The name of the cookie that stores the nonce used for the OAuth2 authorization code flow."""
 PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME = "phoenix-oauth2-code-verifier"
