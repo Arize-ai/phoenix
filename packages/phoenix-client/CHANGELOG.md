@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.5.0...arize-phoenix-client-v3.6.0) (2026-10-03)
+
+
+### Features
+
+* **client:** expose trace and session filter expressions ([#16078](https://github.com/Arize-ai/phoenix/issues/16078)) ([dab09f1](https://github.com/Arize-ai/phoenix/commit/dab09f17b0ac80357e27888b083766559fe45f8b))
+* **client:** sort get_spans by start_time ([#16386](https://github.com/Arize-ai/phoenix/issues/16386)) ([9f44910](https://github.com/Arize-ai/phoenix/commit/9f44910e0447fa0cee0caf8b4904b4d6d497ed93))
+* **evals:** deprecate document relevance evaluators ([#15991](https://github.com/Arize-ai/phoenix/issues/15991)) ([d67ea3f](https://github.com/Arize-ai/phoenix/commit/d67ea3fdaaa3df4c006c950e12e785f2bdc81960))
+* **graphql:** remove rootSpansOnly in favor of the span filter DSL and document the DSL in the skills ([#16190](https://github.com/Arize-ai/phoenix/issues/16190)) ([2aa7a88](https://github.com/Arize-ai/phoenix/commit/2aa7a88b08a4aafcc958e7efdd5f5af1fedd966e))
+* **prompts:** expose version metadata in REST API ([#15980](https://github.com/Arize-ai/phoenix/issues/15980)) ([2b73847](https://github.com/Arize-ai/phoenix/commit/2b7384774ad6193c16538730f41ee5858df98818))
+* record Harbor agent responses as run output ([#16645](https://github.com/Arize-ai/phoenix/issues/16645)) ([c739243](https://github.com/Arize-ai/phoenix/commit/c739243e9676450ed0bc01536831918c9f93f852))
+
+
+### Bug Fixes
+
+* **client:** format string system messages in anthropic adapter ([#16316](https://github.com/Arize-ai/phoenix/issues/16316)) ([435de9b](https://github.com/Arize-ai/phoenix/commit/435de9b7eb38d552c2be6c812691ac4e059b63cf))
+* **client:** handle the between_tools thinking type in the anthropic helper ([#16725](https://github.com/Arize-ai/phoenix/issues/16725)) ([bcec2c5](https://github.com/Arize-ai/phoenix/commit/bcec2c5e0a16567557213a95a2af93c1a3f6bf3e))
+* **client:** omit missing annotation dataframe cells ([#16593](https://github.com/Arize-ai/phoenix/issues/16593)) ([b438233](https://github.com/Arize-ai/phoenix/commit/b438233ce47db6fd94c77674ca37bbf51413eb8b))
+* **evals:** retry RateLimitError in SyncExecutor instead of failing the whole run ([#16376](https://github.com/Arize-ai/phoenix/issues/16376)) ([56e9a89](https://github.com/Arize-ai/phoenix/commit/56e9a8994e9074eb9958dfe77e4552e7a8b6d38c))
+
+
+### Documentation
+
+* **client:** drop the phantom concurrency param from evaluate_experiment ([#16268](https://github.com/Arize-ai/phoenix/issues/16268)) ([6f03f90](https://github.com/Arize-ai/phoenix/commit/6f03f903b8d3eddffe11e6b695c1c24e244f946a))
+* index notebooks and remove unreferenced examples ([#16370](https://github.com/Arize-ai/phoenix/issues/16370)) ([04996d2](https://github.com/Arize-ai/phoenix/commit/04996d268630734d70a3a9e44e47dc3921eeed95))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix-client 3.6.0 and repair the manifest ([#16255](https://github.com/Arize-ai/phoenix/issues/16255)) ([a6834ea](https://github.com/Arize-ai/phoenix/commit/a6834ea260517a40e3bb23ba7350d31d74878673))
+
 ## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.4.0...arize-phoenix-client-v3.5.0) (2026-09-08)
 
 
