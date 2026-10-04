@@ -98,7 +98,11 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: ".tool-versions"
+          # These steps check out a ref other than the triggering commit, which may
+          # predate .tool-versions. "lowest" resolves the required-version range to
+          # its floor, which tracks the .tool-versions pin.
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql' && runner.os == 'Linux'
         # Floor version from PGDG; see the note in python-CI.yml. The macOS
@@ -174,7 +178,8 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --durations=20 --reruns 5 --timeout 360 -n 4
@@ -203,7 +208,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals-non-linux:
@@ -229,7 +235,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel-non-linux:
@@ -255,7 +262,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   slack-notification:

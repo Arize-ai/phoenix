@@ -110,7 +110,11 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.11"
-          version-file: ".tool-versions"
+          # These steps check out a ref other than the triggering commit, which may
+          # predate .tool-versions. "lowest" resolves the required-version range to
+          # its floor, which tracks the .tool-versions pin.
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Build distribution
         run: rm -rf dist && uv build
       - name: Verify bundled UI assets in wheel
@@ -219,7 +223,8 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.11"
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uv build
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
@@ -544,7 +549,8 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.11"
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           enable-cache: false
       - name: Stamp dev version
         env:
@@ -616,7 +622,8 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.11"
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           enable-cache: false
       - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'
