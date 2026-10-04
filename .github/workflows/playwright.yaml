@@ -140,7 +140,8 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: ".tool-versions"
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           cache-dependency-glob: "uv.lock"
       - name: Install dependencies
         if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}

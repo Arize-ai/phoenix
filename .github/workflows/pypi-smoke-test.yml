@@ -40,7 +40,8 @@ jobs:
     env:
       PYTHON_VERSION: "3.12"
       # Literal pin: this job never checks out the repository, so there is no
-      # .tool-versions for setup-uv to read. Keep in sync with .tool-versions.
+      # pyproject.toml for setup-uv to read. Keep equal to the lower bound of
+      # [tool.uv] required-version in pyproject.toml.
       UV_VERSION: "0.12.19"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PHOENIX_HOST: "127.0.0.1"
