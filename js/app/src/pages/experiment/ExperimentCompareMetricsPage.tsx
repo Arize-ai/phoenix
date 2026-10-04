@@ -33,6 +33,7 @@ import type {
   ExperimentCompareMetricsPage_experiments$key,
 } from "./__generated__/ExperimentCompareMetricsPage_experiments.graphql";
 import type { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "./__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
+import { formatPercentageDelta } from "./utils";
 
 const thumbIconCSS = css`
   font-size: var(--global-text-font-size-l);
@@ -595,20 +596,15 @@ function CompareExperimentMetric({
   formatter?: (value: MetricValue) => string;
 }) {
   const valueText = useMemo(() => formatter(value), [formatter, value]);
-  const percentageDeltaText = useMemo(() => {
-    let percentageDeltaText: string = "+0%";
-    if (baseExperimentValue == null || value == null) {
-      return percentageDeltaText;
-    }
-    const delta = value - baseExperimentValue;
-    const sign = delta >= 0 ? "+" : "-";
-    if (baseExperimentValue !== 0) {
-      const absolutePercentageDelta =
-        Math.abs(delta / baseExperimentValue) * 100;
-      percentageDeltaText = `${sign}${percentFormatter(absolutePercentageDelta)}`;
-    }
-    return percentageDeltaText;
-  }, [baseExperimentValue, value]);
+  const percentageDeltaText = useMemo(
+    () =>
+      formatPercentageDelta({
+        value,
+        baseValue: baseExperimentValue,
+        formatPercent: percentFormatter,
+      }),
+    [baseExperimentValue, value]
+  );
 
   return (
     <Flex direction="row" alignItems="center" gap="size-100">

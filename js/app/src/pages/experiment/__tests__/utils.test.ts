@@ -1,4 +1,7 @@
-import { calculateAnnotationScorePercentile } from "../utils";
+import {
+  calculateAnnotationScorePercentile,
+  formatPercentageDelta,
+} from "../utils";
 
 describe("calculateAnnotationScorePercentile", () => {
   describe("with default min/max (0 to 1 range)", () => {
@@ -59,5 +62,39 @@ describe("calculateAnnotationScorePercentile", () => {
       expect(calculateAnnotationScorePercentile(5, 5, 5)).toEqual(100);
       expect(calculateAnnotationScorePercentile(-1, -1, -1)).toEqual(100);
     });
+  });
+});
+
+describe("formatPercentageDelta", () => {
+  const formatPercent = (value: number) => `${value.toFixed(2)}%`;
+
+  it("formats increases and decreases relative to the base value", () => {
+    expect(
+      formatPercentageDelta({ value: 1.5, baseValue: 1, formatPercent })
+    ).toEqual("+50.00%");
+    expect(
+      formatPercentageDelta({ value: 0.5, baseValue: 1, formatPercent })
+    ).toEqual("-50.00%");
+    expect(
+      formatPercentageDelta({ value: 1, baseValue: 1, formatPercent })
+    ).toEqual("+0.00%");
+  });
+
+  it("does not report a change from a base value of 0 as +0%", () => {
+    expect(
+      formatPercentageDelta({ value: 0.9, baseValue: 0, formatPercent })
+    ).toEqual("--");
+    expect(
+      formatPercentageDelta({ value: 0, baseValue: 0, formatPercent })
+    ).toEqual("+0.00%");
+  });
+
+  it("does not report a missing value as +0%", () => {
+    expect(
+      formatPercentageDelta({ value: null, baseValue: 0.5, formatPercent })
+    ).toEqual("--");
+    expect(
+      formatPercentageDelta({ value: 0.5, baseValue: undefined, formatPercent })
+    ).toEqual("--");
   });
 });
