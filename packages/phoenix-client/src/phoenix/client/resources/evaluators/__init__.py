@@ -1013,11 +1013,11 @@ class AsyncEvaluators:
 
         Example::
 
-            from phoenix.client import Client
-            client = Client()
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
 
-            version = client.prompts.create(name="correctness-judge", version=judge_prompt)
-            definition = client.evaluators.create_llm(
+            version = await client.prompts.create(name="correctness-judge", version=judge_prompt)
+            definition = await client.evaluators.create_llm(
                 name="correctness",
                 prompt_version_id=version.id,
                 description="correctness",
@@ -1203,11 +1203,12 @@ class AsyncEvaluators:
 
         Example::
 
-            from phoenix.client import Client
-            client = Client()
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
 
-            usable = [c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]]
-        """  # noqa: E501
+            configs = await client.evaluators.list_sandbox_configs(language="PYTHON")
+            usable = [c for c in configs if c["is_usable"]]
+        """
         await self._guard.require(LIST_SANDBOX_CONFIGS)
         configs: list[v1.SandboxConfig] = []
         next_cursor: Optional[str] = None
