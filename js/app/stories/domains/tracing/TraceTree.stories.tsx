@@ -4,7 +4,6 @@ import { useState } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
-import { Text } from "@phoenix/components";
 import {
   TraceTree,
   TraceTreeProvider,
@@ -15,6 +14,14 @@ import {
 } from "@phoenix/components/trace/TraceTreeSkeleton";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import { PreferencesProvider } from "@phoenix/contexts";
+
+import {
+  annotationConfigsByName,
+  spanAnnotationsBySpanId,
+  summarizeSpanAnnotations,
+} from "../../constants/annotationFixtures";
+import { buildSpan } from "../../constants/spanFixtures";
+import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
  * The frame the stories render into, sized like the trace tree's slot in the
@@ -28,40 +35,14 @@ const frameStyle: CSSProperties = {
   flexDirection: "column",
 };
 
-/**
- * Builds a span with sensible defaults. `startOffsetMs` is relative to the
- * trace start so a fixture reads as a timeline.
- */
-function span(
-  overrides: Partial<ISpanItem> & {
-    id: string;
-    name: string;
-    spanKind: string;
-    startOffsetMs: number;
-    /** `null` leaves the span open: no end time and no latency. */
-    latencyMs: number | null;
-  }
-): ISpanItem {
-  const { startOffsetMs, latencyMs, ...rest } = overrides;
-  const traceStart = Date.parse("2026-09-22T09:30:00.000Z");
-  const start = new Date(traceStart + startOffsetMs);
-  return {
-    spanId: rest.id,
-    parentId: null,
-    statusCode: "OK",
-    startTime: start.toISOString(),
-    endTime:
-      latencyMs == null
-        ? null
-        : new Date(start.getTime() + latencyMs).toISOString(),
-    latencyMs,
-    ...rest,
-  };
+/** Places every span of these fixtures in one trace that starts at 09:30. */
+function span(overrides: Parameters<typeof buildSpan>[0]): ISpanItem {
+  return buildSpan(overrides, { traceStart: "2026-09-22T09:30:00.000Z" });
 }
 
 /**
- * The trace from the issue: an agent plays a round of a game, and the one
- * LLM call carries the tokens and cost.
+ * An agent plays a round of a game, and the one LLM call carries the tokens
+ * and cost.
  */
 const gameRoundSpans: ISpanItem[] = [
   span({
@@ -208,6 +189,14 @@ const ragSpans: ISpanItem[] = [
     startOffsetMs: 8412,
     latencyMs: 8,
   }),
+  span({
+    id: "decision",
+    name: "route · pick answer style",
+    spanKind: "decision",
+    parentId: "query",
+    startOffsetMs: 8420,
+    latencyMs: 42,
+  }),
 ];
 
 /**
@@ -277,6 +266,17 @@ const deepSpans: ISpanItem[] = Array.from(
   }
 );
 
+/** The RAG trace with its evals attached to the spans they ran over. */
+const evaluatedSpans: ISpanItem[] = ragSpans.map((item) => {
+  const annotations = spanAnnotationsBySpanId[item.id];
+  return annotations
+    ? {
+        ...item,
+        spanAnnotationSummaries: summarizeSpanAnnotations(annotations),
+      }
+    : item;
+});
+
 const spansById = new Map(
   [...gameRoundSpans, ...ragSpans, ...mixedSpans, ...deepSpans].map((item) => [
     item.id,
@@ -285,16 +285,20 @@ const spansById = new Map(
 );
 
 /**
- * The details the preview loads for one span. A span with tokens gets
- * a prompt/completion split and a cache-read entry so the breakdown has
- * something to draw; other spans answer with latency alone.
+ * The details the preview loads for one span: a prompt/completion split
+ * with a cache-read entry for a span with tokens so the breakdown has
+ * something to draw. Other spans answer with latency alone.
  */
 function buildSpanDetails(nodeId: string) {
   const match = spansById.get(nodeId);
   if (!match) {
     return null;
   }
-  const base = { __typename: "Span", id: nodeId, latencyMs: match.latencyMs };
+  const base = {
+    __typename: "Span",
+    id: nodeId,
+    latencyMs: match.latencyMs,
+  };
   const total = match.tokenCountTotal;
   if (typeof total !== "number") {
     return {
@@ -378,7 +382,7 @@ function TraceTreeFrame({
   height?: CSSProperties["height"];
 }) {
   const [selectedSpanNodeId, setSelectedSpanNodeId] = useState(
-    initialSelectedSpanId ?? spans[0].id
+    initialSelectedSpanId ?? spans[0]?.id ?? ""
   );
   return (
     <div style={{ ...frameStyle, width, height: height ?? frameStyle.height }}>
@@ -388,11 +392,39 @@ function TraceTreeFrame({
           selectedSpanNodeId={selectedSpanNodeId}
           onSpanClick={(item) => setSelectedSpanNodeId(item.id)}
           scrollSelectedSpanIntoView={false}
+          annotationConfigsByName={annotationConfigsByName}
         />
       </TraceTreeProvider>
     </div>
   );
 }
+
+/**
+ * The frame a skeleton renders into: the same box as the tree's, since the
+ * skeleton is the tree's Suspense fallback in the same slot.
+ */
+function SkeletonFrame({
+  width,
+  height,
+  children,
+}: {
+  width: CSSProperties["width"];
+  height?: CSSProperties["height"];
+  children?: ReactNode;
+}) {
+  return (
+    <div style={{ ...frameStyle, width, height: height ?? frameStyle.height }}>
+      <TraceTreeSkeleton>{children}</TraceTreeSkeleton>
+    </div>
+  );
+}
+
+const breakpointWidths = [
+  { label: "Extra wide (840px)", width: 840 },
+  { label: "Wide (640px)", width: 640 },
+  { label: "Medium (420px)", width: 420 },
+  { label: "Compact (260px)", width: 260 },
+];
 
 /**
  * The trace tree lists a trace's spans as nested rows. Every row is laid out
@@ -401,25 +433,35 @@ function TraceTreeFrame({
  * latency | tokens | cost. Metrics a span lacks are dropped from its footer,
  * so rows differ in height, and the tree edges end at each row's own center.
  *
- * Every row is the trigger of a rich tooltip beside the tree that names
- * the span and shows when it ran, then its token and cost breakdown. The
- * breakdown is fetched only when a tooltip opens, with the totals the row
- * already knows standing in until it arrives. In these stories a canned
- * Relay environment answers that load after a short delay. Scrub the
- * pointer down a tree: after the first tooltip, each row's opens at once.
+ * A span with annotations (notes aside) gets a line of badges under the row,
+ * unfavorable first, tinted by the project's annotation config. Badges that
+ * do not fit collapse into "+N", which opens the rest in a popover.
+ *
+ * Hovering or focusing a row opens its `Span Preview Tooltip`, whose token
+ * and cost breakdown loads only once the tooltip settles; here a canned
+ * Relay environment answers after a short delay. After the first preview
+ * opens, each row passed opens its own at once. `Span Preview Tooltip` and
+ * `Span Preview Card` show the preview held open.
+ *
+ * The tree responds to its own width. Over the extra-wide breakpoint the
+ * timing column widens to a third of the tree; below the medium breakpoint
+ * it is dropped; below the compact breakpoint edges, indentation, metrics
+ * and controls are dropped too, leaving a flat list of names.
  *
  * While a trace loads, `TraceTreeSkeleton` stands in for the tree. Its rows
- * share the tree's layout styles and edges, so it responds to the same width
- * breakpoints and the same "show metrics" preference; the two "Skeleton"
- * stories show it across those states.
+ * share the tree's layout styles and edges, so it responds to the same
+ * breakpoints and the same "show metrics" preference.
  *
  * Not yet covered: the tree-wide collapse and the search filter that the
- * trace toolbar drives through `TraceTreeProvider`.
+ * trace toolbar drives through `TraceTreeProvider`, including the message
+ * shown when no span matches; a single row collapsed by its own toggle; and
+ * the hover and focus fills of rows and their collapse toggles.
  */
 const meta: Meta<typeof TraceTree> = {
   title: "Domains/Tracing/Trace Tree",
   tags: ["updated", "unreviewed", "incomplete"],
   component: TraceTree,
+  subcomponents: { TraceTreeSkeleton, TraceTreeNodeSkeleton },
   decorators: [
     (Story) => (
       <RelayEnvironmentProvider environment={mockRelayEnvironment}>
@@ -429,6 +471,7 @@ const meta: Meta<typeof TraceTree> = {
   ],
   parameters: {
     layout: "padded",
+    themeLayout: "column",
     controls: { disable: true },
   },
 };
@@ -436,198 +479,171 @@ const meta: Meta<typeof TraceTree> = {
 export default meta;
 type Story = StoryObj<typeof TraceTree>;
 
-/** The trace from the issue. Only the LLM span shows tokens and cost. */
 export const Default: Story = {
+  tags: ["!dev"],
   render: () => <TraceTreeFrame spans={gameRoundSpans} />,
 };
 
-/** Several LLM spans in one trace: the footers line up as a scannable column. */
-export const ManyLLMSpans: Story = {
+export const ContentTypes: Story = {
+  name: "Content Types",
+  tags: ["!dev"],
   render: () => (
-    <TraceTreeFrame spans={ragSpans} initialSelectedSpanId="llm-draft" />
+    <OptionGrid
+      rows={[
+        { label: "No spans", spans: [] },
+        {
+          label: "Several LLM calls and an error",
+          spans: ragSpans,
+          selected: "llm-draft",
+        },
+        { label: "Open and unpriced spans", spans: mixedSpans },
+        { label: "Deep nesting", spans: deepSpans },
+        {
+          label: "Evaluated",
+          spans: evaluatedSpans,
+          selected: "retrieve",
+        },
+      ]}
+      alignRows="start"
+      renderCell={(row) => (
+        <TraceTreeFrame
+          spans={row.spans}
+          initialSelectedSpanId={row.selected}
+        />
+      )}
+    />
+  ),
+};
+
+/** The evaluated trace at each width breakpoint the tree responds to. */
+export const Widths: Story = {
+  tags: ["!dev"],
+  render: () => (
+    <OptionGrid
+      rows={breakpointWidths}
+      alignRows="start"
+      renderCell={(row) => (
+        <TraceTreeFrame
+          spans={evaluatedSpans}
+          initialSelectedSpanId="llm-draft"
+          width={row.width}
+        />
+      )}
+    />
   ),
 };
 
 /**
- * Footers of different lengths: an open span has no footer at all, an
- * unpriced model shows latency and tokens, a hosted model shows all three.
- * The edges adapt to each row's height.
+ * The "show metrics" preference, read by both the tree and its skeleton.
+ * Turning it off drops the metrics footers, so every row is a single line;
+ * at the wide breakpoints it drops the timing bars as well.
  */
-export const MixedRowHeights: Story = {
-  render: () => <TraceTreeFrame spans={mixedSpans} />,
-};
-
-/** An error span keeps its footer; the status icon sits beside the name. */
-export const WithError: Story = {
+export const MetricsPreference: Story = {
+  name: "Metrics Preference",
+  tags: ["!dev"],
   render: () => (
-    <TraceTreeFrame spans={ragSpans} initialSelectedSpanId="retrieve" />
-  ),
-};
-
-/** Edges stay attached to the icons down a deep chain of two-line rows. */
-export const DeeplyNested: Story = {
-  render: () => <TraceTreeFrame spans={deepSpans} />,
-};
-
-/**
- * With the "show metrics" preference off, footers and timeline bars are
- * gone and every row is a single line.
- */
-export const MetricsHidden: Story = {
-  render: () => (
-    <PreferencesProvider showMetricsInTraceTree={false}>
-      <TraceTreeFrame spans={ragSpans} />
-    </PreferencesProvider>
-  ),
-};
-
-export const SideBySide: Story = {
-  parameters: { width: "fill" },
-  render: () => (
-    <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-      {[
-        { label: "Wide (900px)", width: 900 },
-        { label: "Medium (420px)", width: 420 },
-        { label: "Compact (260px)", width: 260 },
-      ].map(({ label, width }) => (
-        <div key={label}>
-          <div style={{ marginBottom: 8, fontSize: 12 }}>{label}</div>
-          <TraceTreeFrame spans={ragSpans} width={width} />
-        </div>
-      ))}
-    </div>
+    <OptionGrid
+      rows={[
+        { label: "Tree", isSkeleton: false },
+        { label: "Skeleton", isSkeleton: true },
+      ].flatMap((surface) =>
+        [
+          { label: "metrics shown", showMetrics: true },
+          { label: "metrics hidden", showMetrics: false },
+        ].map((preference) => ({
+          ...surface,
+          ...preference,
+          label: `${surface.label}, ${preference.label}`,
+        }))
+      )}
+      alignRows="start"
+      renderCell={(row) => (
+        <PreferencesProvider showMetricsInTraceTree={row.showMetrics}>
+          {row.isSkeleton ? (
+            <SkeletonFrame width={640} />
+          ) : (
+            <TraceTreeFrame spans={ragSpans} width={640} />
+          )}
+        </PreferencesProvider>
+      )}
+    />
   ),
 };
 
 /**
- * The frame a skeleton renders into: the same box as the tree's, since the
- * skeleton is the tree's Suspense fallback in the same slot.
- */
-function SkeletonFrame({
-  width,
-  children,
-}: {
-  width: CSSProperties["width"];
-  children?: ReactNode;
-}) {
-  return (
-    <div style={{ ...frameStyle, width }}>
-      <TraceTreeSkeleton>{children}</TraceTreeSkeleton>
-    </div>
-  );
-}
-
-/**
- * The loading skeleton exactly as production renders it (the default body,
- * no children), at each width breakpoint the tree responds to, and with the
- * "show metrics" preference off:
- *
- * - **Extra wide** (over 800px): the timing column widens to a third of the tree.
- * - **Wide**: rows, metrics footers, and timing bars.
- * - **Medium** (under 500px): the timing column is dropped.
- * - **Compact** (under 300px): edges, indentation, metrics, and controls are
- *   dropped, leaving a flat list of names.
- * - **Metrics hidden**: footers and timing bars are gone, one line per row.
+ * The loading skeleton as production renders it, with its default body and
+ * no children, at each width breakpoint.
  */
 export const Skeleton: Story = {
-  parameters: { width: "fill" },
+  tags: ["!dev"],
   render: () => (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 16,
-        alignItems: "flex-start",
-      }}
-    >
-      {[
-        { label: "Extra wide (900px)", width: 900 },
-        { label: "Wide (640px)", width: 640 },
-        { label: "Medium (420px)", width: 420 },
-        { label: "Compact (260px)", width: 260 },
-      ].map(({ label, width }) => (
-        <div key={label}>
-          <Text size="XS" color="text-700">
-            {label}
-          </Text>
-          <SkeletonFrame width={width} />
-        </div>
-      ))}
-      <div>
-        <Text size="XS" color="text-700">
-          Metrics hidden (640px)
-        </Text>
-        <PreferencesProvider showMetricsInTraceTree={false}>
-          <SkeletonFrame width={640} />
-        </PreferencesProvider>
-      </div>
-    </div>
+    <OptionGrid
+      rows={breakpointWidths}
+      alignRows="start"
+      renderCell={(row) => <SkeletonFrame width={row.width} />}
+    />
   ),
 };
 
 /**
  * `TraceTreeSkeleton` also takes `TraceTreeNodeSkeleton` children to shape
  * the placeholder like a known tree. Each node draws its own edges from its
- * position, so a flat list, a branching tree, and a deep chain all connect
- * the same way the real tree does.
+ * position, the way the real tree's rows do.
  */
 export const SkeletonShapes: Story = {
   name: "Skeleton Shapes",
-  parameters: { width: "fill" },
+  tags: ["!dev"],
   render: () => (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 16,
-        alignItems: "flex-start",
-      }}
-    >
-      <div>
-        <Text size="XS" color="text-700">
-          Flat
-        </Text>
-        <SkeletonFrame width={420}>
-          <TraceTreeNodeSkeleton nameWidth={200} />
-          <TraceTreeNodeSkeleton nameWidth={180} />
-          <TraceTreeNodeSkeleton nameWidth={220} />
-          <TraceTreeNodeSkeleton nameWidth={160} />
-          <TraceTreeNodeSkeleton nameWidth={240} />
-        </SkeletonFrame>
-      </div>
-      <div>
-        <Text size="XS" color="text-700">
-          Branching
-        </Text>
-        <SkeletonFrame width={420}>
-          <TraceTreeNodeSkeleton nameWidth={240}>
-            <TraceTreeNodeSkeleton nameWidth={200}>
+    <OptionGrid
+      rows={[
+        {
+          label: "Flat",
+          nodes: (
+            <>
+              <TraceTreeNodeSkeleton nameWidth={200} />
+              <TraceTreeNodeSkeleton nameWidth={180} />
+              <TraceTreeNodeSkeleton nameWidth={220} />
               <TraceTreeNodeSkeleton nameWidth={160} />
-              <TraceTreeNodeSkeleton nameWidth={140} />
+              <TraceTreeNodeSkeleton nameWidth={240} />
+            </>
+          ),
+        },
+        {
+          label: "Branching",
+          nodes: (
+            <TraceTreeNodeSkeleton nameWidth={240}>
+              <TraceTreeNodeSkeleton nameWidth={200}>
+                <TraceTreeNodeSkeleton nameWidth={160} />
+                <TraceTreeNodeSkeleton nameWidth={140} />
+              </TraceTreeNodeSkeleton>
+              <TraceTreeNodeSkeleton nameWidth={180} />
             </TraceTreeNodeSkeleton>
-            <TraceTreeNodeSkeleton nameWidth={180} />
-          </TraceTreeNodeSkeleton>
-        </SkeletonFrame>
-      </div>
-      <div>
-        <Text size="XS" color="text-700">
-          Deep
-        </Text>
-        <SkeletonFrame width={420}>
-          <TraceTreeNodeSkeleton nameWidth={220}>
-            <TraceTreeNodeSkeleton nameWidth={200}>
-              <TraceTreeNodeSkeleton nameWidth={180}>
-                <TraceTreeNodeSkeleton nameWidth={160}>
-                  <TraceTreeNodeSkeleton nameWidth={140}>
-                    <TraceTreeNodeSkeleton nameWidth={120} />
+          ),
+        },
+        {
+          label: "Deep",
+          nodes: (
+            <TraceTreeNodeSkeleton nameWidth={220}>
+              <TraceTreeNodeSkeleton nameWidth={200}>
+                <TraceTreeNodeSkeleton nameWidth={180}>
+                  <TraceTreeNodeSkeleton nameWidth={160}>
+                    <TraceTreeNodeSkeleton nameWidth={140}>
+                      <TraceTreeNodeSkeleton nameWidth={120} />
+                    </TraceTreeNodeSkeleton>
                   </TraceTreeNodeSkeleton>
                 </TraceTreeNodeSkeleton>
               </TraceTreeNodeSkeleton>
             </TraceTreeNodeSkeleton>
-          </TraceTreeNodeSkeleton>
+          ),
+        },
+      ]}
+      alignRows="start"
+      renderCell={(row) => (
+        <SkeletonFrame width={420} height={320}>
+          {row.nodes}
         </SkeletonFrame>
-      </div>
-    </div>
+      )}
+    />
   ),
 };
 

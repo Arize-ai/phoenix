@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-cli",
-  "version": "1.18.5",
+  "version": "1.18.7",
   "description": "A command-line interface for Phoenix",
   "keywords": [
     "arize",
@@ -42,7 +42,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^2.12.0",
+    "@arizeai/openinference-semantic-conventions": "^2.13.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
     "@clack/prompts": "^1.8.1",

@@ -22,6 +22,10 @@ import { ExperimentAnnotationScoresChart } from "./ExperimentAnnotationScoresCha
 import { ExperimentCostChart } from "./ExperimentCostChart";
 import { ExperimentErrorRateChart } from "./ExperimentErrorRateChart";
 import { ExperimentLatencyChart } from "./ExperimentLatencyChart";
+import {
+  ExperimentCompletionTokenDetailsChart,
+  ExperimentPromptTokenDetailsChart,
+} from "./ExperimentTokenDetailsChart";
 import { ExperimentTokensChart } from "./ExperimentTokensChart";
 import type { ExperimentMetricViewProps } from "./types";
 
@@ -86,6 +90,18 @@ const CHART_DEFINITIONS: Record<
     description: `Prompt and completion tokens across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
     chartType: "bar",
     Component: ExperimentTokensChart,
+  },
+  prompt_token_details: {
+    name: "Prompt token details",
+    description: `Prompt tokens by input, cache, and audio parts across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
+    Component: ExperimentPromptTokenDetailsChart,
+  },
+  completion_token_details: {
+    name: "Completion token details",
+    description: `Completion tokens by output, reasoning, and audio parts across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
+    Component: ExperimentCompletionTokenDetailsChart,
   },
   error_rate: {
     name: "Error rate",

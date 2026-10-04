@@ -113,6 +113,21 @@ export const PanZoomOnly = {
   },
 };
 
+/**
+ * The live toggle alone disabled while pan and zoom stay usable, as on the
+ * project page while a trace or session drawer pauses streaming.
+ */
+export const LiveToggleDisabled = {
+  render: Template,
+  args: {
+    isLiveToggleDisabled: true,
+    initialValue: {
+      timeRangeKey: "1h",
+      start: new Date(Date.now() - 60 * 60 * 1000),
+    },
+  },
+};
+
 export const Medium = {
   render: Template,
   args: {

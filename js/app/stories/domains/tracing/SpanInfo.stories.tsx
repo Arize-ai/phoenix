@@ -10,6 +10,7 @@ import { SpanNoteBarProvider } from "@phoenix/pages/trace/SpanNoteBarContext";
 import {
   chainJsonIOSpan,
   chainTextIOSpan,
+  decisionSpan,
   embeddingSpan,
   embeddingWithoutEmbeddingsSpan,
   llmChatSpan,
@@ -316,6 +317,14 @@ export const ChainTextIO: Story = {
  */
 export const ChainJsonIO: Story = {
   args: { span: chainJsonIOSpan },
+};
+
+/**
+ * A decision span (experimental) — its input and output, with the decision
+ * model named in the input card's header.
+ */
+export const Decision: Story = {
+  args: { span: decisionSpan },
 };
 
 /**

@@ -912,13 +912,21 @@
             ]
           },
           {
+            "group": "Vector Databases",
+            "icon": "database",
+            "pages": [
+              "docs/phoenix/integrations/vector-databases/qdrant"
+            ]
+          },
+          {
             "group": "Sandboxes",
             "icon": "cube",
             "pages": [
               "docs/phoenix/integrations/sandboxes/e2b",
               "docs/phoenix/integrations/sandboxes/daytona",
               "docs/phoenix/integrations/sandboxes/vercel",
-              "docs/phoenix/integrations/sandboxes/modal"
+              "docs/phoenix/integrations/sandboxes/modal",
+              "docs/phoenix/integrations/sandboxes/docker"
             ]
           },
           {
@@ -1372,10 +1380,7 @@
               "docs/phoenix/cookbook/evaluation/trace-level-evaluation",
               "docs/phoenix/cookbook/evaluation/session-level-evaluation",
               "docs/phoenix/cookbook/evaluation/evaluate-rag",
-              "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
-              "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
-              "docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
-              "docs/phoenix/cookbook/evaluation/cookbooks"
+              "docs/phoenix/cookbook/evaluation/code-readability-evaluation"
             ]
           },
           {
@@ -1735,6 +1740,18 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/cookbook/evaluation/cookbooks",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
+      "destination": "/docs/phoenix/integrations/evaluation-integrations/ragas"
+    },
     {
       "source": "/docs/phoenix/integrations/platforms/cloudflare-ai-gateway",
       "destination": "/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing"

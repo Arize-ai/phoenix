@@ -26,6 +26,11 @@ export type TimeRangeControlsProps = {
    * toggle is not rendered and the strip is a pure pan/zoom control.
    */
   onIsLiveChange?: (isLive: boolean) => void;
+  /**
+   * Disables only the live play/stop toggle, leaving pan and zoom usable
+   * (e.g. while a detail drawer pauses streaming).
+   */
+  isLiveToggleDisabled?: boolean;
   /** Disables every control. */
   isDisabled?: boolean;
   /** Visual size for the buttons. */
@@ -204,6 +209,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
     onChange,
     isLive = false,
     onIsLiveChange,
+    isLiveToggleDisabled,
     isDisabled,
     size = "S",
   } = props;
@@ -252,7 +258,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
             css={controlButtonCSS}
             aria-label={liveToggleLabel}
             isSelected={isLive}
-            isDisabled={isDisabled}
+            isDisabled={isDisabled || isLiveToggleDisabled}
             leadingVisual={
               <Icon svg={isLive ? <Icons.Pause /> : <Icons.Play />} />
             }

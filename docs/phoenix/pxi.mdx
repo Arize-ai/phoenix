@@ -470,7 +470,7 @@ present, so it does not offer an action that cannot succeed on your current page
   | Environment variable | Effect |
   | --- | --- |
   | `PHOENIX_DISABLE_AGENT_ASSISTANT=true` | Disable PXI for the whole deployment (requires restart). |
-  | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups. |
+  | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups, web search/fetch, and GitHub tools. |
   | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
   | `PHOENIX_AGENTS_DISABLE_BASH=true` | Remove PXI's server-side bash tool. This strips bash from the assistant, disables subagents (and hides the subagents toggle in **Settings → Assistant**), and rejects the headless terminal agent, which depends on it. To turn PXI off entirely use `PHOENIX_DISABLE_AGENT_ASSISTANT`. |
   | `PHOENIX_AGENTS_DISABLE_GITHUB=true` | Disable PXI's GitHub issue tools and hide the GitHub settings UI. |
