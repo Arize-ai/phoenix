@@ -37,6 +37,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     generate_unique_evaluator_name,
     get_project_for_dataset_evaluator,
     parse_evaluator_id,
+    release_evaluator_prompt_label,
 )
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     CreatePromptSource,
@@ -374,8 +375,11 @@ async def update_dataset_llm_evaluator(
             target_prompt_id = new_prompt.id
             shared_evaluator_changed = True
         if llm_evaluator.prompt_id != target_prompt_id:
+            previous_prompt_id = llm_evaluator.prompt_id
             llm_evaluator.prompt_id = target_prompt_id
             shared_evaluator_changed = True
+            await ensure_evaluator_prompt_label(session, target_prompt_id)
+            await release_evaluator_prompt_label(session, previous_prompt_id)
 
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")

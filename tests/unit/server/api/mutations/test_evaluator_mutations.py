@@ -1653,6 +1653,23 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 GlobalID("PromptVersion", str(different_prompt.prompt_versions[0].id))
             )
             different_prompt_id = different_prompt.id
+            evaluator_label = await session.scalar(
+                select(models.PromptLabel).where(models.PromptLabel.name == "evaluator")
+            )
+            if evaluator_label is None:
+                evaluator_label = models.PromptLabel(
+                    name="evaluator",
+                    description="Automatically assigned to prompts created for LLM evaluators",
+                    color="#4ecf50",
+                )
+                session.add(evaluator_label)
+                await session.flush()
+            session.add(
+                models.PromptPromptLabel(
+                    prompt_id=original_prompt_id,
+                    prompt_label_id=evaluator_label.id,
+                )
+            )
 
             dataset_evaluator = await session.scalar(
                 select(models.DatasetEvaluators).where(
@@ -1743,6 +1760,26 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             # Verify prompt_version_tag points to different prompt
             assert db_evaluator.prompt_version_tag is not None
             assert db_evaluator.prompt_version_tag.prompt_id == different_prompt_id
+            moved_label = await session.scalar(
+                select(models.PromptLabel)
+                .join(
+                    models.PromptPromptLabel,
+                    models.PromptPromptLabel.prompt_label_id == models.PromptLabel.id,
+                )
+                .where(models.PromptPromptLabel.prompt_id == different_prompt_id)
+                .where(models.PromptLabel.name == "evaluator")
+            )
+            assert moved_label is not None
+            released_label = await session.scalar(
+                select(models.PromptPromptLabel)
+                .join(
+                    models.PromptLabel,
+                    models.PromptLabel.id == models.PromptPromptLabel.prompt_label_id,
+                )
+                .where(models.PromptPromptLabel.prompt_id == original_prompt_id)
+                .where(models.PromptLabel.name == "evaluator")
+            )
+            assert released_label is None
 
     async def test_update_with_prompt_version_id_content_changed(
         self,

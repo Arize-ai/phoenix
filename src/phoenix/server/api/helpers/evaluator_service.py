@@ -35,6 +35,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     raise_on_uninferable_evaluate_signature,
+    release_evaluator_prompt_label,
     release_llm_evaluator_prompt,
     validate_code_evaluator_sandbox_config,
     validate_project_evaluator_filter,
@@ -1515,8 +1516,11 @@ async def _update_llm_definition(
         evaluator.output_configs = output_configs
         shared_evaluator_changed = True
     if evaluator.prompt_id != target_prompt_id:
+        previous_prompt_id = evaluator.prompt_id
         evaluator.prompt_id = target_prompt_id
         shared_evaluator_changed = True
+        await ensure_evaluator_prompt_label(session, target_prompt_id)
+        await release_evaluator_prompt_label(session, previous_prompt_id)
     try:
         validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
     except ValueError as error:
