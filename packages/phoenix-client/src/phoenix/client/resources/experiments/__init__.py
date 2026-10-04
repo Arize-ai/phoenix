@@ -948,7 +948,8 @@ class Experiments:
             task_runs = self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             expected_runs = len(examples_to_process) * repetitions
-            actual_runs = len(task_runs)
+            # the server returns errored runs too; only runs without an error completed
+            actual_runs = sum(1 for run in task_runs if not run.get("error"))
             if actual_runs < expected_runs:
                 print(
                     f"⚠️  Warning: Only {actual_runs} out of {expected_runs} expected runs were "
@@ -1479,6 +1480,7 @@ class Experiments:
         cursor: Optional[str] = None
         page_size = 50
         total_processed = 0
+        total_attempted = 0
         total_completed = 0
 
         while True:
@@ -1531,6 +1533,7 @@ class Experiments:
                     retries=retries,
                 )
 
+                total_attempted += len(evaluation_tasks)
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
 
                 cursor = body.get("next_cursor")
@@ -1563,10 +1566,11 @@ class Experiments:
 
         print("✅ Evaluations completed.")
 
-        if total_completed < total_processed * len(evaluators_by_name):
+        # only the evaluations each run was missing are attempted, not every evaluator
+        if total_completed < total_attempted:
             print(
                 f"⚠️  Warning: Only {total_completed} out of "
-                f"{total_processed * len(evaluators_by_name)} incomplete evaluations "
+                f"{total_attempted} incomplete evaluations "
                 "were completed successfully."
             )
 
@@ -2794,7 +2798,8 @@ class AsyncExperiments:
             task_runs = await self._get_all_experiment_runs(experiment_id=experiment["id"])
 
             expected_runs = len(examples_to_process) * repetitions
-            actual_runs = len(task_runs)
+            # the server returns errored runs too; only runs without an error completed
+            actual_runs = sum(1 for run in task_runs if not run.get("error"))
             if actual_runs < expected_runs:
                 print(
                     f"⚠️  Warning: Only {actual_runs} out of {expected_runs} expected runs were "
@@ -3332,6 +3337,7 @@ class AsyncExperiments:
         cursor: Optional[str] = None
         page_size = 100
         total_processed = 0
+        total_attempted = 0
         total_completed = 0
 
         while True:
@@ -3385,6 +3391,7 @@ class AsyncExperiments:
                     retries=retries,
                 )
 
+                total_attempted += len(evaluation_tasks)
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
 
                 cursor = body.get("next_cursor")
@@ -3417,10 +3424,11 @@ class AsyncExperiments:
 
         print("✅ Evaluations completed.")
 
-        if total_completed < total_processed * len(evaluators_by_name):
+        # only the evaluations each run was missing are attempted, not every evaluator
+        if total_completed < total_attempted:
             print(
                 f"⚠️  Warning: Only {total_completed} out of "
-                f"{total_processed * len(evaluators_by_name)} incomplete evaluations "
+                f"{total_attempted} incomplete evaluations "
                 "were completed successfully."
             )
 
