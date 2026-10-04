@@ -58,6 +58,26 @@ from phoenix.server.api.helpers.evaluators import (
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
+# PostgreSQL foreign_key_violation. SQLite has no SQLSTATE; its driver message is fixed
+# and, unlike SQLAlchemy's str(IntegrityError), does not include the bound parameters.
+_POSTGRES_FOREIGN_KEY_SQLSTATE = "23503"
+_SQLITE_FOREIGN_KEY_MESSAGE = "FOREIGN KEY constraint failed"
+
+
+def _is_foreign_key_violation(error: BaseException) -> bool:
+    """Whether an integrity error is a foreign-key failure, not a unique collision.
+
+    SQLAlchemy appends the statement parameters to ``str(error)``, so a name or
+    description containing "foreign" must not be what decides 404 versus 409.
+    """
+    candidate = getattr(error, "orig", None)
+    if candidate is None:
+        candidate = error
+    sqlstate = getattr(candidate, "sqlstate", None) or getattr(candidate, "pgcode", None)
+    if sqlstate == _POSTGRES_FOREIGN_KEY_SQLSTATE:
+        return True
+    return str(candidate) == _SQLITE_FOREIGN_KEY_MESSAGE
+
 
 @dataclass(kw_only=True)
 class CreateDatasetLLMEvaluatorInput:
@@ -230,7 +250,7 @@ async def create_dataset_llm_evaluator(
             # Updates to Evaluator do not trigger LLMEvaluator.updated_at.
             llm_evaluator.updated_at = datetime.now(timezone.utc)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-        if "foreign" in str(e).lower():
+        if _is_foreign_key_violation(e):
             raise NotFound(f"Dataset with id {dataset_id} not found")
         raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
     return dataset_evaluator_record
@@ -634,7 +654,7 @@ async def create_dataset_builtin_evaluator(
 
             session.add(dataset_evaluator)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-        if "foreign" in str(e).lower():
+        if _is_foreign_key_violation(e):
             raise NotFound(f"Dataset with id {input.dataset_id} not found")
         raise await _dataset_binding_name_taken(
             context, dataset_rowid, IdentifierModel.model_validate(input.name)
@@ -709,7 +729,7 @@ async def update_dataset_builtin_evaluator(
                 session, dataset_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-        if "foreign" in str(e).lower():
+        if _is_foreign_key_violation(e):
             raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
         raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
 
@@ -796,7 +816,7 @@ async def create_dataset_code_evaluator(
 
             session.add(dataset_evaluator)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-        if "foreign" in str(e).lower():
+        if _is_foreign_key_violation(e):
             raise NotFound(f"Dataset with id {input.dataset_id} not found")
         raise await _dataset_binding_name_taken(
             context, dataset_rowid, IdentifierModel.model_validate(input.name)
@@ -867,7 +887,7 @@ async def update_dataset_code_evaluator(
                 session, dataset_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-        if "foreign" in str(e).lower():
+        if _is_foreign_key_violation(e):
             raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
         raise Conflict(f"An evaluator named '{input.name}' already exists for this dataset")
 
