@@ -475,17 +475,24 @@ function parseCreateTypeOrExit(options: EvaluatorCreateOptions): EvaluatorType {
           ),
           ["--output-configs", options.outputConfigs],
         ];
-  const exitWith = (message: string): never => {
+  const exitWith = (message: string, hint = CREATE_USAGE[type]): never => {
     writeStructuredError({
       format: options.format,
       message,
       code: "INVALID_ARGUMENT",
-      hint: CREATE_USAGE[type],
+      hint,
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   };
   const missing = required.find(([, value]) => !value);
-  if (missing) exitWith(`Missing required flag ${missing[0]}`);
+  if (missing) {
+    exitWith(
+      `Missing required flag ${missing[0]}`,
+      missing[0] === "--sandbox-config-id"
+        ? "px sandbox-config list"
+        : CREATE_USAGE[type]
+    );
+  }
   const misplaced = (type === "llm" ? codeFlags : llmFlags)
     .filter(([, value]) => value !== undefined)
     .map(([flag]) => flag);

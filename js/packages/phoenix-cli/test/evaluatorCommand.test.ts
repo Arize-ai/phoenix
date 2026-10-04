@@ -378,6 +378,40 @@ describe("evaluator create", () => {
     expect(calls).toBe(0);
   });
 
+  it("points a missing --sandbox-config-id at sandbox-config list", async () => {
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "--type",
+          "code",
+          "--name",
+          "exact-match",
+          "--source-code",
+          "x",
+          "--language",
+          "PYTHON",
+          "--input-mapping",
+          '{"literal_mapping":{},"path_mapping":{}}',
+          "--output-configs",
+          '[{"type":"CATEGORICAL","name":"match","optimization_direction":"MAXIMIZE","values":[{"label":"yes","score":1}]}]',
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    const parsed = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(parsed.error).toBe("Missing required flag --sandbox-config-id");
+    expect(parsed.hint).toBe("px sandbox-config list");
+  });
+
   it("requires --output-configs and shows the full invocation", async () => {
     let calls = 0;
     mock.server.use(
