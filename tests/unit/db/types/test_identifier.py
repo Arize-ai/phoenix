@@ -3,11 +3,11 @@ import string
 import pytest
 from pydantic import ValidationError
 
-from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.identifier import _IDENTIFIER_PATTERN_TEXT, Identifier
 
 
 def test_identifier_schema_keeps_the_pattern() -> None:
-    assert Identifier.model_json_schema()["pattern"] == r"^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$"
+    assert Identifier.model_json_schema()["pattern"] == _IDENTIFIER_PATTERN_TEXT
 
 
 @pytest.mark.parametrize(
