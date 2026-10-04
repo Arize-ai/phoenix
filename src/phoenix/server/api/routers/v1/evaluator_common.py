@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 from typing import Annotated, Iterator, Literal, Optional, Sequence, Union
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, ValidationError
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
@@ -39,14 +39,21 @@ EvaluatorOutputConfig = Annotated[
 
 
 def output_configs_to_db(configs: Sequence[EvaluatorOutputConfig]) -> list[OutputConfigType]:
-    """Convert REST output configurations to their database representation."""
+    """Convert REST output configurations to their database representation.
+
+    The REST models accept values the stored config rejects, such as inverted bounds
+    or duplicate categorical labels. Those are the caller's input, not a server fault.
+    """
     stored: list[OutputConfigType] = []
-    for config in configs:
-        data = config.model_dump()
-        if isinstance(config, FreeformAnnotationConfigData):
-            threshold = data.pop("threshold")
-            data["thresholds"] = [threshold] if threshold is not None else None
-        stored.append(OutputConfig.model_validate(data).root)
+    try:
+        for config in configs:
+            data = config.model_dump()
+            if isinstance(config, FreeformAnnotationConfigData):
+                threshold = data.pop("threshold")
+                data["thresholds"] = [threshold] if threshold is not None else None
+            stored.append(OutputConfig.model_validate(data).root)
+    except ValidationError as error:
+        raise BadRequest(str(error)) from error
     return stored
 
 

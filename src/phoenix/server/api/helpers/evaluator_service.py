@@ -1637,7 +1637,12 @@ async def patch_llm_evaluator(
                 except ValidationError as error:
                     raise BadRequest(f"Invalid evaluator name: {error}") from error
             configs = row.output_configs if patch.output_configs is UNSET else patch.output_configs
-            output_configs = LLMEvaluatorOutputConfigs.model_validate({"configs": configs}).configs
+            try:
+                output_configs = LLMEvaluatorOutputConfigs.model_validate(
+                    {"configs": configs}
+                ).configs
+            except ValidationError as error:
+                raise BadRequest(str(error)) from error
             if patch.prompt_source is not None and patch.prompt_source.content is not None:
                 patch.prompt_source.content.user_id = context.user_id
             prompt_version = await _update_llm_definition(

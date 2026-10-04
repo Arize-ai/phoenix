@@ -1033,15 +1033,15 @@ def validate_llm_binding_overrides(
     description: Optional[str],
 ) -> None:
     """Require LLM binding overrides to agree with the prompt's output schema."""
-    configs = LLMEvaluatorOutputConfigs.model_validate({"configs": output_configs}).configs
     try:
+        configs = LLMEvaluatorOutputConfigs.model_validate({"configs": output_configs}).configs
         validate_evaluator_prompt_and_configs(
             prompt_tools=prompt.tools,
             prompt_response_format=prompt.response_format,
             evaluator_output_configs=configs,
             evaluator_description=description,
         )
-    except ValueError as error:
+    except (ValueError, ValidationError) as error:
         raise BadRequest(str(error)) from error
 
 
