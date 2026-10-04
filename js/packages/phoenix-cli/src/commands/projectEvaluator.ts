@@ -91,7 +91,8 @@ interface ProjectEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
    * `--input-mapping <json>`: JSON object with `literal_mapping` and
    * `path_mapping` keys mapping record fields onto evaluator arguments.
    * Omit it to use the shared definition's mapping. LLM evaluators have none,
-   * so their template variables bind to record fields of the same name.
+   * so only variables rooted at input, output, or metadata bind (for example
+   * `{{metadata.turns}}`); anything else needs `--input-mapping`.
    */
   inputMapping?: string;
   /**

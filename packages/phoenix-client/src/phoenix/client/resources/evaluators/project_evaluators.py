@@ -172,8 +172,9 @@ class ProjectEvaluators:
             enabled (bool): Whether the binding is active. Defaults to enabled.
             input_mapping (v1.InputMapping): How record fields map onto evaluator
                 arguments. Omit it to use the shared definition's mapping. LLM
-                evaluators have none, so their template variables bind to record
-                fields of the same name.
+                evaluators have none, so only variables rooted at input, output,
+                or metadata bind (for example ``{{metadata.turns}}``); anything
+                else needs input_mapping.
             evaluation_delay_seconds (int): For TRACE and SESSION targets, how
                 many seconds the trace or session must be quiet before it is
                 evaluated: at least 10, and 300 when omitted. Rejected for SPAN
@@ -455,8 +456,9 @@ class AsyncProjectEvaluators:
             enabled (bool): Whether the binding is active. Defaults to enabled.
             input_mapping (v1.InputMapping): How record fields map onto evaluator
                 arguments. Omit it to use the shared definition's mapping. LLM
-                evaluators have none, so their template variables bind to record
-                fields of the same name.
+                evaluators have none, so only variables rooted at input, output,
+                or metadata bind (for example ``{{metadata.turns}}``); anything
+                else needs input_mapping.
             evaluation_delay_seconds (int): For TRACE and SESSION targets, how
                 many seconds the trace or session must be quiet before it is
                 evaluated: at least 10, and 300 when omitted. Rejected for SPAN

@@ -3220,7 +3220,7 @@ export interface components {
              * @default true
              */
             enabled?: boolean;
-            /** @description Null uses the evaluator's mapping. LLM evaluators have none, so template variables bind to context keys of the same name. */
+            /** @description Null uses the evaluator's mapping. LLM evaluators have none, so only variables rooted at input, output, or metadata bind (for example {{metadata.turns}}); anything else needs input_mapping. */
             input_mapping?: components["schemas"]["InputMapping"] | null;
             /**
              * Evaluation Delay Seconds

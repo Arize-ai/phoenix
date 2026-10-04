@@ -48,8 +48,9 @@ export type CreateProjectEvaluatorParams = ClientFn & {
   enabled?: boolean;
   /**
    * How record fields map onto evaluator arguments. Omit it to use the shared
-   * definition's mapping. LLM evaluators have none, so their template
-   * variables bind to record fields of the same name.
+   * definition's mapping. LLM evaluators have none, so only variables rooted
+   * at input, output, or metadata bind (for example `{{metadata.turns}}`);
+   * anything else needs inputMapping.
    */
   inputMapping?: EvaluatorInputMapping;
   /**
