@@ -1,4 +1,5 @@
-import { startTransition, Suspense, useState } from "react";
+import { css } from "@emotion/react";
+import { startTransition, Suspense, useRef, useState } from "react";
 import {
   graphql,
   useLazyLoadQuery,
@@ -8,11 +9,12 @@ import {
 
 import {
   Button,
-  Flex,
   Icon,
   Icons,
-  Radio,
-  RadioGroup,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
   Text,
 } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -26,6 +28,28 @@ import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refe
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
+/** Whose queued evaluations to clear: this project's, or every project's. */
+type ClearScope = "PROJECT" | "ALL";
+
+/** Joins the clear button and its menu button into one control. */
+const splitButtonCSS = css`
+  display: flex;
+  flex-direction: row;
+  & > .react-aria-Button:first-of-type {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+  & > .react-aria-Button:last-of-type {
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+    border-inline-start-color: var(--global-color-gray-50);
+  }
+`;
+
+/**
+ * Clears this project's queued evaluations, with a menu on its right edge for
+ * clearing every project's.
+ */
 export function ClearQueuedEvaluationsButton({
   projectId,
 }: {
@@ -33,27 +57,53 @@ export function ClearQueuedEvaluationsButton({
 }) {
   const canModify = useViewerCanModify();
   const [isOpen, setIsOpen] = useState(false);
-  // Keys the dialog, so each opening starts on this project with no error.
+  const [scope, setScope] = useState<ClearScope>("PROJECT");
+  // Keys the dialog, so each opening starts with fresh counts and no error.
   const [openCount, setOpenCount] = useState(0);
+  const groupRef = useRef<HTMLDivElement>(null);
   if (!canModify) {
     return null;
   }
+  const openDialog = (nextScope: ClearScope) => {
+    setScope(nextScope);
+    setOpenCount((count) => count + 1);
+    setIsOpen(true);
+  };
   return (
     <>
-      <Button
-        size="M"
-        variant="danger"
-        leadingVisual={<Icon svg={<Icons.Trash />} />}
-        onPress={() => {
-          setOpenCount((count) => count + 1);
-          setIsOpen(true);
-        }}
+      <div
+        ref={groupRef}
+        role="group"
+        aria-label="Clear queue"
+        css={splitButtonCSS}
       >
-        Clear queue
-      </Button>
+        <Button
+          size="S"
+          variant="danger"
+          leadingVisual={<Icon svg={<Icons.Trash />} />}
+          onPress={() => openDialog("PROJECT")}
+        >
+          Clear queue
+        </Button>
+        <MenuTrigger>
+          <Button
+            size="S"
+            variant="danger"
+            aria-label="More ways to clear the queue"
+            leadingVisual={<Icon svg={<Icons.ChevronDown />} />}
+          />
+          {/* Opens under the whole control, not just the chevron. */}
+          <Popover placement="bottom start" triggerRef={groupRef}>
+            <Menu onAction={() => openDialog("ALL")}>
+              <MenuItem id="ALL">Clear queue for all projects</MenuItem>
+            </Menu>
+          </Popover>
+        </MenuTrigger>
+      </div>
       <ClearQueuedEvaluationsDialog
         key={openCount}
         projectId={projectId}
+        scope={scope}
         isOpen={isOpen}
         onOpenChange={setIsOpen}
       />
@@ -61,15 +111,14 @@ export function ClearQueuedEvaluationsButton({
   );
 }
 
-/** Whose queued evaluations to clear: this project's, or every project's. */
-type ClearScope = "PROJECT" | "ALL";
-
 function ClearQueuedEvaluationsDialog({
   projectId,
+  scope,
   isOpen,
   onOpenChange,
 }: {
   projectId: string;
+  scope: ClearScope;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }) {
@@ -78,7 +127,6 @@ function ClearQueuedEvaluationsDialog({
   const notifySuccess = useNotifySuccess();
   const refreshQueueStats = useRefreshQueueStats();
   const [error, setError] = useState<string | null>(null);
-  const [scope, setScope] = useState<ClearScope>("PROJECT");
   const [commitClearProject, isClearingProject] =
     useMutation<ClearQueuedEvaluationsButtonMutation>(graphql`
       mutation ClearQueuedEvaluationsButtonMutation(
@@ -157,40 +205,30 @@ function ClearQueuedEvaluationsDialog({
     <ClearQueueConfirmDialog
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      title="Clear queued evaluations"
-      confirmLabel="Clear queue"
+      title={
+        scope === "ALL"
+          ? "Clear queued evaluations for all projects"
+          : "Clear queued evaluations"
+      }
+      confirmLabel={scope === "ALL" ? "Clear all" : "Clear queue"}
       onConfirm={handleClear}
       isPending={isClearingProject || isClearingAll}
       error={error}
     >
-      <Suspense
-        fallback={
-          <ClearScopeOptions
-            scope={scope}
-            onScopeChange={setScope}
-            counts={null}
-          />
-        }
-      >
-        <ClearScopeOptionsWithCounts
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={setScope}
-        />
+      <Suspense fallback={<ClearSummary scope={scope} count={null} />}>
+        <ClearSummaryWithCount projectId={projectId} scope={scope} />
       </Suspense>
     </ClearQueueConfirmDialog>
   );
 }
 
-/** The scope choice, with how many evaluations each scope has queued now. */
-function ClearScopeOptionsWithCounts({
+/** What clearing removes, with how many evaluations are queued now. */
+function ClearSummaryWithCount({
   projectId,
   scope,
-  onScopeChange,
 }: {
   projectId: string;
   scope: ClearScope;
-  onScopeChange: (scope: ClearScope) => void;
 }) {
   const data = useLazyLoadQuery<ClearQueuedEvaluationsButtonCountsQuery>(
     graphql`
@@ -219,57 +257,34 @@ function ClearScopeOptionsWithCounts({
   );
   const sum = (counts: ReadonlyArray<number>) =>
     counts.reduce((total, count) => total + count, 0);
-  return (
-    <ClearScopeOptions
-      scope={scope}
-      onScopeChange={onScopeChange}
-      counts={{
-        project: sum(
+  const count =
+    scope === "ALL"
+      ? sum(data.evaluationQueues.map(({ queuedCount }) => queuedCount))
+      : sum(
           (data.project?.evaluators?.edges ?? []).map(
             ({ node }) => node.runSummary.queuedCount
           )
-        ),
-        all: sum(data.evaluationQueues.map(({ queuedCount }) => queuedCount)),
-      }}
-    />
-  );
+        );
+  return <ClearSummary scope={scope} count={count} />;
 }
 
-function ClearScopeOptions({
+function ClearSummary({
   scope,
-  onScopeChange,
-  counts,
+  count,
 }: {
   scope: ClearScope;
-  onScopeChange: (scope: ClearScope) => void;
-  /** Null while the counts load. */
-  counts: { project: number; all: number } | null;
+  /** Null while the count loads. */
+  count: number | null;
 }) {
+  const where = scope === "ALL" ? "across all projects" : "in this project";
+  if (count == null) {
+    return <Text>{`Clears the queued evaluations ${where}.`}</Text>;
+  }
   return (
-    <RadioGroup
-      aria-label="Evaluations to clear"
-      direction="column"
-      value={scope}
-      onChange={(value) => onScopeChange(value as ClearScope)}
-    >
-      <Radio value="PROJECT">
-        <ClearScopeLabel label="This project" count={counts?.project} />
-      </Radio>
-      <Radio value="ALL">
-        <ClearScopeLabel label="All projects" count={counts?.all} />
-      </Radio>
-    </RadioGroup>
-  );
-}
-
-function ClearScopeLabel({ label, count }: { label: string; count?: number }) {
-  return (
-    <Flex direction="row" gap="size-100" alignItems="baseline">
-      {/* slot={null} opts out of RadioGroup's slotted text context. */}
-      <Text slot={null}>{label}</Text>
-      <Text slot={null} color="text-700">
-        {count == null ? "--" : `${intFormatter(count)} queued`}
-      </Text>
-    </Flex>
+    <Text>
+      {count === 1
+        ? `Clears 1 queued evaluation ${where}.`
+        : `Clears ${intFormatter(count)} queued evaluations ${where}.`}
+    </Text>
   );
 }

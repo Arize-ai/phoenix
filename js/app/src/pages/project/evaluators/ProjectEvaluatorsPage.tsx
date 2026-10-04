@@ -10,6 +10,7 @@ import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluat
 import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { ClearQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
 import {
   ProjectEvaluatorQueueStats,
   QueueStatsRefreshContext,
@@ -110,12 +111,11 @@ function ProjectEvaluatorsPageContent({
   );
   return (
     <QueueStatsRefreshContext.Provider value={refreshQueueStats}>
-      {isEmptyState ? null : (
-        <ProjectEvaluatorQueueStats
-          projectId={projectId}
-          refreshKey={queueRefreshKey}
-        />
-      )}
+      <ProjectEvaluatorQueueStats
+        projectId={projectId}
+        refreshKey={queueRefreshKey}
+        statusAction={<ClearQueuedEvaluationsButton projectId={projectId} />}
+      />
       {isEmptyState ? (
         <View
           padding="size-100"
@@ -139,7 +139,6 @@ function ProjectEvaluatorsPageContent({
         </View>
       ) : (
         <ProjectEvaluatorsToolbar
-          projectId={projectId}
           filter={filter}
           onFilterChange={onFilterChange}
         />

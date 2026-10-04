@@ -53,7 +53,8 @@ export function ProjectEvaluatorLoad({
         <Flex direction="column" gap="size-50">
           <Text size="S">{`${secondsFormatter.format(meanEvaluationSeconds)}s each · ${rateFormatter.format(evaluationsPerMinute)}/min`}</Text>
           <Text size="S" color="text-700">
-            Share of evaluation time (1h)
+            Share of the time all evaluators, in every project, spent evaluating
+            over the last hour
           </Text>
         </Flex>
       </RichTooltip>

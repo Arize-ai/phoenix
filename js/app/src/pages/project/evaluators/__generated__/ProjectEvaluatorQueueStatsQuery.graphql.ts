@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bdd3aff3484c905c7d005663c05d63e8>>
+ * @generated SignedSource<<64b09705ecb8ddcf058b9c9a4077ec40>>
  * @lightSyntaxTransform
  */
 
@@ -29,8 +29,6 @@ export type ProjectEvaluatorQueueStatsQuery$data = {
     readonly evaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
-          readonly enabled: boolean;
-          readonly evaluationTarget: EvaluationTarget;
           readonly runSummary: {
             readonly queuedCount: number;
           };
@@ -56,17 +54,10 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "evaluationTarget",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "queuedCount",
   "storageKey": null
 },
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "concreteType": "EvaluationQueue",
@@ -74,7 +65,13 @@ v3 = {
   "name": "evaluationQueues",
   "plural": true,
   "selections": [
-    (v1/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluationTarget",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -89,7 +86,7 @@ v3 = {
       "name": "atCapacity",
       "storageKey": null
     },
-    (v2/*:: as any*/),
+    (v1/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -128,28 +125,21 @@ v3 = {
   ],
   "storageKey": null
 },
-v4 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v5 = [
+v4 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
 ],
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "enabled",
-  "storageKey": null
-},
-v7 = {
+v5 = {
   "alias": null,
   "args": null,
   "concreteType": "ProjectEvaluatorRunSummary",
@@ -157,11 +147,11 @@ v7 = {
   "name": "runSummary",
   "plural": false,
   "selections": [
-    (v2/*:: as any*/)
+    (v1/*:: as any*/)
   ],
   "storageKey": null
 },
-v8 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -175,10 +165,10 @@ return {
     "metadata": null,
     "name": "ProjectEvaluatorQueueStatsQuery",
     "selections": [
-      (v3/*:: as any*/),
+      (v2/*:: as any*/),
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -189,7 +179,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -211,9 +201,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v1/*:: as any*/),
-                          (v6/*:: as any*/),
-                          (v7/*:: as any*/)
+                          (v5/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -240,10 +228,10 @@ return {
     "kind": "Operation",
     "name": "ProjectEvaluatorQueueStatsQuery",
     "selections": [
-      (v3/*:: as any*/),
+      (v2/*:: as any*/),
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -261,7 +249,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v5/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -283,10 +271,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v1/*:: as any*/),
-                          (v6/*:: as any*/),
-                          (v7/*:: as any*/),
-                          (v8/*:: as any*/)
+                          (v5/*:: as any*/),
+                          (v6/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -300,23 +286,23 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v8/*:: as any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "8228ee3e48f5df5953369d4f72636652",
+    "cacheID": "3173262c8e346d177a1d4976548f9298",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorQueueStatsQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorQueueStatsQuery(\n  $projectId: ID!\n) {\n  evaluationQueues {\n    evaluationTarget\n    status\n    atCapacity\n    queuedCount\n    queuedLimit\n    retryingCount\n    oldestQueuedAt\n    queuedPerMinute\n    evaluationsPerMinute\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          node {\n            evaluationTarget\n            enabled\n            runSummary {\n              queuedCount\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorQueueStatsQuery(\n  $projectId: ID!\n) {\n  evaluationQueues {\n    evaluationTarget\n    status\n    atCapacity\n    queuedCount\n    queuedLimit\n    retryingCount\n    oldestQueuedAt\n    queuedPerMinute\n    evaluationsPerMinute\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          node {\n            runSummary {\n              queuedCount\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "489724154bccb532841f09a6366264b7";
+(node as any).hash = "de1bc4795984925ef8def77df794293e";
 
 export default node;

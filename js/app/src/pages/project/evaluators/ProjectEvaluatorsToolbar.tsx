@@ -2,7 +2,6 @@ import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { ColumnSelector, orderColumns } from "@phoenix/components/table";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
-import { ClearQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
 
 /**
  * The selectable columns of {@link ProjectEvaluatorsTable}, in their natural
@@ -62,11 +61,9 @@ function ProjectEvaluatorsColumnSelector() {
  * project tab bar, so the tab bar stays pure navigation.
  */
 export function ProjectEvaluatorsToolbar({
-  projectId,
   filter,
   onFilterChange,
 }: {
-  projectId: string;
   filter: string;
   onFilterChange: (filter: string) => void;
 }) {
@@ -91,7 +88,6 @@ export function ProjectEvaluatorsToolbar({
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <ProjectEvaluatorsColumnSelector />
-          <ClearQueuedEvaluationsButton projectId={projectId} />
           <AddProjectEvaluatorMenu size="M" />
         </Flex>
       </Flex>

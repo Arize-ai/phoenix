@@ -52,11 +52,24 @@ function noop() {}
 type EvaluationQueue =
   ProjectEvaluatorQueueStatsQuery$data["evaluationQueues"][number];
 
-const QUEUE_LABEL_BY_TARGET: Record<string, string> = {
-  SPAN: "Span Queue",
-  TRACE: "Trace Queue",
-  SESSION: "Session Queue",
+/** The order the queues are listed in on hover. */
+const QUEUE_ORDER_BY_TARGET: Record<string, number> = {
+  SPAN: 0,
+  TRACE: 1,
+  SESSION: 2,
 };
+
+const QUEUE_LABEL_BY_TARGET: Record<string, string> = {
+  SPAN: "Spans",
+  TRACE: "Traces",
+  SESSION: "Sessions",
+};
+
+function getQueueLabel(queue: EvaluationQueue): string {
+  return (
+    QUEUE_LABEL_BY_TARGET[queue.evaluationTarget] ?? queue.evaluationTarget
+  );
+}
 
 const QUEUE_STATUS_BADGE: Record<
   EvaluationQueueStatus,
@@ -64,6 +77,12 @@ const QUEUE_STATUS_BADGE: Record<
 > = {
   HEALTHY: { label: "Healthy", variant: "success" },
   DEGRADED: { label: "Degraded", variant: "warning" },
+};
+
+/** How serious each status is, so the strip shows the worst queue's. */
+const QUEUE_STATUS_SEVERITY: Record<EvaluationQueueStatus, number> = {
+  HEALTHY: 0,
+  DEGRADED: 1,
 };
 
 const RECORD_NOUN_BY_TARGET: Record<string, string> = {
@@ -104,37 +123,57 @@ function formatRate(perMinute: number): string {
   );
 }
 
+function sum(values: ReadonlyArray<number>): number {
+  return values.reduce((total, value) => total + value, 0);
+}
+
 /**
- * The health of each evaluation queue this project's enabled evaluators use,
- * as a row of stats above the evaluators table. Renders nothing when no
- * enabled evaluator uses a queue.
+ * The health of the server's evaluation queues, as one row of stats above the
+ * evaluators table. Every queue is included: they are shared by all projects,
+ * and all project evaluators run under one concurrency limit, so any queue
+ * that backs up slows the rest.
  */
 export function ProjectEvaluatorQueueStats({
   projectId,
   refreshKey,
+  statusAction,
 }: {
   projectId: string;
   /** Changes when the queue was changed from this page, to refetch at once. */
   refreshKey: number;
+  /** Shown beside the status, such as the button that clears the queue. */
+  statusAction?: ReactNode;
 }) {
+  const placeholder = <QueueStatsPlaceholder statusAction={statusAction} />;
   return (
-    <ErrorBoundary fallback={() => null}>
-      <Suspense fallback={null}>
-        <ProjectEvaluatorQueueStatsContent
-          projectId={projectId}
-          refreshKey={refreshKey}
-        />
-      </Suspense>
-    </ErrorBoundary>
+    <View
+      paddingX="size-200"
+      paddingY="size-100"
+      borderBottomWidth="thin"
+      borderBottomColor="default"
+      flex="none"
+    >
+      <ErrorBoundary fallback={() => placeholder}>
+        <Suspense fallback={placeholder}>
+          <ProjectEvaluatorQueueStatsContent
+            projectId={projectId}
+            refreshKey={refreshKey}
+            statusAction={statusAction}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    </View>
   );
 }
 
 function ProjectEvaluatorQueueStatsContent({
   projectId,
   refreshKey,
+  statusAction,
 }: {
   projectId: string;
   refreshKey: number;
+  statusAction?: ReactNode;
 }) {
   const [pollKey, setPollKey] = useState(0);
   useEffect(() => {
@@ -163,8 +202,6 @@ function ProjectEvaluatorQueueStatsContent({
             evaluators(first: 100) {
               edges {
                 node {
-                  evaluationTarget
-                  enabled
                   runSummary {
                     queuedCount
                   }
@@ -178,83 +215,111 @@ function ProjectEvaluatorQueueStatsContent({
     { projectId },
     { fetchKey: `${refreshKey}:${pollKey}`, fetchPolicy: "store-and-network" }
   );
-  const evaluators = (data.project?.evaluators?.edges ?? []).map(
-    ({ node }) => node
+  const queues = [...data.evaluationQueues].sort(
+    (a, b) =>
+      (QUEUE_ORDER_BY_TARGET[a.evaluationTarget] ?? Infinity) -
+      (QUEUE_ORDER_BY_TARGET[b.evaluationTarget] ?? Infinity)
   );
-  const usedTargets = new Set(
-    evaluators
-      .filter((evaluator) => evaluator.enabled)
-      .map((evaluator) => evaluator.evaluationTarget)
+  const projectQueuedCount = sum(
+    (data.project?.evaluators?.edges ?? []).map(
+      ({ node }) => node.runSummary.queuedCount
+    )
   );
-  const queues = data.evaluationQueues.filter((queue) =>
-    usedTargets.has(queue.evaluationTarget)
-  );
-  if (queues.length === 0) {
-    return null;
-  }
-  const projectQueuedByTarget = new Map<string, number>();
-  for (const evaluator of evaluators) {
-    projectQueuedByTarget.set(
-      evaluator.evaluationTarget,
-      (projectQueuedByTarget.get(evaluator.evaluationTarget) ?? 0) +
-        evaluator.runSummary.queuedCount
-    );
-  }
   return (
-    <View
-      paddingX="size-200"
-      paddingY="size-100"
-      borderBottomWidth="thin"
-      borderBottomColor="default"
-      flex="none"
-    >
-      <Flex direction="column" gap="size-100">
-        {queues.map((queue) => (
-          <QueueStatsRow
-            key={queue.evaluationTarget}
-            queue={queue}
-            queuedLabel={
-              queues.length > 1
-                ? (QUEUE_LABEL_BY_TARGET[queue.evaluationTarget] ?? "Queued")
-                : "Queued"
-            }
-            projectQueuedCount={
-              projectQueuedByTarget.get(queue.evaluationTarget) ?? 0
-            }
-          />
-        ))}
-      </Flex>
-    </View>
+    <Flex direction="row" gap="size-400" alignItems="start">
+      <QueueStatusStat queues={queues} statusAction={statusAction} />
+      <QueuedStat queues={queues} projectQueuedCount={projectQueuedCount} />
+      <QueueRatesStat queues={queues} />
+      <QueueWaitStat queues={queues} />
+    </Flex>
   );
 }
 
-function QueueStatsRow({
-  queue,
-  queuedLabel,
-  projectQueuedCount,
-}: {
-  queue: EvaluationQueue;
-  queuedLabel: string;
-  projectQueuedCount: number;
-}) {
-  const statusBadge = QUEUE_STATUS_BADGE[queue.status];
-  const statusDetail = getQueueStatusDetail(queue);
+/** The strip's shape while the queues load, so the page doesn't shift. */
+function QueueStatsPlaceholder({ statusAction }: { statusAction: ReactNode }) {
   return (
     <Flex direction="row" gap="size-400" alignItems="start">
-      <Stat
-        label="Status"
-        detail={statusDetail ? <Text size="S">{statusDetail}</Text> : null}
-      >
-        <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+      <Stat label="Status">
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <StatValue>--</StatValue>
+          {statusAction}
+        </Flex>
       </Stat>
-      <Stat
-        label={queuedLabel}
+      <Stat label="Queued">
+        <StatValue>--</StatValue>
+      </Stat>
+      <Stat label="Added / Completed">
+        <StatValue>--</StatValue>
+      </Stat>
+      <Stat label="Waiting">
+        <StatValue>--</StatValue>
+      </Stat>
+    </Flex>
+  );
+}
+
+function QueueStatusStat({
+  queues,
+  statusAction,
+}: {
+  queues: ReadonlyArray<EvaluationQueue>;
+  statusAction: ReactNode;
+}) {
+  const status = queues.reduce<EvaluationQueueStatus>(
+    (worst, queue) =>
+      QUEUE_STATUS_SEVERITY[queue.status] > QUEUE_STATUS_SEVERITY[worst]
+        ? queue.status
+        : worst,
+    "HEALTHY"
+  );
+  const badge = QUEUE_STATUS_BADGE[status];
+  const details = queues.flatMap((queue) => {
+    const detail = getQueueStatusDetail(queue);
+    return detail == null ? [] : [`${getQueueLabel(queue)}: ${detail}`];
+  });
+  return (
+    <Stat label="Status">
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <HoverDetail
+          detail={
+            details.length > 0
+              ? details.map((line) => (
+                  <Text key={line} size="S">
+                    {line}
+                  </Text>
+                ))
+              : null
+          }
+        >
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+        </HoverDetail>
+        {statusAction}
+      </Flex>
+    </Stat>
+  );
+}
+
+function QueuedStat({
+  queues,
+  projectQueuedCount,
+}: {
+  queues: ReadonlyArray<EvaluationQueue>;
+  projectQueuedCount: number;
+}) {
+  const retryingCount = sum(queues.map((queue) => queue.retryingCount));
+  return (
+    <Stat label="Queued">
+      <HoverDetail
         detail={
           <>
-            <Text size="S">{`Limit: ${intFormatter(queue.queuedLimit)}`}</Text>
+            {queues.map((queue) => (
+              <Text key={queue.evaluationTarget} size="S">
+                {`${getQueueLabel(queue)}: ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)}`}
+              </Text>
+            ))}
             <Text size="S">{`This project: ${intFormatter(projectQueuedCount)}`}</Text>
-            {queue.retryingCount > 0 ? (
-              <Text size="S">{`Retrying: ${intFormatter(queue.retryingCount)}`}</Text>
+            {retryingCount > 0 ? (
+              <Text size="S">{`Retrying: ${intFormatter(retryingCount)}`}</Text>
             ) : null}
             <Text size="S" color="text-700">
               Shared by all projects
@@ -263,88 +328,160 @@ function QueueStatsRow({
         }
       >
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Text
-            size="L"
-            fontFamily="mono"
-            color={queue.atCapacity ? "warning" : undefined}
+          <StatValue
+            color={queues.some((queue) => queue.atCapacity) ? "warning" : null}
           >
-            {intFormatter(queue.queuedCount)}
-          </Text>
-          <span css={queue.atCapacity ? fullMeterCSS : undefined}>
-            <ProgressBar
-              width="80px"
-              value={Math.min(queue.queuedCount, queue.queuedLimit)}
-              maxValue={queue.queuedLimit}
-              aria-label="How full the queue is"
-            />
-          </span>
+            {intFormatter(sum(queues.map((queue) => queue.queuedCount)))}
+          </StatValue>
+          <Flex direction="column" gap="size-25">
+            {queues.map((queue) => (
+              <span
+                key={queue.evaluationTarget}
+                css={queue.atCapacity ? fullMeterCSS : undefined}
+              >
+                <ProgressBar
+                  width="80px"
+                  height="4px"
+                  value={Math.min(queue.queuedCount, queue.queuedLimit)}
+                  maxValue={queue.queuedLimit}
+                  aria-label={`How full the ${getQueueLabel(queue).toLowerCase()} queue is`}
+                />
+              </span>
+            ))}
+          </Flex>
         </Flex>
-      </Stat>
-      <Stat
-        label="In / Out"
-        detail={<Text size="S">Average over the last 15 minutes</Text>}
+      </HoverDetail>
+    </Stat>
+  );
+}
+
+function QueueRatesStat({
+  queues,
+}: {
+  queues: ReadonlyArray<EvaluationQueue>;
+}) {
+  const queuedPerMinute = sum(queues.map((queue) => queue.queuedPerMinute));
+  const evaluationsPerMinute = sum(
+    queues.map((queue) => queue.evaluationsPerMinute)
+  );
+  return (
+    <Stat label="Added / Completed">
+      <HoverDetail
+        detail={
+          <>
+            {queues.map((queue) => (
+              <Text key={queue.evaluationTarget} size="S">
+                {`${getQueueLabel(queue)}: ${formatRate(queue.queuedPerMinute)} / ${formatRate(queue.evaluationsPerMinute)}`}
+              </Text>
+            ))}
+            <Text size="S" color="text-700">
+              Average over the last 15 minutes
+            </Text>
+          </>
+        }
       >
         <Flex direction="row" gap="size-50" alignItems="baseline">
-          <Text size="L" fontFamily="mono">
-            {`${formatRate(queue.queuedPerMinute)} / ${formatRate(queue.evaluationsPerMinute)}`}
-          </Text>
+          <StatValue>
+            {`${formatRate(queuedPerMinute)} / ${formatRate(evaluationsPerMinute)}`}
+          </StatValue>
           <Text size="S" color="text-700">
             /min
           </Text>
         </Flex>
-      </Stat>
-      <Stat
-        label="Waiting"
-        detail={<Text size="S">Time the next evaluation has waited</Text>}
-      >
-        <Text
-          size="L"
-          fontFamily="mono"
-          color={
-            queue.status === "DEGRADED" && !queue.atCapacity
-              ? "warning"
-              : undefined
-          }
-        >
-          {queue.oldestQueuedAt != null
-            ? formatElapsedShort(queue.oldestQueuedAt)
-            : "--"}
-        </Text>
-      </Stat>
-    </Flex>
+      </HoverDetail>
+    </Stat>
   );
 }
 
-function Stat({
-  label,
-  detail,
-  children,
-}: {
-  label: string;
-  /** Shown on hover; null for a value that needs no explanation. */
-  detail: ReactNode;
-  children: ReactNode;
-}) {
+function QueueWaitStat({ queues }: { queues: ReadonlyArray<EvaluationQueue> }) {
+  const waiting = queues.filter(
+    (queue): queue is EvaluationQueue & { oldestQueuedAt: string } =>
+      queue.oldestQueuedAt != null
+  );
+  const oldestQueuedAt = waiting.reduce<string | null>(
+    (oldest, queue) =>
+      oldest == null ||
+      new Date(queue.oldestQueuedAt).getTime() < new Date(oldest).getTime()
+        ? queue.oldestQueuedAt
+        : oldest,
+    null
+  );
+  // A full queue is Degraded too, but that shows on the queued count instead.
+  const isWaitingTooLong = queues.some(
+    (queue) => queue.status === "DEGRADED" && !queue.atCapacity
+  );
+  return (
+    <Stat label="Waiting">
+      <HoverDetail
+        detail={
+          <>
+            {waiting.map((queue) => (
+              <Text key={queue.evaluationTarget} size="S">
+                {`${getQueueLabel(queue)}: ${formatElapsedShort(queue.oldestQueuedAt)}`}
+              </Text>
+            ))}
+            <Text size="S" color="text-700">
+              Longest wait of an evaluation not yet started
+            </Text>
+          </>
+        }
+      >
+        <StatValue color={isWaitingTooLong ? "warning" : null}>
+          {oldestQueuedAt != null ? formatElapsedShort(oldestQueuedAt) : "--"}
+        </StatValue>
+      </HoverDetail>
+    </Stat>
+  );
+}
+
+function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Flex direction="column" flex="none">
       <Text elementType="h3" size="S" color="text-700">
         {label}
       </Text>
-      {detail == null ? (
-        children
-      ) : (
-        <TooltipTrigger delay={0}>
-          <Focusable>
-            <span role="button">{children}</span>
-          </Focusable>
-          <RichTooltip placement="bottom">
-            <TooltipArrow />
-            <Flex direction="column" gap="size-50">
-              {detail}
-            </Flex>
-          </RichTooltip>
-        </TooltipTrigger>
-      )}
+      {children}
     </Flex>
+  );
+}
+
+function StatValue({
+  color = null,
+  children,
+}: {
+  color?: "warning" | null;
+  children: ReactNode;
+}) {
+  return (
+    <Text size="L" fontFamily="mono" color={color ?? undefined}>
+      {children}
+    </Text>
+  );
+}
+
+function HoverDetail({
+  detail,
+  children,
+}: {
+  /** Shown on hover; null for a value that needs no explanation. */
+  detail: ReactNode;
+  children: ReactNode;
+}) {
+  if (detail == null) {
+    return children;
+  }
+  return (
+    <TooltipTrigger delay={0}>
+      <Focusable>
+        <span role="button">{children}</span>
+      </Focusable>
+      {/* Sized to its lines, so a queue's line never wraps. */}
+      <RichTooltip placement="bottom" width="max-content">
+        <TooltipArrow />
+        <Flex direction="column" gap="size-50">
+          {detail}
+        </Flex>
+      </RichTooltip>
+    </TooltipTrigger>
   );
 }
