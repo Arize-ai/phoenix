@@ -68,14 +68,12 @@ If a step fails, consult the detailed setup instructions below.
 
 We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-Your system `uv` only needs to satisfy the range in `pyproject.toml` under `tool.uv.required-version`. The exact version CI uses is pinned in `.tool-versions`, and `uv.lock` should be written by that version: different `uv` versions can serialize the same lockfile differently. You don't have to install it. `scripts/uv.sh` runs the pinned `uv` through `uv tool run` (cached, nothing installed globally), and `make`, the `js/app` pnpm scripts and the Playwright test server all go through it. When you change dependencies, use the wrapper instead of a bare `uv`:
+Your system `uv` only needs to satisfy the range in `pyproject.toml` under `tool.uv.required-version`. The range's lower bound is the exact version CI uses, and `uv.lock` should be written by that version: different `uv` versions can serialize the same lockfile differently. You don't have to install it. `scripts/uv.sh` runs the pinned `uv` through `uv tool run` (cached, nothing installed globally), and `make`, the `js/app` pnpm scripts and the Playwright test server all go through it. When you change dependencies, use the wrapper instead of a bare `uv`:
 
 ```bash
 scripts/uv.sh add <package>   # or: scripts/uv.sh lock
 pnpm --dir js/app uv lock     # the same wrapper, from pnpm
 ```
-
-If you use [mise](https://mise.jdx.dev/) or asdf, `.tool-versions` also selects the pinned `uv` for this directory.
 
 The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the default development Python version. CI still tests the lowest supported version.
 
