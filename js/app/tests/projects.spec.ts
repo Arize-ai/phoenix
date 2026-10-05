@@ -444,13 +444,20 @@ test.describe.serial("Projects", () => {
     await expect(gallery).not.toBeVisible();
     await expect(page).toHaveURL(EVALUATORS_URL);
 
-    // A category card opens the gallery on that category's first template.
-    // Deliberately not the default card: custom evaluators sort ahead of the
-    // templates, and other specs create them on the shared server, so the
-    // default card is not reliably a template.
+    // A category card opens the gallery on that category, with no card
+    // selected until one is chosen.
     await page.getByRole("link", { name: /^Agents/ }).click();
     await expect(page).toHaveURL(GALLERY_AGENTS_CATEGORY_URL);
     await expect(gallery).toBeVisible();
+    await expect(
+      gallery.getByText("Select an evaluator or template to see details.")
+    ).toBeVisible();
+    await gallery
+      .getByRole("listbox", { name: "Evaluators and templates" })
+      .getByRole("group", { name: "Agents", exact: true })
+      .getByRole("option")
+      .first()
+      .click();
 
     // Dismissing the creation slideover returns to the gallery it was
     // launched from, still on its category: the slideover nests under the
