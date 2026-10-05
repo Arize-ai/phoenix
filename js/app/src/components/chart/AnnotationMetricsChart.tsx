@@ -465,7 +465,7 @@ export function AnnotationMetricsGroupedChart({
           data={rows}
           margin={isScoreView ? SCORE_CHART_MARGIN : compactChartMargin}
           barSize={BAR_SIZE}
-          barGap={1}
+          barGap={2}
           {...chartProps}
         >
           <CartesianGrid {...defaultCartesianGridProps} />
