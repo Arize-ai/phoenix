@@ -16,7 +16,11 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers import dataset_evaluator_service, evaluator_service
+from phoenix.server.api.helpers import (
+    dataset_evaluator_service,
+    evaluator_service,
+    project_evaluator_service,
+)
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     CreatePromptSource,
     EditCurrentPrompt,
@@ -408,7 +412,7 @@ class EvaluatorMutationMixin:
     async def create_project_llm_evaluator(
         self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = evaluator_service.CreateProjectLLMEvaluatorInput(
+        command = project_evaluator_service.CreateProjectLLMEvaluatorInput(
             project_id=input.project_id,
             name=input.name,
             prompt_source=_prompt_source_from_input(input.prompt_version_id, input.prompt_version),
@@ -426,7 +430,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.create_project_llm_evaluator(context, command)
+        result = await project_evaluator_service.create_project_llm_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -439,7 +443,7 @@ class EvaluatorMutationMixin:
         self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
         content = _prompt_version_from_input(input.prompt_version)
-        command = evaluator_service.UpdateProjectLLMEvaluatorInput(
+        command = project_evaluator_service.UpdateProjectLLMEvaluatorInput(
             project_evaluator_id=input.project_evaluator_id,
             name=input.name,
             prompt_source=(
@@ -461,7 +465,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.update_project_llm_evaluator(context, command)
+        result = await project_evaluator_service.update_project_llm_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -477,7 +481,7 @@ class EvaluatorMutationMixin:
     async def add_project_code_evaluator(
         self, info: Info[Context, None], input: AddProjectCodeEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = evaluator_service.AddProjectCodeEvaluatorInput(
+        command = project_evaluator_service.AddProjectCodeEvaluatorInput(
             project_id=input.project_id,
             evaluator_id=input.evaluator_id,
             name=input.name,
@@ -491,7 +495,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.add_project_code_evaluator(context, command)
+        result = await project_evaluator_service.add_project_code_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -503,7 +507,7 @@ class EvaluatorMutationMixin:
     async def create_project_code_evaluator(
         self, info: Info[Context, None], input: CreateProjectCodeEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = evaluator_service.CreateProjectCodeEvaluatorInput(
+        command = project_evaluator_service.CreateProjectCodeEvaluatorInput(
             project_id=input.project_id,
             name=input.name,
             source_code=input.source_code,
@@ -527,7 +531,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.create_project_code_evaluator(context, command)
+        result = await project_evaluator_service.create_project_code_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -543,7 +547,7 @@ class EvaluatorMutationMixin:
     async def update_project_code_evaluator(
         self, info: Info[Context, None], input: UpdateProjectCodeEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = evaluator_service.UpdateProjectCodeEvaluatorInput(
+        command = project_evaluator_service.UpdateProjectCodeEvaluatorInput(
             project_evaluator_id=input.project_evaluator_id,
             name=input.name,
             sampling_rate=input.sampling_rate,
@@ -566,7 +570,7 @@ class EvaluatorMutationMixin:
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.update_project_code_evaluator(context, command)
+        result = await project_evaluator_service.update_project_code_evaluator(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -582,12 +586,12 @@ class EvaluatorMutationMixin:
     async def set_project_evaluator_enabled(
         self, info: Info[Context, None], input: SetProjectEvaluatorEnabledInput
     ) -> ProjectEvaluatorMutationPayload:
-        command = evaluator_service.SetProjectEvaluatorEnabledInput(
+        command = project_evaluator_service.SetProjectEvaluatorEnabledInput(
             project_evaluator_id=input.project_evaluator_id,
             enabled=input.enabled,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.set_project_evaluator_enabled(context, command)
+        result = await project_evaluator_service.set_project_evaluator_enabled(context, command)
         return ProjectEvaluatorMutationPayload(
             evaluator=ProjectEvaluator(id=result.id, db_record=result), query=Query()
         )
@@ -603,7 +607,7 @@ class EvaluatorMutationMixin:
     async def clear_queued_evaluations(
         self, info: Info[Context, None], input: ClearQueuedEvaluationsInput
     ) -> ClearQueuedEvaluationsPayload:
-        dropped_count, project = await evaluator_service.clear_queued_evaluations(
+        dropped_count, project = await project_evaluator_service.clear_queued_evaluations(
             _evaluator_service_context(info.context), input.project_id
         )
         return ClearQueuedEvaluationsPayload(
@@ -622,7 +626,7 @@ class EvaluatorMutationMixin:
     async def clear_all_queued_evaluations(
         self, info: Info[Context, None]
     ) -> ClearAllQueuedEvaluationsPayload:
-        dropped_count = await evaluator_service.clear_all_queued_evaluations(
+        dropped_count = await project_evaluator_service.clear_all_queued_evaluations(
             _evaluator_service_context(info.context)
         )
         return ClearAllQueuedEvaluationsPayload(dropped_count=dropped_count)
@@ -631,12 +635,12 @@ class EvaluatorMutationMixin:
     async def delete_project_evaluators(
         self, info: Info[Context, None], input: DeleteProjectEvaluatorsInput
     ) -> DeleteProjectEvaluatorsPayload:
-        command = evaluator_service.DeleteProjectEvaluatorsInput(
+        command = project_evaluator_service.DeleteProjectEvaluatorsInput(
             project_evaluator_ids=input.project_evaluator_ids,
             delete_associated_prompt=input.delete_associated_prompt,
         )
         context = _evaluator_service_context(info.context)
-        result = await evaluator_service.delete_project_evaluators(context, command)
+        result = await project_evaluator_service.delete_project_evaluators(context, command)
         return DeleteProjectEvaluatorsPayload(project_evaluator_ids=result, query=Query())
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore

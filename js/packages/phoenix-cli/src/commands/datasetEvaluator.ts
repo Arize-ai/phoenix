@@ -461,7 +461,7 @@ async function datasetEvaluatorDeleteHandler(
         ? `dataset evaluator ${datasetEvaluatorIds[0]}`
         : `${datasetEvaluatorIds.length} dataset evaluators`;
     await confirmOrExit({
-      message: `Delete ${noun}? Only the binding is removed; its evaluator, prompt, and trace project are kept. This cannot be undone.`,
+      message: `Delete ${noun}? Its trace project and recorded traces will be removed; its evaluator and prompt are kept. This cannot be undone.`,
       yes: options.yes,
     });
 
@@ -618,7 +618,7 @@ export function createDatasetEvaluatorUpdateCommand(): Command {
 export function createDatasetEvaluatorDeleteCommand(): Command {
   return new Command("delete")
     .description(
-      "Delete one or more dataset evaluator bindings. Their evaluators, prompts, and trace projects are kept. Requires Phoenix server >= 21.0.0."
+      "Delete one or more dataset evaluator bindings and their trace projects and recorded traces. Evaluator definitions and prompts are kept. Requires Phoenix server >= 21.0.0."
     )
     .argument("<dataset-evaluator-id...>", "Dataset evaluator ID(s)")
     .option(

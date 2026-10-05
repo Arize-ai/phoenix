@@ -4360,7 +4360,7 @@
           "evaluators"
         ],
         "summary": "Delete Project Evaluators",
-        "description": "Delete up to 1000 of a project's bindings in one transaction.\n\nMissing bindings are ignored; a binding of another project is refused with 422 before\nany change. Definitions, prompts, and trace projects are kept.",
+        "description": "Delete up to 1000 of a project's bindings in one transaction.\n\nMissing bindings are ignored; a binding of another project is refused with 422 before\nany change. Each deleted binding's trace project and recorded traces are removed; evaluator\ndefinitions and prompts are kept.",
         "operationId": "deleteProjectEvaluators",
         "parameters": [
           {
@@ -4584,7 +4584,7 @@
           "evaluators"
         ],
         "summary": "Delete Project Evaluator",
-        "description": "Delete a binding; a missing binding is ignored.\n\nThe evaluator definition, its prompt, and the binding's trace project are kept: delete a\ndefinition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.",
+        "description": "Delete a binding; a missing binding is ignored.\n\nThe binding's trace project and recorded traces are deleted. Its evaluator definition and\nprompt are kept. Delete a definition that nothing binds with\nDELETE /v1/evaluators/{evaluator_id}.",
         "operationId": "deleteProjectEvaluator",
         "parameters": [
           {
@@ -4810,7 +4810,7 @@
           "evaluators"
         ],
         "summary": "Delete Dataset Evaluators",
-        "description": "Delete up to 1000 of a dataset's bindings in one transaction.\n\nMissing bindings are ignored; a binding of another dataset is refused with 422 before\nany change. Definitions, prompts, and trace projects are kept.",
+        "description": "Delete up to 1000 of a dataset's bindings in one transaction.\n\nMissing bindings are ignored; a binding of another dataset is refused with 422 before\nany change. Each deleted binding's trace project and recorded traces are removed; evaluator\ndefinitions and prompts are kept.",
         "operationId": "deleteDatasetEvaluators",
         "parameters": [
           {
@@ -5034,7 +5034,7 @@
           "evaluators"
         ],
         "summary": "Delete Dataset Evaluator",
-        "description": "Delete a binding; a missing binding is ignored.\n\nThe evaluator definition, its prompt, and the binding's trace project are kept: delete a\ndefinition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.",
+        "description": "Delete a binding; a missing binding is ignored.\n\nThe binding's trace project and recorded traces are deleted. Its evaluator definition and\nprompt are kept. Delete a definition that nothing binds with\nDELETE /v1/evaluators/{evaluator_id}.",
         "operationId": "deleteDatasetEvaluator",
         "parameters": [
           {

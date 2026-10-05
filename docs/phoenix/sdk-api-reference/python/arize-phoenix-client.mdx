@@ -371,7 +371,7 @@ client.evaluators.project_evaluators.create(
     evaluation_delay_seconds=600,
 )
 
-# Detach the binding; the definition, prompt, and trace project are kept
+# Delete the binding and its trace project; keep the definition and prompt
 client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
 ```
 
@@ -408,7 +408,7 @@ When the server explains a failure with [RFC 9457](https://www.rfc-editor.org/rf
 Not every failure is problem details shaped this way. A 401 is a plain-text authentication challenge. An unhandled 500, or a proxy sitting in front of Phoenix, can return a body that isn't JSON at all. In every case `error.response.status_code` is still the real HTTP status, and `error.problem` is `None` when the body didn't parse as one.
 
 - **Definitions**: `create_code_version` returns the current version with `was_created=False` when the source is unchanged. Prompt content for an LLM evaluator is edited through `client.prompts`; `update_llm` only records which prompt version runs. `delete` removes an LLM or code evaluator that nothing binds and refuses one that is still bound with 409; an LLM evaluator's prompt is kept. Built-in evaluators are never deleted.
-- **Dataset bindings**: attach an existing LLM, code, or built-in evaluator with `evaluator_id`. `description` and `output_configs` are overrides: omit them on `create`, or pass `None` to `update`, and the binding uses the evaluator's values and follows later changes to them. An `output_configs` override needs at least one config (`[]` is rejected). On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description. Deleting a binding keeps its definition, prompt, and trace project. `delete_many(dataset=..., dataset_evaluator_ids=...)` deletes up to 1000 of a dataset's bindings atomically.
+- **Dataset bindings**: attach an existing LLM, code, or built-in evaluator with `evaluator_id`. `description` and `output_configs` are overrides: omit them on `create`, or pass `None` to `update`, and the binding uses the evaluator's values and follows later changes to them. An `output_configs` override needs at least one config (`[]` is rejected). On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description. Deleting a binding also deletes its trace project and recorded traces while keeping its definition and prompt. `delete_many(dataset=..., dataset_evaluator_ids=...)` deletes up to 1000 of a dataset's bindings atomically.
 - **Project bindings**: attach an existing LLM or code evaluator with `evaluator_id`. `evaluation_target` is `SPAN`, `TRACE`, or `SESSION` and cannot change later. `filter_condition` is written in the target's filter language (span, trace, or session); `update` clears it with `""`, not `None`. `evaluation_delay_seconds` applies to `TRACE` and `SESSION` only: at least 10 seconds, 300 by default. `SPAN` targets reject a delay and evaluate spans as they arrive. `delete_many(project=..., project_evaluator_ids=...)` deletes up to 1000 of a project's bindings atomically.
 
 ## Sessions

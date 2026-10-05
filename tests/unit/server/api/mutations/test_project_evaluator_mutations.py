@@ -10,7 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.helpers import evaluator_service
+from phoenix.server.api.helpers import project_evaluator_service
 from phoenix.server.online_eval import db_coordinator as db_coordinator_module
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project_session, _add_span, _add_trace
@@ -1609,7 +1609,7 @@ async def test_update_refuses_sandbox_validated_against_superseded_source(
         return sandbox_config.id
 
     monkeypatch.setattr(
-        evaluator_service, "validate_code_evaluator_sandbox_config", deploy_while_validating
+        project_evaluator_service, "validate_code_evaluator_sandbox_config", deploy_while_validating
     )
     result = await gql_client.execute(
         _UPDATE_CODE,

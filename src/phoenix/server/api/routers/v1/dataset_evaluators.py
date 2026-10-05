@@ -342,8 +342,9 @@ async def patch_dataset_evaluator(
 async def delete_dataset_evaluator(request: Request, dataset_evaluator_id: str) -> Response:
     """Delete a binding; a missing binding is ignored.
 
-    The evaluator definition, its prompt, and the binding's trace project are kept: delete a
-    definition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.
+    The binding's trace project and recorded traces are deleted. Its evaluator definition and
+    prompt are kept. Delete a definition that nothing binds with
+    DELETE /v1/evaluators/{evaluator_id}.
     """
     with evaluator_api_errors():
         await service.detach_dataset_evaluators(
@@ -373,7 +374,8 @@ async def delete_dataset_evaluators(
     """Delete up to 1000 of a dataset's bindings in one transaction.
 
     Missing bindings are ignored; a binding of another dataset is refused with 422 before
-    any change. Definitions, prompts, and trace projects are kept.
+    any change. Each deleted binding's trace project and recorded traces are removed; evaluator
+    definitions and prompts are kept.
     """
     with evaluator_api_errors():
         async with request.app.state.db() as session:

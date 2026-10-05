@@ -22,6 +22,7 @@ from .experiment_runs import router as experiment_runs_router
 from .experiment_tags import router as experiment_tags_router
 from .experiments import router as experiments_router
 from .model_providers import router as model_providers_router
+from .project_evaluators import router as project_evaluators_router
 from .projects import router as projects_router
 from .prompts import router as prompts_router
 from .sandbox_configs import router as sandbox_configs_router
@@ -70,6 +71,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     viewer_restricted_router.include_router(dataset_labels_router)
     viewer_restricted_router.include_router(datasets_router)
     viewer_restricted_router.include_router(evaluators_router)
+    viewer_restricted_router.include_router(project_evaluators_router)
     viewer_restricted_router.include_router(dataset_evaluators_router)
     viewer_restricted_router.include_router(sandbox_configs_router)
     viewer_restricted_router.include_router(experiments_router)

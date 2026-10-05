@@ -1,4 +1,4 @@
-"""Project bindings reference shared definitions; deleting a binding touches nothing else."""
+"""Project binding deletion removes trace projects while retaining shared definitions."""
 
 from secrets import token_hex
 from typing import Any
@@ -87,7 +87,7 @@ def test_code_lifecycle_and_shared_definition(
     assert client.delete(item).status_code == 204
     assert client.delete(second_item).status_code == 204
     assert client.get(evaluator).status_code == 200
-    assert client.get(f"v1/projects/{first['trace_project_id']}").status_code == 200
+    assert client.get(f"v1/projects/{first['trace_project_id']}").status_code == 404
     assert client.delete(evaluator).status_code == 204
 
 
@@ -118,6 +118,8 @@ def test_pagination_and_bulk_delete(
     assert client.delete(collection, params={"project_evaluator_id": ids}).status_code == 204
     assert client.delete(collection, params={"project_evaluator_id": ids}).status_code == 204
     assert client.get(collection).json()["data"] == []
+    for binding in bindings:
+        assert client.get(f"v1/projects/{binding['trace_project_id']}").status_code == 404
     assert client.get(f"v1/evaluators/{definition['id']}").status_code == 200
 
 
@@ -225,6 +227,7 @@ def test_llm_binding_and_definition_edits(
     assert result["data"]["node"]["promptVersion"]["id"] == new_version_id
     assert client.delete(item).status_code == 204
     assert client.get(evaluator).status_code == 200
+    assert client.get(f"v1/projects/{binding['trace_project_id']}").status_code == 404
     assert client.delete(evaluator).status_code == 204
     assert client.get(f"v1/prompt_versions/{new_version_id}").status_code == 200
 

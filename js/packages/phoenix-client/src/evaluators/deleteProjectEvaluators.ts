@@ -21,8 +21,9 @@ export interface DeleteProjectEvaluatorParams extends ClientFn {
 /**
  * Delete a project evaluator binding; a missing binding is ignored.
  *
- * The evaluator definition, its prompt, and the binding's trace project are
- * kept. Delete a definition that nothing binds with `deleteEvaluator`.
+ * The binding's trace project and recorded traces are deleted. Its evaluator
+ * definition and prompt are kept. Delete a definition that nothing binds with
+ * `deleteEvaluator`.
  *
  * @param params - The binding to delete.
  * @param params.projectEvaluatorId - The binding GlobalID.
@@ -67,7 +68,8 @@ export interface DeleteProjectEvaluatorsParams extends ClientFn {
  *
  * Either every binding is deleted or none is. Missing bindings are ignored; an
  * ID that is not a binding, or a binding of another project, fails the whole
- * request. Definitions, prompts, and trace projects are kept.
+ * request. Each deleted binding's trace project and recorded traces are removed;
+ * evaluator definitions and prompts are kept.
  *
  * @param params - The project and the bindings to delete.
  * @param params.project - The project, by `project`, `projectId`, or `projectName`.

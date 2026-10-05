@@ -501,7 +501,7 @@ Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as 
 
 ### `px dataset evaluator delete <dataset-evaluator-id...>`
 
-Delete one or more bindings. Only the bindings go: their evaluator definitions, prompts, and trace projects are kept. Several IDs need `--dataset` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+Delete one or more bindings and their trace projects and recorded traces. Evaluator definitions and prompts are kept. Several IDs need `--dataset` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
 ```bash
 px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
@@ -790,7 +790,7 @@ Accepts `--name`, `--sampling-rate`, `--filter-condition`, `--enabled` / `--disa
 
 ### `px project evaluator delete <project-evaluator-id...>`
 
-Delete one or more bindings. Only the bindings go: their evaluator definitions, prompts, and trace projects are kept. Several IDs need `--project` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+Delete one or more bindings and their trace projects and recorded traces. Evaluator definitions and prompts are kept. Several IDs need `--project` and are deleted in one transaction. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
 ```bash
 px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes

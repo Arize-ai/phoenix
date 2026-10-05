@@ -656,7 +656,8 @@ export interface paths {
          * @description Delete up to 1000 of a project's bindings in one transaction.
          *
          *     Missing bindings are ignored; a binding of another project is refused with 422 before
-         *     any change. Definitions, prompts, and trace projects are kept.
+         *     any change. Each deleted binding's trace project and recorded traces are removed; evaluator
+         *     definitions and prompts are kept.
          */
         delete: operations["deleteProjectEvaluators"];
         options?: never;
@@ -682,8 +683,9 @@ export interface paths {
          * Delete Project Evaluator
          * @description Delete a binding; a missing binding is ignored.
          *
-         *     The evaluator definition, its prompt, and the binding's trace project are kept: delete a
-         *     definition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.
+         *     The binding's trace project and recorded traces are deleted. Its evaluator definition and
+         *     prompt are kept. Delete a definition that nothing binds with
+         *     DELETE /v1/evaluators/{evaluator_id}.
          */
         delete: operations["deleteProjectEvaluator"];
         options?: never;
@@ -724,7 +726,8 @@ export interface paths {
          * @description Delete up to 1000 of a dataset's bindings in one transaction.
          *
          *     Missing bindings are ignored; a binding of another dataset is refused with 422 before
-         *     any change. Definitions, prompts, and trace projects are kept.
+         *     any change. Each deleted binding's trace project and recorded traces are removed; evaluator
+         *     definitions and prompts are kept.
          */
         delete: operations["deleteDatasetEvaluators"];
         options?: never;
@@ -750,8 +753,9 @@ export interface paths {
          * Delete Dataset Evaluator
          * @description Delete a binding; a missing binding is ignored.
          *
-         *     The evaluator definition, its prompt, and the binding's trace project are kept: delete a
-         *     definition that nothing binds through DELETE /v1/evaluators/{evaluator_id}.
+         *     The binding's trace project and recorded traces are deleted. Its evaluator definition and
+         *     prompt are kept. Delete a definition that nothing binds with
+         *     DELETE /v1/evaluators/{evaluator_id}.
          */
         delete: operations["deleteDatasetEvaluator"];
         options?: never;

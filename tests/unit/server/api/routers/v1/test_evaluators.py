@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from phoenix.server.api.routers.v1.evaluators import (
+from phoenix.server.api.routers.v1.project_evaluators import (
     CreateProjectEvaluatorRequest,
     PatchProjectEvaluatorRequest,
 )

@@ -289,8 +289,9 @@ class DatasetEvaluators:
     ) -> None:
         """Delete a binding; a missing binding is ignored.
 
-        The evaluator definition, its prompt, and the binding's trace project are
-        kept. Delete a definition nothing binds with :meth:`Evaluators.delete`.
+        The binding's trace project and recorded traces are deleted. Its evaluator
+        definition and prompt are kept. Delete a definition nothing binds with
+        :meth:`Evaluators.delete`.
 
         Args:
             dataset_evaluator_id (str): The binding's ID.
@@ -313,8 +314,8 @@ class DatasetEvaluators:
 
         Either every binding is deleted or none is. Missing bindings are
         ignored; an ID that is not a binding, or a binding of another dataset,
-        fails the whole request. Definitions, prompts, and trace projects are
-        kept.
+        fails the whole request. Each deleted binding's trace project and recorded
+        traces are removed; evaluator definitions and prompts are kept.
 
         Args:
             dataset (str): The dataset name or ID.
@@ -542,8 +543,9 @@ class AsyncDatasetEvaluators:
     ) -> None:
         """Delete a binding; a missing binding is ignored.
 
-        The evaluator definition, its prompt, and the binding's trace project are
-        kept. Delete a definition nothing binds with :meth:`Evaluators.delete`.
+        The binding's trace project and recorded traces are deleted. Its evaluator
+        definition and prompt are kept. Delete a definition nothing binds with
+        :meth:`Evaluators.delete`.
 
         Args:
             dataset_evaluator_id (str): The binding's ID.
@@ -566,8 +568,8 @@ class AsyncDatasetEvaluators:
 
         Either every binding is deleted or none is. Missing bindings are
         ignored; an ID that is not a binding, or a binding of another dataset,
-        fails the whole request. Definitions, prompts, and trace projects are
-        kept.
+        fails the whole request. Each deleted binding's trace project and recorded
+        traces are removed; evaluator definitions and prompts are kept.
 
         Args:
             dataset (str): The dataset name or ID.

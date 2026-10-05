@@ -338,8 +338,9 @@ class ProjectEvaluators:
     ) -> None:
         """Delete a binding; a missing binding is ignored.
 
-        The evaluator definition, its prompt, and the binding's trace project are
-        kept. Delete a definition nothing binds with :meth:`Evaluators.delete`.
+        The binding's trace project and recorded traces are deleted. Its evaluator
+        definition and prompt are kept. Delete a definition nothing binds with
+        :meth:`Evaluators.delete`.
 
         Args:
             project_evaluator_id (str): The binding's ID.
@@ -362,8 +363,8 @@ class ProjectEvaluators:
 
         Either every binding is deleted or none is. Missing bindings are
         ignored; an ID that is not a binding, or a binding of another project,
-        fails the whole request. Definitions, prompts, and trace projects are
-        kept.
+        fails the whole request. Each deleted binding's trace project and recorded
+        traces are removed; evaluator definitions and prompts are kept.
 
         Args:
             project (str): The project name or ID.
@@ -624,8 +625,9 @@ class AsyncProjectEvaluators:
     ) -> None:
         """Delete a binding; a missing binding is ignored.
 
-        The evaluator definition, its prompt, and the binding's trace project are
-        kept. Delete a definition nothing binds with :meth:`Evaluators.delete`.
+        The binding's trace project and recorded traces are deleted. Its evaluator
+        definition and prompt are kept. Delete a definition nothing binds with
+        :meth:`Evaluators.delete`.
 
         Args:
             project_evaluator_id (str): The binding's ID.
@@ -648,8 +650,8 @@ class AsyncProjectEvaluators:
 
         Either every binding is deleted or none is. Missing bindings are
         ignored; an ID that is not a binding, or a binding of another project,
-        fails the whole request. Definitions, prompts, and trace projects are
-        kept.
+        fails the whole request. Each deleted binding's trace project and recorded
+        traces are removed; evaluator definitions and prompts are kept.
 
         Args:
             project (str): The project name or ID.

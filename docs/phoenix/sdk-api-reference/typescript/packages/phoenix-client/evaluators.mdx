@@ -288,7 +288,7 @@ await deleteDatasetEvaluators({
 });
 ```
 
-Deleting a binding removes only the binding: its evaluator definition, prompt, and trace project are kept. `deleteDatasetEvaluators` deletes up to 1000 of a dataset's bindings atomically: either every binding is deleted or none is. Missing bindings are ignored, but an ID that is not a binding, or a binding of another dataset, fails the whole request.
+Deleting a binding also deletes its trace project and recorded traces while keeping its evaluator definition and prompt. `deleteDatasetEvaluators` deletes up to 1000 of a dataset's bindings atomically: either every binding and its trace project are deleted or none is. Missing bindings are ignored, but an ID that is not a binding, or a binding of another dataset, fails the whole request.
 
 ## Run An Evaluator On A Project
 
@@ -347,7 +347,7 @@ await deleteProjectEvaluators({
 ```
 
 - On update, `input_mapping: null` drops the binding's mapping so the evaluator's applies; LLM evaluators have none, so only variables rooted at input, output, or metadata bind (for example `{{metadata.turns}}`); anything else needs `inputMapping`. `evaluation_delay_seconds: null` restores the default delay. `filter_condition` is cleared with `""`, not `null`.
-- `deleteProjectEvaluator` deletes one binding. `deleteProjectEvaluators` deletes up to 1000 of a project's bindings atomically, with the same rules as the dataset bulk delete. The definitions, prompts, and trace projects are kept.
+- `deleteProjectEvaluator` deletes one binding and its trace project and recorded traces. `deleteProjectEvaluators` deletes up to 1000 of a project's bindings atomically, with the same rules as the dataset bulk delete. The evaluator definitions and prompts are kept.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>

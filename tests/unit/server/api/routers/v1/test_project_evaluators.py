@@ -1,12 +1,14 @@
 """REST project evaluator bindings: checks that only the unit harness can drive cheaply."""
 
 from secrets import token_hex
+from typing import Any
 
 import httpx
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
 
@@ -83,6 +85,100 @@ async def test_trace_target_binding_round_trips(
     listed = response.json()["data"]
     assert [item["id"] for item in listed] == [created["id"]]
     assert listed[0]["evaluation_target"] == "TRACE"
+
+
+async def test_detach_removes_trace_projects_atomically_and_keeps_definition_and_prompt(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    projects = [await _project(db), await _project(db)]
+    project_routes = [
+        f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators" for project in projects
+    ]
+    evaluator_id = str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id)))
+
+    async def create_binding(route: str, name: str) -> dict[str, Any]:
+        response = await httpx_client.post(
+            route,
+            json={
+                "name": name,
+                "evaluator_id": evaluator_id,
+                "evaluation_target": "SPAN",
+                "sampling_rate": 1.0,
+            },
+        )
+        assert response.status_code == 201, response.text
+        binding: dict[str, Any] = response.json()["data"]
+        return binding
+
+    bindings = [
+        await create_binding(project_routes[0], f"first-{token_hex(4)}"),
+        await create_binding(project_routes[0], f"second-{token_hex(4)}"),
+        await create_binding(project_routes[1], f"other-{token_hex(4)}"),
+    ]
+    nested_trace_project = models.Project(name=f"nested-trace-{token_hex(4)}")
+    nested_project_id = int(GlobalID.from_id(bindings[2]["trace_project_id"]).node_id)
+    async with db() as session:
+        session.add(
+            models.ProjectEvaluator(
+                project_id=nested_project_id,
+                evaluator_id=correctness_llm_evaluator.id,
+                trace_project=nested_trace_project,
+                name=Identifier(f"nested-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+    wrong_owner = await httpx_client.delete(
+        project_routes[0],
+        params={"project_evaluator_id": [binding["id"] for binding in bindings]},
+    )
+    assert wrong_owner.status_code == 422, wrong_owner.text
+    for binding in bindings:
+        assert (await httpx_client.get(f"v1/project_evaluators/{binding['id']}")).status_code == 200
+        assert (
+            await httpx_client.get(f"v1/projects/{binding['trace_project_id']}")
+        ).status_code == 200
+
+    first_project_bindings = bindings[:2]
+    delete_params = {"project_evaluator_id": [binding["id"] for binding in first_project_bindings]}
+    assert (await httpx_client.delete(project_routes[0], params=delete_params)).status_code == 204
+    assert (await httpx_client.delete(project_routes[0], params=delete_params)).status_code == 204
+    for binding in first_project_bindings:
+        assert (
+            await httpx_client.get(f"v1/projects/{binding['trace_project_id']}")
+        ).status_code == 404
+    assert (
+        await httpx_client.get(f"v1/projects/{bindings[2]['trace_project_id']}")
+    ).status_code == 200
+
+    assert (
+        await httpx_client.delete(
+            project_routes[1], params={"project_evaluator_id": bindings[2]["id"]}
+        )
+    ).status_code == 204
+    assert (
+        await httpx_client.get(f"v1/projects/{bindings[2]['trace_project_id']}")
+    ).status_code == 404
+    assert (
+        await httpx_client.get(f"v1/projects/{GlobalID('Project', str(nested_trace_project.id))}")
+    ).status_code == 404
+    for project in projects:
+        assert (
+            await httpx_client.get(f"v1/projects/{GlobalID('Project', str(project.id))}")
+        ).status_code == 200
+    assert (await httpx_client.get(f"v1/evaluators/{evaluator_id}")).status_code == 200
+    async with db() as session:
+        assert (
+            await session.scalar(
+                select(models.Prompt.id).where(
+                    models.Prompt.id == correctness_llm_evaluator.prompt_id
+                )
+            )
+            == correctness_llm_evaluator.prompt_id
+        )
 
 
 async def test_referencing_a_missing_evaluator_is_not_found(

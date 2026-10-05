@@ -1002,7 +1002,7 @@ async def detach_dataset_evaluators(
     *,
     dataset_id: Optional[GlobalID] = None,
 ) -> None:
-    """Delete bindings only: their definitions, prompts, and trace projects are kept.
+    """Delete bindings and their trace projects while preserving shared definitions and prompts.
 
     Missing bindings are ignored. With a dataset, a binding of another dataset is refused
     before any change.
@@ -1026,9 +1026,16 @@ async def detach_dataset_evaluators(
         if elsewhere:
             listed = ", ".join(str(GlobalID("DatasetEvaluator", str(i))) for i in elsewhere)
             raise BadRequest(f"These bindings belong to another dataset: {listed}")
-        await session.execute(
-            delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id.in_(rowids))
-        )
+
+        trace_project_ids = (
+            await session.scalars(
+                delete(models.DatasetEvaluators)
+                .where(models.DatasetEvaluators.id.in_(rowids))
+                .returning(models.DatasetEvaluators.project_id)
+            )
+        ).all()
+        if trace_project_ids:
+            await delete_projects_and_evaluator_trace_projects(session, trace_project_ids)
 
 
 def validate_llm_binding_overrides(
