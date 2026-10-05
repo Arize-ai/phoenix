@@ -47,6 +47,7 @@ from phoenix.server.api.helpers.evaluator_prompt_source import (
 )
 from phoenix.server.api.helpers.evaluator_service import (
     EvaluatorServiceContext,
+    reject_incompatible_dataset_overrides,
     require_output_configs,
     update_llm_definition,
 )
@@ -314,7 +315,7 @@ async def update_project_llm_evaluator(
                 evaluator.name = await generate_unique_evaluator_name(session, name)
                 shared_evaluator_changed = True
 
-            await update_llm_definition(
+            prompt_version = await update_llm_definition(
                 session,
                 evaluator,
                 prompt_source=input.prompt_source,
@@ -324,6 +325,7 @@ async def update_project_llm_evaluator(
                 user_id=user_id,
                 shared_evaluator_changed=shared_evaluator_changed,
             )
+            await reject_incompatible_dataset_overrides(session, evaluator, prompt_version)
 
             binding_values: dict[str, Any] = dict(
                 name=name,

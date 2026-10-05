@@ -2,6 +2,7 @@
 and deleting it is refused."""
 
 import asyncio
+from copy import deepcopy
 from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any, AsyncIterator, Awaitable, Callable, Coroutine, Optional, Sequence, TypeVar
@@ -723,6 +724,236 @@ async def _undescribed_evaluator(
         mutation = _UPDATE_DATASET_LLM
         update_input = {**definition, "datasetEvaluatorId": created["id"], "datasetId": dataset_id}
     return int(GlobalID.from_id(created["evaluator"]["id"]).node_id), mutation, update_input
+
+
+async def _add_compatible_dataset_override(
+    db: DbSessionFactory, evaluator_id: int, *, description: str, labels: Sequence[str]
+) -> int:
+    """Add a binding override that is valid against the evaluator's current prompt."""
+    binding = models.DatasetEvaluators(
+        dataset=models.Dataset(name=f"binding-edit-{token_hex(4)}", metadata_={}),
+        evaluator_id=evaluator_id,
+        name=Identifier.model_validate(f"binding-edit-{token_hex(4)}"),
+        description=description,
+        output_configs=[_output_config(labels)],
+        input_mapping=InputMapping(literal_mapping={}, path_mapping={"output": "$.output"}),
+        project=models.Project(name=f"binding-edit-{token_hex(4)}"),
+    )
+    async with db() as session:
+        session.add(binding)
+        await session.flush()
+        return binding.id
+
+
+def _change_llm_definition(
+    update_input: dict[str, Any],
+    *,
+    change_contract: bool,
+    change_description: bool = True,
+    change_output_labels: bool = True,
+) -> dict[str, Any]:
+    """Build an edit that either changes the schema or preserves its compatibility."""
+    candidate = deepcopy(update_input)
+    candidate["name"] = f"edited-{candidate['name']}"
+    if change_contract:
+        if change_description:
+            candidate["description"] = "updated correctness"
+            candidate["promptVersion"]["tools"]["tools"][0]["function"]["description"] = (
+                "updated correctness"
+            )
+        if change_output_labels:
+            labels = ("yes", "no")
+            candidate["promptVersion"]["tools"]["tools"][0]["function"]["parameters"]["properties"][
+                "label"
+            ]["enum"] = list(labels)
+            candidate["outputConfigs"][0]["categorical"]["values"] = [
+                {"label": label, "score": float(index == 0)} for index, label in enumerate(labels)
+            ]
+    else:
+        candidate["promptVersion"]["template"]["messages"][0]["content"][0]["text"]["text"] = (
+            "Updated judge {{output}}"
+        )
+    return candidate
+
+
+async def _llm_edit_state(db: DbSessionFactory, evaluator_id: int) -> dict[str, Any]:
+    """Capture shared definitions, binding overrides, and prompt/tag writes for rollback checks."""
+    async with db() as session:
+        evaluator = await session.get(models.LLMEvaluator, evaluator_id)
+        assert evaluator is not None
+        tag = await session.get(models.PromptVersionTag, evaluator.prompt_version_tag_id)
+        dataset_bindings = (
+            await session.scalars(
+                select(models.DatasetEvaluators)
+                .where(models.DatasetEvaluators.evaluator_id == evaluator_id)
+                .order_by(models.DatasetEvaluators.id)
+            )
+        ).all()
+        project_bindings = (
+            await session.scalars(
+                select(models.ProjectEvaluator)
+                .where(models.ProjectEvaluator.evaluator_id == evaluator_id)
+                .order_by(models.ProjectEvaluator.id)
+            )
+        ).all()
+        return {
+            "name": evaluator.name.root,
+            "description": evaluator.description,
+            "output_configs": [
+                config.model_dump(mode="json") for config in evaluator.output_configs
+            ],
+            "prompt_id": evaluator.prompt_id,
+            "tag_id": evaluator.prompt_version_tag_id,
+            "tag_version_id": tag.prompt_version_id if tag else None,
+            "updated_at": evaluator.updated_at,
+            "user_id": evaluator.user_id,
+            "prompt_count": await session.scalar(select(sa.func.count(models.Prompt.id))),
+            "prompt_version_count": await session.scalar(
+                select(sa.func.count(models.PromptVersion.id)).where(
+                    models.PromptVersion.prompt_id == evaluator.prompt_id
+                )
+            ),
+            "prompt_labels": (
+                await session.execute(
+                    select(models.PromptPromptLabel.prompt_id, models.PromptLabel.name)
+                    .join(
+                        models.PromptLabel,
+                        models.PromptPromptLabel.prompt_label_id == models.PromptLabel.id,
+                    )
+                    .order_by(models.PromptPromptLabel.prompt_id, models.PromptLabel.name)
+                )
+            ).all(),
+            "dataset_bindings": [
+                (
+                    binding.id,
+                    binding.name.root,
+                    binding.description,
+                    [config.model_dump(mode="json") for config in (binding.output_configs or [])],
+                    binding.input_mapping.model_dump(mode="json"),
+                    binding.user_id,
+                    binding.updated_at,
+                )
+                for binding in dataset_bindings
+            ],
+            "project_bindings": [
+                (
+                    binding.id,
+                    binding.name.root,
+                    binding.filter_condition,
+                    binding.evaluation_target,
+                    binding.evaluation_delay_seconds,
+                    binding.input_mapping.model_dump(mode="json")
+                    if binding.input_mapping is not None
+                    else None,
+                    binding.sampling_rate,
+                    binding.enabled,
+                    binding.updated_at,
+                )
+                for binding in project_bindings
+            ],
+        }
+
+
+@pytest.mark.parametrize(
+    ("binding_type", "incompatible_field"),
+    [
+        ("project", "description"),
+        ("project", "output_configs"),
+        ("dataset", "description"),
+        ("dataset", "output_configs"),
+    ],
+)
+async def test_graphql_llm_binding_edit_rejects_incompatible_dataset_override_atomically(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    binding_type: str,
+    incompatible_field: str,
+) -> None:
+    evaluator_id, mutation, update_input = await _undescribed_evaluator(
+        gql_client, db, binding_type
+    )
+    binding_id = await _add_compatible_dataset_override(
+        db, evaluator_id, description="correctness", labels=_EVALUATOR_LABELS
+    )
+    before = await _llm_edit_state(db, evaluator_id)
+
+    result = await gql_client.execute(
+        mutation,
+        {
+            "input": _change_llm_definition(
+                update_input,
+                change_contract=True,
+                change_description=incompatible_field == "description",
+                change_output_labels=incompatible_field == "output_configs",
+            )
+        },
+    )
+
+    assert result.errors
+    assert "Dataset evaluator bindings override outputs" in result.errors[0].message
+    assert str(GlobalID("DatasetEvaluator", str(binding_id))) in result.errors[0].message
+    assert await _llm_edit_state(db, evaluator_id) == before
+
+
+@pytest.mark.parametrize("binding_type", ["project", "dataset"])
+async def test_llm_edit_allows_compatible_dataset_override(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    binding_type: str,
+) -> None:
+    evaluator_id, mutation, update_input = await _undescribed_evaluator(
+        gql_client, db, binding_type
+    )
+    override_binding_id = await _add_compatible_dataset_override(
+        db, evaluator_id, description="correctness", labels=_EVALUATOR_LABELS
+    )
+    before = await _llm_edit_state(db, evaluator_id)
+
+    result = await gql_client.execute(
+        mutation,
+        {"input": _change_llm_definition(update_input, change_contract=False)},
+    )
+
+    assert result.data and not result.errors
+    after = await _llm_edit_state(db, evaluator_id)
+    assert after["tag_version_id"] != before["tag_version_id"]
+    async with db() as session:
+        evaluator = await session.get(models.LLMEvaluator, evaluator_id)
+        assert evaluator is not None
+        assert evaluator.name.root.startswith("edited-")
+        override = await session.get(models.DatasetEvaluators, override_binding_id)
+        assert override is not None
+        assert override.description == "correctness"
+        assert override.output_configs == [_output_config(_EVALUATOR_LABELS)]
+
+
+async def test_dataset_llm_edit_clears_its_overrides_before_checking_compatibility(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    evaluator_id, mutation, update_input = await _undescribed_evaluator(gql_client, db, "dataset")
+    dataset_evaluator_id = int(GlobalID.from_id(update_input["datasetEvaluatorId"]).node_id)
+    async with db() as session:
+        edited_binding = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+        assert edited_binding is not None
+        # This override is valid for the current definition, then becomes incompatible with
+        # the edit below. Dataset edits replace their own overrides with inherited values.
+        edited_binding.description = "correctness"
+        edited_binding.output_configs = [_output_config(_EVALUATOR_LABELS)]
+
+    result = await gql_client.execute(
+        mutation,
+        {"input": _change_llm_definition(update_input, change_contract=True)},
+    )
+
+    assert result.data and not result.errors
+    async with db() as session:
+        evaluator = await session.get(models.LLMEvaluator, evaluator_id)
+        edited_binding = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+        assert evaluator is not None and evaluator.description == "updated correctness"
+        assert edited_binding is not None
+        assert edited_binding.description is None
+        assert edited_binding.output_configs is None
 
 
 async def _add_grading_version(db: DbSessionFactory, evaluator_id: int) -> tuple[int, int, int]:

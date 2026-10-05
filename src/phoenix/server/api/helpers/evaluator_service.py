@@ -663,7 +663,7 @@ async def patch_llm_evaluator(
                 user_id=context.user_id,
                 shared_evaluator_changed=True,
             )
-            await _reject_incompatible_dataset_overrides(session, row, prompt_version)
+            await reject_incompatible_dataset_overrides(session, row, prompt_version)
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         if patch.name is not UNSET and patch.name is not None:
@@ -674,7 +674,7 @@ async def patch_llm_evaluator(
     return row
 
 
-async def _reject_incompatible_dataset_overrides(
+async def reject_incompatible_dataset_overrides(
     session: AsyncSession,
     evaluator: models.LLMEvaluator,
     prompt_version: models.PromptVersion,

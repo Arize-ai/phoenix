@@ -48,6 +48,7 @@ from phoenix.server.api.helpers.evaluator_prompt_source import (
 )
 from phoenix.server.api.helpers.evaluator_service import (
     EvaluatorServiceContext,
+    reject_incompatible_dataset_overrides,
     require_output_configs,
 )
 from phoenix.server.api.helpers.evaluators import (
@@ -433,6 +434,8 @@ async def update_dataset_llm_evaluator(
         if shared_evaluator_changed:
             llm_evaluator.updated_at = datetime.now(timezone.utc)
             llm_evaluator.user_id = user_id
+
+        await reject_incompatible_dataset_overrides(session, llm_evaluator, prompt_version)
 
     return dataset_evaluator
 
