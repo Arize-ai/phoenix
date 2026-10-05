@@ -1,8 +1,4 @@
-"""A token is accepted only when it is the exact token Phoenix issued.
-
-A database reader can derive the seed signing key and sign any row id, so the stored
-hash of the issued token is the proof of issuance.
-"""
+"""Issuance hashes prevent token forgery with a seed-derived signing key."""
 
 from __future__ import annotations
 
@@ -179,7 +175,6 @@ class TestDerivedSigningKey:
         assert await store.read(forged) is None
 
     async def test_row_without_hash_is_refused(self, db: DbSessionFactory) -> None:
-        """A row with no stored hash is forgeable by signing its jti with the seed key."""
         store = _derived_store(db)
         token, token_id = await store.create_api_key(_api_key_claims(await _create_user(db)))
         row_id = int(token_id.split(":")[1])
@@ -199,7 +194,6 @@ class TestDerivedSigningKey:
         assert await store.read(_sign(_derived_key(), {"jti": "ApiKey:1"})) is None
 
     async def test_consumed_grant_reports_only_the_issued_token(self, db: DbSessionFactory) -> None:
-        """Reporting a replay revokes a grant, so a forged token must not trigger it."""
         store = _derived_store(db)
         user_id = await _create_user(db)
         async with db() as session:
@@ -278,7 +272,6 @@ class TestConfiguredSecret:
     async def test_row_without_hash_is_still_accepted(
         self, db: DbSessionFactory, secret: str
     ) -> None:
-        """A configured secret accepts a row with no hash on signature alone."""
         store = _store(db, secret, require_stored_hash=False)
         token, token_id = await store.create_api_key(_api_key_claims(await _create_user(db)))
         assert isinstance(token_id, ApiKeyId)

@@ -507,14 +507,12 @@ def _env(
         # _app_mcp_code_mode is the dedicated fixture that opts into code mode.
         "PHOENIX_ENABLE_MCP_CODE_MODE": "false",
     }
-    # One pair of ports per signing mode.
     env["PHOENIX_PORT"] = str(next(_ports))
     env["PHOENIX_GRPC_PORT"] = str(next(_ports))
     if _token_signing_mode == "derived_key":
         env.pop("PHOENIX_SECRET", None)
         env.pop("PHOENIX_ADMIN_SECRET", None)
-    # Each signing mode has its own database. `:memory:` is private to the
-    # server process; a file lets tests read the deployment seed.
+    # A file-backed database lets tests read the subprocess server's deployment seed.
     database_url = env.get("PHOENIX_SQL_DATABASE_URL", "")
     schema_loop: Optional[asyncio.AbstractEventLoop] = None
     schema_ctx: Any = None
@@ -550,7 +548,6 @@ def _signing_mode_database(
     tmp_path_factory: pytest.TempPathFactory,
     name: str,
 ) -> Iterator[dict[str, str]]:
-    """Database and signing secrets for one token-signing mode."""
     prepared = dict(env)
     if mode == "derived_key":
         prepared.pop("PHOENIX_SECRET", None)
@@ -575,7 +572,6 @@ def _signing_mode_database(
 
 
 def _assert_issued_token_verifies_with_signing_mode(app: _AppInfo, mode: str) -> None:
-    """An issued token verifies with this mode's signing key."""
     from joserfc import jwt
     from joserfc.errors import JoseError
     from joserfc.jwk import OctKey
@@ -612,11 +608,6 @@ def _app(
 
 @pytest.fixture(scope="package")
 def _redactor(_app: _AppInfo) -> "Redactor":
-    """A Redactor keyed with the running server's deployment seed and PHOENIX_SECRET.
-
-    Tests use this to redact values before sending and to un-redact server-emitted
-    tokens — verifying symmetric round-trips end-to-end.
-    """
     return _redactor_for_app(_app)
 
 

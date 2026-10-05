@@ -25,7 +25,6 @@ _UNSET: Any = object()
 
 
 def _unredact(app: _AppInfo, token: str) -> str:
-    """Un-redact a server-emitted RedactedString with the server's redactor."""
     return _redactor_for_app(app).unredact(token)
 
 

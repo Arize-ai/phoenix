@@ -18,8 +18,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 process.env["PHOENIX_WORKING_DIR"] = tmpDir;
 process.env["PHOENIX_ENABLE_AUTH"] = "True";
 process.env["PHOENIX_SECRET"] = crypto.randomBytes(32).toString("hex");
-// Auth setup signs in with the public default password and must land on the
-// token reset page. A custom initial password would skip that gate.
+// Exercise the default-password reset flow regardless of the parent environment.
 delete process.env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"];
 process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
 // Disable rate limiting for tests to avoid flakiness from parallel logins

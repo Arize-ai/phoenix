@@ -5,21 +5,9 @@ import { Alert } from "@phoenix/components";
 
 import type { PublicEncryptionKeyWarningQuery } from "./__generated__/PublicEncryptionKeyWarningQuery.graphql";
 
-/**
- * Warns that credentials saved here are encrypted with a publicly known key.
- *
- * Shown only when `serverStatus.databaseEncryptionKeyIsPublic` is true. Admins,
- * and every viewer when authentication is disabled, receive that boolean; other
- * viewers receive null. The query is `store-or-network` inside a suspense
- * boundary with an empty fallback, so a pending response leaves the surrounding
- * form mounted.
- *
- * Place wherever a credential is about to be saved. Without PHOENIX_SECRET the
- * encryption key is derived from an empty value, so anyone with a copy of the
- * database can decrypt saved credentials.
- */
 export function PublicEncryptionKeyWarning({ banner }: { banner?: boolean }) {
   return (
+    // Keep the surrounding form mounted while the warning query is pending.
     <Suspense fallback={null}>
       <PublicEncryptionKeyWarningAlert banner={banner} />
     </Suspense>

@@ -274,8 +274,7 @@ class _User:
 
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
-# Generated once per process and shared with the auth env fixture. The public
-# default "admin" cannot open a session, so integration tests use another value.
+# The default "admin" password requires a reset before a session can be opened.
 _DEFAULT_ADMIN_INITIAL_PASSWORD = token_hex(16)
 _DEFAULT_ADMIN = _User(
     _GqlId(GlobalID("User", "2")),
@@ -322,7 +321,6 @@ class _AdminSecret(str): ...
 
 
 def _admin_auth(app: _AppInfo) -> Union[_AdminSecret, _User]:
-    """Admin credential for requests that are not about the admin secret itself."""
     if app.env.get("PHOENIX_ADMIN_SECRET"):
         return app.admin_secret
     return _DEFAULT_ADMIN
@@ -517,11 +515,7 @@ class _AppInfo:
 
 
 def _is_memory_sqlite(database_url: str) -> bool:
-    """Whether the URL is an in-memory SQLite database.
-
-    The rendered URL percent-encodes the database name, so `:memory:` is read
-    from the parsed URL.
-    """
+    # Parse the URL because its database name may be percent-encoded.
     return database_url.startswith("sqlite") and make_url(database_url).database == ":memory:"
 
 
@@ -530,7 +524,6 @@ if TYPE_CHECKING:
 
 
 def _load_deployment_seed(database_url: str, schema: str) -> bytes:
-    """The deployment seed stored by a running server."""
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from phoenix.db.helpers import SupportedSQLDialect
@@ -566,7 +559,6 @@ def _load_deployment_seed(database_url: str, schema: str) -> bytes:
 
 @lru_cache(maxsize=None)
 def _redactor_for_app_key(database_url: str, schema: str, secret: str) -> Redactor:
-    """Redactor for a running server, keyed by its deployment seed and secret."""
     from pydantic import SecretStr
 
     from phoenix.server.deployment_secret import REDACTION_KEY_PURPOSE, derive_deployment_key
@@ -582,7 +574,6 @@ def _redactor_for_app_key(database_url: str, schema: str, secret: str) -> Redact
 
 
 def _redactor_for_app(app: _AppInfo) -> Redactor:
-    """Redactor using the running server's deployment seed and ``PHOENIX_SECRET``."""
     return _redactor_for_app_key(
         app.env[ENV_PHOENIX_SQL_DATABASE_URL],
         app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),
@@ -591,7 +582,6 @@ def _redactor_for_app(app: _AppInfo) -> Redactor:
 
 
 def _deployment_seed_for_app(app: _AppInfo) -> bytes:
-    """Deployment seed stored by a running server."""
     return _load_deployment_seed(
         app.env[ENV_PHOENIX_SQL_DATABASE_URL],
         app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),

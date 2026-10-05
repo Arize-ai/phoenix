@@ -86,7 +86,7 @@ class _SigningKey:
 
 
 class JwtStore:
-    """The only encoder and decoder of Phoenix tokens."""
+    """Issue and validate Phoenix tokens against stored claims and hashes."""
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class JwtStore:
     ) -> None:
         """
         Args:
-            sleep_seconds: How often each store reloads its token cache from the database.
+            sleep_seconds: Token cache refresh interval in seconds.
         """
         super().__init__(**kwargs)
         self._db = db
@@ -109,10 +109,11 @@ class JwtStore:
         self._api_key_store = _ApiKeyStore(*args, **kwargs)
 
     def set_signing_key(self, key: str | bytes, *, require_stored_hash: bool) -> None:
-        """Install the HMAC key used to encode and decode tokens.
+        """Install the HMAC key for token issuance and validation.
 
-        ``key`` is a configured ``PHOENIX_SECRET``, or the 32 bytes derived from the
-        deployment seed. ``require_stored_hash`` rejects a row that has no stored hash.
+        Args:
+            key: PHOENIX_SECRET or a 32-byte deployment-seed key.
+            require_stored_hash: Reject hashless rows when true. Required for seed-derived keys.
         """
         self._signing.set(key, require_stored_hash=require_stored_hash)
 
@@ -354,13 +355,11 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         return jwt.encode(header, payload, key)
 
     def matches(self, token_id: _TokenIdT, token: Token) -> bool:
-        """Whether the presented token is the one recorded for this id."""
         return self._hash_matches(self._claims.token_hash(token_id), token)
 
     def _hash_matches(self, stored_hash: Optional[bytes], token: Token) -> bool:
         if stored_hash is None:
-            # Anyone who can read the database can derive the seed key, so without a
-            # configured secret a row with no hash would be forgeable by signing its jti.
+            # Database readers can derive the seed key; hashless rows require PHOENIX_SECRET.
             return not self._signing.require_stored_hash
         # Both sides are SHA-256 digests, so a timing difference reveals nothing usable.
         return stored_hash == compute_token_hash(str(token))
@@ -681,8 +680,7 @@ class _RefreshTokenStore(
         if row is None:
             return None
         grant_id, stored_hash = row
-        # Reporting a replay revokes the whole grant, so a forged token must not
-        # trigger it for someone else's grant.
+        # Authenticate replays before reporting them: reporting revokes the entire grant.
         if not self._hash_matches(stored_hash, token):
             return None
         return grant_id

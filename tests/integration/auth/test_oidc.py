@@ -126,7 +126,6 @@ def _verify_access_denied(
 
 
 def _verify_sensitive_cookies_cleaned(set_cookie_headers: list[str]) -> None:
-    """Verify sensitive cookies (state, login context, nonce) are cleaned up."""
     assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
     assert any(
         "phoenix-oauth2-login-context=" in h and "Max-Age=0" in h for h in set_cookie_headers

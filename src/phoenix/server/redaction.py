@@ -1,22 +1,13 @@
 """Cross-replica redaction for transient payloads.
 
-The active redactor is exposed via a `ContextVar` (`current_redactor`), bound
-per HTTP request by `RedactorMiddleware` from `app.state.redactor`. Access via
-`get_redactor()` — it raises `RedactorNotBoundError` if nothing is bound, so a
-missing middleware or a call from a background task / thread pool fails loudly
-instead of silently passing plaintext secrets through.
+RedactorMiddleware binds the request redactor. get_redactor() raises
+RedactorNotBoundError outside a bound context to prevent plaintext disclosure.
 
-The `Redactor` key is derived from the deployment seed and `PHOENIX_SECRET`,
-so redacted values stay valid across replicas and restarts as long as both
-are unchanged.
+Redacted values remain valid across replicas and restarts while the deployment
+seed and PHOENIX_SECRET are unchanged.
 
-Redacted strings optionally carry the last 4 characters of the plaintext as
-a preview, so the UI can hint at which key is stored without revealing the
-whole value. The preview is only emitted when the plaintext is at least 32
-characters; shorter values get no preview so the leak stays proportionate.
-Previews persist wherever redacted strings do (logs, screenshots, support
-tickets), so the full secret remains confidential but partial end-of-string
-leaks are expected by design.
+Plaintexts of at least 32 characters expose a four-character suffix preview.
+Treat previews as partial secret disclosure wherever redacted values are stored.
 """
 
 import base64

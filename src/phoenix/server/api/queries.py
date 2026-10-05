@@ -1695,8 +1695,6 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> ServerStatus:
-        # Admins, and every viewer when authentication is disabled, see whether
-        # the key is public. Other authenticated viewers get null.
         if info.context.auth_enabled and not (
             isinstance((user := info.context.user), PhoenixUser) and user.is_admin
         ):

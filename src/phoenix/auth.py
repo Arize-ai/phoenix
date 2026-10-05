@@ -328,26 +328,16 @@ REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
 TOKEN_RANDOM_CLAIM = "phx_rnd"
-"""
-Private claim (RFC 7519 section 4.3) carrying random bytes in every issued token.
-
-Distinct from the registered `nonce` claim, which OpenID Connect defines as an echo
-of the client's authorization request.
-"""
+"""Phoenix-specific entropy claim, independent of the OpenID Connect ``nonce``."""
 TOKEN_RANDOM_BYTES = 32
 """
-The number of random bytes in the random claim (256 bits).
-
-When the signing key is derived from the deployment seed, a database reader can
-recompute it, so every other part of a token is predictable. This claim is what that
-reader must guess to match a stored hash. RFC 6749 section 10.10 requires a guessing
-probability of at most 2^-128 and recommends 2^-160; 256 bits leaves margin for the
-many tokens a database holds.
+256 bits of entropy prevent database readers with the seed-derived signing key
+from reproducing an issued token with a matching stored hash.
 """
 
 
 def compute_token_hash(token: str) -> bytes:
-    """Return the SHA-256 digest of a complete encoded token, as stored in the database."""
+    """Return the SHA-256 digest of the complete encoded token."""
     return sha256(token.encode("utf-8")).digest()
 
 
@@ -358,7 +348,6 @@ PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
 PHOENIX_OAUTH2_STATE_COOKIE_NAME = "phoenix-oauth2-state"
 """The name of the cookie that stores the state used for the OAuth2 authorization code flow."""
 PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME = "phoenix-oauth2-login-context"
-"""The name of the cookie that stores the origin and return URL for the OAuth2 login."""
 PHOENIX_OAUTH2_NONCE_COOKIE_NAME = "phoenix-oauth2-nonce"
 """The name of the cookie that stores the nonce used for the OAuth2 authorization code flow."""
 PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME = "phoenix-oauth2-code-verifier"

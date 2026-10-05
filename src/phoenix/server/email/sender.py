@@ -189,7 +189,7 @@ class SimpleEmailSender:
 
 
 def email_sender_from_env() -> Optional[EmailSender]:
-    """SMTP sender when ``PHOENIX_SMTP_HOSTNAME`` is set."""
+    """Return an SMTP sender, or None when PHOENIX_SMTP_HOSTNAME is unset."""
     if not (mail_server := get_env_smtp_hostname()):
         return None
     assert (mail_username := get_env_smtp_username()), "SMTP username is required"

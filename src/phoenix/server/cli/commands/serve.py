@@ -234,7 +234,6 @@ def run(args: Namespace) -> None:
 
     host = get_env_host()
     auth_settings = get_env_auth_settings()
-    # Bind every interface for ::. URLs keep using ``host``.
     bind_host: Optional[str] = None if host == "::" else host
     local_host = local_url_host(host)
 

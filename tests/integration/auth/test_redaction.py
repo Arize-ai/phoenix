@@ -1,10 +1,4 @@
-"""End-to-end test of RedactedString on a live Phoenix server.
-
-Complements the in-process unit test at
-`tests/unit/server/api/mutations/test_generative_model_custom_provider_mutations.py`
-by exercising the full HTTP stack (subprocess server, real middleware ordering,
-real network) with auth enabled.
-"""
+"""Exercise RedactedString over HTTP with authentication enabled."""
 
 from __future__ import annotations
 

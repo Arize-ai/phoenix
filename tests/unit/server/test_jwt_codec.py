@@ -14,8 +14,6 @@ _ENCODE_DECODE = frozenset({"encode", "decode"})
 
 
 class _JoseJwtVisitor(ast.NodeVisitor):
-    """Records imports of ``joserfc.jwt`` and calls to its encode/decode."""
-
     def __init__(self) -> None:
         self.hits: list[tuple[int, str]] = []
         self._modules: set[str] = set()

@@ -19,9 +19,6 @@ _REDACTED_PREFIX = "\ue000REDACTED\ue000"
 
 
 def _assert_redacted_equals(redactor: Redactor, value: Any, expected: str) -> None:
-    """Assert a RedactedString field was redacted on the wire and un-redacts
-    to the expected plaintext.
-    """
     assert isinstance(value, str), f"expected str, got {type(value).__name__}: {value!r}"
     assert value.startswith(_REDACTED_PREFIX), f"field was not redacted on output: {value!r}"
     assert redactor.unredact(value) == expected, (
@@ -831,13 +828,6 @@ class TestGenerativeModelCustomProviderMutations:
         db: DbSessionFactory,
         redactor: Redactor,
     ) -> None:
-        """A redacted apiKey — sent on create, or echoed back on patch — must
-        un-redact to the original plaintext in the DB.
-
-        The `app` fixture builds create_app without a secret. Credential
-        encryption uses that empty secret. The redactor uses the deployment
-        seed and the same empty secret.
-        """
         encryption = EncryptionService(secret=SecretStr(""))
 
         async def stored_api_key(provider_id: str) -> str:
@@ -903,7 +893,6 @@ class TestGenerativeModelCustomProviderMutations:
         """A redacted token from a different redactor must produce a user-facing
         error, not the generic 'an unexpected error occurred' mask.
         """
-        # Token minted by a different redactor, so the server's Fernet can't decrypt it.
         other_redactor = Redactor(token_bytes(32))
         stale_token = other_redactor.redact("sk-original")
 
