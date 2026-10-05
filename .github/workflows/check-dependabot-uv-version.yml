@@ -45,8 +45,8 @@ jobs:
         id: repo
         run: |
           set -euo pipefail
-          version=$(grep -E '^required-version\s*=' pyproject.toml \
-            | grep -oE '>=[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -c3-)
+          version=$(grep -E '^required-version[[:space:]]*=' pyproject.toml \
+            | grep -oE '>=[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -c3- || true)
           if [ -z "$version" ]; then
             echo "::error::Could not extract the uv lower bound from pyproject.toml"
             exit 1
