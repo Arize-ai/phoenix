@@ -459,10 +459,10 @@ class TestEvaluateErrorPaths:
         backend.execute.assert_not_called()
 
     async def test_input_mapping_failure_returns_error_result(self) -> None:
-        runner, _ = _make_runner()
+        runner, _ = _make_runner(source_code='def evaluate(output): return "pass"')
         bad_mapping = InputMapping(
             literal_mapping={},
-            path_mapping={"x": "$.nonexistent.path"},
+            path_mapping={"output": "$.nonexistent.path"},
         )
         results = await runner.evaluate(
             context={"other": "data"},
