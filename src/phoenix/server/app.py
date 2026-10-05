@@ -159,7 +159,6 @@ from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMi
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
-from phoenix.server.online_eval.admission import max_queued
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
@@ -1153,16 +1152,8 @@ def create_app(
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
-        online_eval_session_sweeper = EvalSweeper(
-            db,
-            evaluation_target="SESSION",
-            max_outstanding=max_queued("SESSION"),
-        )
-        online_eval_trace_sweeper = EvalSweeper(
-            db,
-            evaluation_target="TRACE",
-            max_outstanding=max_queued("TRACE"),
-        )
+        online_eval_session_sweeper = EvalSweeper(db, evaluation_target="SESSION")
+        online_eval_trace_sweeper = EvalSweeper(db, evaluation_target="TRACE")
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,

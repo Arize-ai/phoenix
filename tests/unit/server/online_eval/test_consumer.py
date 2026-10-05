@@ -14,7 +14,6 @@ from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
-from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.helpers import delete_traces
@@ -859,11 +858,7 @@ async def test_session_publication_finishes_its_unit_before_a_crash_can_lose_it(
         )
 
     assert await coordinator.claim(claimed_by="next-consumer", limit=1) == []
-    await EvalSweeper(
-        db,
-        evaluation_target="SESSION",
-        max_outstanding=get_env_online_eval_max_session_outstanding(),
-    )._tick()
+    await EvalSweeper(db, evaluation_target="SESSION")._tick()
     async with db() as session:
         units = list(
             await session.scalars(
@@ -927,11 +922,7 @@ async def test_a_stale_claim_cannot_write_to_its_unit_re_offered_to_the_same_con
             .where(models.ProjectSession.id == project_session.id)
             .values(last_span_ingested_at=datetime.now(timezone.utc) - timedelta(minutes=6))
         )
-    await EvalSweeper(
-        db,
-        evaluation_target="SESSION",
-        max_outstanding=get_env_online_eval_max_session_outstanding(),
-    )._tick()
+    await EvalSweeper(db, evaluation_target="SESSION")._tick()
     assert (await _get_session_unit(db, unit_id)).status == "PENDING"
     await _cycle_to_completion(consumer)
     first, second = started
@@ -1621,6 +1612,9 @@ async def test_consumer_publishes_queue_health_gauges(
 
     await OnlineEvalConsumer(db, decrypt=lambda value: value)._publish_queue_metrics()
 
+    queue_wide = gauges.pop("ONLINE_EVAL_AT_CAPACITY")
+    queue_wide.labels.assert_not_called()
+    queue_wide.set.assert_called_once_with(0)
     for gauge in gauges.values():
         gauge.labels.assert_called_once_with(evaluation_target="SPAN")
         gauge.labels.return_value.set.assert_called_once()
@@ -1629,7 +1623,6 @@ async def test_consumer_publishes_queue_health_gauges(
         return gauges[name].labels.return_value.set.call_args.args[0]
 
     assert published("ONLINE_EVAL_PENDING_WORK_UNITS") == 1
-    assert published("ONLINE_EVAL_AT_CAPACITY") == 0
 
 
 async def test_configuration_versions_are_resolved_once_per_claim_batch(

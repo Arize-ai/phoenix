@@ -164,7 +164,6 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.online_eval.queue_health import EVALUATION_TARGETS
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -1699,15 +1698,12 @@ class Query:
 
     @strawberry.field(
         description=(
-            "The online evaluation queues, one per evaluation target. Each is shared by every "
-            "project on the server."
+            "The online evaluation queue, shared by every project on the server and by span, "
+            "trace, and session evaluations."
         ),
     )  # type: ignore
-    async def evaluation_queues(self, info: Info[Context, None]) -> list[EvaluationQueue]:
-        queues = await info.context.data_loaders.evaluation_queues.load_many(
-            list(EVALUATION_TARGETS)
-        )
-        return [EvaluationQueue(queue=queue) for queue in queues]
+    async def evaluation_queue(self, info: Info[Context, None]) -> EvaluationQueue:
+        return EvaluationQueue(queue=await info.context.data_loaders.evaluation_queue.load(None))
 
     @strawberry.field(
         description=(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1ba64dc27ec7506252eec074d3e136d>>
+ * @generated SignedSource<<8637a92e1f59b56b345cd791345388b5>>
  * @lightSyntaxTransform
  */
 
@@ -12,9 +12,9 @@ export type ClearQueuedEvaluationsButtonCountsQuery$variables = {
   projectId: string;
 };
 export type ClearQueuedEvaluationsButtonCountsQuery$data = {
-  readonly evaluationQueues: ReadonlyArray<{
+  readonly evaluationQueue: {
     readonly queuedCount: number;
-  }>;
+  };
   readonly project: {
     readonly evaluators?: {
       readonly edges: ReadonlyArray<{
@@ -54,8 +54,8 @@ v2 = {
   "args": null,
   "concreteType": "EvaluationQueue",
   "kind": "LinkedField",
-  "name": "evaluationQueues",
-  "plural": true,
+  "name": "evaluationQueue",
+  "plural": false,
   "selections": (v1/*:: as any*/),
   "storageKey": null
 },
@@ -225,16 +225,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "063b859c99b5f4da074f4f1ff94ca2dd",
+    "cacheID": "282fd9ba1e462478ded9667fc6091a4a",
     "id": null,
     "metadata": {},
     "name": "ClearQueuedEvaluationsButtonCountsQuery",
     "operationKind": "query",
-    "text": "query ClearQueuedEvaluationsButtonCountsQuery(\n  $projectId: ID!\n) {\n  evaluationQueues {\n    queuedCount\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          node {\n            runSummary {\n              queuedCount\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ClearQueuedEvaluationsButtonCountsQuery(\n  $projectId: ID!\n) {\n  evaluationQueue {\n    queuedCount\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          node {\n            runSummary {\n              queuedCount\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5e0918911569b60d387e15eb8023c1e9";
+(node as any).hash = "2ebfe9c4cc0a63d17579742cde23191a";
 
 export default node;

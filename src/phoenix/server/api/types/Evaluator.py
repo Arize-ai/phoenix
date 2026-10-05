@@ -122,8 +122,8 @@ class ProjectEvaluatorRunStatus(Enum):
     DEGRADED = strawberry.enum_value(
         "DEGRADED",
         description=(
-            "The queue it shares is degraded, or its own oldest waiting evaluation, including "
-            "ones awaiting a retry, has waited too long."
+            "The queue is degraded, or its own oldest waiting evaluation, including ones "
+            "awaiting a retry, has waited too long."
         ),
     )
     DISABLED = strawberry.enum_value(
@@ -149,7 +149,7 @@ class ProjectEvaluatorRunSummary:
     status: ProjectEvaluatorRunStatus = strawberry.field(
         description=(
             "DISABLED when turned off. Otherwise ERROR when the newest completed run was "
-            "given up on, DEGRADED when the queue for its evaluation target is degraded or "
+            "given up on, DEGRADED when the evaluation queue is degraded or "
             "its own oldest waiting evaluation, including ones awaiting a retry, has waited "
             f"over {_DEGRADED_QUEUE_WAIT_MINUTES} minutes, RUNNING when the newest completed "
             "run produced an annotation, QUEUED when work is waiting but none has completed, "
@@ -187,7 +187,7 @@ def _project_evaluator_run_summary(
     enabled: bool,
     counts: ProjectEvaluatorRunCounts,
     queued: QueuedWork,
-    target_queue_degraded: bool,
+    queue_degraded: bool,
 ) -> ProjectEvaluatorRunSummary:
     last_evaluated_at, last_failed_at = counts.last_evaluated_at, counts.last_failed_at
     status = project_evaluator_run_status(
@@ -195,7 +195,7 @@ def _project_evaluator_run_summary(
         last_evaluated_at=last_evaluated_at,
         last_failed_at=last_failed_at,
         queued=queued,
-        target_queue_degraded=target_queue_degraded,
+        queue_degraded=queue_degraded,
         now=datetime.now(timezone.utc),
     )
     return ProjectEvaluatorRunSummary(
@@ -1428,16 +1428,16 @@ class ProjectEvaluator(Node):
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
         record = await self._get_record(info)
         loaders = info.context.data_loaders
-        counts, queued, target_queue = await asyncio.gather(
+        counts, queued, queue = await asyncio.gather(
             loaders.project_evaluator_run_counts.load((self.id, None, None)),
             loaders.project_evaluator_queues.load(self.id),
-            loaders.evaluation_queues.load(record.evaluation_target),
+            loaders.evaluation_queue.load(None),
         )
         return _project_evaluator_run_summary(
             enabled=record.enabled,
             counts=counts,
             queued=queued,
-            target_queue_degraded=target_queue.status == "DEGRADED",
+            queue_degraded=queue.status == "DEGRADED",
         )
 
     @strawberry.field(  # type: ignore[untyped-decorator]

@@ -197,9 +197,8 @@ ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
 ONLINE_EVAL_AT_CAPACITY = Gauge(
     namespace="phoenix",
     name="online_eval_at_capacity",
-    documentation="1 when the online-eval admission gate is closed and new work is not being "
-    f"queued, else 0. {_SAME_ON_EVERY_REPLICA}",
-    labelnames=_EVALUATION_TARGET_LABELS,
+    documentation="1 when the online-eval queue, shared by span, trace, and session work, is "
+    f"full and new work is not being queued, else 0. {_SAME_ON_EVERY_REPLICA}",
 )
 ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
     namespace="phoenix",
@@ -218,7 +217,7 @@ ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
     name="online_eval_eligible_pair_backlog",
     documentation="Number of entity and evaluator pairs on the latest sweep page that pass "
     "their evaluator's filter. A page holds at most one tick's work limit, and the value is "
-    "not updated while outstanding work is at its limit",
+    "not updated while the queue is full",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(

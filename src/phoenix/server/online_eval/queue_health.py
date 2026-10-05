@@ -1,8 +1,9 @@
 """How well online evaluation keeps up with what arrives.
 
-Each evaluation target has one queue, shared by every project. This module is the one
-definition of what is queued, how long it has waited, how fast it fills and drains, and
-whether it is healthy; GraphQL, project evaluator statuses, and Prometheus all read it.
+Span, trace, and session evaluations wait in one queue, shared by every project, under one
+limit. This module is the one definition of what is queued, how long it has waited, how
+fast it fills and drains, and whether it is healthy, for the queue and for each evaluation
+target's share of it; GraphQL, project evaluator statuses, and Prometheus all read it.
 Every measure is read from the database, so replicas agree.
 """
 
@@ -22,7 +23,7 @@ from phoenix.db.eval_work import (
     TERMINAL_EVAL_SESSION_WORK_STATUSES,
     TERMINAL_EVAL_WORK_STATUSES,
 )
-from phoenix.server.online_eval.admission import max_queued
+from phoenix.server.online_eval import admission
 from phoenix.server.types import DbSessionFactory
 
 RATE_WINDOW = timedelta(hours=1)
@@ -76,10 +77,8 @@ class QueuedWork:
 
 
 @dataclass(frozen=True)
-class EvaluationQueue:
-    """One evaluation target's queue, as measured at ``measured_at``: what it holds, and
-    whether its admission gate is closed. Everything a status needs, and nothing that
-    costs more than reading the queued evaluations.
+class TargetQueue:
+    """One evaluation target's evaluations in the queue.
 
     ``queued_count`` counts every queued evaluation: PENDING, RUNNING, or ERROR awaiting a
     retry. ``waiting`` covers only the PENDING ones, the line itself. A retry keeps its
@@ -88,33 +87,91 @@ class EvaluationQueue:
     """
 
     evaluation_target: models.EvaluationTarget
-    measured_at: datetime
     queued_count: int
     waiting: QueuedWork
     running_count: int
     retrying_count: int
-    at_capacity: bool
+
+
+@dataclass(frozen=True)
+class EvaluationQueue:
+    """The queue, as measured at ``measured_at``: what it holds of each evaluation target,
+    in ``EVALUATION_TARGETS`` order, and whether it is full. Everything a status needs, and
+    nothing that costs more than reading the queued evaluations.
+    """
+
+    measured_at: datetime
+    queued_limit: int
+    targets: tuple[TargetQueue, ...]
 
     @property
-    def oldest_wait_seconds(self) -> Optional[float]:
-        return _seconds_since(self.waiting.oldest_queued_at, self.measured_at)
+    def queued_count(self) -> int:
+        return sum(target.queued_count for target in self.targets)
+
+    @property
+    def retrying_count(self) -> int:
+        return sum(target.retrying_count for target in self.targets)
+
+    @property
+    def waiting(self) -> QueuedWork:
+        """The PENDING evaluations of every target; the oldest is the longest-waiting."""
+        return QueuedWork(
+            queued_count=sum(target.waiting.queued_count for target in self.targets),
+            oldest_queued_at=min(
+                (
+                    target.waiting.oldest_queued_at
+                    for target in self.targets
+                    if target.waiting.oldest_queued_at is not None
+                ),
+                default=None,
+            ),
+        )
+
+    @property
+    def at_capacity(self) -> bool:
+        return self.queued_count >= self.queued_limit
 
     @property
     def status(self) -> QueueStatus:
         degraded = self.at_capacity or _waited_too_long(self.waiting, self.measured_at)
         return "DEGRADED" if degraded else "HEALTHY"
 
+    def target(self, evaluation_target: models.EvaluationTarget) -> TargetQueue:
+        return self.targets[EVALUATION_TARGETS.index(evaluation_target)]
+
+    def wait_seconds(self, work: QueuedWork) -> Optional[float]:
+        """How long the oldest of ``work`` had waited when the queue was measured."""
+        return _seconds_since(work.oldest_queued_at, self.measured_at)
+
+
+@dataclass(frozen=True)
+class Throughput:
+    """How fast evaluations entered and left the queue, per minute over the trailing
+    ``RATE_WINDOW``: ``queued_per_minute`` counts evaluations queued, and
+    ``evaluations_per_minute`` those that left the queue evaluated or failed.
+    """
+
+    evaluations_per_minute: float
+    queued_per_minute: float
+
 
 @dataclass(frozen=True)
 class QueueThroughput:
-    """How fast a queue fills and drains, per minute over the trailing ``RATE_WINDOW``:
-    ``queued_per_minute`` counts evaluations queued, and ``evaluations_per_minute`` those
-    that left the queue evaluated or failed.
-    """
+    """The queue's rates, and each evaluation target's, in ``EVALUATION_TARGETS`` order."""
 
     queue: EvaluationQueue
-    evaluations_per_minute: float
-    queued_per_minute: float
+    targets: tuple[Throughput, ...]
+
+    @property
+    def evaluations_per_minute(self) -> float:
+        return sum(target.evaluations_per_minute for target in self.targets)
+
+    @property
+    def queued_per_minute(self) -> float:
+        return sum(target.queued_per_minute for target in self.targets)
+
+    def target(self, evaluation_target: models.EvaluationTarget) -> Throughput:
+        return self.targets[EVALUATION_TARGETS.index(evaluation_target)]
 
 
 @dataclass(frozen=True)
@@ -156,16 +213,15 @@ def project_evaluator_run_status(
     last_evaluated_at: Optional[datetime],
     last_failed_at: Optional[datetime],
     queued: QueuedWork,
-    target_queue_degraded: bool,
+    queue_degraded: bool,
     now: datetime,
 ) -> ProjectEvaluatorRunStatus:
     """A project evaluator's one status, by precedence:
     DISABLED > ERROR > DEGRADED > RUNNING > QUEUED > NEVER_RUN.
 
-    A degraded queue degrades every evaluator on it, queued work or not, since each one's
-    next evaluation waits in that line. An evaluator's own oldest waiting evaluation,
-    retries included, degrades it alone, which catches one stuck retrying while the line
-    moves.
+    A degraded queue degrades every evaluator, queued work or not, since each one's next
+    evaluation waits in that line. An evaluator's own oldest waiting evaluation, retries
+    included, degrades it alone, which catches one stuck retrying while the line moves.
     """
     if not enabled:
         return "DISABLED"
@@ -173,7 +229,7 @@ def project_evaluator_run_status(
         last_evaluated_at is None or last_failed_at >= last_evaluated_at
     ):
         return "ERROR"
-    if target_queue_degraded or _waited_too_long(queued, now):
+    if queue_degraded or _waited_too_long(queued, now):
         return "DEGRADED"
     if last_evaluated_at is not None:
         return "RUNNING"
@@ -182,66 +238,87 @@ def project_evaluator_run_status(
     return "NEVER_RUN"
 
 
-async def load_evaluation_queue(
-    db: DbSessionFactory,
-    evaluation_target: models.EvaluationTarget,
-) -> EvaluationQueue:
-    queue = _QUEUES[evaluation_target]
-    model = queue.work_unit_model
+async def load_evaluation_queue(db: DbSessionFactory) -> EvaluationQueue:
     measured_at = datetime.now(timezone.utc)
     async with db.read() as session:
-        by_status = {
-            status: (count, head_id)
-            for status, count, head_id in await session.execute(
-                sa.select(model.status, sa.func.count(), sa.func.min(model.id))
-                .where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
-                .group_by(model.status)
-            )
-        }
-        pending_count, head_id = by_status.get("PENDING", (0, None))
-        oldest_pending_at: Optional[datetime] = None
-        if head_id is not None:
-            heads = await _load_heads(session, queue, [head_id])
-            oldest_pending_at = heads[head_id]
-    queued_count = sum(count for count, _ in by_status.values())
+        targets = tuple(
+            [
+                await _load_target_queue(session, evaluation_target)
+                for evaluation_target in EVALUATION_TARGETS
+            ]
+        )
     return EvaluationQueue(
-        evaluation_target=evaluation_target,
         measured_at=measured_at,
-        queued_count=queued_count,
+        queued_limit=admission.max_queued(),
+        targets=targets,
+    )
+
+
+async def _load_target_queue(
+    session: AsyncSession,
+    evaluation_target: models.EvaluationTarget,
+) -> TargetQueue:
+    queue = _QUEUES[evaluation_target]
+    model = queue.work_unit_model
+    by_status = {
+        status: (count, head_id)
+        for status, count, head_id in await session.execute(
+            sa.select(model.status, sa.func.count(), sa.func.min(model.id))
+            .where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
+            .group_by(model.status)
+        )
+    }
+    pending_count, head_id = by_status.get("PENDING", (0, None))
+    oldest_pending_at: Optional[datetime] = None
+    if head_id is not None:
+        heads = await _load_heads(session, queue, [head_id])
+        oldest_pending_at = heads[head_id]
+    return TargetQueue(
+        evaluation_target=evaluation_target,
+        queued_count=sum(count for count, _ in by_status.values()),
         waiting=QueuedWork(queued_count=pending_count, oldest_queued_at=oldest_pending_at),
         running_count=by_status.get("RUNNING", (0, None))[0],
         retrying_count=by_status.get("ERROR", (0, None))[0],
-        at_capacity=queued_count >= max_queued(evaluation_target),
     )
 
 
 async def load_queue_throughput(db: DbSessionFactory, queue: EvaluationQueue) -> QueueThroughput:
-    table = _QUEUES[queue.evaluation_target]
-    model = table.work_unit_model
     since = queue.measured_at - RATE_WINDOW
-    queued_in_window = sa.func.sum(sa.case((model.created_at >= since, 1), else_=0))
     async with db.read() as session:
-        live_queued_in_window = await session.scalar(
-            sa.select(queued_in_window).where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
+        targets = tuple(
+            [
+                await _load_target_throughput(session, _QUEUES[evaluation_target], since)
+                for evaluation_target in EVALUATION_TARGETS
+            ]
         )
-        # Evaluations queued within the window that already ended also ended within it, so
-        # the terminal index finds them.
-        completed_in_window, ended_queued_in_window = (
-            await session.execute(
-                sa.select(
-                    sa.func.sum(
-                        sa.case((model.status.in_(COMPLETED_EVAL_WORK_STATUSES), 1), else_=0)
-                    ),
-                    queued_in_window,
-                ).where(
-                    _status_in(model, table.terminal_statuses),
-                    model.updated_at >= since,
-                )
+    return QueueThroughput(queue=queue, targets=targets)
+
+
+async def _load_target_throughput(
+    session: AsyncSession,
+    table: _Queue,
+    since: datetime,
+) -> Throughput:
+    model = table.work_unit_model
+    queued_in_window = sa.func.sum(sa.case((model.created_at >= since, 1), else_=0))
+    live_queued_in_window = await session.scalar(
+        sa.select(queued_in_window).where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
+    )
+    # Evaluations queued within the window that already ended also ended within it, so
+    # the terminal index finds them.
+    completed_in_window, ended_queued_in_window = (
+        await session.execute(
+            sa.select(
+                sa.func.sum(sa.case((model.status.in_(COMPLETED_EVAL_WORK_STATUSES), 1), else_=0)),
+                queued_in_window,
+            ).where(
+                _status_in(model, table.terminal_statuses),
+                model.updated_at >= since,
             )
-        ).one()
+        )
+    ).one()
     window_minutes = RATE_WINDOW.total_seconds() / 60
-    return QueueThroughput(
-        queue=queue,
+    return Throughput(
         evaluations_per_minute=(completed_in_window or 0) / window_minutes,
         queued_per_minute=((live_queued_in_window or 0) + (ended_queued_in_window or 0))
         / window_minutes,
@@ -294,7 +371,7 @@ async def load_project_evaluator_queues(
     """Each project evaluator's queued evaluations; evaluators with none are absent. The
     oldest is the head of those waiting to start, PENDING or awaiting a retry.
 
-    Reads every queued evaluation of each target, which the admission cap bounds, rather
+    Reads every queued evaluation of each target, which the queue's limit bounds, rather
     than each evaluator's history.
     """
     requested = set(project_evaluator_ids)

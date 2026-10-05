@@ -26,10 +26,10 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.encryption import EncryptionService
-from phoenix.server.online_eval.admission import max_queued
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
 
 # The in-process test app is constructed with no PHOENIX_SECRET, so the
@@ -539,11 +539,19 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> N
         }
 
 
-async def test_evaluation_queues(db: DbSessionFactory, gql_client: AsyncGraphQLClient) -> None:
+async def test_evaluation_queue(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # One evaluation of each target fills the queue.
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "3")
     now = datetime.now(timezone.utc)
-    session_start = now - timedelta(hours=2)
     async with db() as session:
-        project = models.Project(name=f"project-{uuid.uuid4().hex[:8]}")
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
         evaluator = models.BuiltinEvaluator(
             name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
             kind="BUILTIN",
@@ -551,63 +559,97 @@ async def test_evaluation_queues(db: DbSessionFactory, gql_client: AsyncGraphQLC
             input_schema={},
             output_configs=[],
         )
-        session.add_all([project, evaluator])
+        session.add(evaluator)
         await session.flush()
-        project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
-            project_id=project.id,
-            evaluator_id=evaluator.id,
-            name=Identifier(f"project-evaluator-{uuid.uuid4().hex[:8]}"),
-            evaluation_target="SESSION",
-            filter_condition="",
-            sampling_rate=1.0,
-        )
-        project_session = models.ProjectSession(
-            session_id=uuid.uuid4().hex,
-            project_id=project.id,
-            start_time=session_start,
-            end_time=session_start,
-        )
-        session.add_all([project_evaluator, project_session])
-        await session.flush()
-        session.add(
-            models.EvalSessionWorkUnit(
-                project_session_rowid=project_session.id,
-                project_evaluator_id=project_evaluator.id,
-                evaluated_through=now,
-                created_at=now - timedelta(minutes=1),
+        project_evaluator_ids: dict[str, int] = {}
+        for evaluation_target in ("SPAN", "TRACE", "SESSION"):
+            project_evaluator = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(f"project-evaluator-{uuid.uuid4().hex[:8]}"),
+                evaluation_target=evaluation_target,
+                filter_condition="",
+                sampling_rate=1.0,
             )
+            session.add(project_evaluator)
+            await session.flush()
+            project_evaluator_ids[evaluation_target] = project_evaluator.id
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=span.id,
+                    project_evaluator_id=project_evaluator_ids["SPAN"],
+                    created_at=now - timedelta(minutes=5),
+                ),
+                # Awaiting a retry: queued, but not waiting in line.
+                models.EvalTraceWorkUnit(
+                    trace_rowid=trace.id,
+                    project_evaluator_id=project_evaluator_ids["TRACE"],
+                    evaluated_through=now,
+                    status="ERROR",
+                    attempts=1,
+                    created_at=now - timedelta(minutes=30),
+                ),
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    project_evaluator_id=project_evaluator_ids["SESSION"],
+                    evaluated_through=now,
+                    created_at=now - timedelta(minutes=1),
+                ),
+            ]
         )
 
     response = await gql_client.execute(
         """query {
-            evaluationQueues {
-                evaluationTarget
+            evaluationQueue {
                 status
                 queuedCount
+                queuedLimit
+                atCapacity
                 retryingCount
                 oldestQueuedAt
-                atCapacity
-                queuedLimit
-                evaluationsPerMinute
                 queuedPerMinute
+                evaluationsPerMinute
+                targets {
+                    evaluationTarget
+                    queuedCount
+                    retryingCount
+                    oldestQueuedAt
+                    queuedPerMinute
+                    evaluationsPerMinute
+                }
             }
         }"""
     )
 
     assert not response.errors and response.data
-    queues = {queue["evaluationTarget"]: queue for queue in response.data["evaluationQueues"]}
-    assert list(queues) == ["SPAN", "TRACE", "SESSION"]
-    assert queues["SPAN"]["queuedCount"] == 0
-    session_queue = queues["SESSION"]
-    assert session_queue["status"] == "HEALTHY"
-    assert session_queue["queuedCount"] == 1
-    assert session_queue["retryingCount"] == 0
-    assert datetime.fromisoformat(session_queue["oldestQueuedAt"]) == now - timedelta(minutes=1)
-    assert session_queue["atCapacity"] is False
-    assert session_queue["queuedLimit"] == max_queued("SESSION")
-    assert session_queue["evaluationsPerMinute"] == 0
-    assert session_queue["queuedPerMinute"] == pytest.approx(1 / 60)
+    queue = response.data["evaluationQueue"]
+    targets = queue.pop("targets")
+    # Full: the queue is at capacity across every target, so it is degraded.
+    assert queue == {
+        "status": "DEGRADED",
+        "queuedCount": 3,
+        "queuedLimit": 3,
+        "atCapacity": True,
+        "retryingCount": 1,
+        "oldestQueuedAt": queue["oldestQueuedAt"],
+        "queuedPerMinute": pytest.approx(3 / 60),
+        "evaluationsPerMinute": 0,
+    }
+    assert datetime.fromisoformat(queue["oldestQueuedAt"]) == now - timedelta(minutes=5)
+    assert [target["evaluationTarget"] for target in targets] == ["SPAN", "TRACE", "SESSION"]
+    assert [
+        (target["queuedCount"], target["retryingCount"], target["queuedPerMinute"])
+        for target in targets
+    ] == [
+        (1, 0, pytest.approx(1 / 60)),
+        (1, 1, pytest.approx(1 / 60)),
+        (1, 0, pytest.approx(1 / 60)),
+    ]
+    oldest = [target["oldestQueuedAt"] for target in targets]
+    assert oldest[1] is None
+    assert datetime.fromisoformat(oldest[2]) == now - timedelta(minutes=1)
 
 
 async def test_agents_config_returns_env_values(

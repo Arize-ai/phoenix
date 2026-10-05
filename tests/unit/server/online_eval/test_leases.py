@@ -85,7 +85,7 @@ async def test_stopping_a_materializer_releases_its_lease(
     daemon: OnlineEvalProducer | EvalSweeper = (
         OnlineEvalProducer(db)
         if materializer == "producer"
-        else EvalSweeper(db, evaluation_target="SESSION", max_outstanding=10)
+        else EvalSweeper(db, evaluation_target="SESSION")
     )
     acquired = asyncio.Event()
 

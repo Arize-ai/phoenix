@@ -64,17 +64,21 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
             ]
         )
 
-    queue = await load_evaluation_queue(db, "SPAN")
+    queue = await load_evaluation_queue(db)
     throughput = await load_queue_throughput(db, queue)
+    spans = queue.target("SPAN")
 
     # Queued or running, retries included.
-    assert queue.queued_count == 4
-    assert (queue.waiting.queued_count, queue.running_count, queue.retrying_count) == (2, 1, 1)
-    assert queue.waiting.oldest_queued_at == now - timedelta(minutes=20)
+    assert spans.queued_count == 4
+    assert (spans.waiting.queued_count, spans.running_count, spans.retrying_count) == (2, 1, 1)
+    assert spans.waiting.oldest_queued_at == now - timedelta(minutes=20)
+    assert queue.waiting == spans.waiting
+    assert (queue.queued_count, queue.retrying_count) == (4, 1)
     assert not queue.at_capacity
     # The head of the line has waited 20 minutes.
     assert queue.status == "DEGRADED"
-    assert throughput.evaluations_per_minute == pytest.approx(3 / 60)
+    assert throughput.target("SPAN").evaluations_per_minute == pytest.approx(3 / 60)
+    assert throughput.target("SPAN").queued_per_minute == pytest.approx(6 / 60)
     assert throughput.queued_per_minute == pytest.approx(6 / 60)
 
 
@@ -112,7 +116,7 @@ def test_project_evaluator_run_status_precedence(
         last_evaluated_at=None if evaluated_ago is None else now - evaluated_ago,
         last_failed_at=None if failed_ago is None else now - failed_ago,
         queued=queued,
-        target_queue_degraded=queue_degraded,
+        queue_degraded=queue_degraded,
         now=now,
     )
     assert status == expected

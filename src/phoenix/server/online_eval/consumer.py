@@ -174,16 +174,17 @@ class OnlineEvalConsumer(DaemonTask):
         await self._run_db(self._publish_queue_metrics_with_slot)
 
     async def _publish_queue_metrics_with_slot(self) -> None:
-        queue = await load_evaluation_queue(self._db, self._evaluation_target)
+        queue = await load_evaluation_queue(self._db)
         ended = await self._coordinator.ended_work_counts()
+        target = queue.target(self._evaluation_target)
         labels = {"evaluation_target": self._evaluation_target}
-        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(queue.waiting.queued_count)
-        ONLINE_EVAL_RUNNING_WORK_UNITS.labels(**labels).set(queue.running_count)
-        ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(queue.retrying_count)
+        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(target.waiting.queued_count)
+        ONLINE_EVAL_RUNNING_WORK_UNITS.labels(**labels).set(target.running_count)
+        ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(target.retrying_count)
         ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.labels(**labels).set(
-            queue.oldest_wait_seconds or 0.0
+            queue.wait_seconds(target.waiting) or 0.0
         )
-        ONLINE_EVAL_AT_CAPACITY.labels(**labels).set(int(queue.at_capacity))
+        ONLINE_EVAL_AT_CAPACITY.set(int(queue.at_capacity))
         ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(ended.exhausted_error_count)
         ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(ended.expired_count)
         ONLINE_EVAL_CLEARED_WORK_UNITS.labels(**labels).set(ended.dropped_count)

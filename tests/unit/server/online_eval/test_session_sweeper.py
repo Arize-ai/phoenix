@@ -10,14 +10,11 @@ from sqlalchemy import delete, event, func, select, text, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from phoenix.config import (
-    get_env_online_eval_max_session_outstanding,
-    get_env_online_eval_max_trace_outstanding,
-)
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
+from phoenix.server.online_eval import admission
 from phoenix.server.online_eval import sweeper as sweeper_module
 from phoenix.server.online_eval.derivation import (
     ResolvedProjectEvaluator,
@@ -33,8 +30,6 @@ from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from .test_producer import _seed_criteria as _seed_criteria_raw
-
-_MAX_OUTSTANDING = get_env_online_eval_max_session_outstanding()
 
 
 def _now() -> datetime:
@@ -73,7 +68,7 @@ async def test_materialization_rechecks_eligibility_at_write_time(
         age_seconds=600,
     )
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
 
     async with db() as session:
         criterion = (await sweeper._load_evaluators(session))[0]
@@ -157,7 +152,7 @@ async def test_materializes_due_session_with_activity_snapshot(
         evaluation_target="SESSION",
     )
 
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
 
     async with db() as session:
@@ -205,7 +200,7 @@ async def test_materializes_with_501_schedulable_criteria(
             for index in range(500)
         )
 
-    await EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)._tick()
+    await EvalSweeper(db, evaluation_target="SESSION")._tick()
 
     async with db() as session:
         work_count = await session.scalar(
@@ -223,7 +218,7 @@ async def test_watermark_reaches_a_full_page_or_the_due_horizon(
     await _add_session_liveness(db, age_seconds=600, project_id=project_id)
     _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
     await _set_delay(db, project_evaluator_id, 300)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
 
     async def sweep_page(limit: int) -> datetime:
         async with db() as session:
@@ -305,7 +300,6 @@ async def test_row_deleted_mid_tick_rolls_the_tick_back(
     sweeper = EvalSweeper(
         db,
         evaluation_target="SESSION",
-        max_outstanding=_MAX_OUTSTANDING,
         tick_interval_seconds=0,
     )
     tick = sweeper._tick
@@ -390,7 +384,6 @@ async def test_sweep_gives_way_to_a_transaction_holding_a_row_it_needs(
     sweeper = EvalSweeper(
         db,
         evaluation_target="SESSION",
-        max_outstanding=_MAX_OUTSTANDING,
         tick_interval_seconds=0,
     )
     tick = sweeper._tick
@@ -406,7 +399,7 @@ async def test_sweep_gives_way_to_a_transaction_holding_a_row_it_needs(
     assert record.levelno == logging.WARNING
     assert (
         "SESSION evaluation sweep rolled back: it gave way to a concurrent transaction "
-        "holding a row it needed"
+        "holding a lock it needed"
     ) in record.getMessage()
     async with db() as session:
         assert await session.get(models.ProjectSession, deleted_session_id) is None
@@ -451,7 +444,7 @@ async def test_session_with_null_liveness_is_never_eligible(
         assert project_session.last_span_ingested_at is None
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
 
-    await EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)._tick()
+    await EvalSweeper(db, evaluation_target="SESSION")._tick()
 
     async with db() as session:
         work_count = await session.scalar(
@@ -468,7 +461,7 @@ async def test_storage_pause_renews_lease_without_materializing(
         age_seconds=600,
     )
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     async with db() as session:
         session.add(
             models.EvalWorkLease(
@@ -533,7 +526,7 @@ async def test_retained_long_delay_pairs_do_not_block_later_due_pair(
     due_criteria_id = (await _seed_criteria(db, due_project_id, evaluation_target="SESSION"))[1]
     await _set_delay(db, due_criteria_id, 10)
 
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     await sweeper._tick()
 
@@ -594,7 +587,7 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
         ]
 
     monkeypatch.setattr(sweeper_module, "resolve_project_evaluators_bulk", unresolved)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     async with db() as session:
         assert (
@@ -622,8 +615,8 @@ async def test_closed_admission_gate_skips_evaluator_resolution(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    sweeper._max_outstanding = 0
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
+    monkeypatch.setattr(admission, "max_queued", lambda: 0)
 
     async def unexpected_resolution(*_: object) -> list[ResolvedProjectEvaluator | None]:
         pytest.fail("project_evaluator resolution must follow admission")
@@ -640,7 +633,7 @@ async def test_successful_work_closes_evaluate_once_key(
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
     await _set_delay(db, project_evaluator_id, 10)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     async with db() as session:
         await session.execute(update(models.EvalSessionWorkUnit).values(status="DONE"))
@@ -705,7 +698,6 @@ async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_inge
     sweeper = EvalSweeper(
         db,
         evaluation_target=evaluation_target,
-        max_outstanding=_MAX_OUTSTANDING,
     )
     await sweeper._tick()
 
@@ -776,7 +768,7 @@ async def test_re_offer_that_lands_declined_is_final(
         session.add(failed_unit)
         await session.flush()
         unit_id = failed_unit.id
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
 
     async def the_only_unit() -> models.EvalSessionWorkUnit:
         async with db() as session:
@@ -803,7 +795,7 @@ async def test_quiet_session_predating_criterion_creation_is_not_live(
 ) -> None:
     project_id, _, _ = await _add_session_liveness(db, age_seconds=330)
     await _seed_criteria_raw(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
 
     await sweeper._tick()
     await sweeper._tick()
@@ -833,7 +825,7 @@ async def test_reenabled_criterion_reaches_back_to_creation(
             .values(created_at=activity_at - timedelta(seconds=1), enabled=False)
         )
 
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     async with db() as session:
         assert (
@@ -871,7 +863,7 @@ async def test_edited_criterion_does_not_re_sweep_history_below_its_watermark(
 ) -> None:
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
 
     async with db() as session:
@@ -903,7 +895,7 @@ async def test_evaluated_session_is_not_re_evaluated_after_an_edit(
 ) -> None:
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     async with db() as session:
         await session.execute(update(models.EvalSessionWorkUnit).values(status="DONE"))
@@ -940,7 +932,7 @@ async def test_session_without_liveness_becomes_live_after_new_activity(
             .values(last_span_ingested_at=None)
         )
 
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     async with db() as session:
         assert (
@@ -966,8 +958,8 @@ async def test_outstanding_work_ceiling_defers_eligible_pair(
 ) -> None:
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    monkeypatch.setattr(sweeper, "_max_outstanding", 0)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
+    monkeypatch.setattr(admission, "max_queued", lambda: 0)
 
     await sweeper._tick()
     async with db() as session:
@@ -975,7 +967,7 @@ async def test_outstanding_work_ceiling_defers_eligible_pair(
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
 
-    monkeypatch.setattr(sweeper, "_max_outstanding", 1)
+    monkeypatch.setattr(admission, "max_queued", lambda: 1)
     await sweeper._tick()
     async with db() as session:
         session_id = await session.scalar(select(models.EvalSessionWorkUnit.project_session_rowid))
@@ -989,7 +981,7 @@ async def test_sweep_is_kept_when_the_lease_is_lost_mid_tick(
 ) -> None:
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     materialize = sweeper._materialize
 
     async def lose_lease_then_materialize() -> None:
@@ -1027,7 +1019,7 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
             )
         )
 
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     async with db() as session:
         assert (
@@ -1082,7 +1074,7 @@ async def test_session_filter_is_evaluated_against_page_rowids_before_sampling(
         return 0.0
 
     monkeypatch.setattr(sweeper_module, "sample_key", record_sample)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     sweeper._publish_metrics = True
     filter_statements: list[tuple[str, Sequence[object]]] = []
 
@@ -1161,7 +1153,7 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
         evaluation_target="SESSION",
         filter_condition="session_id == 'matching-session'",
     )
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
 
     async with db() as session:
         project_evaluator = await sweeper._load_evaluators(session)
@@ -1214,14 +1206,14 @@ async def test_session_sampling_decisions_are_deterministic_and_idempotent(
     )
     await _set_delay(db, project_evaluator_id, 10)
 
-    await EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)._tick()
+    await EvalSweeper(db, evaluation_target="SESSION")._tick()
     async with db() as session:
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == sampled_out_rowid)
             .values(last_span_ingested_at=_now() - timedelta(seconds=30))
         )
-    await EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)._tick()
+    await EvalSweeper(db, evaluation_target="SESSION")._tick()
 
     async with db() as session:
         rows = (
@@ -1262,7 +1254,7 @@ async def test_declined_oldest_page_does_not_starve_later_match(
         filter_condition="session_id == 'matching-session'",
     )
 
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
     await sweeper._tick()
 
@@ -1297,7 +1289,7 @@ async def test_session_whose_activity_moves_mid_tick_is_decided_on_a_later_tick(
         filter_condition="num_traces < 2",
     )
     await _set_delay(db, project_evaluator_id, 10)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     read_filter_verdicts = sweeper._read_filter_verdicts
     resumed_at = _now() - timedelta(seconds=30)
 
@@ -1333,7 +1325,7 @@ async def test_trace_criteria_do_not_reach_the_session_sweeper(
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="TRACE")
 
-    await EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)._tick()
+    await EvalSweeper(db, evaluation_target="SESSION")._tick()
     async with db() as session:
         count = await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit))
     assert count == 0
@@ -1370,11 +1362,7 @@ async def test_materializes_due_trace_with_activity_snapshot(
         evaluation_target="TRACE",
     )
 
-    sweeper = EvalSweeper(
-        db,
-        evaluation_target="TRACE",
-        max_outstanding=get_env_online_eval_max_trace_outstanding(),
-    )
+    sweeper = EvalSweeper(db, evaluation_target="TRACE")
     await sweeper._tick()
 
     async with db() as session:
@@ -1444,11 +1432,7 @@ async def test_trace_filter_is_evaluated_against_page_rowids(
 
     event.listen(Engine, "before_cursor_execute", capture_filter_statement)
     try:
-        await EvalSweeper(
-            db,
-            evaluation_target="TRACE",
-            max_outstanding=get_env_online_eval_max_trace_outstanding(),
-        )._tick()
+        await EvalSweeper(db, evaluation_target="TRACE")._tick()
     finally:
         event.remove(Engine, "before_cursor_execute", capture_filter_statement)
 
@@ -1493,11 +1477,7 @@ async def test_trace_evaluator_with_an_uncompilable_filter_does_not_stop_the_tic
         filter_condition="latency_ms >= 0",
     )
 
-    sweeper = EvalSweeper(
-        db,
-        evaluation_target="TRACE",
-        max_outstanding=get_env_online_eval_max_trace_outstanding(),
-    )
+    sweeper = EvalSweeper(db, evaluation_target="TRACE")
     with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
         await sweeper._tick()
 
@@ -1538,7 +1518,7 @@ async def test_filter_that_fails_when_run_skips_only_its_own_evaluator(
     _, other_project_evaluator_id = await _seed_criteria(
         db, other_project_id, evaluation_target="SESSION"
     )
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
 
     with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
         await sweeper._tick()
@@ -1582,7 +1562,7 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
 
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
     await sweeper._tick()
 
     metrics["ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_once_with(1)
@@ -1592,7 +1572,7 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     metrics["ONLINE_EVAL_SWEEP_FAILURES"].inc.assert_not_called()
     metrics["ONLINE_EVAL_MATERIALIZED_WORK_UNITS"].inc.assert_called_once_with(1)
 
-    sweeper._max_outstanding = 0
+    monkeypatch.setattr(admission, "max_queued", lambda: 0)
     await sweeper._tick()
     metrics["ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_once_with(1)
     assert metrics["ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS"].set.call_count == 2

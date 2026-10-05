@@ -233,7 +233,7 @@ function ClearSummaryWithCount({
   const data = useLazyLoadQuery<ClearQueuedEvaluationsButtonCountsQuery>(
     graphql`
       query ClearQueuedEvaluationsButtonCountsQuery($projectId: ID!) {
-        evaluationQueues {
+        evaluationQueue {
           queuedCount
         }
         project: node(id: $projectId) {
@@ -259,7 +259,7 @@ function ClearSummaryWithCount({
     counts.reduce((total, count) => total + count, 0);
   const count =
     scope === "ALL"
-      ? sum(data.evaluationQueues.map(({ queuedCount }) => queuedCount))
+      ? data.evaluationQueue.queuedCount
       : sum(
           (data.project?.evaluators?.edges ?? []).map(
             ({ node }) => node.runSummary.queuedCount
