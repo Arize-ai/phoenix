@@ -122,3 +122,59 @@ async def test_custom_initial_admin_password_opens_a_session(
         )
     assert response.status_code == 204
     _assert_auth_cookies(response)
+
+
+async def test_default_admin_reset_rejects_public_password(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _configure_auth(monkeypatch)
+    monkeypatch.setenv("PHOENIX_ENABLE_STRONG_PASSWORD_POLICY", "false")
+    async with _auth_client(tmp_path) as client:
+        blocked = await client.post(
+            "/auth/login",
+            json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        assert blocked.status_code == 403
+        token = blocked.json()["password_reset_token"]
+
+        rejected = await client.post(
+            "/auth/password-reset",
+            json={"token": token, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        assert rejected.status_code == 422
+        assert rejected.text == "The default password must be changed before signing in"
+        _assert_no_auth_cookies(rejected)
+
+        rejected_retry = await client.post(
+            "/auth/password-reset",
+            json={"token": token, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        assert rejected_retry.status_code == 422
+
+        still_blocked = await client.post(
+            "/auth/login",
+            json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        assert still_blocked.status_code == 403
+        _assert_no_auth_cookies(still_blocked)
+        token = still_blocked.json()["password_reset_token"]
+
+        reset = await client.post(
+            "/auth/password-reset",
+            json={"token": token, "password": _NEW_PASSWORD},
+        )
+        assert reset.status_code == 204
+
+        old_password = await client.post(
+            "/auth/login",
+            json={"email": DEFAULT_ADMIN_EMAIL, "password": DEFAULT_ADMIN_PASSWORD},
+        )
+        assert old_password.status_code == 401
+        _assert_no_auth_cookies(old_password)
+
+        logged_in = await client.post(
+            "/auth/login",
+            json={"email": DEFAULT_ADMIN_EMAIL, "password": _NEW_PASSWORD},
+        )
+        assert logged_in.status_code == 204
+        _assert_auth_cookies(logged_in)
