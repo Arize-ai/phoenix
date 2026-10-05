@@ -17,8 +17,8 @@ headline number is Δ (with-plugin minus without-plugin).
 | ---- | ----- | ---- | -------------- |
 | `01-instrument-openai-python` | yes | Python | `register(auto_instrument=True)` / `OpenAIInstrumentor` with `arize-phoenix-otel`; verification steps |
 | `02-configure-export-cloud` | yes | Python | `register(endpoint=…)` to Phoenix Cloud; API key from env, never hardcoded |
-| `03-custom-tool-span-python` | yes | Python | A TOOL span via `@tracer.tool` / OpenInference span kind, capturing input/output |
-| `04-instrument-app-typescript` | yes | TypeScript | `register({projectName})` from `@arizeai/phoenix-otel` + the OpenAI instrumentation; no hardcoded key |
+| `03-manual-llm-span-python` | yes | Python | A manual LLM span for a non-instrumented provider using the correct OpenInference attribute names (`llm.model_name`, `llm.input_messages.*`, `llm.token_count.*`) |
+| `04-esm-load-order-typescript` | yes | TypeScript | ESM hoisting gotcha: instrument OpenAI via `manuallyInstrument`/`registerInstrumentations` after `register()`, not the broken auto pattern |
 | `05-custom-span-typescript` | yes | TypeScript | A TOOL span via `traceTool` / `withSpan` from `@arizeai/openinference-core` |
 | `06-session-tracking-python` | yes | Python | Group a multi-turn conversation with `using_session` / a shared session id |
 | `07-neg-build-evaluator` | no | — | Building an LLM judge — belongs to `phoenix-evals`; the tracing skill must stay quiet |
