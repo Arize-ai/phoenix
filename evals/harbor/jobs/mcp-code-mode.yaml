@@ -1,6 +1,6 @@
 # Compare the ways Claude Code can reach Phoenix on the TRAIL tasks: px with the
-# phoenix-cli skill, the MCP server in code mode, and the MCP server with one tool per
-# /v1 operation.
+# phoenix-cli skill, and the MCP server in code mode. mcp-no-code-mode.yaml runs the
+# same MCP agent with code mode off.
 #   make harbor-run HARBOR_JOB=evals/harbor/jobs/mcp-code-mode.yaml
 #
 # The agent entries match trail-benchmark-dev.yaml, and the plugin records the results
@@ -21,13 +21,6 @@ agents:
       - .agents/skills/phoenix-cli
   - name: claude-code-mcp
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent
-    model_name: anthropic/claude-opus-5
-    extra_allowed_hosts: [api.anthropic.com]
-    kwargs:
-      reasoning_effort: high
-      disallowed_tools: "WebSearch,WebFetch"
-  - name: claude-code-mcp-no-code-mode
-    import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpWithoutCodeModeAgent
     model_name: anthropic/claude-opus-5
     extra_allowed_hosts: [api.anthropic.com]
     kwargs:

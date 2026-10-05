@@ -47,32 +47,6 @@ class PhoenixMcpMixin(BaseInstalledAgent):
         super().__init__(logs_dir, *args, mcp_servers=[*(mcp_servers or []), phoenix], **kwargs)
 
 
-# The bracket keeps pkill from matching the shell that runs this command. The final grep
-# fails the install if the restarted server still renders code mode as enabled.
-_RESTART_PHOENIX_WITHOUT_CODE_MODE = f"""
-pkill -f '[p]hoenix serve' || true
-for _ in $(seq 1 60); do
-  curl -fsS -o /dev/null {PHOENIX_URL}/healthz || break
-  sleep 1
-done
-PHOENIX_ENABLE_MCP_CODE_MODE=false sh /opt/phoenix-eval/start_phoenix_server.sh
-curl -fsS {PHOENIX_URL}/ | grep -q 'mcpCodeModeEnabled: Boolean("False"'
-"""
-
-
-class PhoenixMcpWithoutCodeModeMixin(BaseInstalledAgent):
-    """Restart the task's Phoenix server with MCP code mode off.
-
-    The healthcheck starts Phoenix before the agent installs, with code mode on by default.
-    With code mode off, ``/mcp`` lists one tool per ``/v1`` operation instead of the
-    discovery tools and ``execute``.
-    """
-
-    async def install(self, environment: BaseEnvironment) -> None:
-        await super().install(environment)
-        await self.exec_as_root(environment, _RESTART_PHOENIX_WITHOUT_CODE_MODE)
-
-
 class PhoenixCliMixin(BaseInstalledAgent):
     """Keep px outside the task image so only CLI agents can access it.
 
@@ -118,12 +92,6 @@ class ClaudeCodeMcpAgent(AgentLogsOwnershipMixin, PhoenixMcpMixin, PreinstalledC
     @staticmethod
     def name() -> str:
         return "claude-code-mcp"
-
-
-class ClaudeCodeMcpWithoutCodeModeAgent(PhoenixMcpWithoutCodeModeMixin, ClaudeCodeMcpAgent):
-    @staticmethod
-    def name() -> str:
-        return "claude-code-mcp-no-code-mode"
 
 
 class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, PreinstalledClaudeCode):
