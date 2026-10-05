@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """The task question of the most expensive trace."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 import json
 
-from evals.harbor.verifiers.phoenix_api import (
+from harbor_verifiers.phoenix_api import (
     project_spans,
     span_costs,
     spans_by_trace,

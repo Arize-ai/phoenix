@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 """The clock-aligned 10-minute window in which the most traces started."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 
-from evals.harbor.verifiers.phoenix_api import project_spans, spans_by_trace, write_answer
+from harbor_verifiers.phoenix_api import project_spans, spans_by_trace, write_answer
 
 windows: Counter[datetime] = Counter()
 for spans in spans_by_trace(project_spans("research-assistant")).values():
