@@ -84,4 +84,4 @@ Close the browser session created for the screenshots.
 
 ## Removing screenshots
 
-Remove the image reference from the body with `gh pr edit <PR_NUMBER> --body-file <updated body>`.
+Read the body into a file as in Step 4, remove the caption and image reference, then apply it with `gh pr edit <PR_NUMBER> --body-file body.md`.
