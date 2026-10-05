@@ -1345,9 +1345,10 @@ export function PlaygroundDatasetExamplesTable({
       dataset
     );
 
-  // Every example's expected outputs and the example count, read apart from
-  // the paginated rows so the evaluator headers count the whole dataset. A
-  // save returns the items it changed, which update this list in the store.
+  // Every example's expected outputs, read apart from the paginated rows so
+  // the evaluator headers count the whole dataset, up to the first 1000
+  // examples. The items are the rows' own example records, so a save, which
+  // returns the examples it wrote, updates them in the store.
   const [expectedOutputsData, refetchExpectedOutputs] = useRefetchableFragment<
     PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery,
     PlaygroundDatasetExamplesTableExpectedOutputsFragment$key
@@ -1358,15 +1359,19 @@ export function PlaygroundDatasetExamplesTable({
         queryName: "PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery"
       )
       @argumentDefinitions(splitIds: { type: "[ID!]" }) {
-        exampleCount(splitIds: $splitIds)
-        exampleExpectedOutputs(splitIds: $splitIds) {
-          id
-          exampleId
-          expectedOutputs {
-            annotationName
-            label
-            score
-            explanation
+        allExamples: examples(splitIds: $splitIds, first: 1000) {
+          edges {
+            example: node {
+              id
+              revision {
+                expectedOutputs {
+                  annotationName
+                  label
+                  score
+                  explanation
+                }
+              }
+            }
           }
         }
       }
@@ -1376,11 +1381,11 @@ export function PlaygroundDatasetExamplesTable({
 
   const expectedOutputExamples = useMemo(
     () =>
-      expectedOutputsData.exampleExpectedOutputs.map((example) => ({
-        id: example.exampleId,
-        expectedOutputs: example.expectedOutputs,
+      expectedOutputsData.allExamples.edges.map(({ example }) => ({
+        id: example.id,
+        expectedOutputs: example.revision.expectedOutputs,
       })),
-    [expectedOutputsData.exampleExpectedOutputs]
+    [expectedOutputsData.allExamples.edges]
   );
 
   type TableRow = PlaygroundExampleTableRow;
@@ -1576,7 +1581,7 @@ export function PlaygroundDatasetExamplesTable({
               annotationConfig={annotation.config}
               output={annotation.output}
               experimentId={experimentId}
-              exampleCount={expectedOutputsData.exampleCount}
+              exampleCount={expectedOutputExamples.length}
               examples={expectedOutputExamples}
               isRunning={isRunning}
               canRun={!hasSomeRunIds && !isEditingExamples}
@@ -1640,7 +1645,6 @@ export function PlaygroundDatasetExamplesTable({
     templateVariablesPath,
     handleViewTracePress,
     evaluatorOutputConfigs,
-    expectedOutputsData.exampleCount,
     expectedOutputExamples,
   ]);
 
@@ -1915,7 +1919,6 @@ export function PlaygroundDatasetExamplesTable({
     <InstanceVariablesProvider>
       <PlaygroundExpectedOutputsProvider
         datasetId={datasetId}
-        splitIds={splitIds ?? null}
         getRevisionId={(exampleId) => revisionIdByExampleId.get(exampleId)}
       >
         <PlaygroundExpectedOutputAgentOperation examples={tableData} />

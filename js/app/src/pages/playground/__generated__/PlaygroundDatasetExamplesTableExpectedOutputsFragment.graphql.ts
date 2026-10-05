@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2a5923aad2d233204354bd2e86d9efc2>>
+ * @generated SignedSource<<605dd3c20661f52626e8f27d0a817dce>>
  * @lightSyntaxTransform
  */
 
@@ -10,17 +10,21 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetExamplesTableExpectedOutputsFragment$data = {
-  readonly exampleCount: number;
-  readonly exampleExpectedOutputs: ReadonlyArray<{
-    readonly exampleId: string;
-    readonly expectedOutputs: ReadonlyArray<{
-      readonly annotationName: string;
-      readonly explanation: string | null;
-      readonly label: string | null;
-      readonly score: number | null;
+  readonly allExamples: {
+    readonly edges: ReadonlyArray<{
+      readonly example: {
+        readonly id: string;
+        readonly revision: {
+          readonly expectedOutputs: ReadonlyArray<{
+            readonly annotationName: string;
+            readonly explanation: string | null;
+            readonly label: string | null;
+            readonly score: number | null;
+          }>;
+        };
+      };
     }>;
-    readonly id: string;
-  }>;
+  };
   readonly id: string;
   readonly " $fragmentType": "PlaygroundDatasetExamplesTableExpectedOutputsFragment";
 };
@@ -32,14 +36,7 @@ export type PlaygroundDatasetExamplesTableExpectedOutputsFragment$key = {
 import PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery_graphql from './PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery.graphql';
 
 const node: ReaderFragment = (function(){
-var v0 = [
-  {
-    "kind": "Variable",
-    "name": "splitIds",
-    "variableName": "splitIds"
-  }
-],
-v1 = {
+var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -71,62 +68,92 @@ return {
   "name": "PlaygroundDatasetExamplesTableExpectedOutputsFragment",
   "selections": [
     {
-      "alias": null,
-      "args": (v0/*:: as any*/),
-      "kind": "ScalarField",
-      "name": "exampleCount",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": (v0/*:: as any*/),
-      "concreteType": "DatasetExampleExpectedOutputs",
-      "kind": "LinkedField",
-      "name": "exampleExpectedOutputs",
-      "plural": true,
-      "selections": [
-        (v1/*:: as any*/),
+      "alias": "allExamples",
+      "args": [
         {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "exampleId",
-          "storageKey": null
+          "kind": "Literal",
+          "name": "first",
+          "value": 1000
         },
         {
+          "kind": "Variable",
+          "name": "splitIds",
+          "variableName": "splitIds"
+        }
+      ],
+      "concreteType": "DatasetExampleConnection",
+      "kind": "LinkedField",
+      "name": "examples",
+      "plural": false,
+      "selections": [
+        {
           "alias": null,
           "args": null,
-          "concreteType": "DatasetExampleExpectedOutput",
+          "concreteType": "DatasetExampleEdge",
           "kind": "LinkedField",
-          "name": "expectedOutputs",
+          "name": "edges",
           "plural": true,
           "selections": [
             {
-              "alias": null,
+              "alias": "example",
               "args": null,
-              "kind": "ScalarField",
-              "name": "annotationName",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "label",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "score",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "explanation",
+              "concreteType": "DatasetExample",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v0/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DatasetExampleRevision",
+                  "kind": "LinkedField",
+                  "name": "revision",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DatasetExampleExpectedOutput",
+                      "kind": "LinkedField",
+                      "name": "expectedOutputs",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "annotationName",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "label",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "score",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "explanation",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             }
           ],
@@ -135,13 +162,13 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*:: as any*/)
+    (v0/*:: as any*/)
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "860547bd98334b559fcf4093ff66da4c";
+(node as any).hash = "bc45f571a6e564b4ac14b9e2c498c576";
 
 export default node;

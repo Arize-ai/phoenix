@@ -1208,11 +1208,6 @@ type Dataset implements Node {
     """
     filterIds: [ID!]
   ): DatasetExampleConnection!
-
-  """
-  The expected outputs recorded on the latest version of the examples. Only examples with at least one expected output are listed.
-  """
-  exampleExpectedOutputs(splitIds: [ID!]): [DatasetExampleExpectedOutputs!]!
   splits: [DatasetSplit!]!
 
   """
@@ -1378,20 +1373,10 @@ input DatasetExampleExpectedOutputInput {
   explanation: String = null
 }
 
-type DatasetExampleExpectedOutputs {
-  """
-  The ID of the example's expected outputs, distinct from the example's own ID.
-  """
-  id: ID!
-  exampleId: ID!
-  expectedOutputs: [DatasetExampleExpectedOutput!]!
-}
-
 type DatasetExampleExpectedOutputsPayload {
   dataset: Dataset!
   version: DatasetVersion!
   examples: [DatasetExample!]!
-  exampleExpectedOutputs: [DatasetExampleExpectedOutputs!]!
 }
 
 """A field of a dataset example that a `replace` operation can target."""

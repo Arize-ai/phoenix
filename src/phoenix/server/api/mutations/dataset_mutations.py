@@ -45,11 +45,7 @@ from phoenix.server.api.input_types.SetDatasetExampleExpectedOutputsInput import
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetExampleRevision import (
-    DatasetExampleExpectedOutputs,
-    DatasetExampleRevision,
-    to_gql_example_expected_outputs,
-)
+from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -172,9 +168,6 @@ class DatasetExampleExpectedOutputsPayload:
     version: DatasetVersion
     # The touched examples, each resolving its revision as of the new version.
     examples: list[DatasetExample]
-    # The touched examples' expected outputs as written; empty for an example whose
-    # expected outputs were all cleared.
-    example_expected_outputs: list[DatasetExampleExpectedOutputs]
 
 
 @strawberry.type
@@ -814,10 +807,6 @@ class DatasetMutationMixin:
             examples=[
                 DatasetExample(id=example_id, db_record=examples[example_id], version_id=version.id)
                 for example_id in next_metadata
-            ],
-            example_expected_outputs=[
-                to_gql_example_expected_outputs(example_id, metadata)
-                for example_id, metadata in next_metadata.items()
             ],
         )
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<729d2893f0d3091e1460d9758eb736e4>>
+ * @generated SignedSource<<73e94e2ffb2257ecd86d463fa939588c>>
  * @lightSyntaxTransform
  */
 
@@ -373,27 +373,60 @@ return {
                 "kind": "LinkedHandle",
                 "name": "examples"
               },
-              (v4/*:: as any*/),
               {
-                "alias": null,
-                "args": (v3/*:: as any*/),
-                "concreteType": "DatasetExampleExpectedOutputs",
+                "alias": "allExamples",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "first",
+                    "value": 1000
+                  },
+                  (v2/*:: as any*/)
+                ],
+                "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
-                "name": "exampleExpectedOutputs",
-                "plural": true,
+                "name": "examples",
+                "plural": false,
                 "selections": [
-                  (v5/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "exampleId",
+                    "concreteType": "DatasetExampleEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "example",
+                        "args": null,
+                        "concreteType": "DatasetExample",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v5/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "DatasetExampleRevision",
+                            "kind": "LinkedField",
+                            "name": "revision",
+                            "plural": false,
+                            "selections": [
+                              (v9/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
                     "storageKey": null
-                  },
-                  (v9/*:: as any*/)
+                  }
                 ],
                 "storageKey": null
               },
+              (v4/*:: as any*/),
               (v6/*:: as any*/)
             ],
             "type": "Dataset",
@@ -405,12 +438,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b3b7b1db5bff2288c8636f24e74c4e5c",
+    "cacheID": "834896ecfce07369a8a82f0e1962dd13",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  exampleCount(splitIds: $splitIds)\n  exampleExpectedOutputs(splitIds: $splitIds) {\n    id\n    exampleId\n    expectedOutputs {\n      annotationName\n      label\n      score\n      explanation\n    }\n  }\n  id\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  allExamples: examples(splitIds: $splitIds, first: 1000) {\n    edges {\n      example: node {\n        id\n        revision {\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n    }\n  }\n  id\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

@@ -22,10 +22,6 @@ from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluator
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.input_types.ExperimentSort import ExperimentSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetExampleRevision import (
-    DatasetExampleExpectedOutputs,
-    to_gql_example_expected_outputs,
-)
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
     DatasetExperimentAnnotationSummary,
 )
@@ -358,59 +354,6 @@ class Dataset(Node):
                 async for example in await session.stream_scalars(query)
             ]
         return connection_from_list(data=dataset_examples, args=args)
-
-    @strawberry.field(
-        description="The expected outputs recorded on the latest version of the examples. "
-        "Only examples with at least one expected output are listed."
-    )  # type: ignore
-    async def example_expected_outputs(
-        self,
-        info: Info[Context, None],
-        split_ids: Optional[list[GlobalID]] = UNSET,
-    ) -> list[DatasetExampleExpectedOutputs]:
-        dataset_id = self.id
-        split_rowids: Optional[list[int]] = None
-        if split_ids:
-            split_rowids = []
-            for split_id in split_ids:
-                try:
-                    split_rowid = from_global_id_with_expected_type(
-                        global_id=split_id, expected_type_name=models.DatasetSplit.__name__
-                    )
-                    split_rowids.append(split_rowid)
-                except Exception:
-                    raise BadRequest(f"Invalid split ID: {split_id}")
-
-        revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
-            .join(models.DatasetExample)
-            .where(models.DatasetExample.dataset_id == dataset_id)
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
-        )
-        query = (
-            select(
-                models.DatasetExampleRevision.dataset_example_id,
-                models.DatasetExampleRevision.metadata_,
-            )
-            .where(models.DatasetExampleRevision.id.in_(revision_ids))
-            .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-            .order_by(models.DatasetExampleRevision.dataset_example_id.asc())
-        )
-        if split_rowids:
-            query = query.where(
-                models.DatasetExampleRevision.dataset_example_id.in_(
-                    select(models.DatasetSplitDatasetExample.dataset_example_id).where(
-                        models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids)
-                    )
-                )
-            )
-
-        async with info.context.db.read() as session:
-            example_expected_outputs = [
-                to_gql_example_expected_outputs(example_id, metadata)
-                async for example_id, metadata in await session.stream(query)
-            ]
-        return [example for example in example_expected_outputs if example.expected_outputs]
 
     @strawberry.field
     async def splits(self, info: Info[Context, None]) -> list[DatasetSplit]:

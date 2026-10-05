@@ -58,7 +58,7 @@ export function PlaygroundEvaluatorColumnHeader({
   experimentId: string | null | undefined;
   /** How many examples the dataset (or its selected splits) has. */
   exampleCount: number;
-  /** Every example with an expected output, loaded into the table or not. */
+  /** Every example of the dataset, loaded into the table or not. */
   examples: ReadonlyArray<ExpectedOutputExample>;
   isRunning: boolean;
   canRun: boolean;

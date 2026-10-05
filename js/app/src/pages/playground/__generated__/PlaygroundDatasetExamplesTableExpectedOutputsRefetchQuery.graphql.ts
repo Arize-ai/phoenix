@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<844aee25b4e12189a18c8276bcd8133f>>
+ * @generated SignedSource<<3ef890261d54c4ee4d126f6b2e9f22ab>>
  * @lightSyntaxTransform
  */
 
@@ -41,13 +41,11 @@ v2 = [
     "variableName": "id"
   }
 ],
-v3 = [
-  {
-    "kind": "Variable",
-    "name": "splitIds",
-    "variableName": "splitIds"
-  }
-],
+v3 = {
+  "kind": "Variable",
+  "name": "splitIds",
+  "variableName": "splitIds"
+},
 v4 = {
   "alias": null,
   "args": null,
@@ -74,7 +72,9 @@ return {
         "plural": false,
         "selections": [
           {
-            "args": (v3/*:: as any*/),
+            "args": [
+              (v3/*:: as any*/)
+            ],
             "kind": "FragmentSpread",
             "name": "PlaygroundDatasetExamplesTableExpectedOutputsFragment"
           }
@@ -114,62 +114,88 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
-                "args": (v3/*:: as any*/),
-                "kind": "ScalarField",
-                "name": "exampleCount",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": (v3/*:: as any*/),
-                "concreteType": "DatasetExampleExpectedOutputs",
-                "kind": "LinkedField",
-                "name": "exampleExpectedOutputs",
-                "plural": true,
-                "selections": [
-                  (v4/*:: as any*/),
+                "alias": "allExamples",
+                "args": [
                   {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "exampleId",
-                    "storageKey": null
+                    "kind": "Literal",
+                    "name": "first",
+                    "value": 1000
                   },
+                  (v3/*:: as any*/)
+                ],
+                "concreteType": "DatasetExampleConnection",
+                "kind": "LinkedField",
+                "name": "examples",
+                "plural": false,
+                "selections": [
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "DatasetExampleExpectedOutput",
+                    "concreteType": "DatasetExampleEdge",
                     "kind": "LinkedField",
-                    "name": "expectedOutputs",
+                    "name": "edges",
                     "plural": true,
                     "selections": [
                       {
-                        "alias": null,
+                        "alias": "example",
                         "args": null,
-                        "kind": "ScalarField",
-                        "name": "annotationName",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "label",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "score",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "explanation",
+                        "concreteType": "DatasetExample",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v4/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "DatasetExampleRevision",
+                            "kind": "LinkedField",
+                            "name": "revision",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "DatasetExampleExpectedOutput",
+                                "kind": "LinkedField",
+                                "name": "expectedOutputs",
+                                "plural": true,
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "annotationName",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "label",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "score",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "explanation",
+                                    "storageKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
                         "storageKey": null
                       }
                     ],
@@ -188,16 +214,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "886b3e233d13789404c177f3f8beb10b",
+    "cacheID": "ea157f6cf8d2343cb2e426969547f5fc",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery(\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  exampleCount(splitIds: $splitIds)\n  exampleExpectedOutputs(splitIds: $splitIds) {\n    id\n    exampleId\n    expectedOutputs {\n      annotationName\n      label\n      score\n      explanation\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery(\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  allExamples: examples(splitIds: $splitIds, first: 1000) {\n    edges {\n      example: node {\n        id\n        revision {\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "860547bd98334b559fcf4093ff66da4c";
+(node as any).hash = "bc45f571a6e564b4ac14b9e2c498c576";
 
 export default node;
