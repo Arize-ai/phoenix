@@ -1,9 +1,13 @@
 import { useMemo } from "react";
 
 import {
+  ONE_DAY_MS,
   ONE_DAY_SEC,
+  ONE_HOUR_MS,
   ONE_HOUR_SEC,
+  ONE_MINUTE_MS,
   ONE_MONTH_SEC,
+  ONE_WEEK_MS,
   ONE_WEEK_SEC,
   ONE_YEAR_SEC,
 } from "@phoenix/constants/timeConstants";
@@ -49,4 +53,75 @@ export function useTimeBinScale({
   timeRange: OpenTimeRange;
 }): TimeBinScale {
   return useMemo(() => getTimeBinScale({ timeRange }), [timeRange]);
+}
+
+/**
+ * A bin width of `unitsPerBin` × `scale`, as sent in `TimeBinConfig`.
+ */
+export type TimeBinSpec = {
+  scale: TimeBinScale;
+  unitsPerBin: number;
+};
+
+/**
+ * Natural multiples of each scale, smallest first.
+ */
+const UNITS_PER_BIN_CHOICES: Record<TimeBinScale, ReadonlyArray<number>> = {
+  MINUTE: [1, 2, 5, 10, 15, 30],
+  HOUR: [1, 2, 3, 6, 12],
+  DAY: [1, 2],
+  WEEK: [1, 2, 4],
+  MONTH: [1],
+  YEAR: [1],
+};
+
+const FIXED_TIME_BIN_SCALE_MS: Partial<Record<TimeBinScale, number>> = {
+  MINUTE: ONE_MINUTE_MS,
+  HOUR: ONE_HOUR_MS,
+  DAY: ONE_DAY_MS,
+  WEEK: ONE_WEEK_MS,
+};
+
+/**
+ * Picks the scale from {@link getTimeBinScale} and the smallest `unitsPerBin`
+ * that keeps the range within `maxBins` bins, or the largest if none does.
+ */
+export function getTimeBinSpec({
+  timeRange,
+  maxBins,
+}: {
+  timeRange: OpenTimeRange;
+  maxBins: number;
+}): TimeBinSpec {
+  const scale = getTimeBinScale({ timeRange });
+  const scaleMs = FIXED_TIME_BIN_SCALE_MS[scale];
+  if (scaleMs == null || timeRange.start == null) {
+    return { scale, unitsPerBin: 1 };
+  }
+  const endTime = timeRange.end ?? new Date();
+  const binCount = Math.ceil(
+    (endTime.getTime() - timeRange.start.getTime()) / scaleMs
+  );
+  const choices = UNITS_PER_BIN_CHOICES[scale];
+  const unitsPerBin =
+    choices.find((candidate) => Math.ceil(binCount / candidate) <= maxBins) ??
+    choices[choices.length - 1] ??
+    1;
+  return { scale, unitsPerBin };
+}
+
+/**
+ * Hook form of {@link getTimeBinSpec}.
+ */
+export function useTimeBinSpec({
+  timeRange,
+  maxBins,
+}: {
+  timeRange: OpenTimeRange;
+  maxBins: number;
+}): TimeBinSpec {
+  return useMemo(
+    () => getTimeBinSpec({ timeRange, maxBins }),
+    [timeRange, maxBins]
+  );
 }
