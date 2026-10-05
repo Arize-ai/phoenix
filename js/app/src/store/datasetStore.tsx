@@ -6,7 +6,7 @@ import { devtools, persist } from "zustand/middleware";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import {
   DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
-  isExperimentMetricChartKey,
+  sanitizeExperimentMetricChartKeys,
 } from "@phoenix/pages/dataset/constants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -148,13 +148,10 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
             ...currentState,
             ...(persistedState as Partial<DatasetStoreState>),
           };
-          // Persisted chart keys may reference charts that no longer exist in
-          // the chart catalog; drop them so stale keys don't render as empty
-          // panels
-          const keys = merged.experimentsMetricChartKeys;
-          merged.experimentsMetricChartKeys = Array.isArray(keys)
-            ? keys.filter(isExperimentMetricChartKey)
-            : DEFAULT_EXPERIMENT_METRIC_CHART_KEYS;
+          merged.experimentsMetricChartKeys = sanitizeExperimentMetricChartKeys(
+            merged.experimentsMetricChartKeys,
+            DEFAULT_EXPERIMENT_METRIC_CHART_KEYS
+          );
           return merged;
         },
       }

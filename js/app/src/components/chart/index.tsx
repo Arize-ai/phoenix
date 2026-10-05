@@ -23,3 +23,4 @@ export * from "./binning";
 export * from "./timeTicks";
 export * from "./useTimeAxisTicks";
 export * from "./breakdown";
+export * from "./MetricChartsPanelGroup";

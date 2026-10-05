@@ -1,38 +1,49 @@
-import { Suspense, useMemo } from "react";
+import { css } from "@emotion/react";
+import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
-import { useParams, useSearchParams } from "react-router";
+import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Loading } from "@phoenix/components";
 import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
 
+import { ExperimentCompareChartsPanelGroup } from "./ExperimentCompareMetricsCharts";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
+import { useExperimentCompareSelection } from "./useExperimentCompareSelection";
+
+const gridPageCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+`;
 
 export function ExperimentCompareGridPage({
   queryRef,
 }: {
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareGridQueryType>;
 }) {
-  const [searchParams] = useSearchParams();
-  const { baseExperimentId, compareExperimentIds } = useMemo(() => {
-    const [baseExperimentId, ...compareExperimentIds] =
-      searchParams.getAll("experimentId");
-    return { baseExperimentId, compareExperimentIds };
-  }, [searchParams]);
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
+  const selection = useExperimentCompareSelection();
+  invariant(selection != null, "an experiment selection is required");
 
   return (
-    <ExperimentRunFilterConditionProvider>
-      <Suspense fallback={<Loading />}>
-        <ExperimentCompareTable
-          queryRef={queryRef}
-          datasetId={datasetId}
-          baseExperimentId={baseExperimentId}
-          compareExperimentIds={compareExperimentIds}
-        />
-      </Suspense>
-    </ExperimentRunFilterConditionProvider>
+    <div css={gridPageCSS}>
+      <ExperimentCompareChartsPanelGroup
+        datasetId={datasetId}
+        selection={selection}
+      >
+        <ExperimentRunFilterConditionProvider>
+          <Suspense fallback={<Loading />}>
+            <ExperimentCompareTable
+              queryRef={queryRef}
+              datasetId={datasetId}
+              selection={selection}
+            />
+          </Suspense>
+        </ExperimentRunFilterConditionProvider>
+      </ExperimentCompareChartsPanelGroup>
+    </div>
   );
 }
