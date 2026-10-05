@@ -16,6 +16,9 @@ authentication follows the bind address:
 | Unset; loopback bind | Off |
 | Unset; non-loopback or unrecognized host | On |
 
+`PHOENIX_SECRET` controls signing and encryption keys independently of this policy.
+Setting it does not enable authentication or override `PHOENIX_ENABLE_AUTH=false`.
+
 Canonicalize addresses before classification, including abbreviated IPv4 and IPv4-mapped
 loopback. Docker binds `0.0.0.0`, so containers require login by default. `PHOENIX_HOST`
 controls HTTP, gRPC, and Prometheus; remove `phoenix serve --host` to keep bind and auth
