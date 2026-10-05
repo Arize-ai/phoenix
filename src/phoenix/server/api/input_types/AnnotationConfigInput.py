@@ -1,6 +1,7 @@
 from typing import Optional
 
 import strawberry
+from pydantic import ValidationError
 
 from phoenix.db.types.annotation_configs import (
     AnnotationType,
@@ -83,6 +84,14 @@ class AnnotationConfigInput:
 
     def to_output_config(self) -> OutputConfigType:
         """The evaluator output config this input describes, named as given."""
+        try:
+            return self._build_output_config()
+        except ValidationError as error:
+            variant = next(v for v in (self.categorical, self.continuous, self.freeform) if v)
+            reasons = "; ".join(detail["msg"] for detail in error.errors())
+            raise BadRequest(f"Invalid output config '{variant.name}': {reasons}")
+
+    def _build_output_config(self) -> OutputConfigType:
         if self.categorical is not None and self.categorical is not strawberry.UNSET:
             categorical = self.categorical
             return CategoricalOutputConfig(
