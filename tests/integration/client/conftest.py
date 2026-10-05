@@ -2,9 +2,8 @@ from secrets import token_hex
 from typing import Iterator, Mapping
 
 import pytest
-from strawberry.relay import GlobalID
-
 from phoenix.client import Client
+from strawberry.relay import GlobalID
 
 from .._helpers import (
     _AppInfo,
