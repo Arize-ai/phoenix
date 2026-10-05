@@ -11,8 +11,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-pin="$(grep -E '^required-version\s*=' "$root/pyproject.toml" \
-  | grep -oE '>=[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -c3-)"
+pin="$(grep -E '^required-version[[:space:]]*=' "$root/pyproject.toml" \
+  | grep -oE '>=[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -c3- || true)"
 if [ -z "$pin" ]; then
   echo "error: no uv lower bound found in [tool.uv] required-version in $root/pyproject.toml" >&2
   exit 1
