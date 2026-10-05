@@ -352,7 +352,7 @@ class TestPasswordReset:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         logged_in_user.visit(_app)
-        _DEFAULT_ADMIN.delete_users(_app, u)
+        _app.default_admin.delete_users(_app, u)
         assert not u.initiate_password_reset(_app, _smtpd, should_receive_email=False)
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
@@ -370,7 +370,7 @@ class TestPasswordReset:
         assert (token := u.initiate_password_reset(_app, _smtpd))
         new_password = next(_passwords)
         assert new_password != u.password
-        _DEFAULT_ADMIN.delete_users(_app, u)
+        _app.default_admin.delete_users(_app, u)
         with _EXPECTATION_401:
             token.reset(_app, new_password)
 
@@ -459,7 +459,7 @@ class TestLoggedInTokens:
         logged_in_user.log_out(_app)
 
     def test_corrupt_tokens_are_not_accepted(self, _app: _AppInfo) -> None:
-        parts = _DEFAULT_ADMIN.log_in(_app).tokens.access_token.split(".")
+        parts = _app.default_admin.log_in(_app).tokens.access_token.split(".")
         # delete last 3 characters because base64 could have up to 2 padding characters
         bad_headers = _AccessToken(f"{parts[0][:-3]}.{parts[1]}.{parts[2]}")
         with _EXPECTATION_401:
@@ -528,7 +528,7 @@ class TestCreateUser:
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_create_user(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
@@ -671,7 +671,7 @@ class TestPatchUser:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with pytest.raises(Exception, match="role"):
-            logged_in_user.patch_user(_app, _DEFAULT_ADMIN, new_role=new_role)
+            logged_in_user.patch_user(_app, _app.default_admin, new_role=new_role)
 
     def test_admin_cannot_change_role_for_self(
         self,
@@ -724,7 +724,7 @@ class TestPatchUser:
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_change_password_for_non_self(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
@@ -842,7 +842,7 @@ class TestDeleteUsers:
     )
     def test_cannot_delete_system_user(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         expectation: _Expectation,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -870,8 +870,8 @@ class TestDeleteUsers:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with expectation:
-            logged_in_user.delete_users(_app, _DEFAULT_ADMIN)
-        _DEFAULT_ADMIN.log_in(_app)
+            logged_in_user.delete_users(_app, _app.default_admin)
+        _app.default_admin.log_in(_app)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",
@@ -1112,7 +1112,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
         is_viewer = role_or_user is _VIEWER
 
         def admin_gql(operation: str, variables: dict[str, Any]) -> dict[str, Any]:
-            response, _ = _DEFAULT_ADMIN.gql(
+            response, _ = _app.default_admin.gql(
                 _app, query=self.QUERY, operation_name=operation, variables=variables
             )
             data: dict[str, Any] = response["data"]
@@ -1334,7 +1334,7 @@ class TestSpanExporters:
         headers: Optional[_Headers] = None
         api_key: Optional[_ApiKey] = None
         if use_api_key:
-            api_key = _DEFAULT_ADMIN.create_api_key(_app, "System", expires_at=expires_at)
+            api_key = _app.default_admin.create_api_key(_app, "System", expires_at=expires_at)
             # Must use all lower case for `authorization` because
             # otherwise it would crash the gRPC receiver.
             headers = dict(authorization=f"Bearer {api_key}")
@@ -1342,7 +1342,7 @@ class TestSpanExporters:
         for _ in range(2):
             assert export(_spans) is expected
         if api_key and expected is SpanExportResult.SUCCESS:
-            _DEFAULT_ADMIN.delete_api_key(_app, api_key)
+            _app.default_admin.delete_api_key(_app, api_key)
             assert export(_spans) is SpanExportResult.FAILURE
 
     @pytest.mark.parametrize(

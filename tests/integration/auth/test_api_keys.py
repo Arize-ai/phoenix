@@ -130,7 +130,7 @@ class TestGraphQLApiKeys:
         _app: _AppInfo,
     ) -> None:
         user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System")
+        api_key = _app.default_admin.create_api_key(_app, "System")
         with expectation:
             user.delete_api_key(_app, api_key)
 
