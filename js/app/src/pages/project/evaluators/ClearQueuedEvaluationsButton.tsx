@@ -42,7 +42,7 @@ const splitButtonCSS = css`
   & > .react-aria-Button:last-of-type {
     border-start-start-radius: 0;
     border-end-start-radius: 0;
-    border-inline-start-color: var(--global-color-gray-50);
+    border-inline-start-width: 0;
   }
 `;
 
@@ -79,7 +79,6 @@ export function ClearQueuedEvaluationsButton({
       >
         <Button
           size="S"
-          variant="danger"
           leadingVisual={<Icon svg={<Icons.Trash />} />}
           onPress={() => openDialog("PROJECT")}
         >
@@ -88,12 +87,11 @@ export function ClearQueuedEvaluationsButton({
         <MenuTrigger>
           <Button
             size="S"
-            variant="danger"
             aria-label="More ways to clear the queue"
             leadingVisual={<Icon svg={<Icons.ChevronDown />} />}
           />
           {/* Opens under the whole control, not just the chevron. */}
-          <Popover placement="bottom start" triggerRef={groupRef}>
+          <Popover placement="bottom end" triggerRef={groupRef}>
             <Menu onAction={() => openDialog("ALL")}>
               <MenuItem id="ALL">Clear queue for all projects</MenuItem>
             </Menu>
