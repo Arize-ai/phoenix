@@ -823,6 +823,24 @@ class TestApplyInputMapping:
                 context=context,
             )
 
+    def test_ignores_mapping_keys_not_declared_in_schema(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"output": {"type": "string"}},
+            "required": ["output"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping=JSON({"output": "$.response", "removed": "$.nonexistent.path"}),
+            literal_mapping=JSON({"also_removed": "literal"}),
+        )
+        context = {"response": "Hello, world!"}
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping.to_orm(),
+            context=context,
+        )
+        assert result == {"output": "Hello, world!"}
+
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
             "type": "object",

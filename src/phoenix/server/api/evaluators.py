@@ -1005,10 +1005,13 @@ def apply_input_mapping(
     input_mapping: InputMapping,
     context: dict[str, Any],
 ) -> dict[str, Any]:
+    properties = input_schema.get("properties")
     result: dict[str, Any] = {}
     # apply path mappings
     if input_mapping.path_mapping:
         for key, path_expr in input_mapping.path_mapping.items():
+            if isinstance(properties, dict) and key not in properties:
+                continue
             try:
                 jsonpath = parse_jsonpath(path_expr)
             except Exception as e:
@@ -1027,6 +1030,8 @@ def apply_input_mapping(
     # literal mappings take priority over path mappings
     if input_mapping.literal_mapping:
         for key, value in input_mapping.literal_mapping.items():
+            if isinstance(properties, dict) and key not in properties:
+                continue
             result[key] = value
 
     # for any key in the input schema that is still not in result,
