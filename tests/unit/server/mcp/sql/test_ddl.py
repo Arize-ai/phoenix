@@ -383,6 +383,8 @@ def test_the_full_schema_executes() -> None:
         created = {
             row[0]
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            # An AUTOINCREMENT table makes SQLite create sqlite_sequence as well.
+            if not row[0].startswith("sqlite_")
         }
     finally:
         connection.close()

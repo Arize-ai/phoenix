@@ -398,6 +398,25 @@ TABLE_GRAPHQL_TYPES: dict[str, str] = {
     "experiments": "Experiment",
     "experiment_runs": "ExperimentRun",
     "experiment_run_annotations": "ExperimentRunAnnotation",
+    "trace_annotations": "TraceAnnotation",
+    "project_trace_retention_policies": "ProjectTraceRetentionPolicy",
+    "dataset_splits": "DatasetSplit",
+    "dataset_labels": "DatasetLabel",
+    "experiment_tags": "ExperimentTag",
+    "experiment_jobs": "ExperimentJob",
+    "experiment_logs": "ExperimentLog",
+    # The evaluators table has no type of its own: each row's node id uses the
+    # concrete type named by its kind, which is the detail table it joins to.
+    "llm_evaluators": "LLMEvaluator",
+    "code_evaluators": "CodeEvaluator",
+    "builtin_evaluators": "BuiltInEvaluator",
+    "code_evaluator_code_versions": "CodeEvaluatorVersion",
+    "dataset_evaluators": "DatasetEvaluator",
+    "sandbox_configs": "SandboxConfig",
+    "prompts": "Prompt",
+    "prompt_versions": "PromptVersion",
+    "prompt_version_tags": "PromptVersionTag",
+    "prompt_labels": "PromptLabel",
 }
 
 GRAPHQL_NODE_ID_COLUMN = "graphql_node_id"
