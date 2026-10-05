@@ -12,7 +12,7 @@ import os
 import urllib.parse
 import urllib.request
 from collections import defaultdict
-from typing import Any
+from typing import Any, Sequence
 
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
@@ -68,9 +68,11 @@ def annotation_labels(project: str, name: str) -> list[str]:
     ]
 
 
-def trace_annotation_scores(project: str, name: str, trace_ids: list[str]) -> dict[str, float]:
+def trace_annotation_scores(
+    project: str, name: str, trace_ids: Sequence[TraceId]
+) -> dict[TraceId, float]:
     """Return the score of each trace's ``name`` annotation, omitting unscored traces."""
-    scores: dict[str, float] = {}
+    scores: dict[TraceId, float] = {}
     for start in range(0, len(trace_ids), 50):
         cursor: str | None = None
         while True:
@@ -82,9 +84,10 @@ def trace_annotation_scores(project: str, name: str, trace_ids: list[str]) -> di
                 + urllib.parse.urlencode(params, doseq=True)
             )
             with urllib.request.urlopen(url, timeout=60) as response:
-                page = json.load(response)
+                page: v1.TraceAnnotationsResponseBody = json.load(response)
             for annotation in page["data"]:
-                score = (annotation.get("result") or {}).get("score")
+                result = annotation.get("result")
+                score = result.get("score") if result else None
                 if annotation["name"] == name and score is not None:
                     scores[annotation["trace_id"]] = float(score)
             cursor = page.get("next_cursor")
