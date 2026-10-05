@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab06607aaa4928371410b940757f9933>>
+ * @generated SignedSource<<98726bd38457e73d77597c23138da2de>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type TimeRange = {
 };
 export type TimeBinConfig = {
   scale?: TimeBinScale;
+  unitsPerBin?: number;
   utcOffsetMinutes?: number;
 };
 export type TraceLatencyPercentilesTimeSeriesQuery$variables = {
