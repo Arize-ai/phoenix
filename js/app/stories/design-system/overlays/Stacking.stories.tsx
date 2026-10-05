@@ -65,6 +65,10 @@ const Z_INDEX_LADDER = [
   },
   { token: "--global-z-index-app-drawer", occupants: "The details drawer" },
   {
+    token: "--global-z-index-app-frame-border",
+    occupants: "PXI app-frame border",
+  },
+  {
     token: "--global-z-index-app-floating",
     occupants: "Floating assistant, persistent floating popovers",
   },

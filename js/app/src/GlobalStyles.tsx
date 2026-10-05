@@ -128,6 +128,7 @@ const zIndexCSS = css`
     /* Root app surfaces. Each category owns a 1,000-point band so new layers
        can be inserted without renumbering unrelated categories. */
     --global-z-index-app-drawer: 500;
+    --global-z-index-app-frame-border: 900;
     --global-z-index-app-floating: 1000;
     --global-z-index-app-floating-control: 1100;
     --global-z-index-app-modal-backdrop: 2000;
@@ -1028,6 +1029,10 @@ const aiTokensCSS = (theme: Theme) => css`
     /* Negative delay so the continuous wipe starts mid-travel instead of
        off-surface. */
     --ai-glow-wipe-continuous-delay: -0.5s;
+    --ai-frame-border-spin-duration: 9s;
+    --ai-frame-border-fade-duration: 400ms;
+    --ai-frame-border-intensity-duration: 700ms;
+    --ai-frame-border-easing: cubic-bezier(0.4, 0, 0.2, 1);
     --ai-gradient-color-start: #9a66ff;
     --ai-gradient-color-middle: #3480ff;
     --ai-gradient-color-end: #2cd8ff;
@@ -1446,6 +1451,14 @@ const appGlobalStylesCSS = css`
     syntax: "<angle>";
     inherits: false;
     initial-value: 45deg;
+  }
+
+  /* Registered so the app-frame border can transition between its quick and
+     long intensities instead of snapping. */
+  @property --pxi-frame-border-intensity {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0;
   }
 
   /* The base layer (see styles/cascade-layers.css) puts the global focus ring

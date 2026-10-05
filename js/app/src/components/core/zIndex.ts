@@ -16,6 +16,8 @@ export {
   APP_PORTALED_OVERLAY_Z_INDEX,
 } from "@phoenix/components/core/overlay";
 
+export const APP_FRAME_BORDER_Z_INDEX =
+  "var(--global-z-index-app-frame-border)";
 export const APP_FLOATING_CONTROL_Z_INDEX =
   "var(--global-z-index-app-floating-control)";
 export const APP_MODAL_FLOATING_Z_INDEX =
