@@ -6,9 +6,11 @@ import invariant from "tiny-invariant";
 
 import {
   Alert,
+  ExternalLinkButton,
   Flex,
   Heading,
-  LinkButton,
+  Icon,
+  Icons,
   Loading,
   Text,
   Token,
@@ -33,6 +35,7 @@ import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { makeFlatAnnotationColumnId } from "@phoenix/pages/project/tableUtils";
 import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectEvaluatorCompareTargets_comparison$key } from "./__generated__/ProjectEvaluatorCompareTargets_comparison.graphql";
@@ -46,12 +49,72 @@ import {
 import { formatCompareSelection } from "./projectEvaluatorCompareSelection";
 import { useCompareSelection } from "./ProjectEvaluatorCompareSelectionContext";
 
+// Cancel the page gutter so the table's borders run edge to edge; the heading
+// keeps it to line up with the cards above.
+const targetsSectionCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  margin-inline: calc(-1 * var(--project-evaluator-compare-page-gutter));
+`;
+
+const targetsHeadingCSS = css`
+  padding-inline: var(--project-evaluator-compare-page-gutter);
+`;
+
 const targetsTableCSS = css`
   transition: opacity 150ms ease-in-out;
   &[aria-busy="true"] {
     opacity: 0.6;
   }
 `;
+
+/**
+ * Tracks the condition the matching targets table was seeded with and the
+ * user's edit of it, if any. An edit clears the selection through `onEdit`
+ * but keeps the table on the edited condition; any other change to
+ * `condition` reseeds the table.
+ */
+function useEditableTargetsCondition({
+  condition,
+  hasActiveSelection,
+  onEdit,
+}: {
+  condition: string;
+  hasActiveSelection: boolean;
+  onEdit: () => void;
+}) {
+  const [table, setTable] = useState<{
+    seedCondition: string;
+    editedCondition: string | null;
+  }>({ seedCondition: condition, editedCondition: null });
+  const [previousCondition, setPreviousCondition] = useState(condition);
+  if (condition !== previousCondition) {
+    setPreviousCondition(condition);
+    // A selection cleared by an edit leaves the edited table in place
+    if (table.editedCondition == null || hasActiveSelection) {
+      setTable({ seedCondition: condition, editedCondition: null });
+    }
+  }
+  const handleFilterConditionApplied = (condition: string) => {
+    // Re-applying the seed itself is not an edit
+    const editedCondition =
+      condition === table.seedCondition ? null : condition;
+    setTable((current) =>
+      current.editedCondition === editedCondition
+        ? current
+        : { ...current, editedCondition }
+    );
+    if (editedCondition != null) {
+      onEdit();
+    }
+  };
+  return {
+    table,
+    tableCondition: table.editedCondition ?? table.seedCondition,
+    handleFilterConditionApplied,
+  };
+}
 
 const evaluatorFragment = graphql`
   fragment ProjectEvaluatorCompareTargets_evaluator on ProjectEvaluator {
@@ -132,6 +195,16 @@ export function ProjectEvaluatorCompareTargets({
     sideA,
     sideB,
   });
+  const { table, tableCondition, handleFilterConditionApplied } =
+    useEditableTargetsCondition({
+      condition,
+      hasActiveSelection: activeSelection != null,
+      onEdit: () => {
+        if (selection) {
+          setSelection(null);
+        }
+      },
+    });
   const noun = `${target.toLowerCase()}s`;
   const compareAnnotationVisibility = {
     [sideA.annotationName]: true,
@@ -139,34 +212,40 @@ export function ProjectEvaluatorCompareTargets({
   };
   const { rootPath } = useProjectRootPath();
   const spansSearch = withSearchParams(useTimeRangeSearch(), (params) =>
-    params.set(SPAN_FILTER_CONDITION_PARAM, condition)
+    params.set(SPAN_FILTER_CONDITION_PARAM, tableCondition)
   );
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        gap="size-200"
-      >
-        <Flex direction="row" alignItems="center" gap="size-100" wrap>
-          <Heading level={2}>{`Matching ${noun}`}</Heading>
-          {shownSelection ? (
-            <Token maxWidth="100%" onRemove={() => setSelection(null)}>
-              {formatCompareSelection(shownSelection)}
-            </Token>
-          ) : (
-            <Text color="text-700">
-              Evaluated by both evaluators in the selected time range
-            </Text>
-          )}
+    <div css={targetsSectionCSS}>
+      <div css={targetsHeadingCSS}>
+        <Flex
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          gap="size-200"
+        >
+          <Flex direction="row" alignItems="center" gap="size-100" wrap>
+            <Heading level={2}>{`Matching ${noun}`}</Heading>
+            {shownSelection ? (
+              <Token maxWidth="100%" onRemove={() => setSelection(null)}>
+                {formatCompareSelection(shownSelection)}
+              </Token>
+            ) : table.editedCondition == null ? (
+              <Text color="text-700">
+                Evaluated by both evaluators in the selected time range
+              </Text>
+            ) : null}
+          </Flex>
+          {target === "SPAN" ? (
+            // A new tab keeps this comparison and its selection in place
+            <ExternalLinkButton
+              href={prependBasename(`${rootPath}/spans${spansSearch}`)}
+              trailingVisual={<Icon svg={<Icons.ExternalLink />} />}
+            >
+              Open in Project View
+            </ExternalLinkButton>
+          ) : null}
         </Flex>
-        {target === "SPAN" ? (
-          <LinkButton to={`${rootPath}/spans${spansSearch}`}>
-            Open in Spans
-          </LinkButton>
-        ) : null}
-      </Flex>
+      </div>
       <ProjectProvider
         projectId={projectId}
         scope="evaluator-compare"
@@ -206,12 +285,16 @@ export function ProjectEvaluatorCompareTargets({
             {/* Keep current rows visible while the next selection loads. */}
             <div css={targetsTableCSS} aria-busy={isPending}>
               <Suspense fallback={<Loading />}>
-                <ErrorBoundary key={condition} fallback={CompareTargetsError}>
+                <ErrorBoundary
+                  key={table.seedCondition}
+                  fallback={CompareTargetsError}
+                >
                   <CompareTargetsFilters
                     projectId={projectId}
                     target={target}
-                    condition={condition}
+                    condition={table.seedCondition}
                     timeRange={timeRange}
+                    onFilterConditionApplied={handleFilterConditionApplied}
                   />
                 </ErrorBoundary>
               </Suspense>
@@ -219,7 +302,7 @@ export function ProjectEvaluatorCompareTargets({
           </TracingProvider>
         </StreamStateProvider>
       </ProjectProvider>
-    </Flex>
+    </div>
   );
 }
 
@@ -265,6 +348,8 @@ type TargetsProps = {
   target: CompareTarget;
   condition: string;
   timeRange: TimeRange;
+  /** Called when the user applies a valid filter condition */
+  onFilterConditionApplied: (condition: string) => void;
 };
 
 type TargetsTableProps = Omit<TargetsProps, "target"> &
@@ -303,7 +388,15 @@ function CompareSpanTargets(props: TargetsProps) {
     >
       <ErrorBoundary
         fallback={({ error }) => (
-          <SpanFilterErrorFallback error={error} onResolved={setSeed} />
+          <SpanFilterErrorFallback
+            error={error}
+            onResolved={(nextSeed) => {
+              // The fallback remounts the table on the resolved condition,
+              // which settles silently, so report the edit from here.
+              setSeed(nextSeed);
+              props.onFilterConditionApplied(nextSeed.condition);
+            }}
+          />
         )}
       >
         <CompareTargetsTable
@@ -380,6 +473,7 @@ function CompareTargetsTable(props: TargetsTableProps) {
         seed={props.seed}
         emptyState={emptyState}
         selectedRowId={targetId}
+        onFilterConditionApplied={props.onFilterConditionApplied}
       />
     );
   }
@@ -389,6 +483,7 @@ function CompareTargetsTable(props: TargetsTableProps) {
         project={data.project}
         emptyState={emptyState}
         selectedRowId={targetId}
+        onFilterConditionApplied={props.onFilterConditionApplied}
       />
     );
   return (
@@ -396,6 +491,7 @@ function CompareTargetsTable(props: TargetsTableProps) {
       project={data.project}
       emptyState={emptyState}
       selectedRowId={targetId}
+      onFilterConditionApplied={props.onFilterConditionApplied}
     />
   );
 }
