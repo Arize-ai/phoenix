@@ -5,7 +5,7 @@ import operator
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timezone
 from difflib import get_close_matches
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Annotated, Any, Optional, cast
 
 import strawberry
 from aioitertools.itertools import islice
@@ -23,9 +23,9 @@ from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
+from phoenix.datetime_utils import normalize_datetime, right_open_time_range
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, date_trunc
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.session_aggregates import SESSION_ROWID, SPAN_ROWID, earliest_root_span_by_session
 from phoenix.db.trace_aggregates import (
     SPAN_ROWID as TRACE_SPAN_ROWID,
@@ -56,7 +56,7 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSortConfig,
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
-from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
@@ -1738,23 +1738,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Span.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Span.start_time)
         stmt = (
             select(
                 bucket,
@@ -1802,12 +1787,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = SpanCountTimeSeriesDataPoint(timestamp=timestamp)
         return SpanCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -1823,23 +1803,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         stmt = (
             select(bucket, func.count(models.Trace.id))
             .where(models.Trace.project_rowid == self.id)
@@ -1865,12 +1830,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
         return TraceCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -1886,23 +1846,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         error_traces_stmt = (
             select(
                 models.Span.trace_rowid,
@@ -1960,12 +1905,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceCountByStatusTimeSeriesDataPoint(
                     timestamp=timestamp,
@@ -1986,23 +1926,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
 
         stmt: Select[*tuple[Any, ...]] = select(bucket).where(models.Trace.project_rowid == self.id)
         if time_range.start:
@@ -2067,12 +1992,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceLatencyMsPercentileTimeSeriesDataPoint(timestamp=timestamp)
         return TraceLatencyPercentileTimeSeries(
@@ -2090,23 +2010,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2212,12 +2117,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceTokenCountTimeSeriesDataPoint(timestamp=timestamp)
         return TraceTokenCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -2233,23 +2133,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2295,12 +2180,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceTokenCostTimeSeriesDataPoint(timestamp=timestamp)
         return TraceTokenCostTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -2312,10 +2192,8 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2341,8 +2219,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2352,10 +2229,8 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2376,8 +2251,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2387,13 +2261,11 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
         # Buckets by start_time (a session belongs to exactly one bucket), so unlike the
         # sessions connection's interval-overlap filter, a long-running session appears
         # only in the bucket where it started — the two surfaces intentionally differ.
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
-        )
+        bucket = time_bins.truncate(info.context.db.dialect, models.ProjectSession.start_time)
         stmt = (
             select(
                 bucket,
@@ -2415,8 +2287,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.ProjectSession.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2427,10 +2298,8 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
@@ -2464,8 +2333,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2476,10 +2344,8 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
@@ -2508,8 +2374,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2520,12 +2385,10 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
         # Match `session_annotation_score_time_series` in this file: assign each
         # session to its start-time bucket instead of using interval overlap.
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
-        )
+        bucket = time_bins.truncate(info.context.db.dialect, models.ProjectSession.start_time)
         stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
@@ -2555,8 +2418,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.ProjectSession.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
@@ -2892,22 +2754,12 @@ class AnnotationMetricsTimeSeries:
     names: list[str]
 
 
-_TimeBinStride = Literal["minute", "hour", "day", "week", "month", "year"]
-
-
-def _time_bin_stride(time_bin_config: Optional[TimeBinConfig]) -> tuple[_TimeBinStride, int]:
-    if not time_bin_config:
-        return "hour", 0
-    return time_bin_config.scale.value, time_bin_config.utc_offset_minutes
-
-
 async def _annotation_score_time_series(
     db: DbSessionFactory,
     stmt: Select[*tuple[Any, ...]],
     time_range: TimeRange,
     start_time_col: InstrumentedAttribute[datetime],
-    stride: _TimeBinStride,
-    utc_offset_minutes: int,
+    time_bins: TimeBucketSpec,
 ) -> AnnotationScoreTimeSeries:
     """Execute a (bucket, name, average_score) statement and fill in empty time bins.
 
@@ -2916,8 +2768,7 @@ async def _annotation_score_time_series(
         stmt: A statement selecting (time bucket, annotation name, average score) rows.
         time_range: The requested time range; the start is required.
         start_time_col: The timestamp column the time range filters on.
-        stride: The time bin stride used to fill in empty bins.
-        utc_offset_minutes: The UTC offset applied when binning timestamps.
+        time_bins: The time binning used to bucket rows and fill in empty bins.
 
     Returns:
         The average annotation scores per time bin, keyed by annotation name.
@@ -2949,12 +2800,7 @@ async def _annotation_score_time_series(
         )
         for timestamp, scores_by_name in scores.items()
     }
-    for timestamp in get_timestamp_range(
-        start_time=min_time,
-        end_time=max_time,
-        stride=stride,
-        utc_offset_minutes=utc_offset_minutes,
-    ):
+    for timestamp in time_bins.timestamps(min_time, max_time):
         if timestamp not in data:
             data[timestamp] = AnnotationScoreTimeSeriesDataPoint(
                 timestamp=timestamp,
@@ -2986,8 +2832,7 @@ async def _annotation_metrics_time_series(
     stmt: Select[*tuple[Any, ...]],
     time_range: TimeRange,
     start_time_col: InstrumentedAttribute[datetime],
-    stride: _TimeBinStride,
-    utc_offset_minutes: int,
+    time_bins: TimeBucketSpec,
 ) -> AnnotationMetricsTimeSeries:
     """Build bounded, entity-weighted summaries and fill in empty time bins."""
     if time_range.start is None:
@@ -3038,12 +2883,7 @@ async def _annotation_metrics_time_series(
         )
         for timestamp, summaries in summaries_by_timestamp.items()
     }
-    for timestamp in get_timestamp_range(
-        start_time=min_time,
-        end_time=max_time,
-        stride=stride,
-        utc_offset_minutes=utc_offset_minutes,
-    ):
+    for timestamp in time_bins.timestamps(min_time, max_time):
         if timestamp not in data:
             data[timestamp] = AnnotationMetricsTimeSeriesDataPoint(
                 timestamp=timestamp,
