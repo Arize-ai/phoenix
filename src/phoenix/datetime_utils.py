@@ -13,6 +13,48 @@ from typing_extensions import assert_never
 
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 
+TimeBinUnit = Literal["minute", "hour", "day", "week", "month", "year"]
+
+FIXED_LENGTH_TIME_BIN_UNIT_SECONDS: dict[str, int] = {
+    "minute": 60,
+    "hour": 3600,
+    "day": 86400,
+    "week": 604800,
+}
+"""Seconds in each fixed-length unit. Only these units allow multi-unit bins."""
+
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def multi_unit_time_bin_params(
+    unit: TimeBinUnit,
+    units_per_bin: int,
+    utc_offset_minutes: int,
+) -> tuple[int, int]:
+    """
+    Return `(width_seconds, shift_seconds)` for bins of `units_per_bin` × `unit`.
+
+    A Unix timestamp `t` falls in the bin that starts at
+    `floor((t + shift) / width) * width - shift`. Bins follow local clock time
+    (5-minute bins start at :00, :05, ...), and week bins start on Monday.
+
+    Examples:
+        >>> multi_unit_time_bin_params("minute", 5, 0)
+        (300, 0)
+        >>> multi_unit_time_bin_params("hour", 3, 330)
+        (10800, 19800)
+        >>> multi_unit_time_bin_params("week", 2, 0)
+        (1209600, 259200)
+    """
+    if units_per_bin < 1:
+        raise ValueError(f"units_per_bin must be at least 1, got {units_per_bin}")
+    if unit not in FIXED_LENGTH_TIME_BIN_UNIT_SECONDS:
+        raise ValueError(f"multi-unit bins require a fixed-length unit, got {unit!r}")
+    width_seconds = units_per_bin * FIXED_LENGTH_TIME_BIN_UNIT_SECONDS[unit]
+    # The epoch is a Thursday, so count weeks from the Monday before it.
+    origin_seconds = -3 * FIXED_LENGTH_TIME_BIN_UNIT_SECONDS["day"] if unit == "week" else 0
+    return width_seconds, utc_offset_minutes * 60 - origin_seconds
+
 
 def local_now() -> datetime:
     return datetime.now(timezone.utc).astimezone(tz=_LOCAL_TIMEZONE)
@@ -118,8 +160,9 @@ def is_timezone_aware(dt: datetime) -> bool:
 def get_timestamp_range(
     start_time: datetime,
     end_time: datetime,
-    stride: Literal["minute", "hour", "day", "week", "month", "year"] = "minute",
+    stride: TimeBinUnit = "minute",
     utc_offset_minutes: int = 0,
+    units_per_bin: int = 1,
 ) -> Iterator[datetime]:
     """
     Generate a sequence of datetime objects at regular intervals between start and end times.
@@ -142,6 +185,8 @@ def get_timestamp_range(
         utc_offset_minutes: Timezone offset in minutes from UTC. Used to determine
                            the correct stride boundaries in local time. Positive values
                            are east of UTC, negative values are west of UTC.
+        units_per_bin: The number of stride units per bin. Values above 1
+                  require a minute, hour, day, or week stride.
 
     Returns:
         Iterator of datetime objects in UTC timezone, spaced at the specified stride
@@ -164,6 +209,14 @@ def get_timestamp_range(
         [datetime.datetime(2024, 1, 8, 0, 0, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 15, 0, 0, tzinfo=datetime.timezone.utc)]
 
+        >>> # 5-minute bins start on a 5-minute boundary
+        >>> start = datetime(2024, 1, 1, 12, 7, 30, tzinfo=timezone.utc)
+        >>> end = datetime(2024, 1, 1, 12, 20, 0, tzinfo=timezone.utc)
+        >>> list(get_timestamp_range(start, end, "minute", units_per_bin=5))
+        [datetime.datetime(2024, 1, 1, 12, 5, tzinfo=datetime.timezone.utc),
+         datetime.datetime(2024, 1, 1, 12, 10, tzinfo=datetime.timezone.utc),
+         datetime.datetime(2024, 1, 1, 12, 15, tzinfo=datetime.timezone.utc)]
+
     Note:
         - If end_time <= start_time (after rounding), returns an empty iterator
         - Week intervals always start on Monday (weekday 0)
@@ -172,6 +225,20 @@ def get_timestamp_range(
     """
     if not is_timezone_aware(start_time) or not is_timezone_aware(end_time):
         raise ValueError("start_time and end_time must be timezone-aware")
+
+    if units_per_bin != 1:
+        width_seconds, shift_seconds = multi_unit_time_bin_params(
+            stride, units_per_bin, utc_offset_minutes
+        )
+        # Drop sub-second precision, as the SQL does.
+        start_seconds = (start_time - _EPOCH) // timedelta(seconds=1)
+        first_seconds = (start_seconds + shift_seconds) // width_seconds * width_seconds
+        t = _EPOCH + timedelta(seconds=first_seconds - shift_seconds)
+        step = timedelta(seconds=width_seconds)
+        while t < end_time:
+            yield t
+            t += step
+        return
 
     # Apply UTC offset to work in local timezone
     offset_delta = timedelta(minutes=utc_offset_minutes)
