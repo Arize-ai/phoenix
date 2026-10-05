@@ -33,7 +33,7 @@ NC := \033[0m # No Color
 .PHONY: help check-tools \
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
-	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app \
+	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
@@ -58,6 +58,7 @@ help: ## Show this help message
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
+	@echo -e "  codegen-harbor-graphql - Compile the Harbor verifiers' GraphQL queries into typed Python models"
 	@echo -e "  mcp-skills             - Compile the MCP server's shared skills from .agents/skills"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
@@ -204,6 +205,12 @@ schema-openapi: ## Generate OpenAPI schema from Python
 	@echo -e "$(CYAN)Generating OpenAPI schema...$(NC)"
 	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
+
+codegen-harbor-graphql: ## Compile evals/harbor/verifiers/graphql/operations/*.graphql into evals/harbor/verifiers/graphql/__generated__
+	@echo -e "$(CYAN)Compiling Harbor GraphQL queries against js/app/schema.graphql...$(NC)"
+	@rm -rf $(CURDIR)/evals/harbor/verifiers/graphql/__generated__
+	@$(UV) run ariadne-codegen
+	@echo -e "$(GREEN)✓ evals/harbor/verifiers/graphql/__generated__$(NC)"
 
 codegen-python-client: ## Generate Python client types from OpenAPI
 	@echo -e "$(CYAN)Generating Python client types...$(NC)"
@@ -502,16 +509,15 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # HARBOR_JOB selects the benchmark configuration. HARBOR_ARGS passes options to
 # `harbor run`. The `-a` option preserves the tasks and environment but replaces the
 # configured agents.
-HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
+HARBOR_JOB ?= evals/harbor/jobs/regression.yaml
 HARBOR_ARGS ?=
 # harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
 # HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
 HARBOR_CLI ?= 1
-# The arize-phoenix plugin records tasks, trials, scores, and traces. Jobs that define
-# `datasets:` use the task directory name as the dataset name. Other jobs use
-# pxi-benchmark by default. HARBOR_DATASET overrides the name. Set HARBOR_PLUGIN to an
-# empty value to disable recording.
-HARBOR_DATASET ?= $(if $(shell grep -l '^datasets:' $(HARBOR_JOB) 2>/dev/null),,pxi-benchmark)
+# The arize-phoenix plugin records tasks, trials, scores, and traces under a dataset
+# named after the job's task directory. HARBOR_DATASET overrides the name. Set
+# HARBOR_PLUGIN to an empty value to disable recording.
+HARBOR_DATASET ?=
 HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
 # This client package provides the arize-phoenix Harbor plugin.
