@@ -340,6 +340,8 @@ async def _reset_password(request: Request) -> Response:
     if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
         return Response(status_code=204)
+    if user.reset_password and password == DEFAULT_ADMIN_PASSWORD:
+        raise HTTPException(status_code=422, detail=_DEFAULT_PASSWORD_MUST_BE_CHANGED)
     validate_password_format(password)
     user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
     loop = asyncio.get_running_loop()
