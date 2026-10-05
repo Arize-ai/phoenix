@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import os
 import re
 from datetime import date, datetime
 from typing import Any, Callable, NamedTuple
 
 from phoenix.client.__generated__ import v1
+from phoenix.evals import LLM, ClassificationEvaluator, Score
 
-from harbor_verifiers import phoenix_api
+from harbor_verifiers import llm_judge, phoenix_api
 from harbor_verifiers.graphql.__generated__ import (
     AnnotationConfigInput,
     BaseModel,
@@ -272,3 +274,23 @@ def compare_links(text: str) -> list[tuple[str, set[str]]]:
     for dataset_id, query_string in _COMPARE_LINK.findall(text):
         links.append((dataset_id, set(re.findall(r"experimentId=([A-Za-z0-9=_-]+)", query_string))))
     return links
+
+
+# --- the LLM judge -------------------------------------------------------------------
+
+_API_KEYS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+
+
+def judge(name: str, system: str, user: str) -> Score:
+    """Score 1.0 when the judge accepts, 0.0 when it rejects, ``None`` when the judge
+    provider has no API key."""
+    key = _API_KEYS.get(llm_judge.JUDGE_PROVIDER)
+    if key and not os.environ.get(key):
+        return Score(name=name, label="skipped", explanation=f"{key} is not set", kind="llm")
+    evaluator = ClassificationEvaluator(
+        name=name,
+        llm=LLM(provider=llm_judge.JUDGE_PROVIDER, model=llm_judge.JUDGE_MODEL),
+        prompt_template="{{system}}\n\n{{user}}",
+        choices={"accept": 1.0, "reject": 0.0},
+    )
+    return evaluator.evaluate({"system": system, "user": user})[0]

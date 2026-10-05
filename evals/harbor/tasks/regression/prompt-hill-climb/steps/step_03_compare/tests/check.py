@@ -2,7 +2,7 @@ import json
 
 import hill_climb_checks as hc
 
-from harbor_verifiers import llm_judge, phoenix_api, verify
+from harbor_verifiers import phoenix_api, verify
 from harbor_verifiers.graphql.__generated__ import ExperimentFields
 
 trajectory = verify.read_trajectory(verify.TRAJECTORY_PATH)
@@ -62,33 +62,26 @@ facts = (
     f"LAST experiment {describe(last, last_scores)}\n"
     f"EXAMPLES WHOSE SCORE CHANGED:\n{moved_text}"
 )
-VERDICT_KEYS = {
-    "quality_stated": "the reply gives the pass counts or scores of both experiments",
-    "quality_matches": "those numbers agree with the facts",
-    "latency_stated": "the reply compares latency or duration",
-    "cost_stated": "the reply compares cost",
-    "cites_moved_examples": "the reply names at least one specific example that changed",
-    "cited_examples_valid": "every example the reply says changed is in the list of changed examples",
-    "verdict_given": "the reply says whether the change helped",
-}
-verdict = llm_judge.judge(
+verdict = hc.judge(
+    name="judge_accepts_comparison",
     system=(
         "You grade the final chat reply of an AI assistant asked to compare its first and last "
         "experiments on a dataset and say whether a prompt change helped. You are given the "
         "database facts. Judge only what the reply says against those facts. Examples may be "
-        "referred to by their node id, metadata id, or by quoting their question."
+        "referred to by their node id, metadata id, or by quoting their question.\n\n"
+        "Answer accept only when all of the following hold:\n"
+        "1. the reply gives the pass counts or scores of both experiments\n"
+        "2. those numbers agree with the facts\n"
+        "3. the reply compares latency or duration\n"
+        "4. the reply compares cost\n"
+        "5. the reply names at least one specific example that changed\n"
+        "6. every example the reply says changed is in the list of changed examples\n"
+        "7. the reply says whether the change helped\n"
+        "Otherwise answer reject."
     ),
     user=f"DATABASE FACTS:\n{facts}\n\nASSISTANT REPLY:\n<<<\n{reply}\n>>>",
-    schema={
-        "type": "object",
-        "properties": {
-            **{key: {"type": "boolean", "description": text} for key, text in VERDICT_KEYS.items()},
-            "rationale": {"type": "string", "description": "one sentence"},
-        },
-        "required": [*VERDICT_KEYS, "rationale"],
-    },
 )
-judge_accepts_comparison = verdict is not None and all(verdict.get(k) is True for k in VERDICT_KEYS)
+judge_accepts_comparison = verdict.score == 1.0
 
 passed = (
     no_new_experiments_or_scores
@@ -104,7 +97,7 @@ details = {
     "moved_example_ids": sorted(moved),
     "links": [[d, sorted(ids)] for d, ids in links],
     "last_metadata": last.metadata,
-    "judge": verdict,
+    "judge": verdict.to_dict(),
 }
 scores = verify.write_reward(
     float(passed),
