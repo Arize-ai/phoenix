@@ -405,8 +405,6 @@ TABLE_GRAPHQL_TYPES: dict[str, str] = {
     "experiment_tags": "ExperimentTag",
     "experiment_jobs": "ExperimentJob",
     "experiment_logs": "ExperimentLog",
-    # The evaluators table has no type of its own: each row's node id uses the
-    # concrete type named by its kind, which is the detail table it joins to.
     "llm_evaluators": "LLMEvaluator",
     "code_evaluators": "CodeEvaluator",
     "builtin_evaluators": "BuiltInEvaluator",
