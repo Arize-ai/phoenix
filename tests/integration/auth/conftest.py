@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 from smtpdfix.certs import Cert, _generate_certs
-from sqlalchemy import make_url
+from sqlalchemy import URL, make_url
 
 from .._helpers import (
     _AppInfo,
@@ -469,29 +469,70 @@ def _requires_derived_signing_key(_secret_configuration: str) -> None:
 
 
 @pytest.fixture(scope="package")
+def _env_auth(_secret_configuration: str) -> dict[str, str]:
+    return {
+        **_auth_env(secret_configuration=_secret_configuration),
+        "PHOENIX_DISABLE_RATE_LIMIT": "true",
+        "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_database(_sql_database_url: URL) -> dict[str, str]:
+    return {"PHOENIX_SQL_DATABASE_URL": _sql_database_url.render_as_string()}
+
+
+@contextmanager
+def _isolated_database(
+    env: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
+    name: str,
+) -> Iterator[dict[str, str]]:
+    prepared = dict(env)
+    database_url = prepared["PHOENIX_SQL_DATABASE_URL"]
+    schema_loop: Optional[asyncio.AbstractEventLoop] = None
+    schema_ctx: Any = None
+    if _is_memory_sqlite(database_url):
+        database = tmp_path_factory.mktemp(name) / "phoenix.db"
+        prepared["PHOENIX_SQL_DATABASE_URL"] = f"sqlite:///{database}"
+    elif database_url.startswith("postgresql"):
+        schema_loop = asyncio.new_event_loop()
+        schema_ctx = _random_schema(make_url(database_url))
+        prepared["PHOENIX_SQL_DATABASE_SCHEMA"] = schema_loop.run_until_complete(
+            schema_ctx.__aenter__()
+        )
+    try:
+        yield prepared
+    finally:
+        if schema_loop is not None and schema_ctx is not None:
+            schema_loop.run_until_complete(schema_ctx.__aexit__(None, None, None))
+            schema_loop.close()
+
+
+@pytest.fixture(scope="package")
 def _env(
     _env_auth: Mapping[str, str],
     _env_database: Mapping[str, str],
     _env_oauth2: Mapping[str, str],
     _env_ldap: Mapping[str, str],
-    _env_ports: Mapping[str, str],
     _env_smtp: Mapping[str, str],
     _env_tls: Mapping[str, str],
     _env_agents: Mapping[str, str],
-    _secret_configuration: str,
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[dict[str, str]]:
     """Combine all environment variable configurations for testing."""
     env = {
         **_env_tls,
-        **_env_ports,
         **_env_database,
         **_env_auth,
         **_env_smtp,
         **_env_oauth2,
         **_env_ldap,
         **_env_agents,
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+        "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
         # The OAuth2 consent decision endpoint requires an Origin header that
         # matches the server's public origin. Tests reach the server at
         # 127.0.0.1, so that hostname must be trusted in addition to the
@@ -508,29 +549,8 @@ def _env(
         # _app_mcp_code_mode is the dedicated fixture that opts into code mode.
         "PHOENIX_ENABLE_MCP_CODE_MODE": "false",
     }
-    env["PHOENIX_PORT"] = str(next(_ports))
-    env["PHOENIX_GRPC_PORT"] = str(next(_ports))
-    if _secret_configuration == "absent":
-        env.pop("PHOENIX_SECRET", None)
-        env.pop("PHOENIX_ADMIN_SECRET", None)
-    # A file-backed database lets tests read the subprocess server's deployment seed.
-    database_url = env.get("PHOENIX_SQL_DATABASE_URL", "")
-    schema_loop: Optional[asyncio.AbstractEventLoop] = None
-    schema_ctx: Any = None
-    if _is_memory_sqlite(database_url):
-        database = tmp_path_factory.mktemp(f"auth-app-{_secret_configuration}") / "phoenix.db"
-        env["PHOENIX_SQL_DATABASE_URL"] = f"sqlite:///{database}"
-    elif database_url.startswith("postgresql"):
-        schema_loop = asyncio.new_event_loop()
-        schema_ctx = _random_schema(make_url(database_url))
-        schema = schema_loop.run_until_complete(schema_ctx.__aenter__())
-        env["PHOENIX_SQL_DATABASE_SCHEMA"] = schema
-    try:
+    with _isolated_database(env, tmp_path_factory, "auth-app") as env:
         yield env
-    finally:
-        if schema_loop is not None and schema_ctx is not None:
-            schema_loop.run_until_complete(schema_ctx.__aexit__(None, None, None))
-            schema_loop.close()
 
 
 _SECRET_ENV = ("PHOENIX_SECRET", "PHOENIX_ADMIN_SECRET")
@@ -540,36 +560,6 @@ def _unset_secrets(secret_configuration: str) -> tuple[str, ...]:
     if secret_configuration == "absent":
         return _SECRET_ENV
     return ()
-
-
-@contextmanager
-def _database_for_secret_configuration(
-    env: Mapping[str, str],
-    secret_configuration: str,
-    tmp_path_factory: pytest.TempPathFactory,
-    name: str,
-) -> Iterator[dict[str, str]]:
-    prepared = dict(env)
-    if secret_configuration == "absent":
-        prepared.pop("PHOENIX_SECRET", None)
-        prepared.pop("PHOENIX_ADMIN_SECRET", None)
-    database_url = prepared.get("PHOENIX_SQL_DATABASE_URL", "")
-    schema_loop: Optional[asyncio.AbstractEventLoop] = None
-    schema_ctx: Any = None
-    if _is_memory_sqlite(database_url):
-        database = tmp_path_factory.mktemp(f"{name}-{secret_configuration}") / "phoenix.db"
-        prepared["PHOENIX_SQL_DATABASE_URL"] = f"sqlite:///{database}"
-    elif database_url.startswith("postgresql"):
-        schema_loop = asyncio.new_event_loop()
-        schema_ctx = _random_schema(make_url(database_url))
-        schema = schema_loop.run_until_complete(schema_ctx.__aenter__())
-        prepared["PHOENIX_SQL_DATABASE_SCHEMA"] = schema
-    try:
-        yield prepared
-    finally:
-        if schema_loop is not None and schema_ctx is not None:
-            schema_loop.run_until_complete(schema_ctx.__aexit__(None, None, None))
-            schema_loop.close()
 
 
 def _assert_issued_token_verifies_with_secret_configuration(
@@ -652,9 +642,7 @@ def _app_ldap_no_sign_up(
         **_env_oauth2,
         **_env_ldap_no_sign_up,
     }
-    with _database_for_secret_configuration(
-        env, _secret_configuration, tmp_path_factory, "ldap-no-sign-up"
-    ) as env:
+    with _isolated_database(env, tmp_path_factory, "ldap-no-sign-up") as env:
         with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
             yield app
 
@@ -721,9 +709,7 @@ def _app_ldap_posix(
         **_env_oauth2,
         **_env_ldap_posix,
     }
-    with _database_for_secret_configuration(
-        env, _secret_configuration, tmp_path_factory, "ldap-posix"
-    ) as env:
+    with _isolated_database(env, tmp_path_factory, "ldap-posix") as env:
         with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
             yield app
 
@@ -766,9 +752,7 @@ def _app_ldap_posix_memberuid(
         **_env_oauth2,
         **_env_ldap_posix_memberuid,
     }
-    with _database_for_secret_configuration(
-        env, _secret_configuration, tmp_path_factory, "ldap-posix-memberuid"
-    ) as env:
+    with _isolated_database(env, tmp_path_factory, "ldap-posix-memberuid") as env:
         with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
             yield app
 
@@ -800,9 +784,7 @@ def _app_ldap_unique_id(
         **_env_oauth2,
         **_env_ldap_unique_id,
     }
-    with _database_for_secret_configuration(
-        env, _secret_configuration, tmp_path_factory, "ldap-unique-id"
-    ) as env:
+    with _isolated_database(env, tmp_path_factory, "ldap-unique-id") as env:
         with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
             yield app
 
@@ -834,9 +816,7 @@ def _app_ldap_no_email(
         **_env_oauth2,
         **_env_ldap_no_email,
     }
-    with _database_for_secret_configuration(
-        env, _secret_configuration, tmp_path_factory, "ldap-no-email"
-    ) as env:
+    with _isolated_database(env, tmp_path_factory, "ldap-no-email") as env:
         with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
             yield app
 

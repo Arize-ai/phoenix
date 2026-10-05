@@ -23,7 +23,7 @@ from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
-from time import sleep, time
+from time import monotonic, sleep, time
 from types import MappingProxyType, TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -63,7 +63,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
 from psutil import STATUS_ZOMBIE, NoSuchProcess, Popen
-from sqlalchemy import URL, make_url, text
+from sqlalchemy import URL, make_url, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
@@ -545,11 +545,7 @@ if TYPE_CHECKING:
 
 
 def _load_deployment_seed(database_url: str, schema: str) -> bytes:
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
-    from phoenix.db.helpers import SupportedSQLDialect
-    from phoenix.server.deployment_secret import load_deployment_seed
-    from phoenix.server.types import DbSessionFactory
+    from phoenix.db import models
 
     url = get_async_db_url(database_url)
     connect_args: dict[str, Any] = {}
@@ -558,20 +554,15 @@ def _load_deployment_seed(database_url: str, schema: str) -> bytes:
     elif url.get_backend_name() == "sqlite":
         connect_args["timeout"] = 30.0
     engine = create_async_engine(url, poolclass=NullPool, connect_args=connect_args)
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    @asynccontextmanager
-    async def sessions() -> AsyncIterator[Any]:
-        async with session_factory.begin() as session:
-            yield session
 
     async def load() -> bytes:
         try:
-            db = DbSessionFactory(
-                db=sessions,
-                dialect=SupportedSQLDialect(url.get_backend_name()).value,
-            )
-            return await load_deployment_seed(db)
+            async with engine.connect() as connection:
+                seed = await connection.scalar(
+                    select(models.DeploymentSecret.seed).where(models.DeploymentSecret.id == 1)
+                )
+            assert isinstance(seed, (bytes, memoryview)) and len(seed) == 32
+            return bytes(seed)
         finally:
             await engine.dispose()
 
@@ -706,41 +697,6 @@ def _start_span(
         attributes=attributes,
         start_time=start_time,
     )
-
-
-class _DefaultAdminTokens(ABC):
-    """
-    Because the tests can be run concurrently, and we need the default admin to create database
-    entities (e.g. to add new users), the default admin should never log out once logged in,
-    because logging out invalidates all existing access tokens, resulting in a race among the
-    tests. The approach here is to add a middleware to block any inadvertent use of the default
-    admin's access tokens for logging out. This class is intended to be used as a singleton
-    container to ensure that all tokens are always accounted for. Furthermore, the tokens are
-    disambiguated by the port of the server to which they belong.
-    """
-
-    _set: set[tuple[int, str]] = set()
-    _lock: Lock = Lock()
-
-    @classmethod
-    def __new__(cls) -> Self:
-        raise NotImplementedError("This class is intended as a singleton to be used directly.")
-
-    @classmethod
-    def stash(cls, port: int, headers: Headers) -> None:
-        tokens = _extract_tokens(headers, "set-cookie").values()
-        for token in tokens:
-            with cls._lock:
-                cls._set.add((port, token))
-
-    @classmethod
-    def intersect(cls, port: int, headers: Headers) -> bool:
-        tokens = _extract_tokens(headers).values()
-        for token in tokens:
-            with cls._lock:
-                if (port, token) in cls._set:
-                    return True
-        return False
 
 
 class _LogResponse(httpx.Response):
@@ -892,21 +848,28 @@ def _server(app: _AppInfo, *, unset_env: tuple[str, ...] = ()) -> Iterator[_AppI
     )
     log: list[str] = []
     lock: Lock = Lock()
+    reader = Thread(target=_capture_stdout, args=(process, log, lock), daemon=True)
+    reader_started = False
     try:
-        Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
+        reader.start()
+        reader_started = True
         t = 60
-        time_limit = time() + t
-        timed_out = False
+        time_limit = monotonic() + t
+        started = False
         url = str(urljoin(app.base_url, "healthz"))
         ssl_context = _get_ssl_context(app.env)
-        while not timed_out and _is_alive(process):
-            sleep(0.1)
-            try:
-                urlopen(url, context=ssl_context)
+        while _is_alive(process):
+            remaining = time_limit - monotonic()
+            if remaining <= 0:
                 break
-            except BaseException:
-                timed_out = time() > time_limit
-        if timed_out:
+            try:
+                with urlopen(url, context=ssl_context, timeout=min(1.0, remaining)):
+                    pass
+                started = True
+                break
+            except OSError:
+                sleep(min(0.1, max(0.0, time_limit - monotonic())))
+        if not started and monotonic() >= time_limit:
             raise TimeoutError(f"Server {url} did not start within {t} seconds.")
         assert _is_alive(process)
         with lock:
@@ -915,12 +878,19 @@ def _server(app: _AppInfo, *, unset_env: tuple[str, ...] = ()) -> Iterator[_AppI
             log.clear()
         yield app
     finally:
-        if process.poll() is None:
+        try:
+            if process.poll() is None:
+                try:
+                    process.kill()
+                except (NoSuchProcess, ProcessLookupError):
+                    pass
             try:
-                process.kill()
+                process.wait(timeout=10)
             except (NoSuchProcess, ProcessLookupError):
                 pass
-        process.wait(timeout=10)
+        finally:
+            if reader_started:
+                reader.join(timeout=10)
         with lock:
             for line in log:
                 print(line, end="")
@@ -941,11 +911,11 @@ def _capture_stdout(
     log: list[str],
     lock: Lock,
 ) -> None:
-    while _is_alive(process):
-        line = process.stdout.readline()
-        if line or (log and log[-1] != line):
-            with lock:
-                log.append(line)
+    if process.stdout is None:
+        return
+    for line in process.stdout:
+        with lock:
+            log.append(line)
 
 
 @asynccontextmanager
