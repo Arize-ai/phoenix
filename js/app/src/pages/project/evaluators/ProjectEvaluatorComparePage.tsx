@@ -49,9 +49,14 @@ const mainCSS = css`
 `;
 
 const scrollCSS = css`
+  --project-evaluator-compare-page-gutter: var(--global-dimension-size-200);
   height: 100%;
   overflow: auto;
   scrollbar-gutter: stable;
+`;
+
+const gutterCSS = css`
+  padding: var(--project-evaluator-compare-page-gutter);
 `;
 
 const contentCSS = css`
@@ -158,7 +163,7 @@ function ProjectEvaluatorComparePageLoaded({
         }
       />
       <div css={scrollCSS}>
-        <View padding="size-200">
+        <div css={gutterCSS}>
           <div css={contentCSS}>
             <Suspense key={pairKey} fallback={<Loading />}>
               <ErrorBoundary
@@ -174,7 +179,7 @@ function ProjectEvaluatorComparePageLoaded({
               </ErrorBoundary>
             </Suspense>
           </div>
-        </View>
+        </div>
       </div>
       <Suspense fallback={<Loading />}>
         <Outlet />
