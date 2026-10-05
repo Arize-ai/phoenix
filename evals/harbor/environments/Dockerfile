@@ -25,6 +25,6 @@ COPY container_assets/ /opt/phoenix-eval/
 COPY data/ /data/
 # Root-only: the agent phase runs as `agent` and reaches the data only through Phoenix.
 RUN chmod 700 /data && chmod 600 /data/phoenix.db
-# Harbor uploads each step's tests/ here before verification and does not remove them
-# afterwards, so a later step's agent could read earlier checks. The verifier runs as root.
+# Harbor does not remove tests between steps of a multi-step task.
+# Ensure that an agent running in a later step cannot read the tests for previous steps.
 RUN install -d -m 700 /tests

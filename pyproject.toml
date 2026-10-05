@@ -335,8 +335,6 @@ testpaths = [
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
-# harbor_verifiers lives under evals/harbor/verifiers/ but installs as a top-level package,
-# so name modules from these roots instead of from the highest __init__.py above them.
 explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
