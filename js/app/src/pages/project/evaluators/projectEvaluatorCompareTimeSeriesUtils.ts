@@ -101,3 +101,9 @@ export function getCompareLabelSegments({
     color: getShadeColor({ hue, shade }),
   }));
 }
+
+/**
+ * The most bins whose pairs of bars still fit at full width in the half-width
+ * chart.
+ */
+export const MAX_COMPARE_TIME_BINS = 20;
