@@ -7,7 +7,8 @@ SHELL := /bin/bash
 # Tools
 TOX := tox
 PNPM := pnpm
-UV := uv
+UV := $(CURDIR)/scripts/uv.sh
+UV_BIN := uv
 NODE := node
 
 # Directories
@@ -133,7 +134,7 @@ help: ## Show this help message
 
 check-tools: ## Verify required tools are installed
 	@echo -e "$(CYAN)Checking required tools...$(NC)"
-	@command -v $(UV) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
+	@command -v $(UV_BIN) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) uv found: $$($(UV) --version)"
 	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) pnpm found: $$($(PNPM) --version)"

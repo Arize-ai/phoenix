@@ -6,6 +6,10 @@ import * as crypto from "node:crypto";
 import os from "os";
 import path from "path";
 import process from "process";
+import { fileURLToPath } from "url";
+
+// Run the repo's pinned uv so a relock from the test server matches CI.
+const uv = fileURLToPath(new URL("../../../../scripts/uv.sh", import.meta.url));
 
 const appPrefix = "phoenix";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
@@ -53,7 +57,7 @@ if (!fs.existsSync(wasmCachedBinary)) {
     "Pre-warming CPython WASM binary cache (one-time, ~30MB download)..."
   );
   execSync(
-    `uv run --extra container python -c "from phoenix.server.sandbox._download import ensure_wasm_binary; ensure_wasm_binary()"`,
+    `${uv} run --extra container python -c "from phoenix.server.sandbox._download import ensure_wasm_binary; ensure_wasm_binary()"`,
     { stdio: "inherit" }
   );
 }
@@ -80,7 +84,9 @@ console.log(
 );
 
 // Execute the server
-const childProcess = exec(`uv run --compile --extra container phoenix serve`);
+const childProcess = exec(
+  `${uv} run --compile --extra container phoenix serve`
+);
 
 childProcess.stdout?.pipe(process.stdout);
 childProcess.stderr?.pipe(process.stderr);
