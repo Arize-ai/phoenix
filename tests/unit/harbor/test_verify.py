@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import pytest
+from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
 from evals.harbor.verifiers import verify
 from tests.unit.vcr import CustomVCR
@@ -83,8 +84,10 @@ def test_reference_check_grades_semantic_answers(
         ("TextInspectorTool, not page_down, had the most failures.", 0.0),
     ]
 
+    # The OpenAI SDK's key order varies across versions, so match the parsed body.
+    custom_vcr.register_matcher(_json_body.__name__, _json_body)
     with custom_vcr.use_cassette(
-        match_on=["method", "scheme", "host", "port", "path", "query", "body"]
+        match_on=["method", "scheme", "host", "port", "path", "query", _json_body.__name__]
     ):
         scores = [verify.check(reply, expected)[0] for reply, _ in cases]
 
@@ -134,3 +137,7 @@ def test_started_at_ignores_copied_context() -> None:
     started = verify.started_at({"steps": steps})
     assert started is not None and started.isoformat() == "2026-09-16T00:17:57+00:00"
     assert verify.started_at({"steps": [{"source": "user"}]}) is None
+
+
+def _json_body(request1: VCRRequest, request2: VCRRequest) -> None:
+    assert json.loads(request1.body) == json.loads(request2.body)
