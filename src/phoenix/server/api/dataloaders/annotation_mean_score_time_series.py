@@ -15,19 +15,17 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import date_trunc
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
+from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.types import DbSessionFactory
 
 Kind: TypeAlias = Literal["span", "trace", "session"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[datetime, datetime]
-Stride: TypeAlias = Literal["minute", "hour", "day", "week", "month", "year"]
-UtcOffsetMinutes: TypeAlias = int
 AnnotationName: TypeAlias = str
 
-Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, Stride, UtcOffsetMinutes]
-Key: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, Stride, UtcOffsetMinutes, AnnotationName]
+Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, TimeBucketSpec]
+Key: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, TimeBucketSpec, AnnotationName]
 
 
 class MeanScoreBin(NamedTuple):
@@ -44,8 +42,8 @@ ResultPosition: TypeAlias = int
 
 
 def _segment(key: Key) -> tuple[Segment, AnnotationName]:
-    kind, project_rowid, interval, stride, utc_offset_minutes, annotation_name = key
-    return (kind, project_rowid, interval, stride, utc_offset_minutes), annotation_name
+    kind, project_rowid, interval, time_bins, annotation_name = key
+    return (kind, project_rowid, interval, time_bins), annotation_name
 
 
 class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
@@ -87,7 +85,7 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
     def _get_stmt(
         self, segment: Segment, *annotation_names: AnnotationName
     ) -> Select[*tuple[Any, ...]]:
-        kind, project_rowid, (start_time, end_time), stride, utc_offset_minutes = segment
+        kind, project_rowid, (start_time, end_time), time_bins = segment
 
         annotation_model: Union[
             Type[models.SpanAnnotation],
@@ -99,9 +97,7 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
         if kind == "span":
             annotation_model = models.SpanAnnotation
             bucket_time_column = models.Trace.start_time
-            bucket = date_trunc(
-                self._db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-            )
+            bucket = time_bins.truncate(self._db.dialect, models.Trace.start_time)
             stmt: Select[*tuple[Any, ...]] = (
                 select(
                     bucket.label("bucket"),
@@ -125,9 +121,7 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
         elif kind == "trace":
             annotation_model = models.TraceAnnotation
             bucket_time_column = models.Trace.start_time
-            bucket = date_trunc(
-                self._db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-            )
+            bucket = time_bins.truncate(self._db.dialect, models.Trace.start_time)
             stmt = (
                 select(
                     bucket.label("bucket"),
@@ -146,9 +140,7 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
         elif kind == "session":
             annotation_model = models.ProjectSessionAnnotation
             bucket_time_column = models.ProjectSession.start_time
-            bucket = date_trunc(
-                self._db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
-            )
+            bucket = time_bins.truncate(self._db.dialect, models.ProjectSession.start_time)
             stmt = (
                 select(
                     bucket.label("bucket"),
