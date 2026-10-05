@@ -38,10 +38,10 @@ from tests.integration._helpers import (
 )
 
 from .conftest import (
-    _assert_issued_token_verifies_with_signing_mode,
+    _assert_issued_token_verifies_with_secret_configuration,
     _oauth2_app_env,
     _OAuthPublicClient,
-    _unset_signing_secrets,
+    _unset_secrets,
 )
 
 
@@ -445,7 +445,7 @@ class TestMcpToolAuthorization:
 def _app_mcp_code_mode(
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
-    _token_signing_mode: str,
+    _secret_configuration: str,
 ) -> Iterator[_AppInfo]:
     """A server with auth, the /mcp mount, and PHOENIX_ENABLE_MCP_CODE_MODE all enabled.
 
@@ -457,26 +457,28 @@ def _app_mcp_code_mode(
         port=next(_ports),
         grpc_port=next(_ports),
         database=str(
-            tmp_path_factory.mktemp(f"oauth2_mcp_code_mode_{_token_signing_mode}") / "phoenix.db"
+            tmp_path_factory.mktemp(f"oauth2_mcp_code_mode_{_secret_configuration}") / "phoenix.db"
         ),
         extra={
             "PHOENIX_ENABLE_MCP_SERVER": "true",
             "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
             "PHOENIX_DISABLE_RATE_LIMIT": "true",
         },
-        signing_mode=_token_signing_mode,
+        secret_configuration=_secret_configuration,
     )
-    with _server(_AppInfo(env), unset_env=_unset_signing_secrets(_token_signing_mode)) as app:
+    with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
         yield app
 
 
 class TestMcpCodeMode:
-    def test_issued_token_verifies_with_the_mode_key(
+    def test_issued_token_verifies_with_the_expected_key(
         self,
         _app_mcp_code_mode: _AppInfo,
-        _token_signing_mode: str,
+        _secret_configuration: str,
     ) -> None:
-        _assert_issued_token_verifies_with_signing_mode(_app_mcp_code_mode, _token_signing_mode)
+        _assert_issued_token_verifies_with_secret_configuration(
+            _app_mcp_code_mode, _secret_configuration
+        )
 
     async def test_oauth_token_drives_sandboxed_execute_end_to_end(
         self,

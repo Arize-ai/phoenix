@@ -62,7 +62,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, Sp
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
-from psutil import STATUS_ZOMBIE, Popen
+from psutil import STATUS_ZOMBIE, NoSuchProcess, Popen
 from sqlalchemy import URL, make_url, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -273,19 +273,27 @@ class _User:
         )
 
 
+class _DefaultAdminMarker:
+    pass
+
+
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
+_DEFAULT_ADMIN_GID = _GqlId(GlobalID("User", "2"))
 # The default "admin" password requires a reset before a session can be opened.
 _DEFAULT_ADMIN_INITIAL_PASSWORD = token_hex(16)
-_DEFAULT_ADMIN = _User(
-    _GqlId(GlobalID("User", "2")),
-    _ADMIN,
-    _Profile(
-        email=DEFAULT_ADMIN_EMAIL,
-        password=_DEFAULT_ADMIN_INITIAL_PASSWORD,
-        username=DEFAULT_ADMIN_USERNAME,
-    ),
-    profile_picture_url=None,
-)
+_DEFAULT_ADMIN = _DefaultAdminMarker()
+
+
+def _auth_env(*, secret_configuration: str = "configured") -> dict[str, str]:
+    env = {
+        "PHOENIX_ENABLE_AUTH": "true",
+        "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": _DEFAULT_ADMIN_INITIAL_PASSWORD,
+    }
+    if secret_configuration != "absent":
+        env["PHOENIX_SECRET"] = token_hex(16)
+        env["PHOENIX_ADMIN_SECRET"] = token_hex(16)
+    return env
+
 
 _ApiKeyKind = Literal["System", "User"]
 
@@ -323,7 +331,7 @@ class _AdminSecret(str): ...
 def _admin_auth(app: _AppInfo) -> Union[_AdminSecret, _User]:
     if app.env.get("PHOENIX_ADMIN_SECRET"):
         return app.admin_secret
-    return _DEFAULT_ADMIN
+    return app.default_admin
 
 
 def _admin_bearer(app: _AppInfo) -> str:
@@ -389,7 +397,7 @@ class _LoggedInUser(_User, _CanLogOut[_User]):
         assert response.status_code == expected_status_code
 
 
-_RoleOrUser = Union[UserRoleInput, _User]
+_RoleOrUser = Union[UserRoleInput, _User, _DefaultAdminMarker]
 _SecurityArtifact: TypeAlias = Union[
     _AdminSecret,
     _AccessToken,
@@ -420,7 +428,7 @@ class _GetUser(Protocol):
     def __call__(
         self,
         app: _AppInfo,
-        role_or_user: Union[_User, UserRoleInput] = _MEMBER,
+        role_or_user: Union[_User, UserRoleInput, _DefaultAdminMarker] = _MEMBER,
         /,
         *,
         profile: Optional[_Profile] = None,
@@ -465,6 +473,19 @@ class _AppInfo:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "env", MappingProxyType(dict(self.env)))
+
+    @property
+    def default_admin(self) -> _User:
+        return _User(
+            _DEFAULT_ADMIN_GID,
+            _ADMIN,
+            _Profile(
+                email=DEFAULT_ADMIN_EMAIL,
+                password=self.env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"],
+                username=DEFAULT_ADMIN_USERNAME,
+            ),
+            profile_picture_url=None,
+        )
 
     @cached_property
     def base_url(self) -> str:
@@ -871,20 +892,20 @@ def _server(app: _AppInfo, *, unset_env: tuple[str, ...] = ()) -> Iterator[_AppI
     )
     log: list[str] = []
     lock: Lock = Lock()
-    Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
-    t = 60
-    time_limit = time() + t
-    timed_out = False
-    url = str(urljoin(app.base_url, "healthz"))
-    ssl_context = _get_ssl_context(app.env)
-    while not timed_out and _is_alive(process):
-        sleep(0.1)
-        try:
-            urlopen(url, context=ssl_context)
-            break
-        except BaseException:
-            timed_out = time() > time_limit
     try:
+        Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
+        t = 60
+        time_limit = time() + t
+        timed_out = False
+        url = str(urljoin(app.base_url, "healthz"))
+        ssl_context = _get_ssl_context(app.env)
+        while not timed_out and _is_alive(process):
+            sleep(0.1)
+            try:
+                urlopen(url, context=ssl_context)
+                break
+            except BaseException:
+                timed_out = time() > time_limit
         if timed_out:
             raise TimeoutError(f"Server {url} did not start within {t} seconds.")
         assert _is_alive(process)
@@ -893,17 +914,26 @@ def _server(app: _AppInfo, *, unset_env: tuple[str, ...] = ()) -> Iterator[_AppI
                 print(line, end="")
             log.clear()
         yield app
-        process.kill()
-        process.wait(10)
     finally:
-        for line in log:
-            print(line, end="")
+        if process.poll() is None:
+            try:
+                process.kill()
+            except (NoSuchProcess, ProcessLookupError):
+                pass
+        process.wait(timeout=10)
+        with lock:
+            for line in log:
+                print(line, end="")
+            log.clear()
 
 
 def _is_alive(
     process: Popen,
 ) -> bool:
-    return process.is_running() and process.status() != STATUS_ZOMBIE
+    try:
+        return process.is_running() and process.status() != STATUS_ZOMBIE
+    except NoSuchProcess:
+        return False
 
 
 def _capture_stdout(
