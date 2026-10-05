@@ -567,6 +567,11 @@ function EditCodeProjectEvaluator({
                 sourceCode={sourceCode}
                 onSourceCodeChange={setSourceCode}
                 onFieldChange={clearError}
+                resetSource={{
+                  language,
+                  sourceCode: initialSourceCode,
+                  kind: "saved",
+                }}
               />
             }
             inlineCode={{

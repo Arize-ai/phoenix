@@ -56,7 +56,6 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
-import type { ExecutionState } from "@phoenix/components/core/types";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   type AnnotationError,
@@ -66,13 +65,11 @@ import {
   CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
-  type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
   ExperimentMetadataCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
-import type { AnnotationSummary } from "@phoenix/components/experiment/ExperimentAnnotationAggregates";
 import { CellTop, EditableJSONCell } from "@phoenix/components/table";
 import {
   borderedTableCSS,
@@ -172,6 +169,7 @@ import {
 import { usePlaygroundDatasetExamplesTablePreferences } from "./PlaygroundDatasetExamplesTablePreferences";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundExampleRowCell } from "./PlaygroundExampleRowCell";
+import { PlaygroundInstanceRunAggregates } from "./PlaygroundInstanceRunAggregates";
 import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
@@ -739,21 +737,6 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-function getExecutionState({
-  hasData,
-  isRunning,
-  experimentId,
-}: {
-  hasData: boolean;
-  isRunning: boolean;
-  experimentId: string | null | undefined;
-}): ExecutionState {
-  if (hasData) return "complete";
-  if (isRunning) return "running";
-  if (experimentId != null) return "complete";
-  return "idle";
-}
-
 function PlaygroundInstanceOutputColumnHeader({
   instanceId,
   index,
@@ -767,79 +750,14 @@ function PlaygroundInstanceOutputColumnHeader({
   isRunning: boolean;
   evaluatorOutputConfigs: readonly AnnotationConfig[];
 }) {
-  const annotationAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.runAnnotationAggregateMetrics[instanceId] ?? null
-  );
-  const costAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.runCostAggregateMetrics[instanceId] ?? null
-  );
-  const annotationSummaries = useMemo<AnnotationSummary[]>(() => {
-    if (annotationAggregateMetrics == null) {
-      return [];
-    }
-    return Object.entries(annotationAggregateMetrics).map(
-      ([annotationName, metric]) => ({
-        annotationName,
-        meanScore: metric.count > 0 ? metric.sum / metric.count : null,
-      })
-    );
-  }, [annotationAggregateMetrics]);
-  const costSummary =
-    useMemo<ExperimentCostAndLatencySummaryExperiment | null>(() => {
-      const resolvedExperimentId = experimentId ?? null;
-      if (
-        resolvedExperimentId == null ||
-        costAggregateMetrics == null ||
-        costAggregateMetrics.runCount === 0
-      ) {
-        return null;
-      }
-      return {
-        id: resolvedExperimentId,
-        averageRunLatencyMs:
-          costAggregateMetrics.latencyCount > 0
-            ? costAggregateMetrics.latencySum /
-              costAggregateMetrics.latencyCount
-            : null,
-        runCount: costAggregateMetrics.runCount,
-        costSummary: {
-          total: {
-            cost:
-              costAggregateMetrics.costCount > 0
-                ? costAggregateMetrics.costSum
-                : null,
-            tokens:
-              costAggregateMetrics.tokenCountCount > 0
-                ? costAggregateMetrics.tokenCountSum
-                : null,
-          },
-        },
-      };
-    }, [experimentId, costAggregateMetrics]);
-
-  const costExecutionState = getExecutionState({
-    hasData: costSummary != null,
-    isRunning,
-    experimentId,
-  });
-
-  const annotationExecutionState = getExecutionState({
-    hasData: annotationSummaries.length > 0,
-    isRunning,
-    experimentId,
-  });
-
   return (
     <Flex direction="column" gap="size-50" width="100%">
       <PlaygroundOutputHeader instanceId={instanceId} index={index} />
-      <ExperimentCostAndLatencySummary
-        executionState={costExecutionState}
-        experiment={costSummary}
-      />
-      <ExperimentAnnotationAggregates
-        executionState={annotationExecutionState}
+      <PlaygroundInstanceRunAggregates
+        instanceId={instanceId}
+        experimentId={experimentId}
+        isRunning={isRunning}
         annotationConfigs={evaluatorOutputConfigs}
-        annotationSummaries={annotationSummaries}
       />
     </Flex>
   );
@@ -1612,7 +1530,9 @@ export function PlaygroundDatasetExamplesTable({
               index={index}
               name={evaluatorName}
               annotationName={annotation.name}
+              annotationConfig={annotation.config}
               output={annotation.output}
+              experimentId={experimentId}
               examples={table.options.data}
               isRunning={isRunning}
               canRun={!hasSomeRunIds && !isEditingExamples}
