@@ -1928,7 +1928,7 @@ type EvaluationChunk implements ChatCompletionSubscriptionPayload {
 }
 
 """
-The online evaluation queue for one evaluation target. Every project on the server shares it. Rates are per minute over the last 15 minutes.
+The online evaluation queue for one evaluation target. Every project on the server shares it. Rates are per minute over the last 60 minutes.
 """
 type EvaluationQueue {
   evaluationTarget: EvaluationTarget!
@@ -3881,8 +3881,8 @@ type ProjectEvaluatorEdge {
 How much of the server's evaluation time a project evaluator used over the last 60 minutes.
 """
 type ProjectEvaluatorEvaluationLoad {
-  """Evaluations started per minute over the last 60 minutes."""
-  evaluationsPerMinute: Float!
+  """Evaluations started in the last 60 minutes."""
+  evaluationCount: Int!
 
   """
   Mean seconds an evaluation took, over those started in the last 60 minutes, or null if none started.

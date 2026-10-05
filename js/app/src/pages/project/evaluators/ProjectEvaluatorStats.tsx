@@ -78,7 +78,7 @@ export function ProjectEvaluatorStats({
           lastError
         }
         evaluationLoad {
-          evaluationsPerMinute
+          evaluationCount
           meanEvaluationSeconds
           shareOfEvaluationTime
         }

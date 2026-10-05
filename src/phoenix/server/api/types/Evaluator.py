@@ -217,11 +217,8 @@ def _project_evaluator_run_summary(
     )
 )
 class ProjectEvaluatorEvaluationLoad:
-    evaluations_per_minute: float = strawberry.field(
-        description=(
-            f"Evaluations started per minute over the last {_EVALUATION_LOAD_WINDOW_MINUTES} "
-            "minutes."
-        )
+    evaluation_count: int = strawberry.field(
+        description=f"Evaluations started in the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes."
     )
     mean_evaluation_seconds: Optional[float] = strawberry.field(
         description=(
@@ -1452,7 +1449,7 @@ class ProjectEvaluator(Node):
     async def evaluation_load(self, info: Info[Context, None]) -> ProjectEvaluatorEvaluationLoad:
         load = await info.context.data_loaders.project_evaluator_evaluation_loads.load(self.id)
         return ProjectEvaluatorEvaluationLoad(
-            evaluations_per_minute=load.evaluations_per_minute,
+            evaluation_count=load.evaluation_count,
             mean_evaluation_seconds=load.mean_evaluation_seconds,
             share_of_evaluation_time=load.share_of_evaluation_time,
         )

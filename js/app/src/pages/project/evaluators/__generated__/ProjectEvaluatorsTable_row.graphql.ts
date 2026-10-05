@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7e81dd5a543620b596d6ed6f80fbbc04>>
+ * @generated SignedSource<<e81567c7a5d51881df4e1db8b245ef3d>>
  * @lightSyntaxTransform
  */
 
@@ -20,7 +20,7 @@ import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_row$data = {
   readonly enabled: boolean;
   readonly evaluationLoad: {
-    readonly evaluationsPerMinute: number;
+    readonly evaluationCount: number;
     readonly meanEvaluationSeconds: number | null;
     readonly shareOfEvaluationTime: number | null;
   };
@@ -86,6 +86,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "f0d5e13c4cad82886d29a520082f2df0";
+(node as any).hash = "c00f1dd7ab0e717e0d1daf711a3d956b";
 
 export default node;

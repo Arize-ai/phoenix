@@ -134,7 +134,7 @@ const readRow = (
           oldestQueuedAt
         }
         evaluationLoad {
-          evaluationsPerMinute
+          evaluationCount
           meanEvaluationSeconds
           shareOfEvaluationTime
         }

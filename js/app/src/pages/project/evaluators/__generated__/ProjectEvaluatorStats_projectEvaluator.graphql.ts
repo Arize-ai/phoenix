@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2e3c2f5aa9bb85d566d6d206dcd18b10>>
+ * @generated SignedSource<<fc42afa3e5175d3adb927451830fcfc1>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;
   readonly evaluationLoad: {
-    readonly evaluationsPerMinute: number;
+    readonly evaluationCount: number;
     readonly meanEvaluationSeconds: number | null;
     readonly shareOfEvaluationTime: number | null;
   };
@@ -137,7 +137,7 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "evaluationsPerMinute",
+          "name": "evaluationCount",
           "storageKey": null
         },
         {
@@ -168,6 +168,6 @@ return {
 };
 })();
 
-(node as any).hash = "2ff43f0c43e91cc5a31f41510a917e37";
+(node as any).hash = "08348b2a11c6bde2a1b015f4daa25285";
 
 export default node;

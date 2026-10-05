@@ -109,18 +109,9 @@ const fullMeterCSS = css`
   --mod-barloader-fill-color: var(--global-color-warning);
 `;
 
-const wholeRateFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 0,
-});
-const smallRateFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 1,
-});
-
-/** Whole numbers once a rate reaches 10 a minute, so in and out read alike. */
-function formatRate(perMinute: number): string {
-  return (perMinute >= 10 ? wholeRateFormatter : smallRateFormatter).format(
-    perMinute
-  );
+/** A per-minute rate as a whole number per hour. */
+function formatPerHour(perMinute: number): string {
+  return intFormatter(Math.round(perMinute * 60));
 }
 
 function sum(values: ReadonlyArray<number>): number {
@@ -229,7 +220,18 @@ function ProjectEvaluatorQueueStatsContent({
     <Flex direction="row" gap="size-400" alignItems="start">
       <QueueStatusStat queues={queues} statusAction={statusAction} />
       <QueuedStat queues={queues} projectQueuedCount={projectQueuedCount} />
-      <QueueRatesStat queues={queues} />
+      <QueueRateStat
+        label="Added"
+        queues={queues}
+        getPerMinute={(queue) => queue.queuedPerMinute}
+        description="In the last hour"
+      />
+      <QueueRateStat
+        label="Completed"
+        queues={queues}
+        getPerMinute={(queue) => queue.evaluationsPerMinute}
+        description="Evaluated or failed, in the last hour"
+      />
       <QueueWaitStat queues={queues} />
     </Flex>
   );
@@ -248,7 +250,10 @@ function QueueStatsPlaceholder({ statusAction }: { statusAction: ReactNode }) {
       <Stat label="Queued">
         <StatValue>--</StatValue>
       </Stat>
-      <Stat label="Added / Completed">
+      <Stat label="Added">
+        <StatValue>--</StatValue>
+      </Stat>
+      <Stat label="Completed">
         <StatValue>--</StatValue>
       </Stat>
       <Stat label="Waiting">
@@ -355,37 +360,37 @@ function QueuedStat({
   );
 }
 
-function QueueRatesStat({
+function QueueRateStat({
+  label,
   queues,
+  getPerMinute,
+  description,
 }: {
+  label: string;
   queues: ReadonlyArray<EvaluationQueue>;
+  getPerMinute: (queue: EvaluationQueue) => number;
+  description: string;
 }) {
-  const queuedPerMinute = sum(queues.map((queue) => queue.queuedPerMinute));
-  const evaluationsPerMinute = sum(
-    queues.map((queue) => queue.evaluationsPerMinute)
-  );
   return (
-    <Stat label="Added / Completed">
+    <Stat label={label}>
       <HoverDetail
         detail={
           <>
             {queues.map((queue) => (
               <Text key={queue.evaluationTarget} size="S">
-                {`${getQueueLabel(queue)}: ${formatRate(queue.queuedPerMinute)} / ${formatRate(queue.evaluationsPerMinute)}`}
+                {`${getQueueLabel(queue)}: ${formatPerHour(getPerMinute(queue))}`}
               </Text>
             ))}
             <Text size="S" color="text-700">
-              Average over the last 15 minutes
+              {description}
             </Text>
           </>
         }
       >
         <Flex direction="row" gap="size-50" alignItems="baseline">
-          <StatValue>
-            {`${formatRate(queuedPerMinute)} / ${formatRate(evaluationsPerMinute)}`}
-          </StatValue>
+          <StatValue>{formatPerHour(sum(queues.map(getPerMinute)))}</StatValue>
           <Text size="S" color="text-700">
-            /min
+            per hour
           </Text>
         </Flex>
       </HoverDetail>

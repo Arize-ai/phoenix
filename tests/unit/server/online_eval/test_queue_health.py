@@ -56,10 +56,11 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
                 unit("RUNNING", queued_ago=timedelta(minutes=5)),
                 unit("DONE", queued_ago=timedelta(minutes=10), finished_ago=timedelta(minutes=5)),
                 unit("DONE", queued_ago=timedelta(minutes=10), finished_ago=timedelta(minutes=4)),
-                unit("FAILED", queued_ago=timedelta(minutes=20), finished_ago=timedelta(minutes=3)),
+                # Queued before the window but finished in it: completed, not queued.
+                unit("FAILED", queued_ago=timedelta(minutes=70), finished_ago=timedelta(minutes=3)),
                 # Cleared before it ran: queued in the window, but neither evaluated nor failed.
                 unit("DROPPED", queued_ago=timedelta(minutes=8), finished_ago=timedelta(minutes=2)),
-                unit("DONE", queued_ago=timedelta(minutes=40), finished_ago=timedelta(minutes=30)),
+                unit("DONE", queued_ago=timedelta(minutes=90), finished_ago=timedelta(minutes=70)),
             ]
         )
 
@@ -73,8 +74,8 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
     assert not queue.at_capacity
     # The head of the line has waited 20 minutes.
     assert queue.status == "DEGRADED"
-    assert throughput.evaluations_per_minute == pytest.approx(3 / 15)
-    assert throughput.queued_per_minute == pytest.approx(5 / 15)
+    assert throughput.evaluations_per_minute == pytest.approx(3 / 60)
+    assert throughput.queued_per_minute == pytest.approx(6 / 60)
 
 
 _WAITING_BRIEFLY = QueuedWork(queued_count=1, oldest_queued_at=datetime.now(timezone.utc))

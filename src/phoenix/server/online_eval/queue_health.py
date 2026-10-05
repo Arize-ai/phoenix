@@ -25,7 +25,7 @@ from phoenix.db.eval_work import (
 from phoenix.server.online_eval.admission import max_queued
 from phoenix.server.types import DbSessionFactory
 
-RATE_WINDOW = timedelta(minutes=15)
+RATE_WINDOW = timedelta(hours=1)
 DEGRADED_QUEUE_WAIT = timedelta(minutes=10)
 EVALUATION_LOAD_WINDOW = timedelta(hours=1)
 
@@ -131,10 +131,6 @@ class EvaluationLoad:
     evaluation_count: int
     evaluation_seconds: float
     server_evaluation_seconds: float
-
-    @property
-    def evaluations_per_minute(self) -> float:
-        return self.evaluation_count / (EVALUATION_LOAD_WINDOW.total_seconds() / 60)
 
     @property
     def mean_evaluation_seconds(self) -> Optional[float]:

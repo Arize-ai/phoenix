@@ -2309,7 +2309,7 @@ async def test_project_evaluator_evaluation_load(
             idle: node(id: $idle) { ...EvaluationLoad }
         }
         fragment EvaluationLoad on ProjectEvaluator {
-            evaluationLoad { evaluationsPerMinute meanEvaluationSeconds shareOfEvaluationTime }
+            evaluationLoad { evaluationCount meanEvaluationSeconds shareOfEvaluationTime }
         }""",
         variables={
             name: str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))
@@ -2319,14 +2319,14 @@ async def test_project_evaluator_evaluation_load(
 
     assert not response.errors and response.data
     loads = {name: node["evaluationLoad"] for name, node in response.data.items()}
-    assert loads["short"]["evaluationsPerMinute"] == pytest.approx(2 / 60)
+    assert loads["short"]["evaluationCount"] == 2
     assert loads["short"]["meanEvaluationSeconds"] == pytest.approx(2)
     assert loads["short"]["shareOfEvaluationTime"] == pytest.approx(4 / 16)
-    assert loads["long"]["evaluationsPerMinute"] == pytest.approx(1 / 60)
+    assert loads["long"]["evaluationCount"] == 1
     assert loads["long"]["meanEvaluationSeconds"] == pytest.approx(12)
     assert loads["long"]["shareOfEvaluationTime"] == pytest.approx(12 / 16)
     assert loads["idle"] == {
-        "evaluationsPerMinute": 0,
+        "evaluationCount": 0,
         "meanEvaluationSeconds": None,
         "shareOfEvaluationTime": 0,
     }

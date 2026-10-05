@@ -607,7 +607,7 @@ async def test_evaluation_queues(db: DbSessionFactory, gql_client: AsyncGraphQLC
     assert session_queue["atCapacity"] is False
     assert session_queue["queuedLimit"] == max_queued("SESSION")
     assert session_queue["evaluationsPerMinute"] == 0
-    assert session_queue["queuedPerMinute"] == pytest.approx(1 / 15)
+    assert session_queue["queuedPerMinute"] == pytest.approx(1 / 60)
 
 
 async def test_agents_config_returns_env_values(

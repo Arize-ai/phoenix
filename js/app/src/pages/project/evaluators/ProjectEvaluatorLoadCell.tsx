@@ -6,24 +6,24 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
-import { formatPercentShort } from "@phoenix/utils/numberFormatUtils";
+import {
+  formatPercentShort,
+  intFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 
 export type ProjectEvaluatorEvaluationLoad = {
-  evaluationsPerMinute: number;
+  evaluationCount: number;
   meanEvaluationSeconds: number | null;
   shareOfEvaluationTime: number | null;
 };
 
-const rateFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 1,
-});
 const secondsFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 1,
 });
 
 /**
  * The share of the server's evaluation time this evaluator used over the last
- * hour, with its rate and mean evaluation time on hover. Shown as `--` before
+ * hour, with its evaluation count and mean time on hover. Shown as `--` before
  * it has evaluated anything in that hour.
  */
 export function ProjectEvaluatorLoad({
@@ -33,7 +33,7 @@ export function ProjectEvaluatorLoad({
 }: {
   evaluationLoad: ProjectEvaluatorEvaluationLoad;
 } & Pick<TextProps, "size" | "fontFamily">) {
-  const { evaluationsPerMinute, meanEvaluationSeconds, shareOfEvaluationTime } =
+  const { evaluationCount, meanEvaluationSeconds, shareOfEvaluationTime } =
     evaluationLoad;
   if (shareOfEvaluationTime == null || meanEvaluationSeconds == null) {
     return (
@@ -51,10 +51,11 @@ export function ProjectEvaluatorLoad({
       </TriggerWrap>
       <RichTooltip placement="bottom">
         <Flex direction="column" gap="size-50">
-          <Text size="S">{`${secondsFormatter.format(meanEvaluationSeconds)}s each · ${rateFormatter.format(evaluationsPerMinute)}/min`}</Text>
-          <Text size="S" color="text-700">
-            Share of the time all evaluators, in every project, spent evaluating
-            over the last hour
+          <Text size="S">{`${formatPercentShort(shareOfEvaluationTime * 100)} of all evaluation time in the last hour`}</Text>
+          <Text size="S">
+            {evaluationCount === 1
+              ? `1 evaluation, ${secondsFormatter.format(meanEvaluationSeconds)}s`
+              : `${intFormatter(evaluationCount)} evaluations, ${secondsFormatter.format(meanEvaluationSeconds)}s each`}
           </Text>
         </Flex>
       </RichTooltip>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ef72afd310bad20172c1b83805bb365>>
+ * @generated SignedSource<<44f0b56dc8d22ce258a66ec1b371c3d7>>
  * @lightSyntaxTransform
  */
 
@@ -324,7 +324,7 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "evaluationsPerMinute",
+                          "name": "evaluationCount",
                           "storageKey": null
                         },
                         {
