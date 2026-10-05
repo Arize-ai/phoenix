@@ -2501,6 +2501,52 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
         assert resp.errors
         assert "start and an end" in resp.errors[0].message
 
+    async def test_series_honors_units_per_bin_alongside_single_unit_bins(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        # Requesting both widths at once checks that the data loader keeps them apart.
+        window_start = _test_data["window_start"]
+        resp = await gql_client.execute(
+            """query ($id: ID!, $timeRange: TimeRange!) {
+                node(id: $id) {
+                    ... on ProjectEvaluator {
+                        hourly: annotationScoreMetrics(
+                            timeRange: $timeRange
+                            timeBinConfig: { scale: HOUR }
+                        ) { series { timestamp meanScore count } }
+                        twoHourly: annotationScoreMetrics(
+                            timeRange: $timeRange
+                            timeBinConfig: { scale: HOUR, unitsPerBin: 2 }
+                        ) { series { timestamp meanScore count } }
+                    }
+                }
+            }""",
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {
+                    "start": window_start.isoformat(),
+                    "end": (window_start + timedelta(days=2)).isoformat(),
+                },
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        (hourly,) = resp.data["node"]["hourly"]
+        (two_hourly,) = resp.data["node"]["twoHourly"]
+        assert len(hourly["series"]) == 48
+        assert [bin["count"] for bin in hourly["series"][:4]] == [1, 1, 1, 1]
+        series = two_hourly["series"]
+        assert len(series) == 24
+        assert series[1]["timestamp"] == (window_start + timedelta(hours=2)).isoformat()
+        # Day 0 hours 0-1 score [1.0, 0.0], hours 2-3 score [1.0, 1.0], day 1 hours 0-1 [0.0, 0.0]
+        assert [bin["meanScore"] for bin in series[:3]] == [
+            pytest.approx(0.5),
+            pytest.approx(1.0),
+            None,
+        ]
+        assert series[12]["meanScore"] == pytest.approx(0.0)
+        assert [bin["count"] for bin in series if bin["count"]] == [2, 2, 2]
+
 
 class TestProjectEvaluatorAnnotationScoreMetricsMultiOutput:
     """Multi-output evaluators report one entry per dotted annotation name."""
