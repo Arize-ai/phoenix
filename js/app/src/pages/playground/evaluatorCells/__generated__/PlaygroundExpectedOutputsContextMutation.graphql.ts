@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0bbaebdb245848f20a2513e72de73aab>>
+ * @generated SignedSource<<469bd0827b46d799eeae69f2f1d1066d>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,16 @@ export type PlaygroundExpectedOutputsContextMutation$variables = {
 };
 export type PlaygroundExpectedOutputsContextMutation$data = {
   readonly setDatasetExampleExpectedOutputs: {
+    readonly exampleExpectedOutputs: ReadonlyArray<{
+      readonly exampleId: string;
+      readonly expectedOutputs: ReadonlyArray<{
+        readonly annotationName: string;
+        readonly explanation: string | null;
+        readonly label: string | null;
+        readonly score: number | null;
+      }>;
+      readonly id: string;
+    }>;
     readonly examples: ReadonlyArray<{
       readonly id: string;
       readonly revision: {
@@ -55,7 +65,53 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DatasetExampleExpectedOutput",
+  "kind": "LinkedField",
+  "name": "expectedOutputs",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotationName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "score",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "explanation",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v3 = [
   {
     "alias": null,
     "args": [
@@ -78,13 +134,7 @@ v1 = [
         "name": "examples",
         "plural": true,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
+          (v1/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -121,48 +171,30 @@ v1 = [
                 "name": "revisionId",
                 "storageKey": null
               },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "DatasetExampleExpectedOutput",
-                "kind": "LinkedField",
-                "name": "expectedOutputs",
-                "plural": true,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "annotationName",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "label",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "score",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "explanation",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
+              (v2/*:: as any*/)
             ],
             "storageKey": null
           }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "DatasetExampleExpectedOutputs",
+        "kind": "LinkedField",
+        "name": "exampleExpectedOutputs",
+        "plural": true,
+        "selections": [
+          (v1/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "exampleId",
+            "storageKey": null
+          },
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -176,7 +208,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundExpectedOutputsContextMutation",
-    "selections": (v1/*:: as any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -185,19 +217,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "PlaygroundExpectedOutputsContextMutation",
-    "selections": (v1/*:: as any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "d85cfe18a42e18933fad6dd19158ff50",
+    "cacheID": "8267a962acc541a1633e436734ac501a",
     "id": null,
     "metadata": {},
     "name": "PlaygroundExpectedOutputsContextMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundExpectedOutputsContextMutation(\n  $input: SetDatasetExampleExpectedOutputsInput!\n) {\n  setDatasetExampleExpectedOutputs(input: $input) {\n    examples {\n      id\n      revision {\n        input\n        output\n        metadata\n        revisionId\n        expectedOutputs {\n          annotationName\n          label\n          score\n          explanation\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundExpectedOutputsContextMutation(\n  $input: SetDatasetExampleExpectedOutputsInput!\n) {\n  setDatasetExampleExpectedOutputs(input: $input) {\n    examples {\n      id\n      revision {\n        input\n        output\n        metadata\n        revisionId\n        expectedOutputs {\n          annotationName\n          label\n          score\n          explanation\n        }\n      }\n    }\n    exampleExpectedOutputs {\n      id\n      exampleId\n      expectedOutputs {\n        annotationName\n        label\n        score\n        explanation\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1047c14facf14862907aecbcec6eef88";
+(node as any).hash = "ad6441f57348230f4858d45825cb50b1";
 
 export default node;

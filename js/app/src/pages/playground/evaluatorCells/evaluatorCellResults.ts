@@ -201,8 +201,8 @@ export type ExpectedAgreement = {
 };
 
 /**
- * How the evaluator stands against the expected outputs of the loaded
- * examples, counted over the first repetition. Agreement is counted over
+ * How the evaluator stands against the expected outputs of `examples`,
+ * counted over the first repetition. Agreement is counted over
  * expectations the output config can still produce, so "2/2 agree" cannot be
  * mistaken for a share of the whole sample.
  */

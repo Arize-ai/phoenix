@@ -22,6 +22,7 @@ import {
   graphql,
   useLazyLoadQuery,
   usePaginationFragment,
+  useRefetchableFragment,
   useRelayEnvironment,
 } from "react-relay";
 import { useSearchParams } from "react-router";
@@ -111,6 +112,8 @@ import {
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
+import type { PlaygroundDatasetExamplesTableExpectedOutputsFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsFragment.graphql";
+import type { PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery.graphql";
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import type { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import type { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
@@ -987,6 +990,8 @@ export function PlaygroundDatasetExamplesTable({
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
             @arguments(splitIds: $splitIds)
+          ...PlaygroundDatasetExamplesTableExpectedOutputsFragment
+            @arguments(splitIds: $splitIds)
           ... on Dataset {
             exampleCount(splitIds: $splitIds)
             latestVersions: versions(
@@ -1340,6 +1345,44 @@ export function PlaygroundDatasetExamplesTable({
       dataset
     );
 
+  // Every example's expected outputs and the example count, read apart from
+  // the paginated rows so the evaluator headers count the whole dataset. A
+  // save returns the items it changed, which update this list in the store.
+  const [expectedOutputsData, refetchExpectedOutputs] = useRefetchableFragment<
+    PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery,
+    PlaygroundDatasetExamplesTableExpectedOutputsFragment$key
+  >(
+    graphql`
+      fragment PlaygroundDatasetExamplesTableExpectedOutputsFragment on Dataset
+      @refetchable(
+        queryName: "PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery"
+      )
+      @argumentDefinitions(splitIds: { type: "[ID!]" }) {
+        exampleCount(splitIds: $splitIds)
+        exampleExpectedOutputs(splitIds: $splitIds) {
+          id
+          exampleId
+          expectedOutputs {
+            annotationName
+            label
+            score
+            explanation
+          }
+        }
+      }
+    `,
+    dataset
+  );
+
+  const expectedOutputExamples = useMemo(
+    () =>
+      expectedOutputsData.exampleExpectedOutputs.map((example) => ({
+        id: example.exampleId,
+        expectedOutputs: example.expectedOutputs,
+      })),
+    [expectedOutputsData.exampleExpectedOutputs]
+  );
+
   type TableRow = PlaygroundExampleTableRow;
 
   // The examples as saved. While they are being edited the table shows a
@@ -1454,7 +1497,8 @@ export function PlaygroundDatasetExamplesTable({
 
   const reloadExamples = useCallback(() => {
     refetch({}, { fetchPolicy: "network-only" });
-  }, [refetch]);
+    refetchExpectedOutputs({}, { fetchPolicy: "network-only" });
+  }, [refetch, refetchExpectedOutputs]);
 
   // After a save: the rows are re-read from the new version, then the edit
   // session ends, so the pending edits never flicker away before their saved
@@ -1462,6 +1506,7 @@ export function PlaygroundDatasetExamplesTable({
   const finishEditingWithReload = useCallback(
     () =>
       new Promise<void>((resolve, reject) => {
+        refetchExpectedOutputs({}, { fetchPolicy: "network-only" });
         refetch(
           {},
           {
@@ -1470,7 +1515,7 @@ export function PlaygroundDatasetExamplesTable({
           }
         );
       }).then(() => editStore.getState().finishSaving()),
-    [refetch, editStore]
+    [refetch, refetchExpectedOutputs, editStore]
   );
 
   const exampleIds = useMemo(() => {
@@ -1522,9 +1567,7 @@ export function PlaygroundDatasetExamplesTable({
 
         return {
           id: `instance-${instance.id}`,
-          // The header reads the rows off the table so the columns need not
-          // be rebuilt as pages of examples load.
-          header: ({ table }) => (
+          header: () => (
             <PlaygroundEvaluatorColumnHeader
               instanceId={instance.id}
               index={index}
@@ -1533,7 +1576,8 @@ export function PlaygroundDatasetExamplesTable({
               annotationConfig={annotation.config}
               output={annotation.output}
               experimentId={experimentId}
-              examples={table.options.data}
+              exampleCount={expectedOutputsData.exampleCount}
+              examples={expectedOutputExamples}
               isRunning={isRunning}
               canRun={!hasSomeRunIds && !isEditingExamples}
               onRun={() => runPlaygroundInstances([instance.id])}
@@ -1596,6 +1640,8 @@ export function PlaygroundDatasetExamplesTable({
     templateVariablesPath,
     handleViewTracePress,
     evaluatorOutputConfigs,
+    expectedOutputsData.exampleCount,
+    expectedOutputExamples,
   ]);
 
   const runningInstanceIds = useMemo(
@@ -1869,6 +1915,7 @@ export function PlaygroundDatasetExamplesTable({
     <InstanceVariablesProvider>
       <PlaygroundExpectedOutputsProvider
         datasetId={datasetId}
+        splitIds={splitIds ?? null}
         getRevisionId={(exampleId) => revisionIdByExampleId.get(exampleId)}
       >
         <PlaygroundExpectedOutputAgentOperation examples={tableData} />

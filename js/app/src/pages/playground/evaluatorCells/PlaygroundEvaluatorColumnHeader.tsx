@@ -30,7 +30,7 @@ import { usePlaygroundExpectedOutputs } from "./PlaygroundExpectedOutputsContext
 
 /**
  * An evaluator task's column header: which task it is, how it is doing
- * against the expected outputs of the loaded examples, the play button
+ * against the expected outputs of the dataset's examples, the play button
  * that runs this task alone, and the stat strip of its last run. Keeping the
  * metrics here means they scale with the number of evaluators instead of
  * crowding a shared summary strip.
@@ -43,6 +43,7 @@ export function PlaygroundEvaluatorColumnHeader({
   annotationConfig,
   output,
   experimentId,
+  exampleCount,
   examples,
   isRunning,
   canRun,
@@ -55,6 +56,9 @@ export function PlaygroundEvaluatorColumnHeader({
   annotationConfig: AnnotationConfig | undefined;
   output: EvaluatorOutput | undefined;
   experimentId: string | null | undefined;
+  /** How many examples the dataset (or its selected splits) has. */
+  exampleCount: number;
+  /** Every example with an expected output, loaded into the table or not. */
   examples: ReadonlyArray<ExpectedOutputExample>;
   isRunning: boolean;
   canRun: boolean;
@@ -78,8 +82,8 @@ export function PlaygroundEvaluatorColumnHeader({
 
   const { overlay } = usePlaygroundExpectedOutputs();
 
-  // Walks every loaded example, so not on every render of a header that
-  // re-renders with each streamed result.
+  // Walks every example, so not on every render of a header that re-renders
+  // with each streamed result.
   const agreement = useMemo(
     () =>
       summarizeExpectedAgreement({
@@ -126,7 +130,7 @@ export function PlaygroundEvaluatorColumnHeader({
             line that wrapped moved the header and every row beneath it. */}
           <Truncate maxWidth="100%">
             <Text size="XS" color="text-500" weight="normal">
-              {agreement.withExpected}/{examples.length} with expected
+              {agreement.withExpected}/{exampleCount} with expected
               {agreementText}
             </Text>
           </Truncate>

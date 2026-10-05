@@ -27,6 +27,28 @@ class DatasetExampleExpectedOutput:
     explanation: str | None
 
 
+@strawberry.type
+class DatasetExampleExpectedOutputs:
+    """The expected outputs recorded on one dataset example's latest revision."""
+
+    id: GlobalID = strawberry.field(
+        description="The ID of the example's expected outputs, distinct from the example's own ID."
+    )
+    example_id: GlobalID
+    expected_outputs: list[DatasetExampleExpectedOutput]
+
+
+def to_gql_example_expected_outputs(
+    example_id: int, metadata: Any
+) -> DatasetExampleExpectedOutputs:
+    """The expected outputs stored on an example's metadata, under the example's identity."""
+    return DatasetExampleExpectedOutputs(
+        id=GlobalID(DatasetExampleExpectedOutputs.__name__, str(example_id)),
+        example_id=GlobalID("DatasetExample", str(example_id)),
+        expected_outputs=to_gql_expected_outputs(metadata),
+    )
+
+
 def to_gql_expected_outputs(metadata: Any) -> list[DatasetExampleExpectedOutput]:
     """The expected outputs stored on an example's metadata, one per annotation name."""
     return [

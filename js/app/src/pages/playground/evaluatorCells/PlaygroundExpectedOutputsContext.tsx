@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo } from "react";
 import { commitMutation, graphql, useRelayEnvironment } from "react-relay";
-import type { Environment } from "relay-runtime";
+import type { Environment, RecordSourceSelectorProxy } from "relay-runtime";
 
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 
@@ -51,10 +51,13 @@ const PlaygroundExpectedOutputsContext =
  */
 export function PlaygroundExpectedOutputsProvider({
   datasetId,
+  splitIds,
   getRevisionId,
   children,
 }: {
   datasetId: string;
+  /** The splits the table reads, which key the dataset's expected outputs list. */
+  splitIds: ReadonlyArray<string> | null;
   /** The loaded revision of an example, or undefined once it is gone. */
   getRevisionId: (exampleId: string) => string | undefined;
   children: ReactNode;
@@ -62,7 +65,13 @@ export function PlaygroundExpectedOutputsProvider({
   const environment = useRelayEnvironment();
 
   const queue = useExpectedOutputQueue((batch) =>
-    writeExpectedOutputs({ environment, datasetId, batch, getRevisionId })
+    writeExpectedOutputs({
+      environment,
+      datasetId,
+      splitIds,
+      batch,
+      getRevisionId,
+    })
   );
 
   const { enqueue, flushNow, overlay, pendingCount, isSaving, status, error } =
@@ -124,11 +133,13 @@ type ExpectedOutputInput =
 function writeExpectedOutputs({
   environment,
   datasetId,
+  splitIds,
   batch,
   getRevisionId,
 }: {
   environment: Environment;
   datasetId: string;
+  splitIds: ReadonlyArray<string> | null;
   batch: PendingExpectedOutputs;
   getRevisionId: (exampleId: string) => string | undefined;
 }): Promise<UIOperationResult> {
@@ -165,6 +176,8 @@ function writeExpectedOutputs({
     commitMutation<PlaygroundExpectedOutputsContextMutation>(environment, {
       mutation: expectedOutputsMutation,
       variables: { input: { datasetId, expectedOutputs } },
+      updater: (store) =>
+        addNewlyAnnotatedExamples({ store, datasetId, splitIds }),
       onCompleted: (response, errors) => {
         if (errors?.length) {
           resolve({
@@ -187,11 +200,53 @@ function writeExpectedOutputs({
   });
 }
 
+/**
+ * The written examples' expected outputs come back under the IDs the
+ * dataset's list uses, so the store updates the ones already listed. An
+ * example annotated for the first time is not in the list yet; it is added
+ * here, so the evaluator headers count it without a refetch.
+ */
+function addNewlyAnnotatedExamples({
+  store,
+  datasetId,
+  splitIds,
+}: {
+  store: RecordSourceSelectorProxy;
+  datasetId: string;
+  splitIds: ReadonlyArray<string> | null;
+}) {
+  const written =
+    store
+      .getRootField("setDatasetExampleExpectedOutputs")
+      ?.getLinkedRecords("exampleExpectedOutputs") ?? [];
+  const dataset = store.get(datasetId);
+  const listArgs = { splitIds };
+  const listed = dataset?.getLinkedRecords("exampleExpectedOutputs", listArgs);
+
+  if (!dataset || !listed) {
+    return;
+  }
+
+  const listedIds = new Set(listed.map((record) => record?.getDataID()));
+  const added = written.filter(
+    (record) => record != null && !listedIds.has(record.getDataID())
+  );
+
+  if (added.length > 0) {
+    dataset.setLinkedRecords(
+      [...listed, ...added],
+      "exampleExpectedOutputs",
+      listArgs
+    );
+  }
+}
+
 // The payload returns the examples' new revisions in the table's own shape,
 // so the rows read the fresh revision from the Relay store without a reload:
 // the expected outputs, the metadata they are recorded in (which the metadata
 // column shows when asked), and the revision id the next write on the same
-// example must carry as its guard.
+// example must carry as its guard. The expected outputs come back a second
+// time as items of the dataset's list, which the evaluator headers count.
 const expectedOutputsMutation = graphql`
   mutation PlaygroundExpectedOutputsContextMutation(
     $input: SetDatasetExampleExpectedOutputsInput!
@@ -210,6 +265,16 @@ const expectedOutputsMutation = graphql`
             score
             explanation
           }
+        }
+      }
+      exampleExpectedOutputs {
+        id
+        exampleId
+        expectedOutputs {
+          annotationName
+          label
+          score
+          explanation
         }
       }
     }
