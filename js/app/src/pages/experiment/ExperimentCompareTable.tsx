@@ -53,6 +53,7 @@ import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentA
 import { CellTop, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ExperimentMetricsSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
@@ -65,6 +66,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { ExperimentCompareChartSelector } from "./ExperimentCompareMetricsCharts";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
@@ -72,8 +74,10 @@ import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditio
 type ExampleCompareTableProps = {
   queryRef: PreloadedQuery<ExperimentCompareTableQueryType>;
   datasetId: string;
-  baseExperimentId: string;
-  compareExperimentIds: string[];
+  /**
+   * The compared experiments, base experiment first
+   */
+  selection: ExperimentMetricsSelection;
 };
 
 type Experiment = NonNullable<
@@ -125,7 +129,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-  const { datasetId, baseExperimentId, compareExperimentIds } = props;
+  const { datasetId, selection } = props;
+  const { baseExperimentId, compareExperimentIds } = selection;
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -581,7 +586,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   ]);
 
   return (
-    <View overflow="auto">
+    <View overflow="auto" height="100%">
       <Flex direction="column" height="100%">
         <View
           paddingTop="size-100"
@@ -592,9 +597,19 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           borderBottomWidth="thin"
           flex="none"
         >
-          <ExperimentRunFilterConditionField
-            onValidCondition={({ condition }) => setFilterCondition(condition)}
-          />
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <View flex="1 1 auto">
+              <ExperimentRunFilterConditionField
+                onValidCondition={({ condition }) =>
+                  setFilterCondition(condition)
+                }
+              />
+            </View>
+            <ExperimentCompareChartSelector
+              datasetId={datasetId}
+              selection={selection}
+            />
+          </Flex>
         </View>
         <div
           css={tableWrapCSS}

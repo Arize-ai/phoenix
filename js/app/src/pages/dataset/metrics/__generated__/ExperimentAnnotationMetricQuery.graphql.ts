@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8aa1dc394cc14cfefa2d29f331e6bdec>>
+ * @generated SignedSource<<f5c208f7dd24e8ad0087aeb3a424ffb5>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,9 @@ import { FragmentRefs } from "relay-runtime";
 export type ExperimentAnnotationMetricQuery$variables = {
   annotationName: string;
   count: number;
+  filterIds?: ReadonlyArray<string> | null;
   id: string;
+  isSelection: boolean;
 };
 export type ExperimentAnnotationMetricQuery$data = {
   readonly dataset: {
@@ -47,31 +49,41 @@ v1 = {
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "filterIds"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "id"
 },
-v3 = [
+v4 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "isSelection"
+},
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v4 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v5 = [
+v7 = [
   {
     "kind": "Variable",
     "name": "annotationName",
     "variableName": "annotationName"
   }
 ],
-v6 = [
-  (v4/*:: as any*/),
+v8 = [
+  (v6/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -95,7 +107,7 @@ v6 = [
   },
   {
     "alias": null,
-    "args": (v5/*:: as any*/),
+    "args": (v7/*:: as any*/),
     "concreteType": "ExperimentAnnotationSummary",
     "kind": "LinkedField",
     "name": "annotationSummaries",
@@ -144,22 +156,32 @@ v6 = [
     "storageKey": null
   }
 ],
-v7 = [
+v9 = [
   {
     "kind": "InlineDataFragmentSpread",
     "name": "ExperimentAnnotationMetric_experiment",
-    "selections": (v6/*:: as any*/),
-    "args": (v5/*:: as any*/),
+    "selections": (v8/*:: as any*/),
+    "args": (v7/*:: as any*/),
     "argumentDefinitions": [
       (v0/*:: as any*/)
     ]
   }
 ],
-v8 = [
+v10 = [
+  {
+    "kind": "Variable",
+    "name": "filterIds",
+    "variableName": "filterIds"
+  },
   {
     "kind": "Variable",
     "name": "first",
     "variableName": "count"
+  },
+  {
+    "kind": "Variable",
+    "name": "includeEphemeral",
+    "variableName": "isSelection"
   }
 ];
 return {
@@ -167,7 +189,9 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/)
+      (v2/*:: as any*/),
+      (v3/*:: as any*/),
+      (v4/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -175,7 +199,7 @@ return {
     "selections": [
       {
         "alias": "dataset",
-        "args": (v3/*:: as any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -185,18 +209,25 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
-                "args": null,
-                "concreteType": "Experiment",
-                "kind": "LinkedField",
-                "name": "baselineExperiment",
-                "plural": false,
-                "selections": (v7/*:: as any*/),
-                "storageKey": null
+                "condition": "isSelection",
+                "kind": "Condition",
+                "passingValue": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "Experiment",
+                    "kind": "LinkedField",
+                    "name": "baselineExperiment",
+                    "plural": false,
+                    "selections": (v9/*:: as any*/),
+                    "storageKey": null
+                  }
+                ]
               },
               {
                 "alias": "metricsExperiments",
-                "args": (v8/*:: as any*/),
+                "args": (v10/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -217,7 +248,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v7/*:: as any*/),
+                        "selections": (v9/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -240,8 +271,10 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*:: as any*/),
+      (v3/*:: as any*/),
       (v1/*:: as any*/),
+      (v2/*:: as any*/),
+      (v4/*:: as any*/),
       (v0/*:: as any*/)
     ],
     "kind": "Operation",
@@ -249,7 +282,7 @@ return {
     "selections": [
       {
         "alias": "dataset",
-        "args": (v3/*:: as any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -266,18 +299,25 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
-                "args": null,
-                "concreteType": "Experiment",
-                "kind": "LinkedField",
-                "name": "baselineExperiment",
-                "plural": false,
-                "selections": (v6/*:: as any*/),
-                "storageKey": null
+                "condition": "isSelection",
+                "kind": "Condition",
+                "passingValue": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "Experiment",
+                    "kind": "LinkedField",
+                    "name": "baselineExperiment",
+                    "plural": false,
+                    "selections": (v8/*:: as any*/),
+                    "storageKey": null
+                  }
+                ]
               },
               {
                 "alias": "metricsExperiments",
-                "args": (v8/*:: as any*/),
+                "args": (v10/*:: as any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -298,7 +338,7 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": (v6/*:: as any*/),
+                        "selections": (v8/*:: as any*/),
                         "storageKey": null
                       }
                     ],
@@ -311,23 +351,23 @@ return {
             "type": "Dataset",
             "abstractKey": null
           },
-          (v4/*:: as any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "6ca9b47740b8f27d36c13fa35c6d6988",
+    "cacheID": "9861f9c275009689362e43085bb0e899",
     "id": null,
     "metadata": {},
     "name": "ExperimentAnnotationMetricQuery",
     "operationKind": "query",
-    "text": "query ExperimentAnnotationMetricQuery(\n  $id: ID!\n  $count: Int!\n  $annotationName: String!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment {\n        ...ExperimentAnnotationMetric_experiment_3VbSQz\n        id\n      }\n      metricsExperiments: experiments(first: $count) {\n        edges {\n          experiment: node {\n            ...ExperimentAnnotationMetric_experiment_3VbSQz\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentAnnotationMetric_experiment_3VbSQz on Experiment {\n  id\n  name\n  sequenceNumber\n  isBaseline\n  annotationSummaries(annotationName: $annotationName) {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n}\n"
+    "text": "query ExperimentAnnotationMetricQuery(\n  $id: ID!\n  $count: Int!\n  $filterIds: [ID!]\n  $isSelection: Boolean!\n  $annotationName: String!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment @skip(if: $isSelection) {\n        ...ExperimentAnnotationMetric_experiment_3VbSQz\n        id\n      }\n      metricsExperiments: experiments(first: $count, filterIds: $filterIds, includeEphemeral: $isSelection) {\n        edges {\n          experiment: node {\n            ...ExperimentAnnotationMetric_experiment_3VbSQz\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentAnnotationMetric_experiment_3VbSQz on Experiment {\n  id\n  name\n  sequenceNumber\n  isBaseline\n  annotationSummaries(annotationName: $annotationName) {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cc31b1e985c0254baf282dece19bd852";
+(node as any).hash = "b613328d9629aa6191f8613d6ee11598";
 
 export default node;

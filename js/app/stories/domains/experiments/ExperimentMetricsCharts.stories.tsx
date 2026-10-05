@@ -8,6 +8,7 @@ import {
   EXPERIMENT_METRIC_CHARTS,
   getExperimentMetricChart,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
+import { ExperimentCompareChartsPanelGroup } from "@phoenix/pages/experiment/ExperimentCompareMetricsCharts";
 
 const STORY_DATASET_ID = "dataset:experiment-metrics-story";
 const LONG_EXPERIMENT_NAME =
@@ -170,6 +171,96 @@ const relayEnvironments: Record<MetricsDataState, Environment> = {
   longExperimentNames: createRelayEnvironment("longExperimentNames"),
 };
 
+const COMPARE_SELECTION = {
+  baseExperimentId: "experiment:102",
+  compareExperimentIds: ["experiment:104", "experiment:103"],
+};
+
+function toCompareExperiment(experiment: ExperimentFixture) {
+  return {
+    ...experiment,
+    isBaseline: false,
+    annotationSummaries: experiment.annotationSummaries.map((summary) => ({
+      ...summary,
+      labelFractions: [],
+    })),
+    costDetailSummaryEntries: [
+      {
+        tokenType: "cache_read",
+        isPrompt: true,
+        value: {
+          tokens: Math.round((experiment.costSummary.prompt.tokens ?? 0) / 3),
+        },
+      },
+      {
+        tokenType: "reasoning",
+        isPrompt: false,
+        value: {
+          tokens: Math.round(
+            (experiment.costSummary.completion.tokens ?? 0) / 4
+          ),
+        },
+      },
+    ],
+  };
+}
+
+const compareRelayEnvironment = new Environment({
+  network: Network.create(async (_request, variables) => {
+    const filterIds: string[] = variables.filterIds ?? [];
+    // The base experiment is missing an evaluator to show it as no data
+    const selectedExperiments = experiments
+      .filter((experiment) => filterIds.includes(experiment.id))
+      .map(toCompareExperiment)
+      .map((experiment) =>
+        experiment.id === COMPARE_SELECTION.baseExperimentId
+          ? {
+              ...experiment,
+              annotationSummaries: experiment.annotationSummaries.filter(
+                ({ annotationName }) => annotationName !== "helpfulness"
+              ),
+            }
+          : experiment
+      )
+      .map((experiment) => ({
+        ...experiment,
+        annotationSummaries: experiment.annotationSummaries.filter(
+          ({ annotationName }) =>
+            variables.annotationName == null ||
+            annotationName === variables.annotationName
+        ),
+      }));
+    return {
+      data: {
+        dataset: {
+          __typename: "Dataset",
+          id: STORY_DATASET_ID,
+          baselineExperiment: null,
+          metricsExperiments: {
+            edges: selectedExperiments.map((experiment) => ({ experiment })),
+          },
+        },
+      },
+    };
+  }),
+  store: new Store(new RecordSource()),
+});
+
+function ExperimentCompareMetricsChartsStory() {
+  return (
+    <RelayEnvironmentProvider environment={compareRelayEnvironment}>
+      <div style={{ width: "min(1100px, 100%)", height: 320 }}>
+        <ExperimentCompareChartsPanelGroup
+          datasetId={STORY_DATASET_ID}
+          selection={COMPARE_SELECTION}
+        >
+          {null}
+        </ExperimentCompareChartsPanelGroup>
+      </div>
+    </RelayEnvironmentProvider>
+  );
+}
+
 type ExperimentMetricsChartsStoryProps = {
   chartKeys: ExperimentMetricChartKey[];
   dataState: MetricsDataState;
@@ -290,6 +381,15 @@ export const EmptyStates: Story = {
     chartKeys: allChartKeys,
     dataState: "empty",
   },
+};
+
+/**
+ * The resizable charts strip above the experiment compare grid, for a base
+ * experiment and two compare experiments: base first and drawn as the
+ * reference, each experiment marked with its compare page color.
+ */
+export const CompareSelection: Story = {
+  render: () => <ExperimentCompareMetricsChartsStory />,
 };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */

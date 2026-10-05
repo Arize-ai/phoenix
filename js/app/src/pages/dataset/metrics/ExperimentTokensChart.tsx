@@ -20,6 +20,7 @@ import {
   ExperimentBaselineValueLine,
   getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
+import { useExperimentChartDatum } from "./experimentMetricsSelection";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import {
   experimentMetricsYAxisProps,
@@ -29,20 +30,25 @@ import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
-const TooltipContent = makeExperimentMetricsTooltipContent(intFormatter);
+const TooltipContent = makeExperimentMetricsTooltipContent({
+  valueFormatter: intFormatter,
+});
 
 /**
  * Token usage per experiment, stacked by prompt and completion tokens.
  */
 export function ExperimentTokensChart({
   datasetId,
+  selection,
 }: ExperimentMetricViewProps) {
-  const { experiments, baselineExperiment } =
-    useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment } = useExperimentMetricsData({
+    datasetId,
+    selection,
+  });
+  const { referenceLabel, toExperimentChartDatum } =
+    useExperimentChartDatum(selection);
   const chartData = experiments.map((experiment) => ({
-    sequenceNumber: experiment.sequenceNumber,
-    experimentName: experiment.name,
-    isBaseline: experiment.isBaseline,
+    ...toExperimentChartDatum(experiment),
     prompt: experiment.promptTokens,
     completion: experiment.completionTokens,
     total: experiment.totalTokens,
@@ -79,7 +85,10 @@ export function ExperimentTokensChart({
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis
-            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+            {...getExperimentXAxisProps({
+              baselineSequenceNumber: baselineExperiment?.sequenceNumber,
+              experiments: chartData,
+            })}
           />
           <YAxis
             {...experimentMetricsYAxisProps}
@@ -108,9 +117,10 @@ export function ExperimentTokensChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
-            additionalLegendItems={getExperimentBaselineLegendItems(
-              baselineTokens
-            )}
+            additionalLegendItems={getExperimentBaselineLegendItems({
+              value: baselineTokens,
+              label: referenceLabel,
+            })}
           />
         </BarChart>
       </ChartResponsiveContainer>

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Suspense } from "react";
 
 import {
@@ -18,17 +19,21 @@ import {
 } from "@phoenix/pages/dataset/constants";
 import {
   EXPERIMENT_METRIC_CHARTS,
+  getExperimentMetricChartDescription,
   getExperimentMetricCharts,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
+import type { ExperimentMetricsSelection } from "@phoenix/pages/dataset/metrics/types";
 import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricNames";
 
 /**
- * The store-connected chart selector shown above the experiments table. Reads
- * and writes the chart selection from the dataset store, and feeds the
- * experiment metric chart catalog into the generic
- * {@link MetricsChartSelector}.
+ * The "Charts" button that opens an experiment metric chart selector menu.
+ * The menu content may suspend while it loads its options.
  */
-export function ExperimentsMetricsChartSelector() {
+export function ExperimentMetricsChartSelectorTrigger({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
     <MenuTrigger>
       <Button aria-label="Select metric charts">
@@ -38,9 +43,21 @@ export function ExperimentsMetricsChartSelector() {
         </Flex>
       </Button>
       <MenuContainer placement="bottom end">
-        <ConnectedChartSelectorMenu />
+        <Suspense fallback={<Loading />}>{children}</Suspense>
       </MenuContainer>
     </MenuTrigger>
+  );
+}
+
+/**
+ * The store-connected chart selector shown above the experiments table. Reads
+ * and writes the chart selection from the dataset store.
+ */
+export function ExperimentsMetricsChartSelector() {
+  return (
+    <ExperimentMetricsChartSelectorTrigger>
+      <ConnectedChartSelectorMenu />
+    </ExperimentMetricsChartSelectorTrigger>
   );
 }
 
@@ -52,27 +69,35 @@ function ConnectedChartSelectorMenu() {
   const setExperimentsMetricChartKeys = useDatasetContext(
     (state) => state.setExperimentsMetricChartKeys
   );
+  const annotationNames = useExperimentAnnotationMetricNames(datasetId);
   return (
-    <Suspense fallback={<Loading />}>
-      <ExperimentChartSelectorMenu
-        datasetId={datasetId}
-        selectedChartKeys={selectedChartKeys}
-        onSelectionChange={setExperimentsMetricChartKeys}
-      />
-    </Suspense>
+    <ExperimentChartSelectorMenu
+      annotationNames={annotationNames}
+      selectedChartKeys={selectedChartKeys}
+      onSelectionChange={setExperimentsMetricChartKeys}
+    />
   );
 }
 
-function ExperimentChartSelectorMenu({
-  datasetId,
+/**
+ * Feeds the experiment metric chart catalog, plus one chart per annotation,
+ * into the generic {@link MetricsChartSelector}.
+ */
+export function ExperimentChartSelectorMenu({
+  annotationNames,
   selectedChartKeys,
   onSelectionChange,
+  selection,
 }: {
-  datasetId: string;
+  annotationNames: ReadonlyArray<string>;
   selectedChartKeys: ExperimentMetricChartKey[];
   onSelectionChange: (keys: ExperimentMetricChartKey[]) => void;
+  /**
+   * The experiments the charts plot, when not the dataset's most recent
+   * experiments; picks the chart descriptions
+   */
+  selection?: ExperimentMetricsSelection;
 }) {
-  const annotationNames = useExperimentAnnotationMetricNames(datasetId);
   const annotationKeys = annotationNames.map(
     getExperimentAnnotationMetricChartKey
   );
@@ -86,15 +111,22 @@ function ExperimentChartSelectorMenu({
       getExperimentAnnotationName(key) != null &&
       !availableAnnotationKeys.has(key)
   );
+  const charts = [
+    ...EXPERIMENT_METRIC_CHARTS,
+    ...getExperimentMetricCharts([
+      ...annotationKeys,
+      ...unavailableSelectedAnnotationKeys,
+    ]),
+  ];
   return (
     <MetricsChartSelector
-      options={[
-        ...EXPERIMENT_METRIC_CHARTS,
-        ...getExperimentMetricCharts([
-          ...annotationKeys,
-          ...unavailableSelectedAnnotationKeys,
-        ]),
-      ]}
+      options={charts.map((chart) => ({
+        ...chart,
+        description: getExperimentMetricChartDescription({ chart, selection }),
+        // A selection's experiments have no inherent order, so every chart
+        // draws them as bars
+        chartType: selection == null ? chart.chartType : "bar",
+      }))}
       selectedKeys={selectedChartKeys}
       onSelectionChange={onSelectionChange}
     />

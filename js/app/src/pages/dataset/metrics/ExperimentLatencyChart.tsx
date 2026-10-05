@@ -17,6 +17,7 @@ import {
   ExperimentBaselineValueLine,
   getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
+import { useExperimentChartDatum } from "./experimentMetricsSelection";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import {
   experimentMetricsYAxisProps,
@@ -26,7 +27,9 @@ import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
-const TooltipContent = makeExperimentMetricsTooltipContent(latencyMsFormatter);
+const TooltipContent = makeExperimentMetricsTooltipContent({
+  valueFormatter: latencyMsFormatter,
+});
 const LATENCY_DATA_KEY = "latency";
 
 /**
@@ -34,13 +37,16 @@ const LATENCY_DATA_KEY = "latency";
  */
 export function ExperimentLatencyChart({
   datasetId,
+  selection,
 }: ExperimentMetricViewProps) {
-  const { experiments, baselineExperiment } =
-    useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment } = useExperimentMetricsData({
+    datasetId,
+    selection,
+  });
+  const { referenceLabel, toExperimentChartDatum } =
+    useExperimentChartDatum(selection);
   const chartData = experiments.map((experiment) => ({
-    sequenceNumber: experiment.sequenceNumber,
-    experimentName: experiment.name,
-    isBaseline: experiment.isBaseline,
+    ...toExperimentChartDatum(experiment),
     latency: experiment.averageRunLatencyMs,
   }));
   const hasData = chartData.some((datum) => typeof datum.latency === "number");
@@ -67,7 +73,10 @@ export function ExperimentLatencyChart({
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis
-            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+            {...getExperimentXAxisProps({
+              baselineSequenceNumber: baselineExperiment?.sequenceNumber,
+              experiments: chartData,
+            })}
           />
           <YAxis
             {...experimentMetricsYAxisProps}
@@ -87,9 +96,10 @@ export function ExperimentLatencyChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
-            additionalLegendItems={getExperimentBaselineLegendItems(
-              baselineLatency
-            )}
+            additionalLegendItems={getExperimentBaselineLegendItems({
+              value: baselineLatency,
+              label: referenceLabel,
+            })}
           />
         </BarChart>
       </ChartResponsiveContainer>

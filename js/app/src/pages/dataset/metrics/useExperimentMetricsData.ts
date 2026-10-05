@@ -1,9 +1,12 @@
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
-import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
-
 import type { useExperimentMetricsData_experiment$key } from "./__generated__/useExperimentMetricsData_experiment.graphql";
 import type { useExperimentMetricsDataQuery } from "./__generated__/useExperimentMetricsDataQuery.graphql";
+import {
+  getExperimentMetricsQueryVariables,
+  orderBySelection,
+} from "./experimentMetricsSelection";
+import type { ExperimentMetricsSelection } from "./types";
 
 const experimentMetricsExperimentFragment = graphql`
   fragment useExperimentMetricsData_experiment on Experiment @inline {
@@ -43,16 +46,28 @@ const experimentMetricsExperimentFragment = graphql`
 
 /**
  * One query shared by every experiment metric chart so the whole metrics page
- * resolves from a single network request and Relay store entry.
+ * resolves from a single network request and Relay store entry. A selection
+ * (`$isSelection`) loads exactly the selected experiments, ephemeral ones
+ * included, and skips the dataset baseline since the base experiment is the
+ * reference.
  */
 export const experimentMetricsQuery = graphql`
-  query useExperimentMetricsDataQuery($id: ID!, $count: Int!) {
+  query useExperimentMetricsDataQuery(
+    $id: ID!
+    $count: Int!
+    $filterIds: [ID!]
+    $isSelection: Boolean!
+  ) {
     dataset: node(id: $id) {
       ... on Dataset {
-        baselineExperiment {
+        baselineExperiment @skip(if: $isSelection) {
           ...useExperimentMetricsData_experiment
         }
-        metricsExperiments: experiments(first: $count) {
+        metricsExperiments: experiments(
+          first: $count
+          filterIds: $filterIds
+          includeEphemeral: $isSelection
+        ) {
           edges {
             experiment: node {
               ...useExperimentMetricsData_experiment
@@ -152,16 +167,43 @@ function readExperimentMetricsDatum({
 /**
  * Loads the metrics for the dataset's most recent experiments, ordered by
  * ascending sequence number so charts read oldest to newest left to right.
+ * Given a selection, loads the selected experiments instead, base experiment
+ * first and as the reference, then the compare experiments in selection
+ * order.
  */
-export function useExperimentMetricsData(datasetId: string): {
+export function useExperimentMetricsData({
+  datasetId,
+  selection,
+}: {
+  datasetId: string;
+  selection?: ExperimentMetricsSelection;
+}): {
   experiments: ExperimentMetricsDatum[];
   baselineExperiment: ExperimentMetricsDatum | null;
 } {
   const data = useLazyLoadQuery<useExperimentMetricsDataQuery>(
     experimentMetricsQuery,
-    { id: datasetId, count: EXPERIMENT_METRICS_EXPERIMENT_COUNT },
+    getExperimentMetricsQueryVariables({ datasetId, selection }),
     { fetchPolicy: "store-or-network" }
   );
+
+  if (selection != null) {
+    const experiments = orderBySelection({
+      experiments: (data.dataset.metricsExperiments?.edges ?? []).map(
+        ({ experiment }): ExperimentMetricsDatum =>
+          readExperimentMetricsDatum({
+            experiment,
+            baselineExperimentId: selection.baseExperimentId,
+          })
+      ),
+      selection,
+    });
+    return {
+      experiments,
+      baselineExperiment:
+        experiments.find((experiment) => experiment.isBaseline) ?? null,
+    };
+  }
 
   const baselineExperiment =
     data.dataset.baselineExperiment == null

@@ -23,7 +23,7 @@ const TRAILING_METRIC_CHARTS: ExperimentMetricChartKey[] = [
 export function DatasetMetricsPage() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required to view experiment metrics");
-  const { experiments } = useExperimentMetricsData(datasetId);
+  const { experiments } = useExperimentMetricsData({ datasetId });
 
   if (experiments.length === 0) {
     return <ExperimentsEmpty />;
