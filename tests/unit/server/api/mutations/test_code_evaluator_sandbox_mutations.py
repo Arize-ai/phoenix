@@ -1651,6 +1651,23 @@ class TestCodeEvaluatorOutputConfigsRequired:
         assert [config.name for config in row.output_configs] == ["score"]
 
 
+_CODE_EVALUATOR_OUTPUT_CONFIGS = """
+query CodeEvaluatorOutputConfigs($id: ID!) {
+    node(id: $id) {
+        ... on CodeEvaluator {
+            outputConfigs {
+                ... on CategoricalAnnotationConfig {
+                    name
+                    values {
+                        label
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
 _CURSE_WORDS_SOURCE = """
 CURSE_WORDS = {"darn", "heck", "frak"}
 
@@ -1821,3 +1838,54 @@ class TestMontyCodeEvaluatorPersistence:
             },
         )
         assert [error.message for error in result.errors] == [expected_error]
+
+    async def test_output_configs_survive_a_separate_read(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        config = await _create_monty_config(db)
+        created = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    **_create_code_evaluator_input(
+                        sandbox_config_id=config.id,
+                        source_code='def evaluate(output):\n    return "pass"',
+                    ),
+                    "outputConfigs": [
+                        _categorical_output_config(
+                            "verdict",
+                            [{"label": "pass", "score": 1.0}, {"label": "fail", "score": 0.0}],
+                        )
+                    ],
+                }
+            },
+        )
+        assert created.data and not created.errors, created.errors
+        evaluator_gid = created.data["createCodeEvaluator"]["evaluator"]["id"]
+
+        read = await gql_client.execute(_CODE_EVALUATOR_OUTPUT_CONFIGS, {"id": evaluator_gid})
+        assert read.data and not read.errors, read.errors
+        assert read.data["node"]["outputConfigs"] == [
+            {"name": "verdict", "values": [{"label": "pass"}, {"label": "fail"}]}
+        ]
+
+        preview = await gql_client.execute(
+            _EVALUATOR_PREVIEWS,
+            variables={
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {"codeEvaluatorId": evaluator_gid},
+                            "context": {"output": "anything"},
+                            "inputMapping": _OUTPUT_MAPPING,
+                        }
+                    ]
+                }
+            },
+        )
+        assert preview.data and not preview.errors, preview.errors
+        (preview_result,) = preview.data["evaluatorPreviews"]["results"]
+        assert preview_result["annotation"] == {"label": "pass", "score": 1.0}
