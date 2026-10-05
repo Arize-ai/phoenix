@@ -1,8 +1,8 @@
 # Authentication defaults without a configured secret
 
 Require authentication for network listeners without mandatory secret configuration.
-Preserve local convenience and durable keys. Token authentication, stored credential
-confidentiality, and initial admin ownership have separate requirements.
+Preserve local convenience and durable keys. Token authentication, encryption of saved
+provider API keys and workspace secrets, and initial admin ownership have separate requirements.
 
 ## Authentication policy
 
@@ -62,11 +62,14 @@ The seed aligns key lifetime with data lifetime without separate persistence obl
 Purpose-specific HKDF labels separate keys. Retaining JWTs preserves the wire format and
 token lifecycle.
 
-## Stored credentials and browser redaction
+## Stored application secrets and browser redaction
 
-Provider keys, workspace secrets, and GitHub tokens retain PBKDF2/Fernet encryption.
+Saved provider API keys and workspace secrets, including the shared GitHub personal access
+token (`GITHUB_PERSONAL_ACCESS_TOKEN`), retain PBKDF2/Fernet encryption.
 Without `PHOENIX_SECRET`, the key is publicly known and anyone with a database copy can
-decrypt them. Credential forms warn about this and recommend configuring the secret.
+decrypt them. Forms that save these values display a warning recommending that the operator
+set `PHOENIX_SECRET` on the server. User login passwords use separate salted hashes.
+Personal GitHub tokens supplied with chat requests are not persisted server-side.
 
 A database-resident encryption key accompanies database copies and requires migrating
 existing ciphertext. A key file adds durability and replica coordination requirements.
@@ -85,28 +88,29 @@ secret.
 
 ## Initial admin ownership: deferred
 
-Initial credentials are `admin@localhost` / `admin` unless
+The initial admin login is `admin@localhost` / `admin` unless
 `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` is configured. Valid login with `admin` while a
 local account requires reset returns HTTP 403 and a reset token. In that state, resetting
-to `admin` returns HTTP 422 without changing credentials or consuming the token. A
+to `admin` returns HTTP 422 without changing the password or consuming the token. A
 different password completes the reset.
 
-Any reachable caller knowing the public credentials can claim the account. Operator-only
-bootstrap is intentionally deferred. Deployments needing that boundary must configure an
-unpredictable initial password before startup.
+Any reachable caller knowing the public initial password can claim the account.
+Operator-only bootstrap is intentionally deferred. Deployments needing that boundary must
+configure an unpredictable initial password before startup.
 
 ## Compatibility and accepted costs
 
 These defaults target a major release. See MIGRATION.md for operator
 configuration changes.
 
-- Network deployments require ingestion credentials. Exporters without a key receive
-  HTTP 401 or gRPC `UNAUTHENTICATED`; operators provision keys before switching clients.
+- Network exporters need an API key. Exporters without a key receive HTTP 401 or gRPC
+  `UNAUTHENTICATED`; operators provision keys before switching clients.
 - Restarts and restores preserve keys when the database and configured secret are retained.
 - Setting, changing, or removing `PHOENIX_SECRET` changes signing and storage keys.
-  Existing tokens become invalid, and credentials encrypted under the previous key must
-  be entered again. Automatic re-encryption is outside this change.
+  Existing tokens become invalid, and application secrets encrypted under the previous
+  key must be entered again. Automatic re-encryption is outside this change.
 - Redaction changes invalidate values fetched before upgrading. Forms can fail during
   mixed-version rollouts or when opened beforehand; refresh them after the rollout.
-  Stored credentials remain intact with the same secret. Accept this transient disruption
-  to avoid another derivation path or staged wire-format transition for upgrade compatibility.
+  Stored application secrets remain intact with the same secret. Accept this transient
+  disruption to avoid another derivation path or staged wire-format transition for upgrade
+  compatibility.
