@@ -80,6 +80,5 @@ async def test_database_encryption_key_is_public_follows_admin_access(
             )
         ),
     )
-    # Strawberry types the field as StrawberryField; the call returns the coroutine.
     status = await cast(Awaitable[ServerStatus], Query().server_status(info))
     assert status.database_encryption_key_is_public is expected

@@ -55,10 +55,8 @@ ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 """
-The only source of the bind address for the HTTP, gRPC, and Prometheus listeners.
-Defaults to 127.0.0.1, so a server started without configuration is reachable only
-from the same machine. When PHOENIX_ENABLE_AUTH is unset, a non-loopback address
-enables authentication.
+Bind address for HTTP, gRPC, and Prometheus. Defaults to 127.0.0.1.
+Non-loopback addresses enable authentication unless PHOENIX_ENABLE_AUTH is set.
 """
 ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
 """
@@ -477,9 +475,8 @@ Whether to mask internal server errors from the GraphQL and REST APIs. Defaults 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 """
-Whether authentication is required. An explicit TRUE or FALSE is always honored.
-When unset, authentication follows PHOENIX_HOST, the only source of the bind
-address: on for a non-loopback address and off for loopback.
+Require authentication. When unset, enabled for non-loopback PHOENIX_HOST values
+and disabled for loopback. Explicit TRUE or FALSE overrides the host default.
 """
 ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 """
@@ -504,14 +501,11 @@ ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS = (
 )
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
-The secret key used for signing JWTs and for encrypting saved credentials. It must be at least 32
-characters long and include at least one digit and one lowercase letter.
+Optional JWT signing and credential encryption secret. Requires at least 32 characters,
+including one digit and one lowercase letter.
 
-It is optional when auth is enabled. Without it, tokens are signed with a key derived from a
-random per-deployment value stored in the database, and each token must also match a hash stored
-when it was issued, so database readers cannot forge tokens. Saved credentials are then encrypted
-with a publicly known key, and anyone with a copy of the database can decrypt them; the UI warns
-about this wherever credentials are saved.
+When unset, JWTs use a deployment-seed key and require stored issuance hashes.
+Saved credentials use a publicly known encryption key and are readable by database readers.
 """
 ENV_PHOENIX_ADMIN_SECRET = "PHOENIX_ADMIN_SECRET"
 """
@@ -528,11 +522,8 @@ and one special character. Defaults to false.
 """
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-The initial password for the default admin account. When unset, the account is created
-with the password 'admin', which cannot open a session until it is changed. Note that
-changing this value will have no effect if the default admin record already exists in
-the database. In such cases, the default admin password must be updated manually in
-the application.
+Initial password for the default admin account; only used when creating the account.
+Defaults to 'admin', which requires a password reset before opening a session.
 """
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
@@ -1335,25 +1326,14 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
 
 
 def auth_enabled_for_host(host: Optional[str]) -> bool:
-    """
-    Whether authentication is enabled for a bind host.
-
-    An explicit PHOENIX_ENABLE_AUTH wins. Otherwise authentication is on
-    exactly when the host is not a loopback address.
-    """
+    """Use PHOENIX_ENABLE_AUTH if set; otherwise require auth for non-loopback hosts."""
     if (explicit := _bool_val(ENV_PHOENIX_ENABLE_AUTH)) is not None:
         return explicit
     return not is_loopback_host(host)
 
 
 def get_env_enable_auth() -> bool:
-    """
-    Whether authentication is enabled.
-
-    An explicit PHOENIX_ENABLE_AUTH is honored. When unset, authentication is on
-    exactly when PHOENIX_HOST is not a loopback address. PHOENIX_HOST is the only
-    source of the bind address.
-    """
+    """Resolve authentication from PHOENIX_ENABLE_AUTH and the PHOENIX_HOST default."""
     return auth_enabled_for_host(get_env_host())
 
 
@@ -3176,8 +3156,6 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
 
 class AppAuthKwargs(TypedDict):
-    """Auth-related keyword arguments for ``create_app``."""
-
     secret: SecretStr
     password_reset_token_expiry: timedelta
     access_token_expiry: timedelta
@@ -3188,11 +3166,7 @@ class AppAuthKwargs(TypedDict):
 
 
 def app_auth_kwargs(settings: AuthSettings) -> AppAuthKwargs:
-    """``create_app`` auth arguments from validated settings.
-
-    ``secret`` is ``PHOENIX_SECRET`` in every mode. Credential encryption is keyed
-    from that value.
-    """
+    """Build ``create_app`` auth arguments, preserving PHOENIX_SECRET for encryption."""
     return {
         "secret": settings.phoenix_secret,
         "password_reset_token_expiry": get_env_password_reset_token_expiry(),
@@ -3254,7 +3228,6 @@ PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
 HOST = "127.0.0.1"
-"""The default bind address: loopback, so an unconfigured server is unreachable from the network."""
 PORT = 6006
 """The port the server will run on after launch_app is called."""
 HOST_ROOT_PATH = ""
@@ -3487,10 +3460,9 @@ def get_env_grpc_port() -> int:
 
 
 def canonicalize_host(host: str) -> str:
-    """Dotted-quad form of an IPv4 value ``ipaddress`` rejects and ``inet_aton`` accepts.
+    """Strip whitespace and expand IPv4 abbreviations accepted by ``inet_aton``.
 
-    Leading and trailing whitespace is stripped. Other values, including hostnames
-    and IPv6 addresses, are unchanged.
+    Preserve hostnames and IPv6 addresses.
     """
     host = host.strip()
     try:
@@ -3507,22 +3479,15 @@ def canonicalize_host(host: str) -> str:
 
 
 def get_env_host() -> str:
-    """Bind host from ``PHOENIX_HOST``.
-
-    Leading and trailing whitespace is stripped. An IPv4 abbreviation such as
-    ``127.1`` is rewritten to dotted-quad form so every listener sees one address.
-    """
+    """Return the canonicalized PHOENIX_HOST, defaulting to 127.0.0.1."""
     return canonicalize_host(getenv(ENV_PHOENIX_HOST) or HOST)
 
 
 def is_loopback_host(host: Optional[str]) -> bool:
-    """
-    Whether a bind address accepts connections only from the same machine.
+    """Recognize localhost and loopback IPs, including IPv4-mapped IPv6.
 
-    None means all interfaces, as does any unspecified address such as 0.0.0.0 or ::.
-    An IPv4-mapped IPv6 address is loopback when the mapped IPv4 address is.
-    A hostname other than "localhost" is non-loopback, because what it resolves
-    to is outside Phoenix's control. A spelling ``ipaddress`` cannot parse is non-loopback.
+    Treat missing hosts, unspecified addresses, and other hostnames as non-loopback.
+    Hostnames are not resolved; DNS cannot determine the authentication default.
     """
     if not host:
         return False
@@ -3547,7 +3512,7 @@ def is_unspecified_host(host: str) -> bool:
 
 
 def url_host(host: str) -> str:
-    """``host`` as the host part of a URL. An IPv6 literal is bracketed."""
+    """Format a URL host, bracketing IPv6 literals."""
     candidate = host.strip().strip("[]")
     try:
         address = ipaddress.ip_address(candidate)
@@ -3557,11 +3522,9 @@ def url_host(host: str) -> str:
 
 
 def local_url_host(host: str) -> str:
-    """
-    URL host that reaches, from the same machine, a server bound to ``host``.
+    """Format a bind host for local connections.
 
-    An unspecified address maps to the loopback address of its family: 0.0.0.0 to
-    127.0.0.1 and :: to [::1]. Other hosts are returned by ``url_host``.
+    Map 0.0.0.0 to 127.0.0.1 and :: to [::1].
     """
     if is_unspecified_host(host):
         unspecified = ipaddress.ip_address(host.strip().strip("[]"))

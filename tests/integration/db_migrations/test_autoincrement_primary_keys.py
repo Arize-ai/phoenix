@@ -64,7 +64,6 @@ def _insert_token(connection: sa.Connection, table_name: str, user_id: int) -> i
     elif table_name == "access_tokens":
         values["refresh_token_id"] = _insert_token(connection, "refresh_tokens", user_id)
     elif table_name == "password_reset_tokens":
-        # user_id is unique.
         role_id: int = connection.execute(
             sa.text("SELECT user_role_id FROM users WHERE id = :user_id"),
             {"user_id": user_id},

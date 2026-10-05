@@ -661,7 +661,6 @@ def _install_token_signing_key(
     seed: bytes,
     secret: Optional[SecretStr],
 ) -> None:
-    """Install ``PHOENIX_SECRET``, or the key derived from the deployment seed."""
     if secret:
         token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
         return
@@ -884,25 +883,13 @@ def create_graphql_router(
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
-    """Creates the GraphQL router.
+    """Create the router mounted at /graphql.
 
     Args:
-        graphql_schema (strawberry.Schema): The GraphQL schema.
-        db (DbSessionFactory): The database session factory pointing to a SQL database.
-        last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
-        authentication_enabled (bool): Whether authentication is enabled.
-        span_cost_calculator (SpanCostCalculator): The span cost calculator for calculating costs.
-        event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
-        cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
-        read_only (bool, optional): Marks the app as read-only. Defaults to False.
-        secret (Optional[Secret], optional): The application secret for auth. Defaults to None.
-        database_encryption_key_is_public (bool, optional): Whether data encrypted at
-            rest uses a publicly known key. Defaults to False.
-        token_store (Optional[TokenStore], optional): The token store for auth. Defaults to None.
-        email_sender (Optional[EmailSender], optional): The email sender. Defaults to None.
-
-    Returns:
-        GraphQLRouter: The router mounted at /graphql
+        last_updated_at: Source of database update timestamps for streaming clients.
+        cache_for_dataloaders: Shared cache across requests.
+        read_only: Disable mutations when true.
+        database_encryption_key_is_public: Whether stored credentials use a publicly known key.
     """
 
     allowed_provider_names = get_env_allowed_providers()
@@ -1087,12 +1074,6 @@ def create_app(
             "This is recommended when setting up OAuth2 clients or sending "
             "password reset emails."
         )
-    # Tokens are signed with PHOENIX_SECRET, or with a key derived from the deployment
-    # seed when it is unset. The store receives that key after the seed loads and
-    # rejects every token until then. A database reader can derive the seed key, so
-    # those tokens are accepted only when their stored hash matches.
-    # Credential encryption is derived from PHOENIX_SECRET, or from empty input when it is
-    # unset: a hash cannot be reversed to recover a credential.
     if authentication_enabled:
         token_store = JwtStore(db)
         middlewares.append(

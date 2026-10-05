@@ -2409,14 +2409,10 @@ class User(HasId):
 
 
 class DeploymentSecret(HasId):
-    """Exactly one row.
+    """Immutable singleton seed for deployment keys.
 
-    Created once with insert-if-absent and never updated. Per-purpose values
-    are derived from the seed with HKDF and never stored. The seed is readable
-    by anyone who can read the database, so a derived value that must stay
-    secret from such a reader mixes in ``PHOENIX_SECRET``. Deleting the row
-    changes every derived value. The seed must never be logged, returned by an
-    API, or included in telemetry.
+    Deleting this row invalidates derived keys. Never expose the seed in logs,
+    API responses, or telemetry.
     """
 
     __tablename__ = "deployment_secret"
@@ -2544,9 +2540,7 @@ class PasswordResetToken(HasId):
     user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
-    # SHA-256 of the complete issued token. NULL only for tokens issued before this column
-    # existed. A token signed with the public default key authenticates only when its hash
-    # matches, because that key cannot prove Phoenix issued it.
+    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2677,9 +2671,7 @@ class RefreshToken(HasId):
     # recognizable as a replay rather than an unknown token. A consumed row must never
     # authenticate: every read path filters on consumed_at IS NULL.
     consumed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    # SHA-256 of the complete issued token. NULL only for tokens issued before this column
-    # existed. A token signed with the public default key authenticates only when its hash
-    # matches, because that key cannot prove Phoenix issued it.
+    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2700,9 +2692,7 @@ class AccessToken(HasId):
     )
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
-    # SHA-256 of the complete issued token. NULL only for tokens issued before this column
-    # existed. A token signed with the public default key authenticates only when its hash
-    # matches, because that key cannot prove Phoenix issued it.
+    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2720,9 +2710,7 @@ class ApiKey(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
-    # SHA-256 of the complete issued token. NULL only for tokens issued before this column
-    # existed. A token signed with the public default key authenticates only when its hash
-    # matches, because that key cannot prove Phoenix issued it.
+    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 

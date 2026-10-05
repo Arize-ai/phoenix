@@ -263,13 +263,10 @@ def _memoized_encryption_key(secret: Optional[SecretStr]) -> bytes:
 
 @pytest.fixture(autouse=True)
 def _memoized_key_derivation(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``EncryptionService`` derives a Fernet key from the secret with 600,000
-    PBKDF2 rounds, a deliberately slow key stretch that every app pays at
-    construction. The derivation is a pure function of the secret, so the
-    worker memoizes it per secret value: every app after the worker's first
-    gets its key for free, and the key is identical to the one the real
-    derivation returns. A test that asserts on the derivation itself opts out
-    with ``@pytest.mark.real_key_derivation``."""
+    """Memoize deterministic PBKDF2 derivation per worker to avoid repeated key stretching.
+
+    Tests of key derivation must opt out with ``@pytest.mark.real_key_derivation``.
+    """
     if request.node.get_closest_marker("real_key_derivation"):
         return
 
@@ -965,7 +962,6 @@ async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
 
 @pytest.fixture
 def redactor(app: FastAPI, asgi_app: ASGIApp) -> Redactor:
-    """The app's redactor, set during startup from the deployment seed."""
     assert asgi_app is not None
     redactor = getattr(app.state, "redactor", None)
     assert isinstance(redactor, Redactor)

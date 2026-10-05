@@ -31,8 +31,7 @@ def _env(
         **_env_auth,
         **_env_smtp,
     }
-    # `:memory:` is private to the server process. This app uses a file so
-    # tests can read the deployment seed the server stores.
+    # A file-backed database lets tests read the subprocess server's deployment seed.
     database_url = env.get("PHOENIX_SQL_DATABASE_URL", "")
     if _is_memory_sqlite(database_url):
         database = tmp_path_factory.mktemp("client-app") / "phoenix.db"

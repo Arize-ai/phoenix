@@ -922,14 +922,11 @@ def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: 
 
 
 class _OAuth2LoginContext(TypedDict):
-    """Origin the callback was built on, and the optional post-login path."""
-
     origin_url: str
     return_url: NotRequired[str]
 
 
 def _encode_oauth2_login_context(*, origin_url: str, return_url: Optional[str]) -> str:
-    """Compact JSON, base64url-encoded without padding, for the login-context cookie."""
     payload: dict[str, str] = {"origin_url": origin_url}
     if return_url is not None:
         payload["return_url"] = return_url
@@ -955,7 +952,6 @@ def _parse_oauth2_login_context(value: Optional[str]) -> _OAuth2LoginContext:
 
 
 def _is_absolute_http_url(url: str) -> bool:
-    """Whether ``url`` is an absolute http or https URL with a host."""
     try:
         parsed = urlparse(url)
         host = parsed.hostname
@@ -984,7 +980,6 @@ def _is_oauth2_login_context(payload: Any) -> TypeGuard[_OAuth2LoginContext]:
 
 
 def _encodes_as_utf8(value: str) -> bool:
-    """Whether ``value`` can be encoded as UTF-8. Lone surrogates cannot."""
     try:
         value.encode("utf-8")
     except UnicodeEncodeError:

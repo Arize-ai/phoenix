@@ -61,7 +61,6 @@ def test_redaction_without_phoenix_secret_requires_the_seed() -> None:
     )
     token = seeded.redact("sk-live-value")
 
-    # An empty seed leaves the input keying material as the secret bytes alone.
     empty_secret_only = Redactor(
         derive_deployment_key(seed=b"", secret=secret, purpose=REDACTION_KEY_PURPOSE)
     )

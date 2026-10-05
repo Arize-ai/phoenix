@@ -895,9 +895,6 @@ async def _skip_rate_limit(request: Request) -> Request:
 
 
 class TestOAuth2CallbackLoginContext:
-    """The callback accepts the IdP `state` only when it equals the state cookie, then
-    reads `origin_url` and `return_url` from the login-context cookie."""
-
     _app: Optional[FastAPI] = None
 
     @classmethod

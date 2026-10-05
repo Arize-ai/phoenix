@@ -476,7 +476,6 @@ class TestMcpCodeMode:
         _app_mcp_code_mode: _AppInfo,
         _token_signing_mode: str,
     ) -> None:
-        """Code mode signs with the same key as the package app in this mode."""
         _assert_issued_token_verifies_with_signing_mode(_app_mcp_code_mode, _token_signing_mode)
 
     async def test_oauth_token_drives_sandboxed_execute_end_to_end(

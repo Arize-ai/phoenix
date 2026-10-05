@@ -125,11 +125,7 @@ class GrpcServer:
 
 
 def _bind_address(host: Optional[str], port: int) -> str:
-    """
-    gRPC bind address for the given host.
-
-    None binds all interfaces. IPv6 literals are bracketed.
-    """
+    """Format a gRPC bind address; None binds all interfaces."""
     if host is None:
         return f"[::]:{port}"
     address = host.strip().strip("[]")

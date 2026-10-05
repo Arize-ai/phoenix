@@ -4888,7 +4888,7 @@ type Query {
 }
 
 """
-A string that is automatically redacted on output and un-redacted on input. Values are symmetrically encrypted with a key derived from the deployment seed and PHOENIX_SECRET, so redacted values stay valid across replicas and restarts as long as both are unchanged.
+A string encrypted on output and decrypted on input using a key derived from the deployment seed and PHOENIX_SECRET. Values remain valid across replicas and restarts while both are unchanged.
 """
 scalar RedactedString
 
@@ -5120,7 +5120,7 @@ type ServerStatus {
   insufficientStorage: Boolean!
 
   """
-  Whether data encrypted at rest in the database (workspace secrets, custom provider configs) uses a publicly known key because PHOENIX_SECRET is not set. Null for viewers who are not admins.
+  Whether stored credentials use a publicly known encryption key because PHOENIX_SECRET is unset. Null for non-admin viewers when authentication is enabled.
   """
   databaseEncryptionKeyIsPublic: Boolean
 }
