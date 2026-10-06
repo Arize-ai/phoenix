@@ -24,6 +24,15 @@ export const DRAWER_SIZE_STORAGE_KEY_PREFIX = "arize-phoenix-drawer-";
 export const PROMPTS_TABLE_STORAGE_KEY = "arize-phoenix-prompts-table";
 export const DATASETS_TABLE_STORAGE_KEY = "arize-phoenix-datasets-table";
 export const PROJECT_STORAGE_KEY_PREFIX = "arize-phoenix-project-";
+export const TRACING_TABLE_STORAGE_KEY_PREFIX = "arize-phoenix-tracing-";
+export const DATASET_STORAGE_KEY_PREFIX = "arize-phoenix-dataset-";
+/**
+ * Prefix for the experiments table's persisted column state. It predates the
+ * `arize-phoenix-` convention and is kept as is so existing preferences
+ * survive; the inventory recognizes it explicitly.
+ */
+export const EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX =
+  "phoenix-experiments-column-";
 export const EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY =
   "arize-phoenix-experiment-compare-charts";
 

@@ -83,7 +83,7 @@ export function useFeatureFlag(featureFlag: FeatureFlag) {
 
 export function FeatureFlagsProvider(props: React.PropsWithChildren) {
   const [featureFlags, _setFeatureFlags] =
-    useState<Record<FeatureFlag, boolean>>(getFeatureFlags());
+    useState<Record<FeatureFlag, boolean>>(getFeatureFlags);
   const setFeatureFlags = (featureFlags: Record<FeatureFlag, boolean>) => {
     localStorage.setItem(
       FEATURE_FLAGS_STORAGE_KEY,

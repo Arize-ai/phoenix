@@ -3,13 +3,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   CREDENTIALS_STORAGE_KEY,
+  DATASET_STORAGE_KEY_PREFIX,
   DRAWER_SIZE_STORAGE_KEY_PREFIX,
+  EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX,
   FEATURE_FLAGS_STORAGE_KEY,
   FILTER_HISTORY_STORAGE_KEY_PREFIX,
   PANEL_LAYOUT_STORAGE_KEY_PREFIX,
   PREFERENCES_STORAGE_KEY,
   PROJECT_STORAGE_KEY_PREFIX,
   THEME_STORAGE_KEY,
+  TRACING_TABLE_STORAGE_KEY_PREFIX,
 } from "@phoenix/constants/storageConstants";
 
 import {
@@ -55,6 +58,20 @@ describe("getLocalStorageStoreIdForKey", () => {
     );
     expect(
       getLocalStorageStoreIdForKey(`${PROJECT_STORAGE_KEY_PREFIX}UHJvamVjdDox`)
+    ).toBe("tables");
+    expect(
+      getLocalStorageStoreIdForKey(
+        `${TRACING_TABLE_STORAGE_KEY_PREFIX}UHJvamVjdDox-traces`
+      )
+    ).toBe("tables");
+    expect(
+      getLocalStorageStoreIdForKey(`${DATASET_STORAGE_KEY_PREFIX}RGF0YXNldDox`)
+    ).toBe("tables");
+    // Predates the arize-phoenix- convention but is still Phoenix's
+    expect(
+      getLocalStorageStoreIdForKey(
+        `${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}visibility-RGF0YXNldDox`
+      )
     ).toBe("tables");
     expect(
       getLocalStorageStoreIdForKey(
@@ -179,12 +196,16 @@ describe("clearAllLocalStorageStores", () => {
     localStorage.setItem(FEATURE_FLAGS_STORAGE_KEY, '{"x":true}');
     localStorage.setItem(PREFERENCES_STORAGE_KEY, "{}");
     localStorage.setItem(`${PANEL_LAYOUT_STORAGE_KEY_PREFIX}layout`, "[]");
+    localStorage.setItem(
+      `${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}order-x`,
+      "[]"
+    );
     localStorage.setItem("arize-phoenix-assistant:/s/phoenix-devs", "{}");
     localStorage.setItem("arize-phoenix-legacy", "{}");
     localStorage.setItem("arize-phoenix-assistant:/s/other", "{}");
     localStorage.setItem("unrelated", "keep");
 
-    expect(clearAllLocalStorageStores()).toBe(4);
+    expect(clearAllLocalStorageStores()).toBe(5);
 
     expect(localStorage.length).toBe(3);
     expect(localStorage.getItem(FEATURE_FLAGS_STORAGE_KEY)).toBe('{"x":true}');

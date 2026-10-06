@@ -79,6 +79,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
@@ -274,16 +275,16 @@ export function ExperimentsTable({
     );
   const [columnVisibility, setColumnVisibility] = usePersistedState<
     Record<string, boolean>
-  >(`phoenix-experiments-column-visibility-${data.id}`, {
+  >(`${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}visibility-${data.id}`, {
     id: false,
     experimentJobStatus: false,
     experimentJobProgress: false,
   });
   const [columnSizing, setColumnSizing] = usePersistedState<
     Record<string, number>
-  >(`phoenix-experiments-column-sizing-${data.id}`, {});
+  >(`${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}sizing-${data.id}`, {});
   const [storedColumnOrder, setStoredColumnOrder] = usePersistedState<string[]>(
-    `phoenix-experiments-column-order-${data.id}`,
+    `${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}order-${data.id}`,
     []
   );
 

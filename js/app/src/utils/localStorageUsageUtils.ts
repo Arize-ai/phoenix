@@ -4,10 +4,12 @@ import {
   CHAT_MODEL_STORAGE_BASE_KEY,
   CHAT_PARAMETERS_STORAGE_BASE_KEY,
   CREDENTIALS_STORAGE_KEY,
+  DATASET_STORAGE_KEY_PREFIX,
   DATASETS_TABLE_STORAGE_KEY,
   DISMISSED_UPDATE_VERSION_STORAGE_KEY,
   DRAWER_SIZE_STORAGE_KEY_PREFIX,
   EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY,
+  EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX,
   FEATURE_FLAGS_STORAGE_KEY,
   FILTER_HISTORY_STORAGE_KEY_PREFIX,
   PANEL_LAYOUT_STORAGE_KEY_PREFIX,
@@ -17,6 +19,7 @@ import {
   PROMPTS_TABLE_STORAGE_KEY,
   RECENTLY_VIEWED_STORAGE_KEY,
   THEME_STORAGE_KEY,
+  TRACING_TABLE_STORAGE_KEY_PREFIX,
 } from "@phoenix/constants/storageConstants";
 
 import { scopeStorageKeyToBasename } from "./storageUtils";
@@ -74,10 +77,18 @@ const SCOPED_STORAGE_BASE_KEYS: readonly string[] = [
  */
 const HIDDEN_STORAGE_KEYS: readonly string[] = [FEATURE_FLAGS_STORAGE_KEY];
 
-/** Key prefixes that identify an entry as written by Phoenix. */
+/**
+ * Key prefixes that identify an entry as written by Phoenix.
+ *
+ * `react-resizable-panels:` is the library's own namespace rather than a
+ * Phoenix one and is not scoped by root path, so panel layouts are shared
+ * with (and cleared for) any co-hosted workspace or other app on the same
+ * origin that uses the library.
+ */
 const PHOENIX_STORAGE_KEY_PREFIXES: readonly string[] = [
   "arize-phoenix",
   "__experimental__arize-phoenix",
+  EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX,
   PANEL_LAYOUT_STORAGE_KEY_PREFIX,
 ];
 
@@ -99,13 +110,18 @@ export const LOCAL_STORAGE_STORES: readonly LocalStorageStoreDefinition[] = [
     id: "tables",
     label: "Tables and views",
     description:
-      "Column visibility, sorting, and chart selections for projects, prompts, datasets, and experiments.",
+      "Column visibility, sorting, and chart selections for projects, traces, spans, prompts, datasets, and experiments.",
     resolveKeys: () => [
       PROMPTS_TABLE_STORAGE_KEY,
       DATASETS_TABLE_STORAGE_KEY,
       EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY,
     ],
-    prefixes: [PROJECT_STORAGE_KEY_PREFIX],
+    prefixes: [
+      PROJECT_STORAGE_KEY_PREFIX,
+      TRACING_TABLE_STORAGE_KEY_PREFIX,
+      DATASET_STORAGE_KEY_PREFIX,
+      EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX,
+    ],
   },
   {
     id: "playground",
@@ -197,47 +213,63 @@ function isPhoenixStorageKey(key: string): boolean {
   return PHOENIX_STORAGE_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
 
-/**
- * Whether the key is a scoped Phoenix key for a different root path than the
- * current deployment's, i.e. it belongs to a co-hosted workspace.
- */
-function isForeignScopedStorageKey(key: string): boolean {
-  return SCOPED_STORAGE_BASE_KEYS.some(
-    (baseKey) =>
-      key.startsWith(`${baseKey}:`) &&
-      key !== scopeStorageKeyToBasename(baseKey)
-  );
-}
+type StoreIdResolver = (key: string) => LocalStorageStoreId | null;
 
-function storeMatchesKey(
-  store: LocalStorageStoreDefinition,
-  key: string
-): boolean {
-  if (store.resolveKeys?.().includes(key)) {
-    return true;
+/**
+ * Builds a key-to-sub-store lookup. Exact keys (including the scoped ones,
+ * which depend on `window.Config`) are resolved once here instead of once per
+ * key per store while walking storage.
+ *
+ * The resolver returns `null` when the key is not Phoenix's to manage
+ * (another app on the same origin, a co-hosted workspace's scoped entry, or a
+ * deliberately hidden key).
+ */
+function createStoreIdResolver(): StoreIdResolver {
+  const storeIdByKey = new Map<string, LocalStorageStoreId>();
+  const storeIdByPrefix: Array<[prefix: string, id: LocalStorageStoreId]> = [];
+  for (const store of LOCAL_STORAGE_STORES) {
+    for (const key of store.resolveKeys?.() ?? []) {
+      storeIdByKey.set(key, store.id);
+    }
+    for (const prefix of store.prefixes ?? []) {
+      storeIdByPrefix.push([prefix, store.id]);
+    }
   }
-  return store.prefixes?.some((prefix) => key.startsWith(prefix)) ?? false;
+  // A scoped key for a different root path than the current deployment's
+  // belongs to a co-hosted workspace
+  const foreignScopedPrefixes = SCOPED_STORAGE_BASE_KEYS.map((baseKey) => ({
+    prefix: `${baseKey}:`,
+    ownKey: scopeStorageKeyToBasename(baseKey),
+  }));
+  return (key) => {
+    if (!isPhoenixStorageKey(key) || HIDDEN_STORAGE_KEYS.includes(key)) {
+      return null;
+    }
+    if (
+      foreignScopedPrefixes.some(
+        ({ prefix, ownKey }) => key.startsWith(prefix) && key !== ownKey
+      )
+    ) {
+      return null;
+    }
+    const exactStoreId = storeIdByKey.get(key);
+    if (exactStoreId) {
+      return exactStoreId;
+    }
+    const prefixed = storeIdByPrefix.find(([prefix]) => key.startsWith(prefix));
+    return prefixed?.[1] ?? "other";
+  };
 }
 
 /**
  * Resolves which sub-store a key belongs to, or `null` when the key is not
- * Phoenix's to manage (another app on the same origin, a co-hosted
- * workspace's scoped entry, or a deliberately hidden key).
+ * Phoenix's to manage. Prefer {@link createStoreIdResolver} when resolving
+ * many keys at once.
  */
 export function getLocalStorageStoreIdForKey(
   key: string
 ): LocalStorageStoreId | null {
-  if (
-    !isPhoenixStorageKey(key) ||
-    isForeignScopedStorageKey(key) ||
-    HIDDEN_STORAGE_KEYS.includes(key)
-  ) {
-    return null;
-  }
-  const store = LOCAL_STORAGE_STORES.find(
-    (candidate) => candidate.id !== "other" && storeMatchesKey(candidate, key)
-  );
-  return store?.id ?? "other";
+  return createStoreIdResolver()(key);
 }
 
 function getStorage(storage?: Storage): Storage | null {
@@ -271,8 +303,9 @@ export function readLocalStorageUsage(storage?: Storage): LocalStorageUsage {
   const entriesByStoreId = new Map<LocalStorageStoreId, LocalStorageEntry[]>();
   const resolvedStorage = getStorage(storage);
   if (resolvedStorage) {
+    const resolveStoreId = createStoreIdResolver();
     for (const key of listStorageKeys(resolvedStorage)) {
-      const storeId = getLocalStorageStoreIdForKey(key);
+      const storeId = resolveStoreId(key);
       if (storeId === null) {
         continue;
       }
@@ -319,8 +352,9 @@ export function clearLocalStorageStore(
   if (!resolvedStorage) {
     return 0;
   }
+  const resolveStoreId = createStoreIdResolver();
   const keys = listStorageKeys(resolvedStorage).filter(
-    (key) => getLocalStorageStoreIdForKey(key) === storeId
+    (key) => resolveStoreId(key) === storeId
   );
   for (const key of keys) {
     resolvedStorage.removeItem(key);
@@ -330,8 +364,9 @@ export function clearLocalStorageStore(
 
 /**
  * Removes every Phoenix entry from local storage. Entries written by other
- * apps on the same origin, or by a co-hosted Phoenix workspace, are left
- * alone.
+ * apps on the same origin, or a co-hosted Phoenix workspace's scoped entries,
+ * are left alone (except panel layouts, which are not scoped; see
+ * {@link PHOENIX_STORAGE_KEY_PREFIXES}).
  *
  * @returns the number of entries removed
  */
@@ -340,8 +375,9 @@ export function clearAllLocalStorageStores(storage?: Storage): number {
   if (!resolvedStorage) {
     return 0;
   }
+  const resolveStoreId = createStoreIdResolver();
   const keys = listStorageKeys(resolvedStorage).filter(
-    (key) => getLocalStorageStoreIdForKey(key) !== null
+    (key) => resolveStoreId(key) !== null
   );
   for (const key of keys) {
     resolvedStorage.removeItem(key);
