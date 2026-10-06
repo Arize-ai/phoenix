@@ -188,7 +188,7 @@ so both experiments use the same dataset version.
 ### Run the tests
 
 ```bash
-uv run pytest tests/unit/harbor
+uv run --all-packages pytest tests/unit/harbor
 ```
 
 Use an oracle run to test the task environment, reference solutions, and verifiers

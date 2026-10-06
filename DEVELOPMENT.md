@@ -34,7 +34,7 @@ The fastest path from a fresh clone to a running Phoenix dev server. See the sec
 
 ```bash
 # 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
-uv sync --all-extras
+uv sync --all-extras --all-packages
 
 # 2. Install the pinned Node.js and pnpm versions
 nvm install
@@ -78,7 +78,7 @@ pnpm --dir js/app uv lock     # the same wrapper, from pnpm
 The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the default development Python version. CI still tests the lowest supported version.
 
 ```bash
-uv sync --python 3.11
+uv sync --python 3.11 --all-packages
 ```
 
 The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located under the packages/ directory are automatically installed in editable mode via the `uv` workspace configuration.

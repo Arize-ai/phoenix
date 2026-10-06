@@ -88,7 +88,6 @@ phoenix = "phoenix.server.main:main"
 [dependency-groups]
 dev = [
   "check-wheel-contents",
-  "harbor-verifiers",
   "twine",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "aioboto3",
@@ -491,6 +490,9 @@ override-dependencies = [
 ]
 
 [tool.uv.workspace]
+# harbor-verifiers is unpublished, so it is a member only and not a dependency
+# of the root project: the Dockerfile resolves the root project from PyPI with
+# `--no-sources`. `uv sync --all-packages` installs it for local development.
 members = ["packages/*", "evals/harbor/verifiers"]
 # phoenix-sqlean is a vendored setup.py-based C extension (fork of
 # nalgeon/sqlean.py), not a uv-managed project.
@@ -500,7 +502,6 @@ exclude = ["packages/phoenix-sqlean"]
 arize-phoenix-client = { workspace = true }
 arize-phoenix-evals = { workspace = true }
 arize-phoenix-otel = { workspace = true }
-harbor-verifiers = { workspace = true }
 
 [tool.ariadne-codegen]
 # `make codegen-harbor-graphql` compiles the queries into typed models for the verifiers.
