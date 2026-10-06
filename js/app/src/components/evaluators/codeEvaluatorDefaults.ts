@@ -50,3 +50,40 @@ ${TYPESCRIPT_INDENT}return { score: 1, label: "pass", explanation: "..." };
 }
 `;
 }
+
+/**
+ * Code a code evaluator's Reset can go back to instead of the default: the
+ * saved code of an existing evaluator, or the code a new one was copied from.
+ */
+export type CodeEvaluatorResetSource = {
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  kind: "saved" | "copied";
+};
+
+/**
+ * What Reset restores, and how its tooltip says so. The given source wins
+ * while the editor is still in its language; otherwise, as for a new
+ * evaluator, it is the language's default.
+ */
+export function getCodeEvaluatorResetTarget({
+  language,
+  recordKind,
+  resetSource,
+}: {
+  language: CodeEvaluatorLanguage;
+  recordKind: EvaluatorRecordKind;
+  resetSource?: CodeEvaluatorResetSource | null;
+}): { sourceCode: string; description: string } {
+  if (resetSource != null && resetSource.language === language) {
+    return {
+      sourceCode: resetSource.sourceCode,
+      description: `Restore the ${resetSource.kind} code`,
+    };
+  }
+
+  return {
+    sourceCode: getDefaultCodeEvaluatorSource(language, recordKind),
+    description: "Reset to the default code",
+  };
+}
