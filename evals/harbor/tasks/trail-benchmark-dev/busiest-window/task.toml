@@ -8,6 +8,9 @@ description = "Find the 10-minute window in which the most traces started"
 [metadata]
 fixture = "trail"
 
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
 [environment]
 os = "linux"
 cpus = 2
