@@ -5,9 +5,9 @@ import type { ExperimentAnnotationMetricQuery } from "./__generated__/Experiment
 import type { useExperimentAnnotationMetricDataBaselineQuery } from "./__generated__/useExperimentAnnotationMetricDataBaselineQuery.graphql";
 import {
   getExperimentMetricsQueryVariables,
-  orderBySelection,
-} from "./experimentMetricsSelection";
-import type { ExperimentMetricsSelection } from "./types";
+  orderByComparedSelection,
+} from "./experimentSelection";
+import type { ExperimentSelection } from "./types";
 
 const experimentAnnotationMetricFragment = graphql`
   fragment ExperimentAnnotationMetric_experiment on Experiment
@@ -33,22 +33,22 @@ const experimentAnnotationMetricQuery = graphql`
     $id: ID!
     $count: Int!
     $filterIds: [ID!]
-    $isSelection: Boolean!
+    $isComparedSelection: Boolean!
     $annotationName: String!
   ) {
     dataset: node(id: $id) {
       ... on Dataset {
         # Query the same baseline field written by the baseline mutation so
         # set, replace, and clear operations update this chart through Relay.
-        # A selection's base experiment is its reference instead.
-        baselineExperiment @skip(if: $isSelection) {
+        # A comparison's base experiment is its reference instead.
+        baselineExperiment @skip(if: $isComparedSelection) {
           ...ExperimentAnnotationMetric_experiment
             @arguments(annotationName: $annotationName)
         }
         metricsExperiments: experiments(
           first: $count
           filterIds: $filterIds
-          includeEphemeral: $isSelection
+          includeEphemeral: $isComparedSelection
         ) {
           edges {
             experiment: node {
@@ -92,55 +92,61 @@ export type ExperimentAnnotationMetricDatum = {
 export function useExperimentAnnotationMetricData({
   datasetId,
   annotationName,
-  selection,
+  experimentSelection,
 }: {
   datasetId: string;
   annotationName: string;
   /**
-   * Loads exactly these experiments, base experiment first and as the
-   * reference, instead of the dataset's most recent experiments.
+   * Which experiments to load. A compared selection loads exactly the compared
+   * experiments, base experiment first and as the reference.
    */
-  selection?: ExperimentMetricsSelection;
+  experimentSelection: ExperimentSelection;
 }): {
   experiments: ExperimentAnnotationMetricDatum[];
   baselineExperiment: ExperimentAnnotationMetricDatum | null;
 } {
   // The baseline mutation cannot refetch these runtime-argument summaries,
   // so key the query by the linked baseline to refetch them when it changes.
-  // A selection's reference is its base experiment, so it never fetches the
+  // A compared selection's reference is its base experiment, so it never
+  // fetches the
   // dataset baseline.
   const baselineData =
     useLazyLoadQuery<useExperimentAnnotationMetricDataBaselineQuery>(
       experimentAnnotationMetricBaselineQuery,
       { id: datasetId },
-      { fetchPolicy: selection == null ? "store-or-network" : "store-only" }
+      {
+        fetchPolicy:
+          experimentSelection.type === "recent"
+            ? "store-or-network"
+            : "store-only",
+      }
     );
   const data = useLazyLoadQuery<ExperimentAnnotationMetricQuery>(
     experimentAnnotationMetricQuery,
     {
-      ...getExperimentMetricsQueryVariables({ datasetId, selection }),
+      ...getExperimentMetricsQueryVariables({ datasetId, experimentSelection }),
       annotationName,
     },
     {
       fetchKey:
-        selection == null
+        experimentSelection.type === "recent"
           ? (baselineData.dataset?.baselineExperiment?.id ?? "no-baseline")
-          : "selection",
+          : "compared",
       fetchPolicy: "store-or-network",
     }
   );
   const edges = data.dataset.metricsExperiments?.edges ?? [];
 
-  if (selection != null) {
-    const experiments = orderBySelection({
+  if (experimentSelection.type === "compared") {
+    const experiments = orderByComparedSelection({
       experiments: edges.map(({ experiment }) => {
         const datum = readExperimentAnnotationMetricDatum(experiment);
         return {
           ...datum,
-          isBaseline: datum.id === selection.baseExperimentId,
+          isBaseline: datum.id === experimentSelection.baseExperimentId,
         };
       }),
-      selection,
+      experimentSelection,
     });
     return {
       experiments,

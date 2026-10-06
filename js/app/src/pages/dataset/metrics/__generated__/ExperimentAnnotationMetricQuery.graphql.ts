@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f5c208f7dd24e8ad0087aeb3a424ffb5>>
+ * @generated SignedSource<<7de3a12434ca04bc4fd6fb86335cc3d7>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type ExperimentAnnotationMetricQuery$variables = {
   count: number;
   filterIds?: ReadonlyArray<string> | null;
   id: string;
-  isSelection: boolean;
+  isComparedSelection: boolean;
 };
 export type ExperimentAnnotationMetricQuery$data = {
   readonly dataset: {
@@ -59,7 +59,7 @@ v3 = {
 v4 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "isSelection"
+  "name": "isComparedSelection"
 },
 v5 = [
   {
@@ -181,7 +181,7 @@ v10 = [
   {
     "kind": "Variable",
     "name": "includeEphemeral",
-    "variableName": "isSelection"
+    "variableName": "isComparedSelection"
   }
 ];
 return {
@@ -209,7 +209,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "condition": "isSelection",
+                "condition": "isComparedSelection",
                 "kind": "Condition",
                 "passingValue": false,
                 "selections": [
@@ -299,7 +299,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "condition": "isSelection",
+                "condition": "isComparedSelection",
                 "kind": "Condition",
                 "passingValue": false,
                 "selections": [
@@ -358,16 +358,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9861f9c275009689362e43085bb0e899",
+    "cacheID": "d481ab5f925a71339de0ebc43a618855",
     "id": null,
     "metadata": {},
     "name": "ExperimentAnnotationMetricQuery",
     "operationKind": "query",
-    "text": "query ExperimentAnnotationMetricQuery(\n  $id: ID!\n  $count: Int!\n  $filterIds: [ID!]\n  $isSelection: Boolean!\n  $annotationName: String!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment @skip(if: $isSelection) {\n        ...ExperimentAnnotationMetric_experiment_3VbSQz\n        id\n      }\n      metricsExperiments: experiments(first: $count, filterIds: $filterIds, includeEphemeral: $isSelection) {\n        edges {\n          experiment: node {\n            ...ExperimentAnnotationMetric_experiment_3VbSQz\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentAnnotationMetric_experiment_3VbSQz on Experiment {\n  id\n  name\n  sequenceNumber\n  isBaseline\n  annotationSummaries(annotationName: $annotationName) {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n}\n"
+    "text": "query ExperimentAnnotationMetricQuery(\n  $id: ID!\n  $count: Int!\n  $filterIds: [ID!]\n  $isComparedSelection: Boolean!\n  $annotationName: String!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment @skip(if: $isComparedSelection) {\n        ...ExperimentAnnotationMetric_experiment_3VbSQz\n        id\n      }\n      metricsExperiments: experiments(first: $count, filterIds: $filterIds, includeEphemeral: $isComparedSelection) {\n        edges {\n          experiment: node {\n            ...ExperimentAnnotationMetric_experiment_3VbSQz\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentAnnotationMetric_experiment_3VbSQz on Experiment {\n  id\n  name\n  sequenceNumber\n  isBaseline\n  annotationSummaries(annotationName: $annotationName) {\n    annotationName\n    meanScore\n    labelFractions {\n      label\n      fraction\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b613328d9629aa6191f8613d6ee11598";
+(node as any).hash = "942bb241752b387a7f0dda4adf4f2748";
 
 export default node;

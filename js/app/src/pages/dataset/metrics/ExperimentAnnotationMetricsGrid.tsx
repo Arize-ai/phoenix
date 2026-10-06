@@ -10,6 +10,7 @@ import {
   ChartPanel,
   getDefaultAnnotationMetricsView,
   normalizeAnnotationMetrics,
+  type TimeSeriesChartType,
 } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
@@ -20,14 +21,17 @@ import {
   getExperimentBaselineLegendItems,
   getExperimentReferenceLabel,
 } from "./ExperimentBaselineReference";
-import { useSelectionExperimentColor } from "./experimentMetricsSelection";
 import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import { useExperimentSelectionColor } from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
 } from "./experimentXAxisProps";
-import type { ExperimentMetricsSelection } from "./types";
-import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
+import type { ExperimentSelection } from "./types";
+import {
+  EXPERIMENT_METRICS_CHART_SYNC_ID,
+  RECENT_EXPERIMENT_SELECTION,
+} from "./types";
 import {
   useExperimentAnnotationMetricData,
   type ExperimentAnnotationMetricDatum,
@@ -77,6 +81,7 @@ function ExperimentAnnotationMetricsPanels({
         <ExperimentAnnotationMetricPanel
           key={annotationName}
           datasetId={datasetId}
+          experimentSelection={RECENT_EXPERIMENT_SELECTION}
           annotationName={annotationName}
         />
       ))}
@@ -84,17 +89,38 @@ function ExperimentAnnotationMetricsPanels({
   );
 }
 
+/**
+ * How mean scores are drawn for each kind of experiment selection. Compared
+ * experiments have no inherent
+ * order, so a line between them would imply a trend.
+ */
+const CHART_TYPE_BY_SELECTION_TYPE: Record<
+  ExperimentSelection["type"],
+  TimeSeriesChartType
+> = {
+  recent: "lineTimeSeries",
+  compared: "barTimeSeries",
+};
+
+const EMPTY_STATE_MESSAGE_BY_SELECTION_TYPE: Record<
+  ExperimentSelection["type"],
+  string
+> = {
+  recent: `No chartable evaluation data within the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+  compared: "No chartable evaluation data for the selected experiments",
+};
+
 function useExperimentAnnotationMetricSeries({
   datasetId,
   annotationName,
-  selection,
+  experimentSelection,
 }: {
   datasetId: string;
   annotationName: string;
-  selection?: ExperimentMetricsSelection;
+  experimentSelection: ExperimentSelection;
 }) {
   const { experiments, baselineExperiment } = useExperimentAnnotationMetricData(
-    { datasetId, annotationName, selection }
+    { datasetId, annotationName, experimentSelection }
   );
   const annotationSeries = normalizeAnnotationMetrics({
     points: experiments.map(toAnnotationMetricsInputPoint),
@@ -119,16 +145,15 @@ function useExperimentAnnotationMetricSeries({
 export function ExperimentAnnotationMetricPanel({
   datasetId,
   annotationName,
-  selection,
+  experimentSelection,
   fillHeight = false,
 }: {
   datasetId: string;
   annotationName: string;
   /**
-   * Charts exactly these experiments instead of the dataset's most recent
-   * experiments
+   * Which experiments to chart
    */
-  selection?: ExperimentMetricsSelection;
+  experimentSelection: ExperimentSelection;
   fillHeight?: boolean;
 }) {
   return (
@@ -143,7 +168,7 @@ export function ExperimentAnnotationMetricPanel({
         <ExperimentAnnotationMetricPanelContent
           datasetId={datasetId}
           annotationName={annotationName}
-          selection={selection}
+          experimentSelection={experimentSelection}
           fillHeight={fillHeight}
         />
       </Suspense>
@@ -154,22 +179,22 @@ export function ExperimentAnnotationMetricPanel({
 function ExperimentAnnotationMetricPanelContent({
   datasetId,
   annotationName,
-  selection,
+  experimentSelection,
   fillHeight,
 }: {
   datasetId: string;
   annotationName: string;
-  selection?: ExperimentMetricsSelection;
+  experimentSelection: ExperimentSelection;
   fillHeight: boolean;
 }) {
   const { series, baselineSequenceNumber, experiments } =
     useExperimentAnnotationMetricSeries({
       datasetId,
       annotationName,
-      selection,
+      experimentSelection,
     });
-  const referenceLabel = getExperimentReferenceLabel(selection);
-  const getExperimentColor = useSelectionExperimentColor(selection);
+  const referenceLabel = getExperimentReferenceLabel(experimentSelection);
+  const getExperimentColor = useExperimentSelectionColor(experimentSelection);
   const [view, setView] = useState(() =>
     getDefaultAnnotationMetricsView(series)
   );
@@ -207,13 +232,9 @@ function ExperimentAnnotationMetricPanelContent({
         }}
         yAxisProps={experimentMetricsYAxisProps}
         syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
-        // Compared experiments have no inherent order, so a line between them
-        // would imply a trend
-        chartType={selection == null ? "lineTimeSeries" : "barTimeSeries"}
+        chartType={CHART_TYPE_BY_SELECTION_TYPE[experimentSelection.type]}
         emptyStateMessage={
-          selection == null
-            ? `No chartable evaluation data within the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`
-            : "No chartable evaluation data for the selected experiments"
+          EMPTY_STATE_MESSAGE_BY_SELECTION_TYPE[experimentSelection.type]
         }
         additionalLegendItems={getExperimentBaselineLegendItems({
           value: activeView === "scores" ? reference?.meanScore : null,

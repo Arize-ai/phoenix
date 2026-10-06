@@ -4,26 +4,32 @@ import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/cons
 
 import {
   getExperimentMetricsQueryVariables,
-  orderBySelection,
-} from "../experimentMetricsSelection";
+  orderByComparedSelection,
+} from "../experimentSelection";
+import { RECENT_EXPERIMENT_SELECTION } from "../types";
 
-describe("orderBySelection", () => {
+describe("orderByComparedSelection", () => {
   it("orders the base experiment first, then compare experiments in selection order", () => {
     const experiments = [{ id: "a" }, { id: "b" }, { id: "c" }];
     expect(
-      orderBySelection({
+      orderByComparedSelection({
         experiments,
-        selection: { baseExperimentId: "b", compareExperimentIds: ["c", "a"] },
+        experimentSelection: {
+          type: "compared",
+          baseExperimentId: "b",
+          compareExperimentIds: ["c", "a"],
+        },
       }).map(({ id }) => id)
     ).toEqual(["b", "c", "a"]);
   });
 
-  it("leaves out selected experiments that have not loaded and unselected experiments", () => {
+  it("leaves out compared experiments that have not loaded and experiments outside the comparison", () => {
     const experiments = [{ id: "a" }, { id: "b" }, { id: "unselected" }];
     expect(
-      orderBySelection({
+      orderByComparedSelection({
         experiments,
-        selection: {
+        experimentSelection: {
+          type: "compared",
           baseExperimentId: "a",
           compareExperimentIds: ["not-loaded", "b"],
         },
@@ -33,28 +39,35 @@ describe("orderBySelection", () => {
 });
 
 describe("getExperimentMetricsQueryVariables", () => {
-  it("loads the dataset's most recent experiments without a selection", () => {
+  it("loads the dataset's most recent experiments for the recent experimentSelection", () => {
     expect(
-      getExperimentMetricsQueryVariables({ datasetId: "dataset" })
+      getExperimentMetricsQueryVariables({
+        datasetId: "dataset",
+        experimentSelection: RECENT_EXPERIMENT_SELECTION,
+      })
     ).toEqual({
       id: "dataset",
       count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
       filterIds: null,
-      isSelection: false,
+      isComparedSelection: false,
     });
   });
 
-  it("loads exactly the selected experiments", () => {
+  it("loads exactly the compared experiments for a comparison experimentSelection", () => {
     expect(
       getExperimentMetricsQueryVariables({
         datasetId: "dataset",
-        selection: { baseExperimentId: "a", compareExperimentIds: ["b", "c"] },
+        experimentSelection: {
+          type: "compared",
+          baseExperimentId: "a",
+          compareExperimentIds: ["b", "c"],
+        },
       })
     ).toEqual({
       id: "dataset",
       count: 3,
       filterIds: ["a", "b", "c"],
-      isSelection: true,
+      isComparedSelection: true,
     });
   });
 });

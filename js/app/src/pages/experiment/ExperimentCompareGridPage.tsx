@@ -10,7 +10,7 @@ import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentCompareP
 import { ExperimentCompareChartsPanelGroup } from "./ExperimentCompareMetricsCharts";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
-import { useExperimentCompareSelection } from "./useExperimentCompareSelection";
+import { useComparedExperimentSelection } from "./useComparedExperimentSelection";
 
 const gridPageCSS = css`
   flex: 1 1 auto;
@@ -25,21 +25,21 @@ export function ExperimentCompareGridPage({
 }) {
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
-  const selection = useExperimentCompareSelection();
-  invariant(selection != null, "an experiment selection is required");
+  const experimentSelection = useComparedExperimentSelection();
+  invariant(experimentSelection != null, "an experiment selection is required");
 
   return (
     <div css={gridPageCSS}>
       <ExperimentCompareChartsPanelGroup
         datasetId={datasetId}
-        selection={selection}
+        experimentSelection={experimentSelection}
       >
         <ExperimentRunFilterConditionProvider>
           <Suspense fallback={<Loading />}>
             <ExperimentCompareTable
               queryRef={queryRef}
               datasetId={datasetId}
-              selection={selection}
+              experimentSelection={experimentSelection}
             />
           </Suspense>
         </ExperimentRunFilterConditionProvider>

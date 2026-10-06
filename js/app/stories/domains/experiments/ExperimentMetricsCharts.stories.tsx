@@ -8,6 +8,10 @@ import {
   EXPERIMENT_METRIC_CHARTS,
   getExperimentMetricChart,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
+import {
+  type ComparedExperimentSelection,
+  RECENT_EXPERIMENT_SELECTION,
+} from "@phoenix/pages/dataset/metrics/types";
 import { ExperimentCompareChartsPanelGroup } from "@phoenix/pages/experiment/ExperimentCompareMetricsCharts";
 
 const STORY_DATASET_ID = "dataset:experiment-metrics-story";
@@ -171,7 +175,8 @@ const relayEnvironments: Record<MetricsDataState, Environment> = {
   longExperimentNames: createRelayEnvironment("longExperimentNames"),
 };
 
-const COMPARE_SELECTION = {
+const COMPARED_EXPERIMENT_SELECTION: ComparedExperimentSelection = {
+  type: "compared",
   baseExperimentId: "experiment:102",
   compareExperimentIds: ["experiment:104", "experiment:103"],
 };
@@ -213,7 +218,7 @@ const compareRelayEnvironment = new Environment({
       .filter((experiment) => filterIds.includes(experiment.id))
       .map(toCompareExperiment)
       .map((experiment) =>
-        experiment.id === COMPARE_SELECTION.baseExperimentId
+        experiment.id === COMPARED_EXPERIMENT_SELECTION.baseExperimentId
           ? {
               ...experiment,
               annotationSummaries: experiment.annotationSummaries.filter(
@@ -252,7 +257,7 @@ function ExperimentCompareMetricsChartsStory() {
       <div style={{ width: "min(1100px, 100%)", height: 320 }}>
         <ExperimentCompareChartsPanelGroup
           datasetId={STORY_DATASET_ID}
-          selection={COMPARE_SELECTION}
+          experimentSelection={COMPARED_EXPERIMENT_SELECTION}
         >
           {null}
         </ExperimentCompareChartsPanelGroup>
@@ -291,6 +296,7 @@ function ExperimentMetricsChartsStory({
               <Panel
                 key={chartKey}
                 datasetId={STORY_DATASET_ID}
+                experimentSelection={RECENT_EXPERIMENT_SELECTION}
                 annotationName={annotationName}
               />
             );

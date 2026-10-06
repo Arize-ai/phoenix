@@ -20,8 +20,8 @@ import {
   ExperimentBaselineValueLine,
   getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
-import { useExperimentChartDatum } from "./experimentMetricsSelection";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
+import { useExperimentChartDatum } from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -39,14 +39,14 @@ const TooltipContent = makeExperimentMetricsTooltipContent({
  */
 export function ExperimentTokensChart({
   datasetId,
-  selection,
+  experimentSelection,
 }: ExperimentMetricViewProps) {
   const { experiments, baselineExperiment } = useExperimentMetricsData({
     datasetId,
-    selection,
+    experimentSelection,
   });
   const { referenceLabel, toExperimentChartDatum } =
-    useExperimentChartDatum(selection);
+    useExperimentChartDatum(experimentSelection);
   const chartData = experiments.map((experiment) => ({
     ...toExperimentChartDatum(experiment),
     prompt: experiment.promptTokens,
