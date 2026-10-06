@@ -88,7 +88,6 @@ phoenix = "phoenix.server.main:main"
 [dependency-groups]
 dev = [
   "check-wheel-contents",
-  "harbor-verifiers",
   "twine",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "aioboto3",
@@ -500,7 +499,6 @@ exclude = ["packages/phoenix-sqlean"]
 arize-phoenix-client = { workspace = true }
 arize-phoenix-evals = { workspace = true }
 arize-phoenix-otel = { workspace = true }
-harbor-verifiers = { workspace = true }
 
 [tool.ariadne-codegen]
 # `make codegen-harbor-graphql` compiles the queries into typed models for the verifiers.
