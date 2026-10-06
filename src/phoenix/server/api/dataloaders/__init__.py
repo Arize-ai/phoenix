@@ -40,6 +40,7 @@ from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluation_queues import (
     EvaluationQueueDataLoader,
+    EvaluationQueueProjectsDataLoader,
     EvaluationQueueThroughputDataLoader,
 )
 from .evaluator_by_id import EvaluatorByIdDataLoader
@@ -69,6 +70,10 @@ from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMax
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
+from .project_evaluation_queues import (
+    ProjectEvaluationQueueDataLoader,
+    ProjectEvaluationQueueThroughputDataLoader,
+)
 from .project_evaluator_by_id import ProjectEvaluatorByIdDataLoader
 from .project_evaluator_evaluation_loads import ProjectEvaluatorEvaluationLoadsDataLoader
 from .project_evaluator_queues import ProjectEvaluatorQueuesDataLoader
@@ -205,6 +210,7 @@ class DataLoaders:
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluation_queue: EvaluationQueueDataLoader
+    evaluation_queue_projects: EvaluationQueueProjectsDataLoader
     evaluation_queue_throughput: EvaluationQueueThroughputDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
@@ -239,6 +245,8 @@ class DataLoaders:
     project_by_name: ProjectByNameDataLoader
     project_has_traces: ProjectHasTracesDataLoader
     project_fields: TableFieldsDataLoader
+    project_evaluation_queue: ProjectEvaluationQueueDataLoader
+    project_evaluation_queue_throughput: ProjectEvaluationQueueThroughputDataLoader
     project_evaluator_by_id: ProjectEvaluatorByIdDataLoader
     project_evaluator_evaluation_loads: ProjectEvaluatorEvaluationLoadsDataLoader
     project_evaluator_queues: ProjectEvaluatorQueuesDataLoader
@@ -377,6 +385,7 @@ def build_data_loaders(
         document_evaluations=DocumentEvaluationsDataLoader(db),
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
         evaluation_queue=EvaluationQueueDataLoader(db),
+        evaluation_queue_projects=EvaluationQueueProjectsDataLoader(db),
         evaluation_queue_throughput=EvaluationQueueThroughputDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
         experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
@@ -427,6 +436,8 @@ def build_data_loaders(
         num_child_spans=NumChildSpansDataLoader(db),
         num_spans_per_trace=NumSpansPerTraceDataLoader(db),
         project_fields=TableFieldsDataLoader(db, models.Project),
+        project_evaluation_queue=ProjectEvaluationQueueDataLoader(db),
+        project_evaluation_queue_throughput=ProjectEvaluationQueueThroughputDataLoader(db),
         project_evaluator_by_id=ProjectEvaluatorByIdDataLoader(db),
         project_evaluator_evaluation_loads=ProjectEvaluatorEvaluationLoadsDataLoader(db),
         project_evaluator_queues=ProjectEvaluatorQueuesDataLoader(db),

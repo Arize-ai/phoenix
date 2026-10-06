@@ -73,7 +73,7 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
     assert (spans.waiting.queued_count, spans.running_count, spans.retrying_count) == (2, 1, 1)
     assert spans.waiting.oldest_queued_at == now - timedelta(minutes=20)
     assert queue.waiting == spans.waiting
-    assert (queue.queued_count, queue.retrying_count) == (4, 1)
+    assert (queue.queued_count, queue.running_count, queue.retrying_count) == (4, 1, 1)
     assert not queue.at_capacity
     # The head of the line has waited 20 minutes.
     assert queue.status == "DEGRADED"
@@ -89,17 +89,15 @@ _WAITING_LONG = QueuedWork(
 
 
 @pytest.mark.parametrize(
-    ("enabled", "evaluated_ago", "failed_ago", "queued", "queue_degraded", "expected"),
+    ("enabled", "evaluated_ago", "failed_ago", "queued", "expected"),
     [
-        (False, timedelta(seconds=5), timedelta(seconds=1), _WAITING_LONG, True, "DISABLED"),
-        (True, timedelta(minutes=5), timedelta(seconds=1), _WAITING_LONG, True, "ERROR"),
-        # Nothing of its own is queued, but its next evaluation waits in a degraded line.
-        (True, timedelta(seconds=5), None, QueuedWork(), True, "DEGRADED"),
-        # Its own oldest queued evaluation, a retry, has waited an hour in a healthy line.
-        (True, timedelta(seconds=5), None, _WAITING_LONG, False, "DEGRADED"),
-        (True, timedelta(seconds=5), timedelta(minutes=5), _WAITING_BRIEFLY, False, "RUNNING"),
-        (True, None, None, _WAITING_BRIEFLY, False, "QUEUED"),
-        (True, None, None, QueuedWork(), False, "NEVER_RUN"),
+        (False, timedelta(seconds=5), timedelta(seconds=1), _WAITING_LONG, "DISABLED"),
+        (True, timedelta(minutes=5), timedelta(seconds=1), _WAITING_LONG, "ERROR"),
+        # Its own oldest queued evaluation, a retry, has waited an hour.
+        (True, timedelta(seconds=5), None, _WAITING_LONG, "DEGRADED"),
+        (True, timedelta(seconds=5), timedelta(minutes=5), _WAITING_BRIEFLY, "RUNNING"),
+        (True, None, None, _WAITING_BRIEFLY, "QUEUED"),
+        (True, None, None, QueuedWork(), "NEVER_RUN"),
     ],
 )
 def test_project_evaluator_run_status_precedence(
@@ -107,7 +105,6 @@ def test_project_evaluator_run_status_precedence(
     evaluated_ago: Optional[timedelta],
     failed_ago: Optional[timedelta],
     queued: QueuedWork,
-    queue_degraded: bool,
     expected: ProjectEvaluatorRunStatus,
 ) -> None:
     now = datetime.now(timezone.utc)
@@ -116,7 +113,6 @@ def test_project_evaluator_run_status_precedence(
         last_evaluated_at=None if evaluated_ago is None else now - evaluated_ago,
         last_failed_at=None if failed_ago is None else now - failed_ago,
         queued=queued,
-        queue_degraded=queue_degraded,
         now=now,
     )
     assert status == expected

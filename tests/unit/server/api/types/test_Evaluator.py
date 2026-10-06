@@ -1867,6 +1867,7 @@ async def test_project_evaluator_run_summary(
                         status
                         lastRunAt
                         queuedCount
+                        runningCount
                         oldestQueuedAt
                         evaluatedCount
                         failedCount
@@ -1889,6 +1890,7 @@ async def test_project_evaluator_run_summary(
     assert run_summary["droppedCount"] == 1
     # Queued: the PENDING unit, the RUNNING one, and the ERROR with attempts remaining.
     assert run_summary["queuedCount"] == 3
+    assert run_summary["runningCount"] == 1
     # The oldest waiting is the PENDING unit, not the earlier-queued RUNNING one.
     assert datetime.fromisoformat(run_summary["oldestQueuedAt"]) == now - timedelta(minutes=3)
     # The newest FAILED unit's error — not the retrying unit's, which is newer but
@@ -2156,45 +2158,65 @@ _RUN_STATUSES_QUERY = """query ($a: ID!, $b: ID!) {
 }"""
 
 
-async def test_project_evaluator_run_summary_is_degraded_while_its_queue_is_at_capacity(
+async def test_project_evaluator_run_status_reflects_only_its_own_work(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The evaluator finished an evaluation seconds ago and has nothing queued, but another
-    project's evaluator has filled the shared span queue, so its new spans are not being
-    queued either."""
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
+    """Another project's evaluator has waited half an hour, which degrades the shared
+    queue, but each other evaluator's status follows its own evaluations."""
     now = datetime.now(timezone.utc)
     seconds_ago = now - timedelta(seconds=5)
-    idle, (idle_span,) = await _seed_span_project_evaluator(
-        db, span_start_time=now - timedelta(hours=31)
-    )
-    other, (other_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
+    stuck, (stuck_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
+    never_run, _ = await _seed_span_project_evaluator(db, span_start_time=now)
+    queued, (queued_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
+    running, (running_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
     async with db() as session:
         session.add_all(
             [
                 _span_work_unit(
-                    idle, idle_span, "DONE", queued_at=seconds_ago, updated_at=seconds_ago
+                    stuck,
+                    stuck_span,
+                    "PENDING",
+                    queued_at=now - timedelta(minutes=30),
+                    updated_at=now - timedelta(minutes=30),
                 ),
                 _span_work_unit(
-                    other, other_span, "PENDING", queued_at=seconds_ago, updated_at=seconds_ago
+                    queued, queued_span, "PENDING", queued_at=seconds_ago, updated_at=seconds_ago
+                ),
+                _span_work_unit(
+                    running, running_span, "DONE", queued_at=seconds_ago, updated_at=seconds_ago
                 ),
             ]
         )
 
     response = await gql_client.execute(
-        _RUN_STATUSES_QUERY,
+        """query ($stuck: ID!, $neverRun: ID!, $queued: ID!, $running: ID!) {
+            evaluationQueue { status }
+            stuck: node(id: $stuck) { ...RunStatus }
+            neverRun: node(id: $neverRun) { ...RunStatus }
+            queued: node(id: $queued) { ...RunStatus }
+            running: node(id: $running) { ...RunStatus }
+        }
+        fragment RunStatus on ProjectEvaluator { runSummary { status } }""",
         variables={
-            "a": str(GlobalID("ProjectEvaluator", str(idle))),
-            "b": str(GlobalID("ProjectEvaluator", str(other))),
+            alias: str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))
+            for alias, project_evaluator_id in {
+                "stuck": stuck,
+                "neverRun": never_run,
+                "queued": queued,
+                "running": running,
+            }.items()
         },
     )
 
     assert not response.errors and response.data
-    run_summary = response.data["a"]["runSummary"]
-    assert datetime.fromisoformat(run_summary["lastRunAt"]) == seconds_ago
-    assert run_summary["status"] == "DEGRADED"
+    assert response.data.pop("evaluationQueue") == {"status": "DEGRADED"}
+    assert {alias: node["runSummary"]["status"] for alias, node in response.data.items()} == {
+        "stuck": "DEGRADED",
+        "neverRun": "NEVER_RUN",
+        "queued": "QUEUED",
+        "running": "RUNNING",
+    }
 
 
 async def test_project_evaluator_run_summary_is_degraded_while_its_own_evaluation_retries(

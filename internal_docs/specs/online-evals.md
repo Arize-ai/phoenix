@@ -434,7 +434,9 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   Overload shows up in three places: the producer and sweepers log a warning each time they find
   the queue full, the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
   ingested but not yet offered to evaluators, keeps growing while it stays full, and the
-  evaluators pages show the queue as Degraded while it is full.
+  evaluators pages show the queue as Degraded while it is full. Only the queue's own status shows
+  this: each evaluator's status reflects its own evaluations, so an evaluator reads Degraded only
+  when its own oldest waiting evaluation has waited over 10 minutes.
 - **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
   recursively enqueue the same class of project evaluations. This largely falls out of the
   architecture: if evaluator traces live in a dedicated project (as

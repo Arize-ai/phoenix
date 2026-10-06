@@ -7,6 +7,7 @@ from phoenix.server.online_eval.queue_health import (
     QueueThroughput,
     load_evaluation_queue,
     load_queue_throughput,
+    load_queued_by_project,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -32,3 +33,15 @@ class EvaluationQueueThroughputDataLoader(DataLoader[EvaluationQueue, QueueThrou
 
     async def _load_fn(self, keys: Iterable[EvaluationQueue]) -> list[QueueThroughput]:
         return [await load_queue_throughput(self._db, queue) for queue in keys]
+
+
+class EvaluationQueueProjectsDataLoader(DataLoader[int, list[tuple[int, int]]]):
+    """The projects with the most queued evaluations, most first, as
+    ``(project_id, queued_count)``. Keyed by how many to read."""
+
+    def __init__(self, db: DbSessionFactory) -> None:
+        super().__init__(load_fn=self._load_fn)
+        self._db = db
+
+    async def _load_fn(self, keys: Iterable[int]) -> list[list[tuple[int, int]]]:
+        return [await load_queued_by_project(self._db, limit) for limit in keys]

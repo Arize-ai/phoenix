@@ -1937,6 +1937,11 @@ type EvaluationQueue {
   queuedCount: Int!
 
   """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
   How many evaluations the queue holds before new ones wait to be queued.
   """
   queuedLimit: Int!
@@ -1966,6 +1971,19 @@ type EvaluationQueue {
   The queue's evaluations of each evaluation target: span, trace, session.
   """
   targets: [EvaluationQueueTarget!]!
+
+  """The projects with the most evaluations in the queue, most first."""
+  projects(
+    """How many projects to return."""
+    first: Int! = 5
+  ): [EvaluationQueueProject!]!
+}
+
+"""One project's evaluations in the online evaluation queue."""
+type EvaluationQueueProject {
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+  project: Project!
 }
 
 """Whether queued evaluations are running without long waits."""
@@ -1989,6 +2007,11 @@ type EvaluationQueueTarget {
 
   """Evaluations queued or running, including ones awaiting a retry."""
   queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
 
   """
   Queued evaluations awaiting a retry after an attempt that did not finish.
@@ -3585,6 +3608,11 @@ type Project implements Node {
 
   """Number of evaluators attached to this project."""
   evaluatorCount: Int!
+
+  """
+  This project's part of the online evaluation queue, shared by every project.
+  """
+  evaluationQueue: ProjectEvaluationQueue!
   evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null, filter: ProjectEvaluatorFilter): ProjectEvaluatorConnection!
   gradientStartColor: String!
   gradientEndColor: String!
@@ -3815,6 +3843,45 @@ type ProjectEdge {
   node: Project!
 }
 
+"""
+One project's part of the online evaluation queue: the span, trace, and session evaluations of its evaluators. Rates are per minute over the last 60 minutes.
+"""
+type ProjectEvaluationQueue {
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
+  """
+  queuedPerMinute: Float!
+
+  """Evaluations completed per minute, whether evaluated or failed."""
+  evaluationsPerMinute: Float!
+
+  """
+  This project's evaluations of each evaluation target: span, trace, session.
+  """
+  targets: [ProjectEvaluationQueueTarget!]!
+}
+
+"""One project's evaluations of one evaluation target in the queue."""
+type ProjectEvaluationQueueTarget {
+  evaluationTarget: EvaluationTarget!
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+}
+
 type ProjectEvaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -3969,7 +4036,7 @@ type ProjectEvaluatorMutationPayload {
 }
 
 """
-The state of a project evaluator's scheduled work: whether evaluation runs are completing. It says nothing about what those runs scored.
+The state of a project evaluator's scheduled work: whether its evaluation runs are completing. It reflects only this evaluator's own evaluations, not the shared queue's status, and says nothing about what those runs scored.
 """
 enum ProjectEvaluatorRunStatus {
   """No evaluation on record has completed or is waiting to run."""
@@ -3985,7 +4052,7 @@ enum ProjectEvaluatorRunStatus {
   ERROR
 
   """
-  The queue is degraded, or its own oldest waiting evaluation, including ones awaiting a retry, has waited too long.
+  This evaluator's oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes.
   """
   DEGRADED
 
@@ -3998,7 +4065,7 @@ The state of a project evaluator's scheduled work, derived from the evaluation r
 """
 type ProjectEvaluatorRunSummary {
   """
-  DISABLED when turned off. Otherwise ERROR when the newest completed run was given up on, DEGRADED when the evaluation queue is degraded or its own oldest waiting evaluation, including ones awaiting a retry, has waited over 10 minutes, RUNNING when the newest completed run produced an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN otherwise.
+  From this evaluator's own evaluations only; the shared queue's status does not affect it. DISABLED when turned off. Otherwise ERROR when the newest completed run was given up on, DEGRADED when its oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes, RUNNING when the newest completed run produced an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN otherwise.
   """
   status: ProjectEvaluatorRunStatus!
 
@@ -4009,6 +4076,11 @@ type ProjectEvaluatorRunSummary {
 
   """Evaluations queued or running, including ones awaiting a retry."""
   queuedCount: Int!
+
+  """
+  This evaluator's evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
 
   """
   When this evaluator's longest-waiting evaluation, including ones awaiting a retry, was queued, or null if none is waiting. Running evaluations are not waiting.

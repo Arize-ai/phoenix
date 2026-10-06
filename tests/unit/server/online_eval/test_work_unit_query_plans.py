@@ -10,7 +10,14 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.queue_health import load_evaluation_queue, load_queue_throughput
+from phoenix.server.online_eval.queue_health import (
+    load_evaluation_queue,
+    load_project_evaluator_queues,
+    load_project_queue_throughputs,
+    load_project_queues,
+    load_queue_throughput,
+    load_queued_by_project,
+)
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
 
@@ -52,6 +59,10 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
             await coordinator.claim(claimed_by="query-plan", limit=1)
         queue = await load_evaluation_queue(db)
         await load_queue_throughput(db, queue)
+        await load_project_evaluator_queues(db, [1])
+        project_queues = await load_project_queues(db, [1])
+        await load_project_queue_throughputs(db, list(project_queues.values()))
+        await load_queued_by_project(db, 5)
     finally:
         event.remove(connection.sync_engine, "before_cursor_execute", explain)
 
