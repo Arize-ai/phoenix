@@ -248,7 +248,7 @@ p{margin:0}
 </section>
 
 <section class="slide sx" data-title="Outline">
-  <div class="sx-rail" aria-label="Workshop outline"><span><b>01</b> Overview</span><span><b>02</b> Architecture</span><span><b>03</b> Plugin</span><span><b>04</b> Tasks</span><span><b>05</b> Scale</span><span><b>06</b> Tracing</span><span><b>07</b> In Phoenix</span></div>
+  <div class="sx-rail" aria-label="Workshop outline"><span><b>01</b> Overview</span><span><b>02</b> Architecture</span><span><b>03</b> Tasks</span><span><b>04</b> Plugin</span><span><b>05</b> Scale</span><span><b>06</b> Tracing</span><span><b>07</b> In Phoenix</span></div>
   <div class="sx-body">
     <div class="sx-text">
             <h2>Harbor</h2>
@@ -291,10 +291,77 @@ p{margin:0}
   </div>
 </section>
 
+<section class="slide" data-title="Harbor task">
+  <div class="hb-top">
+    <div class="head">
+      <div class="eyebrow"><b>03 · Tasks</b></div>
+      <h2>A task is a directory</h2>
+    </div>
+  </div>
+  <div class="hb-files">
+    <div class="hb-file">
+      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>task.toml</div>
+<pre><b>[agent]</b>
+timeout_sec = 900
+<b>[environment]</b>
+cpus = 2
+allow_internet = false</pre>
+      <span class="hb-role">CONFIG</span>
+    </div>
+    <div class="hb-file">
+      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>instruction.md</div>
+<pre>Migration 0042 fails
+on Postgres 16.
+
+Fix it so <b>make test</b>
+passes. <em>Don't edit
+tests.</em></pre>
+      <span class="hb-role">PROMPT</span>
+    </div>
+    <div class="hb-file">
+      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>environment/</div>
+<pre><b>FROM</b> python:3.12
+<b>COPY</b> app/ /app
+<b>COPY</b> seed.sql /db/
+<b>WORKDIR</b> /app</pre>
+      <span class="hb-role">IMAGE</span>
+    </div>
+    <div class="hb-file">
+      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>solution/</div>
+<pre><em># solve.sh</em>
+git apply fix.patch
+make migrate</pre>
+      <span class="hb-role">ORACLE</span>
+    </div>
+    <div class="hb-file">
+      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4A1.5 1.5 0 0 0 19 19l-5-10V3"/><path d="M7.5 15h9"/></svg>tests/</div>
+<pre><em># test.sh</em>
+if pytest /tests
+then echo 1 &gt; <b>reward.txt</b>
+else echo 0 &gt; <b>reward.txt</b>
+fi</pre>
+      <span class="hb-role">VERIFIER</span>
+    </div>
+  </div>
+  <div class="hb-arrow"><i></i></div>
+  <div class="hb-job">
+    <div class="eyebrow">Job</div>
+    <div class="hb-cmd">
+      <span class="hb-seg"><code>harbor run</code><small>&nbsp;</small></span>
+      <span class="hb-seg"><code>-d tasks/</code><small>task set</small></span>
+      <span class="hb-seg"><code>-a claude-code</code><small>agent</small></span>
+      <span class="hb-seg"><code>-m claude-opus-5</code><small>model</small></span>
+      <span class="hb-seg"><code>-k 3</code><small>attempts</small></span>
+      <span class="hb-seg"><code>-e daytona</code><small>sandbox</small></span>
+      <span class="hb-seg ph"><code>--plugin arize-phoenix</code><small>record to phoenix</small></span>
+    </div>
+  </div>
+</section>
+
 <section class="slide" data-title="Harbor concepts">
   <div class="hb-top">
     <div class="head">
-      <div class="eyebrow"><b>03 · Plugin</b></div>
+      <div class="eyebrow"><b>04 · Plugin</b></div>
       <h2>The Phoenix Harbor Plugin</h2>
     </div>
   </div>
@@ -384,73 +451,6 @@ p{margin:0}
       <rect x="1182" y="512" width="172" height="14" rx="3" stroke="none" style="fill:var(--ground)"/><text class="sub" style="font-size:11px" x="1190" y="523">agent</text><text class="sub" x="1348" y="523" text-anchor="end" style="font-size:9px;fill:var(--sky)">AGENT</text>
       <rect x="1198" y="530" width="156" height="14" rx="3" stroke="none" style="fill:var(--ground)"/><text class="sub" style="font-size:11px" x="1206" y="541">llm · tool</text><text class="sub" x="1348" y="541" text-anchor="end" style="font-size:9px;fill:var(--sky)">LLM</text>
     </svg>
-  </div>
-</section>
-
-<section class="slide" data-title="Harbor task">
-  <div class="hb-top">
-    <div class="head">
-      <div class="eyebrow"><b>04 · Tasks</b></div>
-      <h2>A task is a directory</h2>
-    </div>
-  </div>
-  <div class="hb-files">
-    <div class="hb-file">
-      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>task.toml</div>
-<pre><b>[agent]</b>
-timeout_sec = 900
-<b>[environment]</b>
-cpus = 2
-allow_internet = false</pre>
-      <span class="hb-role">CONFIG</span>
-    </div>
-    <div class="hb-file">
-      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>instruction.md</div>
-<pre>Migration 0042 fails
-on Postgres 16.
-
-Fix it so <b>make test</b>
-passes. <em>Don't edit
-tests.</em></pre>
-      <span class="hb-role">PROMPT</span>
-    </div>
-    <div class="hb-file">
-      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>environment/</div>
-<pre><b>FROM</b> python:3.12
-<b>COPY</b> app/ /app
-<b>COPY</b> seed.sql /db/
-<b>WORKDIR</b> /app</pre>
-      <span class="hb-role">IMAGE</span>
-    </div>
-    <div class="hb-file">
-      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>solution/</div>
-<pre><em># solve.sh</em>
-git apply fix.patch
-make migrate</pre>
-      <span class="hb-role">ORACLE</span>
-    </div>
-    <div class="hb-file">
-      <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4A1.5 1.5 0 0 0 19 19l-5-10V3"/><path d="M7.5 15h9"/></svg>tests/</div>
-<pre><em># test.sh</em>
-if pytest /tests
-then echo 1 &gt; <b>reward.txt</b>
-else echo 0 &gt; <b>reward.txt</b>
-fi</pre>
-      <span class="hb-role">VERIFIER</span>
-    </div>
-  </div>
-  <div class="hb-arrow"><i></i></div>
-  <div class="hb-job">
-    <div class="eyebrow">Job</div>
-    <div class="hb-cmd">
-      <span class="hb-seg"><code>harbor run</code><small>&nbsp;</small></span>
-      <span class="hb-seg"><code>-d tasks/</code><small>task set</small></span>
-      <span class="hb-seg"><code>-a claude-code</code><small>agent</small></span>
-      <span class="hb-seg"><code>-m claude-opus-5</code><small>model</small></span>
-      <span class="hb-seg"><code>-k 3</code><small>attempts</small></span>
-      <span class="hb-seg"><code>-e daytona</code><small>sandbox</small></span>
-      <span class="hb-seg ph"><code>--plugin arize-phoenix</code><small>record to phoenix</small></span>
-    </div>
   </div>
 </section>
 
