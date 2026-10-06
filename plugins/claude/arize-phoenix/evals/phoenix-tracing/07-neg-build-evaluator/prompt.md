@@ -1,6 +1,6 @@
 ---
-max_turns: 6
-timeout_seconds: 180
+max_turns: 20
+timeout_seconds: 480
 allowed_tools: [Skill, Write]
 runs: 3
 tags: [phoenix-tracing]
