@@ -1,14 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { ReactNode } from "react";
-import { Focusable } from "react-aria";
 
-import {
-  RichTooltip,
-  Text,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
-import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import type { SpanPreviewCardProps } from "@phoenix/components/trace/SpanPreviewCard";
 import { SpanPreviewCard } from "@phoenix/components/trace/SpanPreviewCard";
 import type { TokenDetailsBreakdownProps } from "@phoenix/components/trace/TokenDetailsBreakdown";
@@ -21,6 +12,7 @@ import {
   summarizeSpanAnnotations,
 } from "../../constants/annotationFixtures";
 import { buildSpan } from "../../constants/spanFixtures";
+import { OptionGrid } from "../../utils/OptionGrid";
 
 /** A card with its breakdown loaded, from plain values. */
 function loadedCard({
@@ -176,44 +168,69 @@ const manyEvals = loadedCard({
   ],
 });
 
+const unpriced = loadedCard({
+  id: "unpriced",
+  name: "local_model",
+  spanKind: "llm",
+  startOffsetMs: 500,
+  latencyMs: 2200,
+  tokenCountTotal: 812,
+  annotations: [],
+  metricsDetails: {
+    tokens: {
+      total: 812,
+      prompt: 600,
+      completion: 212,
+      promptDetails: { input: 600 },
+      completionDetails: { output: 212 },
+    },
+  },
+});
+
+const stillRunning = loadedCard({
+  id: "still-running",
+  name: "agent-loop",
+  spanKind: "agent",
+  startOffsetMs: 0,
+  latencyMs: null,
+  annotations: [],
+});
+
+const timingOnly = loadedCard({
+  id: "decision",
+  name: "route_request",
+  spanKind: "decision",
+  startOffsetMs: 180,
+  latencyMs: 42,
+  annotations: [],
+});
+
 /** Only the tree row's data, before the details load. */
 const loading: SpanPreviewCardProps = {
   ...draft,
   metricsDetails: null,
 };
 
-/** One labeled case of a stack, at the width the card gets in its tooltip. */
-function Case({ label, children }: { label: string; children: ReactNode }) {
+function CardGrid({
+  rows,
+}: {
+  rows: readonly { label: string; card: SpanPreviewCardProps }[];
+}) {
   return (
-    <section
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
-      }}
-    >
-      <Text size="S" weight="heavy" color="text-700">
-        {label}
-      </Text>
-      {children}
-    </section>
-  );
-}
-
-function Stack({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
-      {children}
-    </div>
+    <OptionGrid
+      rows={rows}
+      cellWidth={`${TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}px`}
+      justifyCells="stretch"
+      alignRows="start"
+      renderCell={(row) => <SpanPreviewCard {...row.card} />}
+    />
   );
 }
 
 /**
- * The content of a trace tree row's preview, rendered from plain fixtures.
- * `Span Preview Tooltip` shows the connected version that loads this data.
- * Cases render inline at tooltip width; `In Tooltip` shows the dividers
- * running to the tooltip's edges.
+ * The content of a trace tree row's preview, rendered from plain fixtures at
+ * the width it gets in its tooltip. `Span Preview Tooltip` shows the
+ * connected version that loads this data, held open in the tooltip.
  */
 const meta: Meta<typeof SpanPreviewCard> = {
   title: "Domains/Tracing/Span Preview Card",
@@ -221,6 +238,7 @@ const meta: Meta<typeof SpanPreviewCard> = {
   component: SpanPreviewCard,
   parameters: {
     layout: "centered",
+    themeLayout: "column",
     controls: { disable: true },
   },
 };
@@ -230,113 +248,56 @@ type Story = StoryObj<typeof SpanPreviewCard>;
 
 export const Default: Story = {
   tags: ["!dev"],
-  parameters: { width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH },
+  parameters: {
+    width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
+    themeLayout: "row",
+  },
   args: draft,
 };
 
-/** The shapes a span takes once its details load, unfavorable results first. */
 export const ContentTypes: Story = {
   name: "Content Types",
   tags: ["!dev"],
-  parameters: { themeLayout: "row" },
   render: () => (
-    <Stack>
-      <Case label="Flagged by evals">
-        <SpanPreviewCard {...draft} />
-      </Case>
-      <Case label="Passed every eval">
-        <SpanPreviewCard {...final} />
-      </Case>
-      <Case label="Failed tool call, no usage">
-        <SpanPreviewCard {...failedTool} />
-      </Case>
-      <Case label="No annotations">
-        <SpanPreviewCard {...unannotated} />
-      </Case>
-    </Stack>
+    <CardGrid
+      rows={[
+        { label: "Flagged by evals", card: draft },
+        { label: "Passed every eval", card: final },
+        { label: "Failed tool call", card: failedTool },
+        { label: "No annotations", card: unannotated },
+        { label: "Tokens without cost", card: unpriced },
+        { label: "Timing only", card: timingOnly },
+        { label: "Still running", card: stillRunning },
+      ]}
+    />
   ),
 };
 
 export const ContentLength: Story = {
   name: "Content Length",
   tags: ["!dev"],
-  parameters: { themeLayout: "row" },
   render: () => (
-    <Stack>
-      <Case label="Six evals, one scored twice">
-        <SpanPreviewCard {...manyEvals} />
-      </Case>
-      <Case label="Long names and labels">
-        <SpanPreviewCard {...longContent} />
-      </Case>
-    </Stack>
+    <CardGrid
+      rows={[
+        { label: "Six evals, one scored twice", card: manyEvals },
+        { label: "Long names and labels", card: longContent },
+      ]}
+    />
   ),
 };
 
 /**
  * Annotations come with the tree row, so before the details load only the
- * breakdown waits, as a skeleton around the known totals. The loaded card
- * follows for comparison.
+ * breakdown waits, as a skeleton around the known totals.
  */
 export const Loading: Story = {
   tags: ["!dev"],
-  parameters: { themeLayout: "row" },
   render: () => (
-    <Stack>
-      <Case label="Row data only">
-        <SpanPreviewCard {...loading} />
-      </Case>
-      <Case label="Details loaded">
-        <SpanPreviewCard {...draft} />
-      </Case>
-    </Stack>
-  ),
-};
-
-/**
- * Held open in the rich tooltip a tree row opens, where dividers run to the
- * tooltip's edges.
- */
-export const InTooltip: Story = {
-  name: "In Tooltip",
-  tags: ["!dev"],
-  parameters: { themeLayout: "row" },
-  render: () => (
-    // The open tooltip is portaled and takes no layout space, so reserve
-    // room for it beside the row.
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH + 320,
-        height: 640,
-      }}
-    >
-      <TooltipTrigger isOpen>
-        <Focusable>
-          <div
-            role="button"
-            tabIndex={0}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              height: "fit-content",
-              padding: "8px 16px",
-            }}
-          >
-            <SpanKindIcon spanKind={draft.span.spanKind} />
-            <Text>{draft.span.name}</Text>
-          </div>
-        </Focusable>
-        <RichTooltip
-          placement="left top"
-          width={TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}
-        >
-          <TooltipArrow />
-          <SpanPreviewCard {...draft} />
-        </RichTooltip>
-      </TooltipTrigger>
-    </div>
+    <CardGrid
+      rows={[
+        { label: "Row data only", card: loading },
+        { label: "Details loaded", card: draft },
+      ]}
+    />
   ),
 };

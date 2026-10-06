@@ -1,0 +1,54 @@
+fragment ExperimentRunFields on ExperimentRun {
+  id
+  repetitionNumber
+  error
+  example {
+    id
+  }
+  annotations(first: 50) {
+    edges {
+      node {
+        name
+        score
+        label
+        startTime
+      }
+    }
+  }
+}
+
+fragment ExperimentFields on Experiment {
+  id
+  name
+  description
+  metadata
+  createdAt
+  averageRunLatencyMs
+  costSummary {
+    total {
+      cost
+    }
+  }
+  runs(first: 100) {
+    edges {
+      node {
+        ...ExperimentRunFields
+      }
+    }
+  }
+}
+
+query DatasetExperiments($datasetId: ID!) {
+  node(id: $datasetId) {
+    __typename
+    ... on Dataset {
+      experiments(first: 200) {
+        edges {
+          node {
+            ...ExperimentFields
+          }
+        }
+      }
+    }
+  }
+}

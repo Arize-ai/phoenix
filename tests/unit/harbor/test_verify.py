@@ -3,8 +3,9 @@ import os
 from pathlib import Path
 
 import pytest
+from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
-from evals.harbor.verifiers import verify
+from harbor_verifiers import verify
 from tests.unit.vcr import CustomVCR
 
 MOST_FAILING_TOOL_EXPECTED = (
@@ -83,8 +84,9 @@ def test_reference_check_grades_semantic_answers(
         ("TextInspectorTool, not page_down, had the most failures.", 0.0),
     ]
 
+    custom_vcr.register_matcher(_json_bodies_match.__name__, _json_bodies_match)
     with custom_vcr.use_cassette(
-        match_on=["method", "scheme", "host", "port", "path", "query", "body"]
+        match_on=["method", "scheme", "host", "port", "path", "query", _json_bodies_match.__name__]
     ):
         scores = [verify.check(reply, expected)[0] for reply, _ in cases]
 
@@ -105,3 +107,38 @@ def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
         "extra": 0.5,
     }
     assert json.loads(reward_path.read_text()) == scores
+    assert not (tmp_path / "details.json").exists()
+
+
+def test_write_reward_keeps_non_numeric_components_out_of_the_reward(tmp_path: Path) -> None:
+    reward_path = tmp_path / "reward.json"
+    scores = verify.write_reward(
+        0.0,
+        {"count": 3},
+        trajectory_path=tmp_path / "none",
+        reward_path=reward_path,
+        linked=True,
+        judge={"verdict": "no"},
+    )
+    assert scores == {"reward": 0.0, "linked": 1.0}
+    assert json.loads((tmp_path / "details.json").read_text()) == {
+        "count": 3,
+        "judge": {"verdict": "no"},
+    }
+
+
+def test_started_at_ignores_copied_context() -> None:
+    steps = [
+        {"source": "user", "timestamp": "2026-09-16T00:10:00Z", "is_copied_context": True},
+        {"source": "agent", "timestamp": "2026-09-16T00:20:50.981841Z"},
+        {"source": "user", "timestamp": "2026-09-16T00:17:57Z"},
+    ]
+    started = verify.started_at({"steps": steps})
+    assert started is not None and started.isoformat() == "2026-09-16T00:17:57+00:00"
+    assert verify.started_at({"steps": [{"source": "user"}]}) is None
+
+
+def _json_bodies_match(request1: VCRRequest, request2: VCRRequest) -> None:
+    """The recorded cassette has no content-type header, so VCR's own body matcher
+    compares raw bytes and breaks whenever the OpenAI client reorders JSON keys."""
+    assert json.loads(request1.body) == json.loads(request2.body)

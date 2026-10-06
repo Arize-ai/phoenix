@@ -71,6 +71,7 @@ class SpanKind(Enum):
     reranker = "RERANKER"
     evaluator = "EVALUATOR"
     guardrail = "GUARDRAIL"
+    decision = "DECISION"
     unknown = "UNKNOWN"
 
     @classmethod

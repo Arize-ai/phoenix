@@ -554,9 +554,10 @@ def _run_atif_multi_step_case(
         f"expected ATIF roots {expected_source_paths!r}, got {root_metadata!r}",
     )
     run_output = cast(Mapping[str, Any], run.get("output") or {})
+    root_output = json.loads(str((root.get("attributes") or {}).get("output.value") or "{}"))
     _check(
-        root_metadata.get("harbor_trial_id") == run_output.get("harbor_trial_id"),
-        f"trace root and run disagree on the trial: {root_metadata!r} vs {run!r}",
+        root_output == run_output,
+        f"trace root and run disagree on the output: {root_output!r} vs {run_output!r}",
     )
     step_spans = [
         span
@@ -673,10 +674,13 @@ def _run_atif_terminus_case(
         trial_name = str(root_metadata.get("harbor_trial_name"))
         _check(trial_name in trials_by_name, repr(root_metadata))
         linked_output = cast(Mapping[str, Any], run.get("output") or {})
+        messages = linked_output.get("messages")
+        message = messages[0] if isinstance(messages, list) and len(messages) == 1 else None
         _check(
-            root_metadata.get("harbor_trial_id") == linked_output.get("harbor_trial_id"),
-            f"run {run.get('id')!r} links trace {trace_id} whose root records "
-            f"trial {root_metadata.get('harbor_trial_id')!r}, not {linked_output!r}",
+            isinstance(message, Mapping)
+            and message.get("role") == "assistant"
+            and bool(message.get("content")),
+            f"run {run.get('id')!r} has no final assistant output: {linked_output!r}",
         )
         _check(
             root_metadata.get("harbor_job_id") == job_result_id,

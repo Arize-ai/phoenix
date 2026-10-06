@@ -8,7 +8,7 @@ google-genai
 httpx
 hypothesis-jsonschema
 openinference-semantic-conventions
-opentelemetry-sdk>=1.35.0
+opentelemetry-sdk>=1.45.0
 pandas-stubs
 psutil
 psycopg[binary,pool]

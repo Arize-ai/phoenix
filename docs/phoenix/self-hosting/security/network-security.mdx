@@ -169,6 +169,16 @@ export PHOENIX_TELEMETRY_ENABLED=false
 export PHOENIX_ALLOWED_PROVIDERS=NONE
 ```
 
+With `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false`, Phoenix makes no public-internet requests of its own. This turns off:
+
+- Google Fonts in the web interface
+- Telemetry
+- PXI's documentation lookups, web access, and GitHub access
+- The WebAssembly sandbox runtime download
+- The GitHub star count and update check in the web interface
+
+Services you configure yourself, such as LLM providers, OAuth2 or LDAP, hosted sandboxes, and PostgreSQL, aren't affected. To use the WebAssembly sandbox offline, set `PHOENIX_WASM_BINARY_PATH` to a local copy of the runtime. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes#non-container-deployments).
+
 In air-gapped environments, you can still use the Playground by:
 1. Deploying a local LLM (e.g., Ollama) within your network
 2. Configuring a custom provider pointing to the local endpoint

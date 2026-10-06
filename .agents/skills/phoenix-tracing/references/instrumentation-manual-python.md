@@ -27,6 +27,7 @@ tracer = tracer_provider.get_tracer(__name__)
 | RERANKER | `@tracer.reranker` | Document re-ranking |
 | GUARDRAIL | `@tracer.guardrail` | Safety checks, content moderation |
 | EVALUATOR | `@tracer.evaluator` | LLM evaluation, quality checks |
+| DECISION | `start_as_current_span(..., openinference_span_kind="decision")` | Decision model calls: routing, classification, scoring (experimental) |
 
 ## Decorator Approach (Recommended)
 

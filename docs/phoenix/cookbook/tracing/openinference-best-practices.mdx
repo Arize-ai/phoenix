@@ -247,6 +247,7 @@ OpenInference defines a fixed set of span kinds:
 | `RERANKER` | A reranking step that reorders a set of retrieved documents |
 | `GUARDRAIL` | A safety or policy check, such as content moderation, PII detection, or input validation |
 | `EVALUATOR` | An evaluation step that scores or judges an LLM output |
+| `DECISION` | Experimental. A call to a decision model that scores or selects among candidate options (routing, classification, rubric scoring) rather than generating free-form text. Support is still being built out |
 | `PROMPT` | A prompt definition or templating step |
 | `UNKNOWN` | Used when no other kind applies |
 
@@ -503,7 +504,7 @@ The common attributes available on any span kind are:
 
 | Attribute | Description |
 | --- | --- |
-| `openinference.span.kind` | The span kind: `LLM`, `CHAIN`, `AGENT`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `PROMPT`, or `UNKNOWN`. Controls how Phoenix renders the span. |
+| `openinference.span.kind` | The span kind: `LLM`, `CHAIN`, `AGENT`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `DECISION`, `PROMPT`, or `UNKNOWN`. Controls how Phoenix renders the span. |
 | `input.value` | The input to the span as a string. If the value is structured, serialize it to JSON and set `input.mime_type` accordingly. |
 | `input.mime_type` | The mime type of `input.value`. Defaults to `text/plain`; set to `application/json` if the value is a JSON string. |
 | `output.value` | The output from the span as a string |

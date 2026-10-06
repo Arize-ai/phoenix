@@ -73,7 +73,7 @@ type Story = StoryObj<typeof SpanAnnotationBadges>;
 export const Default: Story = {
   tags: ["!dev"],
   render: () => (
-    <div style={{ width: 420 }}>
+    <div style={{ width: 400 }}>
       <SpanAnnotationBadges
         summaries={draftSummaries}
         annotationConfigsByName={annotationConfigsByName}

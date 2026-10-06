@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """The tool called most often within one trace."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 from collections import Counter
 
-from evals.harbor.verifiers.phoenix_api import project_spans, spans_by_trace, write_answer
+from harbor_verifiers.phoenix_api import project_spans, spans_by_trace, write_answer
 
 repeats = Counter(
     (trace_id, span["name"])

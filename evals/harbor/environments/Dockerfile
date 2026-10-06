@@ -21,8 +21,10 @@ WORKDIR /app
 RUN chown agent:agent /app
 COPY wheels/ /wheels/
 RUN uv pip install --system --no-cache /wheels/*.whl
-COPY verifier/ /opt/verifier/
 COPY container_assets/ /opt/phoenix-eval/
 COPY data/ /data/
 # Root-only: the agent phase runs as `agent` and reaches the data only through Phoenix.
 RUN chmod 700 /data && chmod 600 /data/phoenix.db
+# Harbor does not remove tests between steps of a multi-step task.
+# Ensure that an agent running in a later step cannot read the tests for previous steps.
+RUN install -d -m 700 /tests

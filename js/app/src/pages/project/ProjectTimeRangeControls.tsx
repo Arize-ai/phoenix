@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
+import { useParams } from "react-router";
 
 import {
   ConnectedTimeRangeControls,
@@ -26,6 +27,8 @@ const STREAMING_ENABLED_TABS = ["spans", "traces", "sessions"];
  * live streaming toggle, rendered beside the time range selector. While
  * streaming is playing on a streamable tab, polls the project's
  * last-updated timestamp and bumps the shared fetch key when new data lands.
+ * Streaming pauses while a trace or session drawer is open so the tables
+ * behind it don't refetch.
  */
 export function ProjectTimeRangeControls(props: {
   project: ProjectTimeRangeControls_data$key;
@@ -37,8 +40,11 @@ export function ProjectTimeRangeControls(props: {
   } = useStreamState();
   const { refreshLiveTimeRange } = useTimeRange();
   const { tab } = useProjectRootPath();
+  // Parent routes see child params, so these are set while a drawer is open
+  const { traceId, sessionId } = useParams();
+  const isDetailOpen = traceId != null || sessionId != null;
   const isStreamingTab = STREAMING_ENABLED_TABS.includes(tab);
-  const isLiveStreaming = isStreamingTab && isStreamingState;
+  const isLiveStreaming = isStreamingTab && !isDetailOpen && isStreamingState;
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
@@ -84,6 +90,7 @@ export function ProjectTimeRangeControls(props: {
     <ConnectedTimeRangeControls
       isLive={isLiveStreaming}
       onIsLiveChange={isStreamingTab ? setIsStreaming : undefined}
+      isLiveToggleDisabled={isDetailOpen}
     />
   );
 }
