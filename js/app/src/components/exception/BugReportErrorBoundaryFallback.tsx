@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 import { ExternalLink } from "../core/ExternalLink";
 import { Flex } from "../core/layout";
 import { View } from "../core/view";
-import { isConnectionTimeoutError } from "./isConnectionTimeoutError";
+import { classifyServerConnectionError } from "./serverConnectionError";
 import { ServerConnectionErrorContent } from "./ServerConnectionErrorContent";
 import type { ErrorBoundaryFallbackProps } from "./types";
 
@@ -17,12 +17,14 @@ const errorDetailsCSS = css`
 
 export function BugReportErrorBoundaryFallback({
   error,
+  thrown,
 }: ErrorBoundaryFallbackProps) {
-  if (isConnectionTimeoutError(error)) {
+  const connectionErrorKind = classifyServerConnectionError(thrown);
+  if (connectionErrorKind != null) {
     return (
       <View padding="size-200">
         <Flex direction="column">
-          <ServerConnectionErrorContent />
+          <ServerConnectionErrorContent kind={connectionErrorKind} />
           {error && (
             <details>
               <summary>error details</summary>

@@ -8,9 +8,9 @@ import {
 } from "@phoenix/authFetch";
 import {
   Button,
+  classifyServerConnectionError,
   ExternalLink,
   Flex,
-  isConnectionTimeoutError,
   Loading,
   ServerConnectionErrorContent,
 } from "@phoenix/components";
@@ -45,9 +45,11 @@ export function ErrorElement() {
       // We know this means the server disconnected
       return <ServerDisconnectedContent />;
     }
-    if (error instanceof Error && isConnectionTimeoutError(error)) {
-      // Load balancer or proxy timed out before server could respond
-      return <ServerConnectionErrorContent />;
+    if (error instanceof Error) {
+      const connectionErrorKind = classifyServerConnectionError(error);
+      if (connectionErrorKind != null) {
+        return <ServerConnectionErrorContent kind={connectionErrorKind} />;
+      }
     }
     return <ErrorContent error={error} />;
   }, [error, is404, notFoundData]);
