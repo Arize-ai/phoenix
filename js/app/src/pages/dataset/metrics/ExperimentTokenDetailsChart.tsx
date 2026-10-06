@@ -31,12 +31,12 @@ import {
   ExperimentBaselineValueLine,
   getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
+import type { ExperimentMetricsTooltipDatum } from "./ExperimentMetricsTooltipContent";
+import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
 import {
   type ExperimentChartDatum,
   useExperimentChartDatum,
-} from "./experimentMetricsSelection";
-import type { ExperimentMetricsTooltipDatum } from "./ExperimentMetricsTooltipContent";
-import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+} from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -194,15 +194,15 @@ function getBaselineTokenDetailsTotal({
 
 function ExperimentTokenDetailsChart({
   datasetId,
-  selection,
+  experimentSelection,
   tokenKind,
 }: ExperimentMetricViewProps & { tokenKind: TokenKind }) {
   const { experiments, baselineExperiment } = useExperimentMetricsData({
     datasetId,
-    selection,
+    experimentSelection,
   });
   const { referenceLabel, toExperimentChartDatum } =
-    useExperimentChartDatum(selection);
+    useExperimentChartDatum(experimentSelection);
   const tokenTypes = getTokenTypes({
     baselineExperiment,
     experiments,

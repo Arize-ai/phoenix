@@ -22,7 +22,10 @@ import {
   getExperimentMetricChartDescription,
   getExperimentMetricCharts,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
-import type { ExperimentMetricsSelection } from "@phoenix/pages/dataset/metrics/types";
+import {
+  type ExperimentSelection,
+  RECENT_EXPERIMENT_SELECTION,
+} from "@phoenix/pages/dataset/metrics/types";
 import { useExperimentAnnotationMetricNames } from "@phoenix/pages/dataset/metrics/useExperimentAnnotationMetricNames";
 
 /**
@@ -75,6 +78,7 @@ function ConnectedChartSelectorMenu() {
       annotationNames={annotationNames}
       selectedChartKeys={selectedChartKeys}
       onSelectionChange={setExperimentsMetricChartKeys}
+      experimentSelection={RECENT_EXPERIMENT_SELECTION}
     />
   );
 }
@@ -87,16 +91,16 @@ export function ExperimentChartSelectorMenu({
   annotationNames,
   selectedChartKeys,
   onSelectionChange,
-  selection,
+  experimentSelection,
 }: {
   annotationNames: ReadonlyArray<string>;
   selectedChartKeys: ExperimentMetricChartKey[];
   onSelectionChange: (keys: ExperimentMetricChartKey[]) => void;
   /**
-   * The experiments the charts plot, when not the dataset's most recent
-   * experiments; picks the chart descriptions
+   * Which experiments the charts plot; picks the chart descriptions and
+   * glyphs
    */
-  selection?: ExperimentMetricsSelection;
+  experimentSelection: ExperimentSelection;
 }) {
   const annotationKeys = annotationNames.map(
     getExperimentAnnotationMetricChartKey
@@ -122,10 +126,14 @@ export function ExperimentChartSelectorMenu({
     <MetricsChartSelector
       options={charts.map((chart) => ({
         ...chart,
-        description: getExperimentMetricChartDescription({ chart, selection }),
-        // A selection's experiments have no inherent order, so every chart
-        // draws them as bars
-        chartType: selection == null ? chart.chartType : "bar",
+        description: getExperimentMetricChartDescription({
+          chart,
+          experimentSelection,
+        }),
+        // Compared experiments have no inherent order, so every chart draws
+        // them as bars
+        chartType:
+          experimentSelection.type === "recent" ? chart.chartType : "bar",
       }))}
       selectedKeys={selectedChartKeys}
       onSelectionChange={onSelectionChange}

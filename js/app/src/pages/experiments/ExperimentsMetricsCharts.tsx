@@ -11,6 +11,7 @@ import {
   DeferredExperimentMetricPanel,
   getExperimentMetricCharts,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
+import { RECENT_EXPERIMENT_SELECTION } from "@phoenix/pages/dataset/metrics/types";
 
 /**
  * A strip of user-selected metric charts shown above the experiments table.
@@ -30,6 +31,7 @@ export function ExperimentsMetricsCharts() {
           key={chart.key}
           chart={chart}
           datasetId={datasetId}
+          experimentSelection={RECENT_EXPERIMENT_SELECTION}
           fillHeight
         />
       ))}

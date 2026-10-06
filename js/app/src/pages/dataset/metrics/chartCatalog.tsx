@@ -27,10 +27,7 @@ import {
   ExperimentPromptTokenDetailsChart,
 } from "./ExperimentTokenDetailsChart";
 import { ExperimentTokensChart } from "./ExperimentTokensChart";
-import type {
-  ExperimentMetricsSelection,
-  ExperimentMetricViewProps,
-} from "./types";
+import type { ExperimentSelection, ExperimentMetricViewProps } from "./types";
 
 export type ExperimentMetricChart = {
   key: ExperimentMetricChartKey;
@@ -40,14 +37,9 @@ export type ExperimentMetricChart = {
    */
   name: string;
   /**
-   * Shown as the chart panel subtitle
+   * Shown as the chart panel subtitle, for each kind of experiment selection
    */
-  description: string;
-  /**
-   * Shown as the chart panel subtitle when charting a selection of
-   * experiments (the experiment compare page)
-   */
-  selectionDescription: string;
+  description: Record<ExperimentSelection["type"], string>;
   /**
    * The chart's visual archetype, shown as a glyph in the chart selector
    */
@@ -69,7 +61,7 @@ type ExperimentMetricChartDefinition = Omit<
 
 /**
  * The catalog of all experiment metric charts, keyed by chart key. Every
- * chart plots the dataset's most recent experiments, or a selection of
+ * chart plots the dataset's most recent experiments, or the compared
  * experiments, on the x axis.
  */
 const CHART_DEFINITIONS: Record<
@@ -78,69 +70,81 @@ const CHART_DEFINITIONS: Record<
 > = {
   annotation_scores: {
     name: "Annotation score comparison",
-    description: `Mean scores across all annotations for the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
-    selectionDescription: "Mean scores across all annotations per experiment",
+    description: {
+      recent: `Mean scores across all annotations for the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+      compared: "Mean scores across all annotations per experiment",
+    },
     chartType: "line",
     Component: ExperimentAnnotationScoresChart,
   },
   latency: {
     name: "Run latency",
-    description: `Average run latency across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
-    selectionDescription: "Average run latency per experiment",
+    description: {
+      recent: `Average run latency across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+      compared: "Average run latency per experiment",
+    },
     chartType: "bar",
     Component: ExperimentLatencyChart,
   },
   cost: {
     name: "Cost",
-    description: `Estimated cost in USD across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
-    selectionDescription: "Estimated cost in USD per experiment",
+    description: {
+      recent: `Estimated cost in USD across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+      compared: "Estimated cost in USD per experiment",
+    },
     chartType: "bar",
     Component: ExperimentCostChart,
   },
   tokens: {
     name: "Token usage",
-    description: `Prompt and completion tokens across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
-    selectionDescription: "Prompt and completion tokens per experiment",
+    description: {
+      recent: `Prompt and completion tokens across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+      compared: "Prompt and completion tokens per experiment",
+    },
     chartType: "bar",
     Component: ExperimentTokensChart,
   },
   prompt_token_details: {
     name: "Prompt token details",
-    description: `Prompt tokens by input, cache, and audio parts across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
-    selectionDescription:
-      "Prompt tokens by input, cache, and audio parts per experiment",
+    description: {
+      recent: `Prompt tokens by input, cache, and audio parts across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+      compared: "Prompt tokens by input, cache, and audio parts per experiment",
+    },
     chartType: "bar",
     Component: ExperimentPromptTokenDetailsChart,
   },
   completion_token_details: {
     name: "Completion token details",
-    description: `Completion tokens by output, reasoning, and audio parts across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
-    selectionDescription:
-      "Completion tokens by output, reasoning, and audio parts per experiment",
+    description: {
+      recent: `Completion tokens by output, reasoning, and audio parts across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+      compared:
+        "Completion tokens by output, reasoning, and audio parts per experiment",
+    },
     chartType: "bar",
     Component: ExperimentCompletionTokenDetailsChart,
   },
   error_rate: {
     name: "Error rate",
-    description: `Share of runs that errored across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
-    selectionDescription: "Share of runs that errored per experiment",
+    description: {
+      recent: `Share of runs that errored across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+      compared: "Share of runs that errored per experiment",
+    },
     chartType: "bar",
     Component: ExperimentErrorRateChart,
   },
 };
 
 /**
- * The chart's subtitle for what it plots: the dataset's most recent
- * experiments, or a selection of experiments.
+ * The chart's subtitle for the selected experiments it plots
  */
 export function getExperimentMetricChartDescription({
   chart,
-  selection,
+  experimentSelection,
 }: {
-  chart: Pick<ExperimentMetricChart, "description" | "selectionDescription">;
-  selection?: ExperimentMetricsSelection;
+  chart: Pick<ExperimentMetricChart, "description">;
+  experimentSelection: ExperimentSelection;
 }): string {
-  return selection == null ? chart.description : chart.selectionDescription;
+  return chart.description[experimentSelection.type];
 }
 
 function createExperimentMetricPanel(
@@ -153,7 +157,7 @@ function createExperimentMetricPanel(
         title={name}
         subtitle={getExperimentMetricChartDescription({
           chart: definition,
-          selection: props.selection,
+          experimentSelection: props.experimentSelection,
         })}
         fillHeight={fillHeight}
       >
@@ -177,7 +181,6 @@ const CHARTS_BY_KEY = Object.fromEntries(
         key,
         name: definition.name,
         description: definition.description,
-        selectionDescription: definition.selectionDescription,
         chartType: definition.chartType,
         Panel: createExperimentMetricPanel(definition),
       },
@@ -219,7 +222,7 @@ export function DeferredExperimentMetricPanel({
       title={chart.name}
       subtitle={getExperimentMetricChartDescription({
         chart,
-        selection: props.selection,
+        experimentSelection: props.experimentSelection,
       })}
       fillHeight={fillHeight}
     >
@@ -243,8 +246,10 @@ export const getExperimentMetricChart = (
     key,
     annotationName,
     name: annotationName,
-    description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
-    selectionDescription: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+    description: {
+      recent: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+      compared: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+    },
     // An annotation's view (line or bars) is only known once its metric data
     // loads, so the catalog shows a neutral line glyph.
     chartType: "line",

@@ -26,9 +26,9 @@ import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { useExperimentChartDatum } from "./experimentMetricsSelection";
 import type { ExperimentMetricsTooltipDatum } from "./ExperimentMetricsTooltipContent";
 import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import { useExperimentChartDatum } from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -80,15 +80,16 @@ function TooltipContent({
  */
 export function ExperimentAnnotationScoresChart({
   datasetId,
-  selection,
+  experimentSelection,
 }: ExperimentMetricViewProps) {
   const { theme } = useTheme();
   const { experiments, baselineExperiment } = useExperimentMetricsData({
     datasetId,
-    selection,
+    experimentSelection,
   });
-  const { toExperimentChartDatum } = useExperimentChartDatum(selection);
-  const isSelection = selection != null;
+  const { toExperimentChartDatum } =
+    useExperimentChartDatum(experimentSelection);
+  const isComparedSelection = experimentSelection.type === "compared";
 
   const scoreKeySet = new Set<string>();
   const chartData = experiments.map((experiment) => {
@@ -139,12 +140,12 @@ export function ExperimentAnnotationScoresChart({
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
       message="No annotation data"
-      chartType={isSelection ? "bar" : "line"}
+      chartType={isComparedSelection ? "bar" : "line"}
     >
       <ChartResponsiveContainer>
         <ComposedChart
           data={chartData}
-          barSize={isSelection ? 6 : undefined}
+          barSize={isComparedSelection ? 6 : undefined}
           margin={compactChartMargin}
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
           syncMethod="value"
@@ -167,7 +168,7 @@ export function ExperimentAnnotationScoresChart({
             };
             // Compared experiments have no inherent order, so a line between
             // them would imply a trend
-            return isSelection ? (
+            return isComparedSelection ? (
               <Bar
                 key={key}
                 {...markProps}
@@ -197,7 +198,7 @@ export function ExperimentAnnotationScoresChart({
             content={(props) => (
               <TooltipContent
                 {...props}
-                shape={isSelection ? "square" : "line"}
+                shape={isComparedSelection ? "square" : "line"}
               />
             )}
           />

@@ -17,8 +17,8 @@ import {
   ExperimentBaselineValueLine,
   getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
-import { useExperimentChartDatum } from "./experimentMetricsSelection";
 import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
+import { useExperimentChartDatum } from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -37,14 +37,14 @@ const LATENCY_DATA_KEY = "latency";
  */
 export function ExperimentLatencyChart({
   datasetId,
-  selection,
+  experimentSelection,
 }: ExperimentMetricViewProps) {
   const { experiments, baselineExperiment } = useExperimentMetricsData({
     datasetId,
-    selection,
+    experimentSelection,
   });
   const { referenceLabel, toExperimentChartDatum } =
-    useExperimentChartDatum(selection);
+    useExperimentChartDatum(experimentSelection);
   const chartData = experiments.map((experiment) => ({
     ...toExperimentChartDatum(experiment),
     latency: experiment.averageRunLatencyMs,

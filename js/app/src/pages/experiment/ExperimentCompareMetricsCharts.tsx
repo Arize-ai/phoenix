@@ -17,7 +17,7 @@ import {
   DeferredExperimentMetricPanel,
   getExperimentMetricCharts,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
-import type { ExperimentMetricsSelection } from "@phoenix/pages/dataset/metrics/types";
+import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { useExperimentMetricsData } from "@phoenix/pages/dataset/metrics/useExperimentMetricsData";
 import {
   ExperimentChartSelectorMenu,
@@ -34,7 +34,7 @@ const DEFAULT_COMPARE_GRID_BUILT_IN_CHART_KEYS: readonly BuiltInExperimentMetric
 
 type CompareChartsProps = {
   datasetId: string;
-  selection: ExperimentMetricsSelection;
+  experimentSelection: ComparedExperimentSelection;
 };
 
 /**
@@ -44,9 +44,12 @@ type CompareChartsProps = {
  */
 function useCompareAnnotationNames({
   datasetId,
-  selection,
+  experimentSelection,
 }: CompareChartsProps): string[] {
-  const { experiments } = useExperimentMetricsData({ datasetId, selection });
+  const { experiments } = useExperimentMetricsData({
+    datasetId,
+    experimentSelection,
+  });
   return Array.from(
     new Set(
       experiments.flatMap(({ annotationSummaries }) =>
@@ -118,17 +121,20 @@ function getCompareGridChartKeys({
 
 function ExperimentCompareGridCharts({
   datasetId,
-  selection,
+  experimentSelection,
 }: CompareChartsProps) {
   const persistedKeys = usePersistedCompareChartKeys(datasetId);
   return persistedKeys != null ? (
     <CompareChartsStrip
       datasetId={datasetId}
-      selection={selection}
+      experimentSelection={experimentSelection}
       keys={persistedKeys}
     />
   ) : (
-    <DefaultCompareChartsStrip datasetId={datasetId} selection={selection} />
+    <DefaultCompareChartsStrip
+      datasetId={datasetId}
+      experimentSelection={experimentSelection}
+    />
   );
 }
 
@@ -139,13 +145,16 @@ function ExperimentCompareGridCharts({
  */
 function DefaultCompareChartsStrip({
   datasetId,
-  selection,
+  experimentSelection,
 }: CompareChartsProps) {
-  const annotationNames = useCompareAnnotationNames({ datasetId, selection });
+  const annotationNames = useCompareAnnotationNames({
+    datasetId,
+    experimentSelection,
+  });
   return (
     <CompareChartsStrip
       datasetId={datasetId}
-      selection={selection}
+      experimentSelection={experimentSelection}
       keys={getCompareGridChartKeys({ persistedKeys: null, annotationNames })}
     />
   );
@@ -153,7 +162,7 @@ function DefaultCompareChartsStrip({
 
 function CompareChartsStrip({
   datasetId,
-  selection,
+  experimentSelection,
   keys,
 }: CompareChartsProps & { keys: ExperimentMetricChartKey[] }) {
   const charts = getExperimentMetricCharts(keys);
@@ -164,7 +173,7 @@ function CompareChartsStrip({
           key={chart.key}
           chart={chart}
           datasetId={datasetId}
-          selection={selection}
+          experimentSelection={experimentSelection}
           fillHeight
         />
       ))}
@@ -179,7 +188,7 @@ function CompareChartsStrip({
  */
 export function ExperimentCompareChartsPanelGroup({
   datasetId,
-  selection,
+  experimentSelection,
   children,
 }: CompareChartsProps & { children: ReactNode }) {
   const { hasCharts, isVisible } = useCompareChartsVisibility(datasetId);
@@ -191,7 +200,7 @@ export function ExperimentCompareChartsPanelGroup({
           <Suspense fallback={<Loading />}>
             <ExperimentCompareGridCharts
               datasetId={datasetId}
-              selection={selection}
+              experimentSelection={experimentSelection}
             />
           </Suspense>
         ) : null
@@ -226,9 +235,12 @@ export function ExperimentCompareChartSelector(props: CompareChartsProps) {
 
 function ExperimentCompareChartSelectorMenu({
   datasetId,
-  selection,
+  experimentSelection,
 }: CompareChartsProps) {
-  const annotationNames = useCompareAnnotationNames({ datasetId, selection });
+  const annotationNames = useCompareAnnotationNames({
+    datasetId,
+    experimentSelection,
+  });
   const persistedKeys = usePersistedCompareChartKeys(datasetId);
   const setMetricChartKeys = useExperimentCompareChartsStore(
     (state) => state.setMetricChartKeys
@@ -241,7 +253,7 @@ function ExperimentCompareChartSelectorMenu({
         annotationNames,
       })}
       onSelectionChange={(keys) => setMetricChartKeys({ datasetId, keys })}
-      selection={selection}
+      experimentSelection={experimentSelection}
     />
   );
 }

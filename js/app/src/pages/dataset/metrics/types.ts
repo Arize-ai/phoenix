@@ -5,13 +5,40 @@
 export const EXPERIMENT_METRICS_CHART_SYNC_ID = "experimentMetrics";
 
 /**
- * An explicit set of experiments to chart, as picked on the experiment compare
- * page. The base experiment is drawn as the reference and charted first,
- * followed by the compare experiments in selection order.
+ * Selects the dataset's most recent experiments (up to
+ * `EXPERIMENT_METRICS_EXPERIMENT_COUNT`). They are charted oldest to newest,
+ * with the dataset's baseline experiment as the reference. Used by the
+ * experiments list and the dataset metrics page.
  */
-export type ExperimentMetricsSelection = {
+export type RecentExperimentSelection = {
+  type: "recent";
+};
+
+/**
+ * Selects exactly the experiments picked on the experiment compare page. The
+ * base experiment is charted first as the reference, followed by the compare
+ * experiments in the order they were picked.
+ */
+export type ComparedExperimentSelection = {
+  type: "compared";
   baseExperimentId: string;
   compareExperimentIds: string[];
+};
+
+/**
+ * Which of a dataset's experiments an experiment metric chart plots: the most
+ * recent experiments, or the experiments picked for comparison. `type` tells
+ * the two apart.
+ */
+export type ExperimentSelection =
+  | RecentExperimentSelection
+  | ComparedExperimentSelection;
+
+/**
+ * The selection of the dataset's most recent experiments
+ */
+export const RECENT_EXPERIMENT_SELECTION: RecentExperimentSelection = {
+  type: "recent",
 };
 
 /**
@@ -23,8 +50,7 @@ export interface ExperimentMetricViewProps {
    */
   datasetId: string;
   /**
-   * The experiments to chart. When omitted, the dataset's most recent
-   * experiments are charted against the dataset baseline.
+   * Which of the dataset's experiments to chart
    */
-  selection?: ExperimentMetricsSelection;
+  experimentSelection: ExperimentSelection;
 }

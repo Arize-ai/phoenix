@@ -1,7 +1,7 @@
 import type { LegendPayload, XAxisTickContentProps } from "recharts";
 import { ReferenceLine } from "recharts";
 
-import type { ExperimentMetricsSelection } from "./types";
+import type { ExperimentSelection } from "./types";
 
 export const BASELINE_COLOR = "var(--global-color-purple-500)";
 
@@ -9,14 +9,14 @@ export const BASELINE_STROKE_DASHARRAY = "4 4";
 
 /**
  * What the reference experiment is called: the dataset baseline, or the base
- * experiment of a selection.
+ * experiment of the compared experiments.
  */
 export type ExperimentReferenceLabel = "baseline" | "base";
 
 export function getExperimentReferenceLabel(
-  selection: ExperimentMetricsSelection | undefined
+  experimentSelection: ExperimentSelection
 ): ExperimentReferenceLabel {
-  return selection == null ? "baseline" : "base";
+  return experimentSelection.type === "recent" ? "baseline" : "base";
 }
 
 export function getExperimentBaselineLegendItems({

@@ -7,6 +7,7 @@ import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
 
 import { getExperimentMetricChart } from "./chartCatalog";
 import { ExperimentAnnotationMetricsGrid } from "./ExperimentAnnotationMetricsGrid";
+import { RECENT_EXPERIMENT_SELECTION } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 const OVERVIEW_METRIC_CHARTS: ExperimentMetricChartKey[] = [
@@ -23,7 +24,10 @@ const TRAILING_METRIC_CHARTS: ExperimentMetricChartKey[] = [
 export function DatasetMetricsPage() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required to view experiment metrics");
-  const { experiments } = useExperimentMetricsData({ datasetId });
+  const { experiments } = useExperimentMetricsData({
+    datasetId,
+    experimentSelection: RECENT_EXPERIMENT_SELECTION,
+  });
 
   if (experiments.length === 0) {
     return <ExperimentsEmpty />;
@@ -82,5 +86,11 @@ function MetricPanel({
   chartKey: ExperimentMetricChartKey;
 }) {
   const { annotationName, Panel } = getExperimentMetricChart(chartKey);
-  return <Panel datasetId={datasetId} annotationName={annotationName} />;
+  return (
+    <Panel
+      datasetId={datasetId}
+      experimentSelection={RECENT_EXPERIMENT_SELECTION}
+      annotationName={annotationName}
+    />
+  );
 }

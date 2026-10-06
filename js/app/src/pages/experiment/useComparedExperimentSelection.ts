@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 
-import type { ExperimentMetricsSelection } from "@phoenix/pages/dataset/metrics/types";
+import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 
 /**
- * The compared experiments from the URL's `experimentId` params, base
- * experiment first, or null when no experiment is selected. The selection
- * keeps its identity while the selected ids are unchanged.
+ * The compared experiments picked in the URL's `experimentId` params, base
+ * experiment first, or null when no experiment is picked. The selection keeps
+ * its identity while the picked IDs are unchanged.
  */
-export function useExperimentCompareSelection(): ExperimentMetricsSelection | null {
+export function useComparedExperimentSelection(): ComparedExperimentSelection | null {
   const [searchParams] = useSearchParams();
   // Matches the compare page, which treats any `experimentId` param, even an
   // empty one, as a selected base experiment
@@ -19,6 +19,6 @@ export function useExperimentCompareSelection(): ExperimentMetricsSelection | nu
       return null;
     }
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
-    return { baseExperimentId, compareExperimentIds };
+    return { type: "compared", baseExperimentId, compareExperimentIds };
   }, [selectionKey]);
 }

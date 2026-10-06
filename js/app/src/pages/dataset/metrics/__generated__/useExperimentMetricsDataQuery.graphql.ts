@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<34a5485eb0a0869c8cc9ffc015088b9f>>
+ * @generated SignedSource<<d3cd7c31d9ba26d61c36aa32f59e923d>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type useExperimentMetricsDataQuery$variables = {
   count: number;
   filterIds?: ReadonlyArray<string> | null;
   id: string;
-  isSelection: boolean;
+  isComparedSelection: boolean;
 };
 export type useExperimentMetricsDataQuery$data = {
   readonly dataset: {
@@ -53,7 +53,7 @@ v2 = {
 v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "isSelection"
+  "name": "isComparedSelection"
 },
 v4 = [
   {
@@ -250,7 +250,7 @@ v10 = [
   {
     "kind": "Variable",
     "name": "includeEphemeral",
-    "variableName": "isSelection"
+    "variableName": "isComparedSelection"
   }
 ];
 return {
@@ -277,7 +277,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "condition": "isSelection",
+                "condition": "isComparedSelection",
                 "kind": "Condition",
                 "passingValue": false,
                 "selections": [
@@ -366,7 +366,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "condition": "isSelection",
+                "condition": "isComparedSelection",
                 "kind": "Condition",
                 "passingValue": false,
                 "selections": [
@@ -425,16 +425,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "df312f481f1f3115cea2dbc8100fb651",
+    "cacheID": "540213f818c2a8ebbdb7a34e37c10874",
     "id": null,
     "metadata": {},
     "name": "useExperimentMetricsDataQuery",
     "operationKind": "query",
-    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n  $filterIds: [ID!]\n  $isSelection: Boolean!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment @skip(if: $isSelection) {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count, filterIds: $filterIds, includeEphemeral: $isSelection) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      tokens\n    }\n  }\n}\n"
+    "text": "query useExperimentMetricsDataQuery(\n  $id: ID!\n  $count: Int!\n  $filterIds: [ID!]\n  $isComparedSelection: Boolean!\n) {\n  dataset: node(id: $id) {\n    __typename\n    ... on Dataset {\n      baselineExperiment @skip(if: $isComparedSelection) {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n      metricsExperiments: experiments(first: $count, filterIds: $filterIds, includeEphemeral: $isComparedSelection) {\n        edges {\n          experiment: node {\n            ...useExperimentMetricsData_experiment\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      tokens\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "605d7015e2c6c88f7c9a99cfbcb3a461";
+(node as any).hash = "359fae479595205236bc9ecad7f6f715";
 
 export default node;

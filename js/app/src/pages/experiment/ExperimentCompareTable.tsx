@@ -57,7 +57,7 @@ import {
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import type { ExperimentMetricsSelection } from "@phoenix/pages/dataset/metrics/types";
+import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
@@ -84,7 +84,7 @@ type ExampleCompareTableProps = {
   /**
    * The compared experiments, base experiment first
    */
-  selection: ExperimentMetricsSelection;
+  experimentSelection: ComparedExperimentSelection;
 };
 
 type Experiment = NonNullable<
@@ -136,8 +136,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-  const { datasetId, selection } = props;
-  const { baseExperimentId, compareExperimentIds } = selection;
+  const { datasetId, experimentSelection } = props;
+  const { baseExperimentId, compareExperimentIds } = experimentSelection;
   const chartsViewSetting = useExperimentCompareChartsViewSetting(datasetId);
   const [filterCondition, setFilterCondition] = useState("");
 
@@ -615,7 +615,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             </View>
             <ExperimentCompareChartSelector
               datasetId={datasetId}
-              selection={selection}
+              experimentSelection={experimentSelection}
             />
             <TableViewSettingsButton settings={[chartsViewSetting]} />
           </Flex>
