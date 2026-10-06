@@ -20,7 +20,7 @@ headline number is Δ (with-plugin minus without-plugin).
 | `03-manual-llm-span-python` | yes | Python | A manual LLM span for a non-instrumented provider using the correct OpenInference attribute names (`llm.model_name`, `llm.input_messages.*`, `llm.token_count.*`) |
 | `04-esm-load-order-typescript` | yes | TypeScript | ESM hoisting gotcha: instrument OpenAI via `manuallyInstrument`/`registerInstrumentations` after `register()`, not the broken auto pattern |
 | `05-custom-span-typescript` | yes | TypeScript | A TOOL span via `traceTool` / `withSpan` from `@arizeai/openinference-core` |
-| `06-session-tracking-python` | yes | Python | Group a multi-turn conversation with `using_session` / a shared session id |
+| `06-vercel-ai-sdk-v7-typescript` | yes | TypeScript | Wire Vercel AI SDK v7 telemetry to Phoenix via `registerTelemetry` + `@ai-sdk/otel` (not the old `experimental_telemetry`) |
 | `07-neg-build-evaluator` | no | — | Building an LLM judge — belongs to `phoenix-evals`; the tracing skill must stay quiet |
 | `08-neg-generic-logging` | no | — | Standard-library log rotation — no Phoenix tracing needed |
 

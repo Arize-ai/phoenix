@@ -1,5 +1,5 @@
 ---
 type: file_exists
-path: session_tracing.py
+path: aiSdkTracing.ts
 exists: true
 ---
