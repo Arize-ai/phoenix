@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
-from evals.harbor.verifiers import verify
+from harbor_verifiers import verify
 from tests.unit.vcr import CustomVCR
 
 MOST_FAILING_TOOL_EXPECTED = (

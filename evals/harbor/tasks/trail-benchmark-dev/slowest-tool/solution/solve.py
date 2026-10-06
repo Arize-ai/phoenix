@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """The tool with the longest mean span duration."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 from collections import defaultdict
 from datetime import datetime
 from statistics import mean
 
-from evals.harbor.verifiers.phoenix_api import project_spans, write_answer
+from harbor_verifiers.phoenix_api import project_spans, write_answer
 
 durations: dict[str, list[float]] = defaultdict(list)
 for span in project_spans("research-assistant"):

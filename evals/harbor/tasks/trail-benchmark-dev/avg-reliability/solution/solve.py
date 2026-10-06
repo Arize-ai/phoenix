@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """The mean trail_reliability trace annotation score."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 from statistics import mean
 
-from evals.harbor.verifiers.phoenix_api import (
+from harbor_verifiers.phoenix_api import (
     project_spans,
     spans_by_trace,
     trace_annotation_scores,

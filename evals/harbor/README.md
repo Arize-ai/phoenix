@@ -17,7 +17,7 @@ compare the conditions in the Phoenix UI.
 | `environments/` | The shared Dockerfile and the fixture script for each database |
 | `jobs/` | One configuration file for each benchmark |
 | `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
-| `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
+| `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
 ## Prerequisites
@@ -164,7 +164,7 @@ and `expected.json`. A unit test checks that the shared files stay identical and
 `expected.json` is well formed.
 
 Write a solution that calculates the reference value from the running Phoenix instance.
-Use `evals.harbor.verifiers.phoenix_api` to read spans and annotations through the Phoenix
+Use `harbor_verifiers.phoenix_api` to read spans and annotations through the Phoenix
 client and per-span costs through GraphQL. Stage the task, run the oracle, and copy its
 answer into `expected.json`. Use `source` to describe how the solution calculated the
 answer.
@@ -172,7 +172,7 @@ answer.
 For a task that changes Phoenix state instead of answering a question, write a custom
 `test.sh`. Query Phoenix at `http://127.0.0.1:6006` or read `/data/phoenix.db`. The
 verifier runs as root. Calculate the reward, and call
-`evals.harbor.verifiers.verify.write_reward(reward, **extra)` to include the trajectory
+`harbor_verifiers.verify.write_reward(reward, **extra)` to include the trajectory
 measurements.
 
 ### Add a condition

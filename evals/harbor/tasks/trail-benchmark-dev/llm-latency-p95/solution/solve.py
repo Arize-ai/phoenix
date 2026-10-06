@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 """The 95th-percentile duration of LLM spans."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 import statistics
 from datetime import datetime
 
-from evals.harbor.verifiers.phoenix_api import project_spans, write_answer
+from harbor_verifiers.phoenix_api import project_spans, write_answer
 
 durations = [
     (

@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """The status message of the failing LLM span."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
-from evals.harbor.verifiers.phoenix_api import project_spans, write_answer
+from harbor_verifiers.phoenix_api import project_spans, write_answer
 
 failures = [
     span

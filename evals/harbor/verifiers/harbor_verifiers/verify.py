@@ -2,7 +2,7 @@
 
 Usage inside a task verifier::
 
-    PYTHONPATH=/opt/verifier python -m evals.harbor.verifiers.verify --expected /tests/expected.json
+    python -m harbor_verifiers.verify --expected /tests/expected.json
 
 The verifier grades the last agent message in the ATIF trajectory at
 ``/logs/agent/trajectory.json``. An oracle run has no trajectory because it runs a
@@ -12,7 +12,7 @@ solution script instead of an agent. In that case, the verifier reads the answer
 Use ``{"exact": "ok"}`` in ``expected.json`` to compare normalized strings. The
 normalization removes emphasis, extra whitespace, and final punctuation and ignores
 letter case. Use ``{"reference": "117 traces", "notes": "..."}`` to ask the LLM judge
-in :mod:`evals.harbor.verifiers.llm_judge` whether the reply gives the reference answer.
+in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer.
 State verifiers can call :func:`write_reward` to record their own reward and include the
 trajectory measurements.
 """
@@ -128,7 +128,7 @@ def check(reply: str, expected: dict[str, Any]) -> tuple[float, str]:
         )
         return float(scores[0].score or 0.0), f"exact match against {expected['exact']!r}"
     if "reference" in expected:
-        from evals.harbor.verifiers import llm_judge
+        from harbor_verifiers import llm_judge
 
         verdict = llm_judge.matches_reference(
             reply, str(expected["reference"]), notes=str(expected.get("notes", ""))
