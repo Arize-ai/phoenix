@@ -5,7 +5,11 @@ import { EditorState } from "@codemirror/state";
 
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
-export { getDefaultCodeEvaluatorSource } from "./codeEvaluatorDefaults";
+export {
+  type CodeEvaluatorResetSource,
+  getCodeEvaluatorResetTarget,
+  getDefaultCodeEvaluatorSource,
+} from "./codeEvaluatorDefaults";
 
 export const extractCodeEvaluatorVariables = ({
   language,
