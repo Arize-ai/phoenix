@@ -941,6 +941,7 @@ function MissingAnnotationPieChart({
         stroke="transparent"
         startAngle={90}
         endAngle={-270}
+        isAnimationActive={false}
       >
         {chartData.map((entry) => (
           <Cell
