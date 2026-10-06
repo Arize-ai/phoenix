@@ -1,9 +1,6 @@
-import type { ReactNode } from "react";
-
 import {
   ChartPanelStrip,
   getMetricChartsViewSetting,
-  MetricChartsPanelGroup,
 } from "@phoenix/components/chart";
 import type { TableViewSetting } from "@phoenix/components/table";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
@@ -58,24 +55,12 @@ function useExperimentsMetricChartsVisibility() {
 }
 
 /**
- * Lays out the experiment metric charts strip above the experiments table in
- * a vertically resizable panel group. When no charts are selected or the
- * charts are hidden, the table content fills the space.
+ * Whether the charts strip is shown above the experiments table: charts are
+ * selected and the user has not hidden them
  */
-export function ExperimentsMetricsChartsPanelGroup({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function useAreExperimentsMetricChartsShown(): boolean {
   const { hasCharts, isVisible } = useExperimentsMetricChartsVisibility();
-  return (
-    <MetricChartsPanelGroup
-      layoutId="experiments-table-metrics-layout"
-      charts={hasCharts && isVisible ? <ExperimentsMetricsCharts /> : null}
-    >
-      {children}
-    </MetricChartsPanelGroup>
-  );
+  return hasCharts && isVisible;
 }
 
 /**

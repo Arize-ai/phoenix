@@ -1,9 +1,12 @@
 import { memo, type ReactNode } from "react";
+import { Group, Panel } from "react-resizable-panels";
 
 import { useTimeRange } from "@phoenix/components";
 import {
   ChartPanelStrip,
-  MetricChartsPanelGroup,
+  METRIC_CHARTS_CONTENT_PANEL_ID,
+  MetricChartsPanel,
+  useMetricChartsLayout,
 } from "@phoenix/components/chart";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -74,12 +77,18 @@ export function TableMetricsChartsPanelGroup({
   const hasCharts = useProjectContext(
     (state) => state.metricChartKeys[view].length > 0
   );
+  const chartsLayout = useMetricChartsLayout({
+    id: `${view}-table-metrics-layout`,
+    isChartsPanelShown: hasCharts,
+  });
   return (
-    <MetricChartsPanelGroup
-      layoutId={`${view}-table-metrics-layout`}
-      charts={hasCharts ? <TableMetricsCharts view={view} /> : null}
-    >
-      {children}
-    </MetricChartsPanelGroup>
+    <Group orientation="vertical" {...chartsLayout}>
+      {hasCharts && (
+        <MetricChartsPanel>
+          <TableMetricsCharts view={view} />
+        </MetricChartsPanel>
+      )}
+      <Panel id={METRIC_CHARTS_CONTENT_PANEL_ID}>{children}</Panel>
+    </Group>
   );
 }

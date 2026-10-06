@@ -12,7 +12,7 @@ import {
   type ComparedExperimentSelection,
   RECENT_EXPERIMENT_SELECTION,
 } from "@phoenix/pages/dataset/metrics/types";
-import { ExperimentCompareChartsPanelGroup } from "@phoenix/pages/experiment/ExperimentCompareMetricsCharts";
+import { ExperimentCompareGridCharts } from "@phoenix/pages/experiment/ExperimentCompareMetricsCharts";
 
 const STORY_DATASET_ID = "dataset:experiment-metrics-story";
 const LONG_EXPERIMENT_NAME =
@@ -255,12 +255,10 @@ function ExperimentCompareMetricsChartsStory() {
   return (
     <RelayEnvironmentProvider environment={compareRelayEnvironment}>
       <div style={{ width: "min(1100px, 100%)", height: 320 }}>
-        <ExperimentCompareChartsPanelGroup
+        <ExperimentCompareGridCharts
           datasetId={STORY_DATASET_ID}
           experimentSelection={COMPARED_EXPERIMENT_SELECTION}
-        >
-          {null}
-        </ExperimentCompareChartsPanelGroup>
+        />
       </div>
     </RelayEnvironmentProvider>
   );

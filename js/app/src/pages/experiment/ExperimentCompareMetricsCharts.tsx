@@ -1,11 +1,9 @@
-import type { ReactNode } from "react";
 import { Suspense, useCallback } from "react";
 
 import { Loading } from "@phoenix/components";
 import {
   ChartPanelStrip,
   getMetricChartsViewSetting,
-  MetricChartsPanelGroup,
 } from "@phoenix/components/chart";
 import type { TableViewSetting } from "@phoenix/components/table";
 import type {
@@ -119,22 +117,29 @@ function getCompareGridChartKeys({
   );
 }
 
-function ExperimentCompareGridCharts({
+/**
+ * The compared experiments' metric charts strip shown above the compare grid
+ */
+export function ExperimentCompareGridCharts({
   datasetId,
   experimentSelection,
 }: CompareChartsProps) {
   const persistedKeys = usePersistedCompareChartKeys(datasetId);
-  return persistedKeys != null ? (
-    <CompareChartsStrip
-      datasetId={datasetId}
-      experimentSelection={experimentSelection}
-      keys={persistedKeys}
-    />
-  ) : (
-    <DefaultCompareChartsStrip
-      datasetId={datasetId}
-      experimentSelection={experimentSelection}
-    />
+  return (
+    <Suspense fallback={<Loading />}>
+      {persistedKeys != null ? (
+        <CompareChartsStrip
+          datasetId={datasetId}
+          experimentSelection={experimentSelection}
+          keys={persistedKeys}
+        />
+      ) : (
+        <DefaultCompareChartsStrip
+          datasetId={datasetId}
+          experimentSelection={experimentSelection}
+        />
+      )}
+    </Suspense>
   );
 }
 
@@ -182,33 +187,12 @@ function CompareChartsStrip({
 }
 
 /**
- * Lays out the compared experiments' metric charts strip above the compare
- * grid in a vertically resizable panel group, mirroring the charts above the
- * experiments and tracing tables.
+ * Whether the charts strip is shown above the dataset's compare grid: charts
+ * are selected and the user has not hidden them
  */
-export function ExperimentCompareChartsPanelGroup({
-  datasetId,
-  experimentSelection,
-  children,
-}: CompareChartsProps & { children: ReactNode }) {
+export function useAreCompareChartsShown(datasetId: string): boolean {
   const { hasCharts, isVisible } = useCompareChartsVisibility(datasetId);
-  return (
-    <MetricChartsPanelGroup
-      layoutId="experiment-compare-grid-metrics-layout"
-      charts={
-        hasCharts && isVisible ? (
-          <Suspense fallback={<Loading />}>
-            <ExperimentCompareGridCharts
-              datasetId={datasetId}
-              experimentSelection={experimentSelection}
-            />
-          </Suspense>
-        ) : null
-      }
-    >
-      {children}
-    </MetricChartsPanelGroup>
-  );
+  return hasCharts && isVisible;
 }
 
 /**
