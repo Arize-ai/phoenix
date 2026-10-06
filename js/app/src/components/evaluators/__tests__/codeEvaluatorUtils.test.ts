@@ -8,6 +8,7 @@ import {
   extractRequiredCodeEvaluatorVariables,
   extractCodeEvaluatorVariablesFromState,
   getCodeEvaluatorCompletionPosition,
+  getCodeEvaluatorResetTarget,
   getDefaultCodeEvaluatorSource,
 } from "../codeEvaluatorUtils";
 
@@ -111,6 +112,42 @@ describe("code evaluator variable extraction", () => {
           pos,
         })
       ).toBe(testCase.position);
+    }
+  });
+});
+
+describe("what a code evaluator's Reset restores", () => {
+  const saved = {
+    language: "PYTHON" as const,
+    sourceCode: "def evaluate(output):\n    return 1\n",
+    kind: "saved" as const,
+  };
+
+  it("restores an existing evaluator's saved code", () => {
+    expect(
+      getCodeEvaluatorResetTarget({
+        language: "PYTHON",
+        recordKind: "dataset",
+        resetSource: saved,
+      })
+    ).toEqual({
+      sourceCode: saved.sourceCode,
+      description: "Restore the saved code",
+    });
+  });
+
+  it("gives a new evaluator, or one switched to another language, the default", () => {
+    for (const resetSource of [null, saved]) {
+      expect(
+        getCodeEvaluatorResetTarget({
+          language: "TYPESCRIPT",
+          recordKind: "span",
+          resetSource,
+        })
+      ).toEqual({
+        sourceCode: getDefaultCodeEvaluatorSource("TYPESCRIPT", "span"),
+        description: "Reset to the default code",
+      });
     }
   });
 });
