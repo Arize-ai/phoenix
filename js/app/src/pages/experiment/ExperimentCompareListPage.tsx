@@ -48,6 +48,8 @@ import {
 import {
   AnnotationColorSwatch,
   type AnnotationConfig,
+  AnnotationScoreText,
+  getAnnotationScoreColorProps,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
@@ -1390,7 +1392,9 @@ export function ExperimentCompareListPage({
 }
 
 /**
- * A single annotation value item with optimization direction coloring
+ * A single annotation value item: the score (or label) colored by its
+ * optimization direction on a full-width tint, over a bar in the score's
+ * color. Without a direction the bar takes the experiment's color.
  */
 function AnnotationValueItem({
   value,
@@ -1409,40 +1413,36 @@ function AnnotationValueItem({
   maxScore: number | null;
   annotationName: string;
 }) {
-  const bgColor =
-    (optimizationValue ?? 0) > 0
-      ? "var(--global-color-success-100)"
-      : (optimizationValue ?? 0) < 0
-        ? "var(--global-color-danger-100)"
-        : undefined;
-  const textColor =
-    (optimizationValue ?? 0) > 0
-      ? "success"
-      : (optimizationValue ?? 0) < 0
-        ? "danger"
-        : undefined;
-  const optimizedBarColor =
-    (optimizationValue ?? 0) > 0
-      ? "var(--global-color-success-500)"
-      : (optimizationValue ?? 0) < 0
-        ? "var(--global-color-danger-500)"
-        : barColor;
-
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
   return (
     <li
-      css={css`
-        --mod-barloader-fill-color: ${optimizedBarColor};
-        ${bgColor ? `background-color: ${bgColor};` : ""}
-        padding: var(--global-dimension-size-25) var(--global-dimension-size-50);
-        border-radius: var(--global-rounding-small);
-        margin: calc(-1 * var(--global-dimension-size-25))
-          calc(-1 * var(--global-dimension-size-50));
-      `}
+      data-direction={direction}
+      css={css(
+        scoreColorCSS,
+        css`
+          --mod-barloader-fill-color: var(
+            --annotation-score-color,
+            ${barColor}
+          );
+          background-color: var(--annotation-score-background-color);
+          padding: var(--global-dimension-size-25)
+            var(--global-dimension-size-50);
+          border-radius: var(--global-rounding-small);
+          margin: calc(-1 * var(--global-dimension-size-25))
+            calc(-1 * var(--global-dimension-size-50));
+        `
+      )}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
-        <Text size="S" fontFamily="mono" color={textColor}>
+        <AnnotationScoreText
+          size="S"
+          fontFamily="mono"
+          optimizationValue={optimizationValue}
+          hasBackground={false}
+        >
           {value}
-        </Text>
+        </AnnotationScoreText>
       </Flex>
       {typeof numericValue === "number" ? (
         <ProgressBar
