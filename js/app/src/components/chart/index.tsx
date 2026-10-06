@@ -23,6 +23,6 @@ export * from "./binning";
 export * from "./timeTicks";
 export * from "./useTimeAxisTicks";
 export * from "./breakdown";
-export * from "./MetricChartsPanelGroup";
+export * from "./MetricChartsPanel";
 export * from "./types";
 export * from "./metricChartsViewSetting";

@@ -1,13 +1,22 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
+import { Group, Panel } from "react-resizable-panels";
 import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Loading } from "@phoenix/components";
+import {
+  METRIC_CHARTS_CONTENT_PANEL_ID,
+  MetricChartsPanel,
+  useMetricChartsLayout,
+} from "@phoenix/components/chart";
 import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
 
-import { ExperimentCompareChartsPanelGroup } from "./ExperimentCompareMetricsCharts";
+import {
+  ExperimentCompareGridCharts,
+  useAreCompareChartsShown,
+} from "./ExperimentCompareMetricsCharts";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 import { useComparedExperimentSelection } from "./useComparedExperimentSelection";
@@ -27,23 +36,35 @@ export function ExperimentCompareGridPage({
   invariant(datasetId != null, "datasetId is required");
   const experimentSelection = useComparedExperimentSelection();
   invariant(experimentSelection != null, "an experiment selection is required");
+  const areChartsShown = useAreCompareChartsShown(datasetId);
+  const chartsLayout = useMetricChartsLayout({
+    id: "experiment-compare-grid-metrics-layout",
+    isChartsPanelShown: areChartsShown,
+  });
 
   return (
     <div css={gridPageCSS}>
-      <ExperimentCompareChartsPanelGroup
-        datasetId={datasetId}
-        experimentSelection={experimentSelection}
-      >
-        <ExperimentRunFilterConditionProvider>
-          <Suspense fallback={<Loading />}>
-            <ExperimentCompareTable
-              queryRef={queryRef}
+      <Group orientation="vertical" {...chartsLayout}>
+        {areChartsShown && (
+          <MetricChartsPanel>
+            <ExperimentCompareGridCharts
               datasetId={datasetId}
               experimentSelection={experimentSelection}
             />
-          </Suspense>
-        </ExperimentRunFilterConditionProvider>
-      </ExperimentCompareChartsPanelGroup>
+          </MetricChartsPanel>
+        )}
+        <Panel id={METRIC_CHARTS_CONTENT_PANEL_ID}>
+          <ExperimentRunFilterConditionProvider>
+            <Suspense fallback={<Loading />}>
+              <ExperimentCompareTable
+                queryRef={queryRef}
+                datasetId={datasetId}
+                experimentSelection={experimentSelection}
+              />
+            </Suspense>
+          </ExperimentRunFilterConditionProvider>
+        </Panel>
+      </Group>
     </div>
   );
 }
