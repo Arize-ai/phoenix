@@ -539,6 +539,15 @@ export const EditCodeEvaluatorDialogContent = ({
                   onSourceCodeChange={setSourceCode}
                   isLanguageDisabled={mode !== "create"}
                   isSandboxRequired={mode === "create"}
+                  resetSource={
+                    mode === "update"
+                      ? {
+                          language: initialLanguage,
+                          sourceCode: initialSourceCode,
+                          kind: "saved",
+                        }
+                      : null
+                  }
                 />
                 <InputMappingSection />
               </div>

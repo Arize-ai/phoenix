@@ -62,8 +62,11 @@ export function EvaluatorTaskSaveButton({
   validationError: string | null;
   /** The name lives on the Output tab; a save without one goes there. */
   onNameRequired: () => void;
-  /** The sandbox the save bound, which the next save diffs against. */
-  onSaved: (sandboxConfigId: string | null) => void;
+  /**
+   * The code the save wrote: its sandbox is what the next save diffs
+   * against, and its source is what Reset restores.
+   */
+  onSaved: (code: PlaygroundEvaluatorTaskCode) => void;
   /** Receives the save API on mount and null on unmount. */
   onSaveApiChange?: (saveApi: EvaluatorTaskSaveApi | null) => void;
 }) {
@@ -151,7 +154,7 @@ export function EvaluatorTaskSaveButton({
         initialSandboxConfigId: loadedSandboxConfigId,
       });
 
-      onSaved(code.sandboxConfigId);
+      onSaved(code);
 
       // The task now stands for what was saved: the next save updates it,
       // and the judge prompt diffs against the version the save produced.
