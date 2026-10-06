@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -7,12 +8,17 @@ from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
 )
+from phoenix.server.api.dataloaders.span_cost_summary_by_project import (
+    SpanCostSummaryByProjectDataLoader,
+)
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -187,6 +193,66 @@ async def get_project(
         project = await get_project_by_identifier(session, project_identifier)
     data = _to_project_response(project)
     return GetProjectResponseBody(data=data)
+
+
+class CostBreakdown(V1RoutesBaseModel):
+    tokens: float = Field(description="Number of tokens")
+    cost: float = Field(description="Cost in USD")
+
+
+class ProjectCostSummary(V1RoutesBaseModel):
+    prompt: CostBreakdown
+    completion: CostBreakdown
+    total: CostBreakdown
+
+
+class GetProjectCostSummaryResponseBody(ResponseBody[ProjectCostSummary]):
+    pass
+
+
+@router.get(
+    "/projects/{project_identifier}/cost_summary",
+    operation_id="getProjectCostSummary",
+    summary="Get token counts and costs for a project",
+    description="Return prompt, completion, and total token counts and costs (in USD) summed "
+    "across the project's traces, optionally restricted to traces that start within a time range.",
+    response_description="The project's token count and cost summary",
+    responses=add_errors_to_responses([404, 422]),
+)
+async def get_project_cost_summary(
+    request: Request,
+    project_identifier: str = Path(
+        description="The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
+    ),
+    start_time: Optional[datetime] = Query(
+        default=None, description="Inclusive lower bound on trace start time"
+    ),
+    end_time: Optional[datetime] = Query(
+        default=None, description="Exclusive upper bound on trace start time"
+    ),
+) -> GetProjectCostSummaryResponseBody:
+    async with request.app.state.db.read() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+    time_range = (
+        TimeRange(
+            start=normalize_datetime(start_time, timezone.utc),
+            end=normalize_datetime(end_time, timezone.utc),
+        )
+        if start_time or end_time
+        else None
+    )
+    summary = await SpanCostSummaryByProjectDataLoader(request.app.state.db).load(
+        (project.id, time_range, None, None)
+    )
+    return GetProjectCostSummaryResponseBody(
+        data=ProjectCostSummary(
+            prompt=CostBreakdown(tokens=summary.prompt.tokens or 0, cost=summary.prompt.cost or 0),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens or 0, cost=summary.completion.cost or 0
+            ),
+            total=CostBreakdown(tokens=summary.total.tokens or 0, cost=summary.total.cost or 0),
+        )
+    )
 
 
 @router.post(
