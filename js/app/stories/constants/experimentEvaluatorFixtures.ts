@@ -95,6 +95,42 @@ const experimentDatasetEvaluators: DatasetEvaluatorForConfig[] = [
       },
     ],
   },
+  {
+    name: "answer_relevance",
+    outputConfigs: [
+      {
+        __typename: "ContinuousAnnotationConfig",
+        name: "answer_relevance",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+      },
+    ],
+  },
+  {
+    name: "column_coverage",
+    outputConfigs: [
+      {
+        __typename: "ContinuousAnnotationConfig",
+        name: "column_coverage",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+      },
+    ],
+  },
+  {
+    name: "verbosity",
+    outputConfigs: [
+      {
+        __typename: "ContinuousAnnotationConfig",
+        name: "verbosity",
+        optimizationDirection: "MINIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+      },
+    ],
+  },
 ];
 
 export const experimentAnnotationConfigs = datasetEvaluatorsToAnnotationConfigs(

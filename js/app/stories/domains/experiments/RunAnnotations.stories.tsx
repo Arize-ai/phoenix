@@ -49,9 +49,9 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       {
         annotation: {
           id: "ann-1",
-          name: "qa_correctness",
-          label: "correct",
-          score: 0.95,
+          name: "answer_relevance",
+          label: null,
+          score: 0.92,
           metadata: null,
           trace: {
             traceId: "eval-trace-111",
@@ -62,9 +62,9 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       {
         annotation: {
           id: "ann-2",
-          name: "has_results",
+          name: "column_coverage",
           label: null,
-          score: 1.0,
+          score: 0.5,
           metadata: null,
           trace: {
             traceId: "eval-trace-222",
@@ -75,9 +75,9 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       {
         annotation: {
           id: "ann-3",
-          name: "sql_syntax_valid",
-          label: "valid",
-          score: 1.0,
+          name: "verbosity",
+          label: null,
+          score: 0.81,
           metadata: null,
           trace: {
             traceId: "eval-trace-333",
@@ -223,6 +223,11 @@ export const Default = {
 
   args: {
     experimentRun: mockExperimentRunWithAnnotations,
+    annotationSummaries: [
+      { annotationName: "answer_relevance", minScore: 0.0, maxScore: 1.0 },
+      { annotationName: "column_coverage", minScore: 0.0, maxScore: 1.0 },
+      { annotationName: "verbosity", minScore: 0.0, maxScore: 1.0 },
+    ],
   },
 };
 
