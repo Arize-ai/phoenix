@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e8b46884f2c99f1789f700af12f1f9a>>
+ * @generated SignedSource<<0de4d943ad78afdab43e45245687cc7f>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,10 @@ export type SpanAnnotationsEditorAddAnnotationConfigToProjectMutation$data = {
       readonly node: {
         readonly id?: string;
         readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations">;
+      };
+      readonly projectNode: {
+        readonly id?: string;
+        readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
       };
     };
   };
@@ -73,7 +77,7 @@ v5 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "spanId"
+    "variableName": "projectId"
   }
 ],
 v6 = {
@@ -81,6 +85,62 @@ v6 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v7 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "spanId"
+  }
+],
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "lowerBound",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "upperBound",
   "storageKey": null
 };
 return {
@@ -112,8 +172,32 @@ return {
             "plural": false,
             "selections": [
               {
-                "alias": null,
+                "alias": "projectNode",
                 "args": (v5/*:: as any*/),
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v6/*:: as any*/),
+                      {
+                        "args": null,
+                        "kind": "FragmentSpread",
+                        "name": "ProjectAnnotationConfigsByNameFragment"
+                      }
+                    ],
+                    "type": "Project",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": (v7/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -179,20 +263,145 @@ return {
             "plural": false,
             "selections": [
               {
-                "alias": null,
+                "alias": "projectNode",
                 "args": (v5/*:: as any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
+                  (v8/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": "configsByName",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "first",
+                            "value": 100
+                          }
+                        ],
+                        "concreteType": "AnnotationConfigConnection",
+                        "kind": "LinkedField",
+                        "name": "annotationConfigs",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "AnnotationConfigEdge",
+                            "kind": "LinkedField",
+                            "name": "edges",
+                            "plural": true,
+                            "selections": [
+                              {
+                                "alias": "config",
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "node",
+                                "plural": false,
+                                "selections": [
+                                  (v8/*:: as any*/),
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v9/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "annotationType",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "AnnotationConfigBase",
+                                    "abstractKey": "__isAnnotationConfigBase"
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v10/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "CategoricalAnnotationValue",
+                                        "kind": "LinkedField",
+                                        "name": "values",
+                                        "plural": true,
+                                        "selections": [
+                                          (v11/*:: as any*/),
+                                          (v12/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "CategoricalAnnotationConfig",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v10/*:: as any*/),
+                                      (v13/*:: as any*/),
+                                      (v14/*:: as any*/)
+                                    ],
+                                    "type": "ContinuousAnnotationConfig",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v10/*:: as any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "threshold",
+                                        "storageKey": null
+                                      },
+                                      (v13/*:: as any*/),
+                                      (v14/*:: as any*/)
+                                    ],
+                                    "type": "FreeformAnnotationConfig",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      (v6/*:: as any*/)
+                                    ],
+                                    "type": "Node",
+                                    "abstractKey": "__isNode"
+                                  }
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": "annotationConfigs(first:100)"
+                      }
+                    ],
+                    "type": "Project",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": (v7/*:: as any*/),
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  (v8/*:: as any*/),
                   (v6/*:: as any*/),
                   {
                     "kind": "InlineFragment",
@@ -233,13 +442,7 @@ return {
                         "plural": true,
                         "selections": [
                           (v6/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
-                            "storageKey": null
-                          },
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -247,20 +450,8 @@ return {
                             "name": "annotatorKind",
                             "storageKey": null
                           },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "score",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "label",
-                            "storageKey": null
-                          },
+                          (v12/*:: as any*/),
+                          (v11/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -294,16 +485,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9ba0c91690dcb96d8864b0ec6b256e59",
+    "cacheID": "81c67de05003e4ae5bdcb5af3324a638",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsEditorAddAnnotationConfigToProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationsEditorAddAnnotationConfigToProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID!]\n) {\n  addAnnotationConfigToProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
+    "text": "mutation SpanAnnotationsEditorAddAnnotationConfigToProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID!]\n) {\n  addAnnotationConfigToProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...ProjectAnnotationConfigsByNameFragment\n        }\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "41c3c1e5da773478b8ebd4a22c74a164";
+(node as any).hash = "a5313a10490076dcc0f8a28c4bfb1651";
 
 export default node;

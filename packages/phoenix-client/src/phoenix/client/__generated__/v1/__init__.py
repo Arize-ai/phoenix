@@ -382,6 +382,11 @@ class ListDatasetLabelsForDatasetResponseBody(TypedDict):
     data: Sequence[DatasetLabel]
 
 
+class ListDatasetSplitsResponseBody(TypedDict):
+    data: Sequence[DatasetSplit]
+    next_cursor: Optional[str]
+
+
 class ListDatasetVersionsResponseBody(TypedDict):
     data: Sequence[DatasetVersion]
     next_cursor: Optional[str]
@@ -610,6 +615,19 @@ class PromptGoogleThinkingConfig(TypedDict):
 
 
 class PromptGroqInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
+
+
+class PromptMetaInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
     max_completion_tokens: NotRequired[int]
@@ -1401,6 +1419,7 @@ class BuiltInModelProvider(TypedDict):
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
+        "META",
     ]
     name: str
 
@@ -1424,6 +1443,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
+        "META",
     ]
     modelName: str
 
@@ -1800,6 +1820,11 @@ class PromptGoogleInvocationParametersContent(TypedDict):
 class PromptGroqInvocationParameters(TypedDict):
     type: Literal["groq"]
     groq: PromptGroqInvocationParametersContent
+
+
+class PromptMetaInvocationParameters(TypedDict):
+    type: Literal["meta"]
+    meta: PromptMetaInvocationParametersContent
 
 
 class PromptMoonshotInvocationParameters(TypedDict):
@@ -2289,6 +2314,7 @@ class PromptVersionData(TypedDict):
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
+        "META",
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
@@ -2310,8 +2336,10 @@ class PromptVersionData(TypedDict):
         PromptPerplexityInvocationParameters,
         PromptTogetherInvocationParameters,
         PromptZAIInvocationParameters,
+        PromptMetaInvocationParameters,
     ]
     description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
 

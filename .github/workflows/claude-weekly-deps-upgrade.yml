@@ -32,6 +32,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
 
       - name: Install PNPM
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -41,7 +42,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: lts/*
+          node-version: 24
 
       - name: Create branch
         id: branch
@@ -62,6 +63,19 @@ jobs:
             echo "branch=$BRANCH"
             echo "date=$DATE"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Bump exact Python pins
+        # `uv lock --upgrade` won't cross `==` pins; `uv pip compile` inherits
+        # `exclude-newer` from `[tool.uv]` and skips yanked/pre-releases.
+        run: |
+          pins=$(printf 'strawberry-graphql\npydantic-monty\n' \
+            | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.11)
+          echo "$pins"
+          while IFS='=' read -r name _ version; do
+            [ -n "$name" ] || continue
+            sed -i -E "s/(\"${name}(\[[^]]*\])?==)[0-9][^\"]*\"/\1${version}\"/g" pyproject.toml
+          done <<< "$pins"
+          git diff --stat -- pyproject.toml
 
       - name: Upgrade Python (uv)
         run: |
@@ -188,6 +202,7 @@ jobs:
               --title "chore(deps): weekly dependency upgrade ${DATE}" \
               --body "Automated weekly dependency upgrade.
 
+          - exact \`==\` pins bumped to the newest PyPI release outside the 3-day cool-down (Python)
           - \`uv lock --upgrade\` (Python)
           - \`pnpm update --recursive\` in \`js/\`
 
@@ -210,7 +225,7 @@ jobs:
       - name: Hand off to Claude (fix regressions)
         id: claude_fix
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure'
-        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
+        uses: anthropics/claude-code-action@ed670b4cf9de2a5a570d130d2f6197b9e543cd64 # v1.0.240
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -314,7 +329,7 @@ jobs:
               - a short test-plan checklist for human review
 
             Then exit. The next workflow step will commit and push.
-          claude_args: '--model opus --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(uv:*)","Bash(pnpm:*)","Bash(make:*)","Bash(node:*)","Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(find:*)","Bash(grep:*)","Bash(sed:*)","Bash(awk:*)","Bash(jq:*)","Bash(cat:*)","Bash(ls:*)","Bash(head:*)","Bash(tail:*)","Bash(sort:*)","Bash(comm:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(rm:*)","Bash(cp:*)","Bash(mv:*)","Bash(date:*)","Bash(echo:*)","Bash(printf:*)"'
+          claude_args: '--allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(uv:*)","Bash(pnpm:*)","Bash(make:*)","Bash(node:*)","Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(find:*)","Bash(grep:*)","Bash(sed:*)","Bash(awk:*)","Bash(jq:*)","Bash(cat:*)","Bash(ls:*)","Bash(head:*)","Bash(tail:*)","Bash(sort:*)","Bash(comm:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(rm:*)","Bash(cp:*)","Bash(mv:*)","Bash(date:*)","Bash(echo:*)","Bash(printf:*)"'
 
       - name: Commit & open PR (after Claude fix)
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure' && steps.claude_fix.outcome == 'success'
@@ -338,6 +353,7 @@ jobs:
             echo "> The narrative below was written by Claude after the upgrade caused verification failures."
             echo "> Review the diff and fixes carefully before merging."
             echo ""
+            echo "- exact \`==\` pins bumped to the newest PyPI release outside the 3-day cool-down (Python)"
             echo "- \`uv lock --upgrade\` (Python)"
             echo "- \`pnpm update --recursive\` in \`js/\`"
             echo ""

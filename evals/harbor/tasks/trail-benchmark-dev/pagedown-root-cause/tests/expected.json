@@ -1,0 +1,5 @@
+{
+  "reference": "Every failing call raises TypeError: PageDownTool.forward() got an unexpected keyword argument. The agent passes forward() a keyword argument that it does not accept; the argument name varies (most often an empty name '', also page_down, arguments, url, query).",
+  "notes": "A match gives an unexpected keyword argument to forward() as the cause. Which argument name the reply cites, or whether it cites one at all, does not matter. Explanations about timeouts, missing pages, or bad URLs do not match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; all 109 PageDownTool ERROR spans carry TypeError: PageDownTool.forward() got an unexpected keyword argument '' (87), 'page_down' (12), 'arguments' (8), 'url' (1), or 'query' (1)"
+}

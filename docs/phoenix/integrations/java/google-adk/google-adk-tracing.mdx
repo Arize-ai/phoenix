@@ -1,0 +1,77 @@
+---
+title: "Google ADK tracing for Java"
+description: "Instrument Google ADK for Java with OpenInference and export traces to Phoenix."
+---
+
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+
+Google ADK creates OpenTelemetry spans. The OpenInference Java agent enriches those spans and sends them to Phoenix without changes to your agent code.
+
+## Prerequisites
+
+- Java and Gradle
+- A [Gemini API key](https://aistudio.google.com/app/apikey)
+- The shaded OpenInference ADK Java agent JAR
+
+## Run the example
+
+<StartPhoenix />
+
+The [Phoenix example](https://github.com/Arize-ai/phoenix/tree/main/java/examples/google-adk) includes the ADK agent, OpenTelemetry configuration, and Gradle launch task. Set the path to your shaded OpenInference agent JAR, then run it:
+
+```bash
+export GOOGLE_API_KEY="your-key"
+export OPENINFERENCE_ADK_AGENT_JAR="/path/to/adk-agent.jar"
+cd java/examples/google-adk
+gradle -PagentJar="$OPENINFERENCE_ADK_AGENT_JAR" run
+```
+
+Open Phoenix and select the `google-adk-java` project.
+
+## Instrument your application
+
+Register a global OpenTelemetry SDK with an OTLP exporter and the `openinference.project.name` resource attribute. Do this before constructing any ADK object because ADK captures the global OpenTelemetry instance when its telemetry class loads. The following is taken from the example's [`WeatherAgent.java`](https://github.com/Arize-ai/phoenix/blob/main/java/examples/google-adk/src/main/java/com/arize/phoenix/examples/adk/WeatherAgent.java):
+
+```java
+Resource resource = Resource.getDefault().merge(Resource.create(Attributes.of(
+    AttributeKey.stringKey("openinference.project.name"), "google-adk-java"
+)));
+
+OtlpGrpcSpanExporter exporter = OtlpGrpcSpanExporter.builder()
+    .setEndpoint(System.getenv().getOrDefault(
+        "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"))
+    .build();
+
+SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+    .setResource(resource)
+    .addSpanProcessor(BatchSpanProcessor.builder(exporter).build())
+    .build();
+
+OpenTelemetrySdk.builder()
+    .setTracerProvider(tracerProvider)
+    .buildAndRegisterGlobal();
+
+// Construct and run ADK objects after registration.
+```
+
+Launch your application with the shaded agent JAR:
+
+```bash
+java \
+  -javaagent:/path/to/adk-agent.jar \
+  -cp "your-application-classpath" \
+  com.example.Main
+```
+
+For Phoenix Cloud or an authenticated deployment, follow [Connect your app to Phoenix](/docs/phoenix/tracing/how-to-tracing/setup-tracing) to configure the endpoint and headers.
+
+<Tip>
+  For short-lived applications, flush and shut down the tracer provider before the process exits.
+</Tip>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="Complete Java example" href="https://github.com/Arize-ai/phoenix/tree/main/java/examples/google-adk" icon="github" />
+  <Card title="OpenInference ADK Java agent" href="https://github.com/Arize-ai/openinference/tree/main/java/instrumentation/openinference-instrumentation-adk-java" icon="github" />
+</CardGroup>

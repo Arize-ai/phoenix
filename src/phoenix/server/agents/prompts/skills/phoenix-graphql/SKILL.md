@@ -29,12 +29,13 @@ Top-level `Query` entrypoints get you to a starting entity; per-entity schema de
 
 Per-entity field references and examples are split into reference files. Load **only** the one(s) you need with `load_skill_reference`, after loading this skill:
 
-- `references/project-spans-traces.md` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
-- `references/sessions.md` — ProjectSession: multi-turn session metrics, token/cost, session traces.
-- `references/datasets.md` — Dataset and DatasetExample: examples, versions, splits, labels.
-- `references/experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
-- `references/prompts.md` — Prompt and PromptVersion: versions, templates, tags.
-- `references/annotations.md` — Span/Trace/ExperimentRun annotation fields and how to read them.
+- [Projects, spans, and traces](references/project-spans-traces.md): Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
+- [Sessions](references/sessions.md): ProjectSession multi-turn session metrics, token/cost, and session traces.
+- [Datasets](references/datasets.md): Dataset and DatasetExample examples, versions, splits, and labels.
+- [Experiments](references/experiments.md): Experiment and ExperimentRun runs, aggregate metrics, and comparison.
+- [Prompts](references/prompts.md): Prompt and PromptVersion versions, templates, and tags.
+- [Annotations](references/annotations.md): Span, trace, session, and experiment-run annotation fields; how to read them; and the mutations that write notes, labels, and annotation configs.
+- [Filter expressions](references/filter-expressions.md): The span, trace, and session filter languages (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`), including vocabulary, operators, root-span scoping, and compiled examples. Load it before writing any condition beyond the one-liners below.
 
 ### Conventions
 
@@ -44,7 +45,7 @@ These apply to every entity:
 - **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. OpenTelemetry hex IDs come from `Span.spanId` and `Trace.traceId` — use those for OTel lookups. Note a `Span` has **no** `traceId` field; read it via the nested `trace { traceId }`. Never mix global IDs with OTel IDs.
 - **`TimeRange`** input: `{ start: DateTime, end: DateTime }` — ISO 8601 strings; `end` is exclusive; both optional.
 - **`SpanSort`** input: `{ col: SpanColumn, dir: SortDir }`, e.g. `{ col: startTime, dir: desc }`. Useful `SpanColumn` values: `startTime`, `latencyMs`, `tokenCountTotal`, `cumulativeTokenCountTotal`, `tokenCostTotal`.
-- **`filterCondition`** is a Python-like DSL string over span fields, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `latency_ms > 1000`, `'timeout' in output.value`, `annotations['Hallucination'].label == 'hallucinated'`, or `trace_annotations['quality'].score < 0.5`. `annotations[...]` references annotations on an individual span; `trace_annotations[...]` matches every span belonging to an annotated trace. Combine clauses with `and`/`or`.
+- **Filter conditions** (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`) are Python boolean expressions, one language each for spans, traces, and sessions, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `'timeout' in output.value`, `annotations['Hallucination'].label == 'hallucinated'`. There is no `traces` connection: list traces with the clause `parent_span is None` (root spans, orphans included), or `parent_id is None` for spans with no parent id. Unknown span filter names compile as attribute paths and match nothing, so read `references/filter-expressions.md` before writing a condition.
 
 ### Efficiency rules
 

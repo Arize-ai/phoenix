@@ -235,8 +235,6 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             model=model,
             schema=request.app.state.graphql_schema,
             build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
-            db=request.app.state.db,
-            event_queue=request.state.event_queue,
             docs_mcp_server=request.app.state.docs_mcp_server,
             phoenix_mcp_server=request.app.state.pxi_mcp_server,
             github_mcp_config=github_mcp_config,

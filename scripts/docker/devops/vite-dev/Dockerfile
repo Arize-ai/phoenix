@@ -1,7 +1,7 @@
 # Vite Development Server
 # Separate container for hot-reload frontend development
 
-FROM node:22-slim
+FROM node:24-slim
 
 WORKDIR /phoenix/js/app
 

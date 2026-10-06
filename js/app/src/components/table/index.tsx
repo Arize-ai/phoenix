@@ -16,6 +16,7 @@ export * from "./LargeTextWrap";
 export * from "./JSONCell";
 export * from "./PaddedCell";
 export * from "./RowExpandToggleButton";
+export * from "./TableViewSettingsButton";
 export * from "./useTableRowsExpanded";
 export * from "./IndeterminateCheckboxCell";
 
@@ -28,3 +29,6 @@ export * from "./addRowRangeToSelection";
 export * from "./constants";
 export * from "./RowSelectionColumn";
 export * from "./useShiftClickRowSelection";
+
+// Editing
+export * from "./edit";

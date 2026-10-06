@@ -1,7 +1,10 @@
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { TokenCountDetails } from "../trace/TokenCountDetails";
+import {
+  getTokenCountDetailsFromCostDetails,
+  TokenCountDetails,
+} from "../trace/TokenCountDetails";
 import type { ExperimentTokenCountDetailsQuery } from "./__generated__/ExperimentTokenCountDetailsQuery.graphql";
 
 export function ExperimentTokenCountDetails(props: { experimentId: string }) {
@@ -22,6 +25,13 @@ export function ExperimentTokenCountDetails(props: { experimentId: string }) {
                 tokens
               }
             }
+            costDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                tokens
+              }
+            }
           }
         }
       }
@@ -35,10 +45,15 @@ export function ExperimentTokenCountDetails(props: { experimentId: string }) {
       const completion = data.node.costSummary?.completion?.tokens ?? 0;
       const total = data.node.costSummary?.total?.tokens ?? 0;
 
+      const { promptDetails, completionDetails } =
+        getTokenCountDetailsFromCostDetails(data.node.costDetailSummaryEntries);
+
       return {
         total,
         prompt,
         completion,
+        promptDetails,
+        completionDetails,
       };
     }
 

@@ -43,7 +43,7 @@ export function SpanColumnSelector({
     useFragment<SpanColumnSelector_traceAnnotations$key>(
       graphql`
         fragment SpanColumnSelector_traceAnnotations on Project {
-          traceAnnotationsNames
+          traceAnnotationNames
         }
       `,
       query
@@ -79,7 +79,7 @@ export function SpanColumnSelector({
         },
         {
           names: getNonNoteAnnotationNames(
-            traceAnnotationsData.traceAnnotationsNames
+            traceAnnotationsData.traceAnnotationNames
           ),
           visibility: traceAnnotationColumnVisibility,
           onVisibilityChange: setTraceAnnotationColumnVisibility,

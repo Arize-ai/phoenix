@@ -179,7 +179,13 @@ describe("tool disclosure controls", () => {
       root.render(
         <AgentProvider>
           <ChatScrollContext.Provider
-            value={{ stopScroll, scrollToBottom: vi.fn() }}
+            value={{
+              captureAnchor: vi.fn(),
+              restoreAnchor: vi.fn(),
+              resumeFollowing: vi.fn(),
+              scrollElementToTop: vi.fn(),
+              stopScroll,
+            }}
           >
             <ToolPart
               part={createToolPart({

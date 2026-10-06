@@ -83,7 +83,7 @@ describe("datasetStore", () => {
       );
     });
 
-    it("persists only the chart selection", () => {
+    it("persists only the chart preferences", () => {
       const store = createStore();
       store.getState().setExperimentsMetricChartKeys(["error_rate"]);
       expect(store.getState().experimentsMetricChartKeys).toEqual([
@@ -92,7 +92,24 @@ describe("datasetStore", () => {
       const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
       expect(persisted.state).toEqual({
         experimentsMetricChartKeys: ["error_rate"],
+        areExperimentsMetricChartsVisible: true,
       });
+    });
+
+    it("persists hiding the charts", () => {
+      const store = createStore();
+      store.getState().setAreExperimentsMetricChartsVisible(false);
+      const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+      expect(persisted.state.areExperimentsMetricChartsVisible).toBe(false);
+      expect(createStore().getState().areExperimentsMetricChartsVisible).toBe(
+        false
+      );
+    });
+
+    it("shows the charts when no visibility was persisted", () => {
+      seedPersistedState({ experimentsMetricChartKeys: ["latency"] });
+      const store = createStore();
+      expect(store.getState().areExperimentsMetricChartsVisible).toBe(true);
     });
   });
 });

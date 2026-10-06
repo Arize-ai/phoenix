@@ -62,7 +62,7 @@ async function fetchAnnotationCompletions(
         project: node(id: $id) {
           ... on Project {
             spanAnnotationNames
-            traceAnnotationsNames
+            traceAnnotationNames
           }
         }
       }
@@ -79,14 +79,16 @@ async function fetchAnnotationCompletions(
       names: getNonNoteAnnotationNames(
         data?.project?.spanAnnotationNames ?? []
       ),
+      includeIdentifier: true,
     }),
     ...createAnnotationMemberCompletions({
       accessor: "trace_annotations",
       noun: "trace annotation",
       sectionName: "Trace Annotations",
       names: getNonNoteAnnotationNames(
-        data?.project?.traceAnnotationsNames ?? []
+        data?.project?.traceAnnotationNames ?? []
       ),
+      includeIdentifier: true,
     }),
   ];
 }

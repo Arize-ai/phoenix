@@ -115,6 +115,15 @@ PERMITTED = [
         "SELECT strftime('%Y-%m-%d %H', start_time) AS v FROM spans GROUP BY v",
         id="strftime-hour-bucket",
     ),
+    pytest.param(
+        "SELECT time_fmt_datetime(time_trunc(time_parse(start_time), 'hour')) AS v "
+        "FROM spans GROUP BY v",
+        id="time_trunc-hour-bucket",
+    ),
+    pytest.param(
+        "SELECT time_sub(time_parse(end_time), time_parse(start_time)) AS v FROM spans",
+        id="time_sub-elapsed-nanoseconds",
+    ),
     pytest.param("SELECT latency_ms AS v FROM spans", id="latency_ms-virtual-column"),
     pytest.param("SELECT row_number() OVER (ORDER BY id) AS v FROM spans", id="row_number"),
     pytest.param("SELECT rank() OVER (ORDER BY id) AS v FROM spans", id="rank"),
@@ -1115,6 +1124,21 @@ async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql
     """
     result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
     assert result.envelope.row_count > 0
+
+
+@pytest.mark.postgres_only
+async def test_quoted_char_cast_is_the_one_byte_type(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """`"char"` must reach the engine quoted, so it is the 1-byte type, not bpchar.
+
+    Executed rather than rendered because the two types accept the same cast
+    and differ only in the answer: 65 is 'A' as `"char"` and '6' as `CHAR`.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db, ExecuteParams(sql='SELECT CAST(65 AS "char") AS v')
+    )
+    assert result.envelope.rows == [["A"]]
 
 
 @pytest.mark.postgres_only

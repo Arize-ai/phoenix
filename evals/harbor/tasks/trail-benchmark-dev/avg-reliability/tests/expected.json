@@ -1,0 +1,5 @@
+{
+  "reference": "2.39",
+  "notes": "The exact mean is 2.3889 on a 1-5 scale across all 117 traces; accept any rounding of it, such as 2.4.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; mean of 117 trail_reliability trace annotation scores"
+}

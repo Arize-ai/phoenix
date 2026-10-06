@@ -131,7 +131,6 @@ if TYPE_CHECKING:
         Response,
         ResponseInputItemParam,
     )
-    from opentelemetry.util.types import AttributeValue
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
     from types_aiobotocore_bedrock_runtime.type_defs import (
         ContentBlockTypeDef,
@@ -141,6 +140,8 @@ if TYPE_CHECKING:
         MessageOutputTypeDef,
         MessageTypeDef,
     )
+
+    from phoenix.trace.attributes import AttributeValue
 
 # TypeVar for generic client type
 ClientT = TypeVar("ClientT")
@@ -1154,6 +1155,8 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                     pass
                 elif event.type == "response.shell_call_output_content.done":
                     pass
+                elif event.type == "response.compaction.compacting":
+                    pass
                 elif TYPE_CHECKING:
                     assert_never(event.type)
 
@@ -1426,11 +1429,27 @@ class ZAIClient(OpenAICompatibleClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.META,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "muse-spark-1.3",
+        "muse-spark-1.3-contributor",
+        "muse-spark-1.2",
+        "muse-spark-1.2-contributor",
+        "muse-spark-1.1",
+    ],
+)
+class MetaClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5-5",
         "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
@@ -1964,6 +1983,8 @@ class OpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 OPENAI_REASONING_MODELS = [
     "gpt-6-astra",
+    "gpt-6-sol",
+    "gpt-6-luna",
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
@@ -2128,6 +2149,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
     "claude-fable-5-1",
     "claude-fable-5",
+    "claude-opus-5-5",
     "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
@@ -3993,6 +4015,46 @@ async def _get_builtin_provider_client(
 
         client_factory = LLMClientFactory(
             create_zai_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.META:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="META_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Meta",
+        )
+        base_url = base_url or getenv("META_BASE_URL") or "https://api.meta.ai/v1"
+
+        if not api_key:
+            if base_url.startswith("https://api.meta.ai/"):
+                raise BadRequest(
+                    "An API key is required for Meta models. "
+                    "Set the META_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_meta_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_meta_client, openai_rate_limit_key(api_key, base_url)
         )
         return OpenAIChatCompletionsClient(
             client_factory=client_factory,

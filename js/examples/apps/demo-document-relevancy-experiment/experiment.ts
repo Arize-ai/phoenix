@@ -1,11 +1,11 @@
 import { openai } from "@ai-sdk/openai";
-import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
   asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
-import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
 import { spaceKnowledgeApplication } from "./app";
 
@@ -36,8 +36,8 @@ async function main() {
     return result.context || "";
   }
 
-  const dataset = await createOrGetDataset({
-    name: "document-relevancy-eval",
+  const dataset = await createDataset({
+    name: "retrieval-relevance-eval",
     description:
       "Queries that are answered by extracting context from the space knowledge base",
     examples: DATASET.map((question) => ({
@@ -47,18 +47,17 @@ async function main() {
     })),
   });
 
-  const documentRelevancyEvaluator = createDocumentRelevanceEvaluator({
+  const retrievalRelevanceEvaluator = createRetrievalRelevanceEvaluator({
     model: openai("gpt-5"),
   });
 
-  const documentRelevancyCheck = asExperimentEvaluator({
-    name: "document-relevancy",
+  const retrievalRelevanceCheck = asExperimentEvaluator({
+    name: "retrieval-relevance",
     kind: "LLM",
     evaluate: async ({ input, output }) => {
-      // Use the document relevancy evaluator from phoenix-evals
-      const result = await documentRelevancyEvaluator.evaluate({
+      const result = await retrievalRelevanceEvaluator.evaluate({
         input: String(input.question),
-        documentText: String(output),
+        context: String(output),
       });
 
       return result;
@@ -66,12 +65,12 @@ async function main() {
   });
 
   await runExperiment({
-    experimentName: "document-relevancy-experiment",
+    experimentName: "retrieval-relevance-experiment",
     experimentDescription:
       "Evaluate the relevancy of extracted context from a knowledge base",
     dataset: dataset,
     task: task as ExperimentTask,
-    evaluators: [documentRelevancyCheck],
+    evaluators: [retrievalRelevanceCheck],
   });
 }
 

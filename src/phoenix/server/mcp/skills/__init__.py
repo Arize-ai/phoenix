@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import logging
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -15,18 +16,21 @@ from fastmcp.tools.base import Tool
 from mcp_types import ToolAnnotations
 from pydantic import Field
 
+from phoenix.config import get_env_skills_paths
 from phoenix.server.agents.prompts.templating import get_template
+
+logger = logging.getLogger(__name__)
 
 _SERVER_DIR = Path(__file__).resolve().parents[2]
 
-GENERAL_SKILLS_ROOT = Path(__file__).resolve().parent / "general"
+SHARED_SKILLS_ROOT = Path(__file__).resolve().parent
 PXI_SKILLS_ROOT = _SERVER_DIR / "agents" / "prompts" / "skills"
-PXI_SKILLS_ROOTS: tuple[Path, ...] = (
-    # GENERAL_SKILLS_ROOT,  # uncomment once it holds real skills, not a placeholder
-    PXI_SKILLS_ROOT,
-)
+PXI_SKILLS_ROOTS: tuple[Path, ...] = (SHARED_SKILLS_ROOT, PXI_SKILLS_ROOT)
 
 SKILL_TOOLS_TAG = "phoenix-mcp-skills"
+LOAD_SKILL_TOOL_NAME = "load_skill"
+LOAD_SKILL_REFERENCE_TOOL_NAME = "load_skill_reference"
+SKILL_TOOL_NAMES: tuple[str, ...] = (LOAD_SKILL_TOOL_NAME, LOAD_SKILL_REFERENCE_TOOL_NAME)
 
 _INSTRUCTIONS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 
@@ -159,21 +163,85 @@ def _scan_references(skill_dir: Path) -> tuple[SkillReference, ...]:
     )
 
 
+def _is_skill_directory(path: Path) -> bool:
+    return (path / _SKILL_FILE).is_file()
+
+
+def _skill_directories(root: Path) -> list[Path]:
+    """``root`` itself when it is a skill, otherwise its skill children by name."""
+    if _is_skill_directory(root):
+        return [root]
+    return sorted(filter(_is_skill_directory, root.iterdir()))
+
+
+def _load_root(root: Path) -> Iterator[Skill]:
+    if not root.is_dir():
+        raise ValueError(f"Skills root {root} is not a directory")
+    for directory in _skill_directories(root):
+        yield Skill.from_directory(directory)
+
+
 @lru_cache(maxsize=None)
 def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
     """Every skill under ``roots``: root order first, name order within a root."""
     skills: dict[str, Skill] = {}
     for root in roots:
-        for directory in sorted(p for p in root.iterdir() if (p / _SKILL_FILE).is_file()):
-            skill = Skill.from_directory(directory)
+        for skill in _load_root(root):
             if skill.name in skills:
                 raise ValueError(
                     f"Skill {skill.name!r} is defined in both "
-                    f"{skills[skill.name].path} and {directory}"
+                    f"{skills[skill.name].path} and {skill.path}"
                 )
             skills[skill.name] = skill
-    if roots and not skills:
-        raise ValueError(f"No skills found under {', '.join(str(root) for root in roots)}")
+    return tuple(skills.values())
+
+
+def _load_external_root(root: Path) -> Iterator[Skill]:
+    if not root.is_dir():
+        raise ValueError(f"Skills root {root} is not a directory")
+    directories = _skill_directories(root)
+    if not directories:
+        logger.warning("Skills root %s contains no skill directories", root)
+    for directory in directories:
+        try:
+            yield Skill.from_directory(directory)
+        except ValueError as error:
+            logger.error("Ignoring external skill at %s: %s", directory, error)
+
+
+def load_external_skills() -> tuple[Skill, ...]:
+    builtin_skills = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
+    skills: dict[str, Skill] = {}
+    for root in get_env_skills_paths():
+        for skill in _load_external_root(root):
+            if skill.name in builtin_skills:
+                logger.error(
+                    "Ignoring external skill %r at %s: the name is taken by a built-in skill",
+                    skill.name,
+                    skill.path,
+                )
+            elif skill.name in skills:
+                logger.error(
+                    "Ignoring external skill %r at %s: already defined at %s",
+                    skill.name,
+                    skill.path,
+                    skills[skill.name].path,
+                )
+            else:
+                skills[skill.name] = skill
+    return tuple(skills.values())
+
+
+def merge_skills(*skill_sets: Sequence[Skill]) -> tuple[Skill, ...]:
+    skills: dict[str, Skill] = {}
+    for skill_set in skill_sets:
+        for skill in skill_set:
+            if skill.name in skills:
+                raise ValueError(
+                    f"Skill {skill.name!r} is defined in both "
+                    f"{skills[skill.name].path} and {skill.path}"
+                )
+            skills[skill.name] = skill
     return tuple(skills.values())
 
 
@@ -223,6 +291,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
 
     load = Tool.from_function(
         load_skill,
+        name=LOAD_SKILL_TOOL_NAME,
         description=(
             "Load a Phoenix skill's instructions. Call this before working in a skill's "
             "domain, once per skill per conversation, and follow what it returns."
@@ -233,6 +302,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
     )
     read = Tool.from_function(
         load_skill_reference,
+        name=LOAD_SKILL_REFERENCE_TOOL_NAME,
         description=(
             "Load a reference file of a skill already loaded with `load_skill`, "
             "using the exact skill and reference names that load listed."
@@ -259,13 +329,16 @@ def _set_parameter_enums(tool: Tool, **values: Sequence[str]) -> Tool:
 
 
 __all__ = [
-    "GENERAL_SKILLS_ROOT",
+    "SHARED_SKILLS_ROOT",
     "PXI_SKILLS_ROOT",
     "PXI_SKILLS_ROOTS",
     "SKILL_TOOLS_TAG",
+    "SKILL_TOOL_NAMES",
     "Skill",
     "SkillReference",
     "load_skills",
+    "load_external_skills",
+    "merge_skills",
     "register_skill_tools",
     "get_skill_instructions",
 ]

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2eebbeeeef75d3a9681b555f04158fe2>>
+ * @generated SignedSource<<30e0bdeb06a91bbc80315da2c82e4f64>>
  * @lightSyntaxTransform
  */
 
@@ -37,7 +37,7 @@ export type SpansTableAsideQuery$data = {
     readonly name?: string;
     readonly spanAnnotationNames?: ReadonlyArray<string>;
     readonly timeRangeTraceCount?: number;
-    readonly traceAnnotationsNames?: ReadonlyArray<string>;
+    readonly traceAnnotationNames?: ReadonlyArray<string>;
   };
 };
 export type SpansTableAsideQuery = {
@@ -197,7 +197,7 @@ v8 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "traceAnnotationsNames",
+      "name": "traceAnnotationNames",
       "storageKey": null
     },
     {
@@ -277,16 +277,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a1e027b33affffecaa47b7824525b199",
+    "cacheID": "63b8f22c6ac2be1af10a57f56754c301",
     "id": null,
     "metadata": {},
     "name": "SpansTableAsideQuery",
     "operationKind": "query",
-    "text": "query SpansTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      timeRangeTraceCount: traceCount(timeRange: $timeRange, filterCondition: $filterCondition)\n      costSummary(timeRange: $timeRange, filterCondition: $filterCondition) {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange, filterCondition: $filterCondition)\n      latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange, filterCondition: $filterCondition)\n      spanAnnotationNames\n      traceAnnotationsNames\n      documentEvaluationNames\n    }\n    id\n  }\n}\n"
+    "text": "query SpansTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      timeRangeTraceCount: traceCount(timeRange: $timeRange, filterCondition: $filterCondition)\n      costSummary(timeRange: $timeRange, filterCondition: $filterCondition) {\n        total {\n          cost\n        }\n        prompt {\n          cost\n        }\n        completion {\n          cost\n        }\n      }\n      latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange, filterCondition: $filterCondition)\n      latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange, filterCondition: $filterCondition)\n      spanAnnotationNames\n      traceAnnotationNames\n      documentEvaluationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9f9849c08befb130c27f4a869a27686b";
+(node as any).hash = "2ae88545d6e9817e14cae8a651e66c16";
 
 export default node;

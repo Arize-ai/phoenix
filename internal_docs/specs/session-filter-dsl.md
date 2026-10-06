@@ -496,8 +496,9 @@ over it.
 
 ## API Surface
 
-The language is served over GraphQL only; the REST API has no filter surface. Four fields on
-`Project` carry it:
+The language is served over GraphQL and, as the `filter` query parameter on
+`GET /v1/projects/{project_identifier}/sessions`, over REST. Four fields on `Project` carry
+it over GraphQL:
 
 ```graphql
 sessions(..., sessionFilterCondition: String): ProjectSessionConnection!

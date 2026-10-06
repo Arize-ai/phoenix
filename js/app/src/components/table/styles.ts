@@ -198,6 +198,95 @@ export const expandableSelectableTableCSS = css(
   expandableRowsTableCSS
 );
 
+/**
+ * Holds every data cell to the height in `--table-row-height`, which the
+ * consumer sets inline on the `<table>`, and clamps its content to one
+ * ellipsized line. For tables whose rows a virtualizer positions from a fixed
+ * estimate: the estimate has to be the height every row actually occupies.
+ * Only data cells take the height; the cells that stand in for a whole row
+ * (empty state, spacer) lay themselves out.
+ */
+export const fixedRowHeightTableCSS = css`
+  td.${TABLE_DATA_CELL_CLASS} {
+    // The height includes padding and border, so the row is exactly this tall.
+    box-sizing: border-box;
+    height: var(--table-row-height);
+    ${truncateSingleCSS};
+    pre {
+      white-space: inherit;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    // Flex lists wrap by flex-wrap, which white-space does not reach.
+    ul {
+      flex-wrap: nowrap;
+    }
+  }
+`;
+
+/**
+ * Edit-mode styling. The table marks up its rows and cells with:
+ * - `data-deleted="true"` on a `<tr>` marked for deletion;
+ * - `data-row-actions` on the `<td>` holding the row's Remove/Restore actions,
+ *   which keeps a deleted row's actions legible;
+ * - `data-cell-edit-trigger` (with `data-dirty`) on an editable cell's trigger
+ *   button, which `EditableJSONCell` renders.
+ */
+export const editableTableCSS = css(
+  tableCSS,
+  css`
+    tbody:not(.is-empty) {
+      tr {
+        td:has([data-cell-edit-trigger]) {
+          position: relative;
+          padding: 0;
+          cursor: text;
+        }
+        td:has([data-cell-edit-trigger]):hover {
+          background-color: var(--hover-background);
+        }
+        td:has([data-cell-edit-trigger][data-dirty="true"]) {
+          background-color: var(--global-table-cell-dirty-background-color);
+          &:hover {
+            background-color: var(
+              --global-table-cell-dirty-hover-background-color
+            );
+          }
+        }
+        td:has([data-cell-edit-trigger][data-focus-visible])::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          box-shadow: inset 0 0 0 1px var(--global-color-primary);
+          pointer-events: none;
+        }
+        td:has([data-cell-edit-trigger][data-dirty="true"])::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          right: 0;
+          border-top: var(--global-dimension-size-75) solid
+            var(--global-color-warning);
+          border-left: var(--global-dimension-size-75) solid transparent;
+        }
+        &[data-deleted="true"] {
+          // Read by getCommonPinningStyles so pinned cells take the same tint.
+          --table-cell-background-color: var(
+            --global-table-row-deleted-background-color
+          );
+          & > td {
+            background-color: var(--table-cell-background-color);
+          }
+          & > td:not([data-row-actions]) {
+            text-decoration: line-through;
+            color: var(--global-text-color-500);
+          }
+        }
+      }
+    }
+  `
+);
+
 export const paginationCSS = css`
   display: flex;
   justify-content: flex-end;
@@ -232,8 +321,11 @@ export function getCommonPinningStyles<Row>(
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
+    // Deferred through a custom property so a row can restyle its cells — a row
+    // marked for deletion tints every cell, and an inline background here would
+    // otherwise win against the stylesheet and leave the pinned column untinted.
     backgroundColor: isPinned
-      ? "var(--global-table-pinned-column-background-color)"
+      ? "var(--table-cell-background-color, var(--global-table-pinned-column-background-color))"
       : undefined,
   };
 }

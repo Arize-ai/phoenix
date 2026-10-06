@@ -2,11 +2,13 @@
 export { useLocale } from "react-aria-components";
 
 // Custom hooks
+export { useAgentDataChangeFetchKey } from "@phoenix/agent/shared/useAgentDataChangeFetchKey";
 export * from "./useDebouncedChange";
 export * from "./useDeferredVisibility";
 export * from "./useFrozenWhileHidden";
 export * from "./useDebouncedJSONSync";
 export * from "./useInterval";
+export * from "./useSettled";
 export * from "./useWordColor";
 export * from "./useLocalTimeFormatPattern";
 export * from "./useDimensions";
@@ -18,3 +20,4 @@ export * from "./usePersistedState";
 export * from "./useOwnedPreloadedQuery";
 export * from "./useLabelFilterSearchParams";
 export * from "./useMediaQuery";
+export * from "./useUnsavedChangesBlocker";

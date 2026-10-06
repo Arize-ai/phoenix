@@ -6,6 +6,13 @@ export const markdownCSS = css`
   color: var(--global-text-color-900);
   overflow-wrap: anywhere;
 
+  @media (prefers-reduced-motion: reduce) {
+    [data-sd-animate],
+    [data-sd-animate-marker]::marker {
+      animation: none;
+    }
+  }
+
   /* Streamdown's root div uses Tailwind "space-y-4" for vertical rhythm.
    * Since Phoenix doesn't load Tailwind, we replicate the spacing with
    * flex + gap on the root container. */

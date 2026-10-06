@@ -1,6 +1,7 @@
 import React, {
   createContext,
   startTransition,
+  useCallback,
   useEffect,
   useEffectEvent,
   useMemo,
@@ -27,6 +28,11 @@ import {
 
 export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
+  /**
+   * The stable "now" anchor used to resolve open time ranges. It is owned by
+   * this provider so descendants can suspend and retry without changing it.
+   */
+  timeRangeNow: number;
   timeRangeISOStrings: TimeRangeISOStrings;
   /**
    * Set the time range with the state write wrapped in a transition so
@@ -43,6 +49,8 @@ export type TimeRangeContextType = {
    * Back restores the prior range.
    */
   setCustomTimeRange: (timeRange: TimeRange) => void;
+  /** Advance a live last-N range to the current time. */
+  refreshLiveTimeRange: () => void;
 };
 
 export type SetTimeRangeOptions = {
@@ -170,6 +178,9 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     options?: SetTimeRangeOptions
   ) => {
     startTransition(() => {
+      // Re-anchor partially open custom ranges as well as live presets at the
+      // time the user applies them.
+      setTimeRangeNow(Date.now());
       setSearchParams(
         (currentSearchParams) =>
           setTimeRangeSearchParams({
@@ -181,7 +192,6 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       // Persist the preset and re-anchor "now" so the live window refreshes.
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
         setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
-        setTimeRangeNow(Date.now());
       }
     });
   };
@@ -196,6 +206,12 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       { history: "push" }
     );
   };
+
+  const refreshLiveTimeRange = useCallback(() => {
+    if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+      setTimeRangeNow(Date.now());
+    }
+  }, [timeRange.timeRangeKey]);
 
   // Seed a fresh URL from the stored preference on first load. Once the URL
   // carries a range it is canonical, so this no-ops. A live window's refresh
@@ -224,12 +240,12 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     }
     const timeRangeKey = timeRange.timeRangeKey;
     const timeoutId = window.setTimeout(() => {
-      setTimeRangeNow(Date.now());
+      refreshLiveTimeRange();
     }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRangeKey));
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [timeRange.timeRangeKey, timeRangeStartMs]);
+  }, [timeRange.timeRangeKey, timeRangeStartMs, refreshLiveTimeRange]);
 
   useRegisterSetTimeRangeClientAction({ setTimeRange });
 
@@ -237,9 +253,11 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     <TimeRangeContext.Provider
       value={{
         timeRange,
+        timeRangeNow,
         timeRangeISOStrings,
         setTimeRange,
         setCustomTimeRange,
+        refreshLiveTimeRange,
       }}
     >
       {children}

@@ -88,6 +88,33 @@ export const coreSpanFilterCompletions: Completion[] = [
     detail: "duration in milliseconds",
     info: "Latency (i.e. duration) in milliseconds",
   },
+  // One entry per member, matching `llm.token_count.*` and `cumulative_token_count.*`
+  // below. CodeMirror matches on `label`, so a member named only in another entry's
+  // `info` is one a user can reach by guessing and not by typing.
+  {
+    label: "total_cost",
+    type: "variable",
+    detail: "cost of this span",
+    info: "Total cost recorded for this span. 0 when no cost is configured, never null.",
+  },
+  {
+    label: "prompt_cost",
+    type: "variable",
+    detail: "prompt cost of this span",
+    info: "Cost of this span's prompt tokens. 0 when no cost is configured, never null.",
+  },
+  {
+    label: "completion_cost",
+    type: "variable",
+    detail: "completion cost of this span",
+    info: "Cost of this span's completion tokens. 0 when no cost is configured, never null.",
+  },
+  {
+    label: "cost_details",
+    type: "variable",
+    detail: "per-token-type cost rows",
+    info: "The per-token-type cost rows behind this span's cost. Iterate it with any/all/len/sum/max/min — e.g. any(cost_detail.token_type == 'cache_read' for cost_detail in cost_details). Fields: token_type, is_prompt, cost, tokens, cost_per_token.",
+  },
   {
     label: "metadata",
     type: "variable",
@@ -188,6 +215,15 @@ export const spanFilterSnippets: DSLFilterSnippet[] = [
   {
     label: "filter by latency",
     snippet: "latency_ms >= ${10_000}",
+  },
+  {
+    label: "filter by cost",
+    snippet: "total_cost > ${0.1}",
+  },
+  {
+    label: "filter by cost detail",
+    snippet:
+      "any(cost_detail.token_type == '${cache_read}' for cost_detail in cost_details)",
   },
   {
     label: "search input for substring",
@@ -342,7 +378,7 @@ export const spanFilterAIQueryDSL = createAIQueryDSL({
     "Durations are in milliseconds: 5 seconds is latency_ms > 5000, two minutes is latency_ms > 120000.",
     "attributes and metadata are read by subscript and nest by chaining, e.g. attributes['llm']['provider'] == 'openai'. Span attributes follow OpenInference semantic conventions (llm.model_name, llm.provider, tool.name, retrieval.documents, embedding.model_name, session.id, ...), each also writable in dotted form, e.g. llm.model_name.",
     "A dotted path never goes inside one subscript: attributes['llm.provider'] matches nothing. Chain the keys — attributes['llm']['provider'] — or write the bare dotted form.",
-    "annotations['name'] and evals['name'] access span annotations; trace_annotations['name'] accesses annotations attached to the containing trace. All expose .score, .label, and .explanation. Written bare, an annotation accessor tests whether it exists.",
+    "annotations['name'] and evals['name'] access span annotations; trace_annotations['name'] accesses annotations attached to the containing trace. All expose .score, .label, .explanation, and .identifier. Written bare, an annotation accessor tests whether it exists.",
     "llm.token_count.* counts a single LLM span; cumulative_token_count.* sums the span and every descendant, which is what a whole trace costs.",
     "A field may be tested against a list — span_kind in ['LLM', 'TOOL'] — and a range may be chained — 1000 < latency_ms < 5000.",
     `Root spans are selected with \`${STRICT_ROOT_SPANS_CONDITION}\`.`,

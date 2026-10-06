@@ -94,11 +94,8 @@ between the emptiest and the busiest page in the app."""
 
 
 def build_agent(**kwargs: Any) -> Any:
-    """Build an agent for factory tests with inert DB-backed tool dependencies."""
     kwargs.setdefault("name", "PXIAgent")
     kwargs.setdefault("headless", False)
-    kwargs.setdefault("db", Mock(spec=DbSessionFactory))
-    kwargs.setdefault("event_queue", Mock())
     return _build_agent(**kwargs)
 
 
@@ -198,6 +195,45 @@ def captured_request() -> CapturedRequest:
     return CapturedRequest()
 
 
+def _sse_event(event: dict[str, Any]) -> str:
+    return f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+
+
+_ANTHROPIC_STUB_EVENTS: list[dict[str, Any]] = [
+    {
+        "type": "message_start",
+        "message": {
+            "id": "msg_test",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-haiku-4-5",
+            "content": [],
+            "stop_reason": None,
+            "stop_sequence": None,
+            "usage": {"input_tokens": 1, "output_tokens": 0},
+        },
+    },
+    {
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "text", "text": ""},
+    },
+    {
+        "type": "content_block_delta",
+        "index": 0,
+        "delta": {"type": "text_delta", "text": "ok"},
+    },
+    {"type": "content_block_stop", "index": 0},
+    {
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn", "stop_sequence": None},
+        "usage": {"output_tokens": 1},
+    },
+    {"type": "message_stop"},
+]
+_ANTHROPIC_STUB_EVENT_STREAM = "".join(_sse_event(event) for event in _ANTHROPIC_STUB_EVENTS)
+
+
 @pytest.fixture
 def anthropic_model(
     anthropic_api_key: str,
@@ -207,7 +243,16 @@ def anthropic_model(
     ``httpx2.MockTransport``."""
 
     def handler(request: httpx2.Request) -> httpx2.Response:
-        captured_request.bodies.append(json.loads(request.read()))
+        body = json.loads(request.read())
+        captured_request.bodies.append(body)
+        if body.get("stream"):
+            # pydantic-ai streams a non-streaming request when its default max_tokens
+            # exceeds the SDK's non-streaming limit.
+            return httpx2.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=_ANTHROPIC_STUB_EVENT_STREAM,
+            )
         stub_response = BetaMessage(
             id="msg_test",
             type="message",
@@ -827,7 +872,6 @@ class TestHeadlessMode:
         assert {
             "bash",
             "get_current_datetime",
-            "write_span_note",
         } <= tool_names
         instructions = result.all_messages()[0].instructions
         assert instructions is not None
@@ -1116,7 +1160,6 @@ class TestSkills:
         assert "execute" in tool_names
         assert "load_skill" in tool_names
         assert "load_skill_reference" in tool_names
-        assert "write_span_note" in tool_names
 
     async def test_absent_without_a_server(
         self,

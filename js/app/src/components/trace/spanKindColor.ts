@@ -17,6 +17,7 @@ const spanKindColorMap: Record<string, string> = {
   tool: "var(--global-color-yellow-500)",
   evaluator: "var(--global-color-indigo-500)",
   guardrail: "var(--global-color-fuchsia-500)",
+  decision: "var(--global-color-orange-600)",
 };
 
 export function getSpanKindColor({ spanKind }: { spanKind: string }): string {

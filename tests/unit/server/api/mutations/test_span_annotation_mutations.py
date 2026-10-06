@@ -237,10 +237,9 @@ class TestSpanAnnotationMutations:
 
         assert response.data is None
         assert response.errors
-        assert (
-            "The name 'note' is reserved for trace and span notes. "
-            "Use the createSpanNote mutation or POST /v1/span_notes instead."
-        ) in response.errors[0].message
+        assert response.errors[0].message == (
+            "The name 'note' is reserved for notes. Use the createSpanNotes mutation instead."
+        )
 
     async def test_create_span_annotations_on_missing_span_returns_not_found(
         self,
@@ -271,13 +270,13 @@ class TestSpanAnnotationMutations:
             f"Could not find spans with IDs: ['{missing_span_gid}']" in response.errors[0].message
         )
 
-    async def test_create_span_note_on_missing_span_returns_not_found(
+    async def test_create_span_notes_on_missing_span_returns_not_found(
         self,
         gql_client: AsyncGraphQLClient,
     ) -> None:
         mutation = """
-        mutation CreateSpanNote($annotationInput: CreateSpanNoteInput!) {
-          createSpanNote(annotationInput: $annotationInput) {
+        mutation CreateSpanNotes($input: [CreateSpanNoteInput!]!) {
+          createSpanNotes(input: $input) {
             spanAnnotations {
               id
             }
@@ -288,24 +287,30 @@ class TestSpanAnnotationMutations:
         response = await gql_client.execute(
             mutation,
             {
-                "annotationInput": {
-                    "spanId": missing_span_gid,
-                    "note": "Needs review",
-                }
+                "input": [
+                    {
+                        "span": {"id": missing_span_gid},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "Needs review",
+                    }
+                ]
             },
         )
         assert response.data is None
         assert response.errors
-        assert f"Could not find span with ID: {missing_span_gid}" in response.errors[0].message
+        assert response.errors[0].message == (
+            f"Could not find spans with IDs: ['{missing_span_gid}']"
+        )
 
-    async def test_create_span_note_uses_uuidv4_identifier(
+    async def test_create_span_notes_uses_uuidv4_identifier(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
     ) -> None:
         mutation = """
-        mutation CreateSpanNote($annotationInput: CreateSpanNoteInput!) {
-          createSpanNote(annotationInput: $annotationInput) {
+        mutation CreateSpanNotes($input: [CreateSpanNoteInput!]!) {
+          createSpanNotes(input: $input) {
             spanAnnotations {
               id
             }
@@ -315,10 +320,14 @@ class TestSpanAnnotationMutations:
         response = await gql_client.execute(
             mutation,
             {
-                "annotationInput": {
-                    "spanId": str(GlobalID("Span", "1")),
-                    "note": "Needs review",
-                }
+                "input": [
+                    {
+                        "span": {"id": str(GlobalID("Span", "1"))},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "Needs review",
+                    }
+                ]
             },
         )
 
@@ -333,3 +342,466 @@ class TestSpanAnnotationMutations:
         assert annotation is not None
         assert annotation.identifier.startswith("px-span-note:")
         assert UUID(annotation.identifier.removeprefix("px-span-note:")).version == 4
+
+
+class TestSpanNoteMutations:
+    _CREATE_NOTES = """
+    mutation CreateSpanNotes($input: [CreateSpanNoteInput!]!) {
+      createSpanNotes(input: $input) {
+        spanAnnotations {
+          id
+          name
+          label
+          score
+          explanation
+          annotatorKind
+          metadata
+          identifier
+          source
+        }
+      }
+    }
+    """
+    _DELETE_NOTES = """
+    mutation DeleteSpanNotes($input: DeleteAnnotationsInput!) {
+      deleteSpanNotes(input: $input) {
+        spanAnnotations { id name }
+      }
+    }
+    """
+    _PATCH_ANNOTATIONS = """
+    mutation PatchSpanAnnotations($input: [PatchAnnotationInput!]!) {
+      patchSpanAnnotations(input: $input) {
+        spanAnnotations { id name explanation }
+      }
+    }
+    """
+    _DELETE_ANNOTATIONS = """
+    mutation DeleteSpanAnnotations($input: DeleteAnnotationsInput!) {
+      deleteSpanAnnotations(input: $input) {
+        spanAnnotations { id name }
+      }
+    }
+    """
+
+    @pytest.mark.parametrize("annotator_kind", ["HUMAN", "LLM", "CODE"])
+    @pytest.mark.parametrize("source", ["APP", "API"])
+    async def test_create_by_node_and_otel_id_preserves_note_semantics(
+        self,
+        source: str,
+        annotator_kind: str,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        async with db() as session:
+            spans_by_id = {
+                span.span_id: span
+                for span in await session.scalars(
+                    select(models.Span).where(models.Span.span_id.in_(("span1", "span2")))
+                )
+            }
+        first_span = spans_by_id.get("span1")
+        second_span = spans_by_id.get("span2")
+        assert first_span is not None
+        assert second_span is not None
+
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"id": str(GlobalID("Span", str(first_span.id)))},
+                        "annotatorKind": annotator_kind,
+                        "source": source,
+                        "note": " node note ",
+                    },
+                    {
+                        "span": {"otelId": "span2"},
+                        "annotatorKind": annotator_kind,
+                        "source": source,
+                        "note": "OTel note",
+                        "identifier": " coding ",
+                    },
+                ]
+            },
+        )
+
+        assert result.data is not None
+        assert not result.errors
+        notes = result.data["createSpanNotes"]["spanAnnotations"]
+        assert [note["explanation"] for note in notes] == ["node note", "OTel note"]
+        assert all(note["name"] == "note" for note in notes)
+        assert all(note["label"] is None for note in notes)
+        assert all(note["score"] is None for note in notes)
+        assert all(note["annotatorKind"] == annotator_kind for note in notes)
+        assert all(note["metadata"] == {} for note in notes)
+        assert all(note["source"] == source for note in notes)
+        assert notes[0]["identifier"].startswith("px-span-note:")
+        assert notes[1]["identifier"] == "coding"
+
+        async with db() as session:
+            stored_notes = list(
+                await session.scalars(
+                    select(models.SpanAnnotation)
+                    .where(models.SpanAnnotation.name == "note")
+                    .order_by(models.SpanAnnotation.id)
+                )
+            )
+        assert [note.span_rowid for note in stored_notes] == [first_span.id, second_span.id]
+        assert all(note.user_id is None for note in stored_notes)
+        assert all(note.source == source for note in stored_notes)
+        assert all(note.annotator_kind == annotator_kind for note in stored_notes)
+
+    async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        async with db() as session:
+            span = await session.scalar(select(models.Span).where(models.Span.span_id == "span1"))
+        assert span is not None
+        node_id = str(GlobalID("Span", str(span.id)))
+        external_id = "span1"
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"id": node_id},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "draft",
+                        "identifier": "coding",
+                    },
+                    {
+                        "span": {"otelId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "anonymous first",
+                    },
+                    {
+                        "span": {"otelId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "other",
+                        "identifier": "other",
+                    },
+                    {
+                        "span": {"otelId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "final",
+                        "identifier": " coding ",
+                    },
+                    {
+                        "span": {"id": node_id},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "anonymous second",
+                        "identifier": "  ",
+                    },
+                ]
+            },
+        )
+
+        assert result.data is not None
+        assert not result.errors
+        notes = result.data["createSpanNotes"]["spanAnnotations"]
+        assert [note["explanation"] for note in notes] == [
+            "final",
+            "anonymous first",
+            "other",
+            "final",
+            "anonymous second",
+        ]
+        assert notes[0]["id"] == notes[3]["id"]
+        assert len({note["id"] for note in notes}) == 4
+
+    async def test_create_accumulates_without_identifier_and_upserts_with_identifier(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        first = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "first",
+                    }
+                ]
+            },
+        )
+        second = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "second",
+                    }
+                ]
+            },
+        )
+        upserted_first = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "draft",
+                        "identifier": "coding",
+                    }
+                ]
+            },
+        )
+        upserted_second = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"otelId": "span1"},
+                        "annotatorKind": "LLM",
+                        "source": "API",
+                        "note": "final",
+                        "identifier": "coding",
+                    }
+                ]
+            },
+        )
+
+        for result in (first, second, upserted_first, upserted_second):
+            assert result.data is not None
+            assert not result.errors
+        assert first.data is not None
+        assert second.data is not None
+        assert upserted_first.data is not None
+        assert upserted_second.data is not None
+        assert (
+            first.data["createSpanNotes"]["spanAnnotations"][0]["id"]
+            != second.data["createSpanNotes"]["spanAnnotations"][0]["id"]
+        )
+        assert (
+            upserted_first.data["createSpanNotes"]["spanAnnotations"][0]["id"]
+            == upserted_second.data["createSpanNotes"]["spanAnnotations"][0]["id"]
+        )
+        assert (
+            upserted_second.data["createSpanNotes"]["spanAnnotations"][0]["explanation"] == "final"
+        )
+
+        async with db() as session:
+            notes = list(
+                await session.scalars(
+                    select(models.SpanAnnotation).where(models.SpanAnnotation.name == "note")
+                )
+            )
+        assert len(notes) == 3
+        assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
+        assert [note.annotator_kind for note in notes if note.identifier == "coding"] == ["LLM"]
+        assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
+
+    @pytest.mark.parametrize(
+        "span_reference, expected_message",
+        [
+            pytest.param({"otelId": "missing-span"}, "Could not find spans", id="missing-otel-id"),
+            pytest.param(
+                {"id": str(GlobalID("Span", "404"))}, "Could not find spans", id="missing-node-id"
+            ),
+            pytest.param(
+                {"id": str(GlobalID("Trace", "1"))},
+                "instead corresponds to a node of type: Trace",
+                id="wrong-node-type",
+            ),
+        ],
+    )
+    async def test_create_rejects_invalid_target(
+        self,
+        gql_client: AsyncGraphQLClient,
+        span_reference: dict[str, str],
+        expected_message: str,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": span_reference,
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "review",
+                    }
+                ]
+            },
+        )
+
+        assert result.data is None
+        assert result.errors
+        assert expected_message in result.errors[0].message
+
+    async def test_create_rejects_blank_note(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "  \n ",
+                    }
+                ]
+            },
+        )
+
+        assert result.data is None
+        assert result.errors
+        assert result.errors[0].message == "Note cannot be empty."
+
+    async def test_delete_is_note_scoped_and_rolls_back_partial_failure(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        note_result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "keep until valid delete",
+                    }
+                ]
+            },
+        )
+        assert note_result.data is not None
+        assert not note_result.errors
+        note_id = note_result.data["createSpanNotes"]["spanAnnotations"][0]["id"]
+
+        structured_result = await gql_client.execute(
+            TestSpanAnnotationMutations.CREATE_SPAN_ANNOTATIONS_MUTATION,
+            {
+                "input": [
+                    {
+                        "spanId": str(GlobalID("Span", "1")),
+                        "name": "quality",
+                        "label": "good",
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "source": "APP",
+                    }
+                ]
+            },
+        )
+        assert structured_result.data is not None
+        assert not structured_result.errors
+        structured_id = structured_result.data["createSpanAnnotations"]["spanAnnotations"][0]["id"]
+
+        mixed_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id, structured_id]}},
+        )
+        assert mixed_delete.data is None
+        assert mixed_delete.errors
+        assert "Use the deleteSpanAnnotations mutation instead." in mixed_delete.errors[0].message
+
+        duplicate_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id, note_id]}},
+        )
+        assert duplicate_delete.data is None
+        assert duplicate_delete.errors
+        assert "Duplicate span annotation ID" in duplicate_delete.errors[0].message
+
+        missing_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [str(GlobalID("SpanAnnotation", "999999"))]}},
+        )
+        assert missing_delete.data is None
+        assert missing_delete.errors
+        assert "Could not find span annotations" in missing_delete.errors[0].message
+
+        async with db() as session:
+            stored_note_id = int(GlobalID.from_id(note_id).node_id)
+            assert await session.get(models.SpanAnnotation, stored_note_id) is not None
+
+        successful_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id]}},
+        )
+        assert successful_delete.data is not None
+        assert not successful_delete.errors
+        assert successful_delete.data["deleteSpanNotes"]["spanAnnotations"][0]["id"] == note_id
+
+    async def test_generic_patch_and_delete_refuse_notes(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        note_result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "span": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "protected",
+                    }
+                ]
+            },
+        )
+        assert note_result.data is not None
+        assert not note_result.errors
+        note_id = note_result.data["createSpanNotes"]["spanAnnotations"][0]["id"]
+
+        patch_note = await gql_client.execute(
+            self._PATCH_ANNOTATIONS,
+            {"input": [{"annotationId": note_id, "explanation": "changed"}]},
+        )
+        assert patch_note.data is None
+        assert patch_note.errors
+        assert patch_note.errors[0].message.endswith("createSpanNotes mutation instead.")
+
+        generic_delete = await gql_client.execute(
+            self._DELETE_ANNOTATIONS,
+            {"input": {"annotationIds": [note_id]}},
+        )
+        assert generic_delete.data is None
+        assert generic_delete.errors
+        assert generic_delete.errors[0].message.endswith("deleteSpanNotes mutation instead.")
+
+        structured_result = await gql_client.execute(
+            TestSpanAnnotationMutations.CREATE_SPAN_ANNOTATIONS_MUTATION,
+            {
+                "input": [
+                    {
+                        "spanId": str(GlobalID("Span", "1")),
+                        "name": "quality",
+                        "label": "good",
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "source": "APP",
+                    }
+                ]
+            },
+        )
+        assert structured_result.data is not None
+        structured_id = structured_result.data["createSpanAnnotations"]["spanAnnotations"][0]["id"]
+        rename_to_note = await gql_client.execute(
+            self._PATCH_ANNOTATIONS,
+            {"input": [{"annotationId": structured_id, "name": "note"}]},
+        )
+        assert rename_to_note.data is None
+        assert rename_to_note.errors
+        assert rename_to_note.errors[0].message.endswith("createSpanNotes mutation instead.")

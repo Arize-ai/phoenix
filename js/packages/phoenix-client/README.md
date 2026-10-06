@@ -383,8 +383,11 @@ checks an aggregate bar (so CI can allow a mean of 80% while still running
 every case), and `passRate` requires a minimum fraction of runs to satisfy a
 per-run `passFn` predicate.
 
-See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
-`ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
+See the [CI Eval Tests](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals),
+[Vitest](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest),
+[Jest](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest),
+and [Annotations](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations)
+guides for setup, the full
 `describe` / `test` / `test.each` API, acceptance criteria, repetitions,
 dry-run mode, and annotation details.
 
@@ -421,19 +424,34 @@ const sessionTraces = await getTraces({
   project: { projectName: "my-project" },
   sessionId: "my-session-id",
 });
+
+// Filter by error status and latency (requires Phoenix server >= 20.12.0)
+const slowFailures = await getTraces({
+  project: { projectName: "my-project" },
+  filter: "error_count > 0 and latency_ms >= 1000",
+});
 ```
 
-| Parameter      | Type                           | Description                                |
-| -------------- | ------------------------------ | ------------------------------------------ |
-| `project`      | `ProjectIdentifier`            | The project (by name or ID) — **required** |
-| `startTime`    | `Date \| string \| null`       | Inclusive lower bound on trace start time  |
-| `endTime`      | `Date \| string \| null`       | Exclusive upper bound on trace start time  |
-| `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
-| `order`        | `"asc" \| "desc"`              | Sort direction                             |
-| `limit`        | `number`                       | Maximum number of traces to return         |
-| `cursor`       | `string \| null`               | Pagination cursor                          |
-| `includeSpans` | `boolean`                      | Include full span details for each trace   |
-| `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
+| Parameter      | Type                           | Description                                                  |
+| -------------- | ------------------------------ | ------------------------------------------------------------ |
+| `project`      | `ProjectIdentifier`            | The project (by name or ID) — **required**                   |
+| `startTime`    | `Date \| string \| null`       | Inclusive lower bound on trace start time                    |
+| `endTime`      | `Date \| string \| null`       | Exclusive upper bound on trace start time                    |
+| `sort`         | `"start_time" \| "latency_ms"` | Sort field                                                   |
+| `order`        | `"asc" \| "desc"`              | Sort direction                                               |
+| `limit`        | `number`                       | Maximum number of traces to return                           |
+| `cursor`       | `string \| null`               | Pagination cursor                                            |
+| `includeSpans` | `boolean`                      | Include full span details for each trace                     |
+| `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)                       |
+| `filter`       | `string \| null`               | Trace filter expression                                      |
+| `error`        | `boolean \| null`              | Only traces with (`true`) or without (`false`) errored spans |
+| `minLatencyMs` | `number \| null`               | Inclusive lower bound on trace latency (ms)                  |
+| `maxLatencyMs` | `number \| null`               | Inclusive upper bound on trace latency (ms)                  |
+
+`error`, `minLatencyMs`, and `maxLatencyMs` are deprecated but remain supported on
+server >= 20.8.0. Use `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and
+`latency_ms <= N` in `filter` instead. Empty expressions do not filter; invalid
+expressions return HTTP 400. Keep the same expression when requesting the next page.
 
 ### Pagination
 
@@ -732,7 +750,7 @@ await addSessionNote({
 
 ## Projects
 
-The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy assignments.
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy and annotation-config assignments.
 
 ### Fetching Projects
 
@@ -778,6 +796,79 @@ await setProjectRetentionPolicy({
 ```
 
 This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
+
+### Assigning Annotation Configs
+
+Use `assignProjectAnnotationConfig` and `unassignProjectAnnotationConfig` to add or remove a single annotation config. Select the project and the config by name or GlobalID. Both calls are idempotent. These helpers require Phoenix server `17.16.0` or newer.
+
+```ts
+import {
+  assignProjectAnnotationConfig,
+  listProjectAnnotationConfigs,
+  setProjectAnnotationConfigs,
+  unassignProjectAnnotationConfig,
+} from "@arizeai/phoenix-client/projects";
+
+await assignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+
+await unassignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+```
+
+Use `setProjectAnnotationConfigs` to replace the whole set by config GlobalID. Pass an empty list to clear every assignment:
+
+```ts
+const configs = await listProjectAnnotationConfigs({
+  projectName: "support-bot",
+});
+
+// Keep only the categorical configs
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: configs
+    .filter((config) => config.type === "CATEGORICAL")
+    .map((config) => config.id),
+});
+
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: [],
+});
+```
+
+If a config name contains `/`, select it by `configId` instead. The server can't route a `/` in the URL path.
+
+## Secrets
+
+Use the `secrets` entrypoint to atomically create, update, or delete encrypted
+provider credentials. A string value creates or updates a key, while `null`
+deletes it. Duplicate keys use the last occurrence in the batch. The result
+contains only changed key names and never returns secret values.
+
+```ts
+import { upsertOrDeleteSecrets } from "@arizeai/phoenix-client/secrets";
+
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) throw new Error("OPENAI_API_KEY is required");
+
+const result = await upsertOrDeleteSecrets({
+  secrets: [
+    { key: "OPENAI_API_KEY", value: apiKey },
+    { key: "OLD_PROVIDER_API_KEY", value: null },
+  ],
+});
+
+console.log(result.upsertedKeys);
+console.log(result.deletedKeys);
+```
+
+Managing secrets requires an administrator when Phoenix authentication is
+enabled. Avoid logging the request batch or otherwise retaining its values.
 
 ## Examples
 

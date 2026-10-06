@@ -24,12 +24,12 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot
 # ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot-arm64
 
 # Two stages build on this image, so it is pinned once: they must resolve to
-# the same digest or the build pulls twice. Keep the uv version equal to
-# [tool.uv] required-version in pyproject.toml.
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.7-python3.13-trixie-slim
+# the same digest or the build pulls twice. Keep the uv version equal to the
+# lower bound of [tool.uv] required-version in pyproject.toml.
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.19-python3.13-trixie-slim
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
-FROM node:22-slim AS frontend-builder
+FROM node:24-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV PHOENIX_ENABLE_SOURCE_MAP=True

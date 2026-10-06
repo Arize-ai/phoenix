@@ -1,0 +1,113 @@
+import type { Meta, StoryFn } from "@storybook/react";
+
+import { SpanKindIcon } from "@phoenix/components/trace";
+
+const meta: Meta = {
+  title: "Domains/Tracing/Span Kind Icon",
+  tags: ["legacy", "unreviewed"],
+  component: SpanKindIcon,
+  parameters: {
+    docs: {
+      description: {
+        component: `
+Icons representing different span kinds in trace views.
+
+**Note:** Currently only the \`fill\` variant is used in the codebase (TraceTree, SpanDetails, PlaygroundTool).
+The \`outline\` variant exists but is not used anywhere in production.
+        `,
+      },
+    },
+  },
+};
+
+export default meta;
+
+const SPAN_KINDS = [
+  "llm",
+  "chain",
+  "retriever",
+  "embedding",
+  "agent",
+  "tool",
+  "reranker",
+  "evaluator",
+  "guardrail",
+  "decision",
+  "prompt",
+  "unknown",
+] as const;
+
+function SpanKindIconList() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        padding: "20px",
+      }}
+    >
+      {SPAN_KINDS.map((spanKind) => (
+        <div
+          key={spanKind}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <SpanKindIcon spanKind={spanKind} variant="fill" />
+          <SpanKindIcon spanKind={spanKind} variant="outline" />
+          <span
+            style={{
+              fontSize: "13px",
+              color: "var(--global-text-color-900)",
+            }}
+          >
+            {spanKind}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const Template: StoryFn = () => <SpanKindIconList />;
+
+export const Default = {
+  tags: ["!dev"],
+  render: Template,
+  args: {},
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  // The kinds as the trace tree draws them: the fill variant, beside its name.
+  render: () => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: "12px 16px",
+      }}
+    >
+      {SPAN_KINDS.map((spanKind) => (
+        <div
+          key={spanKind}
+          style={{ display: "flex", alignItems: "center", gap: "8px" }}
+        >
+          <SpanKindIcon spanKind={spanKind} variant="fill" />
+          <span
+            style={{
+              fontSize: "13px",
+              color: "var(--global-text-color-900)",
+            }}
+          >
+            {spanKind}
+          </span>
+        </div>
+      ))}
+    </div>
+  ),
+};

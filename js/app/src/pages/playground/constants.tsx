@@ -41,4 +41,5 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   PERPLEXITY: ["sonar"],
   TOGETHER: [],
   ZAI: ["glm"],
+  META: ["muse"],
 };

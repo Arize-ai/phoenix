@@ -3,7 +3,7 @@ import gzip
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Annotated, Literal, Optional, cast
+from typing import Annotated, Any, Literal, Optional, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -12,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select, tuple_, update
+from sqlalchemy import Select, delete, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -46,6 +46,7 @@ from phoenix.server.authorization import (
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.server.trace_filters import TraceFilterConditionError, apply_trace_filter_to_page
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -142,7 +143,7 @@ def _parse_trace_cursor(cursor: str, sort: str) -> Cursor:
     "/projects/{project_identifier}/traces",
     operation_id="listProjectTraces",
     summary="List traces for a project",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([400, 404, 422]),
 )
 async def list_project_traces(
     request: Request,
@@ -185,22 +186,41 @@ async def list_project_traces(
     ),
     error: Optional[bool] = Query(
         default=None,
+        deprecated=True,
         description=(
+            "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. "
             "Filter by trace error status. If true, only return traces that contain "
             "at least one span with `status_code == ERROR`. If false, only return "
             "traces with no errored spans. If omitted, traces are not filtered by "
-            "error status. Matches the error indicator shown in the UI."
+            "error status."
         ),
     ),
     min_latency_ms: Optional[float] = Query(
         default=None,
         ge=0,
-        description="Inclusive lower bound on trace latency in milliseconds.",
+        deprecated=True,
+        description=(
+            "Inclusive lower bound on trace latency in milliseconds. "
+            "Deprecated: use `filter=latency_ms >= N`."
+        ),
     ),
     max_latency_ms: Optional[float] = Query(
         default=None,
         ge=0,
-        description="Inclusive upper bound on trace latency in milliseconds.",
+        deprecated=True,
+        description=(
+            "Inclusive upper bound on trace latency in milliseconds. "
+            "Deprecated: use `filter=latency_ms <= N`."
+        ),
+    ),
+    filter: Optional[str] = Query(
+        default=None,
+        description=(
+            "Trace filter expression, as documented at "
+            "https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. "
+            "Combined with other filters using AND. Empty expressions do not filter. "
+            "Invalid expressions return 400."
+        ),
     ),
 ) -> GetTracesResponseBody:
     async with request.app.state.db.read() as session:
@@ -209,7 +229,7 @@ async def list_project_traces(
 
         sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
         # Select the database value because latency is rounded in SQL but not in Python.
-        stmt = select(models.Trace, sort_col.label("sort_value")).filter(
+        stmt: Select[*tuple[Any, ...]] = select(models.Trace, sort_col.label("sort_value")).filter(
             models.Trace.project_rowid == project_rowid
         )
         if order == "asc":
@@ -267,6 +287,18 @@ async def list_project_traces(
             stmt = stmt.where(models.Trace.latency_ms >= min_latency_ms)
         if max_latency_ms is not None:
             stmt = stmt.where(models.Trace.latency_ms <= max_latency_ms)
+
+        if filter:
+            try:
+                stmt = apply_trace_filter_to_page(
+                    stmt,
+                    filter,
+                    project_rowids=[project_rowid],
+                    start_time=normalize_datetime(start_time, timezone.utc),
+                    end_time=normalize_datetime(end_time, timezone.utc),
+                )
+            except TraceFilterConditionError as filter_error:
+                raise HTTPException(status_code=400, detail=str(filter_error)) from filter_error
 
         if cursor:
             parsed_cursor = _parse_trace_cursor(cursor, sort)
@@ -539,7 +571,7 @@ async def annotate_traces(
                 status_code=404,
             )
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
             trace_annotation_id = await session.scalar(
@@ -650,7 +682,7 @@ async def create_trace_note(
         }
 
         if note_data.identifier:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             result = await session.execute(
                 insert_on_conflict(
                     values,

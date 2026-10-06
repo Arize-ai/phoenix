@@ -10,11 +10,21 @@ import type { setDatasetLabelsToolMutation } from "./__generated__/setDatasetLab
 import { fetchLabelsByNames } from "./listLabels";
 import type { SetDatasetLabelsInput } from "./types";
 
+/**
+ * Returns the dataset's full `labels` list (as `DatasetLabelConfigButton`
+ * does) so the dataset page header, the datasets table row, and the pickers
+ * show the new set from the normalized store.
+ */
 const mutation = graphql`
   mutation setDatasetLabelsToolMutation($input: SetDatasetLabelsInput!) {
     setDatasetLabels(input: $input) {
       dataset {
         id
+        labels {
+          id
+          name
+          color
+        }
       }
     }
   }

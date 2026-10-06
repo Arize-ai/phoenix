@@ -1,6 +1,6 @@
 ---
 name: phoenix-pr-screenshot
-description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, starts Phoenix with env vars, uses agent-browser to capture screenshots, uploads to GCS, and updates the PR body.
+description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, starts Phoenix with env vars, captures browser screenshots, and attaches them to the PR body with `gh pr edit --attach`.
 user-invocable: true
 metadata:
   internal: true
@@ -12,9 +12,8 @@ Capture screenshots of the Phoenix UI to visually document a feature in a pull r
 
 ## Prerequisites
 
-- `agent-browser` CLI installed and available
-- `gsutil` authenticated with access to `gs://arize-phoenix-assets/`
-- `gh` CLI authenticated with the Arize-ai/phoenix repo
+- Browser tooling capable of navigating the local Phoenix UI and saving screenshots
+- `gh` CLI 2.102 or later (for `--attach`), authenticated with the Arize-ai/phoenix repo
 - `pnpm` and `uv` available for building and running Phoenix
 
 ## Workflow
@@ -45,87 +44,44 @@ Key points:
 - Wait for the server to be ready: `sleep 10 && curl -s -o /dev/null -w "%{http_code}" http://localhost:6007/playground` should return 200
 - Check `/tmp/phoenix-*.log` if it fails — common issues are migration errors (use a fresh working dir) or port conflicts
 
-### Step 3: Screenshot with agent-browser
+### Step 3: Capture screenshots
 
-Navigate to the relevant page, interact with UI elements to show the feature, and capture screenshots:
+Use the available browser tooling to open `http://localhost:6007/playground` (or the relevant feature page), interact with the UI to show the feature, and save screenshots locally.
 
-```bash
-# Open the page
-agent-browser open http://localhost:6007/playground
+- Wait for the target UI elements to be visible and ready before interacting or capturing screenshots.
+- Inspect the page again after navigation or DOM changes before choosing the next element to interact with.
+- Take multiple screenshots when useful (before/after, dropdown open, etc.).
+- For transient or animated states, take a burst of screenshots a fraction of a second apart while you trigger the state, keep the frames that show it, and assemble them into a GIF.
+- View the saved screenshots to verify they captured what you intended, and use their local paths in the upload step.
 
-# Wait for React to fully render
-agent-browser wait --load networkidle
-agent-browser wait 3000
+### Step 4: Attach to the PR
 
-# Get interactive element refs
-agent-browser snapshot -i
-# Output shows refs like: button "OpenAI gpt-4o" [ref=e33]
-
-# Interact to reveal the feature (e.g., open a dropdown)
-agent-browser click @e33
-agent-browser wait 1000
-
-# Capture the screenshot
-agent-browser screenshot
-# Output: Screenshot saved to /Users/.../.agent-browser/tmp/screenshots/screenshot-<timestamp>.png
-```
-
-Tips:
-- Always `wait --load networkidle` then `wait 2000-3000` after navigation — React apps need time to hydrate
-- Re-snapshot after any click that changes the DOM (refs get invalidated)
-- Take multiple screenshots to tell a story (before/after, dropdown open, etc.)
-- View screenshots with the `Read` tool to verify they captured what you intended
-
-### Step 4: Upload to GCS
-
-Upload screenshots to the shared PR assets bucket, prefixed with the PR number for organization:
+`gh pr edit --attach` uploads an image or video to GitHub and rewrites any `./file` reference in the
+body to the hosted URL. Name files `<PR_NUMBER>-<descriptive-name>.png` (e.g.
+`11986-playground-loaded.png`). Read the current body first so nothing is lost:
 
 ```bash
-gsutil cp /path/to/screenshot.png gs://arize-phoenix-assets/pull-requests/<PR_NUMBER>-<descriptive-name>.png
+gh pr view <PR_NUMBER> --json body -q .body > body.md
+# Insert the media under the What sentence, with a bold caption stating what to notice:
+#   **<what to notice>**
+#
+#   ![<alt text>](./<PR_NUMBER>-<name>.png)
+gh pr edit <PR_NUMBER> --body-file body.md --attach './<PR_NUMBER>-<name>.png#<alt text>'
 ```
 
-Naming convention: `<PR_NUMBER>-<descriptive-name>.png` (e.g., `11986-playground-loaded.png`, `11986-provider-dropdown.png`)
+Run it from the directory holding the files, and pass `-R Arize-ai/phoenix` when that directory is
+not a git checkout. `phoenix-pr-description` allows one media item, so for several states prefer a
+single GIF or video over a series of stills.
 
-### Step 5: Update the PR body
-
-Add the GCS-hosted images to the PR description using `gh pr edit`:
-
-```bash
-gh pr edit <PR_NUMBER> --body "$(cat <<'EOF'
-## Summary
-<existing summary>
-
-## Screenshots
-<description of what's shown>
-
-![descriptive-alt-text](https://storage.googleapis.com/arize-phoenix-assets/pull-requests/<PR_NUMBER>-<name>.png)
-
-## Test plan
-<existing test plan>
-EOF
-)"
-```
-
-Always preserve the existing PR body content — read it first with `gh pr view <PR_NUMBER> --json body -q .body`, then add the Screenshots section.
-
-### Step 6: Cleanup
+### Step 5: Cleanup
 
 ```bash
 # Kill the Phoenix server
 kill <PID>
-
-# Close the browser
-agent-browser close
 ```
+
+Close the browser session created for the screenshots.
 
 ## Removing screenshots
 
-To remove previously uploaded screenshots:
-
-```bash
-# Delete from GCS
-gsutil rm gs://arize-phoenix-assets/pull-requests/<PR_NUMBER>-<name>.png
-
-# Update PR body to remove the image references
-gh pr edit <PR_NUMBER> --body "<updated body without screenshot section>"
-```
+Read the body into a file as in Step 4, remove the caption and image reference, then apply it with `gh pr edit <PR_NUMBER> --body-file body.md`.

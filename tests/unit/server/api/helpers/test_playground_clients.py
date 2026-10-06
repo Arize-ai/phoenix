@@ -177,7 +177,7 @@ class TestOpenAIBaseStreamingClient:
         assert not span.events
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -313,7 +313,7 @@ class TestOpenAIBaseStreamingClient:
         assert not span.events
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -470,7 +470,7 @@ class TestOpenAIBaseStreamingClient:
         event = events[0]
         assert event.name == "exception"
         assert event.attributes is not None
-        event_attrs = dict(event.attributes)
+        event_attrs: dict[str, Any] = dict(event.attributes)
         assert event_attrs.pop("exception.type") == "openai.AuthenticationError"
         exception_message = event_attrs.pop("exception.message")
         assert isinstance(exception_message, str)
@@ -482,7 +482,7 @@ class TestOpenAIBaseStreamingClient:
         assert not event_attrs
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -1193,6 +1193,40 @@ class TestDefaultApiTypeRouting:
         monkeypatch.setitem(PLAYGROUND_CLIENT_REGISTRY._registry, provider_key, provider_registry)
 
         assert get_openai_client_class(provider_key, model_name, None) is expected_class
+
+
+class TestCurrentLineupIsOfferedInThePlayground:
+    """The playground's model menu is exactly what the registry lists per provider,
+    so a released model missing here is a model users cannot select.
+    """
+
+    @pytest.mark.parametrize(
+        "provider_key,model_name",
+        [
+            # GPT-6 tiers: Astra, plus the Sol and Luna tiers released 2026-09-22.
+            (GenerativeProviderKey.OPENAI, "gpt-6-astra"),
+            (GenerativeProviderKey.OPENAI, "gpt-6-sol"),
+            (GenerativeProviderKey.OPENAI, "gpt-6-luna"),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-6-astra"),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-6-sol"),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-6-luna"),
+            # GPT-5.6 tiers, including Terra, which has no GPT-6 counterpart.
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-sol"),
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-terra"),
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-luna"),
+            # Claude Opus 5.5, released the same day, under its Claude API and Bedrock IDs.
+            (GenerativeProviderKey.ANTHROPIC, "claude-opus-5-5"),
+            (GenerativeProviderKey.AWS, "anthropic.claude-opus-5-5"),
+            (GenerativeProviderKey.ANTHROPIC, "claude-opus-5"),
+            (GenerativeProviderKey.AWS, "anthropic.claude-opus-5"),
+        ],
+    )
+    def test_model_is_registered_for_its_provider(
+        self,
+        provider_key: GenerativeProviderKey,
+        model_name: str,
+    ) -> None:
+        assert model_name in PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
 
 
 class TestChatCompletionsMessageRoles:

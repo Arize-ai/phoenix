@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c864bd6610d0af4f5977a9dc8d7c4442>>
+ * @generated SignedSource<<f4481a3dc6d9758a60c6408137158be1>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type UpdateSandboxConfigInput = {
 export type SandboxConfigVariantInput = {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b: E2BConfigInput;
   modal?: never;
   monty?: never;
@@ -30,6 +31,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona: DaytonaConfigInput;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -39,6 +41,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno: DenoConfigInput;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -48,6 +51,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -57,6 +61,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -66,6 +71,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal: ModalConfigInput;
   monty?: never;
@@ -75,6 +81,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty: MontyConfigInput;
@@ -84,6 +91,17 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker: DockerConfigInput;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
+  tenki?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -133,6 +151,12 @@ export type ModalConfigInput = {
 };
 export type MontyConfigInput = {
   language?: Language;
+};
+export type DockerConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language: Language;
 };
 export type TenkiConfigInput = {
   dependencies?: DependenciesInput | null;

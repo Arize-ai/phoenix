@@ -259,6 +259,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    META: [
+      [
+        "return tools as they are for meta",
+        "META",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
   };
 
   test.for(Object.values(ProviderToToolTestMap).flat())(

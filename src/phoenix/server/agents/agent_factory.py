@@ -33,9 +33,12 @@ from phoenix.server.agents.capabilities.tools.external import (
 from phoenix.server.agents.capabilities.tools.internal import (
     CallSubAgentCapability,
     GetCurrentDatetimeCapability,
-    WriteSpanNoteCapability,
 )
-from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BASH_TOOL_NAME,
+    BashCapability,
+    get_bash_tool_error,
+)
 from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
 from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
@@ -49,8 +52,6 @@ from phoenix.server.agents.web_access import (
     build_web_search_capability,
 )
 from phoenix.server.api.context import Context
-from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanPutItem, DbSessionFactory
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -81,8 +82,6 @@ def build_agent(
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     | None = None,
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
-    db: DbSessionFactory,
-    event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     auth_enabled: bool = False,
     edit_permission: EditPermission = "manual",
@@ -93,24 +92,15 @@ def build_agent(
     on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> Agent[AgentDependencies, AgentOutput]:
     resolved_prompts = prompts or AgentPrompts()
-    user_id = int(principal.identity) if principal is not None else None
     is_viewer = principal.is_viewer if principal is not None else False
     can_approve_mutations = not headless
     # Whether externally-visible writes are possible at all this run: either
     # they bypass approval, or someone is present to approve them.
     writes_permitted = edit_permission == "bypass" or can_approve_mutations
-    allow_mutations = graphql_mutations_enabled and writes_permitted
+    allow_mutations = graphql_mutations_enabled and writes_permitted and not read_only
     require_mutation_approval = can_approve_mutations and edit_permission == "manual"
     tracer = build_agent_tracer(tracer_provider)
     capabilities: list[AbstractCapability[AgentDependencies]] = [
-        WriteSpanNoteCapability(
-            db=db,
-            event_queue=event_queue,
-            read_only=read_only,
-            auth_enabled=auth_enabled,
-            user_id=user_id,
-            is_viewer=is_viewer,
-        ),
         GetCurrentDatetimeCapability(),
     ]
     if not headless:
@@ -181,8 +171,6 @@ def build_agent(
             name="PXISubagent",
             headless=True,
             model=model,
-            db=db,
-            event_queue=event_queue,
             prompts=resolved_prompts,
             principal=principal,
             schema=schema,
@@ -213,6 +201,7 @@ def build_agent(
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
+        get_error_by_tool_name={BASH_TOOL_NAME: get_bash_tool_error},
     )
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(

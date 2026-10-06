@@ -55,7 +55,7 @@ async def delete_traces_and_orphan_sessions(
             .exists()
         )
     )
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         orphan_session_ids = orphan_session_ids.with_for_update(skip_locked=True)
     await session.execute(

@@ -6,7 +6,12 @@ import {
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
 
+import {
+  MODAL_BACKDROP_ANIMATION_DURATION_MS,
+  OVERLAY_ANIMATION_DURATION_MS,
+} from "./constants";
 import { APP_MODAL_BACKDROP_Z_INDEX, APP_MODAL_Z_INDEX } from "./stacking";
+
 const modalFade = keyframes`
   from {
     opacity: 0;
@@ -59,11 +64,12 @@ export const centeredModalCSS = css`
   }
 
   &[data-entering] {
-    animation: ${modalFade} 200ms;
+    animation: ${modalFade} ${OVERLAY_ANIMATION_DURATION_MS}ms;
   }
 
   &[data-exiting] {
-    animation: ${modalFade} 200ms reverse ease-in;
+    animation: ${modalFade} ${OVERLAY_ANIMATION_DURATION_MS}ms reverse ease-in
+      forwards;
   }
 
   .react-aria-Dialog {
@@ -138,13 +144,12 @@ export const modalBackdropCSS = css`
   z-index: ${APP_MODAL_BACKDROP_Z_INDEX};
 
   &[data-entering] {
-    // ensure overlay animation is longer than child animations
-    animation: ${modalFade} 300ms;
+    animation: ${modalFade} ${MODAL_BACKDROP_ANIMATION_DURATION_MS}ms;
   }
 
   &[data-exiting] {
-    // ensure overlay animation is longer than child animations
-    animation: ${modalFade} 300ms reverse ease-in;
+    animation: ${modalFade} ${MODAL_BACKDROP_ANIMATION_DURATION_MS}ms reverse
+      ease-in forwards;
   }
 `;
 

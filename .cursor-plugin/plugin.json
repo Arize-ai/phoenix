@@ -1,0 +1,40 @@
+{
+  "name": "arize-phoenix",
+  "displayName": "Arize Phoenix",
+  "version": "0.1.0",
+  "description": "Connect Cursor to your Phoenix instance and the Phoenix docs. Ships the remote MCP server, the docs MCP, and skills for debugging traces, running evals, and instrumenting with OpenInference.",
+  "author": {
+    "name": "Arize AI",
+    "email": "oss@arize.com"
+  },
+  "homepage": "https://arize.com/docs/phoenix",
+  "repository": "https://github.com/Arize-ai/phoenix",
+  "license": "Apache-2.0",
+  "keywords": [
+    "phoenix",
+    "arize",
+    "observability",
+    "tracing",
+    "evals",
+    "mcp",
+    "llm"
+  ],
+  "logo": ".cursor-plugin/logo.svg",
+  "mcpServers": ".cursor-plugin/mcp.json",
+  "skills": [
+    ".agents/skills/phoenix-cli",
+    ".agents/skills/phoenix-evals",
+    ".agents/skills/phoenix-tracing"
+  ],
+  "variables": {
+    "type": "object",
+    "properties": {
+      "PHOENIX_ENDPOINT": {
+        "type": "string",
+        "title": "Phoenix endpoint",
+        "description": "Base URL of your Phoenix instance, with no trailing slash (e.g. https://phoenix.example.com). The plugin appends /mcp. Same value as the PHOENIX_ENDPOINT environment variable the px CLI reads. Leave the default for a local Phoenix.",
+        "default": "http://localhost:6006"
+      }
+    }
+  }
+}

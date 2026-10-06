@@ -268,6 +268,41 @@ function getPropertyName({
   );
 }
 
+// Resolves an identifier to the initializer of the nearest enclosing `const`
+// of that name, innermost scope first. Declarations ending after the use are
+// skipped (temporal dead zone).
+function findConstInitializer({
+  node,
+}: {
+  node: ts.Identifier;
+}): ts.Expression | undefined {
+  for (let scope = node.parent; scope != null; scope = scope.parent) {
+    if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) {
+      continue;
+    }
+    for (const statement of scope.statements) {
+      if (!ts.isVariableStatement(statement)) {
+        continue;
+      }
+      const { declarationList } = statement;
+      if ((declarationList.flags & ts.NodeFlags.Const) === 0) {
+        continue;
+      }
+      for (const declaration of declarationList.declarations) {
+        if (
+          ts.isIdentifier(declaration.name) &&
+          declaration.name.text === node.text &&
+          declaration.initializer != null &&
+          declaration.end <= node.pos
+        ) {
+          return declaration.initializer;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
 function evaluateLiteral({
   node,
   sourceFile,
@@ -292,8 +327,15 @@ function evaluateLiteral({
   if (node.kind === ts.SyntaxKind.NullKeyword) {
     return null;
   }
-  if (ts.isIdentifier(node) && node.text === "undefined") {
-    return undefined;
+  if (ts.isIdentifier(node)) {
+    if (node.text === "undefined") {
+      return undefined;
+    }
+    const initializer = findConstInitializer({ node });
+    if (initializer == null) {
+      throw new Error(`${caseName}: unresolved identifier ${node.text}`);
+    }
+    return evaluateLiteral({ node: initializer, sourceFile, caseName });
   }
   if (ts.isPrefixUnaryExpression(node)) {
     const operand = evaluateLiteral({
@@ -333,29 +375,56 @@ function evaluateLiteral({
     });
   }
   if (ts.isObjectLiteralExpression(node)) {
-    const result: Record<string, unknown> = {};
-    for (const property of node.properties) {
-      if (!ts.isPropertyAssignment(property)) {
-        throw new Error(
-          `${caseName}: unsupported object member ${property.getText(sourceFile)}`
-        );
-      }
-      const name = getPropertyName({
-        node: property.name,
-        sourceFile,
-        caseName,
-      });
-      result[name] = evaluateLiteral({
-        node: property.initializer,
-        sourceFile,
-        caseName,
-      });
-    }
-    return result;
+    return evaluateObjectLiteral({ node, sourceFile, caseName });
   }
   throw new Error(
     `${caseName}: non-literal expression ${node.getText(sourceFile)}`
   );
+}
+
+function evaluateObjectLiteral({
+  node,
+  sourceFile,
+  caseName,
+}: {
+  node: ts.ObjectLiteralExpression;
+  sourceFile: ts.SourceFile;
+  caseName: string;
+}): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const property of node.properties) {
+    // Shorthand property: the name doubles as the value expression.
+    if (ts.isShorthandPropertyAssignment(property)) {
+      const { name } = property;
+      if (!ts.isIdentifier(name)) {
+        throw new Error(
+          `${caseName}: unsupported object member ${property.getText(sourceFile)}`
+        );
+      }
+      result[name.text] = evaluateLiteral({
+        node: name,
+        sourceFile,
+        caseName,
+      });
+      continue;
+    }
+    if (!ts.isPropertyAssignment(property)) {
+      throw new Error(
+        `${caseName}: unsupported object member ${property.getText(sourceFile)}`
+      );
+    }
+    const name = getPropertyName({
+      node: property.name,
+      sourceFile,
+      caseName,
+    });
+    result[name] = evaluateLiteral({
+      node: property.initializer,
+      sourceFile,
+      caseName,
+    });
+  }
+  return result;
 }
 
 function findCalls({

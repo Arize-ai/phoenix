@@ -18,7 +18,8 @@ export type PromptModelProvider =
   | "MOONSHOT"
   | "MINIMAX"
   | "PERPLEXITY"
-  | "ZAI";
+  | "ZAI"
+  | "META";
 
 /**
  * Supported prompt provider SDKs

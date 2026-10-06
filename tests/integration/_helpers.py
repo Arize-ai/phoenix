@@ -61,7 +61,6 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, Sp
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
-from opentelemetry.util.types import AttributeValue
 from psutil import STATUS_ZOMBIE, Popen
 from sqlalchemy import URL, text
 from sqlalchemy.exc import OperationalError
@@ -93,6 +92,7 @@ from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.routers.v1 import create_v1_router
 from phoenix.server.thread_server import ThreadServer
+from phoenix.trace.attributes import AttributeValue
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
@@ -761,7 +761,22 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve --debug"
     env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
+    # The server's stdio and this pipe's reader must agree on an encoding, and
+    # the reader must never die on a byte it cannot decode: it is the only
+    # thing draining the pipe, and a server whose pipe is full blocks on its
+    # next log write and stops answering requests. The locale encoding that
+    # Popen(text=True) would otherwise use is cp1252 on Windows, which cannot
+    # decode the box-drawing glyphs Rich puts around a logged traceback.
+    env["PYTHONIOENCODING"] = "utf-8"
+    process = Popen(
+        command.split(),
+        stdout=PIPE,
+        stderr=STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
     log: list[str] = []
     lock: Lock = Lock()
     Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
@@ -2189,6 +2204,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/jsonl"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    (404, "GET", "v1/datasets/fake-id-{}/splits"),
     # Dataset labels
     (200, "GET", "v1/dataset_labels"),
     (422, "GET", "v1/dataset_labels/fake-id-{}"),

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Group, Panel } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -11,10 +12,18 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import {
+  METRIC_CHARTS_CONTENT_PANEL_ID,
+  MetricChartsPanel,
+  useMetricChartsLayout,
+} from "@phoenix/components/chart";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
-import { ExperimentsMetricsChartsPanelGroup } from "./ExperimentsMetricsCharts";
+import {
+  ExperimentsMetricsCharts,
+  useAreExperimentsMetricChartsShown,
+} from "./ExperimentsMetricsCharts";
 import { ExperimentsTable } from "./ExperimentsTable";
 
 export function ExperimentsPage() {
@@ -39,6 +48,11 @@ export function ExperimentsPage() {
     },
     { fetchPolicy: "store-and-network" }
   );
+  const areChartsShown = useAreExperimentsMetricChartsShown();
+  const chartsLayout = useMetricChartsLayout({
+    id: "experiments-table-metrics-layout",
+    isChartsPanelShown: areChartsShown,
+  });
 
   if (!data.dataset?.experimentCount) {
     return <ExperimentsEmpty />;
@@ -46,13 +60,20 @@ export function ExperimentsPage() {
 
   return (
     <>
-      <ExperimentsMetricsChartsPanelGroup>
-        <View height="100%" overflow="hidden" flex="1 1 auto">
-          <ErrorBoundary fallback={ErrorBoundaryFallback}>
-            <ExperimentsTable dataset={data.dataset} />
-          </ErrorBoundary>
-        </View>
-      </ExperimentsMetricsChartsPanelGroup>
+      <Group orientation="vertical" {...chartsLayout}>
+        {areChartsShown && (
+          <MetricChartsPanel>
+            <ExperimentsMetricsCharts />
+          </MetricChartsPanel>
+        )}
+        <Panel id={METRIC_CHARTS_CONTENT_PANEL_ID}>
+          <View height="100%" overflow="hidden" flex="1 1 auto">
+            <ErrorBoundary fallback={ErrorBoundaryFallback}>
+              <ExperimentsTable dataset={data.dataset} />
+            </ErrorBoundary>
+          </View>
+        </Panel>
+      </Group>
       <Suspense>
         <Outlet />
       </Suspense>

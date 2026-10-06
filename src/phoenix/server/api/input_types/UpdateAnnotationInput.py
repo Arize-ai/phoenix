@@ -13,12 +13,12 @@ from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 class UpdateAnnotationInput:
     id: GlobalID
     name: str
-    annotator_kind: AnnotatorKind = AnnotatorKind.HUMAN
+    annotator_kind: AnnotatorKind
     label: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None
     metadata: JSON
-    source: AnnotationSource = AnnotationSource.APP
+    source: AnnotationSource
 
     def __post_init__(self) -> None:
         self.name = self.name.strip()

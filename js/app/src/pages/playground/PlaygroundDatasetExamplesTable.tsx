@@ -1203,6 +1203,7 @@ export function PlaygroundDatasetExamplesTable({
           edges {
             example: node {
               id
+              externalId
               revision {
                 input
                 output
@@ -1224,6 +1225,7 @@ export function PlaygroundDatasetExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
+          externalId: example.externalId,
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
@@ -1322,6 +1324,7 @@ export function PlaygroundDatasetExamplesTable({
         cell: ({ row }) => (
           <ExperimentInputCell
             exampleId={row.original.id}
+            externalId={row.original.externalId}
             value={row.original.input}
             height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
             onExpand={() => {
@@ -1513,7 +1516,10 @@ export function PlaygroundDatasetExamplesTable({
                   datasetId={datasetId}
                   datasetVersionId={datasetVersionId}
                   selectedExampleIndex={selectedExampleIndex}
-                  selectedExampleId={exampleIds[selectedExampleIndex]}
+                  selectedExampleId={tableData[selectedExampleIndex].id}
+                  selectedExampleExternalId={
+                    tableData[selectedExampleIndex].externalId
+                  }
                   baseExperimentId={baseExperimentId}
                   compareExperimentIds={compareExperimentIds}
                   exampleIds={exampleIds}

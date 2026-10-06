@@ -1,0 +1,5 @@
+{
+  "reference": "PageDownTool",
+  "notes": "page_down and PageDownTool are equivalent answers. Accept either name when identified as the tool with the most failures, whether standalone or embedded in an explanation with counts. Reject a reply that selects another tool or remains undecided between tools.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; 109 ERROR tool spans, next is TextInspectorTool at 29"
+}

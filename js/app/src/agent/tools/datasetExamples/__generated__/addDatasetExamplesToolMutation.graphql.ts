@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da27ec71d04d2af2721bd993e34e9513>>
+ * @generated SignedSource<<535df0bf3659c6914ddc0939cd87c2a8>>
  * @lightSyntaxTransform
  */
 
@@ -30,6 +30,7 @@ export type addDatasetExamplesToolMutation$data = {
       readonly exampleCount: number;
       readonly id: string;
       readonly name: string;
+      readonly updatedAt: string;
     };
   };
 };
@@ -89,6 +90,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "exampleCount",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "updatedAt",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -115,16 +123,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "107ae24f86b9918a24ae87bc750e2e91",
+    "cacheID": "daaccc3e4b2cd129d58398b0a84bb815",
     "id": null,
     "metadata": {},
     "name": "addDatasetExamplesToolMutation",
     "operationKind": "mutation",
-    "text": "mutation addDatasetExamplesToolMutation(\n  $input: AddExamplesToDatasetInput!\n) {\n  addExamplesToDataset(input: $input) {\n    dataset {\n      id\n      name\n      exampleCount\n    }\n  }\n}\n"
+    "text": "mutation addDatasetExamplesToolMutation(\n  $input: AddExamplesToDatasetInput!\n) {\n  addExamplesToDataset(input: $input) {\n    dataset {\n      id\n      name\n      exampleCount\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d50fe79671b1d80b02885d3835b615f2";
+(node as any).hash = "fd08aaa1461feee4b9625d6cbdf1bf11";
 
 export default node;

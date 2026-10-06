@@ -52,6 +52,14 @@ ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
+"""
+Comma-separated skill directories or directories containing skills, loaded at startup.
+For example: "./.agents/skills,/opt/skills/team-analysis". Paths are on the Phoenix
+server. A relative path resolves against the directory the server was started from,
+not PHOENIX_WORKING_DIR, so deployments should use absolute paths. Unset means no
+external skills.
+"""
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -148,8 +156,9 @@ individual environment variable settings. Defaults to True.
 """
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
-Allows calls to external resources, like Google Fonts in the web interface
-Defaults to True. Set to False in air-gapped environments to prevent external requests.
+When False, Phoenix makes no public-internet requests on its own initiative, such as web fonts,
+telemetry, or the WASM sandbox binary download. Services the operator configures, such as LLM
+providers and hosted sandboxes, are unaffected. Defaults to True.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -160,7 +169,7 @@ Phoenix supports two types of database URLs:
 - SQLite: 'sqlite:///path/to/database.db'
 - PostgreSQL: 'postgresql://@host/dbname?user=user&password=password' or 'postgresql://user:password@host/dbname'
 
-Note that if you plan on using SQLite, it's advised to to use a persistent volume
+Note that if you plan on using SQLite, it's advised to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 ENV_PHOENIX_SQL_DATABASE_READ_REPLICA_URL = "PHOENIX_SQL_DATABASE_READ_REPLICA_URL"
@@ -389,7 +398,7 @@ ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 Comma-separated list of provider names to show in the UI.
 Provider names should match GenerativeProviderKey enum names:
 OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
-AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI.
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META.
 Case-insensitive. When unset, all providers are shown.
 Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
@@ -856,7 +865,7 @@ The default retention policy for traces in days.
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
 A comma-separated list of sandbox providers to allow.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY. Case-insensitive.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY, DOCKER. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
@@ -864,8 +873,8 @@ ENV_PHOENIX_WASM_BINARY_PATH = "PHOENIX_WASM_BINARY_PATH"
 """
 Override path to a pre-downloaded CPython WASM binary used by the WASM sandbox
 provider. When set, the binary at this path is used as-is (no SHA verification,
-no download). When unset, the binary is downloaded on first use under
-PHOENIX_WORKING_DIR/wasm. Primarily used in CI to point at a cached binary.
+no download). When unset, the binary is downloaded under PHOENIX_WORKING_DIR/wasm
+unless PHOENIX_ALLOW_EXTERNAL_RESOURCES is False.
 """
 
 
@@ -3838,8 +3847,8 @@ def _validate_file_exists_and_is_readable(
 
 def get_env_allow_external_resources() -> bool:
     """
-    Gets the value of the PHOENIX_ALLOW_EXTERNAL_RESOURCES environment variable.
-    Defaults to True if not set.
+    Whether Phoenix may fetch public-internet resources on its own initiative. Services the
+    operator configures, such as LLM providers and hosted sandboxes, are unaffected by this flag.
     """
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
 
@@ -3873,4 +3882,11 @@ def get_env_postgres_azure_scope() -> str:
     """
     return getenv(ENV_PHOENIX_POSTGRES_AZURE_SCOPE) or (
         "https://ossrdbms-aad.database.windows.net/.default"
+    )
+
+
+def get_env_skills_paths() -> tuple[Path, ...]:
+    value = getenv(ENV_PHOENIX_SKILLS_PATHS, "")
+    return tuple(
+        Path(path.strip()).expanduser().resolve() for path in value.split(",") if path.strip()
     )

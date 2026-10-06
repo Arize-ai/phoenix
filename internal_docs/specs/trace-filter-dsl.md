@@ -25,6 +25,11 @@ project metrics, chart series, evaluation summaries, or count cards. Those surfa
 their existing project and time-range scopes. A future cross-surface filter must be introduced
 explicitly rather than inferred from this table argument.
 
+## API Surface
+
+The language is served over GraphQL as the `traceFilterCondition` argument and over REST as
+the `filter` query parameter on `GET /v1/projects/{project_identifier}/traces`.
+
 ## Trace Fields and Aggregates
 
 Direct fields are `trace_id`, `start_time`, `end_time`, and `latency_ms`. Per-trace aggregates

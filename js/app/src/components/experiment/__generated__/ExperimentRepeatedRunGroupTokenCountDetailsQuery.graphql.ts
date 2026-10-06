@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ac9f77ff6a43a6c50e18985452cdb79>>
+ * @generated SignedSource<<1a3bf3997e2ac106615441aebfc44af7>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,13 @@ export type ExperimentRepeatedRunGroupTokenCountDetailsQuery$variables = {
 export type ExperimentRepeatedRunGroupTokenCountDetailsQuery$data = {
   readonly node: {
     readonly __typename: "ExperimentRepeatedRunGroup";
+    readonly costDetailSummaryEntries: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly tokens: number | null;
+      };
+    }>;
     readonly costSummary: {
       readonly completion: {
         readonly tokens: number | null;
@@ -110,6 +117,41 @@ v4 = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostDetailSummaryEntry",
+      "kind": "LinkedField",
+      "name": "costDetailSummaryEntries",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokenType",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isPrompt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "value",
+          "plural": false,
+          "selections": (v3/*:: as any*/),
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "ExperimentRepeatedRunGroup",
@@ -168,16 +210,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "17535680d5a7af6fa77466bf5134c3e0",
+    "cacheID": "6a382a404bd78b0df69e895e50a8f5e5",
     "id": null,
     "metadata": {},
     "name": "ExperimentRepeatedRunGroupTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentRepeatedRunGroupTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ExperimentRepeatedRunGroup {\n      costSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentRepeatedRunGroupTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ExperimentRepeatedRunGroup {\n      costSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fc023fee63f29794e61517820b6c9313";
+(node as any).hash = "838d92adc16b11291c4313fdd11629b9";
 
 export default node;

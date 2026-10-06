@@ -175,19 +175,7 @@ function ErrorContent({ error }: { error: unknown }) {
           gap: var(--global-dimension-size-100);
         `}
       >
-        <span
-          css={css`
-            display: inline-flex;
-            flex-direction: row;
-            align-items: baseline;
-            gap: 0.2em;
-          `}
-        >
-          💙 the
-          <ExternalLink href="mailto:phoenix-devs@arize.com">
-            phoenix team
-          </ExternalLink>
-        </span>
+        <span>💙 the phoenix team</span>
       </p>
       <div
         css={css`

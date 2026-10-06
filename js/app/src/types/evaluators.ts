@@ -154,6 +154,7 @@ export type SandboxBackendType =
   | "DENO"
   | "MODAL"
   | "MONTY"
+  | "DOCKER"
   | "TENKI";
 
 /**

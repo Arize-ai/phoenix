@@ -80,6 +80,9 @@ export function DatasetPage() {
 
   return (
     <DatasetProvider
+      // Keyed so a change of dataset remounts everything below with fresh
+      // dataset state, including any edit session on the examples tab.
+      key={data.dataset.id}
       datasetId={data.dataset.id}
       datasetName={data.dataset.name as string}
       latestVersion={latestVersion}

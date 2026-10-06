@@ -63,6 +63,13 @@ type AddAnnotationConfigToProjectPayload {
   project: Project!
 }
 
+"""
+Adds an example with the given value. Added examples are not linked to a span; use `addExamplesToDataset` for span-sourced examples.
+"""
+input AddDatasetExampleOperation {
+  value: DatasetExampleValueInput!
+}
+
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -173,7 +180,7 @@ type AgentSessionRetention {
 
 type AgentSkill {
   """
-  The unique skill identifier used to load the skill (e.g. 'debug-trace').
+  The unique skill identifier used to load the skill (e.g. 'playground').
   """
   name: String!
 
@@ -663,6 +670,7 @@ type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPaylo
 
 input ChatPromptVersionInput {
   description: String = null
+  metadata: JSON
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
   invocationParameters: PromptInvocationParametersInput!
@@ -980,12 +988,20 @@ input CreateProjectInput {
 input CreateProjectSessionAnnotationInput {
   projectSessionId: ID!
   name: String!
-  annotatorKind: AnnotatorKind! = HUMAN
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
   metadata: JSON!
-  source: AnnotationSource! = APP
+  source: AnnotationSource!
+  identifier: String
+}
+
+input CreateProjectSessionNoteInput {
+  session: ProjectSessionReferenceInput!
+  note: String!
+  annotatorKind: AnnotatorKind!
+  source: AnnotationSource!
   identifier: String
 }
 
@@ -1033,8 +1049,11 @@ input CreateSpanAnnotationInput {
 }
 
 input CreateSpanNoteInput {
-  spanId: ID!
+  span: SpanReferenceInput!
   note: String!
+  annotatorKind: AnnotatorKind!
+  source: AnnotationSource!
+  identifier: String
 }
 
 type CreateSystemApiKeyMutationPayload {
@@ -1051,6 +1070,14 @@ input CreateTraceAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON!
+  source: AnnotationSource!
+  identifier: String
+}
+
+input CreateTraceNoteInput {
+  trace: TraceReferenceInput!
+  note: String!
+  annotatorKind: AnnotatorKind!
   source: AnnotationSource!
   identifier: String
 }
@@ -1122,7 +1149,21 @@ type Dataset implements Node {
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experiments(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+    includeEphemeral: Boolean = false
+    filterCondition: String
+    filterIds: [ID!]
+
+    """
+    When provided, return only the experiments with the given 1-based per-dataset sequence numbers.
+    """
+    sequenceNumbers: [Int!]
+    sort: ExperimentSort
+  ): ExperimentConnection!
 
   """The experiment tagged as this dataset's baseline, if one is set."""
   baselineExperiment: Experiment
@@ -1225,6 +1266,7 @@ type DatasetExample implements Node {
   id: ID!
   externalId: String
   createdAt: DateTime!
+  dataset: Dataset!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
@@ -1250,6 +1292,13 @@ type DatasetExampleEdge {
   node: DatasetExample!
 }
 
+"""A field of a dataset example that a `replace` operation can target."""
+enum DatasetExampleField {
+  INPUT
+  OUTPUT
+  METADATA
+}
+
 input DatasetExampleInput {
   input: JSON!
   output: JSON!
@@ -1258,11 +1307,13 @@ input DatasetExampleInput {
   externalId: String
 }
 
-input DatasetExamplePatch {
-  exampleId: ID!
-  input: JSON
-  output: JSON
-  metadata: JSON
+"""
+One change to a dataset's examples, after JSON Patch (RFC 6902). Exactly one of `add`, `replace`, or `remove` is set.
+"""
+input DatasetExampleOperation @oneOf {
+  add: AddDatasetExampleOperation
+  replace: ReplaceDatasetExampleFieldOperation
+  remove: RemoveDatasetExampleOperation
 }
 
 type DatasetExampleRevision implements ExampleRevision {
@@ -1271,6 +1322,16 @@ type DatasetExampleRevision implements ExampleRevision {
   metadata: JSON!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+}
+
+"""
+The full value of a dataset example. `input`, `output`, and `metadata` must be JSON objects. `externalId` is an optional custom ID; leave it out to have one generated.
+"""
+input DatasetExampleValueInput {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  externalId: String
 }
 
 type DatasetExperimentAnnotationSummary {
@@ -1598,6 +1659,13 @@ type DismissExperimentPayload {
   experiment: Experiment!
 }
 
+input DockerConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
 type DocumentAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1897,6 +1965,11 @@ type ExperimentAnnotationSummary {
   scoreCount: Int!
   labelCount: Int!
   labelFractions: [LabelFraction!]!
+}
+
+enum ExperimentColumn {
+  sequenceNumber
+  createdAt
 }
 
 type ExperimentComparison implements Node {
@@ -2203,6 +2276,12 @@ input ExperimentRunSort {
   dir: SortDir!
 }
 
+"""The sort key and direction for experiment connections"""
+input ExperimentSort {
+  col: ExperimentColumn!
+  dir: SortDir!
+}
+
 type ExperimentTag implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2424,6 +2503,7 @@ enum GenerativeProviderKey {
   PERPLEXITY
   TOGETHER
   ZAI
+  META
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2574,6 +2654,7 @@ enum ModelProvider {
   PERPLEXITY
   TOGETHER
   ZAI
+  META
 }
 
 input ModelsInput {
@@ -2694,18 +2775,23 @@ type Mutation {
   updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
-  createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
+  createSpanNotes(input: [CreateSpanNoteInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
+  deleteSpanNotes(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
   setAgentGithubEnabled(input: SetAgentGithubEnabledInput!): AgentGithubEnabled!
   setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
   setAgentSessionRetention(input: SetAgentSessionRetentionInput!): AgentSessionRetention!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  createProjectSessionNotes(input: [CreateProjectSessionNoteInput!]!): ProjectSessionAnnotationsMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  deleteProjectSessionNotes(input: DeleteAnnotationsInput!): ProjectSessionAnnotationsMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
+  createTraceNotes(input: [CreateTraceNoteInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
+  deleteTraceNotes(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraces(traceIds: [ID!]!): Query!
   transferTracesToProject(traceIds: [ID!]!, projectId: ID!): Query!
@@ -2853,15 +2939,14 @@ input PatchCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]
 }
 
+"""
+Input to the `patchDatasetExamples` mutation. The operations are applied in order and committed together as one new dataset version, or not at all. Later operations see the effect of earlier ones: replacing a field twice keeps the last value, removing an example discards its replacements, and targeting an example after it was removed is an error.
+"""
 input PatchDatasetExamplesInput {
-  patches: [DatasetExamplePatch!]!
+  datasetId: ID!
+  operations: [DatasetExampleOperation!]!
   versionDescription: String
   versionMetadata: JSON
-
-  """
-  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
-  """
-  datasetId: ID
 }
 
 input PatchDatasetInput {
@@ -3003,7 +3088,11 @@ type Project implements Node {
   """
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, traceFilterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+
+  """
+  Spans in the project. filterCondition is a span filter expression: a Python boolean expression over span fields (span_kind, status_code, latency_ms, parent_id, attributes, annotations[...], ...), not a substring of the span's input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` to also count orphan spans whose parent was never received. traceFilterCondition is a trace filter expression (see traceFilterVocabulary) that keeps the spans of matching traces; the two arguments compose.
+  """
+  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, filterCondition: String, traceFilterCondition: String): SpanConnection!
 
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).
@@ -3033,7 +3122,7 @@ type Project implements Node {
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
   """
-  traceAnnotationsNames: [String!]!
+  traceAnnotationNames: [String!]!
 
   """
   Names of all available annotations for spans. (The list contains no duplicates.)
@@ -3278,6 +3367,11 @@ type ProjectSessionAnnotationMutationPayload {
   query: Query!
 }
 
+type ProjectSessionAnnotationsMutationPayload {
+  projectSessionAnnotations: [ProjectSessionAnnotation!]!
+  query: Query!
+}
+
 enum ProjectSessionColumn {
   startTime
   endTime
@@ -3302,6 +3396,14 @@ type ProjectSessionEdge {
 
   """The item at the end of the edge"""
   node: ProjectSession!
+}
+
+input ProjectSessionReferenceInput @oneOf {
+  """The session's Phoenix node ID."""
+  id: ID
+
+  """The raw session.id value supplied by the application, matched exactly."""
+  sessionId: String
 }
 
 """The sort key and direction for ProjectSession connections."""
@@ -3931,6 +4033,20 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
+"""Removes an existing example from the dataset."""
+input RemoveDatasetExampleOperation {
+  exampleId: ID!
+}
+
+"""
+Replaces one field of an existing example with `value`, a JSON object. Fields the operation list never names carry over from the example's latest revision.
+"""
+input ReplaceDatasetExampleFieldOperation {
+  exampleId: ID!
+  field: DatasetExampleField!
+  value: JSON!
+}
+
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
 
 type ResumeExperimentPayload {
@@ -3990,6 +4106,7 @@ enum SandboxBackendType {
   DENO
   MODAL
   MONTY
+  DOCKER
   TENKI
 }
 
@@ -4039,6 +4156,7 @@ input SandboxConfigVariantInput @oneOf {
   wasm: WASMConfigInput
   modal: ModalConfigInput
   monty: MontyConfigInput
+  docker: DockerConfigInput
   tenki: TenkiConfigInput
 }
 
@@ -4340,6 +4458,9 @@ type Span implements Node {
   containedInDataset: Boolean!
   costSummary: SpanCostSummary
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """Cost details aggregated from this span and all descendant spans"""
+  cumulativeCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -4512,12 +4633,21 @@ enum SpanKind {
   reranker
   evaluator
   guardrail
+  decision
   unknown
 }
 
 type SpanKindCount {
   spanKind: SpanKind!
   count: Int!
+}
+
+input SpanReferenceInput @oneOf {
+  """The span's Phoenix node ID."""
+  id: ID
+
+  """The span's OpenTelemetry span ID, matched exactly."""
+  otelId: String
 }
 
 """
@@ -4752,7 +4882,11 @@ type Trace implements Node {
   Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket.
   """
   errorsByType: [SpanErrorTypeCount!]!
-  spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true, filterCondition: String): SpanConnection!
+
+  """
+  Spans in the trace, newest first. filterCondition is a span filter expression: a Python boolean expression over span fields, not a substring of the span's input/output. Use `rootSpan` for the trace's representative root span.
+  """
+  spans(first: Int!, last: Int, after: String, before: String, filterCondition: String): SpanConnection!
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort, filter: AnnotationFilter = null): [TraceAnnotation!]!
@@ -4872,6 +5006,14 @@ type TraceLatencyPercentileTimeSeries {
   data: [TraceLatencyMsPercentileTimeSeriesDataPoint!]!
 }
 
+input TraceReferenceInput @oneOf {
+  """The trace's Phoenix node ID."""
+  id: ID
+
+  """The trace's OpenTelemetry trace ID, matched exactly."""
+  otelId: String
+}
+
 union TraceRetentionRule = TraceRetentionRuleMaxDays | TraceRetentionRuleMaxCount | TraceRetentionRuleMaxDaysOrCount
 
 type TraceRetentionRuleMaxCount {
@@ -4956,12 +5098,12 @@ type UpdateAnnotationConfigPayload {
 input UpdateAnnotationInput {
   id: ID!
   name: String!
-  annotatorKind: AnnotatorKind! = HUMAN
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
   metadata: JSON!
-  source: AnnotationSource! = APP
+  source: AnnotationSource!
 }
 
 input UpdateDatasetBuiltinEvaluatorInput {

@@ -151,16 +151,7 @@ function EvaluatorMappingSourceFieldEditor({
   const debouncedSync = useDebouncedJSONSync<Record<string, unknown>>(onChange);
 
   return (
-    <Disclosure
-      id={field}
-      css={css`
-        &:last-child:not([data-expanded="true"]) {
-          .react-aria-Button[slot="trigger"] {
-            border-bottom: none;
-          }
-        }
-      `}
-    >
+    <Disclosure id={field}>
       <DisclosureTrigger>
         <Flex direction="row" gap="size-50" alignItems="center">
           <Text weight="heavy" size="S">

@@ -5,43 +5,153 @@ description: Auto-instrument your AG2 multi-agent application for seamless obser
 
 import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
 
-[AG2](https://github.com/ag2ai/ag2) (formerly AutoGen) is an open-source Python framework for
-building multi-agent LLM applications. It centers on the `ConversableAgent`, which agents use to
-chat with one another, call tools, and coordinate through group chats and sequential
-conversations.
+[AG2](https://github.com/ag2ai/ag2) is an open-source Python framework for building multi-agent
+LLM applications. AG2 1.x is a ground-up redesign of the framework: it ships as the `ag2`
+package, is imported as `ag2`, and is built around an `Agent` primitive, a middleware pipeline,
+tools, and multi-agent networks.
 
-Phoenix instruments AG2 through the `openinference-instrumentation-ag2` package. Calling
+The 0.x line — imported as `autogen` — is maintained as **AG2 Classic** and uses a different
+API built around `ConversableAgent`. Phoenix traces both, through different mechanisms:
+
+| Line | Import | How Phoenix traces it |
+| --- | --- | --- |
+| AG2 1.x | `ag2` | AG2's built-in `TelemetryMiddleware`, exported over OTLP |
+| AG2 Classic (0.14) | `autogen` | `openinference-instrumentation-ag2` |
+
+Pick the section below that matches the line you are on.
+
+## AG2 1.x
+
+AG2 1.x emits OpenTelemetry spans natively through `TelemetryMiddleware`, following the
+[OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/).
+No OpenInference instrumentor is required — point the middleware at Phoenix's OTLP endpoint and
+Phoenix converts the `gen_ai.*` attributes to OpenInference at ingest.
+
+<Note>
+GenAI semantic convention auto-conversion requires `arize-phoenix` 15.10.0 or later. See
+[Translating Semantic Conventions](/docs/phoenix/tracing/concepts-tracing/translating-conventions)
+for details.
+</Note>
+
+### Install
+
+```bash
+pip install "ag2[openai,tracing]" arize-phoenix-otel arize-phoenix
+```
+
+The `tracing` extra pulls in the OpenTelemetry SDK that `TelemetryMiddleware` needs. Swap
+`openai` for whichever provider extra your agent uses (`anthropic`, `gemini`, `ollama`, …).
+
+### Setup
+
+Use `register` to build a tracer provider that exports to Phoenix, then hand that provider to
+`TelemetryMiddleware`. Leave `auto_instrument` off for this path — `TelemetryMiddleware` already
+emits the LLM spans, so an additional provider instrumentor would double-record every call.
+
+```python
+import asyncio
+
+from ag2 import Agent
+from ag2.config import OpenAIConfig
+from ag2.middleware.builtin import TelemetryMiddleware
+from phoenix.otel import register
+
+# register() returns an OpenTelemetry TracerProvider that exports to Phoenix
+tracer_provider = register(project_name="ag2-tracing")
+
+agent = Agent(
+    "assistant",
+    prompt="You are a helpful assistant.",
+    config=OpenAIConfig(model="gpt-4o-mini"),
+    middleware=[
+        TelemetryMiddleware(tracer_provider=tracer_provider, agent_name="assistant"),
+    ],
+)
+
+
+async def main() -> None:
+    reply = await agent.ask("What is the capital of France?")
+    print(reply.body)
+
+
+asyncio.run(main())
+```
+
+### What gets traced
+
+`TelemetryMiddleware` wraps each stage of the agent loop. Phoenix maps the GenAI operation name
+onto an OpenInference span kind:
+
+| AG2 hook | `gen_ai.operation.name` | Phoenix span kind |
+| --- | --- | --- |
+| `on_turn` — a full turn | `invoke_agent` | `AGENT` |
+| `on_llm_call` — each LLM call | `chat` | `LLM` |
+| `on_tool_execution` — each tool | `execute_tool` | `TOOL` |
+| `on_human_input` — each HITL prompt | `await_human_input` | *(generic span)* |
+
+A single `ask()` therefore produces an `AGENT` root span with the LLM and tool calls nested
+beneath it:
+
+```
+invoke_agent assistant [AGENT]
+  ├── chat gpt-4o-mini          [LLM]
+  ├── execute_tool get_weather  [TOOL]
+  └── chat gpt-4o-mini          [LLM]
+```
+
+Token counts (`gen_ai.usage.input_tokens` / `output_tokens`, plus prompt-cache reads and writes)
+are converted to Phoenix's token-count attributes, so cost and usage roll up automatically.
+
+### Redacting span content
+
+`TelemetryMiddleware` captures message content, tool arguments, and tool results by default. To
+keep prompts and results out of your traces, set `capture_content=False`:
+
+```python
+TelemetryMiddleware(
+    tracer_provider=tracer_provider,
+    agent_name="assistant",
+    capture_content=False,
+)
+```
+
+## AG2 Classic (0.14)
+
+AG2 Classic centers on the `ConversableAgent`, which agents use to chat with one another, call
+tools, and coordinate through group chats and sequential conversations.
+
+Phoenix instruments AG2 Classic through the `openinference-instrumentation-ag2` package. Calling
 `AG2Instrumentor().instrument()` patches `ConversableAgent` and emits spans for chats, replies,
 and tool executions, nesting them correctly through group chat orchestration.
 
 <Note>
-This instrumentor supports AG2 0.14, which is imported as `autogen`. AG2 1.0 uses a new
-middleware architecture that is not covered yet.
+`openinference-instrumentation-ag2` targets AG2 Classic (`ag2>=0.14,<1.0`, imported as
+`autogen`). It does not instrument AG2 1.x — use the AG2 1.x section above for that.
 </Note>
 
-## Install
+### Install
 
 ```bash
-pip install openinference-instrumentation-ag2 openinference-instrumentation-openai "ag2[openai]" arize-phoenix-otel arize-phoenix
+pip install openinference-instrumentation-ag2 openinference-instrumentation-openai "ag2[openai]<1.0" arize-phoenix-otel arize-phoenix
 ```
 
-AG2 delegates its LLM calls to the underlying model client. Pair the AG2 instrumentor with the
-instrumentor for that provider — `openinference-instrumentation-openai` in the examples below —
-so the LLM spans appear nested under the agent spans. If your agents call a different provider,
-install and register that provider's OpenInference instrumentor instead.
+AG2 Classic delegates its LLM calls to the underlying model client. Pair the AG2 instrumentor
+with the instrumentor for that provider — `openinference-instrumentation-openai` in the examples
+below — so the LLM spans appear nested under the agent spans. If your agents call a different
+provider, install and register that provider's OpenInference instrumentor instead.
 
-## Setup
+### Setup
 
-Use the `register` function to connect your application to Phoenix. Because AG2 relies on a
-separate model instrumentor for LLM visibility, keep `auto_instrument=True` so both the AG2 and
+Use the `register` function to connect your application to Phoenix. Because AG2 Classic relies on
+a separate model instrumentor for LLM visibility, keep `auto_instrument=True` so both the AG2 and
 model instrumentors are activated from your installed dependencies.
 
 <RegisterTracerPython projectName="ag2-tracing" />
 
-## Run AG2
+### Run AG2 Classic
 
-From here you can use AG2 as normal, and Phoenix will trace each agent chat, reply, and tool
-call. The example below runs a single agent with the quickstart `run()` API:
+From here you can use AG2 Classic as normal, and Phoenix will trace each agent chat, reply, and
+tool call. The example below runs a single agent with the quickstart `run()` API:
 
 ```python
 import os
@@ -61,11 +171,11 @@ response = agent.run(message="What is the capital of France?", max_turns=1, user
 response.process()
 ```
 
-## What gets traced
+### What gets traced
 
 The instrumentor patches `ConversableAgent` and produces three span kinds:
 
-| AG2 method | Span name | Span kind |
+| AG2 Classic method | Span name | Span kind |
 | --- | --- | --- |
 | `initiate_chat` / `a_initiate_chat` (also used by `run` and `initiate_chats`) | `<agent>.initiate_chat` | `AGENT` |
 | `generate_reply` / `a_generate_reply` | `<agent>.generate_reply` | `AGENT` |
@@ -76,12 +186,12 @@ Tool spans carry `tool.name`, `tool_call.id`, `tool_call.function.arguments`, an
 tracing, propagating context attributes (`using_session`, `using_user`, `using_attributes`), and
 masking sensitive data with a `TraceConfig`.
 
-## Examples
+### Examples
 
-### Tool calling
+#### Tool calling
 
 An LLM-driven tool call, split across an agent that decides to call the tool and a user proxy
-that executes it — the registration split AG2 uses throughout its tools guide.
+that executes it — the registration split AG2 Classic uses throughout its tools guide.
 
 ```python expandable
 import os
@@ -130,7 +240,7 @@ def get_exchange_rate(
 user_proxy.initiate_chat(assistant, message="How much is 250 USD in EUR?", max_turns=4)
 ```
 
-### Group chat
+#### Group chat
 
 An `AutoPattern` group chat where a manager routes between specialist agents. The trace shows the
 manager's speaker-selection decisions interleaved with each specialist's reply:
@@ -206,7 +316,7 @@ result, _, _ = initiate_group_chat(
 )
 ```
 
-### Sequential chats
+#### Sequential chats
 
 `initiate_chats` runs a queue of chats in order, passing each chat's summary into the next as
 carryover. Each chat in the queue gets its own `AGENT` span, so the trace shows the whole
@@ -267,7 +377,7 @@ results = coordinator.initiate_chats(
 )
 ```
 
-### Structured outputs
+#### Structured outputs
 
 Passing a pydantic model as `response_format` on `LLMConfig` makes the agent reply with JSON
 matching that schema. The agent span's output value is the serialized model, so the trace shows
@@ -331,24 +441,27 @@ audit_log = AuditLogSummary.model_validate_json(response.messages[-1]["content"]
 print(json.dumps(audit_log.model_dump(), indent=2))
 ```
 
+### Migrating from `openinference-instrumentation-autogen`
+
+`openinference-instrumentation-ag2` replaces `openinference-instrumentation-autogen`. The
+`autogen` instrumentor is now a thin, deprecated compatibility facade that delegates to
+`AG2Instrumentor`. Move to `openinference-instrumentation-ag2` and use `AG2Instrumentor`
+directly.
+
 ## Observe
 
-Now that you have tracing set up, all AG2 agent chats, replies, and tool calls are streamed to
-Phoenix for observability and evaluation. Each `ConversableAgent` chat and reply appears as an
-`AGENT` span, with tool executions nested underneath as `TOOL` spans.
+Once tracing is set up, all AG2 agent turns, LLM calls, and tool calls are streamed to Phoenix
+for observability and evaluation. Agent turns appear as `AGENT` spans, with LLM calls and tool
+executions nested underneath as `LLM` and `TOOL` spans.
 
 <Frame caption="An AG2 trace in Phoenix">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ag2-example-trace.png" />
 </Frame>
 
-## Migrating from `openinference-instrumentation-autogen`
-
-`openinference-instrumentation-ag2` replaces `openinference-instrumentation-autogen`. The
-`autogen` package is now a thin, deprecated compatibility facade that delegates to
-`AG2Instrumentor`. Move to `openinference-instrumentation-ag2` and use `AG2Instrumentor` directly.
-
 ## Resources
 
-* [OpenInference package](https://pypi.org/project/openinference-instrumentation-ag2/)
+* [AG2 telemetry guide](https://docs.ag2.ai/) — `TelemetryMiddleware` reference for AG2 1.x
+
+* [OpenInference package](https://pypi.org/project/openinference-instrumentation-ag2/) — AG2 Classic instrumentor
 
 * [Example scripts](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-ag2/examples)

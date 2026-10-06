@@ -17,7 +17,6 @@ import {
 import type { ComponentProps } from "react";
 import React, {
   Fragment,
-  Suspense,
   startTransition,
   useCallback,
   useEffect,
@@ -25,7 +24,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -80,6 +79,7 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
+import { TRACE_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
@@ -93,8 +93,8 @@ import type {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import type { TracesTableTraceFilterVocabularyQuery } from "./__generated__/TracesTableTraceFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { withFilterConditionParam } from "./filterConditionParam";
 import {
   SpanInputValueTooltipCell,
   SpanOutputValueTooltipCell,
@@ -114,11 +114,17 @@ import {
   normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
-import { TraceFilterConditionField } from "./TraceFilterConditionField";
+import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
+import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
+  /**
+   * The settled condition `project` was loaded with; the rows on hand already
+   * match it.
+   */
+  seed: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -132,48 +138,6 @@ const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
 `;
-
-const EMPTY_TRACE_FILTER_VOCABULARY = [] as const;
-
-function TraceFilterConditionFieldWithVocabulary({
-  projectId,
-  timeRange,
-  onValidCondition,
-}: {
-  projectId: string;
-  timeRange: { start?: string; end?: string };
-  onValidCondition: (condition: string) => void;
-}) {
-  const data = useLazyLoadQuery<TracesTableTraceFilterVocabularyQuery>(
-    graphql`
-      query TracesTableTraceFilterVocabularyQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-      ) {
-        project: node(id: $id) {
-          ... on Project {
-            traceFilterVocabulary(timeRange: $timeRange) {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId, timeRange }
-  );
-  return (
-    <TraceFilterConditionField
-      vocabulary={
-        data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY
-      }
-      onValidCondition={onValidCondition}
-    />
-  );
-}
 
 interface IAdditionalSpansIndicator {
   /**
@@ -301,14 +265,40 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
-    useState<string>("");
+    useState<string>(props.seed);
+  // React Router 8.2 recreates this setter whenever location.search changes; a
+  // stable ref keeps unrelated param changes out of the field's validation.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const handleValidTraceFilterCondition = useCallback(
+    ({ condition, isInitialSettlement }: TraceFilterValidConditionArgs) => {
+      setValidTraceFilterCondition(condition);
+      // The mount settlement echoes the URL's own condition; writing it back
+      // would touch the URL on every visit to the tab.
+      if (isInitialSettlement) {
+        return;
+      }
+      setSearchParamsRef.current(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            TRACE_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
+    },
+    []
+  );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
@@ -344,7 +334,7 @@ export function TracesTable(props: TracesTableProps) {
             first: $first
             after: $after
             sort: $sort
-            rootSpansOnly: true
+            filterCondition: "parent_span is None"
             traceFilterCondition: $traceFilterCondition
             timeRange: $timeRange
           ) @connection(key: "TracesTable_rootSpans") {
@@ -564,14 +554,14 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: () => (
           <Flex direction="row" gap="size-50" alignItems="center">
-            <span>Annotations</span>
+            <span>span annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
-                Annotations
+                Span annotations
               </Heading>
               <Text>
-                Evaluations and human annotations logged via the API or set via
-                the UI.
+                Evaluations and human annotations attached to each span. Expand
+                a trace to see the annotations on its child spans.
               </Text>
             </ContextualHelp>
           </Flex>
@@ -627,13 +617,13 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: () => (
           <Flex direction="row" gap="size-50" alignItems="center">
-            <span>Trace annotations</span>
+            <span>trace annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
                 Trace annotations
               </Heading>
               <Text>
-                Annotations attached to the parent trace of this span.
+                Evaluations and annotations applied directly to the trace.
               </Text>
             </ContextualHelp>
           </Flex>
@@ -928,8 +918,8 @@ export function TracesTable(props: TracesTableProps) {
   );
 
   useEffect(() => {
-    // The parent query preloads these initial variables, so refetch only after
-    // sorting, filtering, streaming, or the live time window changes.
+    // The parent's query already carries the seed, so the first render needs
+    // no refetch.
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
@@ -1114,20 +1104,9 @@ export function TracesTable(props: TracesTableProps) {
             wrap="wrap"
           >
             <div css={toolbarFilterFieldCSS}>
-              <Suspense
-                fallback={
-                  <TraceFilterConditionField
-                    vocabulary={EMPTY_TRACE_FILTER_VOCABULARY}
-                    onValidCondition={setValidTraceFilterCondition}
-                  />
-                }
-              >
-                <TraceFilterConditionFieldWithVocabulary
-                  projectId={data.id}
-                  timeRange={timeRangeISOStrings}
-                  onValidCondition={setValidTraceFilterCondition}
-                />
-              </Suspense>
+              <TraceFilterConditionFieldWithVocabulary
+                onValidCondition={handleValidTraceFilterCondition}
+              />
             </div>
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />

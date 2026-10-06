@@ -1,4 +1,7 @@
-import { MessageAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
+import {
+  MessageAttributePostfixes,
+  SemanticAttributePrefixes,
+} from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 
 import type { CardProps } from "@phoenix/components";
@@ -28,7 +31,10 @@ import {
 } from "@phoenix/utils/jsonUtils";
 
 import { defaultCardProps } from "./constants";
-import { MessageContentsList } from "./MessageContentsList";
+import {
+  getReasoningDisclosureIds,
+  MessageContentsList,
+} from "./MessageContentsList";
 import { formatJSONForCopy, getMessagePreview, getToolCalls } from "./utils";
 
 /**
@@ -51,6 +57,21 @@ export function LLMMessage({
   });
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
+  // Some instrumentations (OpenAI Responses) record the answer both as the
+  // flat content and as a text part of the contents list. The list renders
+  // first, so only render the flat content when it says something the list
+  // does not.
+  const standaloneContent =
+    Array.isArray(messagesContents) &&
+    messagesContents.some(
+      (content) =>
+        content?.[SemanticAttributePrefixes.message_content]?.text ===
+        messageContent
+    )
+      ? undefined
+      : messageContent;
+  const hasStandaloneContent =
+    Boolean(standaloneContent) && normalizedContent.trim().length > 0;
   const toolCalls = getToolCalls(message);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
@@ -89,28 +110,26 @@ export function LLMMessage({
           </Flex>
         }
       >
-        <ErrorBoundary>
-          {messagesContents ? (
-            <MessageContentsList messageContents={messagesContents} />
-          ) : null}
-        </ErrorBoundary>
         <Flex direction="column" alignItems="start">
+          {/* one group holds every row of the card -- reasoning, contents,
+              content, tool calls -- so it alone rules them off from each
+              other, and every row starts open */}
           <DisclosureGroup
             css={css`
               width: 100%;
-              // the copy buttons in these rows stay visible rather than
-              // appearing on hover: an action a reader has to find by pointing
-              // at it is one touch users cannot reach at all
-              .disclosure__trigger {
-                width: 100%;
-              }
             `}
             defaultExpandedKeys={[
+              ...getReasoningDisclosureIds(messagesContents),
               "tool-content",
               ...toolCallDisclosureIds,
               "function-call",
             ]}
           >
+            <ErrorBoundary>
+              {messagesContents ? (
+                <MessageContentsList messageContents={messagesContents} />
+              ) : null}
+            </ErrorBoundary>
             {/* when the message is a tool result, show the tool result in a disclosure */}
             {role.toLowerCase() === "tool" ? (
               <Disclosure id="tool-content">
@@ -136,7 +155,7 @@ export function LLMMessage({
                 </DisclosurePanel>
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
-            messageContent ? (
+            hasStandaloneContent ? (
               <View width="100%">
                 <ConnectedMarkdownBlock>
                   {normalizedContent}
@@ -158,7 +177,7 @@ export function LLMMessage({
                         idx === 0
                           ? css`
                               border-top: 1px solid
-                                var(--global-border-color-default);
+                                var(--global-disclosure-border-color);
                             `
                           : null
                       }

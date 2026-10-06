@@ -1,7 +1,9 @@
 import {
+  DecisionAttributePostfixes,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MessageAttributePostfixes,
+  MessageContentsAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
@@ -13,11 +15,16 @@ import type {
   AttributeEmbeddingEmbedding,
   AttributeLLMToolDefinition,
   AttributeMessage,
+  AttributeMessageContent,
   AttributePromptTemplate,
   AttributeToolCall,
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
-import { isStringArray } from "@phoenix/typeUtils";
+import {
+  isObject,
+  isStringArray,
+  isStringKeyedObject,
+} from "@phoenix/typeUtils";
 import {
   toContentPreview,
   toRecordPreview,
@@ -95,11 +102,54 @@ export function getToolCalls(message: AttributeMessage): AttributeToolCall[] {
 }
 
 /**
+ * Whether a content part is the reasoning (thinking) a model produced rather
+ * than part of its answer. Duck-typed on the part's `type`, since the part is
+ * whatever the instrumentation emitted.
+ */
+export function isReasoningMessageContent(
+  content: unknown
+): content is AttributeMessageContent {
+  if (!isObject(content)) {
+    return false;
+  }
+  const messageContent = (content as Partial<AttributeMessageContent>)[
+    SemanticAttributePrefixes.message_content
+  ];
+  return (
+    isObject(messageContent) &&
+    messageContent[MessageContentsAttributePostfixes.type] === "reasoning"
+  );
+}
+
+/**
+ * The text of the message's content parts of one kind, joined for a preview.
+ * The message is duck-typed, so `contents` is whatever the instrumentation
+ * emitted. This runs in the card's own render, above the error boundary that
+ * guards the rendered contents, so it has to survive any shape.
+ */
+function getContentsText(
+  contents: unknown,
+  { reasoning }: { reasoning: boolean }
+): string {
+  return (Array.isArray(contents) ? contents : [])
+    .filter((content) => isReasoningMessageContent(content) === reasoning)
+    .map(
+      (content) => content?.[SemanticAttributePrefixes.message_content]?.text
+    )
+    .filter((text) => typeof text === "string" && text !== "")
+    .join(" ");
+}
+
+/**
  * A one-line excerpt of a message, shown in the header of its card while that
  * card is collapsed. Follows the order the card renders in, so the preview is
  * of what the reader would see first on expanding it, and falls through to the
  * message's calls when it has no content of its own — an assistant turn that
  * only calls tools would otherwise preview as nothing at all.
+ *
+ * Reasoning parts come last: they render above the answer, but the answer is
+ * what tells two turns apart, and a summary of the model's thinking would
+ * otherwise crowd it out of the header.
  */
 export function getMessagePreview(
   message: AttributeMessage
@@ -111,15 +161,7 @@ export function getMessagePreview(
   const functionCallArguments =
     message[MessageAttributePostfixes.function_call_arguments_json];
 
-  // The message is duck-typed, so `contents` is whatever the instrumentation
-  // emitted. This runs in the card's own render, above the error boundary that
-  // guards the rendered contents, so it has to survive any shape.
-  const contentsText = (Array.isArray(contents) ? contents : [])
-    .map(
-      (content) => content?.[SemanticAttributePrefixes.message_content]?.text
-    )
-    .filter((text) => typeof text === "string" && text !== "")
-    .join(" ");
+  const contentsText = getContentsText(contents, { reasoning: false });
 
   // The card renders the deprecated function call only when it has both a name
   // and its arguments, so previewing on the name alone would advertise a card
@@ -138,8 +180,26 @@ export function getMessagePreview(
         arguments: toolCall.function?.arguments,
       }))
     ) ??
-    toToolCallsPreview(functionCall)
+    toToolCallsPreview(functionCall) ??
+    toContentPreview(getContentsText(contents, { reasoning: true }))
   );
+}
+
+/**
+ * A one-line excerpt of a reasoning summary for its row while the row is
+ * collapsed. Providers head each step of the summary with a bold or `#` title
+ * ("**Weighing the options**"), and the title says what the step was about
+ * better than the prose under it does — but the markers that make it a title
+ * are noise on a line that renders as plain text, so they are dropped along
+ * with inline code ticks.
+ */
+export function getReasoningPreview(text: string): string | undefined {
+  const withoutMarkers = text
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/(\*\*|__)(?=\S)([^*_]+?)(?<=\S)\1/g, "$2")
+    .replace(/(?<![*_\w])([*_])(?=\S)([^*_]+?)(?<=\S)\1(?![*_\w])/g, "$2")
+    .replace(/`([^`]+)`/g, "$1");
+  return toContentPreview(withoutMarkers);
 }
 
 /**
@@ -326,6 +386,51 @@ function asToolAttributeString(value: unknown): string | undefined {
     return undefined;
   }
   return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/**
+ * The attributes of a decision span extracted into the shapes the decision
+ * span components render.
+ */
+export type DecisionSpanAttributes = {
+  modelName: string | null;
+  provider: string | null;
+};
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * Extract the decision model attributes from the parsed span attributes of a
+ * decision span. The model name prefers `decision.model_name`, then the model
+ * the provider reports in the response, then the one the caller requested.
+ */
+export function getDecisionAttributes(
+  spanAttributes: AttributeObject
+): DecisionSpanAttributes {
+  const decisionAttributes = spanAttributes[SemanticAttributePrefixes.decision];
+  if (!isStringKeyedObject(decisionAttributes)) {
+    return { modelName: null, provider: null };
+  }
+  const request = decisionAttributes[DecisionAttributePostfixes.request];
+  const response = decisionAttributes[DecisionAttributePostfixes.response];
+  const modelName =
+    asNonEmptyString(
+      decisionAttributes[DecisionAttributePostfixes.model_name]
+    ) ??
+    (isStringKeyedObject(response)
+      ? asNonEmptyString(response[DecisionAttributePostfixes.model_name])
+      : null) ??
+    (isStringKeyedObject(request)
+      ? asNonEmptyString(request[DecisionAttributePostfixes.model_name])
+      : null);
+  return {
+    modelName,
+    provider: asNonEmptyString(
+      decisionAttributes[DecisionAttributePostfixes.provider]
+    ),
+  };
 }
 
 /**

@@ -101,11 +101,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks</loc>
-    <lastmod>2025-12-06T04:05:56.129Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent</loc>
     <lastmod>2025-12-12T01:23:01.845Z</lastmod>
   </url>
@@ -118,16 +113,6 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook</loc>
     
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/relevance-classification-evaluation</loc>
-    <lastmod>2025-12-06T04:05:56.131Z</lastmod>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent</loc>
-    <lastmod>2025-12-06T04:05:56.134Z</lastmod>
   </url>
 
   <url>

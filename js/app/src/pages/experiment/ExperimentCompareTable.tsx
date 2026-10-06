@@ -50,9 +50,14 @@ import {
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { CellTop, PaddedCell } from "@phoenix/components/table";
+import {
+  CellTop,
+  PaddedCell,
+  TableViewSettingsButton,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
@@ -65,6 +70,10 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import {
+  ExperimentCompareChartSelector,
+  useExperimentCompareChartsViewSetting,
+} from "./ExperimentCompareMetricsCharts";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
@@ -72,8 +81,10 @@ import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditio
 type ExampleCompareTableProps = {
   queryRef: PreloadedQuery<ExperimentCompareTableQueryType>;
   datasetId: string;
-  baseExperimentId: string;
-  compareExperimentIds: string[];
+  /**
+   * The compared experiments, base experiment first
+   */
+  experimentSelection: ComparedExperimentSelection;
 };
 
 type Experiment = NonNullable<
@@ -125,7 +136,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-  const { datasetId, baseExperimentId, compareExperimentIds } = props;
+  const { datasetId, experimentSelection } = props;
+  const { baseExperimentId, compareExperimentIds } = experimentSelection;
+  const chartsViewSetting = useExperimentCompareChartsViewSetting(datasetId);
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -165,6 +178,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               comparison: node {
                 example {
                   id
+                  externalId
                   revision {
                     input
                     referenceOutput: output
@@ -254,6 +268,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   node {
                     name
                     outputConfigs {
+                      __typename
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection
@@ -356,6 +371,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         cell: ({ row }) => (
           <ExperimentInputCell
             exampleId={row.original.example.id}
+            externalId={row.original.example.externalId}
             value={row.original.input}
             height={cellContentHeight}
             onExpand={() => {
@@ -578,7 +594,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   ]);
 
   return (
-    <View overflow="auto">
+    <View overflow="auto" height="100%">
       <Flex direction="column" height="100%">
         <View
           paddingTop="size-100"
@@ -589,9 +605,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           borderBottomWidth="thin"
           flex="none"
         >
-          <ExperimentRunFilterConditionField
-            onValidCondition={({ condition }) => setFilterCondition(condition)}
-          />
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <View flex="1 1 auto">
+              <ExperimentRunFilterConditionField
+                onValidCondition={({ condition }) =>
+                  setFilterCondition(condition)
+                }
+              />
+            </View>
+            <ExperimentCompareChartSelector
+              datasetId={datasetId}
+              experimentSelection={experimentSelection}
+            />
+            <TableViewSettingsButton settings={[chartsViewSetting]} />
+          </Flex>
         </View>
         <div
           css={tableWrapCSS}
@@ -707,7 +734,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 datasetId={datasetId}
                 datasetVersionId={baseExperiment.datasetVersion.id}
                 selectedExampleIndex={selectedExampleIndex}
-                selectedExampleId={exampleIds[selectedExampleIndex]}
+                selectedExampleId={tableData[selectedExampleIndex].example.id}
+                selectedExampleExternalId={
+                  tableData[selectedExampleIndex].example.externalId
+                }
                 baseExperimentId={baseExperimentId}
                 compareExperimentIds={compareExperimentIds}
                 exampleIds={exampleIds}

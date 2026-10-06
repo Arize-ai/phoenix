@@ -36,7 +36,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Pressable } from "react-aria";
 
 import {
   Flex,
@@ -44,11 +43,15 @@ import {
   IconButton,
   Icons,
   Text,
-  Tooltip,
   TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
+import {
+  ValidationBadge,
+  ValidationTooltip,
+} from "@phoenix/components/core/alert";
+import type { SeverityLevel } from "@phoenix/components/core/types";
 import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -415,12 +418,11 @@ export type DSLFilterConditionFieldProps<
 };
 
 /**
- * A status badge in the field's control cluster whose tooltip carries the
- * full story — one shell shared by the validation error, validator-supplied
- * warnings, and composed error states (e.g. an AI conversion failure) so
- * they read identically. `children` is the tooltip's detail below the
- * title. `severity` defaults to danger; warnings render the same shell in
- * the warning palette.
+ * The field's validation badge and its tooltip, composed so the tooltip is
+ * styled to match the typeahead menu and the field's floating surfaces all
+ * read as one family. One shell shared by the validation error,
+ * validator-supplied warnings, and composed error states (e.g. an AI
+ * conversion failure). `children` is the tooltip's detail below the title.
  */
 export function DSLFilterErrorBadge({
   ariaLabel,
@@ -432,34 +434,22 @@ export function DSLFilterErrorBadge({
   ariaLabel: string;
   badgeMessage: string;
   title: string;
-  severity?: "danger" | "warning";
+  severity?: SeverityLevel;
   children?: ReactNode;
 }) {
   return (
     <TooltipTrigger delay={0}>
-      <Pressable>
-        <div
-          role="button"
-          tabIndex={0}
-          className="error-badge"
-          data-severity={severity}
-          aria-label={ariaLabel}
-        >
-          <Icon svg={<Icons.AlertCircle />} color={severity} />
-          <span className="error-badge__message">{badgeMessage}</span>
-        </div>
-      </Pressable>
-      <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
-        <Flex direction="row" gap="size-100" alignItems="start">
-          <Icon svg={<Icons.AlertCircle />} color={severity} />
-          <Flex direction="column" gap="size-25">
-            <Text size="S" weight="heavy">
-              {title}
-            </Text>
-            {children}
-          </Flex>
-        </Flex>
-      </Tooltip>
+      <ValidationBadge aria-label={ariaLabel} variant={severity}>
+        {badgeMessage}
+      </ValidationBadge>
+      <ValidationTooltip
+        title={title}
+        variant={severity}
+        placement="bottom end"
+        css={dslFilterErrorTooltipCSS}
+      >
+        {children}
+      </ValidationTooltip>
     </TooltipTrigger>
   );
 }

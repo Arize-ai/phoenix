@@ -31,12 +31,17 @@
 
 #define PYSQLITE_TOO_MUCH_SQL (-100)
 #define PYSQLITE_SQL_WRONG_TYPE (-101)
+#define PYSQLITE_NESTED_PREPARE (-102)
 
 typedef struct
 {
     PyObject_HEAD
     sqlite3* db;
     sqlite3_stmt* st;
+    /* Borrowed. Statements die with the cursor/cache before the connection
+       object is freed, except the close_v2 zombie path where db is already
+       NULL and close() is a no-op. */
+    pysqlite_Connection* connection;
     PyObject* sql;
     int in_use;
     int is_dml;

@@ -7,6 +7,17 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { ChatTokenUsage, ChatTokenUsageDetails } from "../ChatTokenUsage";
 
+/**
+ * The share of the bar a segment takes, read from the `calc()` its width is
+ * set to: the bar less its gaps, times the share.
+ */
+function getSegmentFraction(segment: HTMLElement) {
+  const match = segment.style.width.match(
+    /(\d*\.?\d+)\s*\*|\*\s*(\d*\.?\d+)\)?$/
+  );
+  return Number(match?.[1] ?? match?.[2]);
+}
+
 describe("ChatTokenUsage", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -94,16 +105,16 @@ describe("ChatTokenUsage", () => {
     });
 
     const chart = container.querySelector<HTMLElement>(
-      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+      '[aria-label="Token usage breakdown"] .segment-chart__bar'
     );
     const chartSegments = Array.from(chart?.children ?? []);
     const promptSegment = chartSegments[0] as HTMLElement;
     const completionSegment = chartSegments[1] as HTMLElement;
 
     expect(chartSegments).toHaveLength(2);
-    expect(promptSegment.style.minWidth).toBe("1%");
-    expect(completionSegment.style.width).toBe(`${(1 / 16_567) * 100}%`);
-    expect(completionSegment.style.minWidth).toBe("1%");
+    // The sliver is widened to the minimum, and the prompt gives up the same
+    expect(getSegmentFraction(completionSegment)).toBeCloseTo(0.01);
+    expect(getSegmentFraction(promptSegment)).toBeCloseTo(0.99);
   });
 
   it("does not render a slice or gap for a zero-value segment", () => {
@@ -120,13 +131,13 @@ describe("ChatTokenUsage", () => {
     });
 
     const chart = container.querySelector<HTMLElement>(
-      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+      '[aria-label="Token usage breakdown"] .segment-chart__bar'
     );
     const chartSegments = Array.from(chart?.children ?? []);
     const promptSegment = chartSegments[0] as HTMLElement;
 
     expect(chartSegments).toHaveLength(1);
-    expect(promptSegment.style.width).toBe("100%");
+    expect(getSegmentFraction(promptSegment)).toBe(1);
   });
 
   it("toggles the breakdown from the keyboard", async () => {
@@ -182,7 +193,7 @@ describe("ChatTokenUsage", () => {
     await vi.waitFor(() => {
       const tooltip = document.querySelector('[role="tooltip"]');
       expect(tooltip?.textContent).toContain("Prompt details");
-      expect(tooltip?.textContent).toContain("8.0K Uncached");
+      expect(tooltip?.textContent).toContain("8.0K Input");
       expect(tooltip?.textContent).toContain("21K Cache read");
       expect(tooltip?.textContent).toContain("3.0K Cache write");
     });
@@ -190,7 +201,7 @@ describe("ChatTokenUsage", () => {
     expect(container.textContent).toContain("1.2K Completion");
 
     const chart = container.querySelector<HTMLElement>(
-      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+      '[aria-label="Token usage breakdown"] .segment-chart__bar'
     );
     expect(chart?.children).toHaveLength(2);
 
@@ -228,7 +239,7 @@ describe("ChatTokenUsage", () => {
     await vi.waitFor(() => {
       const tooltip = document.querySelector('[role="tooltip"]');
       expect(tooltip?.textContent).toContain("32K Cache read");
-      expect(tooltip?.textContent).not.toContain("Uncached");
+      expect(tooltip?.textContent).not.toContain("Input");
     });
 
     await act(async () => promptTrigger!.blur());

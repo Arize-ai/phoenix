@@ -591,6 +591,7 @@ class TestPrompts:
         )
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider.value
+        assert data.pop("metadata") == prompt_version.metadata_
         if prompt_version.response_format:
             assert not DeepDiff(
                 data.pop("response_format"),
@@ -619,6 +620,7 @@ class TestPrompts:
         assert created.invocation_parameters == source.invocation_parameters
         assert created.tools == source.tools
         assert created.response_format == source.response_format
+        assert created.metadata_ == source.metadata_
 
     @staticmethod
     def _prompt_version_request_body(
@@ -635,6 +637,7 @@ class TestPrompts:
             invocation_parameters=prompt_version.invocation_parameters,
             tools=prompt_version.tools,
             response_format=prompt_version.response_format,
+            metadata=prompt_version.metadata_,
         )
         data.update(overrides)
         return PromptVersionData(**data).model_dump(
@@ -674,7 +677,7 @@ class TestPrompts:
             prompt = models.Prompt(name=prompt_name)
             session.add(prompt)
             await session.flush()
-            for _ in range(n):
+            for version_index in range(n):
                 template = PromptChatTemplate(
                     type="chat",
                     messages=[
@@ -721,6 +724,10 @@ class TestPrompts:
                         ),
                         model_provider=ModelProvider.OPENAI,
                         model_name=token_hex(16),
+                        metadata_={
+                            "agent": "support",
+                            "version": version_index,
+                        },
                         tools=PromptTools(
                             type="tools",
                             tools=[

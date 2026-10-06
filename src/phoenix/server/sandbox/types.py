@@ -227,6 +227,17 @@ class DaytonaConfig(
     language: Literal["PYTHON", "TYPESCRIPT"]
 
 
+class DockerConfig(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+    _RuntimePackageInstallation,
+):
+    backend_type: Literal["DOCKER"] = "DOCKER"
+    language: Literal["PYTHON", "TYPESCRIPT"]
+
+
 class DenoConfig(_Config):
     # Does NOT compose SupportsEnvVars: no user env vars ever reach the subprocess.
     backend_type: Literal["DENO"] = "DENO"
@@ -287,6 +298,7 @@ SandboxConfigModel: TypeAlias = Annotated[
         WASMConfig,
         MontyConfig,
         ModalConfig,
+        DockerConfig,
         TenkiConfig,
     ],
     Field(discriminator="backend_type"),
@@ -421,6 +433,12 @@ class ModalDeployment(NoDeployment):
     backend_type: Literal["MODAL"] = "MODAL"
 
 
+class DockerDeployment(NoDeployment):
+    """Docker Sandboxes is served from one hosted API; no deployment routing applies."""
+
+    backend_type: Literal["DOCKER"] = "DOCKER"
+
+
 class WASMDeployment(NoDeployment):
     """WASM runs in-process; no deployment routing applies."""
 
@@ -449,6 +467,7 @@ SandboxDeploymentModel: TypeAlias = Annotated[
         WASMDeployment,
         DenoDeployment,
         MontyDeployment,
+        DockerDeployment,
     ],
     Field(discriminator="backend_type"),
 ]
@@ -509,6 +528,20 @@ class ModalCredentials(_BaseModel):
     MODAL_TOKEN_SECRET: SecretStr = Field(
         title="Modal Token Secret",
         description="Modal authentication token secret.",
+    )
+
+
+class DockerCredentials(_BaseModel):
+    DOCKER_ID: SecretStr = Field(
+        title="Docker ID",
+        description="Docker ID of the account with the Docker Agentic Platform subscription.",
+    )
+    DOCKER_PAT: SecretStr = Field(
+        title="Docker Personal Access Token",
+        description=(
+            "Personal access token with the sandbox:use permission. "
+            "See https://docs.docker.com/ai/sandboxes-api/authentication/"
+        ),
     )
 
 

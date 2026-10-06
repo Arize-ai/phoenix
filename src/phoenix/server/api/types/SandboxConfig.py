@@ -67,6 +67,7 @@ class SandboxBackendType(Enum):
     DENO = "DENO"
     MODAL = "MODAL"
     MONTY = "MONTY"
+    DOCKER = "DOCKER"
     TENKI = "TENKI"
 
 

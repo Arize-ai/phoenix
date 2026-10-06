@@ -7,7 +7,8 @@ SHELL := /bin/bash
 # Tools
 TOX := tox
 PNPM := pnpm
-UV := uv
+UV := $(CURDIR)/scripts/uv.sh
+UV_BIN := uv
 NODE := node
 
 # Directories
@@ -32,14 +33,14 @@ NC := \033[0m # No Color
 .PHONY: help check-tools \
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
-	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app \
+	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets gen-otel-models \
+	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
+	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -57,6 +58,8 @@ help: ## Show this help message
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
+	@echo -e "  codegen-harbor-graphql - Compile the Harbor verifiers' GraphQL queries into typed Python models"
+	@echo -e "  mcp-skills             - Compile the MCP server's shared skills from .agents/skills"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -97,6 +100,8 @@ help: ## Show this help message
 	@echo -e "  lint-ts                - Lint all TypeScript (js/ workspace)"
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
+	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
+	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -106,11 +111,9 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
-	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
-	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -132,7 +135,7 @@ help: ## Show this help message
 
 check-tools: ## Verify required tools are installed
 	@echo -e "$(CYAN)Checking required tools...$(NC)"
-	@command -v $(UV) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
+	@command -v $(UV_BIN) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) uv found: $$($(UV) --version)"
 	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) pnpm found: $$($(PNPM) --version)"
@@ -148,7 +151,7 @@ check-tools: ## Verify required tools are installed
 
 install-python: ## Install Python dependencies
 	@echo -e "$(CYAN)Installing Python dependencies...$(NC)"
-	@$(UV) sync --python 3.10
+	@$(UV) sync --python 3.11
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 install-node: ## Install Node.js dependencies
@@ -174,6 +177,17 @@ setup-remote-export: ## Configure PXI remote trace export
 # Schema Generation
 #=============================================================================
 
+mcp-skills: ## Compile the MCP server's shared skills from .agents/skills
+	@echo -e "$(CYAN)Compiling MCP skills from src/phoenix/server/mcp/skills-lock.json...$(NC)"
+	@# The skills CLI can only install into <cwd>/.agents/skills, so alias that to skills/ for the compile.
+	@cd src/phoenix/server/mcp \
+		&& mkdir -p .agents && ln -sfn ../skills .agents/skills \
+		&& trap 'rm -rf .agents' EXIT \
+		&& for source in $$(python3 -c 'import json; print(" ".join(e["source"] for e in json.load(open("skills-lock.json"))["skills"].values()))'); do \
+			npx --yes skills add "$$source" --project --agent universal --yes || exit 1; \
+		done
+	@echo -e "$(GREEN)✓ src/phoenix/server/mcp/skills$(NC)"
+
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
 	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o $(APP_DIR)/schema.graphql
@@ -192,6 +206,12 @@ schema-openapi: ## Generate OpenAPI schema from Python
 	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
+codegen-harbor-graphql: ## Compile evals/harbor/verifiers/harbor_verifiers/graphql/operations/*.graphql into evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
+	@echo -e "$(CYAN)Compiling Harbor GraphQL queries against js/app/schema.graphql...$(NC)"
+	@rm -rf $(CURDIR)/evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
+	@$(UV) run ariadne-codegen
+	@echo -e "$(GREEN)✓ evals/harbor/verifiers/harbor_verifiers/graphql/__generated__$(NC)"
+
 codegen-python-client: ## Generate Python client types from OpenAPI
 	@echo -e "$(CYAN)Generating Python client types...$(NC)"
 	@rm -f $(PHOENIX_CLIENT_GENERATED)/v1/__init__.py
@@ -202,7 +222,7 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 		--output-model-type dataclasses.dataclass \
 		--collapse-root-models \
 		--enum-field-as-literal all \
-		--target-python-version 3.10 \
+		--target-python-version 3.11 \
 		--use-default-kwarg \
 		--use-double-quotes \
 		--use-generic-container-types \
@@ -438,6 +458,16 @@ check-filter-dsl-snippets: ## Ensure UI filter DSL snippets and examples compile
 	@$(UV) run python $(CURDIR)/scripts/ci/check_filter_dsl_snippets.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
+check-skill-graphql-examples: ## Ensure fenced GraphQL examples in shipped skills validate against js/app/schema.graphql
+	@echo -e "$(CYAN)Checking skill GraphQL examples against js/app/schema.graphql...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_graphql_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-filter-examples: ## Ensure span/trace/session filter conditions in shipped skills compile under the Python filters
+	@echo -e "$(CYAN)Checking skill filter conditions against the Python filters...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_filter_dsl_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
 	@echo -e "$(CYAN)Generating OTel GenAI semconv Pydantic models...$(NC)"
 	@$(UV) run --script scripts/generate_otel_gen_ai_models.py
@@ -476,61 +506,51 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # Harbor Evals
 #=============================================================================
 
-HARBOR_TASK ?= evals/harbor/tasks/regression-triage
-HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
-# Environment backend for trials (harbor run -e): docker, daytona, etc.
-# Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
-HARBOR_ENV ?= docker
+# HARBOR_JOB selects the benchmark configuration. HARBOR_ARGS passes options to
+# `harbor run`. The `-a` option preserves the tasks and environment but replaces the
+# configured agents.
+HARBOR_JOB ?= evals/harbor/jobs/regression.yaml
+HARBOR_ARGS ?=
+# harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
+# HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
+HARBOR_CLI ?= 1
+# The arize-phoenix plugin records tasks, trials, scores, and traces under a dataset
+# named after the job's task directory. HARBOR_DATASET overrides the name. Set
+# HARBOR_PLUGIN to an empty value to disable recording.
+HARBOR_DATASET ?=
+HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
+# This client package provides the arize-phoenix Harbor plugin.
+HARBOR_CLIENT_VERSION ?= 3.5.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
-# harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
-# repo's .python-version (3.10).
+# Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.11.
 HARBOR_PYTHON ?= 3.13
-HARBOR_ATTEMPTS ?= 1
-# Retry trials that die on transient infrastructure errors (e.g. a cloud
-# sandbox failing to start); reward-scored failures are not retried.
-HARBOR_RETRIES ?= 1
-# Daytona sandboxes orphaned by a killed run (e.g. a canceled CI job) would
-# otherwise occupy org quota forever and starve later runs into
-# EnvironmentStartTimeoutError; have Daytona stop and delete them itself.
-ifeq ($(HARBOR_ENV),daytona)
-HARBOR_ENV_KWARGS := --ek auto_stop_interval_mins=30 --ek auto_delete_interval_mins=30
-endif
 UVX := uvx
-HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
+HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
+	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
-# The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
+# Require the px archive only when HARBOR_ARGS does not replace the configured agents.
 define check-harbor-staged
-	@test -f $(HARBOR_TASK)/environment/run_headless_agent.py || \
-		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
+	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
 endef
 
-harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
+harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
-	./evals/harbor/scripts/stage_harbor_task_environments.sh
+	./evals/harbor/scripts/stage_harbor_environments.sh
+	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
+	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
-
-harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud storage
-	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
-	./evals/harbor/scripts/publish_fixtures.sh
 
 harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
 		HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
 		uv run python tests/integration/harbor/run_plugin_e2e.py
 
-harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
+harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)
 	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
-	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
-
-harbor-run: ## Run the real headless-agent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
-	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor headless-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
-	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
-		-a evals.harbor.agents.phoenix_headless_agent:PhoenixHeadlessAgent \
-		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
+	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
+	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs

@@ -78,11 +78,32 @@ type AskUserListEntry = {
  */
 export function getAskUserToolPreview(part: ToolInvocationPart): string {
   const input = parseElicitToolInput(part.input);
-  if (!input) {
+  const questionCount =
+    input?.questions.length ??
+    (part.state === "input-streaming"
+      ? getStreamingQuestionCount(part.input)
+      : null);
+  if (questionCount === null) {
     return part.state === "output-error" ? "" : "Question pending";
   }
-  const count = input.questions.length;
-  return `${count} question${count === 1 ? "" : "s"}`;
+  return `${questionCount} question${questionCount === 1 ? "" : "s"}`;
+}
+
+/**
+ * Returns the number of questions visible in a partial tool input.
+ *
+ * A streaming question is temporarily invalid until all of its required
+ * fields arrive. Counting the array without parsing its entries keeps the
+ * collapsed preview stable while later questions stream in.
+ */
+function getStreamingQuestionCount(input: unknown): number | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+  const { questions } = input as { questions?: unknown };
+  return Array.isArray(questions) && questions.length > 0
+    ? questions.length
+    : null;
 }
 
 /**

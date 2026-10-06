@@ -60,6 +60,7 @@ import {
   IntCell,
   LoadMoreRow,
   RowExpandToggleButton,
+  TableViewSettingsButton,
   useColumnOrder,
   useTableRowsExpanded,
 } from "@phoenix/components/table";
@@ -99,6 +100,7 @@ import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
+import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
 import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
 
 const PAGE_SIZE = 100;
@@ -192,6 +194,7 @@ export function ExperimentsTable({
     setIsExpanded: setAreRowsExpanded,
     tableProps: rowsExpandedTableProps,
   } = useTableRowsExpanded();
+  const chartsViewSetting = useExperimentsMetricChartsViewSetting();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -610,6 +613,9 @@ export function ExperimentsTable({
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
                 size="S"
+                canEditExperiment
+                experimentName={row.original.name}
+                experimentDescription={row.original.description ?? null}
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
                   refetch({}, { fetchPolicy: "network-only" });
@@ -748,6 +754,7 @@ export function ExperimentsTable({
             isExpanded={areRowsExpanded}
             onChange={setAreRowsExpanded}
           />
+          <TableViewSettingsButton settings={[chartsViewSetting]} />
         </Flex>
       </View>
       <div

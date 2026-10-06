@@ -17,6 +17,6 @@
     These endpoints read the same data as the workspace tools, but they cannot change what the user is looking at. When a tool that updates the UI would answer the request, prefer it; reach here to read, to cover ground it does not, or when no such tool exists.
   </precedence>
   <constraints>
-    This surface is read-only, so `call_tool` reaches no endpoint that writes. To create or modify anything, use the workspace tools, which route the change through the user's approval.
+    This surface is read-only except for the following POST routes for notes: `createSpanNote`, `createTraceNote`, and `createSessionNote`. To create or modify anything else, use the workspace tools, which route the change through the user's approval.
   </constraints>
 </tool_group>

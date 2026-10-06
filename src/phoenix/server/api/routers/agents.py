@@ -201,7 +201,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, Skill, load_skills
+from phoenix.server.mcp.skills import Skill
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -997,9 +997,8 @@ def _build_message_metadata_chunk(
     *,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RequestUsage,
+    usage: RequestUsage | None = None,
 ) -> MessageMetadataChunk:
-    """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     return MessageMetadataChunk(
         message_metadata=MessageMetadata(
             phoenix=_build_phoenix_assistant_message_metadata(
@@ -1064,6 +1063,14 @@ def _get_last_user_text(messages: Iterable[UIMessage]) -> str | None:
                 return text or None
         return None
     return None
+
+
+def _get_assistant_text(message: UIMessage) -> str | None:
+    if message.role != "assistant":
+        return None
+    return (
+        "".join(part.text for part in message.parts if isinstance(part, TextUIPart)).strip() or None
+    )
 
 
 def _build_exception_event(*, message: str, timestamp: datetime) -> Event:
@@ -1318,14 +1325,7 @@ def _close_superseded_turn_trace(
         session_id=session_id,
     )
     trailing_message = messages[-1] if messages else None
-    output_text: str | None = None
-    if trailing_message is not None and trailing_message.role == "assistant":
-        output_text = (
-            "".join(
-                part.text for part in trailing_message.parts if isinstance(part, TextUIPart)
-            ).strip()
-            or None
-        )
+    output_text = _get_assistant_text(trailing_message) if trailing_message is not None else None
     _emit_turn_root_span(
         tracer=tracer,
         turn_ids=turn_ids,
@@ -1658,7 +1658,7 @@ async def _upsert_project_sessions(
     if not project_sessions_by_session_id:
         return {}
 
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     records = [
         {
             "session_id": project_session.session_id,
@@ -2246,7 +2246,7 @@ async def _refresh_and_load_agent_session(
     if await session.scalar(statement) is None:
         raise HTTPException(status_code=404, detail="Session not found")
     # Bumping updated_at slides an ephemeral session's TTL window.
-    refreshed_agent_session = await session.scalar(
+    refreshed_agent_session: models.AgentSession | None = await session.scalar(
         update(models.AgentSession)
         .where(models.AgentSession.id == agent_session_rowid)
         .values(updated_at=func.now())
@@ -2506,7 +2506,7 @@ async def _upsert_agent_session_snapshot(
                 "bashkit_snapshot": bashkit_snapshot,
             },
             table=models.AgentSessionSnapshot,
-            dialect=SupportedSQLDialect(session.bind.dialect.name),
+            dialect=SupportedSQLDialect(session.get_bind().dialect.name),
             unique_by=("agent_session_id",),
             on_conflict=OnConflict.DO_UPDATE,
             set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
@@ -3324,8 +3324,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 name="PXIAgent",
                 headless=body.headless,
                 model=model,
-                db=request.app.state.db,
-                event_queue=request.state.event_queue,
                 prompts=agent_prompts,
                 principal=phoenix_user,
                 schema=request.app.state.graphql_schema if bash_enabled else None,
@@ -3360,7 +3358,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     model_transcript_messages
                 )
                 if body.requested_skills:
-                    available_skills = load_skills(PXI_SKILLS_ROOTS)
+                    available_skills = request.app.state.agent_skills
                     forced_skills = resolve_requested_skills(
                         messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,
@@ -3436,6 +3434,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
             turn_final_output_text: str | None = None
             turn_is_terminal = False
+            turn_error_text: str | None = None
 
             async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
                 nonlocal turn_final_output_text, turn_is_terminal
@@ -3616,6 +3615,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         assert _is_async_generator(raw_stream)
 
                         async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                            nonlocal turn_error_text
+                            # A client that stops the turn never receives the completion
+                            # metadata, so the trace context is sent up front.
+                            turn_trace_context_streamed = resolved_turn_trace_context is None
                             # Forced skills are streamed as their own `load_skill` steps so
                             # the browser transcript matches what the model received. They
                             # are emitted once, right after the stream's opening `start`
@@ -3623,6 +3626,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             forced_skills_streamed = not forced_skills
                             async with aclosing(raw_stream) as stream:
                                 async for agent_message_chunk in stream:
+                                    if isinstance(agent_message_chunk, ErrorChunk):
+                                        turn_error_text = (
+                                            agent_message_chunk.error_text.strip()
+                                            or "Agent run failed"
+                                        )
                                     if isinstance(agent_message_chunk, ToolInputAvailableChunk):
                                         chunk = agent_message_chunk
                                         chunk.provider_metadata = _get_updated_provider_metadata(
@@ -3631,6 +3639,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                             emitted_at=datetime.now(timezone.utc),
                                         )
                                     yield agent_message_chunk
+                                    if not turn_trace_context_streamed and isinstance(
+                                        agent_message_chunk,
+                                        StartChunk,
+                                    ):
+                                        yield _build_message_metadata_chunk(
+                                            turn_trace_context=resolved_turn_trace_context,
+                                            session_id=otel_session_id,
+                                        )
+                                        turn_trace_context_streamed = True
                                     if not forced_skills_streamed and isinstance(
                                         agent_message_chunk,
                                         StartChunk,
@@ -3694,8 +3711,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     raise
                 finally:
                     heartbeat_task.cancel()
-                    # Disconnect cancellation re-fires at every await; shield so cleanup completes.
-                    with anyio.CancelScope(shield=turn_interrupted):
+                    # A disconnect can cancel any await here, including one arriving
+                    # after the last chunk was sent; shield so cleanup completes.
+                    with anyio.CancelScope(shield=True):
                         if turn_interrupted and not turn_persisted:
                             await _persist_interrupted_turn()
                         await _release_agent_session_turn_lock(
@@ -3706,18 +3724,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             if not summary_task.done():
                                 summary_task.cancel()
                         if tracer is not None:
-                            if turn_is_terminal or stream_error is not None:
+                            turn_error_message = (
+                                (str(stream_error) or type(stream_error).__name__)
+                                if stream_error is not None
+                                else turn_error_text
+                            )
+                            if turn_is_terminal or turn_error_message is not None:
+                                turn_output_text = (
+                                    turn_final_output_text
+                                    if turn_is_terminal
+                                    else _get_assistant_text(message_state.message)
+                                )
                                 _emit_turn_root_span(
                                     tracer=tracer,
                                     turn_ids=turn_ids,
                                     session_id=otel_session_id,
                                     input_text=_get_last_user_text(transcript_messages),
-                                    output_text=turn_final_output_text,
-                                    error_message=(
-                                        None
-                                        if stream_error is None
-                                        else (str(stream_error) or type(stream_error).__name__)
-                                    ),
+                                    output_text=turn_output_text,
+                                    error_message=turn_error_message,
                                     end_time=datetime.now(timezone.utc),
                                     user_email=phoenix_user_email if instrument_user_id else None,
                                 )

@@ -2924,6 +2924,100 @@
       }
     },
     "/v1/datasets/{dataset_identifier}/splits": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List dataset splits",
+        "operationId": "listDatasetSplits",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The max number of dataset splits to return at a time.",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "The max number of dataset splits to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetSplitsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      },
       "post": {
         "tags": [
           "datasets"
@@ -4755,10 +4849,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
+              "deprecated": true,
               "title": "Error"
             },
-            "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI."
+            "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
+            "deprecated": true
           },
           {
             "name": "min_latency_ms",
@@ -4774,10 +4870,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive lower bound on trace latency in milliseconds.",
+              "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+              "deprecated": true,
               "title": "Min Latency Ms"
             },
-            "description": "Inclusive lower bound on trace latency in milliseconds."
+            "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+            "deprecated": true
           },
           {
             "name": "max_latency_ms",
@@ -4793,10 +4891,30 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive upper bound on trace latency in milliseconds.",
+              "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+              "deprecated": true,
               "title": "Max Latency Ms"
             },
-            "description": "Inclusive upper bound on trace latency in milliseconds."
+            "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+            "deprecated": true
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -4819,6 +4937,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -5471,10 +5599,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Span Global ID)",
+              "description": "Pagination cursor: the next_cursor of a previous response with the same sort",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Span Global ID)"
+            "description": "Pagination cursor: the next_cursor of a previous response with the same sort"
           },
           {
             "name": "limit",
@@ -5489,6 +5617,38 @@
               "title": "Limit"
             },
             "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "id",
+                "start_time"
+              ],
+              "type": "string",
+              "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id.",
+              "default": "id",
+              "title": "Sort"
+            },
+            "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction",
+              "default": "desc",
+              "title": "Order"
+            },
+            "description": "Sort direction"
           },
           {
             "name": "start_time",
@@ -5625,10 +5785,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN",
+              "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN",
               "title": "Span Kind"
             },
-            "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+            "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN"
           },
           {
             "name": "status_code",
@@ -7631,6 +7791,24 @@
               "title": "Order"
             },
             "description": "Sort order by ID: 'asc' (ascending) or 'desc' (descending)."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -7653,6 +7831,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -8641,7 +8829,7 @@
           "chat_completions"
         ],
         "summary": "OpenAI-compatible chat completions",
-        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
         "operationId": "createChatCompletion",
         "requestBody": {
           "content": {
@@ -11621,7 +11809,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
           },
           "messages": {
             "items": {
@@ -11896,7 +12084,7 @@
             },
             "type": "array",
             "title": "Example Ids",
-            "description": "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
+            "description": "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
           }
         },
         "type": "object",
@@ -15159,6 +15347,34 @@
         ],
         "title": "ListDatasetLabelsForDatasetResponseBody"
       },
+      "ListDatasetSplitsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplit"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListDatasetSplitsResponseBody"
+      },
       "ListDatasetVersionsResponseBody": {
         "properties": {
           "data": {
@@ -15474,7 +15690,8 @@
           "MINIMAX",
           "PERPLEXITY",
           "TOGETHER",
-          "ZAI"
+          "ZAI",
+          "META"
         ],
         "title": "ModelProvider"
       },
@@ -17557,6 +17774,84 @@
         ],
         "title": "PromptMessage"
       },
+      "PromptMetaInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "meta",
+            "title": "Type"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PromptMetaInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "meta"
+        ],
+        "title": "PromptMetaInvocationParameters"
+      },
+      "PromptMetaInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptMetaInvocationParametersContent"
+      },
       "PromptMoonshotInvocationParameters": {
         "properties": {
           "type": {
@@ -18263,6 +18558,12 @@
             ],
             "title": "Description"
           },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Arbitrary JSON metadata for the prompt version."
+          },
           "model_provider": {
             "$ref": "#/components/schemas/ModelProvider"
           },
@@ -18340,6 +18641,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptZAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptMetaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18354,6 +18658,7 @@
                 "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "groq": "#/components/schemas/PromptGroqInvocationParameters",
+                "meta": "#/components/schemas/PromptMetaInvocationParameters",
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
@@ -18425,6 +18730,12 @@
             ],
             "title": "Description"
           },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Arbitrary JSON metadata for the prompt version."
+          },
           "model_provider": {
             "$ref": "#/components/schemas/ModelProvider"
           },
@@ -18502,6 +18813,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptZAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptMetaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18516,6 +18830,7 @@
                 "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "groq": "#/components/schemas/PromptGroqInvocationParameters",
+                "meta": "#/components/schemas/PromptMetaInvocationParameters",
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
@@ -21559,7 +21874,7 @@
             },
             "type": "array",
             "title": "Add Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
           },
           "remove_example_ids": {
             "items": {
@@ -21567,7 +21882,7 @@
             },
             "type": "array",
             "title": "Remove Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to remove from the split."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
           }
         },
         "type": "object",

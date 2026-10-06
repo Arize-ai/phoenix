@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  getToolIconKey,
-  SKILL_ICON_BY_NAME,
-  TOOL_ICON_BY_CATEGORY,
-} from "../toolIconConfig";
+import { getToolIconKey, TOOL_ICON_BY_CATEGORY } from "../toolIconConfig";
 
 describe("PXI tool icon configuration", () => {
   it.each([
@@ -18,48 +14,13 @@ describe("PXI tool icon configuration", () => {
     ["run_playground", "Play"],
     ["cancel_playground_run", "Play"],
     ["load_skill", "GraduationCap"],
+    ["load_skill_reference", "GraduationCap"],
     ["set_spans_filter", "ListFilter"],
     ["call_subagent", "Subagent"],
     ["read_prompt_tools", "ScanText"],
     ["render_generative_ui", "BarChart"],
   ] as const)("maps %s to %s", (toolName, iconKey) => {
     expect(getToolIconKey({ toolName })).toBe(iconKey);
-  });
-
-  it("uses the play icon when loading the playground skill", () => {
-    expect(
-      getToolIconKey({
-        toolName: "load_skill",
-        input: { skill_name: "playground" },
-      })
-    ).toBe("Play");
-  });
-
-  it.each(Object.entries(SKILL_ICON_BY_NAME))(
-    "maps the %s skill to %s",
-    (skillName, iconKey) => {
-      expect(
-        getToolIconKey({
-          toolName: "load_skill",
-          input: { skill_name: skillName },
-        })
-      ).toBe(iconKey);
-      expect(
-        getToolIconKey({
-          toolName: "load_skill_reference",
-          input: { skill_name: skillName },
-        })
-      ).toBe(iconKey);
-    }
-  );
-
-  it("uses the generic skill icon for an unknown skill", () => {
-    expect(
-      getToolIconKey({
-        toolName: "load_skill",
-        input: { skill_name: "future-skill" },
-      })
-    ).toBe("GraduationCap");
   });
 
   it("uses the wrench for unknown tools", () => {

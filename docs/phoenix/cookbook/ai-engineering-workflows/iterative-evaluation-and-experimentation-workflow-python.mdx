@@ -29,7 +29,7 @@ We will go through key code snippets on this page. To follow the full tutorial, 
 First, install the required packages:
 
 ```python
-!pip install -qqqqq arize-phoenix openai agno openinference-instrumentation-openai openinference-instrumentation-agno httpx
+!pip install -qqqqq arize-phoenix openai agno openinference-instrumentation-openai openinference-instrumentation-agno httpx2
 ```
 
 Set up your API keys:
@@ -82,14 +82,14 @@ In this section, we'll build our travel agent. Users will be able to describe th
 First, we'll define helper functions to support our agent's tools. We'll use **Tavily Search** to gather general information about destinations and **Open-Meteo** to get weather information.
 
 ```python
-import httpx
+import httpx2
 
 @tracer.chain(name="search-api")
 def _search_api(query: str) -> str | None:
     """Try Tavily search first, fall back to None."""
     api_key = os.getenv("TAVILY_API_KEY")
 
-    resp = httpx.post(
+    resp = httpx2.post(
         "https://api.tavily.com/search",
         json={
             "api_key": api_key,
@@ -109,11 +109,11 @@ def _search_api(query: str) -> str | None:
 
 @tracer.chain(name="weather-api")
 def _weather(dest):
-    g = httpx.get(f"https://geocoding-api.open-meteo.com/v1/search?name={dest}")
+    g = httpx2.get(f"https://geocoding-api.open-meteo.com/v1/search?name={dest}")
     if g.status_code != 200 or not g.json().get("results"):
         return ""
     lat, lon = g.json()["results"][0]["latitude"], g.json()["results"][0]["longitude"]
-    w = httpx.get(
+    w = httpx2.get(
         f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
     ).json()
     cw = w.get("current_weather", {})

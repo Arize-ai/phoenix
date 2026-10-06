@@ -353,7 +353,7 @@ export function useTraceAnnotationMetricNames(
       query ProjectAnnotationMetricNamesTraceQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
-            traceAnnotationsNames
+            traceAnnotationNames
           }
         }
       }
@@ -362,7 +362,7 @@ export function useTraceAnnotationMetricNames(
     useMetricQueryFetchOptions()
   );
   return getSortedAnnotationNames(
-    getNonNoteAnnotationNames(data.project.traceAnnotationsNames ?? [])
+    getNonNoteAnnotationNames(data.project.traceAnnotationNames ?? [])
   );
 }
 

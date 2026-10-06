@@ -463,7 +463,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Configuration",
                     description:
-                      "Configure project settings including display details, default tab, and data retention policy assignment.",
+                      "Configure project settings including display details, default tab, data retention policy assignment, and the annotation configs associated with this project alongside its annotations. Prefer this over the instance-wide annotation settings page when the annotation configs belong to a specific project.",
                   },
                 }}
               />
@@ -599,7 +599,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Dataset Examples",
                     description:
-                      "Browse dataset examples, rows, and example records.",
+                      "Browse and edit dataset examples, add or delete rows, and save changes as a new dataset version.",
                   },
                 }}
               >
@@ -879,7 +879,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Prompt Version Details",
                       description:
-                        "Inspect a specific prompt version, revision, and prompt history entry.",
+                        "Inspect a specific prompt version, revision, and prompt history entry, including its model configuration and version metadata.",
                     },
                   }}
                 />
@@ -1089,7 +1089,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Annotations",
                 description:
-                  "Configure annotation configs including categorical, continuous, and freeform annotation settings.",
+                  "Configure the instance-wide catalog of annotation configs including categorical, continuous, and freeform annotation settings. For the annotation configs and annotations of one project, prefer that project's configuration page.",
               },
             }}
           />
