@@ -56,9 +56,6 @@ COPY ./LICENSE /phoenix/
 COPY ./IP_NOTICE /phoenix/
 COPY ./README.md /phoenix/
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
-# --no-sources installs the workspace sub-packages (arize-phoenix-client,
-# -evals, -otel) from PyPI rather than from the in-tree copies, so every
-# dependency of the root project, dev groups included, must be published.
 RUN uv sync \
   --no-dev \
   --no-install-project \

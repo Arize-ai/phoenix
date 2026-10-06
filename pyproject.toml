@@ -490,9 +490,6 @@ override-dependencies = [
 ]
 
 [tool.uv.workspace]
-# harbor-verifiers is unpublished, so it is a member only and not a dependency
-# of the root project: the Dockerfile resolves the root project from PyPI with
-# `--no-sources`. `uv sync --all-packages` installs it for local development.
 members = ["packages/*", "evals/harbor/verifiers"]
 # phoenix-sqlean is a vendored setup.py-based C extension (fork of
 # nalgeon/sqlean.py), not a uv-managed project.
