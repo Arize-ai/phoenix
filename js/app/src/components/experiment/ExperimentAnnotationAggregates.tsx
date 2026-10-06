@@ -5,6 +5,7 @@ import {
   AnnotationColorSwatch,
   type AnnotationConfig,
   AnnotationScoreText,
+  getAnnotationScoreColorProps,
   getOptimizationBounds,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
@@ -150,6 +151,8 @@ function ExperimentAnnotationAggregateItem({
     config,
     score: meanScore,
   });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
 
   const scorePercentile = calculateAnnotationScorePercentile(
     meanScore ?? 0,
@@ -243,10 +246,17 @@ function ExperimentAnnotationAggregateItem({
         />
       ) : (
         <ProgressBar
-          css={css`
-            align-self: center;
-            --mod-barloader-fill-color: ${annotationColor};
-          `}
+          data-direction={direction}
+          css={css(
+            scoreColorCSS,
+            css`
+              align-self: center;
+              --mod-barloader-fill-color: var(
+                --annotation-score-color,
+                ${annotationColor}
+              );
+            `
+          )}
           value={meanScore != null ? scorePercentile : 0}
           height="var(--global-dimension-size-50)"
           width="100%"

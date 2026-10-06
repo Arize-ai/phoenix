@@ -38,6 +38,7 @@ import {
   AnnotationColorSwatch,
   type AnnotationConfig,
   AnnotationScoreText,
+  getAnnotationScoreColorProps,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
@@ -1213,6 +1214,8 @@ function ExperimentRunAnnotationButton({
     config: annotationConfig,
     score: annotation?.score,
   });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
 
   const WrapperElement = annotation
     ? AriaButton // using AriaButton to ensure the popover works
@@ -1278,10 +1281,17 @@ function ExperimentRunAnnotationButton({
       </AnnotationScoreText>
 
       <ProgressBar
-        css={css`
-          align-self: center;
-          --mod-barloader-fill-color: ${annotationColor};
-        `}
+        data-direction={direction}
+        css={css(
+          scoreColorCSS,
+          css`
+            align-self: center;
+            --mod-barloader-fill-color: var(
+              --annotation-score-color,
+              ${annotationColor}
+            );
+          `
+        )}
         value={calculateAnnotationScorePercentile(
           annotation?.score ?? 0,
           annotationSummary.minScore,
