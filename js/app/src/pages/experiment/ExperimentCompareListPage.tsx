@@ -52,6 +52,7 @@ import {
   getAnnotationScoreColorProps,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   RichTooltip,
@@ -1072,17 +1073,6 @@ export function ExperimentCompareListPage({
               } = getValue();
               const annotationConfig =
                 annotationConfigsByName[annotationSummary.annotationName];
-              const baseExperimentRunAnnotationValue = getAnnotationValue(
-                baseExperimentRunAnnotation
-              );
-              const baseExperimentRunAnnotationValueFormatted =
-                typeof baseExperimentRunAnnotationValue === "number"
-                  ? numberFormatter(baseExperimentRunAnnotationValue)
-                  : baseExperimentRunAnnotationValue;
-              const baseOptimizationValue = getOptimizationValueFromConfig({
-                config: annotationConfig,
-                score: baseExperimentRunAnnotation?.score,
-              });
 
               return (
                 <ul
@@ -1093,9 +1083,8 @@ export function ExperimentCompareListPage({
                   `}
                 >
                   <AnnotationValueItem
-                    value={baseExperimentRunAnnotationValueFormatted}
-                    numericValue={baseExperimentRunAnnotationValue}
-                    optimizationValue={baseOptimizationValue}
+                    annotation={baseExperimentRunAnnotation}
+                    annotationConfig={annotationConfig}
                     barColor={baseExperimentColor}
                     minScore={annotationSummary.minScore}
                     maxScore={annotationSummary.maxScore}
@@ -1106,24 +1095,12 @@ export function ExperimentCompareListPage({
                       annotation: CompareExperimentRunAnnotation | undefined,
                       index: number
                     ) => {
-                      const compareAnnotationValue =
-                        getAnnotationValue(annotation);
-                      const compareAnnotationValueFormatted =
-                        typeof compareAnnotationValue === "number"
-                          ? numberFormatter(compareAnnotationValue)
-                          : compareAnnotationValue;
-                      const color = getExperimentColor(index);
-                      const optimizationValue = getOptimizationValueFromConfig({
-                        config: annotationConfig,
-                        score: annotation?.score,
-                      });
                       return (
                         <AnnotationValueItem
                           key={index}
-                          value={compareAnnotationValueFormatted}
-                          numericValue={compareAnnotationValue}
-                          optimizationValue={optimizationValue}
-                          barColor={color}
+                          annotation={annotation}
+                          annotationConfig={annotationConfig}
+                          barColor={getExperimentColor(index)}
                           minScore={annotationSummary.minScore}
                           maxScore={annotationSummary.maxScore}
                           annotationName={annotationSummary.annotationName}
@@ -1392,27 +1369,35 @@ export function ExperimentCompareListPage({
 }
 
 /**
- * A single annotation value item: the score (or label) colored by its
- * optimization direction on a full-width tint, over a bar in the score's
- * color. Without a direction the bar takes the experiment's color.
+ * One experiment's annotation value in a compare list cell: the score (or
+ * label) colored by the annotation config's optimization direction, on a
+ * full-width tint, over a bar in the score's color. Without a direction the
+ * bar takes the experiment's color.
  */
-function AnnotationValueItem({
-  value,
-  numericValue,
-  optimizationValue,
+export function AnnotationValueItem({
+  annotation,
+  annotationConfig,
   barColor,
   minScore,
   maxScore,
   annotationName,
 }: {
-  value: string | number;
-  numericValue: string | number;
-  optimizationValue: number | null;
+  annotation: Annotation | undefined;
+  annotationConfig: AnnotationOptimizationConfig | undefined;
   barColor: string;
   minScore: number | null;
   maxScore: number | null;
   annotationName: string;
 }) {
+  const numericValue = getAnnotationValue(annotation);
+  const value =
+    typeof numericValue === "number"
+      ? numberFormatter(numericValue)
+      : numericValue;
+  const optimizationValue = getOptimizationValueFromConfig({
+    config: annotationConfig,
+    score: annotation?.score,
+  });
   const { "data-direction": direction, css: scoreColorCSS } =
     getAnnotationScoreColorProps(optimizationValue);
   return (
