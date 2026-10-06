@@ -8,7 +8,6 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from importlib.metadata import version
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -3783,7 +3782,6 @@ def verify_server_environment_variables() -> None:
         )
 
 
-SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
 
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
