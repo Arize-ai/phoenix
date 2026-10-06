@@ -5,7 +5,9 @@ from types import ModuleType
 from typing import Any
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
+from phoenix.client import Client
 
 
 @pytest.fixture
@@ -89,3 +91,65 @@ def test_annotations_are_persisted_when_loading_returns(
         a for a in persisted_spans + persisted_traces if a["name"] == "trail_reliability"
     )
     assert reliability["result"]["score"] == 3.0
+
+
+def test_wait_for_spans_finds_previously_imported_traces(loader: ModuleType) -> None:
+    trace_id = "1" * 32
+    span_id = "2" * 16
+    imported = {"context": {"span_id": span_id, "trace_id": trace_id}}
+    newer = [{"context": {"span_id": f"{i:016x}", "trace_id": "3" * 32}} for i in range(1100)]
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/arize_phoenix_version":
+            return httpx.Response(200, text="20.0.0")
+        spans = (
+            [imported]
+            if request.url.params.get_list("trace_id") == [trace_id]
+            else newer + [imported]
+        )
+        start = int(request.url.params.get("cursor", "0"))
+        end = start + int(request.url.params["limit"])
+        return httpx.Response(
+            200,
+            json={"data": spans[start:end], "next_cursor": str(end) if end < len(spans) else None},
+        )
+
+    client = Client(
+        base_url="http://test",
+        http_client=httpx.Client(base_url="http://test", transport=httpx.MockTransport(respond)),
+    )
+    loader._wait_for_spans(client, "trail-gaia", {span_id}, {trace_id}, timeout=0)
+
+
+def test_wait_for_spans_batches_traces_and_waits_for_ingestion(
+    loader: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_ids = {f"{i:032x}" for i in range(51)}
+    span_ids = {f"{i:016x}" for i in range(51)}
+    requests: list[list[str]] = []
+    slept: list[float] = []
+
+    def get_spans(
+        *, project_identifier: str, trace_ids: list[str], limit: int
+    ) -> list[dict[str, Any]]:
+        requests.append(trace_ids)
+        return [
+            {"context": {"span_id": trace_id[-16:]}}
+            for trace_id in trace_ids
+            if int(trace_id, 16) != 50 or slept
+        ]
+
+    client = MagicMock()
+    client.spans.get_spans.side_effect = get_spans
+    monkeypatch.setattr(loader.time, "sleep", slept.append)
+    loader._wait_for_spans(client, "trail-gaia", span_ids, trace_ids)
+    assert slept == [2]
+    assert [len(batch) for batch in requests] == [50, 1, 50, 1]
+    assert set().union(*map(set, requests)) == trace_ids
+
+
+def test_wait_for_spans_times_out(loader: ModuleType) -> None:
+    client = MagicMock()
+    client.spans.get_spans.return_value = []
+    with pytest.raises(TimeoutError, match="1 spans were not ingested"):
+        loader._wait_for_spans(client, "trail-gaia", {"2" * 16}, {"1" * 32}, timeout=0)
