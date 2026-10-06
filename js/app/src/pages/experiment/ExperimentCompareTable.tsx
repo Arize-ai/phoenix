@@ -57,6 +57,7 @@ import {
 } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -152,12 +153,23 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     setSearchParams(
       (prev) => {
         const newParams = new URLSearchParams(prev);
-        newParams.delete("selectedSpanNodeId");
+        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
         return newParams;
       },
       { replace: true }
     );
   }, [setSearchParams]);
+  const openTraceDetails = useCallback(
+    (details: SelectedTraceDetails) => {
+      // The drawer is non-modal, so a trace can be opened while another one
+      // is already showing (or after the table unmounted without closing the
+      // drawer). The span selection in the URL belongs to that previous
+      // trace, so drop it before the new trace renders.
+      clearSelectedSpanSearchParam();
+      setSelectedTraceDetails(details);
+    },
+    [clearSelectedSpanSearchParam]
+  );
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
   const preloadedData = usePreloadedQuery<ExperimentCompareTableQueryType>(
@@ -509,7 +521,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
-              onOpenTraceDetails={setSelectedTraceDetails}
+              onOpenTraceDetails={openTraceDetails}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
               annotationConfigs={annotationConfigs}
@@ -526,6 +538,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     compareExperimentIds,
     experimentInfoById,
     getExperimentColor,
+    openTraceDetails,
   ]);
 
   const columns = useMemo(() => {
