@@ -50,7 +50,11 @@ import {
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { CellTop, PaddedCell } from "@phoenix/components/table";
+import {
+  CellTop,
+  PaddedCell,
+  TableViewSettingsButton,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ExperimentMetricsSelection } from "@phoenix/pages/dataset/metrics/types";
@@ -66,7 +70,10 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
-import { ExperimentCompareChartSelector } from "./ExperimentCompareMetricsCharts";
+import {
+  ExperimentCompareChartSelector,
+  useExperimentCompareChartsViewSetting,
+} from "./ExperimentCompareMetricsCharts";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
@@ -131,6 +138,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   >(null);
   const { datasetId, selection } = props;
   const { baseExperimentId, compareExperimentIds } = selection;
+  const chartsViewSetting = useExperimentCompareChartsViewSetting(datasetId);
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -609,6 +617,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               datasetId={datasetId}
               selection={selection}
             />
+            <TableViewSettingsButton settings={[chartsViewSetting]} />
           </Flex>
         </View>
         <div

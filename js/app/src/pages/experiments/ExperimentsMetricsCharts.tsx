@@ -4,6 +4,7 @@ import {
   ChartPanelStrip,
   MetricChartsPanelGroup,
 } from "@phoenix/components/chart";
+import type { TableViewSetting } from "@phoenix/components/table";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
   DeferredExperimentMetricPanel,
@@ -37,8 +38,8 @@ export function ExperimentsMetricsCharts() {
 
 /**
  * Lays out the experiment metric charts strip above the experiments table in
- * a vertically resizable panel group. When no charts are selected the table
- * content fills the space.
+ * a vertically resizable panel group. When no charts are selected or the
+ * charts are hidden, the table content fills the space.
  */
 export function ExperimentsMetricsChartsPanelGroup({
   children,
@@ -50,12 +51,38 @@ export function ExperimentsMetricsChartsPanelGroup({
   const hasCharts = useDatasetContext(
     (state) => state.experimentsMetricChartKeys.length > 0
   );
+  const isVisible = useDatasetContext(
+    (state) => state.areExperimentsMetricChartsVisible
+  );
   return (
     <MetricChartsPanelGroup
       layoutId="experiments-table-metrics-layout"
-      charts={hasCharts ? <ExperimentsMetricsCharts /> : null}
+      charts={hasCharts && isVisible ? <ExperimentsMetricsCharts /> : null}
     >
       {children}
     </MetricChartsPanelGroup>
   );
+}
+
+/**
+ * The experiments table's view setting that shows or hides the charts. The
+ * visibility is persisted per dataset.
+ */
+export function useExperimentsMetricChartsViewSetting(): TableViewSetting {
+  const hasCharts = useDatasetContext(
+    (state) => state.experimentsMetricChartKeys.length > 0
+  );
+  const isVisible = useDatasetContext(
+    (state) => state.areExperimentsMetricChartsVisible
+  );
+  const setIsVisible = useDatasetContext(
+    (state) => state.setAreExperimentsMetricChartsVisible
+  );
+  return {
+    id: "show-charts",
+    label: "Show charts",
+    isEnabled: isVisible,
+    onChange: setIsVisible,
+    isDisabled: !hasCharts,
+  };
 }
