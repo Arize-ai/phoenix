@@ -1359,7 +1359,11 @@ export function PlaygroundDatasetExamplesTable({
         queryName: "PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery"
       )
       @argumentDefinitions(splitIds: { type: "[ID!]" }) {
+        exampleCount(splitIds: $splitIds)
         allExamples: examples(splitIds: $splitIds, first: 1000) {
+          pageInfo {
+            hasNextPage
+          }
           edges {
             example: node {
               id
@@ -1583,6 +1587,11 @@ export function PlaygroundDatasetExamplesTable({
               experimentId={experimentId}
               exampleCount={expectedOutputExamples.length}
               examples={expectedOutputExamples}
+              truncatedExampleCount={
+                expectedOutputsData.allExamples.pageInfo.hasNextPage
+                  ? expectedOutputsData.exampleCount
+                  : null
+              }
               isRunning={isRunning}
               canRun={!hasSomeRunIds && !isEditingExamples}
               onRun={() => runPlaygroundInstances([instance.id])}
@@ -1646,6 +1655,8 @@ export function PlaygroundDatasetExamplesTable({
     handleViewTracePress,
     evaluatorOutputConfigs,
     expectedOutputExamples,
+    expectedOutputsData.allExamples.pageInfo.hasNextPage,
+    expectedOutputsData.exampleCount,
   ]);
 
   const runningInstanceIds = useMemo(

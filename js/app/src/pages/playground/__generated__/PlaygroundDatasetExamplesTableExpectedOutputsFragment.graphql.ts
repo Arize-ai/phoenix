@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<605dd3c20661f52626e8f27d0a817dce>>
+ * @generated SignedSource<<cb07a04173dad32194c43a6e9676f465>>
  * @lightSyntaxTransform
  */
 
@@ -24,7 +24,11 @@ export type PlaygroundDatasetExamplesTableExpectedOutputsFragment$data = {
         };
       };
     }>;
+    readonly pageInfo: {
+      readonly hasNextPage: boolean;
+    };
   };
+  readonly exampleCount: number;
   readonly id: string;
   readonly " $fragmentType": "PlaygroundDatasetExamplesTableExpectedOutputsFragment";
 };
@@ -37,6 +41,11 @@ import PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery_graphql from '.
 
 const node: ReaderFragment = (function(){
 var v0 = {
+  "kind": "Variable",
+  "name": "splitIds",
+  "variableName": "splitIds"
+},
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -68,6 +77,15 @@ return {
   "name": "PlaygroundDatasetExamplesTableExpectedOutputsFragment",
   "selections": [
     {
+      "alias": null,
+      "args": [
+        (v0/*:: as any*/)
+      ],
+      "kind": "ScalarField",
+      "name": "exampleCount",
+      "storageKey": null
+    },
+    {
       "alias": "allExamples",
       "args": [
         {
@@ -75,17 +93,31 @@ return {
           "name": "first",
           "value": 1000
         },
-        {
-          "kind": "Variable",
-          "name": "splitIds",
-          "variableName": "splitIds"
-        }
+        (v0/*:: as any*/)
       ],
       "concreteType": "DatasetExampleConnection",
       "kind": "LinkedField",
       "name": "examples",
       "plural": false,
       "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasNextPage",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -102,7 +134,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v0/*:: as any*/),
+                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -162,13 +194,13 @@ return {
       ],
       "storageKey": null
     },
-    (v0/*:: as any*/)
+    (v1/*:: as any*/)
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "bc45f571a6e564b4ac14b9e2c498c576";
+(node as any).hash = "e3f1f0212ca32ae7e258ed82f5a6a54c";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ef890261d54c4ee4d126f6b2e9f22ab>>
+ * @generated SignedSource<<5baf5219e8e1e76cb256fd4d596b9940>>
  * @lightSyntaxTransform
  */
 
@@ -46,7 +46,10 @@ v3 = {
   "name": "splitIds",
   "variableName": "splitIds"
 },
-v4 = {
+v4 = [
+  (v3/*:: as any*/)
+],
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -72,9 +75,7 @@ return {
         "plural": false,
         "selections": [
           {
-            "args": [
-              (v3/*:: as any*/)
-            ],
+            "args": (v4/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "PlaygroundDatasetExamplesTableExpectedOutputsFragment"
           }
@@ -109,10 +110,17 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
+              {
+                "alias": null,
+                "args": (v4/*:: as any*/),
+                "kind": "ScalarField",
+                "name": "exampleCount",
+                "storageKey": null
+              },
               {
                 "alias": "allExamples",
                 "args": [
@@ -131,6 +139,24 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "concreteType": "PageInfo",
+                    "kind": "LinkedField",
+                    "name": "pageInfo",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "hasNextPage",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "DatasetExampleEdge",
                     "kind": "LinkedField",
                     "name": "edges",
@@ -144,7 +170,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -214,16 +240,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ea157f6cf8d2343cb2e426969547f5fc",
+    "cacheID": "23f07008b5e2aa8f2663e77ba74cd77d",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery(\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  allExamples: examples(splitIds: $splitIds, first: 1000) {\n    edges {\n      example: node {\n        id\n        revision {\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery(\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  exampleCount(splitIds: $splitIds)\n  allExamples: examples(splitIds: $splitIds, first: 1000) {\n    pageInfo {\n      hasNextPage\n    }\n    edges {\n      example: node {\n        id\n        revision {\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bc45f571a6e564b4ac14b9e2c498c576";
+(node as any).hash = "e3f1f0212ca32ae7e258ed82f5a6a54c";
 
 export default node;

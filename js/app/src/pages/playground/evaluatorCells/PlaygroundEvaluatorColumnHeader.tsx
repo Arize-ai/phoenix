@@ -1,7 +1,9 @@
+import { css } from "@emotion/react";
 import { useMemo } from "react";
 
 import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
 import {
+  ContextualHelp,
   Flex,
   Icon,
   IconButton,
@@ -17,6 +19,7 @@ import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { Counter } from "@phoenix/components/core/counter";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { EvaluatorOutput } from "../evaluators/evaluatorResults";
 import { usePlaygroundDatasetExamplesTableContext } from "../PlaygroundDatasetExamplesTableContext";
@@ -45,6 +48,7 @@ export function PlaygroundEvaluatorColumnHeader({
   experimentId,
   exampleCount,
   examples,
+  truncatedExampleCount,
   isRunning,
   canRun,
   onRun,
@@ -60,6 +64,11 @@ export function PlaygroundEvaluatorColumnHeader({
   exampleCount: number;
   /** Every example of the dataset, loaded into the table or not. */
   examples: ReadonlyArray<ExpectedOutputExample>;
+  /**
+   * The dataset's example count when it has more examples than `examples`
+   * holds, so the counts cover only those; null when they cover them all.
+   */
+  truncatedExampleCount: number | null;
   isRunning: boolean;
   canRun: boolean;
   onRun: () => void;
@@ -109,60 +118,91 @@ export function PlaygroundEvaluatorColumnHeader({
   const label = getInstanceLabel(index);
 
   return (
-    <Flex direction="column" gap="size-50" width="100%">
-      <Flex
-        direction="row"
-        gap="size-100"
-        alignItems="start"
-        justifyContent="space-between"
-        minWidth={0}
-        width="100%"
-      >
-        <Flex direction="column" gap="size-25" minWidth={0}>
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <AlphabeticIndexIcon index={index} size="XS" />
-            <Truncate maxWidth="100%">{name}</Truncate>
-            {errorCount > 0 ? (
-              <Counter variant="danger">{errorCount}</Counter>
-            ) : null}
-          </Flex>
-          {/* One line, always: the counts change with every annotation, and a
+    <div className="evaluator-column-header" css={evaluatorColumnHeaderCSS}>
+      <Flex direction="column" gap="size-50" width="100%">
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="start"
+          justifyContent="space-between"
+          minWidth={0}
+          width="100%"
+        >
+          <Flex direction="column" gap="size-25" minWidth={0} flex={1}>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <AlphabeticIndexIcon index={index} size="XS" />
+              <Truncate maxWidth="100%">{name}</Truncate>
+              {errorCount > 0 ? (
+                <Counter variant="danger">{errorCount}</Counter>
+              ) : null}
+            </Flex>
+            {/* One line, always: the counts change with every annotation, and a
             line that wrapped moved the header and every row beneath it. */}
-          <Truncate maxWidth="100%">
-            <Text size="XS" color="text-500" weight="normal">
-              {agreement.withExpected}/{exampleCount} with expected
-              {agreementText}
-            </Text>
-          </Truncate>
-        </Flex>
-        {isRunning ? (
-          <View flex="none">
-            <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
-          </View>
-        ) : (
-          <TooltipTrigger>
-            <IconButton
-              size="S"
-              aria-label={`Run evaluator ${label} on all examples`}
-              isDisabled={!canRun}
-              onPress={onRun}
+            <Flex
+              direction="row"
+              gap="size-75"
+              alignItems="center"
+              minWidth={0}
             >
-              <Icon svg={<Icons.Play />} />
-            </IconButton>
-            <Tooltip>
-              <TooltipArrow />
-              Run evaluator {label} on all examples.{" "}
-              {recordExperiments ? "Recorded." : "Not recorded."}
-            </Tooltip>
-          </TooltipTrigger>
-        )}
+              <Truncate maxWidth="100%">
+                <Text size="XS" color="text-500" weight="normal">
+                  {agreement.withExpected}/{exampleCount} with expected
+                  {agreementText}
+                </Text>
+              </Truncate>
+              {/* Outside the truncation, so it never gets cut off. */}
+              {truncatedExampleCount != null ? (
+                <ContextualHelp
+                  variant="info"
+                  placement="bottom"
+                  triggerAriaLabel="Which examples these counts cover"
+                >
+                  <Text>
+                    Counted over the first {intFormatter(examples.length)} of{" "}
+                    {intFormatter(truncatedExampleCount)} examples.
+                  </Text>
+                </ContextualHelp>
+              ) : null}
+            </Flex>
+          </Flex>
+          {isRunning ? (
+            <View flex="none">
+              <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
+            </View>
+          ) : (
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                aria-label={`Run evaluator ${label} on all examples`}
+                isDisabled={!canRun}
+                onPress={onRun}
+              >
+                <Icon svg={<Icons.Play />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                Run evaluator {label} on all examples.{" "}
+                {recordExperiments ? "Recorded." : "Not recorded."}
+              </Tooltip>
+            </TooltipTrigger>
+          )}
+        </Flex>
+        <PlaygroundInstanceRunAggregates
+          instanceId={instanceId}
+          experimentId={experimentId}
+          isRunning={isRunning}
+          annotationConfigs={annotationConfig ? [annotationConfig] : []}
+        />
       </Flex>
-      <PlaygroundInstanceRunAggregates
-        instanceId={instanceId}
-        experimentId={experimentId}
-        isRunning={isRunning}
-        annotationConfigs={annotationConfig ? [annotationConfig] : []}
-      />
-    </Flex>
+    </div>
   );
 }
+
+// The table sizes its columns to their content, so a header whose numbers
+// widen as results stream in would widen its column and shift every row
+// sideways. Containment keeps the column at the width it was given; what does
+// not fit truncates.
+const evaluatorColumnHeaderCSS = css`
+  contain: inline-size;
+  width: 100%;
+`;
