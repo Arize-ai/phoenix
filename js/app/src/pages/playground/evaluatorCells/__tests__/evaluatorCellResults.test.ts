@@ -60,6 +60,15 @@ describe("getEvaluatorTaskAnnotation", () => {
       })
     ).toEqual({
       name: "no_sql",
+      config: {
+        name: "no_sql",
+        annotationType: "CATEGORICAL",
+        optimizationDirection: "MAXIMIZE",
+        values: [
+          { label: "pass", score: 1 },
+          { label: "fail", score: 0 },
+        ],
+      },
       output: {
         name: "result",
         labels: ["pass", "fail"],
@@ -87,13 +96,53 @@ describe("getEvaluatorTaskAnnotation", () => {
     ).toBe("judge.result");
   });
 
+  it("keeps a numeric output's bounds and gives an unscored label a null score", () => {
+    expect(
+      getEvaluatorTaskAnnotation({
+        evaluator: {
+          name: "confidence",
+          outputConfigs: [
+            {
+              name: "confidence",
+              optimizationDirection: "MAXIMIZE",
+              lowerBound: 0,
+              upperBound: 0.5,
+            },
+          ],
+        },
+        position: 0,
+      }).config
+    ).toEqual({
+      name: "confidence",
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 0.5,
+    });
+    expect(
+      getEvaluatorTaskAnnotation({
+        evaluator: {
+          name: "tone",
+          outputConfigs: [
+            {
+              name: "tone",
+              optimizationDirection: "NONE",
+              values: [{ label: "friendly" }],
+            },
+          ],
+        },
+        position: 0,
+      }).config
+    ).toMatchObject({ values: [{ label: "friendly", score: null }] });
+  });
+
   it("names an unnamed draft by its column and has no output without a config", () => {
     expect(
       getEvaluatorTaskAnnotation({
         evaluator: { name: "  ", outputConfigs: [] },
         position: 2,
       })
-    ).toEqual({ name: "evaluator_3", output: undefined });
+    ).toEqual({ name: "evaluator_3", config: undefined, output: undefined });
   });
 });
 

@@ -8,7 +8,10 @@ import {
   type SandboxConfigOption,
 } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { CodeEvaluatorSourceEditor } from "@phoenix/components/evaluators/CodeEvaluatorSourceEditor";
-import { getDefaultCodeEvaluatorSource } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import {
+  type CodeEvaluatorResetSource,
+  getDefaultCodeEvaluatorSource,
+} from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
@@ -30,6 +33,7 @@ export const CodeAuthoringFields = ({
   isLanguageDisabled = false,
   isSandboxRequired = true,
   onFieldChange,
+  resetSource,
 }: {
   language: CodeEvaluatorLanguage;
   /** Omit when the language is fixed, e.g. for an existing evaluator. */
@@ -42,6 +46,8 @@ export const CodeAuthoringFields = ({
   isLanguageDisabled?: boolean;
   isSandboxRequired?: boolean;
   onFieldChange?: () => void;
+  /** What the editor's Reset restores; omitted, the language's default. */
+  resetSource?: CodeEvaluatorResetSource | null;
 }): ReactNode => {
   const recordKind = useEvaluatorStore(
     (state) => state.evaluatorMappingSource.recordKind
@@ -88,6 +94,7 @@ export const CodeAuthoringFields = ({
       <CodeEvaluatorSourceEditor
         language={language}
         sourceCode={sourceCode}
+        resetSource={resetSource}
         onChange={(nextSourceCode) => {
           onFieldChange?.();
           onSourceCodeChange(nextSourceCode);
