@@ -1194,6 +1194,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/cost_summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get token counts and costs for a project
+         * @description Return prompt, completion, and total token counts and costs (in USD) summed across the project's traces, optionally restricted to traces that start within a time range.
+         */
+        get: operations["getProjectCostSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_identifier}/retention": {
         parameters: {
             query?: never;
@@ -2536,6 +2556,19 @@ export interface components {
             /** Upper Bound */
             upper_bound?: number | null;
         };
+        /** CostBreakdown */
+        CostBreakdown: {
+            /**
+             * Tokens
+             * @description Number of tokens
+             */
+            tokens: number;
+            /**
+             * Cost
+             * @description Cost in USD
+             */
+            cost: number;
+        };
         /**
          * CreateAgentSessionRequestBody
          * @description Request body for creating a persisted agent session.
@@ -3614,6 +3647,10 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetProjectCostSummaryResponseBody */
+        GetProjectCostSummaryResponseBody: {
+            data: components["schemas"]["ProjectCostSummary"];
+        };
         /** GetProjectResponseBody */
         GetProjectResponseBody: {
             data: components["schemas"]["Project"];
@@ -4560,6 +4597,12 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /** ProjectCostSummary */
+        ProjectCostSummary: {
+            prompt: components["schemas"]["CostBreakdown"];
+            completion: components["schemas"]["CostBreakdown"];
+            total: components["schemas"]["CostBreakdown"];
         };
         /** ProjectRetentionPolicyData */
         ProjectRetentionPolicyData: {
@@ -11688,6 +11731,61 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getProjectCostSummary: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound on trace start time */
+                start_time?: string | null;
+                /** @description Exclusive upper bound on trace start time */
+                end_time?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project's token count and cost summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetProjectCostSummaryResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {
