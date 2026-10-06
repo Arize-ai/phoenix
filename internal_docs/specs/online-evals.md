@@ -263,9 +263,9 @@ owns result identity, re-entry and frequency, recovery after permanent failure, 
 detection for in-flight evaluation.
 
 An evaluation that produced no result is the exception: a session or trace whose evaluation
-failed, expired, found its content gone, or was cleared from the queue is retried once new spans
-arrive after that and it goes quiet again. Spans that arrived while the evaluation was running
-might not trigger a retry.
+failed, expired, found its content gone, was cleared from the queue, or was dropped because the
+queue was full is retried once new spans arrive after that and it goes quiet again. Spans that
+arrived while the evaluation was running might not trigger a retry.
 
 When re-evaluation lands, it should **override** rather than stack: if a session was judged
 "incomplete" and later completes, the newer judgment should replace the earlier one (see
@@ -398,7 +398,8 @@ misses) still lack a complete cross-target run history. Several requirements in 
 presuppose a durable record that the annotation tables cannot provide:
 
 - **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out, pending,
-  cleared, failed, and succeeded apart — none of which an absent annotation row can express.
+  cleared, dropped, failed, and succeeded apart — none of which an absent annotation row can
+  express.
 - **Override history** — prior evaluations should stay inspectable even though the visible
   annotation was overwritten.
 - **Failure taxonomy** — the classes in [open question #10](#open-q-10) need somewhere to write a
@@ -423,24 +424,43 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   them right after turning one off. Cleared evaluations are recorded as dropped, not failed, so
   clearing never turns an evaluator to Error. Evaluations already running are not cleared.
 - **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
-  rate, the queue must not blow up. Span, trace, and session evaluations wait in one queue under
-  one limit: once it holds that many, Phoenix stops queueing new evaluations of any kind until the
-  queue drains, then resumes from where it stopped. A full queue therefore delays evaluations
-  rather than dropping them — sampled spans are evaluated late, not skipped, unless trace
-  retention deletes a span (and any work already queued for it) before its turn comes. One limit
-  is simpler to size and reason about than one per kind, at a cost: a flood of one kind fills the
-  room the others would use, and delays them too. The limit (`PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING`,
-  30,000 by default) bounds how many evaluations wait, not how long: the newest evaluation in a
-  full queue waits roughly the limit divided by the rate evaluations complete. Lower it to keep
-  results current; raise it to absorb bursts. The span producer and the trace and session
+  rate, the queue must not blow up. Span, trace, and session evaluations wait in one queue that
+  holds at most a configured number of evaluations, and new work is offered to it in batches: the
+  span producer's batch is the window of spans it scans in one tick, across every evaluator, and a
+  sweeper's batch is its page of eligible traces or sessions. A batch that fits the room left is
+  queued. One that doesn't is dropped whole, and the producer or sweeper moves on, so the queue
+  keeps evaluating current data rather than working through a backlog of old records. Keeping or
+  dropping a batch whole keeps the evaluators' sampled sets nested (see [Sampling](#sampling)).
+  One limit is simpler to size and reason about than one per kind, at a cost: a flood of one kind
+  fills the room the others would use, and their batches are dropped too. The limit
+  (`PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING`, 30,000 by default) bounds how many evaluations wait, and
+  so how stale queued results can get. A lower limit keeps results current and drops more during
+  bursts; a higher one drops less and lets waits grow. The span producer and the trace and session
   sweepers take turns at admission, under a lock that holds across replicas, so two of them never
   both fill the same room.
-  Overload shows up in three places: the producer and sweepers log a warning each time they find
-  the queue full, the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
-  ingested but not yet offered to evaluators, keeps growing while it stays full, and the
-  evaluators pages show the queue as Degraded while it is full. Only the queue's own status shows
-  this: each evaluator's status reflects its own evaluations, so an evaluator reads Degraded only
-  when its own oldest waiting evaluation has waited over 10 minutes.
+  - A batch is never larger than the queue, so an empty queue can always take one. A span window
+    with more evaluations than the queue holds is split, in arrival order, into batches of whole
+    spans, and a sweeper page holds no more pairs than the queue and ends on a whole trace or
+    session.
+  - New spans reach the queue about once a minute, one window at a time, so the limit should hold
+    about a minute of new evaluations of all kinds.
+  - A dropped trace or session is recorded as `OVERFLOWED` on its work row, and offered again
+    once it has new activity.
+  - A dropped span leaves no work row. The span cursor keeps the newest span id ever dropped,
+    and the backstop scans only above it, so a dropped span is never offered again. The cost:
+    a span that becomes visible late, or that a newly added evaluator would reach back to, is
+    not recovered if it sits below that id.
+  - The span producer counts dropped evaluations per project evaluator in one-minute buckets on
+    the span cursor row, written by the statement that advances the cursor, so every replica reads
+    the same counts and they survive a restart. Only the last 10 minutes are kept.
+
+  Overload shows on the evaluators pages, where the queue reads Overloaded while it has dropped
+  evaluations of any kind in the last 10 minutes, and in the
+  `phoenix_online_eval_overflowed_work_units_total` counter, the
+  `phoenix_online_eval_overflowed_recent_work_units` gauge, and a warning logged for each
+  dropped batch. Each evaluator's status reflects only its own evaluations: it reads Overloaded
+  while some of its own were dropped in the last 10 minutes, and Degraded while its own oldest
+  waiting evaluation has waited over 10 minutes.
 - **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
   recursively enqueue the same class of project evaluations. This largely falls out of the
   architecture: if evaluator traces live in a dedicated project (as

@@ -15,7 +15,7 @@ from phoenix.server.online_eval.queue_health import (
 )
 from phoenix.server.types import DbSessionFactory
 
-from ..._helpers import _add_project, _add_span, _add_trace
+from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from .test_producer import _seed_criteria
 
 
@@ -126,6 +126,90 @@ async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(
     assert queue.status == "DEGRADED"
 
 
+async def test_recent_span_drops_overload_the_queue(db: DbSessionFactory) -> None:
+    """A dropped span batch leaves no rows, so the queue reads span drops from the counts
+    the producer keeps on the span cursor."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+
+    def minute(ago: timedelta) -> str:
+        return (now - ago).replace(second=0, microsecond=0).isoformat()
+
+    async with db() as session:
+        session.add(
+            models.EvalWorkUnit(
+                span_rowid=span.id,
+                project_evaluator_id=project_evaluator_id,
+                created_at=now - timedelta(minutes=20),
+            )
+        )
+        session.add(
+            models.EvalSpanCursor(
+                id=1,
+                overflowed_counts={minute(timedelta(minutes=12)): {str(project_evaluator_id): 4}},
+            )
+        )
+    queue = await load_evaluation_queue(db)
+    assert (queue.status, queue.overflowed_count) == ("DEGRADED", 0)
+
+    async with db() as session:
+        cursor = await session.get(models.EvalSpanCursor, 1)
+        assert cursor is not None
+        cursor.overflowed_counts = {
+            **cursor.overflowed_counts,
+            minute(timedelta(minutes=5)): {str(project_evaluator_id): 3},
+        }
+    queue = await load_evaluation_queue(db)
+    assert queue.status == "OVERLOADED"
+    assert queue.overflowed_counts == {project_evaluator_id: 3}
+
+
+async def test_recent_overflowed_sessions_overload_the_queue(
+    db: DbSessionFactory,
+) -> None:
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        project_sessions = [await _add_project_session(session, project) for _ in range(3)]
+    _, project_evaluator_id = await _seed_criteria(db, project.id, evaluation_target="SESSION")
+    sessions = iter(project_sessions)
+
+    def unit(status: str, *, ago: timedelta) -> models.EvalSessionWorkUnit:
+        return models.EvalSessionWorkUnit(
+            project_session_rowid=next(sessions).id,
+            project_evaluator_id=project_evaluator_id,
+            evaluated_through=now - ago,
+            status=status,
+            created_at=now - ago,
+            updated_at=now - ago,
+        )
+
+    async with db() as session:
+        session.add_all(
+            [
+                # Queued before the rate window, so only the overflow could move the rates.
+                unit("PENDING", ago=timedelta(minutes=70)),
+                unit("OVERFLOWED", ago=timedelta(minutes=12)),
+            ]
+        )
+    queue = await load_evaluation_queue(db)
+    assert (queue.status, queue.overflowed_count) == ("DEGRADED", 0)
+
+    async with db() as session:
+        session.add(unit("OVERFLOWED", ago=timedelta(minutes=5)))
+    queue = await load_evaluation_queue(db)
+    throughput = await load_queue_throughput(db, queue)
+
+    assert queue.status == "OVERLOADED"
+    assert queue.overflowed_counts == {project_evaluator_id: 1}
+    # Never queued, so neither entered nor left the queue.
+    assert (throughput.queued_per_minute, throughput.evaluations_per_minute) == (0, 0)
+
+
 _WAITING_BRIEFLY = QueuedWork(queued_count=1, oldest_queued_at=datetime.now(timezone.utc))
 _WAITING_LONG = QueuedWork(
     queued_count=1, oldest_queued_at=datetime.now(timezone.utc) - timedelta(hours=1)
@@ -133,15 +217,17 @@ _WAITING_LONG = QueuedWork(
 
 
 @pytest.mark.parametrize(
-    ("enabled", "evaluated_ago", "failed_ago", "queued", "expected"),
+    ("enabled", "evaluated_ago", "failed_ago", "queued", "overflowed_count", "expected"),
     [
-        (False, timedelta(seconds=5), timedelta(seconds=1), _WAITING_LONG, "DISABLED"),
-        (True, timedelta(minutes=5), timedelta(seconds=1), _WAITING_LONG, "ERROR"),
+        (False, timedelta(seconds=5), timedelta(seconds=1), _WAITING_LONG, 3, "DISABLED"),
+        (True, timedelta(minutes=5), timedelta(seconds=1), _WAITING_LONG, 3, "ERROR"),
+        # Its own evaluations wait too long, but some of its new ones were dropped.
+        (True, timedelta(seconds=5), None, _WAITING_LONG, 3, "OVERLOADED"),
         # Its own oldest queued evaluation, a retry, has waited an hour.
-        (True, timedelta(seconds=5), None, _WAITING_LONG, "DEGRADED"),
-        (True, timedelta(seconds=5), timedelta(minutes=5), _WAITING_BRIEFLY, "RUNNING"),
-        (True, None, None, _WAITING_BRIEFLY, "QUEUED"),
-        (True, None, None, QueuedWork(), "NEVER_RUN"),
+        (True, timedelta(seconds=5), None, _WAITING_LONG, 0, "DEGRADED"),
+        (True, timedelta(seconds=5), timedelta(minutes=5), _WAITING_BRIEFLY, 0, "RUNNING"),
+        (True, None, None, _WAITING_BRIEFLY, 0, "QUEUED"),
+        (True, None, None, QueuedWork(), 0, "NEVER_RUN"),
     ],
 )
 def test_project_evaluator_run_status_precedence(
@@ -149,6 +235,7 @@ def test_project_evaluator_run_status_precedence(
     evaluated_ago: Optional[timedelta],
     failed_ago: Optional[timedelta],
     queued: QueuedWork,
+    overflowed_count: int,
     expected: ProjectEvaluatorRunStatus,
 ) -> None:
     now = datetime.now(timezone.utc)
@@ -157,6 +244,7 @@ def test_project_evaluator_run_status_precedence(
         last_evaluated_at=None if evaluated_ago is None else now - evaluated_ago,
         last_failed_at=None if failed_ago is None else now - failed_ago,
         queued=queued,
+        overflowed_count=overflowed_count,
         now=now,
     )
     assert status == expected

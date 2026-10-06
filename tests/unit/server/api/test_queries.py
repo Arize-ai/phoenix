@@ -550,6 +550,7 @@ async def test_evaluation_queue(
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
+        overflowed_project_session = await _add_project_session(session, project)
         trace = await _add_trace(session, project, project_session)
         span = await _add_span(session, trace)
         running_span = await _add_span(session, trace)
@@ -605,6 +606,22 @@ async def test_evaluation_queue(
                     evaluated_through=now,
                     created_at=now - timedelta(minutes=1),
                 ),
+                # Dropped: never queued.
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=overflowed_project_session.id,
+                    project_evaluator_id=project_evaluator_ids["SESSION"],
+                    evaluated_through=now,
+                    status="OVERFLOWED",
+                ),
+                # Dropped span batches leave no rows; the span cursor counts them.
+                models.EvalSpanCursor(
+                    id=1,
+                    overflowed_counts={
+                        now.replace(second=0, microsecond=0).isoformat(): {
+                            str(project_evaluator_ids["SPAN"]): 2
+                        }
+                    },
+                ),
             ]
         )
 
@@ -618,6 +635,7 @@ async def test_evaluation_queue(
                 atCapacity
                 retryingCount
                 oldestQueuedAt
+                overflowedCount
                 queuedPerMinute
                 evaluationsPerMinute
                 targets {
@@ -626,6 +644,7 @@ async def test_evaluation_queue(
                     runningCount
                     retryingCount
                     oldestQueuedAt
+                    overflowedCount
                     queuedPerMinute
                     evaluationsPerMinute
                 }
@@ -636,15 +655,16 @@ async def test_evaluation_queue(
     assert not response.errors and response.data
     queue = response.data["evaluationQueue"]
     targets = queue.pop("targets")
-    # Full: the queue is at capacity across every target, so it is degraded.
+    # Full, and dropping span and session evaluations: one status for the whole queue.
     assert queue == {
-        "status": "DEGRADED",
+        "status": "OVERLOADED",
         "queuedCount": 4,
         "runningCount": 1,
         "queuedLimit": 4,
         "atCapacity": True,
         "retryingCount": 1,
         "oldestQueuedAt": queue["oldestQueuedAt"],
+        "overflowedCount": 3,
         "queuedPerMinute": pytest.approx(4 / 60),
         "evaluationsPerMinute": 0,
     }
@@ -655,13 +675,14 @@ async def test_evaluation_queue(
             target["queuedCount"],
             target["runningCount"],
             target["retryingCount"],
+            target["overflowedCount"],
             target["queuedPerMinute"],
         )
         for target in targets
     ] == [
-        (2, 1, 0, pytest.approx(2 / 60)),
-        (1, 0, 1, pytest.approx(1 / 60)),
-        (1, 0, 0, pytest.approx(1 / 60)),
+        (2, 1, 0, 2, pytest.approx(2 / 60)),
+        (1, 0, 1, 0, pytest.approx(1 / 60)),
+        (1, 0, 0, 1, pytest.approx(1 / 60)),
     ]
     oldest = [target["oldestQueuedAt"] for target in targets]
     assert oldest[1] is None

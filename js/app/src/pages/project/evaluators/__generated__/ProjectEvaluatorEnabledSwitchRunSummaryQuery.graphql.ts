@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<569641853ea559a4a354359c76de90a9>>
+ * @generated SignedSource<<ffeb01392c9df2823c00e6b45d7e3467>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "OVERLOADED" | "QUEUED" | "RUNNING";
 export type ProjectEvaluatorEnabledSwitchRunSummaryQuery$variables = {
   id: string;
 };
