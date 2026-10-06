@@ -320,22 +320,30 @@ function ProjectPageContentBody({
     timeRangeRef.current = timeRangeISOStrings;
   }, [timeRangeISOStrings]);
 
-  // Shares the project record with the spans and traces preloads, so it turns
-  // true as soon as either of them sees the project's first traces.
+  // Selected here so the tab-return path below can tell a cached "no traces"
+  // answer from a real one. The spans and traces preloads select the same
+  // field, and Relay normalizes all three queries into one Project record, so
+  // this turns true as soon as either preload sees the project's first traces.
   const hasTraces = data.project.hasTraces ?? false;
-  // Read at load time, like the time range, so the resolvers below keep their
-  // identity when the project's first traces arrive.
-  const hasTracesRef = useRef(hasTraces);
+
+  // A table preload fetched while the project was empty holds an empty
+  // connection. When the first traces land through the active tab's preload,
+  // the other tab's preload is stale, and returning to it must reload rather
+  // than render the empty rows: the table skips its first-render refetch by
+  // design. Captured in an effect event so the flip effect depends on
+  // `hasTraces` alone.
+  const staleEmptyPreloadsRef = useRef({ spans: false, traces: false });
+  const markInactivePreloadsStale = useEffectEvent(() => {
+    staleEmptyPreloadsRef.current = {
+      spans: tabIndex !== TAB_INDEX_MAP.spans && spansQueryReference != null,
+      traces: tabIndex !== TAB_INDEX_MAP.traces && tracesQueryReference != null,
+    };
+  });
   useEffect(() => {
-    hasTracesRef.current = hasTraces;
+    if (hasTraces) {
+      markInactivePreloadsStale();
+    }
   }, [hasTraces]);
-  /**
-   * The spans and traces preloads decide between onboarding and the table, so
-   * they take the store's answer only once the project has traces. A cached
-   * `false` would otherwise keep onboarding up.
-   */
-  const tablePreloadFetchPolicy = () =>
-    hasTracesRef.current ? "store-or-network" : "network-only";
 
   /**
    * Load the spans table from a condition whose validity and root scope are
@@ -368,9 +376,12 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
+        // Always from the network: a cached `hasTraces: false` would keep
+        // onboarding up. Costs nothing on a populated project, since the tab
+        // change effect below never re-resolves an unchanged seed.
         loadSpansQuery(
           spansQueryVariables(projectId, timeRangeRef.current, seed),
-          { fetchPolicy: tablePreloadFetchPolicy() }
+          { fetchPolicy: "network-only" }
         );
       });
     },
@@ -399,9 +410,10 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
+        // See `resolveSpansSeed` for why this bypasses the store.
         loadTracesQuery(
           tracesQueryVariables(projectId, timeRangeRef.current, condition),
-          { fetchPolicy: tablePreloadFetchPolicy() }
+          { fetchPolicy: "network-only" }
         );
       });
     },
@@ -488,13 +500,15 @@ function ProjectPageContentBody({
         const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
         // Returning to a tab whose rows already answer this condition is not a
         // reason to reload it. Re-resolving would tear the table down and
-        // rebuild it for the same result. The exception is a project still
-        // showing onboarding, whose traces may have arrived while away.
+        // rebuild it for the same result. Two exceptions: a project still
+        // showing onboarding, whose traces may have arrived while away, and a
+        // preload fetched while the project was empty.
         if (
           spansQueryReference &&
           spansFilterSeed?.condition === seed.condition
         ) {
-          if (!hasTraces) {
+          if (!hasTraces || staleEmptyPreloadsRef.current.spans) {
+            staleEmptyPreloadsRef.current.spans = false;
             reloadSpansQuery();
           }
           return;
@@ -514,7 +528,8 @@ function ProjectPageContentBody({
           TRACE_FILTER_CONDITION_PARAM
         );
         if (tracesQueryReference && tracesFilterSeed === condition) {
-          if (!hasTraces) {
+          if (!hasTraces || staleEmptyPreloadsRef.current.traces) {
+            staleEmptyPreloadsRef.current.traces = false;
             reloadTracesQuery();
           }
           return;
