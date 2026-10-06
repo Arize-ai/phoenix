@@ -71,11 +71,11 @@ function AnnotationMetricsTooltip({
   active,
   payload,
   renderHeader,
-  getMeanScoreOptimization,
+  getMeanScoreOptimizationValue,
   chartType,
 }: TooltipContentProps & {
   renderHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
-  getMeanScoreOptimization?: (meanScore: number) => boolean | null;
+  getMeanScoreOptimizationValue?: (meanScore: number) => number | null;
   chartType: TimeSeriesChartType;
 }) {
   if (!active || !payload || payload.length === 0) {
@@ -103,9 +103,11 @@ function AnnotationMetricsTooltip({
             }
             name={String(entry.name)}
             value={
-              isMeanScore && getMeanScoreOptimization ? (
+              isMeanScore && getMeanScoreOptimizationValue ? (
                 <AnnotationScoreText
-                  positiveOptimization={getMeanScoreOptimization(numericValue)}
+                  optimizationValue={getMeanScoreOptimizationValue(
+                    numericValue
+                  )}
                 >
                   {formattedValue}
                 </AnnotationScoreText>
@@ -127,7 +129,7 @@ type AnnotationMetricsChartProps = {
   yAxisProps: YAxisProps;
   syncId: string;
   renderTooltipHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
-  getMeanScoreOptimization?: (meanScore: number) => boolean | null;
+  getMeanScoreOptimizationValue?: (meanScore: number) => number | null;
   chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
   emptyStateMessage?: string;
@@ -197,7 +199,7 @@ function AnnotationMetricsChartContent({
   yAxisProps,
   syncId,
   renderTooltipHeader,
-  getMeanScoreOptimization,
+  getMeanScoreOptimizationValue,
   chartProps,
   additionalLegendItems,
   renderReference,
@@ -254,7 +256,7 @@ function AnnotationMetricsChartContent({
               <AnnotationMetricsTooltip
                 {...props}
                 renderHeader={renderTooltipHeader}
-                getMeanScoreOptimization={getMeanScoreOptimization}
+                getMeanScoreOptimizationValue={getMeanScoreOptimizationValue}
                 chartType={chartType}
               />
             )}

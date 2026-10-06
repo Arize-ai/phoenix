@@ -38,7 +38,7 @@ import {
   AnnotationColorSwatch,
   type AnnotationConfig,
   AnnotationScoreText,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
@@ -1209,7 +1209,7 @@ function ExperimentRunAnnotationButton({
       ? formatFloat(annotation?.score)
       : annotation?.label || "--";
 
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: annotation?.score,
   });
@@ -1272,7 +1272,7 @@ function ExperimentRunAnnotationButton({
         fontFamily="mono"
         justifySelf="start"
         maxWidth="100%"
-        positiveOptimization={positiveOptimization}
+        optimizationValue={optimizationValue}
       >
         <Truncate maxWidth="100%">{labelValue}</Truncate>
       </AnnotationScoreText>

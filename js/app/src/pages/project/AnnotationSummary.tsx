@@ -17,7 +17,7 @@ import {
   View,
 } from "@phoenix/components";
 import {
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
   type AnnotationOptimizationConfig,
 } from "@phoenix/components/annotation";
 import type { ProjectAnnotationConfigsByNameFragment$key } from "@phoenix/components/annotation/__generated__/ProjectAnnotationConfigsByNameFragment.graphql";
@@ -406,7 +406,7 @@ export function SummaryValuePreview({
   }
   const chartDimensions = SizesMap[size].chart;
   const pieDimensions = SizesMap[size].pie;
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: meanScore,
   });
@@ -444,7 +444,7 @@ export function SummaryValuePreview({
           fallback={meanScoreFallback}
           value={meanScore}
           size={size === "S" ? size : "L"}
-          positiveOptimization={positiveOptimization}
+          optimizationValue={optimizationValue}
         />
       ) : (
         // When there is no mean score, a "--" mean score next to the pie chart
@@ -524,7 +524,7 @@ export function SummaryValueBreakdown({
   const colors = useAnnotationSummaryChartColors(annotationName);
   const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
   const hasLabelFractions = labelFractions && labelFractions.length > 0;
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: meanScore,
   });
@@ -570,7 +570,7 @@ export function SummaryValueBreakdown({
             <Text>mean score</Text>
             <MeanScore
               value={meanScore}
-              positiveOptimization={positiveOptimization}
+              optimizationValue={optimizationValue}
             />
           </Flex>
         ) : null}

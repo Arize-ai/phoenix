@@ -5,9 +5,11 @@ import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { AnnotationLabelConsensusText } from "./AnnotationLabelConsensusText";
-import { getAnnotationSummaryPositiveOptimization } from "./annotationSummaryUtils";
 import { MeanScore } from "./MeanScore";
-import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import {
+  type AnnotationOptimizationConfig,
+  getOptimizationValueFromConfig,
+} from "./optimizationUtils";
 import type { AnnotationSummary } from "./types";
 
 const badgeCSS = css(
@@ -69,9 +71,9 @@ export function AnnotationSummaryBadge({
       {summary.meanScore != null ? (
         <MeanScore
           value={summary.meanScore}
-          positiveOptimization={getAnnotationSummaryPositiveOptimization({
-            summary,
-            annotationConfig,
+          optimizationValue={getOptimizationValueFromConfig({
+            config: annotationConfig,
+            score: summary.meanScore,
           })}
           size="XS"
           className="annotation-summary-badge__value"

@@ -1,6 +1,6 @@
 import {
   getOptimizationBounds,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation/optimizationUtils";
 
 import {
@@ -28,7 +28,7 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
     expect(config.annotationType).toBe("FREEFORM");
   });
 
-  it("maps a freeform config with threshold + MAXIMIZE to a positive optimization", () => {
+  it("maps a freeform config with threshold + MAXIMIZE to a saturated optimization value", () => {
     const evaluator: DatasetEvaluatorForConfig = {
       name: "score",
       outputConfigs: [
@@ -42,15 +42,11 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
     };
 
     const [config] = datasetEvaluatorToAnnotationConfigs(evaluator);
-    expect(getPositiveOptimizationFromConfig({ config, score: 0.8 })).toBe(
-      true
-    );
-    expect(getPositiveOptimizationFromConfig({ config, score: 0.5 })).toBe(
-      false
-    );
+    expect(getOptimizationValueFromConfig({ config, score: 0.8 })).toBe(1);
+    expect(getOptimizationValueFromConfig({ config, score: 0.5 })).toBe(-1);
   });
 
-  it("maps a freeform config with bounds and MAXIMIZE to the bounded-midpoint result", () => {
+  it("maps a freeform config with bounds and MAXIMIZE to a value graded around the midpoint", () => {
     const evaluator: DatasetEvaluatorForConfig = {
       name: "score",
       outputConfigs: [
@@ -65,12 +61,11 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
     };
 
     const [config] = datasetEvaluatorToAnnotationConfigs(evaluator);
-    // Midpoint 0.5: 0.75 > 0.5 → true; 0.25 < 0.5 → false.
-    expect(getPositiveOptimizationFromConfig({ config, score: 0.75 })).toBe(
-      true
+    expect(getOptimizationValueFromConfig({ config, score: 0.75 })).toBeCloseTo(
+      0.5
     );
-    expect(getPositiveOptimizationFromConfig({ config, score: 0.25 })).toBe(
-      false
+    expect(getOptimizationValueFromConfig({ config, score: 0.25 })).toBeCloseTo(
+      -0.5
     );
   });
 
@@ -88,7 +83,7 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
     };
 
     const [config] = datasetEvaluatorToAnnotationConfigs(evaluator);
-    expect(getPositiveOptimizationFromConfig({ config, score: 5 })).toBeNull();
+    expect(getOptimizationValueFromConfig({ config, score: 5 })).toBeNull();
   });
 
   it("returns null when freeform optimizationDirection is NONE", () => {
@@ -105,9 +100,7 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
     };
 
     const [config] = datasetEvaluatorToAnnotationConfigs(evaluator);
-    expect(
-      getPositiveOptimizationFromConfig({ config, score: 0.8 })
-    ).toBeNull();
+    expect(getOptimizationValueFromConfig({ config, score: 0.8 })).toBeNull();
   });
 
   it("maps a categorical config via __typename", () => {

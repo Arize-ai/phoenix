@@ -6,7 +6,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Loading, Text } from "@phoenix/components";
 import {
   type AnnotationOptimizationConfig,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import {
@@ -172,8 +172,8 @@ function ProjectAnnotationMetricsPanel({
             yAxisProps={compactYAxisProps}
             syncId={PROJECT_METRICS_CHART_SYNC_ID}
             chartProps={chartProps}
-            getMeanScoreOptimization={(meanScore) =>
-              getPositiveOptimizationFromConfig({
+            getMeanScoreOptimizationValue={(meanScore) =>
+              getOptimizationValueFromConfig({
                 config: annotationConfig,
                 score: meanScore,
               })

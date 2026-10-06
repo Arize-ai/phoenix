@@ -6,7 +6,7 @@ import {
   type AnnotationConfig,
   AnnotationScoreText,
   getOptimizationBounds,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { Skeleton } from "@phoenix/components/core/loading";
 import type { ExecutionState } from "@phoenix/components/core/types";
@@ -146,7 +146,7 @@ function ExperimentAnnotationAggregateItem({
   const min = lowerBound ?? 0;
   const max = upperBound ?? 1;
 
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config,
     score: meanScore,
   });
@@ -205,7 +205,7 @@ function ExperimentAnnotationAggregateItem({
           <AnnotationScoreText
             size="S"
             fontFamily="mono"
-            positiveOptimization={positiveOptimization}
+            optimizationValue={optimizationValue}
           >
             <Truncate maxWidth="100%">{floatFormatter(meanScore)}</Truncate>
           </AnnotationScoreText>

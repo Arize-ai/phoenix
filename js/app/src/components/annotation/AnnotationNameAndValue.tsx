@@ -91,11 +91,10 @@ interface AnnotationNameAndValueProps {
   maxWidth?: CSSProperties["maxWidth"];
   size?: TextSize;
   /**
-   * Whether the annotation is a positive or negative optimization
-   *
-   * If not provided, the component will not display the optimization information.
+   * Signed optimization value from -1 (worst) to 1 (best) that colors the
+   * value. If not provided, the value is not colored.
    */
-  positiveOptimization?: boolean;
+  optimizationValue?: number | null;
   /**
    * Whether to show the color swatch next to the annotation name
    */
@@ -107,7 +106,7 @@ export function AnnotationNameAndValue({
   size,
   minWidth = "5rem",
   maxWidth = "9rem",
-  positiveOptimization,
+  optimizationValue,
   showColorSwatch = true,
 }: AnnotationNameAndValueProps) {
   const valueParts = getAnnotationValueParts(annotation, displayPreference);
@@ -138,7 +137,7 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <AnnotationScoreText positiveOptimization={positiveOptimization}>
+          <AnnotationScoreText optimizationValue={optimizationValue}>
             <span css={valuePartsCSS}>
               {valueParts.map((part, index) => (
                 <Fragment key={index}>

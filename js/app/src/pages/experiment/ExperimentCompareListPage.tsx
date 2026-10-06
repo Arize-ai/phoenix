@@ -48,7 +48,7 @@ import {
 import {
   AnnotationColorSwatch,
   type AnnotationConfig,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
@@ -1077,11 +1077,10 @@ export function ExperimentCompareListPage({
                 typeof baseExperimentRunAnnotationValue === "number"
                   ? numberFormatter(baseExperimentRunAnnotationValue)
                   : baseExperimentRunAnnotationValue;
-              const basePositiveOptimization =
-                getPositiveOptimizationFromConfig({
-                  config: annotationConfig,
-                  score: baseExperimentRunAnnotation?.score,
-                });
+              const baseOptimizationValue = getOptimizationValueFromConfig({
+                config: annotationConfig,
+                score: baseExperimentRunAnnotation?.score,
+              });
 
               return (
                 <ul
@@ -1094,7 +1093,7 @@ export function ExperimentCompareListPage({
                   <AnnotationValueItem
                     value={baseExperimentRunAnnotationValueFormatted}
                     numericValue={baseExperimentRunAnnotationValue}
-                    positiveOptimization={basePositiveOptimization}
+                    optimizationValue={baseOptimizationValue}
                     barColor={baseExperimentColor}
                     minScore={annotationSummary.minScore}
                     maxScore={annotationSummary.maxScore}
@@ -1112,17 +1111,16 @@ export function ExperimentCompareListPage({
                           ? numberFormatter(compareAnnotationValue)
                           : compareAnnotationValue;
                       const color = getExperimentColor(index);
-                      const positiveOptimization =
-                        getPositiveOptimizationFromConfig({
-                          config: annotationConfig,
-                          score: annotation?.score,
-                        });
+                      const optimizationValue = getOptimizationValueFromConfig({
+                        config: annotationConfig,
+                        score: annotation?.score,
+                      });
                       return (
                         <AnnotationValueItem
                           key={index}
                           value={compareAnnotationValueFormatted}
                           numericValue={compareAnnotationValue}
-                          positiveOptimization={positiveOptimization}
+                          optimizationValue={optimizationValue}
                           barColor={color}
                           minScore={annotationSummary.minScore}
                           maxScore={annotationSummary.maxScore}
@@ -1397,7 +1395,7 @@ export function ExperimentCompareListPage({
 function AnnotationValueItem({
   value,
   numericValue,
-  positiveOptimization,
+  optimizationValue,
   barColor,
   minScore,
   maxScore,
@@ -1405,28 +1403,28 @@ function AnnotationValueItem({
 }: {
   value: string | number;
   numericValue: string | number;
-  positiveOptimization: boolean | null;
+  optimizationValue: number | null;
   barColor: string;
   minScore: number | null;
   maxScore: number | null;
   annotationName: string;
 }) {
   const bgColor =
-    positiveOptimization === true
+    (optimizationValue ?? 0) > 0
       ? "var(--global-color-success-100)"
-      : positiveOptimization === false
+      : (optimizationValue ?? 0) < 0
         ? "var(--global-color-danger-100)"
         : undefined;
   const textColor =
-    positiveOptimization === true
+    (optimizationValue ?? 0) > 0
       ? "success"
-      : positiveOptimization === false
+      : (optimizationValue ?? 0) < 0
         ? "danger"
         : undefined;
   const optimizedBarColor =
-    positiveOptimization === true
+    (optimizationValue ?? 0) > 0
       ? "var(--global-color-success-500)"
-      : positiveOptimization === false
+      : (optimizationValue ?? 0) < 0
         ? "var(--global-color-danger-500)"
         : barColor;
 
