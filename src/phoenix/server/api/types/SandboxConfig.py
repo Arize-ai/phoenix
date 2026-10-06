@@ -66,6 +66,7 @@ class SandboxBackendType(Enum):
     DENO = "DENO"
     MODAL = "MODAL"
     MONTY = "MONTY"
+    DOCKER = "DOCKER"
 
 
 @strawberry.enum

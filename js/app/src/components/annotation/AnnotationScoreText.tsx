@@ -21,6 +21,12 @@ const directionCSS = css`
     padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
     border-radius: var(--global-rounding-small);
   }
+  // XS values sit inside one-line badges
+  &[data-direction][data-size="XS"] {
+    padding: 0 var(--global-dimension-size-50);
+    border-radius: var(--global-rounding-xsmall);
+    line-height: calc(var(--global-line-height-xs) - 4px);
+  }
   &[data-direction="positive"] {
     color: var(--global-color-optimization-direction-positive);
     background-color: var(

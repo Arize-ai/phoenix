@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2e0d007a33e452ff8964ca724deff64b>>
+ * @generated SignedSource<<7755c3ed07d0c960df6b3ebc617498fc>>
  * @lightSyntaxTransform
  */
 
@@ -20,8 +20,10 @@ export type deleteDatasetExamplesToolMutation$variables = {
 export type deleteDatasetExamplesToolMutation$data = {
   readonly deleteDatasetExamples: {
     readonly dataset: {
+      readonly exampleCount: number;
       readonly id: string;
       readonly name: string;
+      readonly updatedAt: string;
     };
   };
 };
@@ -74,6 +76,20 @@ v1 = [
             "kind": "ScalarField",
             "name": "name",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "exampleCount",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "updatedAt",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -100,16 +116,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "6caf944a18e7f46a8c2a1dc8a5515bd9",
+    "cacheID": "879065f85983db252529747c88264d3f",
     "id": null,
     "metadata": {},
     "name": "deleteDatasetExamplesToolMutation",
     "operationKind": "mutation",
-    "text": "mutation deleteDatasetExamplesToolMutation(\n  $input: DeleteDatasetExamplesInput!\n) {\n  deleteDatasetExamples(input: $input) {\n    dataset {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation deleteDatasetExamplesToolMutation(\n  $input: DeleteDatasetExamplesInput!\n) {\n  deleteDatasetExamples(input: $input) {\n    dataset {\n      id\n      name\n      exampleCount\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c5671fa5981df2174655ab8edae1ecbc";
+(node as any).hash = "ee4c3fcc72d90617374499aff7687971";
 
 export default node;

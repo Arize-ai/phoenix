@@ -62,7 +62,7 @@ The conventions cover four broad categories:
 
 | Category | Examples | Where to read more |
 | :--- | :--- | :--- |
-| **Span kinds** | `LLM`, `TOOL`, `AGENT`, `CHAIN`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `PROMPT`, `UNKNOWN` | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) |
+| **Span kinds** | `LLM`, `TOOL`, `AGENT`, `CHAIN`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `DECISION` (experimental), `PROMPT`, `UNKNOWN` | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) |
 | **Per-kind attributes** | `llm.input_messages`, `tool.parameters`, `agent.name`, `retrieval.documents` | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) |
 | **Common attributes** | `input.value`, `output.value`, `input.mime_type`, `output.mime_type`, `metadata`, `session.id`, `user.id`, `tag.tags` | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#common-attributes-across-all-kinds) |
 | **Enums** | LLM providers (`openai`, `anthropic`, `cohere`, ...), MIME types (`text/plain`, `application/json`), span kind values (ALL CAPS) | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) and the [canonical source](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) |

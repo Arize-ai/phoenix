@@ -27,7 +27,7 @@ Pipeline (per row):
      LLM token counts are cast from TRAIL's strings to ints, and swe_bench's
      ``anthropic/claude-3-7-sonnet-latest`` alias is mapped to the dated model
      name, so Phoenix computes span costs — it records none otherwise.
-  3. Emit annotations (batched per trace, can be disabled with
+  3. Once Phoenix has ingested every span, emit annotations (disable with
      ``--no-annotations``):
        - ``labels.errors`` → span annotations on the offending spans
          (``name="trail_error"``, ``label=<category>``, score from impact).
@@ -67,6 +67,7 @@ import logging
 import re
 import secrets
 import sys
+import time
 from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -394,6 +395,23 @@ def _iter_rows(source: str, input_path: Path | None) -> Iterator[dict[str, str]]
         yield {"trace": row["trace"], "labels": row["labels"]}
 
 
+def _wait_for_spans(client: Client, project: str, span_ids: set[str], timeout: float = 600) -> None:
+    deadline = time.monotonic() + timeout
+    while True:
+        spans = client.spans.get_spans(project_identifier=project, limit=len(span_ids) * 2 + 1000)
+        missing = span_ids - {span["context"]["span_id"] for span in spans}
+        if not missing:
+            return
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"{len(missing)} spans were not ingested into {project!r}")
+        time.sleep(2)
+
+
+def _batches(items: list[dict[str, Any]], size: int = 100) -> Iterator[list[dict[str, Any]]]:
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
+
 def _load_source(
     client: Client,
     source: str,
@@ -410,6 +428,9 @@ def _load_source(
     _ensure_project(client, project)
 
     n_traces = n_spans = n_span_annos = n_trace_annos = 0
+    pending_span_annos: list[dict[str, Any]] = []
+    pending_trace_annos: list[dict[str, Any]] = []
+    span_ids: set[str] = set()
     for i, row in enumerate(_iter_rows(source, input_path)):
         if limit is not None and i >= limit:
             break
@@ -442,15 +463,23 @@ def _load_source(
                     )
 
         client.spans.log_spans(project_identifier=project, spans=spans)
-        if span_annos:
-            client.spans.log_span_annotations(span_annotations=span_annos)
-        if trace_annos:
-            client.traces.log_trace_annotations(trace_annotations=trace_annos)
+        pending_span_annos.extend(span_annos)
+        pending_trace_annos.extend(trace_annos)
+        span_ids.update(span["context"]["span_id"] for span in spans)
 
         n_traces += 1
         n_spans += len(spans)
         n_span_annos += len(span_annos)
         n_trace_annos += len(trace_annos)
+
+    # Phoenix inserts spans asynchronously and drops annotations whose span or trace it
+    # has not inserted yet, so post annotations only after every span is queryable.
+    if pending_span_annos or pending_trace_annos:
+        _wait_for_spans(client, project, span_ids)
+    for batch in _batches(pending_span_annos):
+        client.spans.log_span_annotations(span_annotations=batch, sync=True)
+    for batch in _batches(pending_trace_annos):
+        client.traces.log_trace_annotations(trace_annotations=batch, sync=True)
 
     logger.info(
         "%s: %d traces / %d spans / %d span annotations / %d trace annotations → %r",

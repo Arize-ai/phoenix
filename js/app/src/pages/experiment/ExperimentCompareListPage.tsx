@@ -203,6 +203,7 @@ export function ExperimentCompareListPage({
                   node {
                     name
                     outputConfigs {
+                      __typename
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection

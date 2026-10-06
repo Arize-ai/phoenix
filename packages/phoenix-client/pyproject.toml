@@ -2,7 +2,7 @@
 name = "arize-phoenix-client"
 description = "LLM Observability"
 readme = "README.md"
-requires-python = ">=3.10, <3.15"
+requires-python = ">=3.11, <3.15"
 license = {text="Apache-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,7 +15,6 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -76,7 +75,7 @@ exclude = [
 ]
 extend-include = ["*.ipynb"]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
@@ -111,7 +110,7 @@ module = ["harbor.*"]
 follow_untyped_imports = true
 ignore_missing_imports = true
 
-# Harbor requires Python 3.12. On the client's 3.10 and 3.11 CI jobs its types resolve to Any;
+# Harbor requires Python 3.12. On the client's 3.11 CI jobs its types resolve to Any;
 # supported Python jobs install Harbor and check the concrete types above.
 [[tool.mypy.overrides]]
 module = ["phoenix.client.harbor.*", "src.phoenix.client.harbor.*", "tests.client.harbor.*"]
@@ -120,7 +119,7 @@ warn_return_any = false
 
 [tool.pyright]
 typeCheckingMode = "strict"
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 reportUnusedFunction = false
 exclude = [
   "dist/",

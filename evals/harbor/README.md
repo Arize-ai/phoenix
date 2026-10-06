@@ -8,7 +8,7 @@ compare the conditions in the Phoenix UI.
 
 | Job file | Question it answers | Tasks | Phoenix dataset |
 | --- | --- | --- | --- |
-| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis? CI runs this. | `tasks/error-analysis` | `pxi-benchmark` |
+| `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
@@ -16,13 +16,13 @@ compare the conditions in the Phoenix UI.
 | `agents/` | PXI and the Claude Code or Codex configurations for the MCP server and px |
 | `environments/` | The shared Dockerfile and the fixture script for each database |
 | `jobs/` | One configuration file for each benchmark |
-| `tasks/` | The `error-analysis/` task and the tasks under `trail-benchmark-dev/` |
-| `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
+| `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
+| `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
 ## Prerequisites
 
-- Install Python 3.12 or newer and run `pip install "arize-phoenix-client[harbor]"`.
+- Install Python 3.12 or newer and run `uv pip install "arize-phoenix-client[harbor]"`.
 - Install Docker for local runs, or set `DAYTONA_API_KEY` to use Daytona. Local Docker
   must support Harbor's allowlist network policy. Recent Docker Desktop versions support
   this policy. Harbor stops the run if the Docker installation does not support it.
@@ -44,7 +44,7 @@ Phoenix wheel, creates the fixture databases and task build contexts, and builds
 archive for the CLI agents:
 
 ```bash
-# Stage error-analysis only.
+# Stage the regression tasks only.
 make harbor-stage
 # Also seed the TRAIL fixture and stage its tasks.
 HF_TOKEN=... make harbor-stage
@@ -63,7 +63,7 @@ Run a job file after staging. `HARBOR_JOB` selects the file, and `HARBOR_ARGS` p
 arguments to `harbor run`:
 
 ```bash
-# Run the PXI benchmark as CI runs it.
+# Run the regression benchmark as CI runs it.
 make harbor-run
 # Run one attempt with local Docker.
 make harbor-run HARBOR_ARGS='-e docker -k 1'
@@ -94,9 +94,9 @@ The plugin reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from the env
 A local Phoenix instance on the default port needs neither variable. If the plugin cannot
 reach Phoenix, the job fails before any trial starts.
 
-The plugin records one experiment per condition on the dataset in the table above. Every
-copy of `trail-benchmark-dev.yaml` records to `trail-benchmark-dev`, so subset and full
-runs use the same dataset. Set `HARBOR_DATASET=<name>` to select another dataset. Set
+The plugin records one experiment per condition on the dataset in the table above. The
+dataset takes the name of the job's task directory, so every copy of a job file, subset
+or full, records to the same dataset. Set `HARBOR_DATASET=<name>` to select another dataset. Set
 `HARBOR_PLUGIN=` to run without recording results in Phoenix.
 
 Each run includes `reward` and the other verifier measurements. The TRAIL verifier
@@ -122,11 +122,6 @@ compare the Phoenix interfaces under the same test conditions.
 The agent phase runs as an unprivileged user that cannot open `/data/phoenix.db`. Agents
 must access the data through Phoenix. PXI runs inside the server and uses the server's
 database access. This difference is part of the PXI condition.
-
-Claude Code uses the Anthropic API, and Codex uses the OpenAI API. The job file therefore
-sets a model for each agent. Harbor installs Claude Code when the trial starts. The image
-contains the Codex version pinned in the job file. The CLI agents access Phoenix only
-through `px`. PXI is a separate condition and is not available to the other agents.
 
 ## The TRAIL benchmark
 
@@ -176,7 +171,7 @@ and `expected.json`. A unit test checks that the shared files stay identical and
 `expected.json` is well formed.
 
 Write a solution that calculates the reference value from the running Phoenix instance.
-Use `evals.harbor.verifiers.phoenix_api` to read spans and annotations through the Phoenix
+Use `harbor_verifiers.phoenix_api` to read spans and annotations through the Phoenix
 client and per-span costs through GraphQL. Stage the task, run the oracle, and copy its
 answer into `expected.json`. Use `source` to describe how the solution calculated the
 answer.
@@ -184,7 +179,7 @@ answer.
 For a task that changes Phoenix state instead of answering a question, write a custom
 `test.sh`. Query Phoenix at `http://127.0.0.1:6006` or read `/data/phoenix.db`. The
 verifier runs as root. Calculate the reward, and call
-`evals.harbor.verifiers.verify.write_reward(reward, **extra)` to include the trajectory
+`harbor_verifiers.verify.write_reward(reward, **extra)` to include the trajectory
 measurements.
 
 ### Add a condition
@@ -206,12 +201,12 @@ uv run pytest tests/unit/harbor
 Use an oracle run to test the task environment, reference solutions, and verifiers
 together.
 
-## The PXI benchmark
+## The regression benchmark
 
-`tasks/error-analysis` is a two-step scenario on a hand-prepared database. The agent
+`tasks/regression/error-analysis` is a two-step scenario on a hand-prepared database. The agent
 open-codes a project's traces into notes, then axial-codes them into per-dimension
 annotation configurations. Its verifier lives with the task under `tests/` and reads the
-database and the agent's sidecars directly. `jobs/benchmark.yaml` runs it with two
+database and the agent's sidecars directly. `jobs/regression.yaml` runs it with two
 attempts on Daytona. In CI, `.github/workflows/harbor-evals.yml` checks the reward with
 `scripts/check_job_reward.py`.
 
@@ -223,6 +218,17 @@ gcloud storage cp --cache-control=no-store phoenix.db \
 RESEED=1 make harbor-stage HARBOR_CLI=0
 ```
 
+`tasks/regression/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
+dataset, `banking_saas_dataset_clean` (28 examples, half of them expecting a `REFUSED:`
+string). The agent writes an exact-match evaluator and attaches it to the dataset, runs the
+empty prompt as a baseline experiment and iterates until an experiment passes all 28
+examples, then compares its first and last experiments and records what it learned on the
+last one. The verifiers probe the evaluator with fenced, padded, altered, and empty outputs,
+require the last experiment to score 28/28, and check the comparison against the database:
+the two experiments named, the examples that moved, the compare link, and a metadata note
+that preserves what was there. Its fixture lives at
+`gs://arize-phoenix-assets/evals/harbor/prompt-hill-climb/phoenix.db`.
+
 ## Test an unreleased client plugin
 
 Build the client wheel and use it in the Harbor environment instead of the pinned release:
@@ -231,8 +237,8 @@ Build the client wheel and use it in the Harbor environment instead of the pinne
 uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
 PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -c evals/harbor/jobs/benchmark.yaml -e docker -k 1 \
-  --plugin arize-phoenix --plugin-kwarg dataset=pxi-benchmark --yes
+  harbor run -c evals/harbor/jobs/regression.yaml -e docker -k 1 \
+  --plugin arize-phoenix --yes
 ```
 
 ## Name experiments
@@ -272,7 +278,7 @@ dataset version.
 | --- | --- | --- | --- |
 | Task | `[environment]` in `task.toml` | the whole trial | nothing |
 | Verifier | `[verifier]` in `task.toml` | verification only | the judge's provider |
-| Job | `environment.extra_allowed_hosts` in the job file | every agent in the job | the Phoenix docs hosts and `downloads.claude.ai` for the Claude Code install |
+| Job | `environment.extra_allowed_hosts` in the job file | every agent in the job | the Phoenix docs hosts |
 | Agent | `extra_allowed_hosts` on an agent entry | that agent's run | the agent's LLM provider |
 
 For a sealed run, remove the allowed hosts from the job and agent configurations. Agent

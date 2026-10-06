@@ -181,7 +181,9 @@ def to_chat_messages_and_kwargs(
         for message in template["messages"]:
             if message["role"] == "system":
                 if isinstance(message["content"], str):
-                    system_messages.append(message["content"])
+                    system_messages.append(
+                        formatter.format(message["content"], variables=variables)
+                    )
                     continue
                 for block in _ContentConversion.to_anthropic(
                     message["content"], variables, formatter
@@ -489,6 +491,8 @@ class _InvocationParametersConversion:
                 if display_adaptive is not None:
                     adaptive_content["display"] = display_adaptive
                 content["thinking"] = adaptive_content
+            elif thinking["type"] == "between_tools":
+                raise NotImplementedError("between_tools thinking is not supported")
             elif TYPE_CHECKING:
                 assert_never(thinking["type"])
         return v1.PromptAnthropicInvocationParameters(

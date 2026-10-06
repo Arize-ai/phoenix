@@ -131,7 +131,6 @@ if TYPE_CHECKING:
         Response,
         ResponseInputItemParam,
     )
-    from opentelemetry.util.types import AttributeValue
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
     from types_aiobotocore_bedrock_runtime.type_defs import (
         ContentBlockTypeDef,
@@ -141,6 +140,8 @@ if TYPE_CHECKING:
         MessageOutputTypeDef,
         MessageTypeDef,
     )
+
+    from phoenix.trace.attributes import AttributeValue
 
 # TypeVar for generic client type
 ClientT = TypeVar("ClientT")
@@ -1448,6 +1449,7 @@ class MetaClient(OpenAICompatibleClient):
         PROVIDER_DEFAULT,
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5-5",
         "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
@@ -1981,6 +1983,8 @@ class OpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 OPENAI_REASONING_MODELS = [
     "gpt-6-astra",
+    "gpt-6-sol",
+    "gpt-6-luna",
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
@@ -2145,6 +2149,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
     "claude-fable-5-1",
     "claude-fable-5",
+    "claude-opus-5-5",
     "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",

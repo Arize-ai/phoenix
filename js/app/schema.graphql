@@ -1149,7 +1149,21 @@ type Dataset implements Node {
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experiments(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+    includeEphemeral: Boolean = false
+    filterCondition: String
+    filterIds: [ID!]
+
+    """
+    When provided, return only the experiments with the given 1-based per-dataset sequence numbers.
+    """
+    sequenceNumbers: [Int!]
+    sort: ExperimentSort
+  ): ExperimentConnection!
 
   """The experiment tagged as this dataset's baseline, if one is set."""
   baselineExperiment: Experiment
@@ -1645,6 +1659,13 @@ type DismissExperimentPayload {
   experiment: Experiment!
 }
 
+input DockerConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
 type DocumentAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1944,6 +1965,11 @@ type ExperimentAnnotationSummary {
   scoreCount: Int!
   labelCount: Int!
   labelFractions: [LabelFraction!]!
+}
+
+enum ExperimentColumn {
+  sequenceNumber
+  createdAt
 }
 
 type ExperimentComparison implements Node {
@@ -2247,6 +2273,12 @@ type ExperimentRunMetricComparisons {
 """The sort key and direction for experiment run connections"""
 input ExperimentRunSort {
   col: ExperimentRunColumn!
+  dir: SortDir!
+}
+
+"""The sort key and direction for experiment connections"""
+input ExperimentSort {
+  col: ExperimentColumn!
   dir: SortDir!
 }
 
@@ -4074,6 +4106,7 @@ enum SandboxBackendType {
   DENO
   MODAL
   MONTY
+  DOCKER
 }
 
 type SandboxConfig implements Node {
@@ -4122,6 +4155,7 @@ input SandboxConfigVariantInput @oneOf {
   wasm: WASMConfigInput
   modal: ModalConfigInput
   monty: MontyConfigInput
+  docker: DockerConfigInput
 }
 
 """
@@ -4596,6 +4630,7 @@ enum SpanKind {
   reranker
   evaluator
   guardrail
+  decision
   unknown
 }
 

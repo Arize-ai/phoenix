@@ -750,7 +750,7 @@ await addSessionNote({
 
 ## Projects
 
-The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy assignments.
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy and annotation-config assignments.
 
 ### Fetching Projects
 
@@ -796,6 +796,79 @@ await setProjectRetentionPolicy({
 ```
 
 This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
+
+### Assigning Annotation Configs
+
+Use `assignProjectAnnotationConfig` and `unassignProjectAnnotationConfig` to add or remove a single annotation config. Select the project and the config by name or GlobalID. Both calls are idempotent. These helpers require Phoenix server `17.16.0` or newer.
+
+```ts
+import {
+  assignProjectAnnotationConfig,
+  listProjectAnnotationConfigs,
+  setProjectAnnotationConfigs,
+  unassignProjectAnnotationConfig,
+} from "@arizeai/phoenix-client/projects";
+
+await assignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+
+await unassignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+```
+
+Use `setProjectAnnotationConfigs` to replace the whole set by config GlobalID. Pass an empty list to clear every assignment:
+
+```ts
+const configs = await listProjectAnnotationConfigs({
+  projectName: "support-bot",
+});
+
+// Keep only the categorical configs
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: configs
+    .filter((config) => config.type === "CATEGORICAL")
+    .map((config) => config.id),
+});
+
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: [],
+});
+```
+
+If a config name contains `/`, select it by `configId` instead. The server can't route a `/` in the URL path.
+
+## Secrets
+
+Use the `secrets` entrypoint to atomically create, update, or delete encrypted
+provider credentials. A string value creates or updates a key, while `null`
+deletes it. Duplicate keys use the last occurrence in the batch. The result
+contains only changed key names and never returns secret values.
+
+```ts
+import { upsertOrDeleteSecrets } from "@arizeai/phoenix-client/secrets";
+
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) throw new Error("OPENAI_API_KEY is required");
+
+const result = await upsertOrDeleteSecrets({
+  secrets: [
+    { key: "OPENAI_API_KEY", value: apiKey },
+    { key: "OLD_PROVIDER_API_KEY", value: null },
+  ],
+});
+
+console.log(result.upsertedKeys);
+console.log(result.deletedKeys);
+```
+
+Managing secrets requires an administrator when Phoenix authentication is
+enabled. Avoid logging the request batch or otherwise retaining its values.
 
 ## Examples
 

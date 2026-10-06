@@ -24,9 +24,9 @@ from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import (
     GenAiOutputTypeValues,
     GenAiProviderNameValues,
 )
-from opentelemetry.util.types import AttributeValue
 from pydantic import RootModel, ValidationError
 
+from phoenix.trace.attributes import AttributeValue
 from phoenix.trace.gen_ai.__generated__.models import (
     BlobPart,
     ChatMessage,
@@ -443,21 +443,6 @@ def _build_invocation_parameters(
     return parameters
 
 
-# TODO: handle OTel GenAI semconv drift between producers.
-# Our generated models target semconv v1.41.1 (BlobPart has ``content: bytes`` and a
-# required ``modality`` field; UriPart/FilePart similarly renamed). Some producers
-# emit older drafts — notably opentelemetry-instrumentation-google-genai uses the
-# v1.30-era shape: ``data`` instead of ``content``, no ``modality``. Pydantic union
-# validation falls through to GenericPart for those parts, and ``_flatten_message``
-# below drops them silently (e.g. images vanish from llm.input_messages).
-# Three options when we get to this:
-#   1. Loosen the generated models (accept ``data``/``content`` aliases, optional
-#      ``modality``). Most permissive but modifies generated code.
-#   2. Pre-normalize part dicts in ``_validate_root_list`` (rename ``data`` ->
-#      ``content``, default ``modality`` from ``mime_type``). Contained.
-#   3. Sniff GenericPart for known ``type`` values (``blob``/``uri``/``file``) in
-#      ``_flatten_message`` and pull image fields from ``model_extra``. Most
-#      defensive — covers future drift too.
 def _flatten_message(
     message: ChatMessage | OutputMessage,
     prefix: str,

@@ -20,6 +20,7 @@ import {
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
+import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 import type { ExamplesSplitsMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitsMenuQuery.graphql";
 import type { Mutable } from "@phoenix/typeUtils";
 
@@ -29,6 +30,8 @@ type ExamplesSplitsMenuProps = {
   size?: ButtonProps["size"];
   isDisabled?: boolean;
 };
+
+const REFRESH_ON = ["datasetSplits"] as const;
 
 /**
  * The ExamplesSplitsMenu is a menu that allows the user to filter examples by splits.
@@ -72,6 +75,7 @@ const SplitFilterMenu = ({
   onSelectionChange: (splitIds: string[]) => void;
 }) => {
   const { contains } = useFilter({ sensitivity: "base" });
+  const fetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const data = useLazyLoadQuery<ExamplesSplitsMenuQuery>(
     graphql`
       query ExamplesSplitsMenuQuery {
@@ -88,7 +92,7 @@ const SplitFilterMenu = ({
     `,
     {},
     // fetch when menu is opened, but show cache data first to prevent flickering
-    { fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
   const splits = useMemo(() => {
     return data.datasetSplits.edges.map((edge) => edge.split);

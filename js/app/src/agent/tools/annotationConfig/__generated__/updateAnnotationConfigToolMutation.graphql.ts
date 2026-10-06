@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb9705758528fdeaaa45be89b6ca21f4>>
+ * @generated SignedSource<<224d95bd810187a06f28808bf3d77139>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type UpdateAnnotationConfigInput = {
   annotationConfig: AnnotationConfigInput;
@@ -58,16 +59,32 @@ export type updateAnnotationConfigToolMutation$data = {
   readonly updateAnnotationConfig: {
     readonly annotationConfig: {
       readonly __typename: "CategoricalAnnotationConfig";
+      readonly annotationType: AnnotationType;
+      readonly description: string | null;
       readonly id: string;
       readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly values: ReadonlyArray<{
+        readonly label: string;
+        readonly score: number | null;
+      }>;
     } | {
       readonly __typename: "ContinuousAnnotationConfig";
+      readonly annotationType: AnnotationType;
+      readonly description: string | null;
       readonly id: string;
+      readonly lowerBound: number | null;
       readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly upperBound: number | null;
     } | {
       readonly __typename: "FreeformAnnotationConfig";
+      readonly annotationType: AnnotationType;
+      readonly description: string | null;
       readonly id: string;
       readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly threshold: number | null;
     } | {
       // This will never be '%other', but we need some
       // value in case none of the concrete values match.
@@ -109,31 +126,113 @@ v3 = {
   "name": "id",
   "storageKey": null
 },
-v4 = [
-  (v3/*:: as any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  }
-],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
 v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationType",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v8 = {
   "kind": "InlineFragment",
-  "selections": (v4/*:: as any*/),
+  "selections": [
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v6/*:: as any*/),
+    (v7/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v6 = {
+v9 = {
   "kind": "InlineFragment",
-  "selections": (v4/*:: as any*/),
+  "selections": [
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v6/*:: as any*/),
+    (v7/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lowerBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "upperBound",
+      "storageKey": null
+    }
+  ],
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v7 = {
+v10 = {
   "kind": "InlineFragment",
-  "selections": (v4/*:: as any*/),
+  "selections": [
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v6/*:: as any*/),
+    (v7/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "threshold",
+      "storageKey": null
+    }
+  ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 };
@@ -161,9 +260,9 @@ return {
             "plural": false,
             "selections": [
               (v2/*:: as any*/),
-              (v5/*:: as any*/),
-              (v6/*:: as any*/),
-              (v7/*:: as any*/)
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -197,9 +296,9 @@ return {
             "plural": false,
             "selections": [
               (v2/*:: as any*/),
-              (v5/*:: as any*/),
-              (v6/*:: as any*/),
-              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [
@@ -217,16 +316,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ee285a00b365f11e4e18bd74acdcac2d",
+    "cacheID": "cec99a36d365cfc6cb484e3731033b18",
     "id": null,
     "metadata": {},
     "name": "updateAnnotationConfigToolMutation",
     "operationKind": "mutation",
-    "text": "mutation updateAnnotationConfigToolMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    annotationConfig {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        id\n        name\n      }\n      ... on ContinuousAnnotationConfig {\n        id\n        name\n      }\n      ... on FreeformAnnotationConfig {\n        id\n        name\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation updateAnnotationConfigToolMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    annotationConfig {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        id\n        name\n        description\n        annotationType\n        optimizationDirection\n        threshold\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "614e0bc135d7fb86dfa2d2fd04d1285b";
+(node as any).hash = "7802f88e0c4186e672b0313acd6dff6c";
 
 export default node;

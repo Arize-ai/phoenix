@@ -372,11 +372,11 @@ class UserMutationMixin:
         return DeleteUsersPayload(user_ids=deleted_user_gids)
 
 
-def _select_role_id_by_name(role_name: str) -> Select[tuple[int]]:
+def _select_role_id_by_name(role_name: str) -> Select[int]:
     return select(models.UserRole.id).where(models.UserRole.name == role_name)
 
 
-def _select_user_by_id(user_id: int) -> Select[tuple[models.User]]:
+def _select_user_by_id(user_id: int) -> Select[models.User]:
     return (
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )

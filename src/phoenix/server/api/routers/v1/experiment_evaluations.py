@@ -110,7 +110,7 @@ async def upsert_experiment_evaluation(
             end_time=isoparse(end_time),
             trace_id=payload.get("trace_id"),
         )
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         exp_eval_run = await session.scalar(
             insert_on_conflict(
                 values,

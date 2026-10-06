@@ -23,7 +23,7 @@ Harbor runs agents and verifiers. Phoenix records and compares their results. Do
 Install the client and Harbor in the same Python environment:
 
 ```bash
-pip install "arize-phoenix-client[harbor]"
+uv pip install "arize-phoenix-client[harbor]"
 ```
 
 ## Choose the trace mode
@@ -75,6 +75,7 @@ Use this mapping when explaining a job or checking its results:
 | One distinct agent and model configuration | One experiment |
 | One planned task attempt | One repetition |
 | One final logical trial | One experiment run |
+| Final textual agent turn | Experiment run output |
 | Final verifier reward | Experiment evaluation with the original key and CODE annotator kind |
 | Step verifier reward | Evaluation named `<step_name>.<reward_key>` |
 | Trial or step exception | Run error and `infra_ok=0` |
@@ -83,6 +84,10 @@ Use this mapping when explaining a job or checking its results:
 Each single-step or multi-step Harbor task becomes one Phoenix dataset example. A multi-step example input includes its ordered step names and instructions. Phoenix examples keep `output` empty unless the task declares a reference file.
 
 The plugin records only the terminal physical attempt for a logical trial. An attempt that Harbor will retry does not create a Phoenix run. Completion order does not define repetition numbers.
+
+When a saved terminal ATIF trajectory ends with a user-facing textual agent turn, the plugin records it in chat-message format so Phoenix experiment comparisons render it as Markdown. Structured messages contribute their text parts in order; media parts are omitted. The output stays empty for missing or invalid trajectories, terminal tool calls, media-only turns, and state-only tasks. Multi-step tasks use the last attempted step, and continued trajectories use the terminal continuation. Output extraction still runs with `trace_mode=null`; that setting disables trace creation, not result display.
+
+Successful runs written by older plugin versions keep their legacy Harbor metadata output because Phoenix runs are immutable. Resume recognizes that exact legacy shape and reuses the run.
 
 ## Add optional reference outputs
 

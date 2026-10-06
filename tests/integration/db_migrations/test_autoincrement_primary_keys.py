@@ -27,7 +27,7 @@ from . import _down, _run_async, _up
 
 
 def _create_user_role(connection: sa.Connection) -> int:
-    role_id = connection.execute(
+    role_id: int = connection.execute(
         sa.text("INSERT INTO user_roles (name) VALUES ('MEMBER') RETURNING id")
     ).scalar_one()
     assert isinstance(role_id, int)
@@ -46,7 +46,9 @@ def _insert_user(connection: sa.Connection, role_id: int) -> int:
     }
     if "auth_method" in users.c:
         values["auth_method"] = "LOCAL"
-    user_id = connection.execute(users.insert().values(**values).returning(users.c.id)).scalar_one()
+    user_id: int = connection.execute(
+        users.insert().values(**values).returning(users.c.id)
+    ).scalar_one()
     assert isinstance(user_id, int)
     return user_id
 
@@ -61,7 +63,7 @@ def _insert_token(connection: sa.Connection, table_name: str, user_id: int) -> i
         values["name"] = token_hex(8)
     elif table_name == "access_tokens":
         values["refresh_token_id"] = _insert_token(connection, "refresh_tokens", user_id)
-    token_id = connection.execute(
+    token_id: int = connection.execute(
         table.insert().values(**values).returning(table.c.id)
     ).scalar_one()
     assert isinstance(token_id, int)

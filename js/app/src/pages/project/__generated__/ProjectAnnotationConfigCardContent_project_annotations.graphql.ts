@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2a21a79737202df34e1cef8b056f486b>>
+ * @generated SignedSource<<bf4384d70ac1a2c3ff6dab435f64e51c>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,7 @@ export type ProjectAnnotationConfigCardContent_project_annotations$data = {
     }>;
   };
   readonly id: string;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   readonly " $fragmentType": "ProjectAnnotationConfigCardContent_project_annotations";
 };
 export type ProjectAnnotationConfigCardContent_project_annotations$key = {
@@ -45,6 +46,11 @@ const node: ReaderFragment = {
   },
   "name": "ProjectAnnotationConfigCardContent_project_annotations",
   "selections": [
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "ProjectAnnotationConfigsByNameFragment"
+    },
     {
       "alias": null,
       "args": null,
@@ -104,6 +110,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "f7049daf44d5f6a2e085c04cc187e86e";
+(node as any).hash = "123827e6ecc9cbc85754b248b17a38eb";
 
 export default node;
