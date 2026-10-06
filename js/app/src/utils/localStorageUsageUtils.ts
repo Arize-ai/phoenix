@@ -29,7 +29,6 @@ import { scopeStorageKeyToBasename } from "./storageUtils";
  */
 export type LocalStorageStoreId =
   | "preferences"
-  | "featureFlags"
   | "layout"
   | "tables"
   | "playground"
@@ -68,6 +67,13 @@ const SCOPED_STORAGE_BASE_KEYS: readonly string[] = [
   CHAT_PARAMETERS_STORAGE_BASE_KEY,
 ];
 
+/**
+ * Phoenix keys that are deliberately kept out of the inventory. They are
+ * neither reported nor cleared, and never fall through to the `other`
+ * bucket. Feature flags are a hidden developer toggle and must stay so.
+ */
+const HIDDEN_STORAGE_KEYS: readonly string[] = [FEATURE_FLAGS_STORAGE_KEY];
+
 /** Key prefixes that identify an entry as written by Phoenix. */
 const PHOENIX_STORAGE_KEY_PREFIXES: readonly string[] = [
   "arize-phoenix",
@@ -82,12 +88,6 @@ export const LOCAL_STORAGE_STORES: readonly LocalStorageStoreDefinition[] = [
     description:
       "Theme, timezone, code language, package manager, and other display preferences.",
     resolveKeys: () => [PREFERENCES_STORAGE_KEY, THEME_STORAGE_KEY],
-  },
-  {
-    id: "featureFlags",
-    label: "Feature flags",
-    description: "Experimental features toggled on in this browser.",
-    resolveKeys: () => [FEATURE_FLAGS_STORAGE_KEY],
   },
   {
     id: "layout",
@@ -221,13 +221,17 @@ function storeMatchesKey(
 
 /**
  * Resolves which sub-store a key belongs to, or `null` when the key is not
- * Phoenix's to manage (another app on the same origin, or a co-hosted
- * workspace's scoped entry).
+ * Phoenix's to manage (another app on the same origin, a co-hosted
+ * workspace's scoped entry, or a deliberately hidden key).
  */
 export function getLocalStorageStoreIdForKey(
   key: string
 ): LocalStorageStoreId | null {
-  if (!isPhoenixStorageKey(key) || isForeignScopedStorageKey(key)) {
+  if (
+    !isPhoenixStorageKey(key) ||
+    isForeignScopedStorageKey(key) ||
+    HIDDEN_STORAGE_KEYS.includes(key)
+  ) {
     return null;
   }
   const store = LOCAL_STORAGE_STORES.find(

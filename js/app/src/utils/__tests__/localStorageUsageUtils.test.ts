@@ -4,6 +4,7 @@ import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   CREDENTIALS_STORAGE_KEY,
   DRAWER_SIZE_STORAGE_KEY_PREFIX,
+  FEATURE_FLAGS_STORAGE_KEY,
   FILTER_HISTORY_STORAGE_KEY_PREFIX,
   PANEL_LAYOUT_STORAGE_KEY_PREFIX,
   PREFERENCES_STORAGE_KEY,
@@ -76,6 +77,10 @@ describe("getLocalStorageStoreIdForKey", () => {
     );
     expect(getLocalStorageStoreIdForKey("some-other-app")).toBeNull();
     expect(getLocalStorageStoreIdForKey("loglevel")).toBeNull();
+  });
+
+  it("never exposes feature flags, not even under other", () => {
+    expect(getLocalStorageStoreIdForKey(FEATURE_FLAGS_STORAGE_KEY)).toBeNull();
   });
 
   it("resolves scoped keys for the current root path only", () => {
@@ -171,6 +176,7 @@ describe("clearLocalStorageStore", () => {
 describe("clearAllLocalStorageStores", () => {
   it("removes every Phoenix entry and nothing else", () => {
     window.Config.basename = "/s/phoenix-devs";
+    localStorage.setItem(FEATURE_FLAGS_STORAGE_KEY, '{"x":true}');
     localStorage.setItem(PREFERENCES_STORAGE_KEY, "{}");
     localStorage.setItem(`${PANEL_LAYOUT_STORAGE_KEY_PREFIX}layout`, "[]");
     localStorage.setItem("arize-phoenix-assistant:/s/phoenix-devs", "{}");
@@ -180,7 +186,8 @@ describe("clearAllLocalStorageStores", () => {
 
     expect(clearAllLocalStorageStores()).toBe(4);
 
-    expect(localStorage.length).toBe(2);
+    expect(localStorage.length).toBe(3);
+    expect(localStorage.getItem(FEATURE_FLAGS_STORAGE_KEY)).toBe('{"x":true}');
     expect(localStorage.getItem("arize-phoenix-assistant:/s/other")).toBe("{}");
     expect(localStorage.getItem("unrelated")).toBe("keep");
     expect(readLocalStorageUsage().totalEntryCount).toBe(0);

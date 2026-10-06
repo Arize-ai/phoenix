@@ -93,6 +93,10 @@ describe("ProfileStoragePage", () => {
 
     expect(getRow("preferences").textContent).toContain("2 entries");
     expect(getRow("credentials").textContent).toContain("Empty");
+    expect(
+      container.querySelector('[data-testid="storage-store-featureFlags"]')
+    ).toBeNull();
+    expect(container.textContent).not.toContain("Feature flags");
     expect(getRowButton("preferences").disabled).toBe(false);
     expect(getRowButton("credentials").disabled).toBe(true);
     expect(
