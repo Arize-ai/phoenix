@@ -395,11 +395,24 @@ def _iter_rows(source: str, input_path: Path | None) -> Iterator[dict[str, str]]
         yield {"trace": row["trace"], "labels": row["labels"]}
 
 
-def _wait_for_spans(client: Client, project: str, span_ids: set[str], timeout: float = 600) -> None:
+def _wait_for_spans(
+    client: Client,
+    project: str,
+    span_ids: set[str],
+    trace_ids: set[str],
+    timeout: float = 600,
+) -> None:
     deadline = time.monotonic() + timeout
-    while True:
-        spans = client.spans.get_spans(project_identifier=project, limit=len(span_ids) * 2 + 1000)
-        missing = span_ids - {span["context"]["span_id"] for span in spans}
+    traces = sorted(trace_ids)
+    missing = span_ids.copy()
+    while missing:
+        for start in range(0, len(traces), 50):
+            spans = client.spans.get_spans(
+                project_identifier=project,
+                trace_ids=traces[start : start + 50],
+                limit=sys.maxsize,
+            )
+            missing.difference_update(span["context"]["span_id"] for span in spans)
         if not missing:
             return
         if time.monotonic() >= deadline:
@@ -431,6 +444,7 @@ def _load_source(
     pending_span_annos: list[dict[str, Any]] = []
     pending_trace_annos: list[dict[str, Any]] = []
     span_ids: set[str] = set()
+    trace_ids: set[str] = set()
     for i, row in enumerate(_iter_rows(source, input_path)):
         if limit is not None and i >= limit:
             break
@@ -466,6 +480,7 @@ def _load_source(
         pending_span_annos.extend(span_annos)
         pending_trace_annos.extend(trace_annos)
         span_ids.update(span["context"]["span_id"] for span in spans)
+        trace_ids.update(span["context"]["trace_id"] for span in spans)
 
         n_traces += 1
         n_spans += len(spans)
@@ -475,7 +490,7 @@ def _load_source(
     # Phoenix inserts spans asynchronously and drops annotations whose span or trace it
     # has not inserted yet, so post annotations only after every span is queryable.
     if pending_span_annos or pending_trace_annos:
-        _wait_for_spans(client, project, span_ids)
+        _wait_for_spans(client, project, span_ids, trace_ids)
     for batch in _batches(pending_span_annos):
         client.spans.log_span_annotations(span_annotations=batch, sync=True)
     for batch in _batches(pending_trace_annos):

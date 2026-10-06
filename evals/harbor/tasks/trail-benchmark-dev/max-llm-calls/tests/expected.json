@@ -1,4 +1,5 @@
 {
   "reference": "78 LLM calls",
+  "notes": "An LLM call and an LLM span are the same thing, so '78 LLM spans' matches. The count must be 78.",
   "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows"
 }
