@@ -6,6 +6,8 @@ import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/exp
 import { ExperimentItem } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 
+import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
+
 type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
@@ -275,7 +277,7 @@ const Template: Story = (args) => {
           mockExperimentRepetitionsByExperimentId
         }
         annotationSummaries={annotationSummaries}
-        annotationConfigs={[]}
+        annotationConfigs={experimentAnnotationConfigs}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}
         referenceOutput=""

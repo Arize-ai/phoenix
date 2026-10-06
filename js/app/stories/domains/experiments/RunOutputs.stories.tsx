@@ -6,6 +6,8 @@ import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/exp
 import { ExperimentRunOutputs } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 
+import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
+
 type Experiment = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
 >["edges"][number]["experiment"];
@@ -350,6 +352,7 @@ const meta: Meta<StoryArgs> = {
   component: ExperimentRunOutputs,
   parameters: {
     layout: "fullscreen",
+    themeLayout: "column",
     docs: {
       description: {
         component: `
@@ -388,7 +391,7 @@ const Template: Story = (args) => {
           args.experimentRepetitionsByExperimentId
         }
         annotationSummaries={args.annotationSummaries}
-        annotationConfigs={[]}
+        annotationConfigs={experimentAnnotationConfigs}
         referenceOutput={args.referenceOutput}
         includeRepetitions={includeRepetitions}
         openTraceDialog={() => {}}

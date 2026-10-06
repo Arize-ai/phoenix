@@ -177,6 +177,66 @@ export const LabelsAndScores: Story = {
   ),
 };
 
+const CONFIG_SHAPES: readonly {
+  label: string;
+  config: AnnotationOptimizationConfig;
+}[] = [
+  { label: "Maximize, 0 to 1", config: CORRECTNESS_CONFIG },
+  {
+    label: "Minimize, 0 to 1",
+    config: { ...CORRECTNESS_CONFIG, optimizationDirection: "MINIMIZE" },
+  },
+  {
+    label: "Maximize, 0 to 1, threshold 0.8",
+    config: {
+      annotationType: "FREEFORM",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 1,
+      threshold: 0.8,
+    },
+  },
+  {
+    label: "Maximize, threshold 0.5, no bounds",
+    config: {
+      annotationType: "FREEFORM",
+      optimizationDirection: "MAXIMIZE",
+      threshold: 0.5,
+    },
+  },
+];
+
+const CONFIG_SCORES = [-0.2, 0, 0.25, 0.5, 0.8, 0.9, 1.3].map((score) => ({
+  label: score.toFixed(2),
+  code: true,
+  score,
+}));
+
+export const ConfigurationsAndScores: Story = {
+  name: "Configurations and Scores",
+  tags: ["!dev"],
+  parameters: { themeLayout: "column" },
+  render: () => (
+    <OptionGrid
+      rows={CONFIG_SHAPES}
+      columns={CONFIG_SCORES}
+      renderCell={(shape, column) =>
+        column ? (
+          <AnnotationScoreText
+            fontFamily="mono"
+            optimizationValue={getOptimizationValueFromConfig({
+              config: shape.config,
+              score: column.score,
+            })}
+          >
+            {column.label}
+          </AnnotationScoreText>
+        ) : null
+      }
+    />
+  ),
+};
+
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: Story = {
   tags: ["!dev", "!autodocs"],
