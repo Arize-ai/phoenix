@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { ColorSwatch, Text } from "@phoenix/components";
+import { ColorSwatch, Text, truncateSingleCSS } from "@phoenix/components";
 import { BaselineExperimentBadge } from "@phoenix/components/experiment/BaselineExperimentBadge";
 
 const experimentNameWithColorSwatchCSS = css`
@@ -17,9 +17,7 @@ const experimentNameWithColorSwatchCSS = css`
   .experiment-name-with-color-swatch__name {
     flex: 0 1 auto;
     min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    ${truncateSingleCSS}
   }
 `;
 

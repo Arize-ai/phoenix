@@ -209,7 +209,7 @@ function ExperimentAnnotationMetricPanelContent({
         syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
         // Compared experiments have no inherent order, so a line between them
         // would imply a trend
-        scoreMark={selection == null ? "line" : "bar"}
+        chartType={selection == null ? "lineTimeSeries" : "barTimeSeries"}
         emptyStateMessage={
           selection == null
             ? `No chartable evaluation data within the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`
