@@ -1,16 +1,18 @@
 """Phoenix query helpers for reference solutions in task images.
 
-Use the typed Phoenix client for spans and annotations. Per-span cost requires
-GraphQL, so :func:`span_costs` uses the GraphQL API.
+Use the typed Phoenix client for spans and span annotations. The client cannot read
+trace annotations, so :func:`trace_annotation_scores` uses the REST API. Per-span cost
+requires GraphQL, so :func:`span_costs` uses the GraphQL API.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import urllib.parse
 import urllib.request
 from collections import defaultdict
-from typing import Any
+from typing import Any, Sequence
 
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
@@ -64,6 +66,34 @@ def annotation_labels(project: str, name: str) -> list[str]:
         for annotation in annotations
         if annotation.get("result") and annotation["result"].get("label")
     ]
+
+
+def trace_annotation_scores(
+    project: str, name: str, trace_ids: Sequence[TraceId]
+) -> dict[TraceId, float]:
+    """Return the score of each trace's ``name`` annotation, omitting unscored traces."""
+    scores: dict[TraceId, float] = {}
+    for start in range(0, len(trace_ids), 50):
+        cursor: str | None = None
+        while True:
+            params: dict[str, Any] = {"trace_ids": trace_ids[start : start + 50], "limit": 1000}
+            if cursor:
+                params["cursor"] = cursor
+            url = (
+                f"{PHOENIX_URL}/v1/projects/{urllib.parse.quote(project)}/trace_annotations?"
+                + urllib.parse.urlencode(params, doseq=True)
+            )
+            with urllib.request.urlopen(url, timeout=60) as response:
+                page: v1.TraceAnnotationsResponseBody = json.load(response)
+            for annotation in page["data"]:
+                result = annotation.get("result")
+                score = result.get("score") if result else None
+                if annotation["name"] == name and score is not None:
+                    scores[annotation["trace_id"]] = float(score)
+            cursor = page.get("next_cursor")
+            if not cursor:
+                break
+    return scores
 
 
 def graphql_client() -> GraphQLClient:

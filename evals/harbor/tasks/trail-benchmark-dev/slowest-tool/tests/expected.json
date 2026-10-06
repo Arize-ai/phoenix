@@ -1,0 +1,5 @@
+{
+  "reference": "VisitTool, about 55.7 seconds per call",
+  "notes": "The tool must be VisitTool; the duration is optional, but if given should round to about 56 seconds. Next is ArchiveSearchTool at 11.5 seconds.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; mean TOOL span duration by span name"
+}
