@@ -18,10 +18,10 @@ export interface ExperimentCompareChartsState {
     keys: ExperimentMetricChartKey[];
   }) => void;
   /**
-   * The datasets whose metric charts are hidden above the compare grid.
-   * A dataset without an entry shows its charts.
+   * Whether the metric charts above the experiment compare grid are shown,
+   * per dataset. A dataset without an entry shows its charts.
    */
-  areMetricChartsHiddenByDatasetId: Record<string, boolean>;
+  areMetricChartsVisibleByDatasetId: Record<string, boolean>;
   /**
    * Show or hide the metric charts above a dataset's experiment compare grid
    */
@@ -53,20 +53,15 @@ export const useExperimentCompareChartsStore =
               { type: "setMetricChartKeys" }
             );
           },
-          areMetricChartsHiddenByDatasetId: {},
+          areMetricChartsVisibleByDatasetId: {},
           setAreMetricChartsVisible: ({ datasetId, isVisible }) => {
             set(
-              (state) => {
-                const areMetricChartsHiddenByDatasetId = {
-                  ...state.areMetricChartsHiddenByDatasetId,
-                };
-                if (isVisible) {
-                  delete areMetricChartsHiddenByDatasetId[datasetId];
-                } else {
-                  areMetricChartsHiddenByDatasetId[datasetId] = true;
-                }
-                return { areMetricChartsHiddenByDatasetId };
-              },
+              (state) => ({
+                areMetricChartsVisibleByDatasetId: {
+                  ...state.areMetricChartsVisibleByDatasetId,
+                  [datasetId]: isVisible,
+                },
+              }),
               false,
               { type: "setAreMetricChartsVisible" }
             );
@@ -78,14 +73,14 @@ export const useExperimentCompareChartsStore =
         name: "arize-phoenix-experiment-compare-charts",
         partialize: (state) => ({
           metricChartKeysByDatasetId: state.metricChartKeysByDatasetId,
-          areMetricChartsHiddenByDatasetId:
-            state.areMetricChartsHiddenByDatasetId,
+          areMetricChartsVisibleByDatasetId:
+            state.areMetricChartsVisibleByDatasetId,
         }),
         merge: (persistedState, currentState) => {
           const persisted = (persistedState ?? {}) as Partial<
             Pick<
               ExperimentCompareChartsState,
-              "metricChartKeysByDatasetId" | "areMetricChartsHiddenByDatasetId"
+              "metricChartKeysByDatasetId" | "areMetricChartsVisibleByDatasetId"
             >
           >;
           const metricChartKeysByDatasetId = Object.fromEntries(
@@ -96,15 +91,15 @@ export const useExperimentCompareChartsStore =
                   : []
             )
           );
-          const areMetricChartsHiddenByDatasetId = Object.fromEntries(
+          const areMetricChartsVisibleByDatasetId = Object.fromEntries(
             Object.entries(
-              persisted.areMetricChartsHiddenByDatasetId ?? {}
-            ).filter(([, isHidden]) => isHidden === true)
+              persisted.areMetricChartsVisibleByDatasetId ?? {}
+            ).filter(([, isVisible]) => typeof isVisible === "boolean")
           );
           return {
             ...currentState,
             metricChartKeysByDatasetId,
-            areMetricChartsHiddenByDatasetId,
+            areMetricChartsVisibleByDatasetId,
           };
         },
       }

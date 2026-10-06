@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { Suspense } from "react";
+import { Suspense, useCallback } from "react";
 
 import { Loading } from "@phoenix/components";
 import {
   ChartPanelStrip,
+  getMetricChartsViewSetting,
   MetricChartsPanelGroup,
 } from "@phoenix/components/chart";
 import type { TableViewSetting } from "@phoenix/components/table";
@@ -68,32 +69,31 @@ function usePersistedCompareChartKeys(
 }
 
 /**
- * Whether the dataset's compare grid charts are shown, and a setter for it
+ * Whether the dataset's compare grid has charts selected and shows them, and a
+ * setter for the visibility. The default selection always includes built-in
+ * charts.
  */
 function useCompareChartsVisibility(datasetId: string): {
+  hasCharts: boolean;
   isVisible: boolean;
   setIsVisible: (isVisible: boolean) => void;
 } {
+  const persistedKeys = usePersistedCompareChartKeys(datasetId);
   const isVisible = useExperimentCompareChartsStore(
-    (state) => state.areMetricChartsHiddenByDatasetId[datasetId] !== true
+    (state) => state.areMetricChartsVisibleByDatasetId[datasetId] ?? true
   );
   const setAreMetricChartsVisible = useExperimentCompareChartsStore(
     (state) => state.setAreMetricChartsVisible
   );
+  const setIsVisible = useCallback(
+    (isVisible: boolean) => setAreMetricChartsVisible({ datasetId, isVisible }),
+    [datasetId, setAreMetricChartsVisible]
+  );
   return {
+    hasCharts: persistedKeys == null || persistedKeys.length > 0,
     isVisible,
-    setIsVisible: (isVisible) =>
-      setAreMetricChartsVisible({ datasetId, isVisible }),
+    setIsVisible,
   };
-}
-
-/**
- * Whether the dataset's compare grid has any charts selected. The default
- * selection always includes built-in charts.
- */
-function useHasCompareCharts(datasetId: string): boolean {
-  const persistedKeys = usePersistedCompareChartKeys(datasetId);
-  return persistedKeys == null || persistedKeys.length > 0;
 }
 
 /**
@@ -120,12 +120,43 @@ function ExperimentCompareGridCharts({
   datasetId,
   selection,
 }: CompareChartsProps) {
-  const charts = getExperimentMetricCharts(
-    getCompareGridChartKeys({
-      persistedKeys: usePersistedCompareChartKeys(datasetId),
-      annotationNames: useCompareAnnotationNames({ datasetId, selection }),
-    })
+  const persistedKeys = usePersistedCompareChartKeys(datasetId);
+  return persistedKeys != null ? (
+    <CompareChartsStrip
+      datasetId={datasetId}
+      selection={selection}
+      keys={persistedKeys}
+    />
+  ) : (
+    <DefaultCompareChartsStrip datasetId={datasetId} selection={selection} />
   );
+}
+
+/**
+ * The default charts, which need the selected experiments' evaluator names.
+ * Only this path reads the metrics query up front, so a persisted selection
+ * lets each chart load on its own.
+ */
+function DefaultCompareChartsStrip({
+  datasetId,
+  selection,
+}: CompareChartsProps) {
+  const annotationNames = useCompareAnnotationNames({ datasetId, selection });
+  return (
+    <CompareChartsStrip
+      datasetId={datasetId}
+      selection={selection}
+      keys={getCompareGridChartKeys({ persistedKeys: null, annotationNames })}
+    />
+  );
+}
+
+function CompareChartsStrip({
+  datasetId,
+  selection,
+  keys,
+}: CompareChartsProps & { keys: ExperimentMetricChartKey[] }) {
+  const charts = getExperimentMetricCharts(keys);
   return (
     <ChartPanelStrip chartCount={charts.length}>
       {charts.map((chart) => (
@@ -151,8 +182,7 @@ export function ExperimentCompareChartsPanelGroup({
   selection,
   children,
 }: CompareChartsProps & { children: ReactNode }) {
-  const hasCharts = useHasCompareCharts(datasetId);
-  const { isVisible } = useCompareChartsVisibility(datasetId);
+  const { hasCharts, isVisible } = useCompareChartsVisibility(datasetId);
   return (
     <MetricChartsPanelGroup
       layoutId="experiment-compare-grid-metrics-layout"
@@ -179,15 +209,7 @@ export function ExperimentCompareChartsPanelGroup({
 export function useExperimentCompareChartsViewSetting(
   datasetId: string
 ): TableViewSetting {
-  const hasCharts = useHasCompareCharts(datasetId);
-  const { isVisible, setIsVisible } = useCompareChartsVisibility(datasetId);
-  return {
-    id: "show-charts",
-    label: "Show charts",
-    isEnabled: isVisible,
-    onChange: setIsVisible,
-    isDisabled: !hasCharts,
-  };
+  return getMetricChartsViewSetting(useCompareChartsVisibility(datasetId));
 }
 
 /**

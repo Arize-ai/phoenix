@@ -20,7 +20,7 @@ describe("experimentCompareChartsStore", () => {
     localStorage.removeItem(STORAGE_KEY);
     useExperimentCompareChartsStore.setState({
       metricChartKeysByDatasetId: {},
-      areMetricChartsHiddenByDatasetId: {},
+      areMetricChartsVisibleByDatasetId: {},
     });
   });
 
@@ -37,7 +37,7 @@ describe("experimentCompareChartsStore", () => {
           "dataset-1": ["latency"],
           "dataset-2": ["annotation:quality", "error_rate"],
         },
-        areMetricChartsHiddenByDatasetId: {},
+        areMetricChartsVisibleByDatasetId: {},
       }
     );
   });
@@ -69,17 +69,17 @@ describe("experimentCompareChartsStore", () => {
     setAreMetricChartsVisible({ datasetId: "dataset-2", isVisible: true });
     expect(
       JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").state
-        .areMetricChartsHiddenByDatasetId
-    ).toEqual({ "dataset-1": true });
+        .areMetricChartsVisibleByDatasetId
+    ).toEqual({ "dataset-1": false, "dataset-2": true });
   });
 
-  it("drops persisted visibility entries that are not hidden flags", async () => {
+  it("drops persisted visibility entries that are not booleans", async () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
         state: {
           metricChartKeysByDatasetId: {},
-          areMetricChartsHiddenByDatasetId: {
+          areMetricChartsVisibleByDatasetId: {
             "dataset-1": true,
             "dataset-2": "yes",
             "dataset-3": false,
@@ -91,7 +91,7 @@ describe("experimentCompareChartsStore", () => {
     await useExperimentCompareChartsStore.persist.rehydrate();
     expect(
       useExperimentCompareChartsStore.getState()
-        .areMetricChartsHiddenByDatasetId
-    ).toEqual({ "dataset-1": true });
+        .areMetricChartsVisibleByDatasetId
+    ).toEqual({ "dataset-1": true, "dataset-3": false });
   });
 });

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import {
   ChartPanelStrip,
+  getMetricChartsViewSetting,
   MetricChartsPanelGroup,
 } from "@phoenix/components/chart";
 import type { TableViewSetting } from "@phoenix/components/table";
@@ -37,6 +38,24 @@ export function ExperimentsMetricsCharts() {
 }
 
 /**
+ * Whether the experiments table has charts selected and shows them, and a
+ * setter for the visibility. The store guarantees keys are valid catalog keys,
+ * so any selection means there are charts to show.
+ */
+function useExperimentsMetricChartsVisibility() {
+  const hasCharts = useDatasetContext(
+    (state) => state.experimentsMetricChartKeys.length > 0
+  );
+  const isVisible = useDatasetContext(
+    (state) => state.areExperimentsMetricChartsVisible
+  );
+  const setIsVisible = useDatasetContext(
+    (state) => state.setAreExperimentsMetricChartsVisible
+  );
+  return { hasCharts, isVisible, setIsVisible };
+}
+
+/**
  * Lays out the experiment metric charts strip above the experiments table in
  * a vertically resizable panel group. When no charts are selected or the
  * charts are hidden, the table content fills the space.
@@ -46,14 +65,7 @@ export function ExperimentsMetricsChartsPanelGroup({
 }: {
   children: ReactNode;
 }) {
-  // The store guarantees keys are valid catalog keys, so any selection means
-  // there are charts to show
-  const hasCharts = useDatasetContext(
-    (state) => state.experimentsMetricChartKeys.length > 0
-  );
-  const isVisible = useDatasetContext(
-    (state) => state.areExperimentsMetricChartsVisible
-  );
+  const { hasCharts, isVisible } = useExperimentsMetricChartsVisibility();
   return (
     <MetricChartsPanelGroup
       layoutId="experiments-table-metrics-layout"
@@ -69,20 +81,5 @@ export function ExperimentsMetricsChartsPanelGroup({
  * visibility is persisted per dataset.
  */
 export function useExperimentsMetricChartsViewSetting(): TableViewSetting {
-  const hasCharts = useDatasetContext(
-    (state) => state.experimentsMetricChartKeys.length > 0
-  );
-  const isVisible = useDatasetContext(
-    (state) => state.areExperimentsMetricChartsVisible
-  );
-  const setIsVisible = useDatasetContext(
-    (state) => state.setAreExperimentsMetricChartsVisible
-  );
-  return {
-    id: "show-charts",
-    label: "Show charts",
-    isEnabled: isVisible,
-    onChange: setIsVisible,
-    isDisabled: !hasCharts,
-  };
+  return getMetricChartsViewSetting(useExperimentsMetricChartsVisibility());
 }

@@ -44,6 +44,7 @@ import {
   defaultTooltipProps,
 } from "./defaults";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
+import type { TimeSeriesChartType } from "./types";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
 const LABEL_DATA_KEY_PREFIX = "fractions.";
@@ -66,22 +67,16 @@ function getLabelDataKey(index: number): string {
   return `${LABEL_DATA_KEY_PREFIX}${index}`;
 }
 
-/**
- * How mean scores are drawn: a line for ordered points (e.g. experiments over
- * time), bars for points with no inherent order (e.g. compared experiments)
- */
-export type AnnotationMetricsScoreMark = "line" | "bar";
-
 function AnnotationMetricsTooltip({
   active,
   payload,
   renderHeader,
   getMeanScoreOptimization,
-  scoreMark,
+  chartType,
 }: TooltipContentProps & {
   renderHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
   getMeanScoreOptimization?: (meanScore: number) => boolean | null;
-  scoreMark: AnnotationMetricsScoreMark;
+  chartType: TimeSeriesChartType;
 }) {
   if (!active || !payload || payload.length === 0) {
     return null;
@@ -103,7 +98,9 @@ function AnnotationMetricsTooltip({
           <ChartTooltipItem
             key={String(entry.dataKey)}
             color={entry.color}
-            shape={isMeanScore && scoreMark === "line" ? "line" : "square"}
+            shape={
+              isMeanScore && chartType === "lineTimeSeries" ? "line" : "square"
+            }
             name={String(entry.name)}
             value={
               isMeanScore && getMeanScoreOptimization ? (
@@ -140,9 +137,9 @@ type AnnotationMetricsChartProps = {
   }) => ReactNode;
   /**
    * How the scores view draws mean scores
-   * @default "line"
+   * @default "lineTimeSeries"
    */
-  scoreMark?: AnnotationMetricsScoreMark;
+  chartType?: TimeSeriesChartType;
 };
 
 export function AnnotationMetricsChart(props: AnnotationMetricsChartProps) {
@@ -205,7 +202,7 @@ function AnnotationMetricsChartContent({
   additionalLegendItems,
   renderReference,
   emptyStateMessage = "No chartable evaluation data",
-  scoreMark = "line",
+  chartType = "lineTimeSeries",
 }: AnnotationMetricsChartProps) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
@@ -220,7 +217,7 @@ function AnnotationMetricsChartContent({
     isReferencePrepended,
     isScoreView,
   } = getAnnotationChartState({ series, view });
-  const isScoreLine = isScoreView && scoreMark === "line";
+  const isScoreLine = isScoreView && chartType === "lineTimeSeries";
 
   return (
     <ChartEmptyStateOverlay
@@ -258,7 +255,7 @@ function AnnotationMetricsChartContent({
                 {...props}
                 renderHeader={renderTooltipHeader}
                 getMeanScoreOptimization={getMeanScoreOptimization}
-                scoreMark={scoreMark}
+                chartType={chartType}
               />
             )}
           />
