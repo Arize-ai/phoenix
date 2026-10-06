@@ -17,6 +17,9 @@ import {
   Icon,
   Icons,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
@@ -28,7 +31,10 @@ import {
 import { createEvaluatorAutocompletion } from "@phoenix/components/evaluators/codeEvaluatorAutocomplete";
 import { CODE_EVALUATOR_TEMPLATES } from "@phoenix/components/evaluators/codeEvaluatorTemplates";
 import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
-import { getDefaultCodeEvaluatorSource } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import {
+  type CodeEvaluatorResetSource,
+  getCodeEvaluatorResetTarget,
+} from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
@@ -38,18 +44,22 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
  * Editable source-code editor with a read-only auto-generated type footer.
- * Ships its own description line and Reset-to-default button.
+ * Ships its own description line and a Reset button, which restores
+ * `resetSource` when given and the language's default code otherwise.
  */
 export const CodeEvaluatorSourceEditor = ({
   language,
   sourceCode,
   onChange,
   hideDescription = false,
+  resetSource,
 }: {
   hideDescription?: boolean;
   language: CodeEvaluatorLanguage;
   sourceCode: string;
   onChange: (value: string) => void;
+  /** The saved code of an existing evaluator, or the code a copy began as. */
+  resetSource?: CodeEvaluatorResetSource | null;
 }) => {
   const { theme } = useTheme();
   // CodeMirror reconfigures the whole editor whenever its onChange identity
@@ -70,6 +80,11 @@ export const CodeEvaluatorSourceEditor = ({
     (state) => state.evaluator.inputMapping
   );
   const evaluatorMappingSource = evaluatorMappingSourceState.source;
+  const resetTarget = getCodeEvaluatorResetTarget({
+    language,
+    recordKind: evaluatorMappingSourceState.recordKind,
+    resetSource,
+  });
   const evaluationContext = useMemo(() => {
     const recordKind = evaluatorMappingSourceState.recordKind;
     return recordKind === "dataset"
@@ -185,21 +200,21 @@ export const CodeEvaluatorSourceEditor = ({
               </Menu>
             </MenuContainer>
           </MenuTrigger>
-          <Button
-            size="S"
-            variant="quiet"
-            leadingVisual={<Icon svg={<Icons.Refresh />} />}
-            onPress={() =>
-              onChange(
-                getDefaultCodeEvaluatorSource(
-                  language,
-                  evaluatorMappingSourceState.recordKind
-                )
-              )
-            }
-          >
-            Reset
-          </Button>
+          <TooltipTrigger>
+            <Button
+              size="S"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.Refresh />} />}
+              isDisabled={sourceCode === resetTarget.sourceCode}
+              onPress={() => onChange(resetTarget.sourceCode)}
+            >
+              Reset
+            </Button>
+            <Tooltip>
+              <TooltipArrow />
+              {resetTarget.description}
+            </Tooltip>
+          </TooltipTrigger>
           <CopyToClipboardButton
             text={sourceCode}
             size="S"
