@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import os
-import re
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any, Callable, NamedTuple
 
 from phoenix.client.__generated__ import v1
-from phoenix.evals import LLM, ClassificationEvaluator, Score
 
-from harbor_verifiers import llm_judge, phoenix_api
+from harbor_verifiers import phoenix_api
 from harbor_verifiers.graphql.__generated__ import (
     AnnotationConfigInput,
     BaseModel,
@@ -29,6 +26,15 @@ from harbor_verifiers.graphql.__generated__ import (
 )
 
 DATASET_NAME = "banking_saas_dataset_clean"
+# The opening sentence of each step's instruction.md. verify.py finds where a step begins in
+# an agent trajectory that carries the earlier steps by matching it.
+STEP_INSTRUCTIONS = {
+    "step_01_create_evaluator": 'Create an evaluator for the dataset "banking_saas_dataset_clean".',
+    "step_02_hill_climb": (
+        'Now find a system prompt that gets every example in "banking_saas_dataset_clean" right.'
+    ),
+    "step_03_compare": "Compare your first experiment against your last one.",
+}
 
 ExampleNodeId = str
 Scores = dict[ExampleNodeId, float | None]
@@ -63,9 +69,17 @@ def error_count(experiment: ExperimentFields) -> int:
     return sum(1 for run in first_runs(experiment) if run.error)
 
 
+def annotation_names(evaluator: DatasetEvaluatorFields) -> set[str]:
+    """Phoenix names an evaluator's annotations after its output configs, and after the
+    evaluator itself when it has none."""
+    inner = evaluator.evaluator
+    configs = [*(evaluator.output_configs or []), *(getattr(inner, "output_configs", None) or [])]
+    return {evaluator.name, *(name for c in configs if (name := getattr(c, "name", None)))}
+
+
 def scores(experiment: ExperimentFields, evaluators: list[DatasetEvaluatorFields]) -> Scores:
     """Each run's score from the latest annotation left by one of the evaluators."""
-    names = {e.name for e in evaluators}
+    names: set[str] = set().union(*(annotation_names(e) for e in evaluators))
     result: Scores = {}
     for run in first_runs(experiment):
         matching = [
@@ -249,48 +263,3 @@ def is_exact_match_evaluator(
         if not failures:
             return True, {"shape": shape_name}
     return False, detail
-
-
-# --- the final reply ---------------------------------------------------------------
-
-_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-
-
-def dates_in(text: str) -> list[date]:
-    dates = []
-    for match in _DATE.findall(text):
-        try:
-            dates.append(date.fromisoformat(match))
-        except ValueError:
-            continue
-    return dates
-
-
-_COMPARE_LINK = re.compile(r"/datasets/([A-Za-z0-9=_-]+)/compare\?([^\s)\]>\"']*)")
-
-
-def compare_links(text: str) -> list[tuple[str, set[str]]]:
-    links: list[tuple[str, set[str]]] = []
-    for dataset_id, query_string in _COMPARE_LINK.findall(text):
-        links.append((dataset_id, set(re.findall(r"experimentId=([A-Za-z0-9=_-]+)", query_string))))
-    return links
-
-
-# --- the LLM judge -------------------------------------------------------------------
-
-_API_KEYS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
-
-
-def judge(name: str, system: str, user: str) -> Score:
-    """Score 1.0 when the judge accepts, 0.0 when it rejects, ``None`` when the judge
-    provider has no API key."""
-    key = _API_KEYS.get(llm_judge.JUDGE_PROVIDER)
-    if key and not os.environ.get(key):
-        return Score(name=name, label="skipped", explanation=f"{key} is not set", kind="llm")
-    evaluator = ClassificationEvaluator(
-        name=name,
-        llm=LLM(provider=llm_judge.JUDGE_PROVIDER, model=llm_judge.JUDGE_MODEL),
-        prompt_template="{{system}}\n\n{{user}}",
-        choices={"accept": 1.0, "reject": 0.0},
-    )
-    return evaluator.evaluate({"system": system, "user": user})[0]

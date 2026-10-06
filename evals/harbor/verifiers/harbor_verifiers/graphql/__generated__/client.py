@@ -114,6 +114,7 @@ class Client(BaseClient):
               description
               metadata
               createdAt
+              updatedAt
               averageRunLatencyMs
               costSummary {
                 total {

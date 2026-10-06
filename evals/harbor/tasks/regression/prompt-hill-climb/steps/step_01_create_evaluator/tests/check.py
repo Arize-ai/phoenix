@@ -28,6 +28,7 @@ details = {
 scores = verify.write_reward(
     float(passed),
     details,
+    instruction=hc.STEP_INSTRUCTIONS["step_01_create_evaluator"],
     one_evaluator_attached=one_evaluator_attached,
     evaluator_is_exact_match=evaluator_is_exact_match,
     no_experiments_yet=no_experiments_yet,

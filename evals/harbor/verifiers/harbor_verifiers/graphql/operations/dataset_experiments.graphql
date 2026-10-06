@@ -23,6 +23,7 @@ fragment ExperimentFields on Experiment {
   description
   metadata
   createdAt
+  updatedAt
   averageRunLatencyMs
   costSummary {
     total {
