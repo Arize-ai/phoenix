@@ -146,22 +146,34 @@ export function PlaygroundEvaluatorColumnHeader({
             >
               <Truncate maxWidth="100%">
                 <Text size="XS" color="text-500" weight="normal">
-                  {agreement.withExpected}/{exampleCount} with expected
+                  {agreement.withExpected}/{exampleCount}
+                  {/* The info icon after the line says what it marks. */}
+                  {truncatedExampleCount != null ? (
+                    <sup aria-hidden="true" css={capMarkerCSS}>
+                      *
+                    </sup>
+                  ) : null}{" "}
+                  with expected
                   {agreementText}
                 </Text>
               </Truncate>
               {/* Outside the truncation, so it never gets cut off. */}
               {truncatedExampleCount != null ? (
-                <ContextualHelp
-                  variant="info"
-                  placement="bottom"
-                  triggerAriaLabel="Which examples these counts cover"
+                <span
+                  className="evaluator-column-header__cap-info"
+                  css={capInfoCSS}
                 >
-                  <Text>
-                    Counted over the first {intFormatter(examples.length)} of{" "}
-                    {intFormatter(truncatedExampleCount)} examples.
-                  </Text>
-                </ContextualHelp>
+                  <ContextualHelp
+                    variant="info"
+                    placement="bottom"
+                    triggerAriaLabel="Which examples these counts cover"
+                  >
+                    <Text>
+                      Counted over the first {intFormatter(examples.length)} of{" "}
+                      {intFormatter(truncatedExampleCount)} examples.
+                    </Text>
+                  </ContextualHelp>
+                </span>
               ) : null}
             </Flex>
           </Flex>
@@ -205,4 +217,16 @@ export function PlaygroundEvaluatorColumnHeader({
 const evaluatorColumnHeaderCSS = css`
   contain: inline-size;
   width: 100%;
+`;
+
+// A superscript, and the info button beside the line, are a little taller than
+// the line itself; neither may make the header taller than it is without them.
+const capMarkerCSS = css`
+  line-height: 0;
+`;
+
+const capInfoCSS = css`
+  display: flex;
+  align-items: center;
+  height: 0;
 `;
