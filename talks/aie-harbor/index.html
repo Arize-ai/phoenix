@@ -248,7 +248,7 @@ p{margin:0}
 </section>
 
 <section class="slide sx" data-title="Outline">
-  <div class="sx-rail" aria-label="Workshop outline"><span><b>01</b> Overview</span><span><b>02</b> Architecture</span><span><b>03</b> Tasks</span><span><b>04</b> Plugin</span><span><b>05</b> Scale</span><span><b>06</b> Tracing</span><span><b>07</b> In Phoenix</span></div>
+  <div class="sx-rail" aria-label="Workshop outline"><span><b>01</b> Overview</span><span><b>02</b> Architecture</span><span><b>03</b> Tasks</span><span><b>04</b> Scale</span><span><b>05</b> Plugin</span><span><b>06</b> Tracing</span><span><b>07</b> In Phoenix</span></div>
   <div class="sx-body">
     <div class="sx-text">
             <h2>Harbor</h2>
@@ -358,10 +358,22 @@ fi</pre>
   </div>
 </section>
 
+<section class="slide" data-title="Harbor isolation">
+  <div class="hb-top">
+    <div class="head">
+      <div class="eyebrow"><b>04 · Scale</b></div>
+      <h2>Benchmark Agents at Scale</h2>
+    </div>
+  </div>
+  <div class="hi" id="hi" role="img" aria-label="Four tasks, two agents, three attempts each: 24 trials, each in a fresh sandbox with the agent and the task environment mounted. pass@1 is the share of attempts that pass; pass@3 counts a task as solved if any of its 3 attempts passes. Claude Code fails tune-query on attempt 3 and patch-cve on attempt 1. Codex fails fix-migration on attempt 2, tune-query on attempt 1 with a timeout on attempt 2, and patch-cve on attempts 1 and 2 with a timeout on attempt 3. patch-cve is the hardest task at 2 of 6.">
+    <div class="hi-m" id="hi-m"></div>
+  </div>
+</section>
+
 <section class="slide" data-title="Harbor concepts">
   <div class="hb-top">
     <div class="head">
-      <div class="eyebrow"><b>04 · Plugin</b></div>
+      <div class="eyebrow"><b>05 · Plugin</b></div>
       <h2>The Phoenix Harbor Plugin</h2>
     </div>
   </div>
@@ -451,18 +463,6 @@ fi</pre>
       <rect x="1182" y="512" width="172" height="14" rx="3" stroke="none" style="fill:var(--ground)"/><text class="sub" style="font-size:11px" x="1190" y="523">agent</text><text class="sub" x="1348" y="523" text-anchor="end" style="font-size:9px;fill:var(--sky)">AGENT</text>
       <rect x="1198" y="530" width="156" height="14" rx="3" stroke="none" style="fill:var(--ground)"/><text class="sub" style="font-size:11px" x="1206" y="541">llm · tool</text><text class="sub" x="1348" y="541" text-anchor="end" style="font-size:9px;fill:var(--sky)">LLM</text>
     </svg>
-  </div>
-</section>
-
-<section class="slide" data-title="Harbor isolation">
-  <div class="hb-top">
-    <div class="head">
-      <div class="eyebrow"><b>05 · Scale</b></div>
-      <h2>Benchmark Agents at Scale</h2>
-    </div>
-  </div>
-  <div class="hi" id="hi" role="img" aria-label="Four tasks, two agents, three attempts each: 24 trials, each in a fresh sandbox with the agent and the task environment mounted. pass@1 is the share of attempts that pass; pass@3 counts a task as solved if any of its 3 attempts passes. Claude Code fails tune-query on attempt 3 and patch-cve on attempt 1. Codex fails fix-migration on attempt 2, tune-query on attempt 1 with a timeout on attempt 2, and patch-cve on attempts 1 and 2 with a timeout on attempt 3. patch-cve is the hardest task at 2 of 6.">
-    <div class="hi-m" id="hi-m"></div>
   </div>
 </section>
 
