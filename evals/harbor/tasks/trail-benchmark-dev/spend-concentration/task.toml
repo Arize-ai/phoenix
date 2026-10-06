@@ -8,7 +8,7 @@ description = "Share of total cost in the most expensive tenth of traces"
 [metadata]
 fixture = "trail"
 
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 
 [environment]

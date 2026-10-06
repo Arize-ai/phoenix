@@ -8,7 +8,7 @@ description = "Explain why the PageDownTool spans error"
 [metadata]
 fixture = "trail"
 
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 
 [environment]

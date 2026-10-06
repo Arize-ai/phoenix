@@ -8,7 +8,7 @@ description = "Report the 95th-percentile LLM span duration"
 [metadata]
 fixture = "trail"
 
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 
 [environment]

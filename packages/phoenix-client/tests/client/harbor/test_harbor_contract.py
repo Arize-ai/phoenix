@@ -248,7 +248,7 @@ async def test_reference_output_in_resolved_plan(
     toml = TASK_TOML if multi_step else 'schema_version = "1.3"\n[task]\nname = "arize/triage"\n'
     (task_dir / "instruction.md").write_text("Count traces.")
     (task_dir / "task.toml").write_text(
-        toml + '\n[metadata.phoenix]\nreference_output_path = "tests/expected.json"\n'
+        toml + '\n[metadata.arize-phoenix]\nreference_output_path = "tests/expected.json"\n'
     )
     reference = task_dir / "tests/expected.json"
     reference.write_text(json.dumps("117 traces"))

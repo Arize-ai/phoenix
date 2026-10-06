@@ -8,7 +8,7 @@ description = "Find the question the agent answered in its most expensive trace"
 [metadata]
 fixture = "trail"
 
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 
 [environment]

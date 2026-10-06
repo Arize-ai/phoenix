@@ -8,7 +8,7 @@ description = "Name the tool with the most failed calls"
 [metadata]
 fixture = "trail"
 
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 
 [environment]

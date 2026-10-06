@@ -238,10 +238,10 @@ def _read_task_content(task_dir: Path) -> _TaskContent:
 
 
 def _read_reference_output(task_dir: Path, metadata: Mapping[str, Any]) -> dict[str, Any]:
-    phoenix = metadata.get("phoenix", {})
-    setting = "metadata.phoenix.reference_output_path"
+    phoenix = metadata.get("arize-phoenix", {})
+    setting = "metadata.arize-phoenix.reference_output_path"
     if not isinstance(phoenix, dict):
-        raise HarborPluginError(f"Task {task_dir}: metadata.phoenix must be a TOML table.")
+        raise HarborPluginError(f"Task {task_dir}: metadata.arize-phoenix must be a TOML table.")
     if "reference_output_path" not in phoenix:
         return {}
     configured_path = phoenix["reference_output_path"]

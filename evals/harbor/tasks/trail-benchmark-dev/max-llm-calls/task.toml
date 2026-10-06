@@ -8,7 +8,7 @@ description = "Find the most LLM calls any single trace made"
 [metadata]
 fixture = "trail"
 
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 
 [environment]

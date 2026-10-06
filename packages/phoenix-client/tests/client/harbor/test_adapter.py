@@ -283,14 +283,14 @@ class TestReferenceOutput:
     def test_no_setting_leaves_output_empty(self, tmp_path: Path) -> None:
         (tmp_path / "expected.json").write_text('{"reference": "do not infer"}')
         assert _read_reference_output(tmp_path, {}) == {}
-        assert _read_reference_output(tmp_path, {"phoenix": {}}) == {}
+        assert _read_reference_output(tmp_path, {"arize-phoenix": {}}) == {}
 
     @pytest.mark.parametrize("value", ["117 traces", "", {}, {"answer": [1, 2], "ok": True}])
     def test_text_and_structured_references(self, tmp_path: Path, value: Any) -> None:
         (tmp_path / "tests").mkdir()
         (tmp_path / "tests/expected.json").write_text(json.dumps(value))
         output = _read_reference_output(
-            tmp_path, {"phoenix": {"reference_output_path": "tests/expected.json"}}
+            tmp_path, {"arize-phoenix": {"reference_output_path": "tests/expected.json"}}
         )
         expected = (
             {"messages": [{"role": "assistant", "content": value}]}
@@ -304,7 +304,7 @@ class TestReferenceOutput:
     )
     def test_rejects_traversal_and_absolute_paths(self, tmp_path: Path, path: str) -> None:
         with pytest.raises(HarborPluginError, match="relative to the task root"):
-            _read_reference_output(tmp_path, {"phoenix": {"reference_output_path": path}})
+            _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": path}})
 
     def test_rejects_symlink_escape(self, tmp_path: Path) -> None:
         root = tmp_path / "task"
@@ -313,7 +313,9 @@ class TestReferenceOutput:
         outside.write_text('"secret"')
         (root / "expected.json").symlink_to(outside)
         with pytest.raises(HarborPluginError, match="outside the task root"):
-            _read_reference_output(root, {"phoenix": {"reference_output_path": "expected.json"}})
+            _read_reference_output(
+                root, {"arize-phoenix": {"reference_output_path": "expected.json"}}
+            )
 
     @pytest.mark.parametrize(
         "content", [b"{bad json", b"\xff", b'{"value": NaN}', b'{"value": 1e999}']
@@ -322,7 +324,7 @@ class TestReferenceOutput:
         (tmp_path / "expected.json").write_bytes(content)
         with pytest.raises(HarborPluginError, match="readable UTF-8 JSON"):
             _read_reference_output(
-                tmp_path, {"phoenix": {"reference_output_path": "expected.json"}}
+                tmp_path, {"arize-phoenix": {"reference_output_path": "expected.json"}}
             )
 
     @pytest.mark.parametrize("content", ["null", "true", "117", "[]"])
@@ -330,21 +332,21 @@ class TestReferenceOutput:
         (tmp_path / "expected.json").write_text(content)
         with pytest.raises(HarborPluginError, match="JSON string or object"):
             _read_reference_output(
-                tmp_path, {"phoenix": {"reference_output_path": "expected.json"}}
+                tmp_path, {"arize-phoenix": {"reference_output_path": "expected.json"}}
             )
 
     @pytest.mark.parametrize("value", [None, 1, [], "", "   "])
     def test_rejects_invalid_setting(self, tmp_path: Path, value: Any) -> None:
         with pytest.raises(HarborPluginError, match="non-empty relative path"):
-            _read_reference_output(tmp_path, {"phoenix": {"reference_output_path": value}})
+            _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": value}})
 
     def test_rejects_invalid_namespace(self, tmp_path: Path) -> None:
         with pytest.raises(HarborPluginError, match="TOML table"):
-            _read_reference_output(tmp_path, {"phoenix": "expected.json"})
+            _read_reference_output(tmp_path, {"arize-phoenix": "expected.json"})
 
     @pytest.mark.parametrize("path", ["missing.json", "."])
     def test_missing_file_or_directory_is_actionable(self, tmp_path: Path, path: str) -> None:
         with pytest.raises(HarborPluginError, match="reference_output_path") as caught:
-            _read_reference_output(tmp_path, {"phoenix": {"reference_output_path": path}})
+            _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": path}})
         assert str(tmp_path) in str(caught.value)
         assert path in str(caught.value)

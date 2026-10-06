@@ -8,7 +8,7 @@ description = "Find the tool called most often within one trace"
 [metadata]
 fixture = "trail"
 
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 
 [environment]

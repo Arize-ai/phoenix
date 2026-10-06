@@ -94,7 +94,7 @@ Successful runs written by older plugin versions keep their legacy Harbor metada
 A task can declare a checked-in reference file in its root `task.toml`:
 
 ```toml
-[metadata.phoenix]
+[metadata.arize-phoenix]
 reference_output_path = "tests/expected.json"
 ```
 
