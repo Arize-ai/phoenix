@@ -16,7 +16,14 @@ from openinference.semconv.trace import (
     MessageAttributes,
 )
 from opentelemetry.context import Context
-from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from opentelemetry.trace import (
+    NoOpTracer,
+    Status,
+    StatusCode,
+    Tracer,
+    format_trace_id,
+    get_current_span,
+)
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1005,12 +1012,15 @@ def apply_input_mapping(
     input_mapping: InputMapping,
     context: dict[str, Any],
 ) -> dict[str, Any]:
-    properties = input_schema.get("properties")
+    declared_keys = input_schema.get("properties") or {}
+    accepts_any_key = not declared_keys or input_schema.get("additionalProperties") is True
+    ignored_keys: list[str] = []
     result: dict[str, Any] = {}
     # apply path mappings
     if input_mapping.path_mapping:
         for key, path_expr in input_mapping.path_mapping.items():
-            if isinstance(properties, dict) and key not in properties:
+            if not accepts_any_key and key not in declared_keys:
+                ignored_keys.append(key)
                 continue
             try:
                 jsonpath = parse_jsonpath(path_expr)
@@ -1030,13 +1040,17 @@ def apply_input_mapping(
     # literal mappings take priority over path mappings
     if input_mapping.literal_mapping:
         for key, value in input_mapping.literal_mapping.items():
-            if isinstance(properties, dict) and key not in properties:
+            if not accepts_any_key and key not in declared_keys:
+                ignored_keys.append(key)
                 continue
             result[key] = value
 
+    if ignored_keys:
+        get_current_span().set_attribute("input_mapping.ignored_keys", sorted(set(ignored_keys)))
+
     # for any key in the input schema that is still not in result,
     # set result[input_schema_key] to context[input_schema_key]
-    for key in input_schema.get("properties", {}).keys():
+    for key in declared_keys:
         if key not in result and key in context:
             result[key] = context[key]
 

@@ -841,6 +841,36 @@ class TestApplyInputMapping:
         )
         assert result == {"output": "Hello, world!"}
 
+    @pytest.mark.parametrize(
+        "input_schema",
+        [
+            pytest.param({"type": "object"}, id="no-properties"),
+            pytest.param({"type": "object", "properties": {}}, id="empty-properties"),
+            pytest.param(
+                {
+                    "type": "object",
+                    "properties": {"output": {"type": "string"}},
+                    "additionalProperties": True,
+                },
+                id="additional-properties",
+            ),
+        ],
+    )
+    def test_schema_open_to_any_key_keeps_every_mapping_key(
+        self, input_schema: dict[str, Any]
+    ) -> None:
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping=JSON({"output": "$.response", "extra": "$.detail"}),
+            literal_mapping=JSON({"label": "literal"}),
+        )
+        context = {"response": "Hello, world!", "detail": "more"}
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping.to_orm(),
+            context=context,
+        )
+        assert result == {"output": "Hello, world!", "extra": "more", "label": "literal"}
+
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
             "type": "object",
