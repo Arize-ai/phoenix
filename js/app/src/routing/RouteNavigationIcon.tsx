@@ -13,6 +13,7 @@ const ROUTE_NAVIGATION_ICONS: Record<
   Eye: <Icons.Eye />,
   GraphQL: <Icons.GraphQL />,
   Grid: <Icons.Grid />,
+  HardDrive: <Icons.HardDrive />,
   Key: <Icons.Key />,
   Link2: <Icons.Link2 />,
   MessageCircle: <Icons.MessageCircle />,

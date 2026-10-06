@@ -19,7 +19,7 @@ describe("profile route information", () => {
         path: "/profile",
         label: "Profile",
         description:
-          "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
+          "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and browser storage.",
       },
       {
         path: "/profile/account",
@@ -57,6 +57,12 @@ describe("profile route information", () => {
         description:
           "Configure generative AI features: enable AI query for filter fields, choose the model — your browser's built-in on-device AI or a model provider with an API key — and manage the on-device model (download status, download it ahead of time, how to remove it).",
       },
+      {
+        path: "/profile/storage",
+        label: "Profile Browser Storage",
+        description:
+          "See how much local storage Phoenix uses in this browser, broken down by preferences, layouts, tables, playground, model provider credentials, assistant, chat, filter history, and recently viewed, and clear any section or all of it to reset to defaults.",
+      },
     ]);
   });
 
@@ -67,6 +73,7 @@ describe("profile route information", () => {
     ["change my timezone", "/profile/preferences"],
     ["use native scrollbars", "/profile/accessibility"],
     ["enable AI query", "/profile/generative-ai"],
+    ["clear local storage", "/profile/storage"],
   ])("finds %s at %s", (query, expectedPath) => {
     const result = getRouteInfoFromCatalog({
       catalog,

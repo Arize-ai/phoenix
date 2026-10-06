@@ -89,6 +89,7 @@ import {
   ProfileGenerativeAIPage,
   ProfilePage,
   ProfilePreferencesPage,
+  ProfileStoragePage,
   ProjectIndexPage,
   projectLoader,
   ProjectMetricsPage,
@@ -219,7 +220,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Profile",
               description:
-                "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
+                "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and browser storage.",
             },
           }}
           element={<ProfilePage />}
@@ -332,6 +333,24 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Generative AI",
                 description: "AI query and model configuration",
                 icon: "Sparkles",
+              },
+            }}
+          />
+          <Route
+            path="storage"
+            element={<ProfileStoragePage />}
+            handle={{
+              crumb: () => "Browser Storage",
+              agentRoute: {
+                label: "Profile Browser Storage",
+                description:
+                  "See how much local storage Phoenix uses in this browser, broken down by preferences, layouts, tables, playground, model provider credentials, assistant, chat, filter history, and recently viewed, and clear any section or all of it to reset to defaults.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Browser Storage",
+                description: "Inspect and clear locally stored UI state",
+                icon: "HardDrive",
               },
             }}
           />

@@ -28,6 +28,7 @@ import type {
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import type { PendingScriptApproval } from "@phoenix/agent/uiOperations/pendingScriptApproval";
+import { ASSISTANT_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
@@ -704,17 +705,11 @@ function removeToolCallRecordForSession<T extends { sessionId: string }>(
 }
 
 /**
- * Base local-storage key for the persisted assistant state. Used verbatim for
- * single-tenant deployments and as a prefix when scoping by root path.
- */
-const BASE_ASSISTANT_STORAGE_KEY = "arize-phoenix-assistant";
-
-/**
  * Resolves the local-storage key for the persisted assistant state, scoped to
  * the deployment's root path (see {@link scopeStorageKeyToBasename} for why).
  */
 export function resolveAssistantStorageKey(): string {
-  return scopeStorageKeyToBasename(BASE_ASSISTANT_STORAGE_KEY);
+  return scopeStorageKeyToBasename(ASSISTANT_STORAGE_BASE_KEY);
 }
 
 /**

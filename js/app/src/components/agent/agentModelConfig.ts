@@ -1,11 +1,9 @@
 import { z } from "zod";
 
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { AGENT_MODEL_CONFIG_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { modelProviderSchema } from "@phoenix/utils/generativeUtils";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
-
-const BASE_AGENT_MODEL_STORAGE_KEY =
-  "__experimental__arize-phoenix-agent-config";
 
 /**
  * Resolves the agent model-config key, scoped to the deployment's root path
@@ -14,7 +12,7 @@ const BASE_AGENT_MODEL_STORAGE_KEY =
  * depends on `window.Config`, which isn't set at module load.
  */
 export function resolveAgentModelStorageKey(): string {
-  return scopeStorageKeyToBasename(BASE_AGENT_MODEL_STORAGE_KEY);
+  return scopeStorageKeyToBasename(AGENT_MODEL_CONFIG_STORAGE_BASE_KEY);
 }
 
 const AGENT_MODEL_CONFIG_SCHEMA = z.object({

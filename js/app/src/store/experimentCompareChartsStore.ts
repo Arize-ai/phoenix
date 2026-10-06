@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import { sanitizeExperimentMetricChartKeys } from "@phoenix/pages/dataset/constants";
 
@@ -70,7 +71,7 @@ export const useExperimentCompareChartsStore =
         { name: "experimentCompareChartsStore" }
       ),
       {
-        name: "arize-phoenix-experiment-compare-charts",
+        name: EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY,
         partialize: (state) => ({
           metricChartKeysByDatasetId: state.metricChartKeysByDatasetId,
           areMetricChartsVisibleByDatasetId:
