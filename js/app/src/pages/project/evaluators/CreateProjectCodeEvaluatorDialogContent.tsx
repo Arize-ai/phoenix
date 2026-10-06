@@ -303,6 +303,15 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
               sourceCode={sourceCode}
               onSourceCodeChange={setSourceCode}
               onFieldChange={clearValidationMessage}
+              resetSource={
+                initialValues
+                  ? {
+                      language: initialValues.language,
+                      sourceCode: initialValues.sourceCode,
+                      kind: "copied",
+                    }
+                  : null
+              }
             />
           }
         />

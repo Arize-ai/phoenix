@@ -296,6 +296,12 @@ function EvaluatorTaskEditorContent({
     evaluator.code?.sandboxConfigId ?? null
   );
 
+  // The code of the saved evaluator the task stands for, which Reset
+  // restores; a draft has none, so Reset gives it the default.
+  const [savedCode, setSavedCode] = useState(() =>
+    evaluator.source.evaluatorId != null ? (evaluator.code ?? null) : null
+  );
+
   // The mount's mirror only fills in defaults (the sandbox above); it is not
   // an edit, so it leaves the dirty flag alone.
   const isFirstPublish = useRef(true);
@@ -465,7 +471,10 @@ function EvaluatorTaskEditorContent({
               loadedSandboxConfigId={loadedSandboxConfigId}
               validationError={validationError}
               onNameRequired={() => setSelectedTab("output")}
-              onSaved={setLoadedSandboxConfigId}
+              onSaved={(saved) => {
+                setLoadedSandboxConfigId(saved.sandboxConfigId);
+                setSavedCode(saved);
+              }}
               onSaveApiChange={setSaveApi}
             />
           </Suspense>
@@ -525,6 +534,7 @@ function EvaluatorTaskEditorContent({
             ) : (
               <CodeEditor
                 code={code}
+                savedCode={savedCode}
                 onChange={setCode}
                 sandboxConfigs={sandboxConfigs}
                 // A saved code evaluator keeps its language; only a draft may
@@ -632,11 +642,13 @@ function JudgePromptEditor({ instanceId }: { instanceId: number }) {
 
 function CodeEditor({
   code,
+  savedCode,
   onChange,
   sandboxConfigs,
   isLanguageLocked,
 }: {
   code: PlaygroundEvaluatorTaskCode;
+  savedCode: PlaygroundEvaluatorTaskCode | null;
   onChange: (code: PlaygroundEvaluatorTaskCode) => void;
   sandboxConfigs: SandboxConfigs;
   isLanguageLocked: boolean;
@@ -673,6 +685,15 @@ function CodeEditor({
         hideDescription
         language={code.language}
         sourceCode={code.sourceCode}
+        resetSource={
+          savedCode
+            ? {
+                language: savedCode.language,
+                sourceCode: savedCode.sourceCode,
+                kind: "saved",
+              }
+            : null
+        }
         onChange={(sourceCode) => onChange({ ...code, sourceCode })}
       />
     </Flex>
