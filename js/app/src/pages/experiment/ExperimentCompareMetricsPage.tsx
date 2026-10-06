@@ -20,6 +20,7 @@ import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { useTheme } from "@phoenix/contexts";
 import { ExperimentComparePageQueriesCompareMetricsQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
+import { compareAnnotationMeanScores } from "@phoenix/pages/experiment/utils";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import {
   costFormatter,
@@ -338,73 +339,15 @@ export function ExperimentCompareMetricsPage({
         completionTokensMetric,
       ];
 
-      const annotationNameToBaseExperimentMeanScore: Record<string, number> =
-        {};
-      baseExperiment.annotationSummaries?.forEach((annotation) => {
-        if (annotation.meanScore != null) {
-          annotationNameToBaseExperimentMeanScore[annotation.annotationName] =
-            annotation.meanScore;
-        }
-      });
-      const annotationNameToCompareExperimentIdToMeanScore: Record<
-        string,
-        Record<string, number>
-      > = {};
-      compareExperiments.forEach((experiment) => {
-        experiment.annotationSummaries?.forEach((annotationSummary) => {
-          const annotationName = annotationSummary.annotationName;
-          const experimentId = experiment.id;
-          const meanScore = annotationSummary.meanScore;
-          if (experimentId != null && meanScore != null) {
-            if (
-              !(
-                annotationName in annotationNameToCompareExperimentIdToMeanScore
-              )
-            ) {
-              annotationNameToCompareExperimentIdToMeanScore[annotationName] =
-                {};
-            }
-            annotationNameToCompareExperimentIdToMeanScore[annotationName][
-              experimentId
-            ] = meanScore;
-          }
-        });
-      });
-      const annotationMetrics: MetricCardProps[] = [];
-      for (const annotationName in annotationNameToBaseExperimentMeanScore) {
-        const baseExperimentMeanScore =
-          annotationNameToBaseExperimentMeanScore[annotationName];
-        if (
-          !(annotationName in annotationNameToCompareExperimentIdToMeanScore)
-        ) {
-          continue;
-        }
-        const annotationMetricComparisons: CompareExperiment[] = [];
-        compareExperiments.forEach((experiment, experimentIndex) => {
-          const compareExperimentId = experiment.id;
-          const compareExperimentColor = getExperimentColor(experimentIndex);
-          let compareExperimentMeanScore: MetricValue = null;
-          if (
-            compareExperimentId == null ||
-            !(
-              compareExperimentId in
-              annotationNameToCompareExperimentIdToMeanScore[annotationName]
-            )
-          ) {
-            compareExperimentMeanScore = null;
-          } else {
-            compareExperimentMeanScore =
-              annotationNameToCompareExperimentIdToMeanScore[annotationName][
-                compareExperimentId
-              ];
-          }
-          annotationMetricComparisons.push({
-            id: compareExperimentId,
-            value: compareExperimentMeanScore,
-            color: compareExperimentColor,
-          });
-        });
-        annotationMetrics.push({
+      const annotationMetrics: MetricCardProps[] = compareAnnotationMeanScores(
+        baseExperiment,
+        compareExperiments
+      ).map(
+        ({
+          annotationName,
+          baseExperimentMeanScore,
+          compareExperimentMeanScores,
+        }) => ({
           icon: (
             <ColorSwatch
               color={getWordColor({ word: annotationName, theme })}
@@ -412,9 +355,15 @@ export function ExperimentCompareMetricsPage({
           ),
           title: annotationName,
           baseExperimentValue: baseExperimentMeanScore,
-          compareExperiments: annotationMetricComparisons,
-        });
-      }
+          compareExperiments: compareExperimentMeanScores.map(
+            ({ experimentId, meanScore }, experimentIndex) => ({
+              id: experimentId,
+              value: meanScore,
+              color: getExperimentColor(experimentIndex),
+            })
+          ),
+        })
+      );
       return {
         annotationMetrics,
         costMetrics,
