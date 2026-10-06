@@ -1,38 +1,14 @@
-import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import {
-  Group,
-  Panel,
-  Separator,
-  useDefaultLayout,
-} from "react-resizable-panels";
-
-import { ChartPanelStrip } from "@phoenix/components/chart";
-import { transparentResizeHandleCSS } from "@phoenix/components/resize";
+  ChartPanelStrip,
+  getMetricChartsViewSetting,
+} from "@phoenix/components/chart";
+import type { TableViewSetting } from "@phoenix/components/table";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
   DeferredExperimentMetricPanel,
   getExperimentMetricCharts,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
-
-const CHARTS_PANEL_DEFAULT_SIZE_PIXELS = 230;
-const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
-const CHARTS_PANEL_MAX_SIZE = "60%";
-
-const PANEL_IDS_WITH_CHARTS = ["metrics-charts", "table-content"];
-const PANEL_IDS_WITHOUT_CHARTS = ["table-content"];
-
-/**
- * Pull the following panel up by the handle's height so the handle adds no
- * layout height of its own — it overlays the top of the table content's
- * padding instead. Keeps the vertical rhythm around the toolbar consistent
- * while preserving the handle's hover/drag hit area.
- */
-const chartsResizeHandleCSS = css`
-  margin-bottom: calc(-1 * var(--resize-handle-size));
-  position: relative;
-  z-index: 1;
-`;
+import { RECENT_EXPERIMENT_SELECTION } from "@phoenix/pages/dataset/metrics/types";
 
 /**
  * A strip of user-selected metric charts shown above the experiments table.
@@ -52,6 +28,7 @@ export function ExperimentsMetricsCharts() {
           key={chart.key}
           chart={chart}
           datasetId={datasetId}
+          experimentSelection={RECENT_EXPERIMENT_SELECTION}
           fillHeight
         />
       ))}
@@ -60,55 +37,36 @@ export function ExperimentsMetricsCharts() {
 }
 
 /**
- * Lays out the experiment metric charts strip above the experiments table in
- * a vertically resizable panel group. A transparent drag handle sits between
- * the charts and the table content so the charts can be resized to take up
- * more or less vertical space. When no charts are selected the charts panel
- * and handle are not rendered and the table content fills the space.
+ * Whether the experiments table has charts selected and shows them, and a
+ * setter for the visibility. The store guarantees keys are valid catalog keys,
+ * so any selection means there are charts to show.
  */
-export function ExperimentsMetricsChartsPanelGroup({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  // The store guarantees keys are valid catalog keys, so any selection means
-  // there are charts to show
+function useExperimentsMetricChartsVisibility() {
   const hasCharts = useDatasetContext(
     (state) => state.experimentsMetricChartKeys.length > 0
   );
-  // Persist the layout so the charts strip keeps its height across reloads
-  // and remounts instead of resetting to the default
-  const layoutId = "experiments-table-metrics-layout";
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: layoutId,
-    panelIds: hasCharts ? PANEL_IDS_WITH_CHARTS : PANEL_IDS_WITHOUT_CHARTS,
-    storage: localStorage,
-  });
-  return (
-    <Group
-      orientation="vertical"
-      id={layoutId}
-      defaultLayout={defaultLayout}
-      onLayoutChanged={onLayoutChanged}
-    >
-      {hasCharts && (
-        <>
-          <Panel
-            id="metrics-charts"
-            defaultSize={CHARTS_PANEL_DEFAULT_SIZE_PIXELS}
-            minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
-            maxSize={CHARTS_PANEL_MAX_SIZE}
-            groupResizeBehavior="preserve-pixel-size"
-            style={{ overflow: "visible" }}
-          >
-            <ExperimentsMetricsCharts />
-          </Panel>
-          <Separator
-            css={[transparentResizeHandleCSS, chartsResizeHandleCSS]}
-          />
-        </>
-      )}
-      <Panel id="table-content">{children}</Panel>
-    </Group>
+  const isVisible = useDatasetContext(
+    (state) => state.areExperimentsMetricChartsVisible
   );
+  const setIsVisible = useDatasetContext(
+    (state) => state.setAreExperimentsMetricChartsVisible
+  );
+  return { hasCharts, isVisible, setIsVisible };
+}
+
+/**
+ * Whether the charts strip is shown above the experiments table: charts are
+ * selected and the user has not hidden them
+ */
+export function useAreExperimentsMetricChartsShown(): boolean {
+  const { hasCharts, isVisible } = useExperimentsMetricChartsVisibility();
+  return hasCharts && isVisible;
+}
+
+/**
+ * The experiments table's view setting that shows or hides the charts. The
+ * visibility is persisted per dataset.
+ */
+export function useExperimentsMetricChartsViewSetting(): TableViewSetting {
+  return getMetricChartsViewSetting(useExperimentsMetricChartsVisibility());
 }

@@ -44,6 +44,7 @@ import {
   defaultTooltipProps,
 } from "./defaults";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
+import type { TimeSeriesChartType } from "./types";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
 const LABEL_DATA_KEY_PREFIX = "fractions.";
@@ -71,9 +72,11 @@ function AnnotationMetricsTooltip({
   payload,
   renderHeader,
   getMeanScoreOptimization,
+  chartType,
 }: TooltipContentProps & {
   renderHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
   getMeanScoreOptimization?: (meanScore: number) => boolean | null;
+  chartType: TimeSeriesChartType;
 }) {
   if (!active || !payload || payload.length === 0) {
     return null;
@@ -95,7 +98,9 @@ function AnnotationMetricsTooltip({
           <ChartTooltipItem
             key={String(entry.dataKey)}
             color={entry.color}
-            shape={isMeanScore ? "line" : "square"}
+            shape={
+              isMeanScore && chartType === "lineTimeSeries" ? "line" : "square"
+            }
             name={String(entry.name)}
             value={
               isMeanScore && getMeanScoreOptimization ? (
@@ -130,6 +135,11 @@ type AnnotationMetricsChartProps = {
     isMeanScoreHidden: boolean;
     isReferencePrepended: boolean;
   }) => ReactNode;
+  /**
+   * How the scores view draws mean scores
+   * @default "lineTimeSeries"
+   */
+  chartType?: TimeSeriesChartType;
 };
 
 export function AnnotationMetricsChart(props: AnnotationMetricsChartProps) {
@@ -192,6 +202,7 @@ function AnnotationMetricsChartContent({
   additionalLegendItems,
   renderReference,
   emptyStateMessage = "No chartable evaluation data",
+  chartType = "lineTimeSeries",
 }: AnnotationMetricsChartProps) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
@@ -206,12 +217,13 @@ function AnnotationMetricsChartContent({
     isReferencePrepended,
     isScoreView,
   } = getAnnotationChartState({ series, view });
+  const isScoreLine = isScoreView && chartType === "lineTimeSeries";
 
   return (
     <ChartEmptyStateOverlay
       isEmpty={data.length === 0}
       message={emptyStateMessage}
-      chartType={isScoreView ? "line" : "bar"}
+      chartType={isScoreLine ? "line" : "bar"}
     >
       <ChartResponsiveContainer>
         <ComposedChart
@@ -243,6 +255,7 @@ function AnnotationMetricsChartContent({
                 {...props}
                 renderHeader={renderTooltipHeader}
                 getMeanScoreOptimization={getMeanScoreOptimization}
+                chartType={chartType}
               />
             )}
           />
@@ -250,7 +263,17 @@ function AnnotationMetricsChartContent({
             isMeanScoreHidden: isDataKeyHidden(MEAN_SCORE_DATA_KEY),
             isReferencePrepended,
           })}
-          {isScoreView && (
+          {isScoreView && !isScoreLine && (
+            <Bar
+              dataKey={MEAN_SCORE_DATA_KEY}
+              name="mean score"
+              fill={getWordColor({ word: series.name, theme })}
+              radius={[2, 2, 0, 0]}
+              animationDuration={COMPACT_CHART_ANIMATION_DURATION_MS}
+              hide={isDataKeyHidden(MEAN_SCORE_DATA_KEY)}
+            />
+          )}
+          {isScoreLine && (
             <Line
               type="monotone"
               dataKey={MEAN_SCORE_DATA_KEY}
@@ -298,7 +321,7 @@ function AnnotationMetricsChartContent({
           <InteractiveLegend
             {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
-            iconType={isScoreView ? "line" : undefined}
+            iconType={isScoreLine ? "line" : undefined}
             iconSize={8}
             // Preserve the normalized order so label colors remain stable by index.
             itemSorter={null}

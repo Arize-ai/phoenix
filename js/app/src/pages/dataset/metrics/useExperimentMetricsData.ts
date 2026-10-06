@@ -1,9 +1,12 @@
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
-import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
-
 import type { useExperimentMetricsData_experiment$key } from "./__generated__/useExperimentMetricsData_experiment.graphql";
 import type { useExperimentMetricsDataQuery } from "./__generated__/useExperimentMetricsDataQuery.graphql";
+import {
+  getExperimentMetricsQueryVariables,
+  orderByComparedSelection,
+} from "./experimentSelection";
+import type { ExperimentSelection } from "./types";
 
 const experimentMetricsExperimentFragment = graphql`
   fragment useExperimentMetricsData_experiment on Experiment @inline {
@@ -43,16 +46,29 @@ const experimentMetricsExperimentFragment = graphql`
 
 /**
  * One query shared by every experiment metric chart so the whole metrics page
- * resolves from a single network request and Relay store entry.
+ * resolves from a single network request and Relay store entry. A compared
+ * selection
+ * (`$isComparedSelection`) loads exactly the compared experiments, ephemeral ones
+ * included, and skips the dataset baseline since the base experiment is the
+ * reference.
  */
 export const experimentMetricsQuery = graphql`
-  query useExperimentMetricsDataQuery($id: ID!, $count: Int!) {
+  query useExperimentMetricsDataQuery(
+    $id: ID!
+    $count: Int!
+    $filterIds: [ID!]
+    $isComparedSelection: Boolean!
+  ) {
     dataset: node(id: $id) {
       ... on Dataset {
-        baselineExperiment {
+        baselineExperiment @skip(if: $isComparedSelection) {
           ...useExperimentMetricsData_experiment
         }
-        metricsExperiments: experiments(first: $count) {
+        metricsExperiments: experiments(
+          first: $count
+          filterIds: $filterIds
+          includeEphemeral: $isComparedSelection
+        ) {
           edges {
             experiment: node {
               ...useExperimentMetricsData_experiment
@@ -152,16 +168,44 @@ function readExperimentMetricsDatum({
 /**
  * Loads the metrics for the dataset's most recent experiments, ordered by
  * ascending sequence number so charts read oldest to newest left to right.
+ * For a compared selection, loads the compared experiments instead, base
+ * experiment
+ * first and as the reference, then the compare experiments in selection
+ * order.
  */
-export function useExperimentMetricsData(datasetId: string): {
+export function useExperimentMetricsData({
+  datasetId,
+  experimentSelection,
+}: {
+  datasetId: string;
+  experimentSelection: ExperimentSelection;
+}): {
   experiments: ExperimentMetricsDatum[];
   baselineExperiment: ExperimentMetricsDatum | null;
 } {
   const data = useLazyLoadQuery<useExperimentMetricsDataQuery>(
     experimentMetricsQuery,
-    { id: datasetId, count: EXPERIMENT_METRICS_EXPERIMENT_COUNT },
+    getExperimentMetricsQueryVariables({ datasetId, experimentSelection }),
     { fetchPolicy: "store-or-network" }
   );
+
+  if (experimentSelection.type === "compared") {
+    const experiments = orderByComparedSelection({
+      experiments: (data.dataset.metricsExperiments?.edges ?? []).map(
+        ({ experiment }): ExperimentMetricsDatum =>
+          readExperimentMetricsDatum({
+            experiment,
+            baselineExperimentId: experimentSelection.baseExperimentId,
+          })
+      ),
+      experimentSelection,
+    });
+    return {
+      experiments,
+      baselineExperiment:
+        experiments.find((experiment) => experiment.isBaseline) ?? null,
+    };
+  }
 
   const baselineExperiment =
     data.dataset.baselineExperiment == null
