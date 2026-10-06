@@ -1,0 +1,5 @@
+{
+  "reference": "OpenAI rejected the request with a 400 BadRequestError because it flagged the prompt as potentially violating its usage policy (error code invalid_prompt).",
+  "notes": "A match says the provider refused or flagged the prompt for its usage or content policy. Explanations about rate limits, timeouts, context length, or malformed requests do not match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; the only ERROR LLM span of 1,508"
+}

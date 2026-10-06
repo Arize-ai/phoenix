@@ -1,0 +1,5 @@
+{
+  "reference": "16:40 to 16:50 UTC on 2025-03-19, with 67 traces",
+  "notes": "Both the window and the count must match. The date may be omitted. Next is 16:30 to 16:40 UTC with 22 traces.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; trace start is the earliest span start"
+}

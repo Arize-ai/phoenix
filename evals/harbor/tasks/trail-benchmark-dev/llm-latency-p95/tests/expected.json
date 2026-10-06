@@ -1,0 +1,5 @@
+{
+  "reference": "27.5 seconds",
+  "notes": "Percentile conventions give 27.5 to 27.6 seconds; accept any value in that range or any rounding of it, in any unit. The median (7.2 s) or the maximum (about 41 minutes) does not match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; 1,508 LLM spans, interpolated p95 27.53 s, nearest-rank p95 27.57 s"
+}

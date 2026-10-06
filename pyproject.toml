@@ -63,7 +63,7 @@ dependencies = [
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==1.0.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.34.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.52.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
@@ -88,6 +88,7 @@ phoenix = "phoenix.server.main:main"
 [dependency-groups]
 dev = [
   "check-wheel-contents",
+  "harbor-verifiers",
   "twine",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "aioboto3",
@@ -181,6 +182,7 @@ dev = [
   "ruff>=0.15.2",
   "libcst>=1.8.6",
   "datamodel-code-generator==0.72.2",
+  "ariadne-codegen==0.19.0",
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
   "jinja2>=3.1.6",
@@ -333,6 +335,12 @@ testpaths = [
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
+explicit_package_bases = true
+mypy_path = [
+  "$MYPY_CONFIG_FILE_DIR",
+  "$MYPY_CONFIG_FILE_DIR/src",
+  "$MYPY_CONFIG_FILE_DIR/evals/harbor/verifiers",
+]
 files = [
   "evals/",
   "src/",
@@ -341,8 +349,7 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
-  # Staging copies evals.harbor.verifiers to /opt/verifier for task solutions to import.
-  "evals/harbor/tasks/[^/]+/environment/",
+  "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "evals/harbor/tasks/trail-benchmark-dev/",
   "examples/",
   "packages/",
@@ -415,6 +422,7 @@ exclude = ["**/node_modules", "**/__pycache__", "**/.*", "packages/phoenix-sqlea
 force-exclude = true
 exclude = [
   "api_reference",
+  "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "dist/",
   ".git",
   "__pycache__",
@@ -451,6 +459,7 @@ select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
+known-first-party = ["harbor_verifiers"]
 
 [tool.ruff.format]
 line-ending = "native"
@@ -459,7 +468,10 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.12.19"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
+# The lower bound is the exact uv that writes uv.lock: CI installs it with
+# setup-uv resolution-strategy "lowest", and scripts/uv.sh runs it locally.
+# Newer 0.12.x releases work for everything else.
+required-version = ">=0.12.19,<0.13"
 exclude-newer = "3 days"
 # Exempt our own packages from the `exclude-newer` window so freshly published
 # versions are immediately resolvable. arize-phoenix-sqlean is not a workspace
@@ -479,7 +491,7 @@ override-dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = ["packages/*", "evals/harbor/verifiers"]
 # phoenix-sqlean is a vendored setup.py-based C extension (fork of
 # nalgeon/sqlean.py), not a uv-managed project.
 exclude = ["packages/phoenix-sqlean"]
@@ -488,3 +500,22 @@ exclude = ["packages/phoenix-sqlean"]
 arize-phoenix-client = { workspace = true }
 arize-phoenix-evals = { workspace = true }
 arize-phoenix-otel = { workspace = true }
+harbor-verifiers = { workspace = true }
+
+[tool.ariadne-codegen]
+# `make codegen-harbor-graphql` compiles the queries into typed models for the verifiers.
+schema_path = "js/app/schema.graphql"
+queries_path = "evals/harbor/verifiers/harbor_verifiers/graphql/operations"
+target_package_path = "evals/harbor/verifiers/harbor_verifiers/graphql"
+target_package_name = "__generated__"
+async_client = false
+multipart_uploads = false
+include_all_inputs = false
+include_all_enums = false
+include_comments = "none"
+
+[tool.ariadne-codegen.scalars.DateTime]
+type = "datetime.datetime"
+
+[tool.ariadne-codegen.scalars.Identifier]
+type = "str"
