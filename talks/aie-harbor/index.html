@@ -161,6 +161,10 @@ p{margin:0}
 .hb-file pre{margin:0;flex:1;font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--text);background:var(--ground);border-radius:var(--radius-sm);padding:10px 12px;white-space:pre;overflow:hidden}
 .hb-file pre em{font-style:normal;color:var(--faint)}
 .hb-file pre b{font-weight:500;color:var(--amber)}
+.hb-file.opt{background:transparent;border:1.5px dashed var(--line-strong);padding:18.5px 18.5px 16.5px}
+.hb-file.opt pre{background:var(--surface)}
+.hb-file.opt .hb-role{color:var(--faint);background:var(--well)}
+.hb-file.opt .hb-fic{stroke:var(--faint)}
 .hb-role{align-self:flex-start;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);background:var(--amber-tint);border-radius:var(--radius-sm);padding:4px 10px}
 .hb-arrow{height:44px;flex:none;display:grid;place-items:center}
 .hb-arrow i{width:2px;height:100%;background:var(--line-strong);position:relative}
@@ -326,12 +330,12 @@ tests.</em></pre>
 <b>WORKDIR</b> /app</pre>
       <span class="hb-role">IMAGE</span>
     </div>
-    <div class="hb-file">
+    <div class="hb-file opt">
       <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>solution/</div>
 <pre><em># solve.sh</em>
 git apply fix.patch
 make migrate</pre>
-      <span class="hb-role">ORACLE</span>
+      <span class="hb-role">ORACLE · OPTIONAL</span>
     </div>
     <div class="hb-file">
       <div class="hb-fn"><svg class="hb-fic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4A1.5 1.5 0 0 0 19 19l-5-10V3"/><path d="M7.5 15h9"/></svg>tests/</div>
