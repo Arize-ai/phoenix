@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { useFragment } from "react-relay";
@@ -19,12 +18,14 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
+import { getDeclaredInputBindings } from "@phoenix/components/evaluators/utils";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import {
   DatasetEvaluatorDetailsLayout,
+  DeclaredInputMappingList,
   EvaluatorAnnotationsCard,
   InputMappingCard,
 } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsLayout";
@@ -32,23 +33,10 @@ import {
   getSandboxConfigSettings,
   LanguageWithIcon,
 } from "@phoenix/pages/settings/sandboxes/utils";
+import { isObject } from "@phoenix/typeUtils";
 
 type SandboxBackendInfo =
   datasetEvaluatorDetailsLoaderQuery["response"]["sandboxBackends"][number];
-
-const mapGridCSS = css`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--global-dimension-size-150);
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
-`;
 
 function SandboxRow({
   label,
@@ -136,59 +124,6 @@ function ProviderCapabilitiesHelp({
   );
 }
 
-function MappingTile({
-  title,
-  description,
-  entries,
-  emptyLabel,
-  formatValue,
-}: {
-  title: string;
-  description: string;
-  entries: ReadonlyArray<[string, unknown]>;
-  emptyLabel: string;
-  formatValue: (value: unknown) => string;
-}) {
-  return (
-    <Flex direction="column" gap="size-100" elementType="section">
-      <Flex direction="column" gap="size-25">
-        <Text weight="heavy" size="S" elementType="h4">
-          {title}
-        </Text>
-        <Text size="XS" color="text-700">
-          {description}
-        </Text>
-      </Flex>
-      {entries.length === 0 ? (
-        <Text size="XS" color="text-500">
-          {emptyLabel}
-        </Text>
-      ) : (
-        <Flex direction="column" gap="size-75">
-          {entries.map(([key, value]) => (
-            <Flex
-              key={key}
-              direction="row"
-              gap="size-100"
-              alignItems="baseline"
-            >
-              <Text size="S" fontFamily="mono" color="text-700">
-                {key}
-              </Text>
-              <Text size="S" color="text-500" aria-hidden="true">
-                →
-              </Text>
-              <Text size="S" fontFamily="mono">
-                {formatValue(value)}
-              </Text>
-            </Flex>
-          ))}
-        </Flex>
-      )}
-    </Flex>
-  );
-}
-
 /** Values that should render in muted-italic (off / none) vs plain mono. */
 const MUTED_SETTING_VALUES = new Set(["off", "none"]);
 
@@ -225,19 +160,6 @@ function SettingValue({
       {value}
     </Text>
   );
-}
-
-function formatPathMappingValue(value: unknown): string {
-  return typeof value === "string" ? value : JSON.stringify(value);
-}
-
-function formatLiteral(value: unknown): string {
-  if (value == null) return "null";
-  if (typeof value === "string") return JSON.stringify(value);
-  if (typeof value === "boolean" || typeof value === "number") {
-    return String(value);
-  }
-  return JSON.stringify(value);
 }
 
 function getInternetAccessLabel(
@@ -303,6 +225,7 @@ export function CodeDatasetEvaluatorDetails({
             name
             description
             language
+            inputSchema
             outputConfigs {
               __typename
               ... on CategoricalAnnotationConfig {
@@ -382,26 +305,19 @@ export function CodeDatasetEvaluatorDetails({
       ? sandboxBackendByType.get(sandboxConfig.provider.backendType)
       : undefined;
 
-  const pathMappingEntries = useMemo(
-    () =>
-      Object.entries(
-        (datasetEvaluator.inputMapping.pathMapping as Record<
-          string,
-          unknown
-        >) ?? {}
-      ),
-    [datasetEvaluator.inputMapping.pathMapping]
-  );
-  const literalMappingEntries = useMemo(
-    () =>
-      Object.entries(
-        (datasetEvaluator.inputMapping.literalMapping as Record<
-          string,
-          unknown
-        >) ?? {}
-      ),
-    [datasetEvaluator.inputMapping.literalMapping]
-  );
+  const inputBindings = useMemo(() => {
+    const schema: unknown = evaluator.inputSchema;
+    const properties =
+      isObject(schema) && "properties" in schema ? schema.properties : null;
+    const variables =
+      isObject(properties) && !Array.isArray(properties)
+        ? Object.keys(properties)
+        : null;
+    return getDeclaredInputBindings({
+      variables,
+      inputMapping: datasetEvaluator.inputMapping,
+    });
+  }, [evaluator.inputSchema, datasetEvaluator.inputMapping]);
 
   const canManageSandboxes = useViewerCanManageSandboxes();
 
@@ -527,22 +443,7 @@ export function CodeDatasetEvaluatorDetails({
           </Card>
           <EvaluatorAnnotationsCard configs={outputConfigs} />
           <InputMappingCard>
-            <div css={mapGridCSS}>
-              <MappingTile
-                title="Path mapping"
-                description="Map function args to fields on the example"
-                entries={pathMappingEntries}
-                emptyLabel="No paths set"
-                formatValue={formatPathMappingValue}
-              />
-              <MappingTile
-                title="Literal mapping"
-                description="Pass fixed literal values to function args"
-                entries={literalMappingEntries}
-                emptyLabel="No literals set"
-                formatValue={formatLiteral}
-              />
-            </div>
+            <DeclaredInputMappingList bindings={inputBindings} />
           </InputMappingCard>
         </>
       }

@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import { Card, Flex, Text, View } from "@phoenix/components";
+import type { DeclaredInputBinding } from "@phoenix/components/evaluators/utils";
 
 const splitLayoutCSS = css`
   display: grid;
@@ -190,5 +191,53 @@ export function InputMappingCard({ children }: { children: ReactNode }) {
     <Card title="Input Mapping">
       <View padding="size-200">{children}</View>
     </Card>
+  );
+}
+
+function formatLiteral(value: boolean | string | number): string {
+  return typeof value === "string" ? JSON.stringify(value) : String(value);
+}
+
+export function DeclaredInputMappingList({
+  bindings,
+}: {
+  bindings: ReadonlyArray<DeclaredInputBinding>;
+}) {
+  if (bindings.length === 0) {
+    return (
+      <Text size="S" color="text-500">
+        This evaluator takes no inputs
+      </Text>
+    );
+  }
+  return (
+    <Flex direction="column" gap="size-75">
+      {bindings.map((binding) => (
+        <Flex
+          key={binding.variable}
+          direction="row"
+          gap="size-100"
+          alignItems="baseline"
+        >
+          <Text size="S" fontFamily="mono" color="text-700">
+            {binding.variable}
+          </Text>
+          <Text size="S" color="text-500" aria-hidden="true">
+            →
+          </Text>
+          {binding.kind === "unmapped" ? (
+            <Text size="S" color="text-500">
+              Not mapped
+            </Text>
+          ) : (
+            <Text size="S" fontFamily="mono">
+              {binding.kind === "path"
+                ? binding.path
+                : formatLiteral(binding.value)}
+            </Text>
+          )}
+        </Flex>
+      ))}
+    </Flex>
   );
 }

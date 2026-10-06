@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09970edba5e1b8d50b472868cc3e294d>>
+ * @generated SignedSource<<9cae239bfe9eb47b2d78909288dc3b10>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     } | null;
     readonly description?: string | null;
     readonly id?: string;
+    readonly inputSchema?: any | null;
     readonly kind: EvaluatorKind;
     readonly language?: Language;
     readonly name?: string;
@@ -287,6 +288,13 @@ return {
               "name": "language",
               "storageKey": null
             },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "inputSchema",
+              "storageKey": null
+            },
             (v3/*:: as any*/),
             {
               "alias": null,
@@ -424,6 +432,6 @@ return {
 };
 })();
 
-(node as any).hash = "1344550f0cc7e5cc56ae973ba9ef8b97";
+(node as any).hash = "c1e14bc300f378cbc4f35b4970081ddb";
 
 export default node;
