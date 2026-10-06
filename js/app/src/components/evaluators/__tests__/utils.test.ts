@@ -2,6 +2,7 @@ import { vi } from "vitest";
 
 import {
   createLLMEvaluatorPayload,
+  getDeclaredInputBindings,
   normalizeInputMapping,
   updateLLMEvaluatorPayload,
 } from "../utils";
@@ -40,6 +41,46 @@ describe("normalizeInputMapping", () => {
       literalMapping: mapping.literalMapping,
     });
     expect(mapping.pathMapping).toHaveProperty("text", "input.text");
+  });
+});
+
+describe("getDeclaredInputBindings", () => {
+  const mapping = {
+    pathMapping: {
+      question: "input.question",
+      removed: "input.removed",
+      shadowed: "input.shadowed",
+      empty: "",
+    },
+    literalMapping: { shadowed: false, removedLiteral: "x" },
+  };
+
+  it("returns one binding per declared variable and ignores undeclared entries", () => {
+    expect(
+      getDeclaredInputBindings({
+        variables: ["question", "shadowed", "empty", "added"],
+        inputMapping: mapping,
+      })
+    ).toEqual([
+      { variable: "question", kind: "path", path: "input.question" },
+      { variable: "shadowed", kind: "literal", value: false },
+      { variable: "empty", kind: "unmapped" },
+      { variable: "added", kind: "unmapped" },
+    ]);
+  });
+
+  it("treats every mapped key as declared when the variables are unknown", () => {
+    expect(
+      getDeclaredInputBindings({ variables: null, inputMapping: mapping }).map(
+        ({ variable, kind }) => [variable, kind]
+      )
+    ).toEqual([
+      ["question", "path"],
+      ["removed", "path"],
+      ["shadowed", "literal"],
+      ["empty", "unmapped"],
+      ["removedLiteral", "literal"],
+    ]);
   });
 });
 

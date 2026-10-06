@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f416742f562b1814ffcfab7dea1dc4e>>
+ * @generated SignedSource<<401fb11b785d15ba52863695c4b591d2>>
  * @lightSyntaxTransform
  */
 
@@ -16,14 +16,23 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly kind: EvaluatorKind;
     readonly name: string;
     readonly outputConfigs?: ReadonlyArray<{
-      readonly lowerBound?: number | null;
-      readonly name?: string;
-      readonly optimizationDirection?: OptimizationDirection;
-      readonly upperBound?: number | null;
-      readonly values?: ReadonlyArray<{
+      readonly __typename: "CategoricalAnnotationConfig";
+      readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly values: ReadonlyArray<{
         readonly label: string;
         readonly score: number | null;
       }>;
+    } | {
+      readonly __typename: "ContinuousAnnotationConfig";
+      readonly lowerBound: number | null;
+      readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly upperBound: number | null;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
     }>;
   };
   readonly id: string;
@@ -32,14 +41,23 @@ export type BuiltInDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly pathMapping: any;
   };
   readonly outputConfigs: ReadonlyArray<{
-    readonly lowerBound?: number | null;
-    readonly name?: string;
-    readonly optimizationDirection?: OptimizationDirection;
-    readonly upperBound?: number | null;
-    readonly values?: ReadonlyArray<{
+    readonly __typename: "CategoricalAnnotationConfig";
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
       readonly label: string;
       readonly score: number | null;
     }>;
+  } | {
+    readonly __typename: "ContinuousAnnotationConfig";
+    readonly lowerBound: number | null;
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly upperBound: number | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   }>;
   readonly " $fragmentType": "BuiltInDatasetEvaluatorDetails_datasetEvaluator";
 };
@@ -71,6 +89,13 @@ v2 = {
   "name": "outputConfigs",
   "plural": true,
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "__typename",
+      "storageKey": null
+    },
     {
       "kind": "InlineFragment",
       "selections": [
@@ -203,6 +228,6 @@ return {
 };
 })();
 
-(node as any).hash = "9337e09ebecf455aeed6d85e7b942f94";
+(node as any).hash = "109de4cacfb2461fc3816d63f4f98e2f";
 
 export default node;

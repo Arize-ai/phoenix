@@ -38,6 +38,46 @@ export function normalizeInputMapping(
   return { ...mapping, pathMapping };
 }
 
+export type DeclaredInputBinding =
+  | { variable: string; kind: "literal"; value: boolean | string | number }
+  | { variable: string; kind: "path"; path: string }
+  | { variable: string; kind: "unmapped" };
+
+/**
+ * Resolves one binding per declared evaluator variable the way the server
+ * applies a mapping at run time: entries for undeclared variables are ignored
+ * and a literal wins over a path. Saved mappings keep entries for variables
+ * the evaluator no longer declares, so displays must start from the variables.
+ * When the declared variables are unknown (`null`), every mapped key counts as
+ * declared, as it does on the server.
+ */
+export function getDeclaredInputBindings({
+  variables,
+  inputMapping,
+}: {
+  variables: readonly string[] | null;
+  inputMapping: Partial<EvaluatorInputMapping> | null | undefined;
+}): DeclaredInputBinding[] {
+  const pathMapping = inputMapping?.pathMapping ?? {};
+  const literalMapping = inputMapping?.literalMapping ?? {};
+  const declared =
+    variables ??
+    Array.from(
+      new Set([...Object.keys(pathMapping), ...Object.keys(literalMapping)])
+    );
+  return declared.map((variable) => {
+    const literal = literalMapping[variable];
+    if (hasMappingValue(literal)) {
+      return { variable, kind: "literal", value: literal };
+    }
+    const path = pathMapping[variable];
+    if (hasMappingValue(path)) {
+      return { variable, kind: "path", path };
+    }
+    return { variable, kind: "unmapped" };
+  });
+}
+
 // Single source of judge tools, shared by Save and preview so the two can't diverge.
 export const buildJudgeToolFunctions = ({
   outputConfigs,
