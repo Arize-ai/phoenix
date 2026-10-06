@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6a03a02fb878721bebcc017c527a0fec>>
+ * @generated SignedSource<<5ea4b8b38f6817a0eb95bdcf8b9d0102>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "OVERLOADED" | "QUEUED" | "RUNNING";
 export type projectEvaluatorDetailsLoaderQuery$variables = {
   projectEvaluatorId: string;
 };

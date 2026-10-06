@@ -387,8 +387,8 @@ Defaults to 604800 (7 days).
 ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 """
 The most online evaluations queued at once, span, trace, and session evaluations together:
-PENDING + RUNNING + retryable ERROR (non-terminal work). New evaluations wait to be queued
-while the queue is full. Defaults to 30000.
+PENDING + RUNNING + retryable ERROR (non-terminal work). New evaluations that do not fit
+under it are dropped, not queued. Defaults to 30000.
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """

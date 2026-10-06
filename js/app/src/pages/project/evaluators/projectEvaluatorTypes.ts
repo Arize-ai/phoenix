@@ -302,6 +302,11 @@ const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
     variant: "danger",
     explanation: "Last evaluation failed",
   },
+  OVERLOADED: {
+    label: "Overloaded",
+    variant: "danger",
+    explanation: "Queue is full; new evaluations are dropped",
+  },
   DEGRADED: {
     label: "Degraded",
     variant: "warning",

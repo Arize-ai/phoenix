@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<04427d67e77fc991502f981ae91d86e8>>
+ * @generated SignedSource<<b3a37c37b821640a7c6453ae6df341ed>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "OVERLOADED" | "QUEUED" | "RUNNING";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_row$data = {

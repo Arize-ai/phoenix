@@ -213,6 +213,7 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "FAILED",
     "EXPIRED",
     "DROPPED",
+    "OVERFLOWED",
     "CONTENT_LOST",
     "FILTERED_OUT",
     "SAMPLED_OUT",
@@ -3803,7 +3804,12 @@ class EvalWorkLease(HasId):
 
 class EvalSpanCursor(Base):
     """The span producer's position in the span arrival log, as Span.id values. The table
-    holds a single row."""
+    holds a single row.
+
+    A span batch that does not fit in the queue leaves no work rows. Instead
+    ``overflowed_through_id`` keeps the newest span id ever dropped, below which the backstop
+    does not scan, and ``overflowed_counts`` keeps the recent drops per project evaluator:
+    ``{minute: {project_evaluator_id: count}}``, pruned to the last few minutes on write."""
 
     __tablename__ = "eval_span_cursors"
     id: Mapped[int] = mapped_column(
@@ -3815,6 +3821,10 @@ class EvalSpanCursor(Base):
     produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
     observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
     observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    overflowed_through_id: Mapped[Optional[int]] = mapped_column(_Integer)
+    overflowed_counts: Mapped[dict[str, Any]] = mapped_column(
+        JsonDict, nullable=False, server_default="{}"
+    )
 
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -3932,6 +3942,7 @@ class EvalSessionWorkUnit(HasId):
         ),
         Index(
             "ix_eval_session_work_units_terminal",
+            "status",
             "updated_at",
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
@@ -3997,6 +4008,7 @@ class EvalTraceWorkUnit(HasId):
         ),
         Index(
             "ix_eval_trace_work_units_terminal",
+            "status",
             "updated_at",
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
