@@ -82,16 +82,23 @@ const QUEUE_STATUS_BADGE: Record<
 > = {
   HEALTHY: { label: "Healthy", variant: "success" },
   DEGRADED: { label: "Degraded", variant: "warning" },
+  OVERLOADED: { label: "Overloaded", variant: "danger" },
 };
 
-function getQueueStatusDetail(queue: EvaluationQueue): string | null {
+function getQueueStatusDetails(queue: EvaluationQueue): string[] {
   switch (queue.status) {
     case "HEALTHY":
-      return null;
+      return [];
     case "DEGRADED":
-      return queue.atCapacity
-        ? "Queue is full; new evaluations wait to be queued"
-        : "Evaluations are waiting more than 10 minutes";
+      return ["Evaluations are waiting more than 10 minutes"];
+    case "OVERLOADED":
+      return queue.targets
+        .filter((target) => target.overflowedCount > 0)
+        .map((target) =>
+          target.overflowedCount === 1
+            ? `${getQueueLabel(target)}: Dropped 1 evaluation in the last 10 minutes`
+            : `${getQueueLabel(target)}: Dropped ${intFormatter(target.overflowedCount)} evaluations in the last 10 minutes`
+        );
     default:
       return assertUnreachable(queue.status);
   }
@@ -193,6 +200,7 @@ function ProjectEvaluatorQueueStatsContent({
             queuedCount
             retryingCount
             oldestQueuedAt
+            overflowedCount
             queuedPerMinute
             evaluationsPerMinute
           }
@@ -302,14 +310,18 @@ function QueueStatsPlaceholder() {
 
 function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
   const badge = QUEUE_STATUS_BADGE[queue.status];
-  const detail = getQueueStatusDetail(queue);
+  const details = getQueueStatusDetails(queue);
   return (
     <StatItem label="Status">
       {/* The queue-wide figures live here: the other stats are this project's. */}
       <HoverDetail
         detail={
           <>
-            {detail != null ? <Text size="S">{detail}</Text> : null}
+            {details.map((line) => (
+              <Text key={line} size="S">
+                {line}
+              </Text>
+            ))}
             <Text size="S">
               {`All projects, per hour: ${formatPerHour(queue.queuedPerMinute)} queued · ${formatPerHour(queue.evaluationsPerMinute)} completed`}
             </Text>

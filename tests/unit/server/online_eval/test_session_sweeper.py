@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import admission
@@ -78,26 +79,24 @@ async def test_materialization_rechecks_eligibility_at_write_time(
             .where(models.ProjectSession.id == project_session_id)
             .values(last_span_ingested_at=database_now)
         )
-        inserted_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+        result = await sweeper._load_eligible_pairs(
             session,
             database_now,
             [criterion],
-            limit=1,
         )
-        assert inserted_count == 0
-        assert eligible_pair_count is None
+        assert result.queued_count == 0
+        assert result.eligible_pair_count is None
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
             .values(last_span_ingested_at=last_span_ingested_at)
         )
-        inserted_count, _ = await sweeper._load_eligible_pairs(
+        result = await sweeper._load_eligible_pairs(
             session,
             database_now,
             [criterion],
-            limit=1,
         )
-        assert inserted_count == 1
+        assert result.queued_count == 1
 
 
 async def _add_session_liveness(
@@ -211,6 +210,7 @@ async def test_materializes_with_501_schedulable_criteria(
 
 async def test_watermark_reaches_a_full_page_or_the_due_horizon(
     db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A full page advances its evaluators to the newest activity it reached; a short page
     advances every evaluator to its due horizon."""
@@ -221,15 +221,11 @@ async def test_watermark_reaches_a_full_page_or_the_due_horizon(
     sweeper = EvalSweeper(db, evaluation_target="SESSION")
 
     async def sweep_page(limit: int) -> datetime:
+        monkeypatch.setattr(admission, "max_queued", lambda: limit)
         async with db() as session:
             project_evaluators = await sweeper._load_evaluators(session)
             database_now = await current_database_time(session, db.dialect)
-            await sweeper._load_eligible_pairs(
-                session,
-                database_now,
-                project_evaluators,
-                limit=limit,
-            )
+            await sweeper._load_eligible_pairs(session, database_now, project_evaluators)
         return database_now
 
     async def swept_through_at() -> datetime | None:
@@ -611,20 +607,59 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
     assert session_ids == {disabled_session_id, unresolved_session_id}
 
 
-async def test_closed_admission_gate_skips_evaluator_resolution(
+async def test_page_that_does_not_fit_is_overflowed_whole(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(sweeper_module, "get_env_enable_prometheus", lambda: True)
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "2")
+    overflowed_metric = Mock()
+    overflowed_metric.labels.return_value = overflowed_metric
+    monkeypatch.setattr(sweeper_module, "ONLINE_EVAL_OVERFLOWED_WORK_UNITS", overflowed_metric)
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=700)
+    await _add_session_liveness(db, age_seconds=600, project_id=project_id)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = EvalSweeper(db, evaluation_target="SESSION")
-    monkeypatch.setattr(admission, "max_queued", lambda: 0)
 
-    async def unexpected_resolution(*_: object) -> list[ResolvedProjectEvaluator | None]:
-        pytest.fail("project_evaluator resolution must follow admission")
+    # A page holds no more pairs than the queue, so the empty queue takes the first session.
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["PENDING", "PENDING"]
 
-    monkeypatch.setattr(sweeper_module, "resolve_project_evaluators_bulk", unexpected_resolution)
-    async with db() as session:
-        database_now = await current_database_time(session, db.dialect)
-        assert await sweeper._sweep(session, database_now) == (0, None)
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["PENDING", "PENDING", "OVERFLOWED", "OVERFLOWED"]
+    assert [call.args[0] for call in overflowed_metric.inc.call_args_list] == [0, 2]
+
+
+async def test_full_page_keeps_each_sessions_pairs_together(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sweeper_module, "_MAX_ELIGIBLE_PAIRS_PER_TICK", 3)
+    project_id, first_session_id, _ = await _add_session_liveness(db, age_seconds=700)
+    _, second_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        project_id=project_id,
+    )
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
+
+    async def session_ids() -> list[int]:
+        async with db() as session:
+            return list(
+                await session.scalars(
+                    select(models.EvalSessionWorkUnit.project_session_rowid).order_by(
+                        models.EvalSessionWorkUnit.id
+                    )
+                )
+            )
+
+    await sweeper._tick()
+    assert await session_ids() == [first_session_id] * 2
+    await sweeper._tick()
+    assert await session_ids() == [first_session_id] * 2 + [second_session_id] * 2
 
 
 async def test_successful_work_closes_evaluate_once_key(
@@ -673,7 +708,7 @@ async def _advance_liveness(
 
 
 @pytest.mark.parametrize("evaluation_target", ["SESSION", "TRACE"])
-@pytest.mark.parametrize("status", ["FAILED", "EXPIRED", "DROPPED", "CONTENT_LOST"])
+@pytest.mark.parametrize("status", ["FAILED", "EXPIRED", "DROPPED", "OVERFLOWED", "CONTENT_LOST"])
 async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_ingest(
     db: DbSessionFactory,
     evaluation_target: models.EvaluationTarget,
@@ -952,26 +987,31 @@ async def test_session_without_liveness_becomes_live_after_new_activity(
     assert scheduled_session_id == project_session_id
 
 
-async def test_outstanding_work_ceiling_defers_eligible_pair(
+async def test_full_queue_overflows_session_until_new_activity(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    """The session's activity is still above the scan floor, so only its overflowed
+    row's ``evaluated_through`` keeps it from being offered again."""
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=30)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _set_delay(db, project_evaluator_id, 10)
     sweeper = EvalSweeper(db, evaluation_target="SESSION")
-    monkeypatch.setattr(admission, "max_queued", lambda: 0)
 
-    await sweeper._tick()
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
+    async def full_queue(session: AsyncSession, dialect: SupportedSQLDialect) -> int:
+        return 0
 
-    monkeypatch.setattr(admission, "max_queued", lambda: 1)
+    monkeypatch.setattr(admission, "lock_room", full_queue)
     await sweeper._tick()
-    async with db() as session:
-        session_id = await session.scalar(select(models.EvalSessionWorkUnit.project_session_rowid))
-    assert session_id == project_session_id
+    assert await _work_statuses(db) == ["OVERFLOWED"]
+
+    monkeypatch.undo()
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["OVERFLOWED"]
+
+    await _advance_liveness(db, project_session_id, _now() - timedelta(seconds=15))
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["PENDING"]
 
 
 async def test_sweep_is_kept_when_the_lease_is_lost_mid_tick(
@@ -1094,11 +1134,10 @@ async def test_session_filter_is_evaluated_against_page_rowids_before_sampling(
         async with db() as session:
             project_evaluator = await sweeper._load_evaluators(session)
             database_now = await current_database_time(session, db.dialect)
-            materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+            result = await sweeper._load_eligible_pairs(
                 session,
                 database_now,
                 project_evaluator,
-                limit=2,
             )
     finally:
         event.remove(Engine, "before_cursor_execute", capture_filter_statement)
@@ -1115,8 +1154,8 @@ async def test_session_filter_is_evaluated_against_page_rowids_before_sampling(
                 )
             ).all()
         }
-    assert materialized_count == 1
-    assert eligible_pair_count == 1
+    assert result.queued_count == 1
+    assert result.eligible_pair_count == 1
     assert statuses == {
         matching_session_id: "PENDING",
         declined_session_id: "FILTERED_OUT",
@@ -1572,9 +1611,8 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     metrics["ONLINE_EVAL_SWEEP_FAILURES"].inc.assert_not_called()
     metrics["ONLINE_EVAL_MATERIALIZED_WORK_UNITS"].inc.assert_called_once_with(1)
 
-    monkeypatch.setattr(admission, "max_queued", lambda: 0)
     await sweeper._tick()
-    metrics["ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_once_with(1)
+    metrics["ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_with(0)
     assert metrics["ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS"].set.call_count == 2
 
     async def fail_sweep(session: AsyncSession, database_now: datetime) -> int:

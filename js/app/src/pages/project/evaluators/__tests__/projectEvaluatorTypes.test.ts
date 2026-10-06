@@ -72,6 +72,7 @@ describe("getProjectEvaluatorStatus", () => {
     ["RUNNING", "Running", "success"],
     ["DISABLED", "Disabled", "default"],
     ["DEGRADED", "Degraded", "warning"],
+    ["OVERLOADED", "Overloaded", "danger"],
   ] as const)("labels %s as %s", (status, label, variant) => {
     expect(getProjectEvaluatorStatus({ runSummary: { status } })).toMatchObject(
       { label, variant }

@@ -1873,6 +1873,7 @@ async def test_project_evaluator_run_summary(
                         evaluatedCount
                         failedCount
                         droppedCount
+                        overflowedCount
                         lastError
                     }
                 }
@@ -1904,7 +1905,8 @@ async def test_project_evaluator_run_summary_counts_trace_work(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """A trace evaluator's funnel reads its own work-unit table, not an empty one."""
+    """A trace evaluator's funnel reads its own work-unit table, not an empty one, and its
+    dropped count is its traces dropped in the last 10 minutes."""
     now = datetime.now(timezone.utc)
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
@@ -1933,7 +1935,7 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                 start_time=now,
                 end_time=now,
             )
-            for _ in range(2)
+            for _ in range(4)
         ]
         session.add_all([project_evaluator, *traces])
         await session.flush()
@@ -1954,6 +1956,22 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                     error="ROOT_SPAN_MISSING",
                     updated_at=now - timedelta(minutes=5),
                 ),
+                # Dropped because the queue was full: an hour ago, outside the window, and
+                # five minutes ago, inside it.
+                models.EvalTraceWorkUnit(
+                    trace_rowid=traces[2].id,
+                    project_evaluator_id=project_evaluator.id,
+                    evaluated_through=now,
+                    status="OVERFLOWED",
+                    updated_at=now - timedelta(hours=1),
+                ),
+                models.EvalTraceWorkUnit(
+                    trace_rowid=traces[3].id,
+                    project_evaluator_id=project_evaluator.id,
+                    evaluated_through=now,
+                    status="OVERFLOWED",
+                    updated_at=now - timedelta(minutes=5),
+                ),
             ]
         )
         await session.flush()
@@ -1969,6 +1987,7 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                         queuedCount
                         evaluatedCount
                         failedCount
+                        overflowedCount
                         lastError
                     }
                 }
@@ -1979,9 +1998,10 @@ async def test_project_evaluator_run_summary_counts_trace_work(
 
     assert not response.errors and response.data
     run_summary = response.data["node"]["runSummary"]
-    assert run_summary["status"] == "RUNNING"
+    assert run_summary["status"] == "OVERLOADED"
     assert run_summary["evaluatedCount"] == 1
     assert run_summary["failedCount"] == 1
+    assert run_summary["overflowedCount"] == 1
     assert run_summary["queuedCount"] == 0
     assert run_summary["lastError"] == "ROOT_SPAN_MISSING"
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
@@ -2163,10 +2183,11 @@ async def test_project_evaluator_run_status_reflects_only_its_own_work(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """Another project's evaluator has waited half an hour, which degrades the shared
-    queue, but each other evaluator's status follows its own evaluations."""
+    """One evaluator's span evaluations were dropped and another's has waited half an hour,
+    which marks the shared queue, but each evaluator's status follows its own evaluations."""
     now = datetime.now(timezone.utc)
     seconds_ago = now - timedelta(seconds=5)
+    dropping, (dropping_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
     stuck, (stuck_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
     never_run, _ = await _seed_span_project_evaluator(db, span_start_time=now)
     queued, (queued_span,) = await _seed_span_project_evaluator(db, span_start_time=now)
@@ -2174,6 +2195,15 @@ async def test_project_evaluator_run_status_reflects_only_its_own_work(
     async with db() as session:
         session.add_all(
             [
+                _span_work_unit(
+                    dropping, dropping_span, "DONE", queued_at=seconds_ago, updated_at=seconds_ago
+                ),
+                models.EvalSpanCursor(
+                    id=1,
+                    overflowed_counts={
+                        now.replace(second=0, microsecond=0).isoformat(): {str(dropping): 2}
+                    },
+                ),
                 _span_work_unit(
                     stuck,
                     stuck_span,
@@ -2191,17 +2221,21 @@ async def test_project_evaluator_run_status_reflects_only_its_own_work(
         )
 
     response = await gql_client.execute(
-        """query ($stuck: ID!, $neverRun: ID!, $queued: ID!, $running: ID!) {
+        """query (
+            $dropping: ID!, $stuck: ID!, $neverRun: ID!, $queued: ID!, $running: ID!
+        ) {
             evaluationQueue { status }
+            dropping: node(id: $dropping) { ...RunStatus }
             stuck: node(id: $stuck) { ...RunStatus }
             neverRun: node(id: $neverRun) { ...RunStatus }
             queued: node(id: $queued) { ...RunStatus }
             running: node(id: $running) { ...RunStatus }
         }
-        fragment RunStatus on ProjectEvaluator { runSummary { status } }""",
+        fragment RunStatus on ProjectEvaluator { runSummary { status overflowedCount } }""",
         variables={
             alias: str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))
             for alias, project_evaluator_id in {
+                "dropping": dropping,
                 "stuck": stuck,
                 "neverRun": never_run,
                 "queued": queued,
@@ -2211,12 +2245,16 @@ async def test_project_evaluator_run_status_reflects_only_its_own_work(
     )
 
     assert not response.errors and response.data
-    assert response.data.pop("evaluationQueue") == {"status": "DEGRADED"}
-    assert {alias: node["runSummary"]["status"] for alias, node in response.data.items()} == {
-        "stuck": "DEGRADED",
-        "neverRun": "NEVER_RUN",
-        "queued": "QUEUED",
-        "running": "RUNNING",
+    assert response.data.pop("evaluationQueue") == {"status": "OVERLOADED"}
+    assert {
+        alias: (node["runSummary"]["status"], node["runSummary"]["overflowedCount"])
+        for alias, node in response.data.items()
+    } == {
+        "dropping": ("OVERLOADED", 2),
+        "stuck": ("DEGRADED", 0),
+        "neverRun": ("NEVER_RUN", 0),
+        "queued": ("QUEUED", 0),
+        "running": ("RUNNING", 0),
     }
 
 

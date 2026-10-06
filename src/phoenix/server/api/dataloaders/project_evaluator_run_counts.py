@@ -149,7 +149,7 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
 
     CONTENT_LOST (the subject's content was gone by the time the unit was hydrated) is a
     lifecycle event, not an evaluation failure. DROPPED (removed from the queue before it
-    ran) is not a failure either.
+    ran) and OVERFLOWED (never queued, because the queue was full) are not failures either.
 
     The statuses render as literals so the condition matches the partial
     ``ix_*_project_evaluator_failed`` indexes' predicate. SQLite needs this: with bound
@@ -170,7 +170,8 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
 # The funnel the user sees, past the queue. CONTENT_LOST falls outside every bucket,
 # since no evaluation was ever owed for it, as do a session's FILTERED_OUT and SAMPLED_OUT
 # decisions. DROPPED is its own bucket: removed from the queue before it ran, so nothing
-# failed. Queued work is counted by the online-eval queue health instead.
+# failed. Queued work, and recent OVERFLOWED evaluations, never queued because the queue
+# was full, are counted by the online-eval queue health instead.
 # Bucketed here rather than in SQL so the scan groups by the raw status, instead of
 # evaluating a CASE on every row it reads.
 _OUTCOME_BY_STATUS: dict[str, str] = {

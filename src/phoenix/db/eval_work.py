@@ -29,9 +29,12 @@ SESSION_REOFFERED_STATUSES: tuple[EvalSessionWorkStatus, ...] = (
     "FAILED",
     "EXPIRED",
     "DROPPED",
+    "OVERFLOWED",
     "CONTENT_LOST",
 )
-TERMINAL_EVAL_SESSION_WORK_STATUSES = (*TERMINAL_EVAL_WORK_STATUSES, "CONTENT_LOST")
+# OVERFLOWED: a trace or session not queued because the queue was full when it was offered.
+# A span batch that does not fit leaves no rows; the span cursor records it instead.
+TERMINAL_EVAL_SESSION_WORK_STATUSES = (*TERMINAL_EVAL_WORK_STATUSES, "OVERFLOWED", "CONTENT_LOST")
 EVAL_SESSION_WORK_STATUSES = (
     *LIVE_EVAL_WORK_STATUSES,
     *TERMINAL_EVAL_SESSION_WORK_STATUSES,
