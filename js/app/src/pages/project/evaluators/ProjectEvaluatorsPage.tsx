@@ -114,7 +114,12 @@ function ProjectEvaluatorsPageContent({
       <ProjectEvaluatorQueueStats
         projectId={projectId}
         refreshKey={queueRefreshKey}
-        action={<ClearQueuedEvaluationsButton projectId={projectId} />}
+        action={(clearableCount) => (
+          <ClearQueuedEvaluationsButton
+            projectId={projectId}
+            isProjectQueueEmpty={clearableCount === 0}
+          />
+        )}
       />
       {isEmptyState ? (
         <View

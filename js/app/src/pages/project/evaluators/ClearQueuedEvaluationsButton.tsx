@@ -52,8 +52,11 @@ const splitButtonCSS = css`
  */
 export function ClearQueuedEvaluationsButton({
   projectId,
+  isProjectQueueEmpty = false,
 }: {
   projectId: string;
+  /** This project has nothing clearing would remove, so only "all projects" applies. */
+  isProjectQueueEmpty?: boolean;
 }) {
   const canModify = useViewerCanModify();
   const [isOpen, setIsOpen] = useState(false);
@@ -80,6 +83,7 @@ export function ClearQueuedEvaluationsButton({
         <Button
           size="S"
           leadingVisual={<Icon svg={<Icons.Trash />} />}
+          isDisabled={isProjectQueueEmpty}
           onPress={() => openDialog("PROJECT")}
         >
           Clear queue
@@ -233,17 +237,13 @@ function ClearSummaryWithCount({
       query ClearQueuedEvaluationsButtonCountsQuery($projectId: ID!) {
         evaluationQueue {
           queuedCount
+          runningCount
         }
         project: node(id: $projectId) {
           ... on Project {
-            evaluators(first: 100) {
-              edges {
-                node {
-                  runSummary {
-                    queuedCount
-                  }
-                }
-              }
+            evaluationQueue {
+              queuedCount
+              runningCount
             }
           }
         }
@@ -253,16 +253,10 @@ function ClearSummaryWithCount({
     // Counts from when the dialog opened, not from an earlier visit.
     { fetchPolicy: "network-only" }
   );
-  const sum = (counts: ReadonlyArray<number>) =>
-    counts.reduce((total, count) => total + count, 0);
-  const count =
-    scope === "ALL"
-      ? data.evaluationQueue.queuedCount
-      : sum(
-          (data.project?.evaluators?.edges ?? []).map(
-            ({ node }) => node.runSummary.queuedCount
-          )
-        );
+  // Clearing keeps running evaluations, so they are not counted.
+  const counts =
+    scope === "ALL" ? data.evaluationQueue : data.project?.evaluationQueue;
+  const count = counts == null ? 0 : counts.queuedCount - counts.runningCount;
   return <ClearSummary scope={scope} count={count} />;
 }
 

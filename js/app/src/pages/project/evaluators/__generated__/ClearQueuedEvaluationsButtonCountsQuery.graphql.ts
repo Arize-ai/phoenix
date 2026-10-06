@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8637a92e1f59b56b345cd791345388b5>>
+ * @generated SignedSource<<a3f150fad9f7fa427c438f4cf3b43c3a>>
  * @lightSyntaxTransform
  */
 
@@ -14,16 +14,12 @@ export type ClearQueuedEvaluationsButtonCountsQuery$variables = {
 export type ClearQueuedEvaluationsButtonCountsQuery$data = {
   readonly evaluationQueue: {
     readonly queuedCount: number;
+    readonly runningCount: number;
   };
   readonly project: {
-    readonly evaluators?: {
-      readonly edges: ReadonlyArray<{
-        readonly node: {
-          readonly runSummary: {
-            readonly queuedCount: number;
-          };
-        };
-      }>;
+    readonly evaluationQueue?: {
+      readonly queuedCount: number;
+      readonly runningCount: number;
     };
   };
 };
@@ -47,6 +43,13 @@ v1 = [
     "kind": "ScalarField",
     "name": "queuedCount",
     "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "runningCount",
+    "storageKey": null
   }
 ],
 v2 = {
@@ -66,29 +69,22 @@ v3 = [
     "variableName": "projectId"
   }
 ],
-v4 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 100
-  }
-],
-v5 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "ProjectEvaluatorRunSummary",
-  "kind": "LinkedField",
-  "name": "runSummary",
-  "plural": false,
-  "selections": (v1/*:: as any*/),
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
+v4 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ProjectEvaluationQueue",
+      "kind": "LinkedField",
+      "name": "evaluationQueue",
+      "plural": false,
+      "selections": (v1/*:: as any*/),
+      "storageKey": null
+    }
+  ],
+  "type": "Project",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -106,47 +102,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": (v4/*:: as any*/),
-                "concreteType": "ProjectEvaluatorConnection",
-                "kind": "LinkedField",
-                "name": "evaluators",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "ProjectEvaluatorEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "ProjectEvaluator",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v5/*:: as any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": "evaluators(first:100)"
-              }
-            ],
-            "type": "Project",
-            "abstractKey": null
-          }
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -176,65 +132,30 @@ return {
             "name": "__typename",
             "storageKey": null
           },
+          (v4/*:: as any*/),
           {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": (v4/*:: as any*/),
-                "concreteType": "ProjectEvaluatorConnection",
-                "kind": "LinkedField",
-                "name": "evaluators",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "ProjectEvaluatorEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "ProjectEvaluator",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v5/*:: as any*/),
-                          (v6/*:: as any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": "evaluators(first:100)"
-              }
-            ],
-            "type": "Project",
-            "abstractKey": null
-          },
-          (v6/*:: as any*/)
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "282fd9ba1e462478ded9667fc6091a4a",
+    "cacheID": "080e86c4ea20865e23631c481b1e6320",
     "id": null,
     "metadata": {},
     "name": "ClearQueuedEvaluationsButtonCountsQuery",
     "operationKind": "query",
-    "text": "query ClearQueuedEvaluationsButtonCountsQuery(\n  $projectId: ID!\n) {\n  evaluationQueue {\n    queuedCount\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          node {\n            runSummary {\n              queuedCount\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ClearQueuedEvaluationsButtonCountsQuery(\n  $projectId: ID!\n) {\n  evaluationQueue {\n    queuedCount\n    runningCount\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationQueue {\n        queuedCount\n        runningCount\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2ebfe9c4cc0a63d17579742cde23191a";
+(node as any).hash = "509a9432bf4a283576cbaa7dffbe1fae";
 
 export default node;

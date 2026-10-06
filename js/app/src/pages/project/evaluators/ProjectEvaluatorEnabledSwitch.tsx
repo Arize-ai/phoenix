@@ -12,13 +12,13 @@ export function ProjectEvaluatorEnabledSwitch({
   projectEvaluatorId,
   name,
   enabled,
-  queuedCount,
+  clearableCount,
 }: {
   projectEvaluatorId: string;
   name: string;
   enabled: boolean;
-  /** The evaluator's queued evaluations, which turning it off clears. */
-  queuedCount: number;
+  /** The evaluator's queued evaluations that turning it off clears: not the running ones. */
+  clearableCount: number;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -35,6 +35,7 @@ export function ProjectEvaluatorEnabledSwitch({
             runSummary {
               status
               queuedCount
+              runningCount
               droppedCount
               oldestQueuedAt
             }
@@ -60,7 +61,11 @@ export function ProjectEvaluatorEnabledSwitch({
             evaluator?.setValue(false, "enabled");
             const runSummary = evaluator?.getLinkedRecord("runSummary");
             runSummary?.setValue("DISABLED", "status");
-            runSummary?.setValue(0, "queuedCount");
+            // Running evaluations finish; only the rest are cleared.
+            runSummary?.setValue(
+              runSummary.getValue("runningCount") ?? 0,
+              "queuedCount"
+            );
             runSummary?.setValue(null, "oldestQueuedAt");
           },
       onCompleted: (_response, errors) => {
@@ -80,7 +85,7 @@ export function ProjectEvaluatorEnabledSwitch({
   };
 
   const onChange = (nextEnabled: boolean) => {
-    if (!nextEnabled && queuedCount > 0) {
+    if (!nextEnabled && clearableCount > 0) {
       setIsConfirmOpen(true);
       return;
     }
@@ -115,9 +120,9 @@ export function ProjectEvaluatorEnabledSwitch({
         isPending={isInFlight}
       >
         <Text>
-          {queuedCount === 1
+          {clearableCount === 1
             ? `Disabling “${name}” clears its 1 queued evaluation.`
-            : `Disabling “${name}” clears its ${intFormatter(queuedCount)} queued evaluations.`}
+            : `Disabling “${name}” clears its ${intFormatter(clearableCount)} queued evaluations.`}
         </Text>
       </ClearQueueConfirmDialog>
     </Flex>

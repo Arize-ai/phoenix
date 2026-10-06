@@ -37,7 +37,7 @@ const swatchCSS = css`
 export function EvaluationQueueMeter({
   segments,
   limit,
-  width = "120px",
+  width = "100px",
 }: {
   segments: ReadonlyArray<EvaluationQueueMeterSegment>;
   limit: number;
@@ -46,16 +46,14 @@ export function EvaluationQueueMeter({
   const total = segments.reduce((sum, segment) => sum + segment.count, 0);
   // A queue can briefly hold more than its limit; the bar never overflows.
   const scale = Math.max(limit, total, 1);
-  const description = segments
-    .map((segment) => `${segment.label} ${intFormatter(segment.count)}`)
-    .join(", ");
+  // The total sits beside the bar, so the bar names only what fills it.
+  const description =
+    segments
+      .filter((segment) => segment.count > 0)
+      .map((segment) => `${segment.label} ${intFormatter(segment.count)}`)
+      .join(", ") || "Empty";
   return (
-    <div
-      css={trackCSS}
-      style={{ width }}
-      role="img"
-      aria-label={`${intFormatter(total)} of ${intFormatter(limit)} queued: ${description}`}
-    >
+    <div css={trackCSS} style={{ width }} role="img" aria-label={description}>
       {segments.map((segment) => (
         <div
           key={segment.id}

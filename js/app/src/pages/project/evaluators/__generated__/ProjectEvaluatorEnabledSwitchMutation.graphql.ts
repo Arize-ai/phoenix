@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<daad469549f9c69434684cf7a4c4070b>>
+ * @generated SignedSource<<c68f2d25bef751bb51d0ce39681bf579>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,7 @@ export type ProjectEvaluatorEnabledSwitchMutation$data = {
         readonly droppedCount: number;
         readonly oldestQueuedAt: string | null;
         readonly queuedCount: number;
+        readonly runningCount: number;
         readonly status: ProjectEvaluatorRunStatus;
       };
     };
@@ -106,6 +107,13 @@ v1 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "runningCount",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "droppedCount",
                 "storageKey": null
               },
@@ -144,16 +152,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "1b3a911c3a403e9918f53d15d7e702d4",
+    "cacheID": "360dfbd3d3dc6c9acd368b076cbc77ee",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectEvaluatorEnabledSwitchMutation(\n  $input: SetProjectEvaluatorEnabledInput!\n) {\n  setProjectEvaluatorEnabled(input: $input) {\n    evaluator {\n      id\n      enabled\n      runSummary {\n        status\n        queuedCount\n        droppedCount\n        oldestQueuedAt\n      }\n    }\n  }\n}\n"
+    "text": "mutation ProjectEvaluatorEnabledSwitchMutation(\n  $input: SetProjectEvaluatorEnabledInput!\n) {\n  setProjectEvaluatorEnabled(input: $input) {\n    evaluator {\n      id\n      enabled\n      runSummary {\n        status\n        queuedCount\n        runningCount\n        droppedCount\n        oldestQueuedAt\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "90ec866f78a8d9447a9b3c59796b1f9a";
+(node as any).hash = "283c0a4f6f9ec094ebe117319f31320d";
 
 export default node;

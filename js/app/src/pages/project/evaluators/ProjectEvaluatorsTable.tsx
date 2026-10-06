@@ -128,6 +128,7 @@ const readRow = (
           status
           lastRunAt
           queuedCount
+          runningCount
           evaluatedCount
           failedCount
           droppedCount
@@ -485,7 +486,10 @@ export function ProjectEvaluatorsTable({
               projectEvaluatorId={row.original.id}
               name={row.original.name}
               enabled={row.original.enabled}
-              queuedCount={row.original.runSummary.queuedCount}
+              clearableCount={
+                row.original.runSummary.queuedCount -
+                row.original.runSummary.runningCount
+              }
             />
           </StopPropagation>
         ),

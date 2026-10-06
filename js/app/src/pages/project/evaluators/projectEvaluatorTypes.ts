@@ -305,8 +305,7 @@ const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
   DEGRADED: {
     label: "Degraded",
     variant: "warning",
-    explanation:
-      "Evaluations are waiting more than 10 minutes, or the queue is full",
+    explanation: "Its next evaluation has waited more than 10 minutes",
   },
   RUNNING: {
     label: "Running",

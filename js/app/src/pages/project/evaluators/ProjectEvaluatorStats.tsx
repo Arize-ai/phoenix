@@ -114,7 +114,7 @@ export function ProjectEvaluatorStats({
 
   return (
     <>
-      {runSummary.lastError ? (
+      {runSummary.status === "ERROR" && runSummary.lastError ? (
         <Alert variant="danger" title="Last error">
           <Text size="S" fontFamily="mono">
             {runSummary.lastError}

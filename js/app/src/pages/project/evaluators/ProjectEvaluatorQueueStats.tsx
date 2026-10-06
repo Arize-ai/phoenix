@@ -55,8 +55,6 @@ function noop() {}
 
 type EvaluationQueue = ProjectEvaluatorQueueStatsQuery$data["evaluationQueue"];
 
-type EvaluationQueueTarget = EvaluationQueue["targets"][number];
-
 /** The rates the queue reports, in total and for each evaluation target. */
 type QueueRates = Pick<
   EvaluationQueue,
@@ -69,7 +67,7 @@ const QUEUE_LABEL_BY_TARGET: Record<string, string> = {
   SESSION: "Sessions",
 };
 
-function getQueueLabel(target: EvaluationQueueTarget): string {
+function getQueueLabel(target: { evaluationTarget: string }): string {
   return (
     QUEUE_LABEL_BY_TARGET[target.evaluationTarget] ?? target.evaluationTarget
   );
@@ -101,10 +99,6 @@ function formatPerHour(perMinute: number): string {
   return intFormatter(Math.round(perMinute * 60));
 }
 
-function sum(values: ReadonlyArray<number>): number {
-  return values.reduce((total, value) => total + value, 0);
-}
-
 /**
  * The health of the server's evaluation queue, as one row of stats above the
  * evaluators table. The whole queue is included: span, trace, and session
@@ -119,9 +113,14 @@ export function ProjectEvaluatorQueueStats({
   projectId: string;
   /** Changes when the queue was changed from this page, to refetch at once. */
   refreshKey: number;
-  /** Shown at the right end of the row, such as the button that clears the queue. */
-  action?: ReactNode;
+  /**
+   * Shown at the right end of the row, such as the button that clears the
+   * queue. Gets how many of this project's queued evaluations clearing would
+   * remove, or null while that is unknown.
+   */
+  action?: (clearableCount: number | null) => ReactNode;
 }) {
+  const [clearableCount, setClearableCount] = useState<number | null>(null);
   const placeholder = <QueueStatsPlaceholder />;
   return (
     <View
@@ -135,19 +134,24 @@ export function ProjectEvaluatorQueueStats({
         direction="row"
         justifyContent="space-between"
         alignItems="start"
-        gap="size-200"
+        wrap="wrap"
+        columnGap="size-200"
+        rowGap="size-100"
       >
         <ErrorBoundary fallback={() => placeholder}>
           <Suspense fallback={placeholder}>
             <ProjectEvaluatorQueueStatsContent
               projectId={projectId}
               refreshKey={refreshKey}
+              onClearableCount={setClearableCount}
             />
           </Suspense>
         </ErrorBoundary>
         {action != null ? (
           // An empty label keeps the action level with the values.
-          <Stat label="">{action}</Stat>
+          <div css={actionCSS}>
+            <Stat label="">{action(clearableCount)}</Stat>
+          </div>
         ) : null}
       </Flex>
     </View>
@@ -157,9 +161,11 @@ export function ProjectEvaluatorQueueStats({
 function ProjectEvaluatorQueueStatsContent({
   projectId,
   refreshKey,
+  onClearableCount,
 }: {
   projectId: string;
   refreshKey: number;
+  onClearableCount: (clearableCount: number | null) => void;
 }) {
   const [pollKey, setPollKey] = useState(0);
   useEffect(() => {
@@ -181,6 +187,14 @@ function ProjectEvaluatorQueueStatsContent({
           oldestQueuedAt
           queuedPerMinute
           evaluationsPerMinute
+          runningCount
+          projects(first: 5) {
+            project {
+              id
+              name
+            }
+            queuedCount
+          }
           targets {
             evaluationTarget
             queuedCount
@@ -192,11 +206,29 @@ function ProjectEvaluatorQueueStatsContent({
         }
         project: node(id: $projectId) {
           ... on Project {
+            evaluationQueue {
+              queuedCount
+              runningCount
+              oldestQueuedAt
+              queuedPerMinute
+              evaluationsPerMinute
+              targets {
+                evaluationTarget
+                queuedCount
+              }
+            }
+            # Keeps the evaluators table's status and queued columns as fresh
+            # as these stats: the rows share these records.
             evaluators(first: 100) {
               edges {
                 node {
+                  id
                   runSummary {
+                    status
+                    lastRunAt
                     queuedCount
+                    runningCount
+                    oldestQueuedAt
                   }
                 }
               }
@@ -209,28 +241,47 @@ function ProjectEvaluatorQueueStatsContent({
     { fetchKey: `${refreshKey}:${pollKey}`, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
-  const projectQueuedCount = sum(
-    (data.project?.evaluators?.edges ?? []).map(
-      ({ node }) => node.runSummary.queuedCount
-    )
-  );
+  const projectQueue = data.project?.evaluationQueue ?? null;
+  const projectQueuedCount = projectQueue?.queuedCount ?? 0;
+  // Clearing keeps running evaluations, so they are not counted as clearable.
+  const clearableCount =
+    projectQueue == null
+      ? null
+      : projectQueue.queuedCount - projectQueue.runningCount;
+  useEffect(() => {
+    onClearableCount(clearableCount);
+  }, [clearableCount, onClearableCount]);
   return (
-    <Flex direction="row" gap="size-400" alignItems="start">
+    <Flex
+      direction="row"
+      alignItems="start"
+      wrap="wrap"
+      columnGap="size-400"
+      rowGap="size-100"
+    >
       <QueueStatusStat queue={queue} />
-      <QueuedStat queue={queue} projectQueuedCount={projectQueuedCount} />
-      <QueueRateStat
-        label="Added"
+      <QueuedStat
         queue={queue}
+        projectId={projectId}
+        projectTargets={projectQueue?.targets ?? []}
+        projectQueuedCount={projectQueuedCount}
+        projectRunningCount={projectQueue?.runningCount ?? 0}
+      />
+      <QueueRateStat
+        label="Queued per hour"
+        project={projectQueue}
         getPerMinute={(rates) => rates.queuedPerMinute}
-        description="In the last hour"
+        description="This project, in the last hour"
       />
       <QueueRateStat
-        label="Completed"
-        queue={queue}
+        label="Completed per hour"
+        project={projectQueue}
         getPerMinute={(rates) => rates.evaluationsPerMinute}
-        description="Evaluated or failed, in the last hour"
+        description="This project's evaluated or failed, in the last hour"
       />
-      <QueueWaitStat queue={queue} />
+      <QueueWaitStat
+        projectOldestQueuedAt={projectQueue?.oldestQueuedAt ?? null}
+      />
     </Flex>
   );
 }
@@ -238,22 +289,26 @@ function ProjectEvaluatorQueueStatsContent({
 /** The strip's shape while the queue loads, so the page doesn't shift. */
 function QueueStatsPlaceholder() {
   return (
-    <Flex direction="row" gap="size-400" alignItems="start">
+    <Flex
+      direction="row"
+      alignItems="start"
+      wrap="wrap"
+      columnGap="size-400"
+      rowGap="size-100"
+    >
       <Stat label="Status" isStatus>
         <StatValue>--</StatValue>
       </Stat>
-      <Stat label="Queued">
+      <Stat label="In queue" isInQueue>
         <Flex direction="row" gap="size-100" alignItems="center">
-          <div css={queuedCountCSS}>
-            <StatValue>--</StatValue>
-          </div>
+          <StatValue>--</StatValue>
           <EvaluationQueueMeter segments={[]} limit={1} />
         </Flex>
       </Stat>
-      <Stat label="Added">
+      <Stat label="Queued per hour">
         <StatValue>--</StatValue>
       </Stat>
-      <Stat label="Completed">
+      <Stat label="Completed per hour">
         <StatValue>--</StatValue>
       </Stat>
       <Stat label="Waiting">
@@ -268,8 +323,19 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
   const detail = getQueueStatusDetail(queue);
   return (
     <Stat label="Status" isStatus>
+      {/* The queue-wide figures live here: the other stats are this project's. */}
       <HoverDetail
-        detail={detail != null ? <Text size="S">{detail}</Text> : null}
+        detail={
+          <>
+            {detail != null ? <Text size="S">{detail}</Text> : null}
+            <Text size="S">
+              {`All projects, per hour: ${formatPerHour(queue.queuedPerMinute)} queued · ${formatPerHour(queue.evaluationsPerMinute)} completed`}
+            </Text>
+            {queue.oldestQueuedAt != null ? (
+              <Text size="S">{`All projects, longest wait: ${formatElapsedShort(queue.oldestQueuedAt)}`}</Text>
+            ) : null}
+          </>
+        }
       >
         <Badge variant={badge.variant}>{badge.label}</Badge>
       </HoverDetail>
@@ -284,64 +350,93 @@ const QUEUE_METER_COLOR_BY_TARGET = {
   SESSION: "category3",
 } as const;
 
+/** Other projects' share of the queue, one neutral section of the meter. */
+const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
+
 function QueuedStat({
   queue,
+  projectId,
+  projectTargets,
   projectQueuedCount,
+  projectRunningCount,
 }: {
   queue: EvaluationQueue;
+  projectId: string;
+  /** This project's queued evaluations of each kind. */
+  projectTargets: ReadonlyArray<{
+    evaluationTarget: string;
+    queuedCount: number;
+  }>;
   projectQueuedCount: number;
+  /** Running now, so clearing keeps them. */
+  projectRunningCount: number;
 }) {
   const colors = useCategoryChartColors();
-  const segments = queue.targets.map((target) => {
-    const color =
-      QUEUE_METER_COLOR_BY_TARGET[
-        target.evaluationTarget as keyof typeof QUEUE_METER_COLOR_BY_TARGET
-      ] ?? "category4";
-    return {
-      id: target.evaluationTarget,
-      label: getQueueLabel(target),
-      count: target.queuedCount,
-      color: colors[color],
-    };
-  });
+  const otherProjectsCount = Math.max(
+    0,
+    queue.queuedCount - projectQueuedCount
+  );
+  const segments = [
+    ...projectTargets.map((target) => {
+      const color =
+        QUEUE_METER_COLOR_BY_TARGET[
+          target.evaluationTarget as keyof typeof QUEUE_METER_COLOR_BY_TARGET
+        ] ?? "category4";
+      return {
+        id: target.evaluationTarget,
+        label: getQueueLabel(target),
+        count: target.queuedCount,
+        color: colors[color],
+      };
+    }),
+    {
+      id: "OTHER_PROJECTS",
+      label: "Other projects",
+      count: otherProjectsCount,
+      color: OTHER_PROJECTS_COLOR,
+    },
+  ];
   return (
-    <Stat label="Queued">
+    <Stat label="In queue" isInQueue>
       <HoverDetail
         detail={
           <>
-            {segments.map((segment) => (
-              <Flex
-                key={segment.id}
-                direction="row"
-                gap="size-75"
-                alignItems="center"
-              >
-                <EvaluationQueueSwatch color={segment.color} />
-                <Text size="S">{`${segment.label}: ${intFormatter(segment.count)}`}</Text>
-              </Flex>
-            ))}
-            <Text size="S">{`This project: ${intFormatter(projectQueuedCount)}`}</Text>
-            {queue.retryingCount > 0 ? (
-              <Text size="S">{`Retrying: ${intFormatter(queue.retryingCount)}`}</Text>
+            {segments
+              .filter((segment) => segment.count > 0)
+              .map((segment) => (
+                <Flex
+                  key={segment.id}
+                  direction="row"
+                  gap="size-75"
+                  alignItems="center"
+                >
+                  <EvaluationQueueSwatch color={segment.color} />
+                  <Text size="S">{`${segment.label}: ${intFormatter(segment.count)}`}</Text>
+                </Flex>
+              ))}
+            {projectRunningCount > 0 ? (
+              <Text size="S">{`Running now: ${intFormatter(projectRunningCount)}`}</Text>
             ) : null}
-            <Text size="S" color="text-700">
-              Shared by all projects
-            </Text>
+            {queue.projects.length > 0 ? (
+              <>
+                <Text size="S" color="text-700">
+                  Most queued
+                </Text>
+                {queue.projects.map(({ project, queuedCount }) => (
+                  <Text key={project.id} size="S">
+                    {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${intFormatter(queuedCount)}`}
+                  </Text>
+                ))}
+              </>
+            ) : null}
           </>
         }
       >
         <Flex direction="row" gap="size-100" alignItems="center">
-          <Flex
-            direction="row"
-            gap="size-50"
-            alignItems="baseline"
-            css={queuedCountCSS}
-          >
-            <StatValue color={queue.atCapacity ? "warning" : null}>
-              {intFormatter(queue.queuedCount)}
-            </StatValue>
-            <Text size="S" color="text-700">
-              {`/ ${intFormatter(queue.queuedLimit)}`}
+          <Flex direction="row" gap="size-75" alignItems="baseline">
+            <StatValue>{intFormatter(projectQueuedCount)}</StatValue>
+            <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
+              {`· ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)} shared`}
             </Text>
           </Flex>
           <EvaluationQueueMeter segments={segments} limit={queue.queuedLimit} />
@@ -353,12 +448,13 @@ function QueuedStat({
 
 function QueueRateStat({
   label,
-  queue,
+  project,
   getPerMinute,
   description,
 }: {
   label: string;
-  queue: EvaluationQueue;
+  /** This project's rates, or null if the project couldn't be read. */
+  project: QueueRates | null;
   getPerMinute: (rates: QueueRates) => number;
   description: string;
 }) {
@@ -366,55 +462,45 @@ function QueueRateStat({
     <Stat label={label}>
       <HoverDetail
         detail={
-          <>
-            {queue.targets.map((target) => (
-              <Text key={target.evaluationTarget} size="S">
-                {`${getQueueLabel(target)}: ${formatPerHour(getPerMinute(target))}`}
-              </Text>
-            ))}
-            <Text size="S" color="text-700">
-              {description}
-            </Text>
-          </>
+          <Text size="S" color="text-700">
+            {description}
+          </Text>
         }
       >
-        <Flex direction="row" gap="size-50" alignItems="baseline">
-          <StatValue>{formatPerHour(getPerMinute(queue))}</StatValue>
-          <Text size="S" color="text-700">
-            per hour
-          </Text>
-        </Flex>
+        <StatValue>
+          {project != null ? formatPerHour(getPerMinute(project)) : "--"}
+        </StatValue>
       </HoverDetail>
     </Stat>
   );
 }
 
-function QueueWaitStat({ queue }: { queue: EvaluationQueue }) {
-  const waiting = queue.targets.filter(
-    (target): target is EvaluationQueueTarget & { oldestQueuedAt: string } =>
-      target.oldestQueuedAt != null
-  );
-  // A full queue is Degraded too, but that shows on the queued count instead.
-  const isWaitingTooLong = queue.status === "DEGRADED" && !queue.atCapacity;
+/** How long an evaluation may wait before its queue counts as Degraded. */
+const DEGRADED_WAIT_MS = 10 * 60_000;
+
+function hasWaitedTooLong(since: string): boolean {
+  return Date.now() - new Date(since).getTime() > DEGRADED_WAIT_MS;
+}
+
+function QueueWaitStat({
+  projectOldestQueuedAt,
+}: {
+  projectOldestQueuedAt: string | null;
+}) {
+  const isWaitingTooLong =
+    projectOldestQueuedAt != null && hasWaitedTooLong(projectOldestQueuedAt);
   return (
     <Stat label="Waiting">
       <HoverDetail
         detail={
-          <>
-            {waiting.map((target) => (
-              <Text key={target.evaluationTarget} size="S">
-                {`${getQueueLabel(target)}: ${formatElapsedShort(target.oldestQueuedAt)}`}
-              </Text>
-            ))}
-            <Text size="S" color="text-700">
-              Longest wait of an evaluation not yet started
-            </Text>
-          </>
+          <Text size="S" color="text-700">
+            {"Longest wait, not counting retries"}
+          </Text>
         }
       >
         <StatValue color={isWaitingTooLong ? "warning" : null}>
-          {queue.oldestQueuedAt != null
-            ? formatElapsedShort(queue.oldestQueuedAt)
+          {projectOldestQueuedAt != null
+            ? formatElapsedShort(projectOldestQueuedAt)
             : "--"}
         </StatValue>
       </HoverDetail>
@@ -423,11 +509,16 @@ function QueueWaitStat({ queue }: { queue: EvaluationQueue }) {
 }
 
 /**
- * Wide enough for "10,000 / 10,000", so the bar and the stats after it stay put
- * as the count changes or loads.
+ * Wide enough for typical counts ("120 · 4,800 / 10,000 shared") and the bar,
+ * so the stats after it stay put as the counts change or load.
  */
-const queuedCountCSS = css`
-  min-width: 140px;
+const inQueueColumnCSS = css`
+  min-width: 300px;
+`;
+
+/** Keeps the action at the right edge, also when the row wraps. */
+const actionCSS = css`
+  margin-inline-start: auto;
 `;
 
 /** Wide enough for the widest status badge, so the stats beside it never shift. */
@@ -448,17 +539,22 @@ function Stat({
   label,
   children,
   isStatus = false,
+  isInQueue = false,
 }: {
   label: string;
   children: ReactNode;
   /** Reserves the width of the widest status badge. */
   isStatus?: boolean;
+  /** Reserves the width of the widest queue counts and the bar. */
+  isInQueue?: boolean;
 }) {
   return (
     <Flex
       direction="column"
       flex="none"
-      css={isStatus ? statusColumnCSS : undefined}
+      css={
+        isStatus ? statusColumnCSS : isInQueue ? inQueueColumnCSS : undefined
+      }
     >
       <Text elementType="h3" size="S" color="text-700">
         {/* A non-breaking space keeps an unlabeled column's rows aligned. */}
