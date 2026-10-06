@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bae67214fd0af8b87fe9a57d6c06504f>>
+ * @generated SignedSource<<9308eea9ab3a091fbf50bb9c8f0b6bfa>>
  * @lightSyntaxTransform
  */
 
@@ -49,14 +49,23 @@ export type LLMDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly pathMapping: any;
   };
   readonly outputConfigs: ReadonlyArray<{
-    readonly lowerBound?: number | null;
-    readonly name?: string;
-    readonly optimizationDirection?: OptimizationDirection;
-    readonly upperBound?: number | null;
-    readonly values?: ReadonlyArray<{
+    readonly __typename: "CategoricalAnnotationConfig";
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
       readonly label: string;
       readonly score: number | null;
     }>;
+  } | {
+    readonly __typename: "ContinuousAnnotationConfig";
+    readonly lowerBound: number | null;
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly upperBound: number | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   }>;
   readonly " $fragmentType": "LLMDatasetEvaluatorDetails_datasetEvaluator";
 };
@@ -866,6 +875,7 @@ return {
       "name": "outputConfigs",
       "plural": true,
       "selections": [
+        (v5/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -932,6 +942,6 @@ return {
 };
 })();
 
-(node as any).hash = "b55431717277c4889fb60eddc1a56dba";
+(node as any).hash = "894840b73359bb416909ca8f049ee77c";
 
 export default node;
