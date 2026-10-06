@@ -6,6 +6,7 @@ import {
   ChartPanelStrip,
   MetricChartsPanelGroup,
 } from "@phoenix/components/chart";
+import type { TableViewSetting } from "@phoenix/components/table";
 import type {
   BuiltInExperimentMetricChartKey,
   ExperimentMetricChartKey,
@@ -67,6 +68,35 @@ function usePersistedCompareChartKeys(
 }
 
 /**
+ * Whether the dataset's compare grid charts are shown, and a setter for it
+ */
+function useCompareChartsVisibility(datasetId: string): {
+  isVisible: boolean;
+  setIsVisible: (isVisible: boolean) => void;
+} {
+  const isVisible = useExperimentCompareChartsStore(
+    (state) => state.areMetricChartsHiddenByDatasetId[datasetId] !== true
+  );
+  const setAreMetricChartsVisible = useExperimentCompareChartsStore(
+    (state) => state.setAreMetricChartsVisible
+  );
+  return {
+    isVisible,
+    setIsVisible: (isVisible) =>
+      setAreMetricChartsVisible({ datasetId, isVisible }),
+  };
+}
+
+/**
+ * Whether the dataset's compare grid has any charts selected. The default
+ * selection always includes built-in charts.
+ */
+function useHasCompareCharts(datasetId: string): boolean {
+  const persistedKeys = usePersistedCompareChartKeys(datasetId);
+  return persistedKeys == null || persistedKeys.length > 0;
+}
+
+/**
  * The charts shown above the compare grid: the dataset's persisted selection,
  * or by default one chart per evaluator on the selected experiments followed
  * by the default built-in charts.
@@ -121,14 +151,13 @@ export function ExperimentCompareChartsPanelGroup({
   selection,
   children,
 }: CompareChartsProps & { children: ReactNode }) {
-  const persistedKeys = usePersistedCompareChartKeys(datasetId);
-  // The default selection always includes built-in charts
-  const hasCharts = persistedKeys == null || persistedKeys.length > 0;
+  const hasCharts = useHasCompareCharts(datasetId);
+  const { isVisible } = useCompareChartsVisibility(datasetId);
   return (
     <MetricChartsPanelGroup
       layoutId="experiment-compare-grid-metrics-layout"
       charts={
-        hasCharts ? (
+        hasCharts && isVisible ? (
           <Suspense fallback={<Loading />}>
             <ExperimentCompareGridCharts
               datasetId={datasetId}
@@ -141,6 +170,24 @@ export function ExperimentCompareChartsPanelGroup({
       {children}
     </MetricChartsPanelGroup>
   );
+}
+
+/**
+ * The compare grid's view setting that shows or hides the charts. The
+ * visibility is persisted per dataset.
+ */
+export function useExperimentCompareChartsViewSetting(
+  datasetId: string
+): TableViewSetting {
+  const hasCharts = useHasCompareCharts(datasetId);
+  const { isVisible, setIsVisible } = useCompareChartsVisibility(datasetId);
+  return {
+    id: "show-charts",
+    label: "Show charts",
+    isEnabled: isVisible,
+    onChange: setIsVisible,
+    isDisabled: !hasCharts,
+  };
 }
 
 /**

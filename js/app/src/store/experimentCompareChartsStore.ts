@@ -17,6 +17,18 @@ export interface ExperimentCompareChartsState {
     datasetId: string;
     keys: ExperimentMetricChartKey[];
   }) => void;
+  /**
+   * The datasets whose metric charts are hidden above the compare grid.
+   * A dataset without an entry shows its charts.
+   */
+  areMetricChartsHiddenByDatasetId: Record<string, boolean>;
+  /**
+   * Show or hide the metric charts above a dataset's experiment compare grid
+   */
+  setAreMetricChartsVisible: (params: {
+    datasetId: string;
+    isVisible: boolean;
+  }) => void;
 }
 
 /**
@@ -41,6 +53,24 @@ export const useExperimentCompareChartsStore =
               { type: "setMetricChartKeys" }
             );
           },
+          areMetricChartsHiddenByDatasetId: {},
+          setAreMetricChartsVisible: ({ datasetId, isVisible }) => {
+            set(
+              (state) => {
+                const areMetricChartsHiddenByDatasetId = {
+                  ...state.areMetricChartsHiddenByDatasetId,
+                };
+                if (isVisible) {
+                  delete areMetricChartsHiddenByDatasetId[datasetId];
+                } else {
+                  areMetricChartsHiddenByDatasetId[datasetId] = true;
+                }
+                return { areMetricChartsHiddenByDatasetId };
+              },
+              false,
+              { type: "setAreMetricChartsVisible" }
+            );
+          },
         }),
         { name: "experimentCompareChartsStore" }
       ),
@@ -48,10 +78,15 @@ export const useExperimentCompareChartsStore =
         name: "arize-phoenix-experiment-compare-charts",
         partialize: (state) => ({
           metricChartKeysByDatasetId: state.metricChartKeysByDatasetId,
+          areMetricChartsHiddenByDatasetId:
+            state.areMetricChartsHiddenByDatasetId,
         }),
         merge: (persistedState, currentState) => {
           const persisted = (persistedState ?? {}) as Partial<
-            Pick<ExperimentCompareChartsState, "metricChartKeysByDatasetId">
+            Pick<
+              ExperimentCompareChartsState,
+              "metricChartKeysByDatasetId" | "areMetricChartsHiddenByDatasetId"
+            >
           >;
           const metricChartKeysByDatasetId = Object.fromEntries(
             Object.entries(persisted.metricChartKeysByDatasetId ?? {}).flatMap(
@@ -61,7 +96,16 @@ export const useExperimentCompareChartsStore =
                   : []
             )
           );
-          return { ...currentState, metricChartKeysByDatasetId };
+          const areMetricChartsHiddenByDatasetId = Object.fromEntries(
+            Object.entries(
+              persisted.areMetricChartsHiddenByDatasetId ?? {}
+            ).filter(([, isHidden]) => isHidden === true)
+          );
+          return {
+            ...currentState,
+            metricChartKeysByDatasetId,
+            areMetricChartsHiddenByDatasetId,
+          };
         },
       }
     )
