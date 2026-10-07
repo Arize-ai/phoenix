@@ -5,7 +5,7 @@ allowed_tools: [Skill, Read]
 runs: 3
 tags: [phoenix-cli]
 ---
-Support is annoyed: HelpBot (Phoenix project `helpbot-prod`) keeps handing trivial questions to humans. "What's your refund window" is literally the first FAQ entry in our knowledge base (30 days, no questions asked), and the bot escalated it anyway. Here's `px trace get 77aa11bb22cc33dd44ee55ff66007788 --format raw`. You can't reach my Phoenix from here. Why is it doing this, and how do I see how often it's happening?
+Support is annoyed: HelpBot (Phoenix project `helpbot-prod`) keeps handing trivial questions to humans. "What's your refund window" is literally the first FAQ entry in our knowledge base (30 days, no questions asked), and the bot escalated it anyway. Here's the full trace for one of those escalations. You can't reach my Phoenix from here. Why is it doing this, and how do I see how often it's happening?
 
 ```json
 {
