@@ -57,7 +57,6 @@ dy=DB[0]; A(wire(f'M795 {cy+CORE[1]} V{dy}')+ar_d(795,dy))
 A(box(L,dy,RIGHT-L,DB[1])+cyl(L+20,dy+12)+lbl(L+50,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+20,dy+55,18)+lbl(L+50,dy+70,'SQLite',16)+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+169,dy+55,18)+lbl(L+199,dy+70,'PostgreSQL',15.5))
 A(wire(f'M{RIGHT} {my+24} H968 A7 7 0 0 1 982 {my+24} H1030 V{dy+46} H{RIGHT}')+ar_l(RIGHT,dy+46))   # MCP -> SQL -> database
 # legend
-A('<text class="hx-band a" x="1120" y="16">THREE SURFACES</text>')
 for k,t in enumerate(['Coding agent + CLI','Coding agent + MCP','PXI']):
     y=64+k*44; A(badge(1130,y-5,str(k+1))+f'<text class="hx-v" x="1150" y="{y}">{t}</text>')
 A('<g class="ap-live"><text class="hx-band a" x="1120" y="224">IN PRODUCTION</text></g><g class="ap-dock"><text class="hx-band e" x="1120" y="224">IN HARBOR</text></g>')
