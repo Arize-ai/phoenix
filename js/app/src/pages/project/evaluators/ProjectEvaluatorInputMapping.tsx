@@ -79,7 +79,6 @@ export const ProjectEvaluatorInputMapping = ({
               ariaLabel={ariaLabel}
               evaluatorMappingSource={evaluatorMappingSource}
               recordKind={recordKind}
-              variableName={variable}
               placeholder={getEvaluatorInputPlaceholder({
                 variableName: variable,
                 isRequired: requiredVariables?.includes(variable) ?? true,
