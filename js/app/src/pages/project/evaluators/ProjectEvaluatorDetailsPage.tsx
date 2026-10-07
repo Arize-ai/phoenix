@@ -164,6 +164,10 @@ function ProjectEvaluatorDetailsPageContent({
                 projectEvaluatorId={projectEvaluator.id}
                 name={projectEvaluator.name}
                 enabled={projectEvaluator.enabled}
+                clearableCount={
+                  projectEvaluator.runSummary.queuedCount -
+                  projectEvaluator.runSummary.runningCount
+                }
               />
             </Flex>
             {canEdit && (
