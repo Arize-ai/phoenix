@@ -108,11 +108,11 @@ for GitHub Enterprise Server or air-gapped deployments.
 """
 ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE = "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE"
 """
-Whether Phoenix MCP connection uses code-mode. Defaults to True.
-Under code mode, the assistant sees discovery tools
-(search, get_schema, tags, list_tools) plus a sandboxed `execute` tool; set to False
-to give it one tool per read-only REST endpoint instead. PHOENIX_ENABLE_MCP_CODE_MODE
-is the same switch for the MCP server mounted at /mcp, which external clients use.
+Whether Phoenix MCP connection uses code-mode. Defaults to True. Under code mode,
+the assistant sees discovery tools (search, get_schema, tags, list_tools) plus a
+sandboxed `execute` tool; set to False to give it one tool per read-only REST
+endpoint instead. PHOENIX_ENABLE_MCP_CODE_MODE is the same switch for the MCP
+server mounted at /mcp, which external clients use.
 """
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
