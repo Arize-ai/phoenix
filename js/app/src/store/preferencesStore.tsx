@@ -326,13 +326,6 @@ export interface PreferencesState extends PreferencesProps {
 }
 
 /**
- * The local storage key the preferences persist to. Exported for code that
- * runs outside the provider tree (e.g. route loaders) and must read a stored
- * preference before React mounts.
- */
-export const PREFERENCES_STORAGE_KEY = "arize-phoenix-preferences";
-
-/**
  * The last-N range applied when no preference has been persisted. Route
  * loaders that resolve the range before React mounts (e.g. the project
  * evaluators loader) fall back to this same value so their query variables
