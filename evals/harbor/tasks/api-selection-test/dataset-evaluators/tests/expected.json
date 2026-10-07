@@ -1,0 +1,6 @@
+{
+  "reference": "refusal_detection, refusal_detection_fixed, no_sql_in_output",
+  "notes": "All three names are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

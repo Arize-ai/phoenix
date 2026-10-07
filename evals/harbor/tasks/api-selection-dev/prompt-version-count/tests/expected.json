@@ -1,0 +1,6 @@
+{
+  "reference": "2 versions; the second: 'Disambiguate refusal reasons: route PII about other people/customers (names, SSNs, balances, contact info) to other users' data; reserve unauthorized system data for passwords/schema/admin. Fixes SSN misclassification - 13/13 on the refusal split.'",
+  "notes": "The count and the gist of the second version's note (refusal-reason disambiguation, 13/13 on the refusal split) are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

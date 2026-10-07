@@ -1,0 +1,6 @@
+{
+  "reference": "the Default policy, cron 0 0 * * 0, max_days 0 (it never deletes)",
+  "notes": "No project in the fixture has its own policy. The policy name and the cron expression are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

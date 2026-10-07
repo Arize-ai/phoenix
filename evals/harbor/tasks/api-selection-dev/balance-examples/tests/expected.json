@@ -1,0 +1,5 @@
+{
+  "reference": "24: banking_saas_dataset 6, banking_saas_dataset_auto_ids 6, banking_saas_dataset_clean 6, banking_saas_dataset_with_ids 6",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

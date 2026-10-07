@@ -1,0 +1,6 @@
+{
+  "reference": "1 of 2: trace 914e1f100fba1951ff06323e13f514cb",
+  "notes": "Accept a prefix of the trace id.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

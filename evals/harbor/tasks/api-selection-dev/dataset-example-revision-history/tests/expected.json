@@ -1,0 +1,6 @@
+{
+  "reference": "4 revisions; the current prompt is 'How do I change the default project name' (scenario pxi-docs-smoke:tracing-project-env-var-v1)",
+  "notes": "The count of 4 and the current prompt text are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

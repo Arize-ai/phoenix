@@ -1,0 +1,6 @@
+{
+  "reference": "6: banking_saas_dataset_with_ids; banking_saas_dataset_auto_ids; High Token Count Spans (>20k); mobile-flagged-sessions; Dataset 2026-08-14T17:33:46.188Z; Dataset 2026-08-14T21:05:29.362Z",
+  "notes": "All six must appear; order does not matter.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

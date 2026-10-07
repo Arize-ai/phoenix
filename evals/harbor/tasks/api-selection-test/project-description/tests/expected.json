@@ -1,0 +1,6 @@
+{
+  "reference": "Traces for dataset evaluator: safe_sql_exact_match on dataset: banking_saas_dataset_clean",
+  "notes": "The reply must give the description text; naming the evaluator and dataset in it is the point.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

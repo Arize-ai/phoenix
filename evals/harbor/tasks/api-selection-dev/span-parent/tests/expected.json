@@ -1,0 +1,6 @@
+{
+  "reference": "span 6a41eb4766c2bb30, named PXIAgent.iter (an AGENT span), in trace 7c01787fd51ef4dd971f2791d2122f57",
+  "notes": "The parent span id 6a41eb4766c2bb30 or the name PXIAgent.iter is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

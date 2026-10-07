@@ -1,0 +1,6 @@
+{
+  "reference": "pxi.turn: 6 of 99 spans (6.1%); runner-up chat gpt-4o-mini at 5.9%",
+  "notes": "The reply must name pxi.turn. The runner-up is context and need not appear.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

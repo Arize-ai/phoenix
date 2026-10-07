@@ -1,0 +1,6 @@
+{
+  "reference": "Dataset 2026-08-14T17:33:46.188Z and Dataset 2026-08-14T21:05:29.362Z, one example each",
+  "notes": "Both names are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

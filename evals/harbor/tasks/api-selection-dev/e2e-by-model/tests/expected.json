@@ -1,0 +1,6 @@
+{
+  "reference": "gpt-4.1-mini 0.7 over 10 runs; gpt-5.4 0.866 over 67 runs",
+  "notes": "Accept percentages and rounding to two decimals.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

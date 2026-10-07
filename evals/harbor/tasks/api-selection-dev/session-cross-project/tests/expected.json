@@ -1,0 +1,6 @@
+{
+  "reference": "8 traces in total: 4 in takehome-fixture and 4 in incident-copilot",
+  "notes": "Both project names and the per-project counts are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

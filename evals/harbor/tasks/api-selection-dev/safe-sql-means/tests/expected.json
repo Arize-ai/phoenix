@@ -1,0 +1,6 @@
+{
+  "reference": "safe-sql prompt v1 1.0 (6 runs); safe-sql prompt v1 rerun 0.429 (28 runs); safe-sql prompt v2 canonical 0.964 (28 runs); safe-sql prompt v3 authorization fix 0.929 (28 runs); safe-sql prompt v4 disambiguation 1.0 (28 runs)",
+  "notes": "Accept rounding to two decimals. The v1 experiment covered only 6 examples and should not be presented as a full pass.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

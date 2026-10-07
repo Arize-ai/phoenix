@@ -1,0 +1,6 @@
+{
+  "reference": "ff3951eaa75f533d (bash, a TOOL span) and 59d57ef5e5e67f05 (gpt-5.4, an LLM span)",
+  "notes": "Both children are required; ids or names suffice.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

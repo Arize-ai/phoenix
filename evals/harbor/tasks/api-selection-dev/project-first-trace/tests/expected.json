@@ -1,0 +1,6 @@
+{
+  "reference": "first 2026-04-06 20:15:34 UTC, last 2026-04-17 14:33:31 UTC",
+  "notes": "Accept either time to the minute; the project summary rounds them.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

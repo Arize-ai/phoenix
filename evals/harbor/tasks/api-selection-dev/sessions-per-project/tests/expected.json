@@ -1,0 +1,6 @@
+{
+  "reference": "pxi_dev 167 sessions, 5.4 traces each; pxi_agent_tony 38 sessions, 10.66 traces each; mobile-review-queue 6 sessions, 1.83 traces each; assistant_agent 2 sessions, 1.0 traces each",
+  "notes": "Accept rounding of traces per session to one decimal.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

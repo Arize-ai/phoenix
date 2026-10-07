@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Labels and scores of a categorical config"""
+
+import json  # noqa: F401
+from collections import Counter  # noqa: F401
+
+from harbor_verifiers.phoenix_api import (  # noqa: F401
+    attribute,
+    dataset_id,
+    experiment_by_name,
+    experiment_runs,
+    generative_models,
+    graphql,
+    rest,
+    rest_pages,
+    rowid,
+    utc,
+    write_answer,
+)
+
+config = rest("/annotation_configs/px-mobile-verify-config")["data"]
+values = ", ".join(f"{v['label']} = {v['score']:g}" for v in config["values"])
+write_answer(
+    f"{values} ({config['type']}, {config['optimization_direction']}, "
+    f"described as {config['description']!r})"
+)

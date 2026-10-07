@@ -1,0 +1,6 @@
+{
+  "reference": "Q2 revenue grew 18% QoQ, driven by (1) enterprise expansion in EMEA, (2) the new usage-based pricing tier, and (3) reduced churn",
+  "notes": "Accept any reply that quotes or faithfully paraphrases the three drivers.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

@@ -21,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
+  "scikit-learn",
   "numpy",
   "pandas>=1.0",
   "jinja2",
@@ -35,6 +36,7 @@ dependencies = [
   "graphql-core<3.3",  # 3.3 changes default-value coercion used by schema search
   "pyarrow",
   "typing-extensions>=4.6",
+  "scipy",
   "wrapt>=1.17.2,<3",
   "grpcio",
   "grpc-interceptor",
@@ -118,7 +120,6 @@ dev = [
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
-  "scikit-learn",  # reference implementation for retrieval metric tests
   "openai>=3.1.0,<4",
   "openinference-semantic-conventions>=0.1.40",
   "openinference-instrumentation>=0.1.60",
@@ -350,6 +351,8 @@ exclude = [
   "dist/",
   "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "evals/harbor/tasks/trail-benchmark-dev/",
+  "evals/harbor/tasks/api-selection-dev/",
+  "evals/harbor/tasks/api-selection-test/",
   "examples/",
   "packages/",
   "scripts/",

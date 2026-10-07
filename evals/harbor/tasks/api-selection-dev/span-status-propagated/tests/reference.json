@@ -1,0 +1,1 @@
+"both: the root span 328b89964b1a9bd4 (handle_user_message) and its child 769e6730ffc47aa6 (chat_completion) are both ERROR with 'model timeout'"

@@ -1,0 +1,6 @@
+{
+  "reference": "the sufficient_python_report case (example RGF0YXNldEV4YW1wbGU6MTE1, trace 92e91e256d387a0a295bf9e8fb868f7e); the job log records a ReadTimeout task error",
+  "notes": "The case name and the ReadTimeout are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}
