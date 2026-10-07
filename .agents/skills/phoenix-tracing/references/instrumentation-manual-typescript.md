@@ -27,7 +27,7 @@ register({ projectName: "my-app" });
 | GUARDRAIL | `traceGuardrail` | Safety checks, content moderation |
 | EVALUATOR | `traceEvaluator` | LLM evaluation |
 | PROMPT | `tracePrompt` | Prompt construction, rendering, templating |
-| DECISION | `withSpan(fn, { kind: "DECISION" })` | Decision model calls: routing, classification, scoring (experimental) |
+| DECISION | `traceDecision` | Decision model calls: routing, classification, scoring; set `decision.*` attributes |
 
 Every OpenInference span kind has a matching wrapper. Each `trace*` wrapper is a
 shorthand for `withSpan(fn, { ...options, kind })` with `kind` pre-set, so it takes

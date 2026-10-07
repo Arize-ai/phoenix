@@ -2,7 +2,7 @@
 title: "OpenInference Span Kinds"
 sidebarTitle: "Span kinds"
 description: "The twelve OpenInference span kinds — LLM, Tool, Agent, Chain, Retriever, and the rest — with the canonical attributes Phoenix expects on each."
-keywords: ['span kinds', 'OpenInference', 'LLM', 'TOOL', 'AGENT', 'CHAIN', 'RETRIEVER', 'EMBEDDING', 'openinference.span.kind']
+keywords: ['span kinds', 'OpenInference', 'LLM', 'TOOL', 'AGENT', 'CHAIN', 'RETRIEVER', 'EMBEDDING', 'DECISION', 'decision model', 'openinference.span.kind']
 ---
 
 A **span kind** is the category of operation a span represents. OpenTelemetry has its own span kinds for network calls (`SERVER`, `CLIENT`, `PRODUCER`, ...). OpenInference adds an AI-specific set: LLM, Tool, Agent, Chain, Retriever, and more.
@@ -44,12 +44,12 @@ OpenInference defines twelve span-kind values. The first four (LLM, Chain, Agent
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/reranker.png" width="32" alt="Reranker span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`RERANKER`** | A relevance-based re-ordering of documents. |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/guardrail.png" width="32" alt="Guardrail span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`GUARDRAIL`** | A validation of LLM input or output for safety, policy, or compliance. |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Evaluator span-kind icon (falls back to Unknown)" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`EVALUATOR`** | An evaluation process — the type, configuration, and results. |
-| <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Decision span-kind icon (falls back to Unknown)" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`DECISION`** | *Experimental.* A call to a decision model — one that scores or selects among candidate options supplied in the request (routing, classification, rubric scoring) rather than generating free-form text. |
+| <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Decision span-kind icon (falls back to Unknown)" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`DECISION`** | A call to a decision model — one that scores or selects among candidate options supplied in the request (routing, classification, rubric scoring) rather than generating free-form text. See [DECISION](#decision). |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Prompt span-kind icon (falls back to Unknown)" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`PROMPT`** | A span representing prompt construction or templating. |
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Unknown span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`UNKNOWN`** | Default when no kind is set explicitly. |
 
 <Note>
-**`DECISION` is experimental.** The span kind is recognized and rendered with its own icon, but Phoenix support for decision models is still being built out: there are no decision-specific attributes or cards yet, and no decision-model provider is fully supported. Expect the conventions to evolve.
+**`DECISION` spans are new.** Phoenix renders them with their own icon and a span view that names the decision model. The OpenInference instrumentors for the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api) and [TypeSafe AI System One](/docs/phoenix/integrations/llm-providers/typesafe) emit them. The `decision.*` attributes are described under [DECISION](#decision) below and may still evolve as more decision-model providers appear.
 </Note>
 
 # Common Attributes Across All Kinds
@@ -74,7 +74,7 @@ These attributes apply to every span kind. Auto-instrumentors set them automatic
 
 # Per-Kind Attributes
 
-The four most-used kinds have a richer attribute set. The full list lives in the [OpenInference semantic conventions](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) — the tables below are a summary.
+The four most-used kinds, plus the newer DECISION kind, have a richer attribute set. The full list lives in the [OpenInference semantic conventions](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) — the tables below are a summary.
 
 ## LLM
 
@@ -138,9 +138,35 @@ A starting point or a link between different application steps. Use a chain span
 
 Chain spans use only the common attributes — `input.value`, `output.value`, `metadata`, `session.id`, etc.
 
+## DECISION
+
+A call to a **decision model**. A decision model takes some state plus a fixed set of typed questions and returns one typed, probabilistic answer per question, instead of generating free-form text. Examples are the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api), which answers predicate, choice, and score questions over text or images, and [TypeSafe AI's System One / Jev](/docs/phoenix/integrations/llm-providers/typesafe), which answers Noul, Choice, and Score questions. Decision models suit the "smart if-statements" inside an application: routing a request to the right agent or department, classifying content, judging whether a condition holds, or scoring an item against a rubric.
+
+Decision spans use a `decision.*` namespace instead of `llm.*`, so decision-model usage stays out of LLM model, token, and cost reporting. The `decision.*` identification attributes mirror their `llm.*` counterparts and share the same well-known values (`openai`, `typesafe`, and so on).
+
+| Attribute | Description |
+| :--- | :--- |
+| `decision.system` | The decision API the call speaks, which fixes the request and response shape and the question types: `openai` for the OpenAI Decisions API, `typesafe` for System One. Required. |
+| `decision.provider` | Who hosts the model that answered. Usually the same as the system; differs for a Decisions call through Azure OpenAI (`azure`) or a self-hosted deployment serving a TypeSafe-compatible API. |
+| `decision.model_name` | The decision model that answered (e.g. `gpt-6-luna`, `jev-1.13.0`). Mirrors `llm.model_name`. |
+| `decision.request.model_name` | The model requested by the caller, when it can differ from the model that served the response (e.g. a floating alias such as `jev-latest`). |
+| `decision.response.model_name` | The model that actually produced the decision, as reported by the provider. |
+| `decision.token_count.input` | Input tokens consumed: the state, the questions, and the candidate options. |
+| `decision.token_count.output` | Output tokens produced. Usually a handful, since the answers are typed values rather than text, and some providers do not bill for them. |
+| `input.value` / `input.mime_type` | The raw request as JSON, including the candidate options. |
+| `output.value` / `output.mime_type` | The raw response as JSON, including the selection, probabilities, or scores. |
+
+Token counts have no prompt/completion split and no total, since a decision call has no chat-style prompt and completion. A decision call is not a chat exchange either, so decision spans carry no `llm.input_messages` or `llm.output_messages`, and they should not set `llm.system`, `llm.provider`, `llm.model_name`, or `llm.token_count.*`.
+
+<Info>
+**Phoenix UI behavior**: a DECISION span renders with the decision icon in the trace tree. Its details view shows the input and output cards, with the decision model named in the input card header. The name comes from `decision.model_name`, then `decision.response.model_name`, then `decision.request.model_name`, and is led by the provider's icon when Phoenix has one for `decision.provider`. Decision spans use `decision.token_count.*` rather than `llm.token_count.*`, so their usage does not appear in LLM token and cost totals.
+</Info>
+
+The full convention, including the system-versus-provider rules and a worked example, is in the OpenInference [decision spans specification](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md).
+
 ## Other Kinds
 
-The remaining eight span kinds — RETRIEVER, EMBEDDING, RERANKER, GUARDRAIL, EVALUATOR, DECISION (experimental), PROMPT, UNKNOWN — each have their own attribute schemas. Consult the [canonical source](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) for the full per-kind attribute list.
+The remaining seven span kinds — RETRIEVER, EMBEDDING, RERANKER, GUARDRAIL, EVALUATOR, PROMPT, UNKNOWN — each have their own attribute schemas. Consult the [canonical source](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) for the full per-kind attribute list.
 
 # Multimodal Message Content
 
