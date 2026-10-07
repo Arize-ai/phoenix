@@ -55,6 +55,7 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
+    done_eval_work_index_predicate,
     eval_session_work_status_check,
     eval_work_status_check,
     failed_eval_work_index_predicate,
@@ -3888,7 +3889,14 @@ class EvalWorkUnit(HasId):
             postgresql_where=text(terminal_eval_work_index_predicate()),
             sqlite_where=text(terminal_eval_work_index_predicate()),
         ),
-        # The newest failure per evaluator, found without walking its successes.
+        # Each evaluator's newest success and newest failure, found without walking its history.
+        Index(
+            "ix_eval_work_units_project_evaluator_done",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(done_eval_work_index_predicate()),
+            sqlite_where=text(done_eval_work_index_predicate()),
+        ),
         Index(
             "ix_eval_work_units_project_evaluator_failed",
             "project_evaluator_id",
@@ -3944,7 +3952,14 @@ class EvalSessionWorkUnit(HasId):
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
         ),
-        # The newest failure per evaluator, found without walking its successes.
+        # Each evaluator's newest success and newest failure, found without walking its history.
+        Index(
+            "ix_eval_session_work_units_project_evaluator_done",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(done_eval_work_index_predicate()),
+            sqlite_where=text(done_eval_work_index_predicate()),
+        ),
         Index(
             "ix_eval_session_work_units_project_evaluator_failed",
             "project_evaluator_id",
@@ -4002,7 +4017,14 @@ class EvalTraceWorkUnit(HasId):
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
         ),
-        # The newest failure per evaluator, found without walking its successes.
+        # Each evaluator's newest success and newest failure, found without walking its history.
+        Index(
+            "ix_eval_trace_work_units_project_evaluator_done",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(done_eval_work_index_predicate()),
+            sqlite_where=text(done_eval_work_index_predicate()),
+        ),
         Index(
             "ix_eval_trace_work_units_project_evaluator_failed",
             "project_evaluator_id",
