@@ -17,14 +17,18 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-_EVAL_WORK_STATUS_CHECK = "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED')"
+_EVAL_WORK_STATUS_CHECK = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
+)
 _EVAL_SESSION_WORK_STATUS_CHECK = (
-    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', "
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED', "
     "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
 )
 _LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
-_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED')"
-_TERMINAL_EVAL_SESSION_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST')"
+_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
+_TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
+    "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
+)
 _FAILED_EVAL_WORK_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
 
 _Integer = sa.Integer().with_variant(

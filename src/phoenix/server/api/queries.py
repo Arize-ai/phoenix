@@ -86,6 +86,7 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
+from phoenix.server.api.types.EvaluationQueue import EvaluationQueue
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
@@ -1696,6 +1697,15 @@ class Query:
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
         )
+
+    @strawberry.field(
+        description=(
+            "The online evaluation queue, shared by every project on the server and by span, "
+            "trace, and session evaluations."
+        ),
+    )  # type: ignore
+    async def evaluation_queue(self, info: Info[Context, None]) -> EvaluationQueue:
+        return EvaluationQueue(queue=await info.context.data_loaders.evaluation_queue.load(None))
 
     @strawberry.field(
         description=(
