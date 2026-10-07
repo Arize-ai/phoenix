@@ -381,7 +381,10 @@ export const PATH_MEMBER_SECTION_RANK = 3;
 /** Where the level below a name typed in full sits: after the name's own. */
 export const PATH_CONTINUATION_SECTION_RANK = 4;
 
-export type EvaluatorSlotSuggestedPathLike = {
+/** How many suggestions lead the top level, of those that resolve. */
+const MAX_SUGGESTED_PATHS = 5;
+
+export type EvaluatorSuggestedPathLike = {
   path: string;
   description: string;
 };
@@ -412,7 +415,7 @@ export function getEvaluatorPathCompletions({
   /** The evaluation context a path is resolved against. */
   source: Record<string, unknown>;
   rootCandidates?: readonly EvaluatorPathCompletion[];
-  suggestedPaths?: readonly EvaluatorSlotSuggestedPathLike[];
+  suggestedPaths?: readonly EvaluatorSuggestedPathLike[];
   textBeforeCursor: string;
 }): EvaluatorPathCompletionResult | null {
   const rootPaths = rootCandidates.map((candidate) => candidate.path);
@@ -421,20 +424,20 @@ export function getEvaluatorPathCompletions({
     return getSubscriptContinuation({ source, textBeforeCursor, rootPaths });
   }
   if (cursor.containerPath === "") {
-    const suggested: EvaluatorPathCompletion[] = [];
-    for (const { path, description } of suggestedPaths) {
-      const resolution = resolveEvaluatorPath({ source, path });
-      if (resolution.status === "resolved") {
-        suggested.push({
-          key: path,
-          path,
-          preview: toMemberPreview(resolution.value),
-          section: SUGGESTED_PATH_SECTION,
-          description,
-          drills: isEvaluatorPathContainer(resolution.value),
-        });
-      }
-    }
+    const suggested = suggestedPaths
+      .flatMap(({ path, description }) =>
+        resolveLevelRow({ source, path, key: path }).map((row) => ({
+          ...row,
+          idea: description,
+        }))
+      )
+      .slice(0, MAX_SUGGESTED_PATHS)
+      .map((row, index, rows) =>
+        toLevelCompletion(
+          { ...row, boost: rows.length - index },
+          SUGGESTED_PATH_SECTION
+        )
+      );
     const completions = [...suggested, ...rootCandidates];
     return completions.length === 0
       ? null

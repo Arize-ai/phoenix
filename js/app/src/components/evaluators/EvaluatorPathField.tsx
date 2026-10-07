@@ -24,10 +24,10 @@ import {
   getEvaluatorPathCompletions,
   isEvaluatorPathContainer,
   resolveEvaluatorPath,
-  SUGGESTED_PATH_SECTION,
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
-import { getEvaluatorSlotSuggestedPaths } from "./evaluatorSlotDefaults";
+import type { EvaluatorSuggestedPath } from "./evaluatorSlotDefaults";
+import { getEvaluatorSuggestedPaths } from "./evaluatorSlotDefaults";
 
 const UNRESOLVED_PATH_MESSAGE = "No such field";
 
@@ -71,7 +71,6 @@ export function EvaluatorPathField({
   ariaLabel,
   evaluatorMappingSource,
   recordKind,
-  variableName,
   placeholder,
 }: {
   value: string;
@@ -82,15 +81,10 @@ export function EvaluatorPathField({
   ariaLabel: string;
   evaluatorMappingSource: EvaluatorMappingSourceState;
   recordKind: ProjectEvaluatorRecordKind;
-  /** The evaluator variable this path is read into. */
-  variableName: string;
   /** What the variable reads while the field is empty. */
   placeholder: string;
 }) {
-  const suggestedPaths = getEvaluatorSlotSuggestedPaths(
-    recordKind,
-    variableName
-  );
+  const suggestedPaths = getEvaluatorSuggestedPaths(recordKind);
 
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
@@ -208,7 +202,7 @@ function createEvaluatorPathCompletionSource({
 }: {
   source: Record<string, unknown>;
   rootCandidates: readonly EvaluatorPathCompletion[];
-  suggestedPaths: readonly { path: string; description: string }[];
+  suggestedPaths: readonly EvaluatorSuggestedPath[];
 }): CompletionSource {
   return (context: CompletionContext) => {
     const result = getEvaluatorPathCompletions({
@@ -222,7 +216,7 @@ function createEvaluatorPathCompletionSource({
     }
     return {
       from: result.from,
-      options: result.completions.map((completion, index) => ({
+      options: result.completions.map((completion) => ({
         label: completion.key,
         ...(completion.displayLabel
           ? { displayLabel: completion.displayLabel }
@@ -230,13 +224,7 @@ function createEvaluatorPathCompletionSource({
         ...(completion.preview ? { detail: completion.preview } : {}),
         ...(completion.description ? { info: completion.description } : {}),
         type: completion.type ?? "property",
-        // Suggestions keep their configured order — the plain narrowing
-        // first, the deeper cuts after — instead of sorting alphabetically.
-        ...(completion.section === SUGGESTED_PATH_SECTION
-          ? { boost: 99 - index }
-          : completion.boost != null
-            ? { boost: completion.boost }
-            : {}),
+        ...(completion.boost != null ? { boost: completion.boost } : {}),
         section: completion.section,
         apply: applyEvaluatorPathCompletion(completion),
       })),

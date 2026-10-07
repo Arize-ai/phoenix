@@ -12,100 +12,63 @@ export function isEvaluatorSlotName(name: string): name is EvaluatorSlotName {
   return (EVALUATOR_SLOT_NAMES as readonly string[]).includes(name);
 }
 
-type BySlot<T> = Record<
-  ProjectEvaluatorRecordKind,
-  Record<EvaluatorSlotName, T>
->;
-
-export type EvaluatorSlotSuggestedPath = {
+export type EvaluatorSuggestedPath = {
   path: string;
   description: string;
 };
 
 /**
- * Paths pinned above the context's own field list while a slot is still
- * unmapped — worked examples of what a mapping can reach, from the plain
- * narrowing to the deeper cuts an author would otherwise have to discover
- * by drilling. Each is offered only when it resolves on the sampled record,
- * so nothing here can suggest a path that would fail.
+ * Paths pinned above the context's own field list while a variable is
+ * unmapped, described by what they reach. Each is offered only when it
+ * resolves on the sampled record.
  */
-const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
-  span: {
-    input: [
-      {
-        path: "metadata.attributes.llm.input_messages",
-        description: "Chat messages sent to the model.",
-      },
-      {
-        path: "metadata.attributes.input",
-        description: "Input attribute, with mime type.",
-      },
-    ],
-    output: [
-      {
-        path: "metadata.attributes.llm.output_messages",
-        description: "Messages the model returned.",
-      },
-    ],
-    metadata: [
-      {
-        path: "metadata.attributes",
-        description: "The whole attribute tree.",
-      },
-      {
-        path: "metadata.attributes.llm",
-        description: "Model, token counts, and messages.",
-      },
-      {
-        path: "metadata.annotations",
-        description: "Span annotations, by name.",
-      },
-    ],
-  },
-  trace: {
-    input: [
-      {
-        path: "metadata.attributes.input",
-        description: "The root span's input attribute, with mime type.",
-      },
-    ],
-    output: [
-      {
-        path: "metadata.attributes.output",
-        description: "The root span's output attribute, with mime type.",
-      },
-    ],
-    metadata: [
-      {
-        path: "metadata.attributes",
-        description: "The root span's whole attribute tree.",
-      },
-      {
-        path: "metadata.trace_annotations",
-        description: "Trace annotations, by name.",
-      },
-    ],
-  },
-  session: {
-    input: [
-      {
-        path: "metadata.turns",
-        description: "Every turn, oldest first.",
-      },
-      {
-        path: "metadata.turns[0].input",
-        description: "The session's opening request.",
-      },
-    ],
-    output: [
-      {
-        path: "metadata.turns[0].output",
-        description: "The first turn's response.",
-      },
-    ],
-    metadata: [],
-  },
+const SUGGESTED_PATHS: Record<
+  ProjectEvaluatorRecordKind,
+  readonly EvaluatorSuggestedPath[]
+> = {
+  span: [
+    {
+      path: "input.messages[-1].content",
+      description: "Last message sent to the model",
+    },
+    { path: "input.messages", description: "Messages sent to the model" },
+    { path: "input.tools", description: "Tools the model could call" },
+    {
+      path: "output.messages[-1].tool_calls",
+      description: "Tool calls the model made",
+    },
+    { path: "output.messages[-1].content", description: "The model's reply" },
+    {
+      path: "output.documents[*].content",
+      description: "Retrieved documents' content",
+    },
+    {
+      path: "output.documents[0].content",
+      description: "First retrieved document",
+    },
+  ],
+  trace: [
+    { path: "input", description: "Request input" },
+    { path: "output", description: "Final output" },
+    { path: "metadata.attributes", description: "Root span attributes" },
+  ],
+  session: [
+    {
+      path: "metadata.turns[-1].input",
+      description: "Last turn's user input",
+    },
+    { path: "metadata.turns[-1].output", description: "Last turn's response" },
+    { path: "metadata.turns[:-1]", description: "Earlier turns" },
+    { path: "metadata.turns[*].input", description: "Every user input" },
+    { path: "metadata.first_input", description: "First user input" },
+  ],
 };
+
+export function getEvaluatorSuggestedPaths(
+  recordKind: ProjectEvaluatorRecordKind
+): readonly EvaluatorSuggestedPath[] {
+  return SUGGESTED_PATHS[recordKind];
+}
 
 const PLACEHOLDER_TEXT_LENGTH = 60;
 
@@ -135,15 +98,4 @@ export function getEvaluatorInputPlaceholder({
     return variableName;
   }
   return isRequired ? "Required" : "Optional";
-}
-
-const NO_SUGGESTED_PATHS: readonly EvaluatorSlotSuggestedPath[] = [];
-
-export function getEvaluatorSlotSuggestedPaths(
-  recordKind: ProjectEvaluatorRecordKind,
-  variableName: string
-): readonly EvaluatorSlotSuggestedPath[] {
-  return isEvaluatorSlotName(variableName)
-    ? SLOT_SUGGESTED_PATHS[recordKind][variableName]
-    : NO_SUGGESTED_PATHS;
 }

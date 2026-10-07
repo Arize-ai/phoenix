@@ -9,6 +9,7 @@ import {
   applyEvaluatorPathCompletion,
   getEvaluatorPathCompletions,
   getEvaluatorPathCursor,
+  IDEA_COMPLETION_TYPE,
   MAX_BROWSE_MEMBERS,
   PATH_CONTINUATION_SECTION_RANK,
   PATH_MEMBER_SECTION_RANK,
@@ -330,19 +331,25 @@ describe("getEvaluatorPathCompletions", () => {
     expect(rooted?.completions.slice(0, 2)).toEqual([
       {
         key: "metadata.latency_ms",
+        displayLabel: "the span latency",
         path: "metadata.latency_ms",
         preview: "842.5",
+        type: IDEA_COMPLETION_TYPE,
         section: SUGGESTED_PATH_SECTION,
-        description: "the span latency",
+        description: "metadata.latency_ms",
         drills: false,
+        boost: 2,
       },
       {
         key: "metadata.attributes.llm",
+        displayLabel: "the llm block",
         path: "metadata.attributes.llm",
         preview: "object · 2",
+        type: IDEA_COMPLETION_TYPE,
         section: SUGGESTED_PATH_SECTION,
-        description: "the llm block",
+        description: "metadata.attributes.llm",
         drills: true,
+        boost: 1,
       },
     ]);
 
@@ -353,6 +360,19 @@ describe("getEvaluatorPathCompletions", () => {
     expect(
       drilled?.completions.every((c) => c.section !== SUGGESTED_PATH_SECTION)
     ).toBe(true);
+  });
+
+  it("leads with at most five suggestions", () => {
+    const suggestions = Array.from({ length: 7 }, (_, index) => ({
+      path: "metadata.latency_ms",
+      description: `suggestion ${index}`,
+    }));
+
+    expect(
+      completionsFor("", SPAN_SOURCE, suggestions)
+        ?.completions.filter((c) => c.section === SUGGESTED_PATH_SECTION)
+        .map((c) => c.displayLabel)
+    ).toEqual([0, 1, 2, 3, 4].map((index) => `suggestion ${index}`));
   });
 
   it("offers a suggestion only when it resolves on the record", () => {

@@ -9,7 +9,7 @@ import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
   getEvaluatorInputPlaceholder,
-  getEvaluatorSlotSuggestedPaths,
+  getEvaluatorSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
 /**
@@ -107,53 +107,54 @@ describe("evaluator slot defaults", () => {
     }
   });
 
-  it("pins worked examples of what each slot's mapping can reach", () => {
-    const paths = (
-      recordKind: ProjectEvaluatorRecordKind,
-      slotName: EvaluatorSlotName
-    ) =>
-      getEvaluatorSlotSuggestedPaths(recordKind, slotName).map(
-        ({ path }) => path
-      );
+  // The sample span is a plain LLM call; these are the other span shapes the
+  // server's span-to-example conversion produces.
+  const SPAN_SHAPES: Record<string, unknown>[] = [
+    {
+      input: {
+        messages: [{ role: "user", content: "Weather in Paris?" }],
+        tools: [{ type: "function", function: { name: "get_weather" } }],
+      },
+      output: {
+        messages: [
+          {
+            role: "assistant",
+            tool_calls: [
+              {
+                id: "call_1",
+                function: { name: "get_weather", arguments: "{}" },
+              },
+            ],
+          },
+        ],
+      },
+      metadata: {},
+    },
+    {
+      input: { query: "key rotation" },
+      output: {
+        documents: [{ id: "doc-1", content: "Rotate keys...", score: 0.9 }],
+      },
+      metadata: {},
+    },
+  ];
 
-    expect(paths("span", "input")).toEqual([
-      "metadata.attributes.llm.input_messages",
-      "metadata.attributes.input",
-    ]);
-    expect(paths("span", "output")).toEqual([
-      "metadata.attributes.llm.output_messages",
-    ]);
-    expect(paths("span", "metadata")).toEqual([
-      "metadata.attributes",
-      "metadata.attributes.llm",
-      "metadata.annotations",
-    ]);
-    expect(paths("session", "input")).toEqual([
-      "metadata.turns",
-      "metadata.turns[0].input",
-    ]);
-    expect(paths("session", "output")).toEqual(["metadata.turns[0].output"]);
-    expect(paths("session", "metadata")).toEqual([]);
-    expect(paths("trace", "input")).toEqual(["metadata.attributes.input"]);
-    expect(paths("trace", "output")).toEqual(["metadata.attributes.output"]);
-    expect(paths("trace", "metadata")).toEqual([
-      "metadata.attributes",
-      "metadata.trace_annotations",
-    ]);
-  });
-
-  it("suggests only paths a real record resolves", () => {
+  it("suggests only paths a record of its kind resolves", () => {
     for (const recordKind of RECORD_KINDS) {
-      for (const slotName of EVALUATOR_SLOT_NAMES) {
-        for (const { path, description } of getEvaluatorSlotSuggestedPaths(
-          recordKind,
-          slotName
-        )) {
-          expect(description).not.toBe("");
-          expect(
-            resolveEvaluatorPath({ source: sampleContextFor(recordKind), path })
-          ).toMatchObject({ status: "resolved" });
-        }
+      const records = [
+        sampleContextFor(recordKind),
+        ...(recordKind === "span" ? SPAN_SHAPES : []),
+      ];
+      for (const { path, description } of getEvaluatorSuggestedPaths(
+        recordKind
+      )) {
+        expect(description).not.toBe("");
+        expect(
+          records.some(
+            (source) =>
+              resolveEvaluatorPath({ source, path }).status === "resolved"
+          )
+        ).toBe(true);
       }
     }
   });
