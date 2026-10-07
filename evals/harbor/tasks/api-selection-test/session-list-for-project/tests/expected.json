@@ -1,0 +1,6 @@
+{
+  "reference": "support-billing-0142, onboarding-walkthrough-77, agent-refund-flow-9, rag-quarterly-report-3, chaotic-eval-run-51, fresh-unreviewed-session-x",
+  "notes": "All six in this order.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

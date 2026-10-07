@@ -1,0 +1,6 @@
+{
+  "reference": "dataset-evaluator-a629a8ba9fc497a33297f9d8 with 118 traces",
+  "notes": "The project name is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

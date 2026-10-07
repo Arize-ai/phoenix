@@ -1,0 +1,6 @@
+{
+  "reference": "ADMIN, MEMBER, VIEWER",
+  "notes": "SYSTEM exists only for the built-in system user and is not offered; a reply that lists it as well is still acceptable.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

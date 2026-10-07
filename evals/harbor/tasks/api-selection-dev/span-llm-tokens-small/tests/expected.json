@@ -1,0 +1,6 @@
+{
+  "reference": "812 prompt, 96 completion, 908 total, model gpt-4o-mini (span 2087f6356fdb5a18)",
+  "notes": "The prompt and completion counts and the model are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

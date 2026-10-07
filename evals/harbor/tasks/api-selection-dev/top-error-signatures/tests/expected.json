@@ -1,0 +1,6 @@
+{
+  "reference": "'monty worker protocol error: invalid exc' 12; 'ApprovalRequired: ' 11; 'TypeError: unsupported operand type(s) f' 10",
+  "notes": "Accept paraphrases that identify the monty worker protocol error, ApprovalRequired, and the TypeError, with the counts 12, 11, 10 in that order.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

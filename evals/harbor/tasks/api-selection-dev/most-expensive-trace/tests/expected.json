@@ -1,0 +1,6 @@
+{
+  "reference": "7a2d3321c28600be9448c2a327e94819, $14.15",
+  "notes": "Accept a prefix of the trace id.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

@@ -1,0 +1,6 @@
+{
+  "reference": "7cd98be451fa66759a18a1697aa597b4 ('test') and ff59da78f0cf706cd274464abcceab09 ('Explain what this span is doing.')",
+  "notes": "Two traces. Accept prefixes of the ids.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

@@ -1,0 +1,6 @@
+{
+  "reference": "Expected first tool search_github_issues, but observed get_github_issue.",
+  "notes": "The expected-versus-observed tool pair is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

@@ -1,0 +1,6 @@
+{
+  "reference": "all 5 runs failed with a 401: 'Incorrect API key provided: 1234'",
+  "notes": "The 401 or the incorrect-API-key message is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

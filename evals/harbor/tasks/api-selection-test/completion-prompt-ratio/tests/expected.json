@@ -1,0 +1,6 @@
+{
+  "reference": "claude-haiku-4-5-20251001 at 0.0195; next is claude-opus-4-6 at 0.0156",
+  "notes": "The reply must name claude-haiku-4-5. Accept the ratio as a decimal or a percentage (about 2%).",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

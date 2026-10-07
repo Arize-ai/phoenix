@@ -1,0 +1,6 @@
+{
+  "reference": "RXhwZXJpbWVudDoxMzY= (validated evaluator) -> RXhwZXJpbWVudDoxMzU= (strict schema fixed) -> RXhwZXJpbWVudDoxMzQ= (corrected credentials) -> RXhwZXJpbWVudDoxMzM= (baseline, no further link)",
+  "notes": "All four experiments in this order, by id or name.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

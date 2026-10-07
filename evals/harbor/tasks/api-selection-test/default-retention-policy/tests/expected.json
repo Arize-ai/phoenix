@@ -1,0 +1,6 @@
+{
+  "reference": "Default, cron 0 0 * * 0, max_days 0 (never deletes)",
+  "notes": "The cron expression and the max_days rule are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

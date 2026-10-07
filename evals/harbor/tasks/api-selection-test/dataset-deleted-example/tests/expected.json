@@ -1,0 +1,6 @@
+{
+  "reference": "the second version (id 4) deleted one example and added 'Show me my current account balance!'; the third version (id 5) patched that example's input to 'Show me my current account balance!!!!!'",
+  "notes": "The reply must say the second version deleted one example and added one, and that the third version patched the added one. Exact example ids are a bonus.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

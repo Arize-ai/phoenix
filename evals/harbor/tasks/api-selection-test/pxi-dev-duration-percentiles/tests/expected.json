@@ -1,0 +1,6 @@
+{
+  "reference": "median 4.1 s, p95 44.3 s",
+  "notes": "Accept values within 0.5 s of each to allow for interpolation differences. Each value must be attached to the right percentile.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

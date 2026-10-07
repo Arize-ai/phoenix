@@ -1,0 +1,6 @@
+{
+  "reference": "7011be99bda5c27497fd481ed81dc7ee945681f2 at 0.952 over 21 runs",
+  "notes": "Accept a short prefix of the sha.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

@@ -1,0 +1,1 @@
+What is the root span of trace 00000000000000000000000000000000?

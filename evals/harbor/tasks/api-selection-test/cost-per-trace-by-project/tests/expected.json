@@ -1,0 +1,6 @@
+{
+  "reference": "pxi_dev $0.192; pxi_agent_tony $0.050; assistant_agent $0.017",
+  "notes": "Order matters. Accept rounding to the nearest cent.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

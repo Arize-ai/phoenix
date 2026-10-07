@@ -1,0 +1,6 @@
+{
+  "reference": "one note: 'The assistant gave a plausible billing explanation, but it did not answer the user's double-charge concern with a concrete explanation'",
+  "notes": "The note's opening clause is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

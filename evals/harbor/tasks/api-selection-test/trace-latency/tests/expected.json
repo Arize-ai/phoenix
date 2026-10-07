@@ -1,0 +1,6 @@
+{
+  "reference": "1.6 seconds (1600 ms)",
+  "notes": "Accept 1.6 s or 1600 ms with any rounding of the exact value.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

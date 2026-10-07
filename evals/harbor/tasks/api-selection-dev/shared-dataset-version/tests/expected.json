@@ -1,0 +1,6 @@
+{
+  "reference": "version 12 of PXI E2E Agent Tests, 46 experiments",
+  "notes": "Accept the version identified by its Phoenix node id.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

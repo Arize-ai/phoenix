@@ -1,0 +1,6 @@
+{
+  "reference": "playground-experiment (id 90); playground-experiment (id 91); playground-experiment prompt:phoenix-issue-reproduction-and-triage-agent-your-job-is-to-turn-an-unstr_4 (id 100); Luna first-tool routing baseline (id 133); Luna first-tool routing \u2014 corrected credentials (id 134)",
+  "notes": "Accept experiments identified by name or id. All five must appear and no others.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

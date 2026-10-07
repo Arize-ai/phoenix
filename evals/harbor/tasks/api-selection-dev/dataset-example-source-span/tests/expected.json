@@ -1,0 +1,6 @@
+{
+  "reference": "span 1b91cd85d269b2b3 (pxiCompletion Turn, trace 22c05aacaf5197b71e6affb69ca325d0); 27,703 total tokens",
+  "notes": "The span id and the token count are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

@@ -1,0 +1,6 @@
+{
+  "reference": "gpt-5\\.4-2026-03-05",
+  "notes": "The pattern with the escaped dot is the exact value; accept it with or without the backslash.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

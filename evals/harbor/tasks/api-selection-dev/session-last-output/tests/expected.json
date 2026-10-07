@@ -1,0 +1,6 @@
+{
+  "reference": "That usually means the role lacks USAGE on the warehouse. Run: GRANT USAGE ON WAREHOUSE compute_wh TO ROLE readonly_role",
+  "notes": "The session has 3 traces. The GRANT USAGE advice is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

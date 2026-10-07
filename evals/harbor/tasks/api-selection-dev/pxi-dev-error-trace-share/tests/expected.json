@@ -1,0 +1,6 @@
+{
+  "reference": "27 of 1137 traces, 2.4%",
+  "notes": "Accept the fraction, the percentage, or both.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}
