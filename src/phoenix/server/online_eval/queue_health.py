@@ -194,10 +194,18 @@ class Throughput:
 
 @dataclass(frozen=True)
 class QueueThroughput:
-    """The queue's rates, and each evaluation target's, in ``EVALUATION_TARGETS`` order."""
+    """The queue's rates, from one read at the queue's measurement: of each evaluation
+    target, in ``EVALUATION_TARGETS`` order, each project evaluator's evaluations queued, and
+    those that left the queue evaluated or failed, over the trailing ``RATE_WINDOW``. The
+    queue's, each target's, and each project's rates are sums of these, so they agree.
+    """
 
     queue: EvaluationQueue
-    targets: tuple[Throughput, ...]
+    project_evaluator_rates: tuple[dict[int, tuple[int, int]], ...]
+
+    @property
+    def targets(self) -> tuple[Throughput, ...]:
+        return tuple(_throughput(rates.values()) for rates in self.project_evaluator_rates)
 
     @property
     def evaluations_per_minute(self) -> float:
@@ -209,6 +217,16 @@ class QueueThroughput:
 
     def target(self, evaluation_target: models.EvaluationTarget) -> Throughput:
         return self.targets[EVALUATION_TARGETS.index(evaluation_target)]
+
+    def project(self, queue: ProjectQueue) -> Throughput:
+        """One project's rates, of every evaluation target: the queue's, restricted to the
+        project's evaluators."""
+        return _throughput(
+            rates[project_evaluator_id]
+            for rates in self.project_evaluator_rates
+            for project_evaluator_id in queue.project_evaluator_ids
+            if project_evaluator_id in rates
+        )
 
 
 @dataclass(frozen=True)
@@ -317,45 +335,13 @@ async def _load_target_queue(
 async def load_queue_throughput(db: DbSessionFactory, queue: EvaluationQueue) -> QueueThroughput:
     since = queue.measured_at - RATE_WINDOW
     async with db.read() as session:
-        targets = tuple(
+        project_evaluator_rates = tuple(
             [
-                _throughput(
-                    (
-                        await _load_rates_by_project_evaluator(
-                            session, _QUEUES[evaluation_target], since
-                        )
-                    ).values()
-                )
+                await _load_rates_by_project_evaluator(session, _QUEUES[evaluation_target], since)
                 for evaluation_target in EVALUATION_TARGETS
             ]
         )
-    return QueueThroughput(queue=queue, targets=targets)
-
-
-async def load_project_queue_throughputs(
-    db: DbSessionFactory,
-    queues: Sequence[ProjectQueue],
-) -> list[Throughput]:
-    """Each project's rates, of every evaluation target: the queue's rates, restricted to
-    the project's evaluators."""
-    rates_by_measurement: dict[datetime, list[dict[int, tuple[int, int]]]] = {}
-    async with db.read() as session:
-        for measured_at in {queue.measured_at for queue in queues}:
-            rates_by_measurement[measured_at] = [
-                await _load_rates_by_project_evaluator(
-                    session, target_queue, measured_at - RATE_WINDOW
-                )
-                for target_queue in _QUEUES.values()
-            ]
-    return [
-        _throughput(
-            rates[project_evaluator_id]
-            for rates in rates_by_measurement[queue.measured_at]
-            for project_evaluator_id in queue.project_evaluator_ids
-            if project_evaluator_id in rates
-        )
-        for queue in queues
-    ]
+    return QueueThroughput(queue=queue, project_evaluator_rates=project_evaluator_rates)
 
 
 async def _load_rates_by_project_evaluator(

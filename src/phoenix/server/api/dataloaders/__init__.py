@@ -70,10 +70,7 @@ from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMax
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
-from .project_evaluation_queues import (
-    ProjectEvaluationQueueDataLoader,
-    ProjectEvaluationQueueThroughputDataLoader,
-)
+from .project_evaluation_queues import ProjectEvaluationQueueDataLoader
 from .project_evaluator_by_id import ProjectEvaluatorByIdDataLoader
 from .project_evaluator_evaluation_loads import ProjectEvaluatorEvaluationLoadsDataLoader
 from .project_evaluator_queues import ProjectEvaluatorQueuesDataLoader
@@ -246,7 +243,6 @@ class DataLoaders:
     project_has_traces: ProjectHasTracesDataLoader
     project_fields: TableFieldsDataLoader
     project_evaluation_queue: ProjectEvaluationQueueDataLoader
-    project_evaluation_queue_throughput: ProjectEvaluationQueueThroughputDataLoader
     project_evaluator_by_id: ProjectEvaluatorByIdDataLoader
     project_evaluator_evaluation_loads: ProjectEvaluatorEvaluationLoadsDataLoader
     project_evaluator_queues: ProjectEvaluatorQueuesDataLoader
@@ -437,7 +433,6 @@ def build_data_loaders(
         num_spans_per_trace=NumSpansPerTraceDataLoader(db),
         project_fields=TableFieldsDataLoader(db, models.Project),
         project_evaluation_queue=ProjectEvaluationQueueDataLoader(db),
-        project_evaluation_queue_throughput=ProjectEvaluationQueueThroughputDataLoader(db),
         project_evaluator_by_id=ProjectEvaluatorByIdDataLoader(db),
         project_evaluator_evaluation_loads=ProjectEvaluatorEvaluationLoadsDataLoader(db),
         project_evaluator_queues=ProjectEvaluatorQueuesDataLoader(db),
