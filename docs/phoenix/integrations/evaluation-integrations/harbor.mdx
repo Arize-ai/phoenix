@@ -8,14 +8,43 @@ keywords: ["harbor", "agent evaluation", "agent benchmark", "atif", "experiments
 
 Harbor remains responsible for running agents and verifiers. Phoenix stores and displays the resulting tasks, runs, rewards, errors, and traces. The plugin does not rerun tasks or calculate a replacement reward.
 
-```mermaid
-flowchart LR
-    H["Harbor job"] --> D["Phoenix dataset<br/>one example per task"]
-    H --> E["Phoenix experiment<br/>one per agent and model"]
-    E --> R["Experiment run<br/>one per final logical trial"]
-    R --> S["Harbor rewards<br/>and infra_ok"]
-    R --> T["ATIF trace<br/>agent, LLM, and tool spans"]
-```
+<Frame caption="The plugin sits between Harbor and Phoenix. It creates the dataset and experiments at job start, then adds a run, its annotations, and its trace as each trial ends.">
+  <iframe
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/html/harbor/harbor-phoenix-plugin.html"
+    title="How the Phoenix plugin maps Harbor to Phoenix"
+    loading="lazy"
+    style={{ width: "100%", aspectRatio: "1212 / 438", border: 0 }}
+  ></iframe>
+</Frame>
+
+Recording a job in Phoenix gives you four things:
+
+- **An experiment per agent configuration.** A job that runs three agent and model combinations produces three experiments on one dataset, so you can compare them with each other and with earlier jobs.
+- **Rewards as annotations.** Each verifier reward becomes a named score on the run it belongs to, next to an `infra_ok` score that tells a failed agent apart from a broken sandbox.
+- **A trace for every trial.** The plugin converts the agent's ATIF trajectory into a span tree of LLM calls, tool calls, and subagents, with no tracing code inside the sandbox.
+- **Efficiency next to reward.** Traces carry token counts, so each experiment shows tokens and cost beside its scores. When two agents pass every task, compare tokens, cost, and iterations to see which one did less work to get there.
+
+## How a Harbor trial runs
+
+A trial is one attempt by one agent at one task. Knowing its order of events explains what Phoenix receives.
+
+<Frame caption="One trial. The agent works in the sandbox first. Harbor copies tests/ in only after the agent stops, then the verifier inspects the sandbox and writes the rewards.">
+  <iframe
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/html/harbor/harbor-trial.html"
+    title="How a Harbor trial runs"
+    loading="lazy"
+    style={{ width: "100%", aspectRatio: "1152 / 460", border: 0 }}
+  ></iframe>
+</Frame>
+
+A task is a directory with an `environment/`, an `instruction.md`, and a `tests/` folder. For each trial, Harbor:
+
+1. builds a fresh sandbox container from `environment/`;
+2. runs the agent, which reads `instruction.md` and changes files and services in the sandbox;
+3. copies `tests/` into the sandbox after the agent finishes, so the agent never sees the checks that grade it; and
+4. runs the verifier, which inspects the sandbox and writes its rewards to `reward.txt` or `reward.json`.
+
+The reward grades what the agent left behind in the sandbox, not what it said it did. The plugin copies those rewards into Phoenix unchanged and attaches the agent's trajectory as a trace, so a low score links to the steps that produced it.
 
 ## When to use the plugin
 
