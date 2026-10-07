@@ -417,10 +417,11 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
 - The evaluator system should fail independently from the core observability path: if evaluation
   is unhealthy, Phoenix should still ingest and display traces normally.
 - Disabling a project evaluator stops new runs immediately.
-- **Clearing the queue.** A user can clear the queued evaluations of one project or of every
-  project, and turning a project evaluator on or off clears its own. Cleared evaluations are
-  recorded as dropped, not failed, so clearing never turns an evaluator to Error. Evaluations
-  already running are not cleared.
+- **Clearing the queue.** A user can clear the queued evaluations of one project evaluator, one
+  project, or every project. Turning a project evaluator off doesn't clear its queued
+  evaluations: they are dropped, not run, when their turn comes, and the evaluators page clears
+  them right after turning one off. Cleared evaluations are recorded as dropped, not failed, so
+  clearing never turns an evaluator to Error. Evaluations already running are not cleared.
 - **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
   rate, the queue must not blow up. Span, trace, and session evaluations wait in one queue under
   one limit: once it holds that many, Phoenix stops queueing new evaluations of any kind until the
