@@ -32,9 +32,9 @@ A(wire('M610 84 V140')+ar_d(610,140)+box(550,140,160,60)+g('cli',596,160,0.75)+l
 A(wire(f'M610 200 V{API[0]+24} H{L}')+ar_r(L,API[0]+24))                                  # CLI -> REST
 A(wire(f'M610 {API[0]+24} V{API[0]+API[1]+14} H705 A7 7 0 0 1 719 {API[0]+API[1]+14} H820 V{API[0]+API[1]}')+ar_u(820,API[0]+API[1]))  # CLI -> GraphQL
 A(wire(f'M750 84 V{MCP[0]}')+ar_d(750,MCP[0]))                                            # coding agent -> MCP
-A(box(825,0,130,84)+g('browser',876,10,0.7).replace('</g>',phx(14,10,16,18)+'</g>')
-  +'<g class="ap-live">'+lbl(890,58,'Browser',18,' text-anchor="middle"')+sub(890,76,'PHOENIX UI',11,' text-anchor="middle"')+'</g>'
-  +'<g class="ap-dock">'+lbl(890,58,'Test client',18,' text-anchor="middle"')+sub(890,76,'SCRIPTED TURNS',11,' text-anchor="middle"')+'</g>')
+A(box(825,0,175,84)+g('browser',845,20,0.6).replace('</g>',phx(14,10,16,18)+'</g>')
+  +'<g class="ap-live">'+lbl(877,38,'Browser')+sub(877,62,'PHOENIX UI')+'</g>'
+  +'<g class="ap-dock">'+lbl(877,38,'Test client')+sub(877,62,'SCRIPTED TURNS')+'</g>')
 A(wire(f'M890 84 V{PXI[0]}')+ar_d(890,PXI[0]))                                            # browser -> PXI
 A(badge(610,112,'1')+badge(750,112,'2')+badge(890,112,'3'))
 # server stack
