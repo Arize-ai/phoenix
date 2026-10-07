@@ -6,16 +6,29 @@ import re
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from fastmcp import FastMCP
+from graphql import OperationType as GraphQLOperationType
 from pydantic import TypeAdapter
 
-from phoenix.server.api.graphql_execute import GraphQLRefusal, execute_operation
+from phoenix.server.api.graphql_execute import (
+    GraphQLRefusal,
+    GraphQLRefusalCode,
+    admit,
+    execute_operation,
+    validate_document,
+)
 from phoenix.server.api.schema_search import cached_index, describe
 from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
+    ExecuteGraphqlMutationOutput,
     ExecuteGraphqlOutput,
     ExecuteGraphqlResultEnvelope,
+    ValidateGraphqlEnvelope,
 )
-from phoenix.server.mcp_server import _META_ANNOTATIONS, _current_mcp_principal
+from phoenix.server.mcp_server import (
+    _DEFAULT_ANNOTATIONS,
+    _META_ANNOTATIONS,
+    _current_mcp_principal,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -32,6 +45,11 @@ _EXECUTE_GRAPHQL_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "oneOf": TypeAdapter(ExecuteGraphqlOutput).json_schema()["anyOf"],
     "$defs": TypeAdapter(ExecuteGraphqlOutput).json_schema().get("$defs", {}),
+}
+_EXECUTE_GRAPHQL_MUTATION_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "oneOf": TypeAdapter(ExecuteGraphqlMutationOutput).json_schema()["anyOf"],
+    "$defs": TypeAdapter(ExecuteGraphqlMutationOutput).json_schema().get("$defs", {}),
 }
 
 
@@ -51,9 +69,9 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
     Args:
         mcp: The server to register on.
         app: Application owning the schema and the GraphQL context factory.
-        allow_mutations: Whether a mutation tool may be registered alongside the
-            read tools. Reserved for the mutation surface; the read tools
-            registered here never admit a mutation.
+        allow_mutations: Register `executeGraphqlMutation` alongside the read
+            tools, and let the schema tool describe mutations. The read tools
+            themselves never admit a mutation either way.
     """
 
     # Resolved per call rather than closed over: the MCP servers are built
@@ -138,6 +156,74 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
                 variables=variables,
                 context=_context(),
                 allow_mutations=False,
+            )
+            return ExecuteGraphqlResultEnvelope(
+                data=outcome.data,
+                errors=[dict(error) for error in outcome.errors],
+            )
+        except GraphQLRefusal as refusal:
+            return ExecuteGraphqlErrorEnvelope.from_refusal(refusal)
+
+    if not allow_mutations:
+        return
+
+    # Annotated destructive: this transport has no approval step, so any
+    # confirmation is the client's. The call is bounded by the caller's own
+    # permissions, enforced by the same resolvers the GraphQL endpoint runs.
+    @mcp.tool(
+        tags={_GRAPHQL_TAG},
+        annotations=_DEFAULT_ANNOTATIONS,
+        output_schema=_EXECUTE_GRAPHQL_MUTATION_OUTPUT_SCHEMA,
+    )
+    async def executeGraphqlMutation(
+        mutation: str,
+        variables: Optional[dict[str, Any]] = None,
+        validate_only: bool = False,
+    ) -> ExecuteGraphqlMutationOutput:
+        """Execute a GraphQL mutation against Phoenix's API. This changes stored data.
+
+        Confirm the change with the person you are acting for before calling
+        this. The mutation runs when called, and Phoenix keeps no undo.
+
+        Call `describeGraphqlSchema` with the mutation's name first. It returns
+        the input types the mutation requires, which are not guessable from the
+        name, and says what the mutation does.
+
+        Pass input values through `variables`, declared as the input types that
+        lookup names. A document over 2 KiB of UTF-8 is refused unexecuted;
+        variable values do not count toward that limit and need no GraphQL
+        string escaping.
+
+        Without `validate_only`, returns the same two shapes as
+        `executeGraphqlQuery`: `{data, errors}` when GraphQL took the document,
+        `{error: {code, message}}` when Phoenix refused it and nothing ran. A
+        mutation that reports `errors` may still have committed part of its
+        work, so read them rather than retrying blindly.
+
+        Only mutations, one operation per document; that operation may select
+        several fields. A query is refused; use `executeGraphqlQuery` for
+        those. `validate_only=True` admits and checks
+        the document against the schema without running it, answering
+        `{valid, notes}`; it does not check variable values or permissions.
+        """
+        try:
+            # An unparseable document declares nothing; its syntax error is
+            # reported by validation or execution, not mistaken for a read.
+            declared = admit(mutation, allow_mutations=True)
+            if declared and GraphQLOperationType.MUTATION not in declared:
+                raise GraphQLRefusal(
+                    GraphQLRefusalCode.NOT_A_MUTATION,
+                    "This tool runs mutations. Use executeGraphqlQuery to read.",
+                )
+            if validate_only:
+                validate_document(_schema(), mutation)
+                return ValidateGraphqlEnvelope.passed()
+            outcome = await execute_operation(
+                _schema(),
+                query=mutation,
+                variables=variables,
+                context=_context(),
+                allow_mutations=True,
             )
             return ExecuteGraphqlResultEnvelope(
                 data=outcome.data,
