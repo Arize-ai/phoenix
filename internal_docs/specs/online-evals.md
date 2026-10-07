@@ -429,7 +429,10 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   rather than dropping them — sampled spans are evaluated late, not skipped, unless trace
   retention deletes a span (and any work already queued for it) before its turn comes. One limit
   is simpler to size and reason about than one per kind, at a cost: a flood of one kind fills the
-  room the others would use, and delays them too. The span producer and the trace and session
+  room the others would use, and delays them too. The limit (`PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING`,
+  30,000 by default) bounds how many evaluations wait, not how long: the newest evaluation in a
+  full queue waits roughly the limit divided by the rate evaluations complete. Lower it to keep
+  results current; raise it to absorb bursts. The span producer and the trace and session
   sweepers take turns at admission, under a lock that holds across replicas, so two of them never
   both fill the same room.
   Overload shows up in three places: the producer and sweepers log a warning each time they find
