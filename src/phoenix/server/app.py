@@ -1227,6 +1227,7 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
+            read_only=read_only,
             external_skills=external_skills,
         )
         # The guard reads scope["user"], so it is installed exactly when the
@@ -1262,6 +1263,11 @@ def create_app(
             monty_consumer="agent",
             read_only=True,
             db=db,
+            # PXI reaches GraphQL through the `phoenix-gql` shell builtin, which
+            # carries the mutation policy and the approval gate. These tools
+            # stand in only where the bash capability, and the builtin with it,
+            # is off.
+            graphql_tools=get_env_phoenix_agents_disable_bash(),
             skills_roots=PXI_SKILLS_ROOTS,
             external_skills=external_skills,
         )
