@@ -24,6 +24,7 @@ import {
 import {
   type Annotation,
   type AnnotationConfig,
+  getOptimizationBounds,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
@@ -33,6 +34,16 @@ import { ExperimentAnnotationButton } from "@phoenix/components/experiment/Exper
 import { ExperimentRunAnnotationFiltersList } from "@phoenix/pages/experiment/ExperimentRunAnnotationFiltersList";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import {
+  computeLabelDelta,
+  computeMetricDelta,
+  indexSummariesByAnnotationName,
+} from "./experimentDeltaUtils";
+import {
+  ExperimentLabelDelta,
+  ExperimentMetricDelta,
+} from "./ExperimentMetricDelta";
 
 const listCSS = css`
   display: flex;
@@ -151,7 +162,102 @@ export type ExperimentRunCellAnnotationsListProps = {
    * - running: Show skeleton animation
    */
   executionState?: ExecutionState;
+  /**
+   * Whether to show each annotation's delta against the base experiment.
+   * Off on the base column and when the user hides deltas.
+   */
+  showDeltas?: boolean;
+  /**
+   * The base run's annotations at the same repetition, for label deltas.
+   * Undefined when the base has no run at that repetition.
+   */
+  baseAnnotations?: readonly AnnotationWithTrace[];
+  /**
+   * The base run group's annotation summaries, for score deltas on the
+   * per-run means.
+   */
+  baseAnnotationSummaries?: readonly AnnotationSummary[];
 };
+
+/**
+ * Indexes annotations by name.
+ */
+function indexAnnotationsByName(
+  annotations: readonly AnnotationWithTrace[] | undefined
+): Partial<Record<string, AnnotationWithTrace>> {
+  return Object.fromEntries(
+    (annotations ?? []).map((annotation) => [annotation.name, annotation])
+  );
+}
+
+/**
+ * A loaded annotation's delta against the base: scores compare the groups'
+ * per-run means, labels compare the runs at the same repetition, and mixed
+ * kinds have no comparison.
+ */
+function AnnotationDelta({
+  annotation,
+  meanScore,
+  baseAnnotation,
+  baseMeanScore,
+  config,
+  numRepetitions,
+}: {
+  annotation: AnnotationWithTrace;
+  meanScore: number | null | undefined;
+  baseAnnotation: AnnotationWithTrace | undefined;
+  baseMeanScore: number | null | undefined;
+  config: AnnotationConfig | undefined;
+  numRepetitions: number;
+}) {
+  const repetitionNote =
+    numRepetitions > 1
+      ? `Mean per run across ${numRepetitions} repetitions`
+      : undefined;
+  if (annotation.score != null) {
+    // Both sides compare group means when both exist, otherwise run scores
+    const compareMeans = meanScore != null && baseMeanScore != null;
+    const compare = compareMeans ? meanScore : annotation.score;
+    const base = compareMeans ? baseMeanScore : (baseAnnotation?.score ?? null);
+    const { optimizationDirection } = getOptimizationBounds(config);
+    return (
+      <ExperimentMetricDelta
+        delta={computeMetricDelta({ base, compare, optimizationDirection })}
+        display="absolute"
+        metricLabel={annotation.name}
+        formatter={floatFormatter}
+        compareValueText={floatFormatter(compare)}
+        baseValueText={floatFormatter(base)}
+        note={
+          base == null
+            ? "The base has no score for this annotation"
+            : compareMeans
+              ? repetitionNote
+              : undefined
+        }
+        size="XS"
+      />
+    );
+  }
+  return (
+    <ExperimentLabelDelta
+      delta={computeLabelDelta({
+        baseLabel: baseAnnotation?.label,
+        compareLabel: annotation.label,
+        config,
+      })}
+      annotationName={annotation.name}
+      note={
+        annotation.label == null
+          ? "This run has no label for this annotation"
+          : baseAnnotation?.label == null
+            ? "The base run has no label for this annotation"
+            : undefined
+      }
+      size="XS"
+    />
+  );
+}
 
 export function ExperimentRunCellAnnotationsList(
   props: ExperimentRunCellAnnotationsListProps
@@ -165,19 +271,22 @@ export function ExperimentRunCellAnnotationsList(
     renderFilters,
     annotationConfigs,
     executionState = "idle",
+    showDeltas = false,
+    baseAnnotations,
+    baseAnnotationSummaries,
   } = props;
-
-  const annotationSummaryByAnnotationName = useMemo(() => {
-    return (
-      annotationSummaries?.reduce(
-        (acc, summary) => {
-          acc[summary.annotationName] = summary;
-          return acc;
-        },
-        {} as Record<string, AnnotationSummary>
-      ) ?? {}
-    );
-  }, [annotationSummaries]);
+  const baseAnnotationByName = useMemo(
+    () => indexAnnotationsByName(baseAnnotations),
+    [baseAnnotations]
+  );
+  const baseSummaryByName = useMemo(
+    () => indexSummariesByAnnotationName(baseAnnotationSummaries),
+    [baseAnnotationSummaries]
+  );
+  const annotationSummaryByAnnotationName = useMemo(
+    () => indexSummariesByAnnotationName(annotationSummaries),
+    [annotationSummaries]
+  );
 
   const annotationConfigsByName = useMemo(() => {
     return (
@@ -299,6 +408,16 @@ export function ExperimentRunCellAnnotationsList(
                 <AnnotationDetailsContent annotation={annotation} />
               </RichTooltip>
             </TooltipTrigger>
+            {showDeltas && (
+              <AnnotationDelta
+                annotation={annotation}
+                meanScore={meanAnnotationScore}
+                baseAnnotation={baseAnnotationByName[annotation.name]}
+                baseMeanScore={baseSummaryByName[annotation.name]?.meanScore}
+                config={annotationConfig}
+                numRepetitions={numRepetitions}
+              />
+            )}
             {renderFilters && (
               <DialogTrigger>
                 <TooltipTrigger>

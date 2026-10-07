@@ -1,6 +1,10 @@
 import type { AnnotationConfig } from "./types";
 
-type OptimizationDirectionResult = "MAXIMIZE" | "MINIMIZE" | undefined;
+/**
+ * A normalized optimization direction. `undefined` stands for "NONE" and for a
+ * missing config.
+ */
+export type OptimizationDirectionResult = "MAXIMIZE" | "MINIMIZE" | undefined;
 
 export type AnnotationOptimizationConfig = {
   readonly annotationType: AnnotationConfig["annotationType"];
