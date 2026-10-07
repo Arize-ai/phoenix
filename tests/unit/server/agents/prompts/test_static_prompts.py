@@ -58,20 +58,6 @@ def test_reading_a_static_prompt_strips_exactly_one_trailing_newline() -> None:
     assert read_static_prompt(name) == on_disk[:-1]
 
 
-def test_prefix_prompts_are_plain_strings() -> None:
-    """Fields that reach the cacheable prefix cannot be templates.
-
-    ``skills`` and ``phoenix_mcp_tools`` are the deliberate exceptions: their only
-    variables are the fixed skill catalog and the deployment's code-mode setting,
-    neither of which varies per run.
-    """
-    prompts = AgentPrompts()
-    assert isinstance(prompts.base, str)
-    assert isinstance(prompts.subagent, str)
-    assert isinstance(prompts.docs_tool, str)
-    assert isinstance(AgentPrompts().ui_contexts, str)
-
-
 def test_every_ui_context_is_documented() -> None:
     """The prose covers every surface, so an undocumented context is a gap."""
     ui_contexts = AgentPrompts().ui_contexts

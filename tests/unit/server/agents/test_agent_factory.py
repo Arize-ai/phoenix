@@ -776,7 +776,7 @@ class TestPhoenixMCPTools:
     """The REST API reaches the model as tools only when a server is supplied."""
 
     @staticmethod
-    def _read_only_mcp_server(*, code_mode: bool = True) -> Any:
+    def _read_only_mcp_server() -> Any:
         app = FastAPI()
 
         @app.get("/v1/projects", tags=["projects"], summary="List projects.")
@@ -786,7 +786,7 @@ class TestPhoenixMCPTools:
         server, _ = build_phoenix_mcp_server(
             app,
             monty_runtime=MontyRuntime(),
-            code_mode=code_mode,
+            code_mode=True,
             monty_consumer="agent",
             read_only=True,
             db=Mock(spec=DbSessionFactory),
@@ -828,32 +828,6 @@ class TestPhoenixMCPTools:
         assert '<tool_group name="phoenix_rest_api">' in "\n".join(
             _get_system_texts(captured_request.body)
         )
-
-    async def test_guidance_follows_the_surface_without_code_mode(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-        headless: bool,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """Guidance for `execute` on a surface without it costs failed calls."""
-        monkeypatch.setattr(
-            "phoenix.server.agents.agent_factory.get_env_agents_mcp_code_mode", lambda: False
-        )
-        agent = build_agent(
-            model=anthropic_model,
-            headless=headless,
-            phoenix_mcp_server=self._read_only_mcp_server(code_mode=False),
-        )
-
-        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
-
-        tool_names = _get_tool_names(captured_request.body)
-        assert "execute" not in tool_names
-        assert any(name.startswith("projects_v1") for name in tool_names)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert _DEFAULT_PROMPTS.phoenix_mcp_tools.render(code_mode=False) in joined_system
-        assert _DEFAULT_PROMPTS.phoenix_mcp_tools.render(code_mode=True) not in joined_system
 
 
 class TestRouteInfoTool:

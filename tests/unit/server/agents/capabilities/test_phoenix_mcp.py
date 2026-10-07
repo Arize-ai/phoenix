@@ -420,42 +420,6 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     assert "validate_only=true" in rendered
 
 
-def test_the_direct_instructions_name_no_code_mode_tool() -> None:
-    """With code mode off there is no `execute`, so guidance must not steer toward it."""
-    from phoenix.server.agents.prompts import AgentPrompts
-
-    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=False)
-
-    for tool in ("execute", "call_tool", "get_schema", "list_tools"):
-        assert f"`{tool}`" not in rendered
-    for tool in ("describeSqlSchema", "executeSql"):
-        assert tool in rendered
-    for tool in ("createSpanNote", "createTraceNote", "createSessionNote"):
-        assert tool in rendered
-    assert "read-only" in rendered.lower()
-
-
-async def test_the_direct_instructions_account_for_every_directly_named_tool() -> None:
-    """Without code mode the custom tools sit on `tools/list` beside the REST tools."""
-    from phoenix.server.agents.prompts import AgentPrompts
-
-    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=False)
-    mcp, _ = build_phoenix_mcp_server(
-        _rest_app([]),
-        code_mode=False,
-        read_only=True,
-        db=_unused_db(),
-    )
-    async with PhoenixMCPToolset[None](mcp) as toolset:
-        names = {tool.name for tool in await toolset.list_tools()}
-
-    custom = {name for name in ("describeSqlSchema", "executeSql") if name in names}
-    assert custom, "expected the analytics SQL tools on the direct surface"
-    assert "execute" not in names
-    for name in custom:
-        assert name in rendered, f"{name} is reachable but the instructions never name it"
-
-
 async def test_the_instructions_account_for_every_directly_named_catalog_tool() -> None:
     """A tool the agent is never told about is one it will deny having.
 

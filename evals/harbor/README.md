@@ -10,7 +10,6 @@ compare the conditions in the Phoenix UI.
 | --- | --- | --- | --- |
 | `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
-| `jobs/trail-benchmark-dev-no-code-mode.yaml` | How does PXI fare on the same questions with one MCP tool per endpoint instead of code mode? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
 | --- | --- |
