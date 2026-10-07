@@ -31,6 +31,7 @@ from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinS
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
+from phoenix.server.online_eval import queue_health
 from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -362,6 +363,80 @@ async def test_evaluation_queue(
             {"evaluationTarget": "SESSION", "queuedCount": 0},
         ],
     }
+
+
+async def test_evaluation_queue_rates_of_the_queue_and_a_project_come_from_one_read(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(2)]
+        evaluator = models.BuiltinEvaluator(
+            name=DbIdentifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"runs-{token_hex(8)}"),
+            project_id=project.id,
+            evaluator=evaluator,
+            name=DbIdentifier(f"project-evaluator-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(project_evaluator)
+        await session.flush()
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=spans[0].id,
+                    project_evaluator_id=project_evaluator.id,
+                    status="PENDING",
+                    created_at=now - timedelta(minutes=5),
+                ),
+                models.EvalWorkUnit(
+                    span_rowid=spans[1].id,
+                    project_evaluator_id=project_evaluator.id,
+                    status="DONE",
+                    created_at=now - timedelta(minutes=10),
+                    updated_at=now - timedelta(minutes=2),
+                ),
+            ]
+        )
+    load_rates = queue_health._load_rates_by_project_evaluator
+    rate_reads: list[Any] = []
+
+    async def _counting_load_rates(*args: Any) -> Any:
+        rate_reads.append(args)
+        return await load_rates(*args)
+
+    monkeypatch.setattr(queue_health, "_load_rates_by_project_evaluator", _counting_load_rates)
+
+    response = await gql_client.execute(
+        """query ($project: ID!) {
+            evaluationQueue { queuedPerMinute evaluationsPerMinute }
+            project: node(id: $project) {
+                ... on Project { evaluationQueue { queuedPerMinute evaluationsPerMinute } }
+            }
+        }""",
+        variables={"project": str(GlobalID("Project", str(project.id)))},
+    )
+
+    assert not response.errors and response.data
+    assert len(rate_reads) == len(queue_health.EVALUATION_TARGETS)
+    rates = {
+        "queuedPerMinute": pytest.approx(2 / 60),
+        "evaluationsPerMinute": pytest.approx(1 / 60),
+    }
+    assert response.data["evaluationQueue"] == rates
+    assert response.data["project"]["evaluationQueue"] == rates
 
 
 async def _add_generative_model(
