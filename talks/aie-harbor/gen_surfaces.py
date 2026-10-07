@@ -39,12 +39,12 @@ A(wire(f'M890 84 V{PXI[0]}')+ar_d(890,PXI[0]))                                  
 A(badge(610,112,'1')+badge(750,112,'2')+badge(890,112,'3'))
 # server stack
 py=PXI[0]; A(box(Rc,py,CW,PXI[1],'hx-env',10)+pxi(Rc+40,py+13,22)+lbl(Rc+74,py+30,'PXI',18))
-A(wire(f'M830 {py+PXI[1]} V{MCP[0]}')+ar_d(830,MCP[0]))                                   # PXI -> MCP
+A(wire(f'M890 {py+PXI[1]} V{MCP[0]}')+ar_d(890,MCP[0]))                                   # PXI -> MCP
 gy=API[0]+24; A(wire(f'M{RIGHT} {py+24} H975 V{gy} H{RIGHT}')+ar_l(RIGHT,gy))             # PXI -> GraphQL
 my=MCP[0]; A(box(L,my,RIGHT-L,MCP[1],'hx-env',10)+svg('mcp',759,my+12,24)+lbl(793,my+30,'MCP',18))
-A(wire(f'M712 {my+MCP[1]} V{API[0]}')+ar_d(712,API[0])+wire(f'M878 {my+MCP[1]} V{API[0]}')+ar_d(878,API[0]))
+A(wire(f'M712 {my+MCP[1]} V{API[0]}')+ar_d(712,API[0])+wire(f'M890 {my+MCP[1]} V{API[0]}')+ar_d(890,API[0]))
 ay=API[0]; A(box(L,ay,CW,API[1],'hx-env',10)+svg('rest',L+20,ay+14,20)+lbl(L+50,ay+30,'REST',18)+box(Rc,ay,CW,API[1],'hx-env',10)+svg('gql',Rc+20,ay+14,20)+lbl(Rc+50,ay+30,'GraphQL',18))
-cy=CORE[0]; A(wire(f'M712 {ay+API[1]} V{cy}')+ar_d(712,cy)+wire(f'M878 {ay+API[1]} V{cy}')+ar_d(878,cy))
+cy=CORE[0]; A(wire(f'M712 {ay+API[1]} V{cy}')+ar_d(712,cy)+wire(f'M890 {ay+API[1]} V{cy}')+ar_d(890,cy))
 A(box(L,cy,RIGHT-L,CORE[1],'hx-env',10)+layers(L+20,cy+12)+lbl(L+50,cy+28,'Core services',18)+sub(L+24,cy+50,'PROJECTS · TRACES · SESSIONS · DATASETS',10.5)+sub(L+24,cy+66,'EXPERIMENTS · PROMPTS · EVALUATORS',10.5))
 # OTLP + your AI app (production only)
 oy=380; A('<g class="ap-live">'+box(440,oy,120,150,'hx-env',10)+svg('otlp',488,oy+30,24)+lbl(500,oy+78,'OTLP',18,' text-anchor="middle"')+sub(500,oy+100,'SPAN INGEST',11,' text-anchor="middle"')
