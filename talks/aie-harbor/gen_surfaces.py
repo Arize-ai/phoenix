@@ -50,7 +50,7 @@ A(box(L,cy,RIGHT-L,CORE[1],'hx-env',10)+layers(L+20,cy+12)+lbl(L+50,cy+28,'Core 
 # OTLP + your AI app (production only)
 oy=MCP[0]; oh=API[0]+API[1]-oy; rc=oy+oh//2; A('<g class="ap-live">'+box(440,oy,120,oh,'hx-env',10)+svg('otlp',488,oy+24,24)+lbl(500,oy+70,'OTLP',18,' text-anchor="middle"')+sub(500,oy+92,'SPAN INGEST',11,' text-anchor="middle"')
   +wire(f'M500 {oy+oh} V{DB[0]+46} H{L}')+ar_r(L,DB[0]+46)
-  +box(240,oy,120,oh)+g('browser',282,oy+20,0.9).replace('</g>',robot(11,8,18).replace('stroke-width="1.8"','stroke-width="2.2"')+'</g>')+lbl(300,oy+70,'AI app',18,' text-anchor="middle"')+sub(300,oy+92,'OTEL EXPORTER',11,' text-anchor="middle"')+wire(f'M360 {rc} H440')+ar_r(440,rc)+'</g>')
+  +box(240,oy,120,oh)+robot(286,oy+20,28)+lbl(300,oy+70,'Your AI app',16,' text-anchor="middle"')+sub(300,oy+92,'OTEL EXPORTER',11,' text-anchor="middle"')+wire(f'M360 {rc} H440')+ar_r(440,rc)+'</g>')
 # database
 dy=DB[0]; A(wire(f'M795 {cy+CORE[1]} V{dy}')+ar_d(795,dy))
 A(box(L,dy,RIGHT-L,DB[1])+lbl(L+20,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+26,dy+55,18)+lbl(L+52,dy+70,'SQLite',16)+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+173,dy+55,18)+lbl(L+197,dy+70,'PostgreSQL',15.5))
