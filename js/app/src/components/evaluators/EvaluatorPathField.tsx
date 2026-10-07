@@ -224,6 +224,9 @@ function createEvaluatorPathCompletionSource({
       from: result.from,
       options: result.completions.map((completion, index) => ({
         label: completion.key,
+        ...(completion.displayLabel
+          ? { displayLabel: completion.displayLabel }
+          : {}),
         ...(completion.preview ? { detail: completion.preview } : {}),
         ...(completion.description ? { info: completion.description } : {}),
         type: completion.type ?? "property",
