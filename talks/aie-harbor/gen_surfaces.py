@@ -54,7 +54,7 @@ oy=MCP[0]; oh=API[0]+API[1]-oy; rc=oy+oh//2; A('<g class="ap-live">'+box(440,oy,
   +box(240,oy,120,oh)+svg('otel',288,oy+24,24)+lbl(300,oy+70,'Your AI app',16,' text-anchor="middle"')+sub(300,oy+92,'OTEL EXPORTER',11,' text-anchor="middle"')+wire(f'M360 {rc} H440')+ar_r(440,rc)+'</g>')
 # database
 dy=DB[0]; A(wire(f'M795 {cy+CORE[1]} V{dy}')+ar_d(795,dy))
-A(box(L,dy,RIGHT-L,DB[1])+cyl(L+20,dy+12)+lbl(L+50,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+20,dy+55,18)+lbl(L+50,dy+70,'SQLite',16)+'<g class="ap-live">'+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+169,dy+55,18)+lbl(L+199,dy+70,'PostgreSQL',15.5)+'</g>')
+A(box(L,dy,RIGHT-L,DB[1])+cyl(L+20,dy+12)+lbl(L+50,dy+28,'Database',18)+box(L+12,dy+44,133,40,'hx-env',10)+svg('sqlite',L+20,dy+55,18)+lbl(L+50,dy+70,'SQLite',16)+'<g class="ap-live">'+box(L+165,dy+44,133,40,'hx-env',10)+svg('pg',L+173,dy+55,18)+lbl(L+203,dy+70,'PostgreSQL',15.5)+'</g>')
 A(wire(f'M{RIGHT} {my+24} H968 A7 7 0 0 1 982 {my+24} H1030 V{dy+46} H{RIGHT}')+ar_l(RIGHT,dy+46))   # MCP -> SQL -> database
 # legend
 for k,t in enumerate(['Coding agent + CLI','Coding agent + MCP','PXI']):
