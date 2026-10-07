@@ -56,6 +56,7 @@ from phoenix.server.bearer_auth import (
     get_bound_principal,
     token_audience_permits,
 )
+from phoenix.server.mcp.routing import DATA_ACCESS_INSTRUCTIONS, EXECUTE_ROUTING_NOTE
 from phoenix.server.mcp.skills import (
     SHARED_SKILLS_ROOT,
     SKILL_TOOL_NAMES,
@@ -324,8 +325,17 @@ class _CodeModeWithDirectSkillTools(CodeMode):
         return (
             f"{super()._build_execute_description()}\n"
             "`call_tool` can only invoke the tools `search` and `list_tools` describe. "
-            f"It cannot invoke the direct tools {direct_tools}; call those as MCP tools."
+            f"It cannot invoke the direct tools {direct_tools}; call those as MCP tools.\n"
+            f"{EXECUTE_ROUTING_NOTE}"
         )
+
+
+def _server_instructions(skills: Sequence[Skill]) -> str:
+    """The ``initialize`` instructions: how to pick a data surface, then the skills."""
+    parts = [DATA_ACCESS_INSTRUCTIONS]
+    if skills:
+        parts.append(get_skill_instructions(skills))
+    return "\n".join(parts)
 
 
 def _build_code_mode(
@@ -518,7 +528,7 @@ def build_phoenix_mcp_server(
         # Without this the server advertises the FastMCP library version, which
         # tells a client nothing about the Phoenix it is talking to.
         version=phoenix_version,
-        instructions=get_skill_instructions(skills) if skills else None,
+        instructions=_server_instructions(skills),
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
