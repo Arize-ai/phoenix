@@ -85,10 +85,12 @@ def _build_patch_body(
     return body
 
 
-def _delete_params(ids: Sequence[str]) -> list[tuple[str, str]]:
+def _delete_params(ids: Sequence[str]) -> tuple[tuple[str, str], ...]:
     if not ids:
         raise ValueError("At least one project_evaluator_id must be provided.")
-    return [("project_evaluator_id", binding_id) for binding_id in ids]
+    # A tuple matches httpx's query-parameter type. A list of str pairs does not:
+    # list is invariant, so list[tuple[str, str]] is not a list of primitive pairs.
+    return tuple(("project_evaluator_id", binding_id) for binding_id in ids)
 
 
 class ProjectEvaluators:

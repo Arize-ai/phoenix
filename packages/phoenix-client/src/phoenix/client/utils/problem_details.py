@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import httpx
 
@@ -13,11 +13,14 @@ def _is_problem_detail(body: Any) -> bool:
     """A problem body is a JSON object with, at minimum, an int `status` and string `code`
     and `detail`; anything else (a proxy's HTML page, a truncated body, a body some other
     layer wrote under this content type) is not one, even under the right content type."""
+    if not isinstance(body, dict):
+        return False
+    # isinstance(dict) does not supply key and value types, so name them before reading fields.
+    payload = cast(dict[str, Any], body)
     return (
-        isinstance(body, dict)
-        and isinstance(body.get("status"), int)
-        and isinstance(body.get("code"), str)
-        and isinstance(body.get("detail"), str)
+        isinstance(payload.get("status"), int)
+        and isinstance(payload.get("code"), str)
+        and isinstance(payload.get("detail"), str)
     )
 
 
