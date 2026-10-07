@@ -224,6 +224,10 @@ export const EditCodeEvaluatorDialogContent = ({
   useEffect(() => {
     sandboxConfigIndexRef.current = sandboxConfigIndex;
   }, [sandboxConfigIndex]);
+  const sandboxConfigsRef = useRef(sandboxConfigs);
+  useEffect(() => {
+    sandboxConfigsRef.current = sandboxConfigs;
+  }, [sandboxConfigs]);
 
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
   const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
@@ -252,6 +256,16 @@ export const EditCodeEvaluatorDialogContent = ({
         inputMapping: state.evaluator.inputMapping,
         testPayload: state.evaluatorMappingSource.source,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
+        // The agent picks `set_sandbox_config` targets from here rather than
+        // querying the API; without it, a create-mode draft cannot be filled in.
+        availableSandboxConfigs: sandboxConfigsRef.current.map(
+          ({ id, name, language, backendType }) => ({
+            id,
+            name,
+            language,
+            backendType,
+          })
+        ),
       };
     };
 
