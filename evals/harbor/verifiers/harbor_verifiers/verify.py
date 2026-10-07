@@ -12,7 +12,9 @@ solution script instead of an agent. In that case, the verifier reads the answer
 Use ``{"exact": "ok"}`` in ``expected.json`` to compare normalized strings. The
 normalization removes emphasis, extra whitespace, and final punctuation and ignores
 letter case. Use ``{"reference": "117 traces", "notes": "..."}`` to ask the LLM judge
-in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer.
+in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer. Add
+``"expected_api": "sql"`` or ``"http"`` to score ``api_selection_correct`` from the
+surfaces the agent used (see :mod:`harbor_verifiers.tool_usage`).
 State verifiers can call :func:`write_reward` to record their own reward and include the
 trajectory measurements.
 """
@@ -145,8 +147,10 @@ def write_reward(
     reward_path: Path = REWARD_PATH,
     **components: Any,
 ) -> dict[str, float]:
-    """Harbor's reward file accepts numbers only, and it averages every key into its
-    summary, so only 0-to-1 scores and the trajectory measurements go there. Other
+    """Harbor's reward file accepts numbers only. Harbor reports ``reward`` as the
+    trial's score and tallies every other key on its own, and the Phoenix plugin
+    records each key as a separate evaluation, so the trajectory measurements and
+    any numeric diagnostics go there without affecting pass or fail. Other
     components join ``details`` in ``details.json`` beside it."""
     scores: dict[str, float] = {"reward": float(reward)}
     scores.update(measurements(read_trajectory(trajectory_path)))
@@ -172,10 +176,17 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--trajectory", type=Path, default=TRAJECTORY_PATH)
     parser.add_argument("--reward-file", type=Path, default=REWARD_PATH)
     args = parser.parse_args(argv)
+    from harbor_verifiers import tool_usage
+
     expected = json.loads(args.expected.read_text())
     reply, source = read_reply(args.trajectory, args.answer)
     reward, reason = check(reply, expected)
-    scores = write_reward(reward, trajectory_path=args.trajectory, reward_path=args.reward_file)
+    diagnostics: dict[str, Any] = tool_usage.diagnostics(
+        read_trajectory(args.trajectory), expected.get("expected_api")
+    )
+    scores = write_reward(
+        reward, trajectory_path=args.trajectory, reward_path=args.reward_file, **diagnostics
+    )
     print(
         json.dumps(
             {

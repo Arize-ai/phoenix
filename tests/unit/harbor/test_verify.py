@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
-from harbor_verifiers import verify
+from harbor_verifiers import llm_judge, verify
 from tests.unit.vcr import CustomVCR
 
 MOST_FAILING_TOOL_EXPECTED = (
@@ -71,6 +71,8 @@ def test_reference_check_grades_semantic_answers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY") or "sk-test")
+    # The cassette was recorded against gpt-5-nano; the default judge has since moved on.
+    monkeypatch.setattr(llm_judge, "JUDGE_MODEL", "gpt-5-nano")
     expected = json.loads(MOST_FAILING_TOOL_EXPECTED.read_text())
     cases = [
         ("**page_down (PageDownTool)** — 109 failed spans...", 1.0),

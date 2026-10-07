@@ -143,7 +143,7 @@ or an answer to a different question fails. `notes` provides extra guidance to t
 such as "page_down is the same tool." `source` records how the reference value was
 derived.
 
-The judge uses a `phoenix.evals` classifier with `gpt-5-nano`. Set
+The judge uses a `phoenix.evals` classifier with `gpt-5.5`. Set
 `PHOENIX_EVAL_JUDGE_MODEL` and `PHOENIX_EVAL_JUDGE_PROVIDER` to use another model. Add
 the provider host to the task's `[verifier]` table.
 
