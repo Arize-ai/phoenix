@@ -51,7 +51,7 @@ async function sendSpan(page: Page, projectName: string) {
 }
 
 function onboardingGuide(page: Page) {
-  return page.getByRole("dialog", { name: "Set up tracing for this project" });
+  return page.getByRole("region", { name: "Set up tracing for this project" });
 }
 
 async function clickSortableHeaderAndExpect(

@@ -70,7 +70,10 @@ const overlayCSS = css`
  * the guide's own language tabs would otherwise join the project tab strip.
  * The strip stays usable, and tabs that do not wrap their panel (Config,
  * Metrics) show their content: Config is useful before the first trace, and
- * neither runs the stream poll that would dismiss the guide.
+ * neither runs the stream poll that would dismiss the guide. Traces that land
+ * while the user is on one of those tabs are not in the store yet, so the
+ * guide shows again briefly on return until the poll resumes and the first
+ * advance dismisses it.
  *
  * Whether to show is decided once, on mount: a project that already has traces
  * never renders the overlay, and one whose traces arrive while it is open exits
@@ -126,8 +129,9 @@ export function ProjectOnboardingOverlay({
       {isShowing ? (
         <div
           ref={overlayRef}
-          role="dialog"
-          aria-modal="true"
+          // A region, not a modal dialog: the tab strip beside it stays usable,
+          // and `aria-modal` would tell assistive technology otherwise.
+          role="region"
           aria-label="Set up tracing for this project"
           tabIndex={-1}
           data-exiting={isExiting}
