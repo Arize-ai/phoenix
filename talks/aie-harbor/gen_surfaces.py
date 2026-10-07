@@ -30,7 +30,7 @@ A(box(420,236,640,SRV_B-236)+phx(434,258,18,22)+lbl(460,276,'Phoenix server',18)
 A(box(550,0,260,84)+lbl(570,38,'Coding agent')+sub(570,62,'CLAUDE CODE · CURSOR · CODEX')+svg('agent1',722,16,22)+svg('agent2',752,16,22)+svg('agent3',782,16,22))
 A(wire('M610 84 V140')+ar_d(610,140)+box(550,140,160,60)+g('cli',596,160,0.75)+lbl(632,176,'CLI',18))
 A(wire(f'M610 200 V{API[0]+24} H{L}')+ar_r(L,API[0]+24))                                  # CLI -> REST
-A(wire(f'M610 {API[0]-14} H705 A7 7 0 0 1 719 {API[0]-14} H830 V{API[0]}')+ar_d(830,API[0]))  # CLI -> GraphQL, over REST
+A(wire(f'M610 {API[0]-20} H705 A7 7 0 0 1 719 {API[0]-20} H830 V{API[0]}')+ar_d(830,API[0]))  # CLI -> GraphQL, over REST
 A(wire(f'M750 84 V{MCP[0]}')+ar_d(750,MCP[0]))                                            # coding agent -> MCP
 A(box(825,0,190,84)
   +'<g class="ap-live">'+g('browser',963,16,0.8).replace('</g>',phx(14,10,16,18)+'</g>')+lbl(845,38,'Browser')+sub(845,62,'PHOENIX UI')+'</g>'
