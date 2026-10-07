@@ -5,6 +5,8 @@ import type {
 import debounce from "lodash/debounce";
 import { useCallback, useEffect, useMemo } from "react";
 
+import { FILTER_HISTORY_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
+
 import { createDSLFilterCompletionSource } from "./dslFilterConditionFieldUtils";
 
 /**
@@ -16,8 +18,6 @@ const recentSearchesSection: CompletionSection = {
   name: "Recent searches",
   rank: 0,
 };
-
-const LOCAL_STORAGE_KEY_PREFIX = "arize-phoenix-filter-history";
 
 const DEFAULT_CAPACITY = 5;
 
@@ -36,7 +36,7 @@ export const DSL_FILTER_HISTORY_DWELL_MS = 3_000;
 export function getDSLFilterConditionHistoryStorageKey(
   historyKey: string
 ): string {
-  return `${LOCAL_STORAGE_KEY_PREFIX}-${historyKey}`;
+  return `${FILTER_HISTORY_STORAGE_KEY_PREFIX}${historyKey}`;
 }
 
 /**

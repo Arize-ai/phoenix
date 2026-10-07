@@ -3,6 +3,7 @@ import { ConnectionHandler } from "relay-runtime";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { DATASET_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import {
   DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
@@ -84,7 +85,7 @@ export interface DatasetStoreState extends DatasetStoreProps {
 }
 
 const makeDatasetStoreKey = (datasetId: string) =>
-  `arize-phoenix-dataset-${datasetId}`;
+  `${DATASET_STORAGE_KEY_PREFIX}${datasetId}`;
 
 export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
   return create<DatasetStoreState>()(
