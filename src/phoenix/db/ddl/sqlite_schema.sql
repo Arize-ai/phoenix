@@ -1343,6 +1343,7 @@ CHECK (status IN (
             'DONE',
             'FAILED',
             'EXPIRED',
+            'DROPPED',
             'CONTENT_LOST',
             'FILTERED_OUT',
             'SAMPLED_OUT'
@@ -1376,7 +1377,7 @@ CREATE INDEX ix_eval_session_work_units_project_evaluator_failed ON eval_session
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
-    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
 
 
 -- Table: eval_trace_work_units
@@ -1395,6 +1396,7 @@ CHECK (status IN (
             'DONE',
             'FAILED',
             'EXPIRED',
+            'DROPPED',
             'CONTENT_LOST',
             'FILTERED_OUT',
             'SAMPLED_OUT'
@@ -1427,7 +1429,7 @@ CREATE INDEX ix_eval_trace_work_units_project_evaluator_failed ON eval_trace_wor
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON eval_trace_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_trace_work_units_terminal ON eval_trace_work_units (updated_at)
-    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
 
 
 -- Table: eval_work_units
@@ -1438,7 +1440,15 @@ CREATE TABLE eval_work_units (
     project_evaluator_id INTEGER NOT NULL,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_work_units_`valid_eval_work_status`"
-        CHECK (status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED')),
+CHECK (status IN (
+            'PENDING',
+            'RUNNING',
+            'ERROR',
+            'DONE',
+            'FAILED',
+            'EXPIRED',
+            'DROPPED'
+        )),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     attempts INTEGER DEFAULT '0' NOT NULL,
@@ -1467,7 +1477,7 @@ CREATE INDEX ix_eval_work_units_project_evaluator_failed ON eval_work_units
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON eval_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
-    WHERE status IN ('DONE', 'FAILED', 'EXPIRED');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED');
 
 
 -- Table: project_session_annotations
