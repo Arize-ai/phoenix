@@ -1,0 +1,142 @@
+---
+title: "10.01.2026: Eval Results in the Trace Tree and Decision Spans"
+description: "Read eval results on every trace tree row, trace decision-model calls as DECISION spans, and manage a project's annotation configs from the TypeScript client."
+---
+
+Eval results now appear on every trace tree row, so you can find the failing span without opening
+it. Phoenix also traces decision-model calls as their own DECISION span kind.
+
+# Breaking Change: Python 3.11 Required
+
+September 30, 2026
+
+**Breaking change in arize-phoenix 20.17.0**
+
+- **arize-phoenix no longer installs on Python 3.10.** Upgrade to Python 3.11 or newer before you
+  upgrade the server.
+- **The server now requires SQLAlchemy 2.1.1 or newer.** On SQLite, a JSON number now matches its
+  string spelling in filters, and `1` and `1.0` no longer compare equal.
+
+# Eval Results in the Trace Tree
+
+September 30, 2026
+
+**Available in arize-phoenix 20.18.0+**
+
+Each trace tree row now shows its annotations as compact badges on a line under the span, so failed
+evals stand out as you scan a trace.
+
+- **Unfavorable results come first.** When the tree is narrow, extra badges collapse behind a `+N`
+  count.
+- **Badges show the mean score and label consensus**, such as the top label and its share, or
+  "mixed" on a tie, instead of a single label.
+- **Hover a row for the full set.** The span preview lists each annotation's mean score and label
+  consensus next to the token and cost breakdown.
+- **Newly linked annotation configs color the tree right away**, without a page reload.
+
+<CardGroup cols={2}>
+  <Card title="Annotate Traces" icon="tag" href="/docs/phoenix/tracing/llm-traces/how-to-annotate-traces">
+    Add human and LLM annotations to spans
+  </Card>
+  <Card title="Evaluate Phoenix Traces" icon="check" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces">
+    Run evals over traces and log the results
+  </Card>
+</CardGroup>
+
+# Decision Spans
+
+October 1, 2026
+
+**Available in arize-phoenix 20.19.0+**
+
+Phoenix now recognizes the OpenInference `DECISION` span kind for decision models: models that
+score or pick among options in the request, such as routers, classifiers, and rubric scorers,
+instead of generating text.
+
+- **Decision spans get their own icon** in the trace tree and span list, and their own span view
+  with input and output cards.
+- **The span view names the decision model.** It uses `decision.model_name` when it is set, then
+  the model the provider reports, then the model you requested.
+- **Filter by the `DECISION` span kind** in the UI, the REST API, and
+  `px span list --span-kind DECISION`.
+- **The OpenInference instrumentors emit them** for the OpenAI Decisions API and TypeSafe AI System
+  One. The `decision.*` attributes are experimental and may change as more providers appear.
+
+<CardGroup cols={2}>
+  <Card title="Span Kinds" icon="diagram-project" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds">
+    DECISION and the other OpenInference span kinds
+  </Card>
+  <Card title="OpenAI Tracing" icon="plug" href="/docs/phoenix/integrations/llm-providers/openai/openai-tracing">
+    Trace the OpenAI Decisions API
+  </Card>
+</CardGroup>
+
+# TypeScript Client: Project Annotation Configs
+
+September 30, 2026
+
+**Available in @arizeai/phoenix-client 7.16.0+ (requires Phoenix server 17.16.0+)**
+
+The `projects` subpath now provides helpers that choose which annotation configs a project uses,
+so a setup script can attach the right evals to each project.
+
+```typescript
+import {
+  assignProjectAnnotationConfig,
+  listProjectAnnotationConfigs,
+  setProjectAnnotationConfigs,
+  unassignProjectAnnotationConfig,
+} from "@arizeai/phoenix-client/projects";
+
+await assignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+
+const configs = await listProjectAnnotationConfigs({ projectName: "support-bot" });
+console.log(configs.map((config) => config.name));
+
+await unassignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+
+await setProjectAnnotationConfigs({ projectName: "support-bot", configIds: [] });
+```
+
+- **`assignProjectAnnotationConfig` is idempotent.** Select the config by `configName`,
+  `configId`, or `config`. Use `configId` if the name contains `/`.
+- **`setProjectAnnotationConfigs` replaces the whole set.** It adds and removes assignments to
+  match `configIds` and never deletes the configs themselves.
+- **`listProjectAnnotationConfigs` pages through every assigned config** for you.
+
+<CardGroup cols={2}>
+  <Card title="Projects API Reference" icon="code" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/projects">
+    Every helper on the projects subpath
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+September 30 to October 1, 2026
+
+**Available in arize-phoenix 20.17.0+**
+
+- **Experiment metrics include prompt and completion token detail charts**, which split tokens into
+  input, cache, output, reasoning, and audio parts across recent experiments.
+- **`PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` now skips the WebAssembly sandbox download** and the
+  UI's GitHub star count and update check. Set `PHOENIX_WASM_BINARY_PATH` to use the WebAssembly
+  sandbox offline.
+- **`Dataset.experiments` in GraphQL accepts `sort` and `sequenceNumbers`**, so you can fetch
+  experiments by their dataset sequence number without paging.
+- **PXI marks a bash tool span as an error** when its command exits with a non-zero code.
+- **Live streaming pauses while a trace or session drawer is open**, so the tables behind it stop
+  refreshing.
+- **Experiment JSON and CSV exports no longer fail** when a run errored. Errored runs export with a
+  `null` output.
+- **Spans that send both OpenInference and `gen_ai.*` messages no longer get garbled messages.**
+  Phoenix keeps the instrumentation's own message list instead of mixing the two.
+- **Evaluator input mappings keep their Path or Text mode** when you erase and retype a template
+  variable.
+- **Categorical annotation configs ignore blank category rows** when you save them, and saving a
+  playground prompt to an existing prompt prefills metadata from its latest version.

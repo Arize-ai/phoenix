@@ -1412,6 +1412,12 @@
         "pages": [
           "docs/phoenix/release-notes",
           {
+            "group": "10.2026",
+            "pages": [
+              "docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans"
+            ]
+          },
+          {
             "group": "09.2026",
             "pages": [
               "docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics",
