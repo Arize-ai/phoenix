@@ -8,6 +8,8 @@ from phoenix.server.online_eval.queue_health import (
     ProjectEvaluatorRunStatus,
     QueuedWork,
     load_evaluation_queue,
+    load_project_evaluator_queues,
+    load_project_queues,
     load_queue_throughput,
     project_evaluator_run_status,
 )
@@ -80,6 +82,48 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
     assert throughput.target("SPAN").evaluations_per_minute == pytest.approx(3 / 60)
     assert throughput.target("SPAN").queued_per_minute == pytest.approx(6 / 60)
     assert throughput.queued_per_minute == pytest.approx(6 / 60)
+
+
+async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(
+    db: DbSessionFactory,
+) -> None:
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        traces = [await _add_trace(session, project) for _ in range(2)]
+    _, project_evaluator_id = await _seed_criteria(db, project.id, evaluation_target="TRACE")
+
+    def unit(trace: models.Trace, queued_ago: timedelta) -> models.EvalTraceWorkUnit:
+        return models.EvalTraceWorkUnit(
+            trace_rowid=trace.id,
+            project_evaluator_id=project_evaluator_id,
+            evaluated_through=now,
+            status="PENDING",
+            created_at=now - queued_ago,
+        )
+
+    async with db() as session:
+        # Re-offering a trace keeps its row's id and resets when it was queued.
+        reoffered = unit(traces[0], queued_ago=timedelta(seconds=30))
+        session.add(reoffered)
+        await session.flush()
+        waiting = unit(traces[1], queued_ago=timedelta(minutes=20))
+        session.add(waiting)
+        await session.flush()
+        assert reoffered.id < waiting.id
+
+    queue = await load_evaluation_queue(db)
+    project_queues = await load_project_queues(db, [project.id])
+    evaluator_queues = await load_project_evaluator_queues(db, [project_evaluator_id])
+
+    oldest_queued_at = [
+        queue.target("TRACE").waiting.oldest_queued_at,
+        project_queues[project.id].oldest_queued_at,
+        evaluator_queues[project_evaluator_id].oldest_queued_at,
+    ]
+    assert oldest_queued_at == [now - timedelta(minutes=20)] * 3
+    assert all(at is not None and at.tzinfo is not None for at in oldest_queued_at)
+    assert queue.status == "DEGRADED"
 
 
 _WAITING_BRIEFLY = QueuedWork(queued_count=1, oldest_queued_at=datetime.now(timezone.utc))
