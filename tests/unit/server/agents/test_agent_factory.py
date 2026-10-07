@@ -838,7 +838,7 @@ class TestPhoenixMCPTools:
     ) -> None:
         """Guidance for `execute` on a surface without it costs failed calls."""
         monkeypatch.setattr(
-            "phoenix.server.agents.agent_factory.get_env_mcp_code_mode", lambda: False
+            "phoenix.server.agents.agent_factory.get_env_agents_mcp_code_mode", lambda: False
         )
         agent = build_agent(
             model=anthropic_model,

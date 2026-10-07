@@ -120,13 +120,16 @@ compare the Phoenix interfaces under the same test conditions.
 | `oracle` | No agent | Each task's `solution/solve.sh`, run with `-a oracle` |
 
 Harbor starts Phoenix from the task healthcheck before any agent runs, so a server setting
-has to be in the container's environment from the start. Each `task.toml` forwards
-`PHOENIX_ENABLE_MCP_CODE_MODE` from the host, defaulting to `true`. To benchmark the MCP
-surface without code mode, which gives PXI and the `/mcp` agents one tool per endpoint
-instead of `execute`, set it on the host and name the job after the condition:
+has to be in the container's environment from the start. The job file's `environment.env`
+is the one place Harbor applies to every container at creation, and it is job-wide rather
+than per agent. To benchmark PXI without code mode, which gives it one tool per endpoint
+instead of `execute`, derive a job file that sets the variable and name the run after the
+condition:
 
 ```bash
-PHOENIX_ENABLE_MCP_CODE_MODE=false make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml HARBOR_ARGS='--job-name trail-no-code-mode'
+uv run --script evals/harbor/scripts/subset_job.py evals/harbor/jobs/trail-benchmark-dev.yaml \
+  --agents phoenix-chat-agent --env PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false --out evals/harbor/.cache/pxi-no-code-mode.yaml
+make harbor-run HARBOR_JOB=evals/harbor/.cache/pxi-no-code-mode.yaml HARBOR_ARGS='--job-name pxi-no-code-mode'
 ```
 
 The agent phase runs as an unprivileged user that cannot open `/data/phoenix.db`. Agents

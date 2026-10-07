@@ -106,6 +106,14 @@ Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
 GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
 for GitHub Enterprise Server or air-gapped deployments.
 """
+ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE = "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE"
+"""
+Whether the agent assistant's Phoenix MCP connection uses FastMCP's code-mode
+surface. Defaults to True. Under code mode, the assistant sees discovery tools
+(search, get_schema, tags, list_tools) plus a sandboxed `execute` tool; set to False
+to give it one tool per read-only REST endpoint instead. PHOENIX_ENABLE_MCP_CODE_MODE
+is the same switch for the MCP server mounted at /mcp, which external clients use.
+"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -120,13 +128,13 @@ bearer-token authentication.
 """
 ENV_PHOENIX_ENABLE_MCP_CODE_MODE = "PHOENIX_ENABLE_MCP_CODE_MODE"
 """
-Whether Phoenix's MCP server presents its tools through FastMCP's code-mode
-surface. Defaults to True. Applies to the server mounted at /mcp and to the agent
-assistant's own in-process connection alike. Under code mode, clients see discovery
-meta-tools (search, get_schema, tags, list_tools) plus an `execute` tool that runs
+Whether the mounted MCP server presents its tools through FastMCP's code-mode
+surface. Defaults to True. Under code mode, clients see discovery meta-tools
+(search, get_schema, tags, list_tools) plus an `execute` tool that runs
 LLM-written Python in a sandbox where `call_tool(name, params)` is the only
-available function. Set to False to present one tool per endpoint instead: the
-mount gates them by group, the assistant sees its read-only set directly.
+available function. Set to False to present the group-gated progressive-
+disclosure tool list instead. Has no effect unless PHOENIX_ENABLE_MCP_SERVER is
+also set.
 """
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
@@ -3658,6 +3666,10 @@ def get_env_enable_mcp_server() -> bool:
 
 def get_env_mcp_code_mode() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
+
+
+def get_env_agents_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:
