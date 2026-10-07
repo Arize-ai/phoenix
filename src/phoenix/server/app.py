@@ -84,7 +84,6 @@ from phoenix.config import (
     get_env_online_eval_max_evaluator_concurrency,
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
-    get_env_online_eval_max_session_outstanding,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -162,10 +161,7 @@ from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import (
-    TRACE_SWEEP_MAX_OUTSTANDING,
-    EvalSweeper,
-)
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
@@ -1156,16 +1152,8 @@ def create_app(
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
-        online_eval_session_sweeper = EvalSweeper(
-            db,
-            evaluation_target="SESSION",
-            max_outstanding=get_env_online_eval_max_session_outstanding(),
-        )
-        online_eval_trace_sweeper = EvalSweeper(
-            db,
-            evaluation_target="TRACE",
-            max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
-        )
+        online_eval_session_sweeper = EvalSweeper(db, evaluation_target="SESSION")
+        online_eval_trace_sweeper = EvalSweeper(db, evaluation_target="TRACE")
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,

@@ -195,6 +195,175 @@ class TestProjectEvaluatorAnnotationNameFilter:
         ] == expected
 
 
+async def test_evaluation_queue(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Every evaluator of the project counts, across span, trace, and session evaluations;
+    another project's evaluations do not."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        other_project = await _add_project(session)
+        idle_project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+        other_spans = [
+            await _add_span(session, await _add_trace(session, other_project)) for _ in range(2)
+        ]
+        evaluator = models.BuiltinEvaluator(
+            name=DbIdentifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+
+        async def project_evaluator(
+            project_id: int, evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+        ) -> int:
+            record = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"runs-{token_hex(8)}"),
+                project_id=project_id,
+                evaluator_id=evaluator.id,
+                name=DbIdentifier(f"project-evaluator-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target=evaluation_target,
+            )
+            session.add(record)
+            await session.flush()
+            return record.id
+
+        span_evaluator = await project_evaluator(project.id, "SPAN")
+        another_span_evaluator = await project_evaluator(project.id, "SPAN")
+        trace_evaluator = await project_evaluator(project.id, "TRACE")
+        session_evaluator = await project_evaluator(project.id, "SESSION")
+        other_project_evaluator = await project_evaluator(other_project.id, "SPAN")
+
+        def span_unit(
+            span: models.Span,
+            project_evaluator_id: int,
+            status: str,
+            *,
+            queued_ago: timedelta,
+            updated_ago: Optional[timedelta] = None,
+        ) -> models.EvalWorkUnit:
+            return models.EvalWorkUnit(
+                span_rowid=span.id,
+                project_evaluator_id=project_evaluator_id,
+                status=status,
+                attempts=1 if status == "ERROR" else 0,
+                created_at=now - queued_ago,
+                updated_at=now - (updated_ago or queued_ago),
+            )
+
+        session.add_all(
+            [
+                span_unit(spans[0], span_evaluator, "PENDING", queued_ago=timedelta(minutes=5)),
+                # Running, and awaiting a retry: queued, but neither is waiting to start.
+                span_unit(spans[1], span_evaluator, "RUNNING", queued_ago=timedelta(minutes=20)),
+                span_unit(
+                    spans[0], another_span_evaluator, "ERROR", queued_ago=timedelta(minutes=30)
+                ),
+                # Completed within the rate window: one queued within it, one before.
+                span_unit(
+                    spans[1],
+                    another_span_evaluator,
+                    "DONE",
+                    queued_ago=timedelta(minutes=10),
+                    updated_ago=timedelta(minutes=2),
+                ),
+                span_unit(
+                    spans[2],
+                    another_span_evaluator,
+                    "DONE",
+                    queued_ago=timedelta(minutes=90),
+                    updated_ago=timedelta(minutes=30),
+                ),
+                models.EvalTraceWorkUnit(
+                    trace_rowid=trace.id,
+                    project_evaluator_id=trace_evaluator,
+                    evaluated_through=now,
+                    status="RUNNING",
+                    created_at=now - timedelta(minutes=1),
+                ),
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    project_evaluator_id=session_evaluator,
+                    evaluated_through=now,
+                    status="PENDING",
+                    created_at=now - timedelta(minutes=2),
+                ),
+                span_unit(
+                    other_spans[0],
+                    other_project_evaluator,
+                    "PENDING",
+                    queued_ago=timedelta(minutes=40),
+                ),
+                span_unit(
+                    other_spans[1],
+                    other_project_evaluator,
+                    "DONE",
+                    queued_ago=timedelta(minutes=10),
+                    updated_ago=timedelta(minutes=2),
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        """query ($project: ID!, $idle: ID!) {
+            project: node(id: $project) { ...EvaluationQueue }
+            idle: node(id: $idle) { ...EvaluationQueue }
+        }
+        fragment EvaluationQueue on Project {
+            evaluationQueue {
+                queuedCount
+                runningCount
+                oldestQueuedAt
+                queuedPerMinute
+                evaluationsPerMinute
+                targets { evaluationTarget queuedCount }
+            }
+        }""",
+        variables={
+            "project": str(GlobalID("Project", str(project.id))),
+            "idle": str(GlobalID("Project", str(idle_project.id))),
+        },
+    )
+
+    assert not response.errors and response.data
+    queue = response.data["project"]["evaluationQueue"]
+    assert datetime.fromisoformat(queue.pop("oldestQueuedAt")) == now - timedelta(minutes=5)
+    assert queue == {
+        "queuedCount": 5,
+        "runningCount": 2,
+        # Five queued evaluations and one completed were queued within the window.
+        "queuedPerMinute": pytest.approx(6 / 60),
+        "evaluationsPerMinute": pytest.approx(2 / 60),
+        "targets": [
+            {"evaluationTarget": "SPAN", "queuedCount": 3},
+            {"evaluationTarget": "TRACE", "queuedCount": 1},
+            {"evaluationTarget": "SESSION", "queuedCount": 1},
+        ],
+    }
+    assert response.data["idle"]["evaluationQueue"] == {
+        "queuedCount": 0,
+        "runningCount": 0,
+        "oldestQueuedAt": None,
+        "queuedPerMinute": 0,
+        "evaluationsPerMinute": 0,
+        "targets": [
+            {"evaluationTarget": "SPAN", "queuedCount": 0},
+            {"evaluationTarget": "TRACE", "queuedCount": 0},
+            {"evaluationTarget": "SESSION", "queuedCount": 0},
+        ],
+    }
+
+
 async def _add_generative_model(
     session: AsyncSession,
     name: Optional[str] = None,

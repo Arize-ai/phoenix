@@ -263,8 +263,9 @@ owns result identity, re-entry and frequency, recovery after permanent failure, 
 detection for in-flight evaluation.
 
 An evaluation that produced no result is the exception: a session or trace whose evaluation
-failed, expired, or found its content gone is retried once new spans arrive after the failure and
-it goes quiet again. Spans that arrived while the evaluation was running might not trigger a retry.
+failed, expired, found its content gone, or was cleared from the queue is retried once new spans
+arrive after that and it goes quiet again. Spans that arrived while the evaluation was running
+might not trigger a retry.
 
 When re-evaluation lands, it should **override** rather than stack: if a session was judged
 "incomplete" and later completes, the newer judgment should replace the earlier one (see
@@ -397,7 +398,7 @@ misses) still lack a complete cross-target run history. Several requirements in 
 presuppose a durable record that the annotation tables cannot provide:
 
 - **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out, pending,
-  failed, and succeeded apart — none of which an absent annotation row can express.
+  cleared, failed, and succeeded apart — none of which an absent annotation row can express.
 - **Override history** — prior evaluations should stay inspectable even though the visible
   annotation was overwritten.
 - **Failure taxonomy** — the classes in [open question #10](#open-q-10) need somewhere to write a
@@ -416,15 +417,26 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
 - The evaluator system should fail independently from the core observability path: if evaluation
   is unhealthy, Phoenix should still ingest and display traces normally.
 - Disabling a project evaluator stops new runs immediately.
+- **Clearing the queue.** A user can clear the queued evaluations of one project or of every
+  project, and turning a project evaluator on or off clears its own. Cleared evaluations are
+  recorded as dropped, not failed, so clearing never turns an evaluator to Error. Evaluations
+  already running are not cleared.
 - **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
-  rate, the queue must not blow up. An admission gate caps how much span work may be waiting to
-  run: once the backlog reaches the cap, Phoenix stops creating new span work until the backlog
-  drains, then resumes from where it stopped. A full queue therefore delays span evaluations
+  rate, the queue must not blow up. Span, trace, and session evaluations wait in one queue under
+  one limit: once it holds that many, Phoenix stops queueing new evaluations of any kind until the
+  queue drains, then resumes from where it stopped. A full queue therefore delays evaluations
   rather than dropping them — sampled spans are evaluated late, not skipped, unless trace
-  retention deletes a span (and any work already queued for it) before its turn comes.
-  Overload shows up in two places: the producer logs a warning each time it finds the admission
-  gate closed, and the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
-  ingested but not yet offered to evaluators, keeps growing while the gate stays closed.
+  retention deletes a span (and any work already queued for it) before its turn comes. One limit
+  is simpler to size and reason about than one per kind, at a cost: a flood of one kind fills the
+  room the others would use, and delays them too. The span producer and the trace and session
+  sweepers take turns at admission, under a lock that holds across replicas, so two of them never
+  both fill the same room.
+  Overload shows up in three places: the producer and sweepers log a warning each time they find
+  the queue full, the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
+  ingested but not yet offered to evaluators, keeps growing while it stays full, and the
+  evaluators pages show the queue as Degraded while it is full. Only the queue's own status shows
+  this: each evaluator's status reflects its own evaluations, so an evaluator reads Degraded only
+  when its own oldest waiting evaluation has waited over 10 minutes.
 - **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
   recursively enqueue the same class of project evaluations. This largely falls out of the
   architecture: if evaluator traces live in a dedicated project (as

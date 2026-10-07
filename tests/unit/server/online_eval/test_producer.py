@@ -662,7 +662,7 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
             )
         )
 
-    await producer._backstop_sweep(active, watermark, 10)
+    await producer._backstop_sweep(active, watermark)
 
     async with db() as session:
         units = list(await session.scalars(select(models.EvalWorkUnit)))
@@ -672,7 +672,10 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
     assert by_span[expired_span.id].status == "EXPIRED"
 
 
-async def test_backstop_stops_at_insertion_budget(db: DbSessionFactory) -> None:
+async def test_backstop_stops_at_insertion_budget(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "2")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -682,7 +685,7 @@ async def test_backstop_stops_at_insertion_budget(db: DbSessionFactory) -> None:
     producer = OnlineEvalProducer(db)
     await _seed_cursor(db, produced_through_id=spans[-1].id)
     active = await producer._load_active_project_evaluators()
-    remaining = await producer._backstop_sweep(active, spans[-1].id, 2)
+    remaining = await producer._backstop_sweep(active, spans[-1].id)
 
     assert remaining == 0
     assert len(await _work_unit_span_rowids(db)) == 2
@@ -714,7 +717,7 @@ async def test_editing_a_span_evaluator_does_not_requeue_evaluated_spans(
         )
 
     active = await producer._load_active_project_evaluators()
-    await producer._backstop_sweep(active, late_span.id, 10)
+    await producer._backstop_sweep(active, late_span.id)
 
     async with db() as session:
         statuses = {
@@ -830,7 +833,9 @@ async def test_admission_gate_skips_materialization(
     assert cursor.produced_through_id == 0
 
 
-async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory) -> None:
+async def test_admission_budget_counts_nonterminal_backlog(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The gate bounds all backlog that will eventually demand consumer
     capacity: RUNNING and retryable-ERROR rows count alongside PENDING (under
     a provider outage the pending population migrates into retryable ERROR),
@@ -849,8 +854,8 @@ async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory)
             **kwargs,
         )
 
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
     producer = OnlineEvalProducer(db)
-    producer._max_outstanding = 1
     assert await producer._admission_budget() == 1
 
     async with db() as session:
@@ -886,6 +891,7 @@ async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory)
 )
 async def test_admission_budget_count_is_bounded_at_ceiling(
     db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
     outstanding_count: int,
     expected_budget: int,
 ) -> None:
@@ -905,8 +911,8 @@ async def test_admission_budget_count_is_bounded_at_ceiling(
             ]
         )
 
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "3")
     producer = OnlineEvalProducer(db)
-    producer._max_outstanding = 3
 
     assert await producer._admission_budget() == expected_budget
 
@@ -997,7 +1003,7 @@ async def test_filter_that_fails_when_run_skips_only_its_own_evaluator(
     with caplog.at_level("WARNING", logger=producer_module.__name__):
         await producer._tick()
         await producer._backstop_sweep(
-            await producer._load_active_project_evaluators(), other_span.id, 10
+            await producer._load_active_project_evaluators(), other_span.id
         )
 
     async with db() as session:
@@ -1155,16 +1161,16 @@ async def test_backstop_rolls_back_when_the_cursor_moves_while_it_runs(
         session: Any,
         project_evaluator: Any,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
         async with db() as rival_session:
             await rival_session.execute(
                 update(models.EvalSpanCursor).values(produced_through_id=span.id + 100)
             )
-        await insert_work_units(session, project_evaluator, span_ids)
+        return await insert_work_units(session, project_evaluator, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _rival_advances_then_insert)
     with caplog.at_level("WARNING"):
-        await producer._backstop_sweep(active, span.id, 10)
+        await producer._backstop_sweep(active, span.id)
 
     assert await _work_unit_span_rowids(db) == []
     assert any("backstop rolled back" in record.message for record in caplog.records)
@@ -1210,6 +1216,37 @@ async def test_producer_publishes_its_own_frontier_and_ingest_gauges(
     await producer._tick()
     ingest_rate.set.assert_called_once()
     assert ingest_rate.set.call_args.args[0] > 0
+
+
+async def test_producer_counts_the_work_it_queues(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
+    materialized_counter = Mock()
+    monkeypatch.setattr(
+        producer_module, "ONLINE_EVAL_MATERIALIZED_WORK_UNITS", materialized_counter
+    )
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        session.add(
+            models.EvalWorkUnit(span_rowid=spans[0].id, project_evaluator_id=project_evaluator_id)
+        )
+    await _seed_cursor(
+        db,
+        produced_through_id=spans[0].id - 1,
+        observed_high_water_id=spans[-1].id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    await OnlineEvalProducer(db)._tick()
+
+    # The span that already had work is not written again, so it is not counted.
+    materialized_counter.labels.return_value.inc.assert_called_once_with(2)
 
 
 async def test_frontier_gauges_keep_updating_while_the_admission_gate_is_closed(
