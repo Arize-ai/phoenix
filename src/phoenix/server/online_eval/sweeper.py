@@ -42,10 +42,10 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.eval_work import (
     SESSION_REOFFERED_STATUSES,
-    live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
@@ -66,8 +66,6 @@ from phoenix.server.types import DaemonTask, DbSessionFactory
 logger = logging.getLogger(__name__)
 
 SWEEP_INTERVAL_SECONDS = 10.0
-
-TRACE_SWEEP_MAX_OUTSTANDING = 10_000
 
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _LOCK_TIMEOUT_MILLISECONDS = 500
@@ -338,7 +336,6 @@ class EvalSweeper(DaemonTask):
         db: DbSessionFactory,
         *,
         evaluation_target: models.EvaluationTarget,
-        max_outstanding: int,
         tick_interval_seconds: float = SWEEP_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
@@ -356,7 +353,6 @@ class EvalSweeper(DaemonTask):
         ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
         self._tick_interval_seconds = tick_interval_seconds
-        self._max_outstanding = max_outstanding
         self._late_commit_margin = timedelta(seconds=get_env_online_eval_frontier_lag_seconds())
         self._publish_metrics = get_env_enable_prometheus()
         self._lease = MaterializerLease(
@@ -379,7 +375,7 @@ class EvalSweeper(DaemonTask):
                 except _LockConflictError as error:
                     logger.warning(
                         f"{self._evaluation_target} evaluation sweep rolled back: it gave way "
-                        f"to a concurrent transaction holding a row it needed ({error})"
+                        f"to a concurrent transaction holding a lock it needed ({error})"
                     )
                 except Exception:
                     logger.exception(f"{self._evaluation_target} evaluation sweep failed")
@@ -502,8 +498,12 @@ class EvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        work_budget = await self._admission_budget(session)
+        work_budget = await admission.room(session)
         if work_budget == 0:
+            logger.warning(
+                f"{self._evaluation_target} evaluation admission gate closed: the queue holds "
+                f"{admission.max_queued()} evaluations"
+            )
             return 0, None
         project_evaluators = await self._load_evaluators(session)
         return await self._load_eligible_pairs(
@@ -571,6 +571,16 @@ class EvalSweeper(DaemonTask):
             )
         eligible_pair_count = sum(filter_verdicts.values()) if self._publish_metrics else None
         if not decisions:
+            return 0, eligible_pair_count
+        queueing_count = sum(decision["status"] == "PENDING" for decision in decisions)
+        if queueing_count and queueing_count > await admission.lock_room(session, self._db.dialect):
+            # Another producer took the room after the page was sized: leave the page, and
+            # the watermarks it advanced, to a later tick.
+            await session.rollback()
+            logger.warning(
+                f"{self._evaluation_target} evaluation sweep deferred its page: the queue has "
+                f"no room for its {queueing_count} evaluations"
+            )
             return 0, eligible_pair_count
         try:
             written_statuses = (
@@ -768,23 +778,3 @@ class EvalSweeper(DaemonTask):
         ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS.labels(**self._metric_labels).set(
             max(float(watermark_lag_seconds or 0.0), 0.0)
         )
-
-    async def _admission_budget(self, session: AsyncSession) -> int:
-        work_unit_model = self._target.work_unit_model
-        outstanding = (
-            select(1)
-            .select_from(work_unit_model)
-            # SQLite reads a partial index only when the query repeats its predicate.
-            .where(text(live_eval_work_index_predicate()))
-            .limit(self._max_outstanding)
-            .subquery()
-        )
-        outstanding_count = await session.scalar(select(func.count()).select_from(outstanding)) or 0
-        budget = max(0, self._max_outstanding - outstanding_count)
-        if budget == 0:
-            logger.warning(
-                f"{self._evaluation_target} evaluation admission gate closed: "
-                f"{outstanding_count} outstanding work units reached "
-                f"{self._max_outstanding}"
-            )
-        return budget
