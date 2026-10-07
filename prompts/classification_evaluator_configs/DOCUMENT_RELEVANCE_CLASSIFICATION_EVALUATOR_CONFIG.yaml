@@ -13,6 +13,9 @@ inputs:
     description: "The content of the retrieved document or context."
   input:
     description: "The input query or conversational context."
+default_filter_condition: "span_kind == 'RETRIEVER' and attributes['retrieval']['documents'] is not None"
+default_path_mapping:
+  document_text: "output.documents[*].content"
 optimization_direction: maximize
 messages:
   - role: user

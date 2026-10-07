@@ -71,6 +71,7 @@ import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
   getProjectEvaluatorTemplateMessages,
+  getProjectEvaluatorTemplatePathMapping,
   PROJECT_EVALUATOR_CATEGORIES,
   type ProjectEvaluatorTemplate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
@@ -148,6 +149,8 @@ const projectEvaluatorGalleryModalQuery = graphql`
         name
         description
       }
+      defaultFilterCondition
+      defaultPathMapping
       messages {
         ...promptUtils_promptMessages
       }
@@ -968,6 +971,8 @@ function EvaluatorOutputSummary({
 type EvaluatorInputSummaryItem = {
   readonly name: string;
   readonly description?: string;
+  /** The JSONPath the input starts mapped to when created from a template. */
+  readonly defaultPath?: string;
 };
 
 function EvaluatorInputSummary({
@@ -984,18 +989,56 @@ function EvaluatorInputSummary({
       <List size="S" css={plainDetailsListCSS}>
         {inputs.map((input) => (
           <ListItem key={input.name}>
-            <code css={inputNameCSS}>{input.name}</code>
-            {input.description ? (
-              <>
-                {" "}
-                <Text size="S" color="text-700">
-                  {input.description}
+            <Flex direction="column" gap="size-25">
+              <div>
+                <code css={inputNameCSS}>{input.name}</code>
+                {input.description ? (
+                  <>
+                    {" "}
+                    <Text size="S" color="text-700">
+                      {input.description}
+                    </Text>
+                  </>
+                ) : null}
+              </div>
+              {input.defaultPath ? (
+                <Text
+                  className="project-evaluator-gallery__input-default-path"
+                  size="XS"
+                  color="text-500"
+                  fontFamily="mono"
+                >
+                  Default path: {input.defaultPath}
                 </Text>
-              </>
-            ) : null}
+              ) : null}
+            </Flex>
           </ListItem>
         ))}
       </List>
+    </Flex>
+  );
+}
+
+/** The filter a template starts a project evaluator with. */
+function EvaluatorDefaultFilterSummary({
+  filterCondition,
+}: {
+  filterCondition: string;
+}) {
+  return (
+    <Flex direction="column" gap="size-75">
+      <Text elementType="h3" size="S" weight="heavy">
+        Default filter
+      </Text>
+      <Text
+        className="project-evaluator-gallery__default-filter"
+        size="XS"
+        color="text-700"
+        fontFamily="mono"
+        css={defaultFilterCSS}
+      >
+        {filterCondition}
+      </Text>
     </Flex>
   );
 }
@@ -1200,6 +1243,7 @@ function EvaluatorTemplateDetails({
   const choices = getProjectEvaluatorTemplateChoices(template);
   const messages = getProjectEvaluatorTemplateMessages(template);
   const category = getGalleryCategory(template.category);
+  const defaultPathMapping = getProjectEvaluatorTemplatePathMapping(template);
   return (
     <Flex direction="column" gap="size-300" minHeight="100%">
       <Flex direction="column" gap="size-50">
@@ -1219,10 +1263,16 @@ function EvaluatorTemplateDetails({
           </Text>
         ) : null}
       </Flex>
+      {template.defaultFilterCondition ? (
+        <EvaluatorDefaultFilterSummary
+          filterCondition={template.defaultFilterCondition}
+        />
+      ) : null}
       <EvaluatorInputSummary
         inputs={(template.inputs ?? []).map((input) => ({
           name: input.name,
           description: input.description,
+          defaultPath: defaultPathMapping[input.name],
         }))}
       />
       <AnnotationValues
@@ -1281,6 +1331,10 @@ const plainDetailsListCSS = css`
   && li:not(:first-of-type)::after {
     content: none;
   }
+`;
+
+const defaultFilterCSS = css`
+  overflow-wrap: anywhere;
 `;
 
 const inputNameCSS = css`

@@ -39,4 +39,10 @@ TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
             description="The LLM's output response (including messages and tool calls) to be evaluated."
         ),
     },
+    default_filter_condition="span_kind == 'LLM' and attributes['llm']['tools'] is not None and attributes['llm']['output_messages'][0]['message']['tool_calls'] is not None",
+    default_path_mapping={
+        "input": "input.messages",
+        "available_tools": "input.tools",
+        "tool_selection": "output.messages[0].tool_calls",
+    },
 )

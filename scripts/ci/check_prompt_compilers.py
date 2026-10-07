@@ -49,6 +49,8 @@ def check_gallery_metadata_contract(compiler: ModuleType) -> None:
             details="Detailed guidance.",
             substitutions={"unused_placeholder": "available_tools_list"},
             inputs={"input": {"description": "The user request."}},
+            default_filter_condition="num_spans > 1",
+            default_path_mapping={"input": "metadata.attributes.input.value"},
         )
     )
     assert model.model_dump(mode="json", exclude_defaults=True) == {
@@ -59,7 +61,29 @@ def check_gallery_metadata_contract(compiler: ModuleType) -> None:
         "details": "Detailed guidance.",
         "substitutions": {"unused_placeholder": "available_tools_list"},
         "inputs": {"input": {"description": "The user request."}},
+        "default_filter_condition": "num_spans > 1",
+        "default_path_mapping": {"input": "metadata.attributes.input.value"},
     }
+
+
+def check_default_path_mapping_names_declared_inputs(compiler: ModuleType) -> None:
+    inputs = {"input": {"description": "The user request."}}
+    try:
+        compiler.ClassificationEvaluatorConfig.model_validate(
+            _config(inputs=inputs, default_path_mapping={"context": "output"})
+        )
+    except ValidationError as exc:
+        assert "undeclared inputs" in str(exc), exc
+    else:
+        raise AssertionError("a default path mapping for an undeclared input was accepted")
+    try:
+        compiler.ClassificationEvaluatorConfig.model_validate(
+            _config(default_path_mapping={"input": "output"})
+        )
+    except ValidationError as exc:
+        assert "requires declared inputs" in str(exc), exc
+    else:
+        raise AssertionError("a default path mapping without declared inputs was accepted")
 
 
 def check_input_variables_match_template_format(compiler: ModuleType, content: str) -> None:
@@ -91,6 +115,8 @@ def check_python_generator_emits_gallery_metadata(compiler: ModuleType) -> None:
             category="response_quality",
             details="Detailed guidance.",
             inputs={"input": {"description": "Input"}},
+            default_filter_condition="span_kind == 'LLM'",
+            default_path_mapping={"input": "input.messages"},
         )
     )
     source = compiler.get_prompt_file_contents(config, "TEST_CONFIG")
@@ -100,6 +126,8 @@ def check_python_generator_emits_gallery_metadata(compiler: ModuleType) -> None:
         "category=EvaluatorCategory.RESPONSE_QUALITY",
         "details='Detailed guidance.'",
         "inputs={'input': EvaluatorInput(description='Input')}",
+        "default_filter_condition=\"span_kind == 'LLM'\"",
+        "default_path_mapping={'input': 'input.messages'}",
     ):
         assert expected in source, f"{expected!r} missing from the generated module"
 
@@ -110,6 +138,12 @@ def main() -> int:
     for name, compiler in compilers.items():
         checks.append(
             (f"{name}: gallery metadata", partial(check_gallery_metadata_contract, compiler))
+        )
+        checks.append(
+            (
+                f"{name}: default path mapping inputs",
+                partial(check_default_path_mapping_names_declared_inputs, compiler),
+            )
         )
         for content in ("{{input}} {{nested.value}}", "{input} {nested.value}"):
             checks.append(
