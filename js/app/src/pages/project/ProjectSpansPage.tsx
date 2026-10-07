@@ -15,7 +15,6 @@ import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import { PendingSpanFilter } from "./PendingSpanFilter";
-import { ProjectOnboarding } from "./ProjectOnboarding";
 import {
   ProjectPageQueriesSpansQuery,
   useProjectPageQueryReferenceContext,
@@ -42,12 +41,6 @@ function SpansTabContent({
     ProjectPageQueriesSpansQuery,
     queryReference
   );
-
-  if (!data.project.hasTraces) {
-    return (
-      <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
-    );
-  }
 
   return <SpansTable project={data.project} seed={seed} />;
 }

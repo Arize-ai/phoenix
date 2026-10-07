@@ -31,7 +31,10 @@ import {
   TRACE_FILTER_CONDITION_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useNotify } from "@phoenix/contexts/NotificationContext";
-import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
+import {
+  StreamStateProvider,
+  useStreamState,
+} from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
@@ -44,6 +47,7 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
+import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
@@ -234,6 +238,7 @@ function ProjectPageContentBody({
           ... on Project {
             ...ProjectStats_project
             ...ProjectTimeRangeControls_data
+            ...ProjectOnboardingOverlay_project
           }
         }
       }
@@ -247,9 +252,9 @@ function ProjectPageContentBody({
       fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
     }
   );
-  const [tracesQueryReference, loadTracesQuery] =
+  const [tracesQueryReference, loadTracesQuery, disposeTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
-  const [spansQueryReference, loadSpansQuery] =
+  const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
   // Classified during the first render, not in the effect that follows it.
   // A condition needing no server answer must never leave the page in the
@@ -262,7 +267,7 @@ function ProjectPageContentBody({
   const [tracesFilterSeed, setTracesFilterSeed] = useState<string | null>(() =>
     settledConditionFromUrl(TRACE_FILTER_CONDITION_PARAM)
   );
-  const [sessionsQueryReference, loadSessionsQuery] =
+  const [sessionsQueryReference, loadSessionsQuery, disposeSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
@@ -322,12 +327,20 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadSpansQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          filterCondition: seed.condition || null,
-          rootSpansOnly: seed.rootSpansOnly,
-        });
+        // Always from the network. A preload dropped when the stream advanced
+        // (see `disposeInactivePreloads`) is reloaded with the same variables,
+        // and the store would answer with the rows it was dropped for. Free on
+        // every other path: an unchanged seed is never re-resolved, and a new
+        // condition misses the store anyway.
+        loadSpansQuery(
+          {
+            id: projectId,
+            timeRange: timeRangeRef.current,
+            filterCondition: seed.condition || null,
+            rootSpansOnly: seed.rootSpansOnly,
+          },
+          { fetchPolicy: "network-only" }
+        );
       });
     },
     [projectId, loadSpansQuery]
@@ -355,11 +368,15 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadTracesQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          traceFilterCondition: condition || null,
-        });
+        // See `resolveSpansSeed` for why this bypasses the store.
+        loadTracesQuery(
+          {
+            id: projectId,
+            timeRange: timeRangeRef.current,
+            traceFilterCondition: condition || null,
+          },
+          { fetchPolicy: "network-only" }
+        );
       });
     },
     [projectId, loadTracesQuery]
@@ -387,11 +404,15 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadSessionsQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          sessionFilterCondition: condition || null,
-        });
+        // See `resolveSpansSeed` for why this bypasses the store.
+        loadSessionsQuery(
+          {
+            id: projectId,
+            timeRange: timeRangeRef.current,
+            sessionFilterCondition: condition || null,
+          },
+          { fetchPolicy: "network-only" }
+        );
       });
     },
     [projectId, loadSessionsQuery]
@@ -470,6 +491,26 @@ function ProjectPageContentBody({
     });
   }, [tabIndex, projectId]);
 
+  // A preload answers for the data that existed when it was loaded. The active
+  // tab's table refetches itself when the stream advances, but an inactive
+  // tab's preload cannot, and reusing it on return would show rows as of the
+  // last visit until the next advance. Dropping it makes the return load fresh.
+  const { fetchKey } = useStreamState();
+  const disposeInactivePreloads = useEffectEvent(() => {
+    if (tabIndex !== TAB_INDEX_MAP.spans) {
+      disposeSpansQuery();
+    }
+    if (tabIndex !== TAB_INDEX_MAP.traces) {
+      disposeTracesQuery();
+    }
+    if (tabIndex !== TAB_INDEX_MAP.sessions) {
+      disposeSessionsQuery();
+    }
+  });
+  useEffect(() => {
+    disposeInactivePreloads();
+  }, [fetchKey]);
+
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
@@ -507,37 +548,39 @@ function ProjectPageContentBody({
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >
-        <Tabs
-          onSelectionChange={(key) => {
-            if (typeof key === "string" && isTab(key)) {
-              onTabChange(TAB_INDEX_MAP[key]);
-            }
-          }}
-          selectedKey={tab}
-        >
-          <TabList>
-            <Tab id="spans">Spans</Tab>
-            <Tab id="traces">Traces</Tab>
-            <Tab id="sessions">Sessions</Tab>
-            <Tab id="metrics">Metrics</Tab>
-            <Tab id="config">Config</Tab>
-          </TabList>
-          <LazyTabPanel padded={false} id="spans">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="traces">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="sessions">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="metrics">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="config">
-            <Outlet />
-          </LazyTabPanel>
-        </Tabs>
+        <ProjectOnboardingOverlay project={data.project}>
+          <Tabs
+            onSelectionChange={(key) => {
+              if (typeof key === "string" && isTab(key)) {
+                onTabChange(TAB_INDEX_MAP[key]);
+              }
+            }}
+            selectedKey={tab}
+          >
+            <TabList>
+              <Tab id="spans">Spans</Tab>
+              <Tab id="traces">Traces</Tab>
+              <Tab id="sessions">Sessions</Tab>
+              <Tab id="metrics">Metrics</Tab>
+              <Tab id="config">Config</Tab>
+            </TabList>
+            <LazyTabPanel padded={false} id="spans">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="traces">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="sessions">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="metrics">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="config">
+              <Outlet />
+            </LazyTabPanel>
+          </Tabs>
+        </ProjectOnboardingOverlay>
       </ProjectPageQueryReferenceContext.Provider>
     </main>
   );
