@@ -347,13 +347,13 @@ describe("resolveEvaluatorPath", () => {
         source: SPAN_SOURCE,
         path: "metadata.attributes.llm.model_name",
       })
-    ).toEqual({ status: "resolved", value: "gpt-4o-mini" });
+    ).toMatchObject({ status: "resolved", value: "gpt-4o-mini" });
   });
 
   it("resolves the record's own names, flat under metadata", () => {
     expect(
       resolveEvaluatorPath({ source: SPAN_SOURCE, path: "metadata.latency_ms" })
-    ).toEqual({ status: "resolved", value: 842.5 });
+    ).toMatchObject({ status: "resolved", value: 842.5 });
   });
 
   it("blames the segment that named nothing, not the whole path", () => {
@@ -391,7 +391,7 @@ describe("resolveEvaluatorPath", () => {
         source: SESSION_SOURCE,
         path: "metadata.turns[0].input",
       })
-    ).toEqual({ status: "resolved", value: "hi" });
+    ).toMatchObject({ status: "resolved", value: "hi" });
     expect(
       resolveEvaluatorPath({
         source: SESSION_SOURCE,
@@ -406,17 +406,44 @@ describe("resolveEvaluatorPath", () => {
     );
     // Syntax only the server resolves
     expect(
+      resolveEvaluatorPath({ source: SPAN_SOURCE, path: 'metadata["events"]' })
+    ).toEqual({ status: "unverifiable" });
+  });
+
+  it("binds one match bare and several as a list, keeping every match", () => {
+    expect(
       resolveEvaluatorPath({
         source: SPAN_SOURCE,
         path: "metadata.events[*].name",
       })
-    ).toEqual({ status: "unverifiable" });
+    ).toEqual({
+      status: "resolved",
+      value: "exception",
+      matches: ["exception"],
+    });
+    expect(
+      resolveEvaluatorPath({
+        source: { metadata: { events: [{ name: "a" }, { name: "b" }] } },
+        path: "metadata.events[*].name",
+      })
+    ).toEqual({ status: "resolved", value: ["a", "b"], matches: ["a", "b"] });
+  });
+
+  it("blames the subscript the server raises on", () => {
+    const path = "metadata.events[-2].name";
+
+    expect(resolveEvaluatorPath({ source: SPAN_SOURCE, path })).toEqual({
+      status: "unresolved",
+      range: { from: 15, to: 19 },
+    });
+    expect(path.slice(15, 19)).toBe("[-2]");
   });
 
   it("treats an unwritten path as fine, since the slot falls back to its default", () => {
     expect(resolveEvaluatorPath({ source: SPAN_SOURCE, path: "" })).toEqual({
       status: "resolved",
       value: undefined,
+      matches: [],
     });
   });
 });
