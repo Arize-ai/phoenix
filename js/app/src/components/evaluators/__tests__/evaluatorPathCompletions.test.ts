@@ -41,6 +41,22 @@ const SESSION_SOURCE: Record<string, unknown> = {
   },
 };
 
+const CHAT_SOURCE: Record<string, unknown> = {
+  input: {
+    messages: [
+      { role: "system", content: "Be brief." },
+      { role: "user", content: "What is the weather?" },
+    ],
+  },
+  output: {
+    documents: [
+      { id: "a", content: "Sunny" },
+      { id: "b", score: 0.4 },
+    ],
+  },
+  metadata: {},
+};
+
 const ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
   {
     key: "input",
@@ -145,6 +161,21 @@ describe("getEvaluatorPathCursor", () => {
       from: 18,
     });
   });
+
+  it("reads every subscript the server accepts, open or closed", () => {
+    for (const partial of ["-", "-1", "*", ":", ":-1", "::2", "0,", "0,2"]) {
+      expect(getEvaluatorPathCursor(`metadata.turns[${partial}`)).toEqual({
+        containerPath: "metadata.turns",
+        partial,
+        from: 15,
+      });
+    }
+    for (const subscript of ["[-1]", "[*]", "[:-1]", "[0,2]"]) {
+      expect(
+        getEvaluatorPathCursor(`metadata.turns${subscript}.`)?.containerPath
+      ).toBe(`metadata.turns${subscript}`);
+    }
+  });
 });
 
 describe("getEvaluatorPathCompletions", () => {
@@ -214,11 +245,79 @@ describe("getEvaluatorPathCompletions", () => {
     expect(byKey.get("events")).toBe("list · 1");
   });
 
-  it("indexes into a list", () => {
-    const result = completionsFor("metadata.turns.", SESSION_SOURCE);
+  it("offers ideas for a list rather than each of its items", () => {
+    const result = completionsFor("input.messages[", CHAT_SOURCE);
 
-    expect(result?.completions.map((completion) => completion.path)).toEqual([
-      "metadata.turns[0]",
+    expect(
+      result?.completions.map(({ displayLabel, path, preview }) => [
+        displayLabel,
+        path,
+        preview,
+      ])
+    ).toEqual([
+      ["First message", "input.messages[0]", "object · 2"],
+      ["Last message", "input.messages[-1]", "object · 2"],
+      ["Every message", "input.messages[*]", "list · 2"],
+      ["All but the last message", "input.messages[:-1]", "object · 2"],
+      ["Every message's content", "input.messages[*].content", "list · 2"],
+    ]);
+    expect(result?.completions.map(({ key }) => key)).toEqual([
+      "0]",
+      "-1]",
+      "*]",
+      ":-1]",
+      "*].content",
+    ]);
+    expect(result?.completions.map(({ boost }) => boost)).toEqual([
+      5, 4, 3, 2, 1,
+    ]);
+    expect(result?.completions[1]?.description).toBe("input.messages[-1]");
+  });
+
+  it("shows only the ideas that resolve, named after the list", () => {
+    expect(
+      completionsFor("metadata.turns.", SESSION_SOURCE)?.completions.map(
+        ({ displayLabel }) => displayLabel
+      )
+    ).toEqual(["First turn", "Last turn", "Every turn", "Every turn's output"]);
+  });
+
+  it("offers an index typed in full when the list has it", () => {
+    const at = (text: string) =>
+      completionsFor(text, CHAT_SOURCE)?.completions.map(
+        ({ displayLabel, path }) => [displayLabel, path]
+      );
+
+    expect(at("input.messages[-2")).toContainEqual([
+      "[-2]",
+      "input.messages[-2]",
+    ]);
+    expect(at("input.messages[1")).toContainEqual(["[1]", "input.messages[1]"]);
+    expect(at("input.messages[7")).not.toContainEqual([
+      "[7]",
+      "input.messages[7]",
+    ]);
+  });
+
+  it("offers the fields several matches have between them", () => {
+    const result = completionsFor("output.documents[*].", CHAT_SOURCE);
+
+    expect(
+      result?.completions.map(({ key, path, preview }) => [key, path, preview])
+    ).toEqual([
+      ["id", "output.documents[*].id", "list · 2"],
+      ["content", "output.documents[*].content", "Sunny"],
+      ["score", "output.documents[*].score", "0.4"],
+    ]);
+  });
+
+  it("opens the level below a path that ends in a subscript", () => {
+    const result = completionsFor("input.messages[-1]", CHAT_SOURCE);
+
+    expect(result?.from).toBe(0);
+    expect(result?.completions.map(({ key }) => key)).toEqual([
+      "input.messages[-1].role",
+      "input.messages[-1].content",
     ]);
   });
 
@@ -301,7 +400,12 @@ describe("getEvaluatorPathCompletions", () => {
         [],
         SESSION_ROOT_CANDIDATES
       )?.completions.map((completion) => completion.path)
-    ).toEqual(["metadata.turns[0]"]);
+    ).toEqual([
+      "metadata.turns[0]",
+      "metadata.turns[-1]",
+      "metadata.turns[*]",
+      "metadata.turns[*].output",
+    ]);
   });
 
   it("carries the rest of a path across the home it reads back in", () => {
@@ -452,9 +556,10 @@ describe("applyEvaluatorPathCompletion", () => {
   /** Commits a row against state alone; the applier only reads `state`. */
   function accept(
     completion: Parameters<typeof applyEvaluatorPathCompletion>[0],
-    typed: string
+    typed: string,
+    autoClosed = ""
   ) {
-    let state = EditorState.create({ doc: typed });
+    let state = EditorState.create({ doc: `${typed}${autoClosed}` });
     applyEvaluatorPathCompletion(completion)(
       {
         get state() {
@@ -496,5 +601,23 @@ describe("applyEvaluatorPathCompletion", () => {
         "lat"
       )
     ).toEqual({ doc: "metadata.latency_ms", head: 19 });
+  });
+
+  it("takes the bracket an open subscript auto-closed", () => {
+    const section = { name: "input.messages" };
+    expect(
+      accept(
+        { key: "-1]", path: "input.messages[-1]", preview: "", section },
+        "input.messages[-",
+        "]"
+      )
+    ).toEqual({ doc: "input.messages[-1]", head: 18 });
+    expect(
+      accept(
+        { key: "llm", path: "metadata['llm']", preview: "", section },
+        "metadata['ll",
+        "']"
+      )
+    ).toEqual({ doc: "metadata['llm']", head: 15 });
   });
 });
