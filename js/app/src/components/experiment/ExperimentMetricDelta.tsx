@@ -69,6 +69,7 @@ const metricDeltaCSS = css`
   align-items: center;
   gap: 1px;
   font-family: var(--global-font-family-mono);
+  font-weight: normal;
   font-size: var(--global-font-size-s);
   line-height: var(--global-line-height-s);
   font-variant-numeric: tabular-nums;
@@ -183,7 +184,7 @@ function DeltaToken({
 
 /**
  * A compare experiment's change in a numeric metric against the base: a
- * caret for the sign and a magnitude, colored by whether the move was good.
+ * arrow for the sign and a magnitude, colored by whether the move was good.
  * Shows `no change` for equal values and `--` when there is nothing to
  * compare.
  */
@@ -236,13 +237,7 @@ export function ExperimentMetricDelta({
   const glyph =
     delta.kind === "changed" ? (
       <Icon
-        svg={
-          delta.sign === "up" ? (
-            <Icons.CaretUpFilled />
-          ) : (
-            <Icons.CaretDownFilled />
-          )
-        }
+        svg={delta.sign === "up" ? <Icons.ArrowUp /> : <Icons.ArrowDown />}
       />
     ) : undefined;
   return (

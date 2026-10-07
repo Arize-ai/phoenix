@@ -182,7 +182,7 @@ const labelCases = [
 
 /**
  * How a compare experiment moved against the base, as one inline token per
- * metric. The caret carries the sign, the color carries whether the move was
+ * metric. The arrow carries the sign, the color carries whether the move was
  * good for the metric's optimization direction, and the tooltip carries the
  * base value and both forms of the change. Latency, tokens and cost show the
  * relative change; eval scores show the absolute change; a label shows the

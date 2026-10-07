@@ -235,7 +235,6 @@ function AnnotationDelta({
               ? repetitionNote
               : undefined
         }
-        size="XS"
       />
     );
   }
@@ -254,7 +253,6 @@ function AnnotationDelta({
             ? "The base run has no label for this annotation"
             : undefined
       }
-      size="XS"
     />
   );
 }
