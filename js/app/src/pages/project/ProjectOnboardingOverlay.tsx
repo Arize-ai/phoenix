@@ -60,10 +60,13 @@ const overlayCSS = css`
 `;
 
 /**
- * Blocks a project's tabs with the onboarding guide until the project has
- * traces, then animates away. Renders `children` (the tabs) underneath the
- * whole time, so the tables are already mounted and listening to the stream
- * when the first traces land and fill themselves in on the same tick.
+ * Blocks a project's tab panels with the onboarding guide until the project
+ * has traces, then animates away. Renders `children` (the panels) underneath
+ * the whole time, so the tables are already mounted and listening to the
+ * stream when the first traces land and fill themselves in on the same tick.
+ * The tab strip stays outside and usable, and `isEnabled` lets a tab opt out:
+ * the Config tab is useful before the first trace, and only the streaming
+ * tabs run the poll that would dismiss the guide.
  *
  * Whether to show is decided once, on mount: a project that already has traces
  * never renders the overlay, and one whose traces arrive while it is open exits
@@ -73,9 +76,12 @@ const overlayCSS = css`
  */
 export function ProjectOnboardingOverlay({
   project,
+  isEnabled,
   children,
 }: {
   project: ProjectOnboardingOverlay_project$key;
+  /** Whether the active tab shows the guide at all. */
+  isEnabled: boolean;
   children: ReactNode;
 }) {
   const [data, refetch] = useRefetchableFragment(
@@ -91,7 +97,15 @@ export function ProjectOnboardingOverlay({
   const [wasEmptyOnMount] = useState(() => !data.hasTraces);
   const [isDismissed, setIsDismissed] = useState(false);
   const isShowing = wasEmptyOnMount && !isDismissed;
-  const isExiting = isShowing && data.hasTraces;
+  // Traces that arrive while a tab has opted out have no guide to animate, so
+  // dismiss at once rather than play the exit on the next tab that shows it.
+  // Adjusting state during render is React's pattern for this, see "Storing
+  // information from previous renders" in the docs.
+  if (isShowing && !isEnabled && data.hasTraces) {
+    setIsDismissed(true);
+  }
+  const isGuideRendered = isShowing && isEnabled;
+  const isExiting = isGuideRendered && data.hasTraces;
 
   useRefetchOnStreamAdvance(() => {
     if (isShowing && !data.hasTraces) {
@@ -102,21 +116,21 @@ export function ProjectOnboardingOverlay({
   // Take focus so keyboard users land in the guide, not on inert tabs.
   const overlayRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (isShowing) {
+    if (isGuideRendered) {
       overlayRef.current?.focus();
     }
-  }, [isShowing]);
+  }, [isGuideRendered]);
 
   return (
     <div css={rootCSS} className="project-onboarding-overlay">
       <div
         css={contentCSS}
         className="project-onboarding-overlay__content"
-        inert={isShowing || undefined}
+        inert={isGuideRendered || undefined}
       >
         {children}
       </div>
-      {isShowing ? (
+      {isGuideRendered ? (
         <div
           ref={overlayRef}
           role="dialog"

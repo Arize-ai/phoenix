@@ -55,7 +55,10 @@ import {
   ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
-import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
+import {
+  ProjectTimeRangeControls,
+  STREAMING_ENABLED_TABS,
+} from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 
@@ -548,22 +551,28 @@ function ProjectPageContentBody({
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >
-        <ProjectOnboardingOverlay project={data.project}>
-          <Tabs
-            onSelectionChange={(key) => {
-              if (typeof key === "string" && isTab(key)) {
-                onTabChange(TAB_INDEX_MAP[key]);
-              }
-            }}
-            selectedKey={tab}
+        <Tabs
+          onSelectionChange={(key) => {
+            if (typeof key === "string" && isTab(key)) {
+              onTabChange(TAB_INDEX_MAP[key]);
+            }
+          }}
+          selectedKey={tab}
+        >
+          <TabList>
+            <Tab id="spans">Spans</Tab>
+            <Tab id="traces">Traces</Tab>
+            <Tab id="sessions">Sessions</Tab>
+            <Tab id="metrics">Metrics</Tab>
+            <Tab id="config">Config</Tab>
+          </TabList>
+          {/* The guide covers only the panels: the strip stays usable, and the
+              tabs without a stream poll (Metrics, Config) show their content,
+              since nothing on them would ever dismiss the guide. */}
+          <ProjectOnboardingOverlay
+            project={data.project}
+            isEnabled={STREAMING_ENABLED_TABS.includes(tab)}
           >
-            <TabList>
-              <Tab id="spans">Spans</Tab>
-              <Tab id="traces">Traces</Tab>
-              <Tab id="sessions">Sessions</Tab>
-              <Tab id="metrics">Metrics</Tab>
-              <Tab id="config">Config</Tab>
-            </TabList>
             <LazyTabPanel padded={false} id="spans">
               <Outlet />
             </LazyTabPanel>
@@ -579,8 +588,8 @@ function ProjectPageContentBody({
             <LazyTabPanel padded={false} id="config">
               <Outlet />
             </LazyTabPanel>
-          </Tabs>
-        </ProjectOnboardingOverlay>
+          </ProjectOnboardingOverlay>
+        </Tabs>
       </ProjectPageQueryReferenceContext.Provider>
     </main>
   );

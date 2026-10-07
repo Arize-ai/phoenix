@@ -20,7 +20,7 @@ const REFRESH_INTERVAL_MS = 2000;
 /**
  * Project tabs where live streaming is available.
  */
-const STREAMING_ENABLED_TABS = ["spans", "traces", "sessions"];
+export const STREAMING_ENABLED_TABS = ["spans", "traces", "sessions"];
 
 /**
  * The project page's time range control strip: pan/zoom buttons around a

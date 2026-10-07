@@ -170,25 +170,31 @@ test.describe.serial("Projects", () => {
     const newProjectName = `test-onboarding-${randomUUID().slice(0, 8)}`;
     await createProject(page, newProjectName, "Awaiting traces");
 
-    // The guide covers every tab and takes focus; the tabs behind it are inert.
+    // The guide covers the tab panel and takes focus; the panel behind it is
+    // inert while the tab strip stays usable.
     const guide = onboardingGuide(page);
     await expect(guide).toBeVisible();
     await expect(guide).toContainText("Waiting for traces to arrive");
+    const panels = page.locator(".project-onboarding-overlay__content");
+    await expect(panels).toHaveAttribute("inert", "");
+
+    // Config is usable before the first trace, so it shows its own content.
+    await page.getByRole("tab", { name: "Config" }).click();
+    await expect(guide).not.toBeVisible();
+    await expect(panels).not.toHaveAttribute("inert", "");
     await expect(
-      page.locator(".project-onboarding-overlay__content")
-    ).toHaveAttribute("inert", "");
-    // A trial click runs the actionability checks without clicking; the guide
-    // intercepts pointer events, so it must fail.
-    const configTab = page.getByRole("tab", { name: "Config" });
-    await expect(
-      configTab.click({ trial: true, timeout: 2_000 })
-    ).rejects.toThrow();
+      page.getByRole("heading", { name: "Project Settings" })
+    ).toBeVisible();
+
+    // Back on a streaming tab the guide returns.
+    await page.getByRole("tab", { name: "Spans" }).click();
+    await expect(guide).toBeVisible();
 
     // The first span dismisses the guide without a reload, and the table
     // underneath already shows it.
     await sendSpan(page, newProjectName);
     await expect(guide).not.toBeVisible({ timeout: 20_000 });
-    await configTab.click({ trial: true });
+    await expect(panels).not.toHaveAttribute("inert", "");
     await expect(page.getByText("seed-span").first()).toBeVisible();
   });
 
@@ -198,12 +204,7 @@ test.describe.serial("Projects", () => {
     const editProjectName = `test-edit-project-${randomUUID().slice(0, 8)}`;
     await createProject(page, editProjectName, "Original description");
 
-    // A project with no traces shows the onboarding guide over its tabs, so
-    // seed one before working with the Config tab.
-    await sendSpan(page, editProjectName);
-    await expect(onboardingGuide(page)).not.toBeVisible({ timeout: 20_000 });
-
-    // Navigate to the Config tab
+    // Navigate to the Config tab. It stays usable on a project with no traces.
     await page.getByRole("tab", { name: "Config" }).click();
 
     // Locate the Project Settings card
