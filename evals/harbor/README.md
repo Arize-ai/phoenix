@@ -113,11 +113,16 @@ compare the Phoenix interfaces under the same test conditions.
 | Agent | Runs | Reaches Phoenix through |
 | --- | --- | --- |
 | `phoenix-chat-agent` | PXI inside the Phoenix server | The agent session chat route |
+| `phoenix-chat-agent-no-code-mode` | PXI with `PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false` | The same route, with one MCP tool per endpoint instead of `execute` |
 | `claude-code-mcp` | Claude Code | The remote MCP server at `/mcp` |
 | `claude-code-cli` | Claude Code | `px`, built from this checkout, plus the public `phoenix-cli` skill |
 | `codex-mcp` | Codex | The remote MCP server |
 | `codex-cli` | Codex | The same px install and skill |
 | `oracle` | No agent | Each task's `solution/solve.sh`, run with `-a oracle` |
+
+`PhoenixChatAgent` takes `mcp_code_mode` in `kwargs`. When it is `false`, the agent restarts
+Phoenix during setup with `PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false`, so the two PXI
+conditions differ only in PXI's MCP tool surface. `trail-benchmark-dev.yaml` runs both.
 
 The agent phase runs as an unprivileged user that cannot open `/data/phoenix.db`. Agents
 must access the data through Phoenix. PXI runs inside the server and uses the server's

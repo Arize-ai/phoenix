@@ -52,6 +52,7 @@ from phoenix.server.agents.web_access import (
     build_web_search_capability,
 )
 from phoenix.server.api.context import Context
+from phoenix.server.mcp_server import uses_code_mode
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -142,7 +143,13 @@ def build_agent(
                     principal=principal,
                     id="phoenix_rest_api",
                 ),
-                instructions=resolved_prompts.phoenix_mcp_tools,
+                # Read off the server so the guidance always names the tools
+                # the surface actually exposes.
+                instructions=(
+                    resolved_prompts.phoenix_mcp_tools
+                    if uses_code_mode(phoenix_mcp_server)
+                    else resolved_prompts.phoenix_mcp_direct_tools
+                ),
                 initialize_instructions=phoenix_mcp_server.instructions,
             )
         )

@@ -10,6 +10,9 @@ _VIEWER_ACCESS_INSTRUCTIONS = read_static_prompt("base/VIEWER_ACCESS_INSTRUCTION
 _SUBAGENT_INSTRUCTIONS = read_static_prompt("base/SUBAGENT_INSTRUCTIONS.xml")
 _DOCS_TOOL_INSTRUCTIONS = read_static_prompt("tools/DOCS_TOOL_INSTRUCTIONS.xml")
 _PHOENIX_MCP_TOOL_INSTRUCTIONS = read_static_prompt("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml")
+_PHOENIX_MCP_DIRECT_TOOL_INSTRUCTIONS = read_static_prompt(
+    "tools/PHOENIX_MCP_DIRECT_TOOL_INSTRUCTIONS.xml"
+)
 _GITHUB_TOOL_INSTRUCTIONS = read_static_prompt("tools/GITHUB_TOOL_INSTRUCTIONS.xml")
 
 _UI_CONTEXT_PROMPT_NAMES = (
@@ -45,6 +48,9 @@ class AgentPrompts:
     subagent: str = _SUBAGENT_INSTRUCTIONS
     docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
     phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
+    """Guidance for the code-mode Phoenix MCP surface."""
+    phoenix_mcp_direct_tools: str = _PHOENIX_MCP_DIRECT_TOOL_INSTRUCTIONS
+    """Guidance for the Phoenix MCP surface with code mode off."""
     github_tools: str = _GITHUB_TOOL_INSTRUCTIONS
     ui_contexts: str = _UI_CONTEXT_INSTRUCTIONS
 

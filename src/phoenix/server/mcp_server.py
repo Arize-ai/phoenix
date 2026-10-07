@@ -551,6 +551,11 @@ def build_phoenix_mcp_server(
     return mcp, sandbox_provider
 
 
+def uses_code_mode(mcp: FastMCP) -> bool:
+    """Whether ``mcp`` presents the code-mode surface rather than one tool per endpoint."""
+    return any(isinstance(transform, CodeMode) for transform in mcp.transforms)
+
+
 def create_phoenix_mcp_app(
     app: "FastAPI",
     *,

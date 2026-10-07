@@ -1,5 +1,7 @@
 #!/bin/sh
 # Start Phoenix against the fixture database unless it is already serving.
+# With --restart, stop the running server first so it picks up this call's
+# environment, such as PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE.
 set -eu
 LOG=/var/lib/phoenix-eval/server.log
 HEALTH_URL=http://127.0.0.1:6006/healthz
@@ -8,6 +10,19 @@ is_healthy() {
   curl -fsS -o /dev/null "$HEALTH_URL"
 }
 
+if [ "${1:-}" = "--restart" ]; then
+  pkill -f "phoenix serve" || true
+  for _ in $(seq 1 30); do
+    if ! pgrep -f "phoenix serve" >/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+  if pgrep -f "phoenix serve" >/dev/null; then
+    echo "Phoenix did not stop within 30 seconds" >&2
+    exit 1
+  fi
+fi
 if is_healthy; then
   exit 0
 fi

@@ -27,7 +27,7 @@ from phoenix.server.bearer_auth import (
     PhoenixUser,
     bind_principal,
 )
-from phoenix.server.mcp_server import build_phoenix_mcp_server
+from phoenix.server.mcp_server import build_phoenix_mcp_server, uses_code_mode
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import (
     AccessTokenAttributes,
@@ -418,6 +418,58 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     assert "Check for its `error` key" in rendered
     assert "row_count_is_partial" in rendered
     assert "validate_only=true" in rendered
+
+
+def test_the_direct_instructions_name_no_code_mode_tool() -> None:
+    """With code mode off there is no `execute`, so guidance must not steer toward it."""
+    from phoenix.server.agents.prompts import AgentPrompts
+
+    rendered = AgentPrompts().phoenix_mcp_direct_tools
+
+    for tool in ("execute", "call_tool", "get_schema", "list_tools"):
+        assert f"`{tool}`" not in rendered
+    for tool in ("describeSqlSchema", "executeSql"):
+        assert tool in rendered
+    for tool in ("createSpanNote", "createTraceNote", "createSessionNote"):
+        assert tool in rendered
+    assert "read-only" in rendered.lower()
+
+
+@pytest.mark.parametrize("code_mode", [True, False])
+def test_uses_code_mode_reports_the_built_surface(code_mode: bool) -> None:
+    runtime = MontyRuntime()
+    mcp, sandbox = build_phoenix_mcp_server(
+        _rest_app([]),
+        monty_runtime=runtime,
+        code_mode=code_mode,
+        monty_consumer="agent",
+        read_only=True,
+        db=_unused_db(),
+    )
+
+    assert uses_code_mode(mcp) is code_mode
+    assert (sandbox is not None) is code_mode
+
+
+async def test_the_direct_instructions_account_for_every_directly_named_tool() -> None:
+    """Without code mode the custom tools sit on `tools/list` beside the REST tools."""
+    from phoenix.server.agents.prompts import AgentPrompts
+
+    rendered = AgentPrompts().phoenix_mcp_direct_tools
+    mcp, _ = build_phoenix_mcp_server(
+        _rest_app([]),
+        code_mode=False,
+        read_only=True,
+        db=_unused_db(),
+    )
+    async with PhoenixMCPToolset[None](mcp) as toolset:
+        names = {tool.name for tool in await toolset.list_tools()}
+
+    custom = {name for name in ("describeSqlSchema", "executeSql") if name in names}
+    assert custom, "expected the analytics SQL tools on the direct surface"
+    assert "execute" not in names
+    for name in custom:
+        assert name in rendered, f"{name} is reachable but the instructions never name it"
 
 
 async def test_the_instructions_account_for_every_directly_named_catalog_tool() -> None:
