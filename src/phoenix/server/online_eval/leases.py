@@ -1,5 +1,6 @@
 """Advisory leases that normally keep one replica at a time doing each online-eval
-materializer's work, so replicas don't repeat each other's queries.
+materializer's work, so replicas don't repeat each other's queries, and transaction locks
+for the steps that must not run concurrently at all.
 
 No write is fenced on a lease: a holder that stalls past the TTL keeps writing after
 another replica takes the lease over.
@@ -7,6 +8,7 @@ another replica takes the lease over.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
@@ -35,6 +37,29 @@ async def current_database_time(session: AsyncSession, dialect: SupportedSQLDial
     if now is None:
         raise RuntimeError("Database did not return its current time")
     return now
+
+
+async def lock_until_commit(
+    session: AsyncSession,
+    dialect: SupportedSQLDialect,
+    name: str,
+) -> None:
+    """Hold the lock called ``name`` until the session's transaction ends, waiting while
+    another transaction holds it.
+
+    On PostgreSQL this is a transaction-scoped advisory lock, so it holds across replicas.
+    SQLite runs on one replica, and its one write connection is checked out to a session
+    from the session's first statement until its transaction ends, so no other write runs
+    in between and there is nothing more to take.
+    """
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        await session.execute(select(func.pg_advisory_xact_lock(_advisory_lock_key(name))))
+
+
+def _advisory_lock_key(name: str) -> int:
+    """A stable 64-bit key, derived from the name so it is unlikely to match another
+    application's advisory locks on the same database."""
+    return int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
 
 
 class MaterializerLease:

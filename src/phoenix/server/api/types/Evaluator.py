@@ -1,6 +1,6 @@
 import asyncio
 import zlib
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Literal, Optional, Sequence, Union
 
@@ -51,6 +51,12 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.online_eval.queue_health import (
+    DEGRADED_QUEUE_WAIT,
+    EVALUATION_LOAD_WINDOW,
+    QueuedWork,
+    project_evaluator_run_status,
+)
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
@@ -90,10 +96,15 @@ class EvaluationTarget(Enum):
     SESSION = "SESSION"
 
 
+_DEGRADED_QUEUE_WAIT_MINUTES = int(DEGRADED_QUEUE_WAIT.total_seconds() // 60)
+_EVALUATION_LOAD_WINDOW_MINUTES = int(EVALUATION_LOAD_WINDOW.total_seconds() // 60)
+
+
 @strawberry.enum(
     description=(
-        "The state of a project evaluator's scheduled work: whether evaluation runs are "
-        "completing. It says nothing about what those runs scored."
+        "The state of a project evaluator's scheduled work: whether its evaluation runs are "
+        "completing. It reflects only this evaluator's own evaluations, not the shared "
+        "queue's status, and says nothing about what those runs scored."
     )
 )
 class ProjectEvaluatorRunStatus(Enum):
@@ -113,6 +124,17 @@ class ProjectEvaluatorRunStatus(Enum):
         "ERROR",
         description="The most recent evaluation run failed and will not be retried.",
     )
+    DEGRADED = strawberry.enum_value(
+        "DEGRADED",
+        description=(
+            "This evaluator's oldest evaluation waiting to run, including ones awaiting a "
+            f"retry, has waited over {_DEGRADED_QUEUE_WAIT_MINUTES} minutes."
+        ),
+    )
+    DISABLED = strawberry.enum_value(
+        "DISABLED",
+        description="Turned off. No new evaluations are scheduled.",
+    )
 
 
 @strawberry.type(
@@ -127,43 +149,96 @@ class ProjectEvaluatorRunStatus(Enum):
 class ProjectEvaluatorRunSummary:
     status: ProjectEvaluatorRunStatus = strawberry.field(
         description=(
-            "ERROR when the newest completed run was given up on, RUNNING when it produced "
-            "an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN "
-            "otherwise."
+            "From this evaluator's own evaluations only; the shared queue's status does not "
+            "affect it. DISABLED when turned off. Otherwise ERROR when the newest completed "
+            "run was given up on, DEGRADED when its oldest evaluation waiting to run, "
+            "including ones awaiting a retry, has waited over "
+            f"{_DEGRADED_QUEUE_WAIT_MINUTES} minutes, RUNNING when the newest completed run "
+            "produced an annotation, QUEUED when work is waiting but none has completed, "
+            "NEVER_RUN otherwise."
         )
     )
     last_run_at: Optional[datetime] = strawberry.field(
         description="When this evaluator last finished an evaluation, or null if it never has."
     )
     queued_count: int = strawberry.field(
-        description="Evaluations waiting to run, including ones awaiting a retry."
+        description="Evaluations queued or running, including ones awaiting a retry."
+    )
+    running_count: int = strawberry.field(
+        description=(
+            "This evaluator's evaluations running now. Clearing the queue removes the queued "
+            "evaluations that are not running."
+        )
+    )
+    oldest_queued_at: Optional[datetime] = strawberry.field(
+        description=(
+            "When this evaluator's longest-waiting evaluation, including ones awaiting a "
+            "retry, was queued, or null if none is waiting. Running evaluations are not waiting."
+        )
     )
     evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
     failed_count: int = strawberry.field(description="Evaluations that were given up on.")
+    dropped_count: int = strawberry.field(
+        description=(
+            "Evaluations removed from the queue before they ran, because a user cleared the "
+            "queue or turned the evaluator on or off. They are not failures and do not "
+            "affect the status."
+        )
+    )
     last_error: Optional[str] = strawberry.field(
         description="The most recent evaluation error, or null if none was recorded."
     )
 
 
-def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> ProjectEvaluatorRunSummary:
+def _project_evaluator_run_summary(
+    *,
+    enabled: bool,
+    counts: ProjectEvaluatorRunCounts,
+    queued: QueuedWork,
+) -> ProjectEvaluatorRunSummary:
     last_evaluated_at, last_failed_at = counts.last_evaluated_at, counts.last_failed_at
-    if last_failed_at is not None and (
-        last_evaluated_at is None or last_failed_at >= last_evaluated_at
-    ):
-        status = ProjectEvaluatorRunStatus.ERROR
-    elif counts.evaluated:
-        status = ProjectEvaluatorRunStatus.RUNNING
-    elif counts.queued:
-        status = ProjectEvaluatorRunStatus.QUEUED
-    else:
-        status = ProjectEvaluatorRunStatus.NEVER_RUN
+    status = project_evaluator_run_status(
+        enabled=enabled,
+        last_evaluated_at=last_evaluated_at,
+        last_failed_at=last_failed_at,
+        queued=queued,
+        now=datetime.now(timezone.utc),
+    )
     return ProjectEvaluatorRunSummary(
-        status=status,
+        status=ProjectEvaluatorRunStatus(status),
         last_run_at=max(filter(None, (last_evaluated_at, last_failed_at)), default=None),
-        queued_count=counts.queued,
+        queued_count=queued.queued_count,
+        running_count=queued.running_count,
+        oldest_queued_at=queued.oldest_queued_at,
         evaluated_count=counts.evaluated,
         failed_count=counts.failed,
+        dropped_count=counts.dropped,
         last_error=counts.last_error,
+    )
+
+
+@strawberry.type(
+    description=(
+        "How much of the server's evaluation time a project evaluator used over the last "
+        f"{_EVALUATION_LOAD_WINDOW_MINUTES} minutes."
+    )
+)
+class ProjectEvaluatorEvaluationLoad:
+    evaluation_count: int = strawberry.field(
+        description=f"Evaluations started in the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes."
+    )
+    mean_evaluation_seconds: Optional[float] = strawberry.field(
+        description=(
+            "Mean seconds an evaluation took, over those started in the last "
+            f"{_EVALUATION_LOAD_WINDOW_MINUTES} minutes, or null if none started."
+        )
+    )
+    share_of_evaluation_time: Optional[float] = strawberry.field(
+        description=(
+            "Share, from 0 to 1, of the time every project evaluator on the server spent "
+            f"evaluating over the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes. They share "
+            "one concurrency limit. Null if none evaluated."
+        )
     )
 
 
@@ -1358,10 +1433,27 @@ class ProjectEvaluator(Node):
 
     @strawberry.field
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
-        counts = await info.context.data_loaders.project_evaluator_run_counts.load(
-            (self.id, None, None)
+        record = await self._get_record(info)
+        loaders = info.context.data_loaders
+        counts, queued = await asyncio.gather(
+            loaders.project_evaluator_run_counts.load((self.id, None, None)),
+            loaders.project_evaluator_queues.load(self.id),
         )
-        return _project_evaluator_run_summary(counts)
+        return _project_evaluator_run_summary(enabled=record.enabled, counts=counts, queued=queued)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "This evaluator's evaluation rate, mean evaluation time, and share of the server's "
+            f"evaluation time over the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes."
+        )
+    )
+    async def evaluation_load(self, info: Info[Context, None]) -> ProjectEvaluatorEvaluationLoad:
+        load = await info.context.data_loaders.project_evaluator_evaluation_loads.load(self.id)
+        return ProjectEvaluatorEvaluationLoad(
+            evaluation_count=load.evaluation_count,
+            mean_evaluation_seconds=load.mean_evaluation_seconds,
+            share_of_evaluation_time=load.share_of_evaluation_time,
+        )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

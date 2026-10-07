@@ -204,7 +204,9 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
-EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED"]
+EvalWorkStatus: TypeAlias = Literal[
+    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
+]
 EvalSessionWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",
@@ -212,6 +214,7 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "ERROR",
     "FAILED",
     "EXPIRED",
+    "DROPPED",
     "CONTENT_LOST",
     "FILTERED_OUT",
     "SAMPLED_OUT",

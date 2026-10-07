@@ -27,6 +27,8 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         }
         runSummary {
           status
+          queuedCount
+          runningCount
         }
         ...ProjectEvaluatorStats_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
