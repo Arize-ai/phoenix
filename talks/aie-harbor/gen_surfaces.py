@@ -59,7 +59,7 @@ A(wire(f'M{RIGHT} {my+24} H968 A7 7 0 0 1 982 {my+24} H1030 V{dy+46} H{RIGHT}')+
 # legend
 for k,t in enumerate(['Coding agent + CLI','Coding agent + MCP','PXI']):
     y=73+k*44; A(badge(1130,y-5,str(k+1))+f'<text class="hx-v" x="1150" y="{y}">{t}</text>')
-A('<g class="ap-live"><text class="hx-band a" x="1120" y="24">IN PRODUCTION</text></g><g class="ap-dock"><text class="hx-band e" x="1120" y="24">IN HARBOR</text></g>')
+A('<g class="ap-live"><text class="hx-band a" x="1120" y="10">IN PRODUCTION</text></g><g class="ap-dock"><text class="hx-band e" x="1120" y="10">IN HARBOR</text></g>')
 body=''.join(o)
 s=open(P).read()
 m=re.search(r'(<svg class="diagram ap" viewBox=")[^"]*(" role="img" aria-label="[^"]*">)(.*?)(</svg>\s*</div>\s*</section>)',s,re.S); assert m
