@@ -26,7 +26,7 @@ Can I fix it with a prompt change?
 ## Evaluator Lifecycle
 
 1. **Discover** - Error analysis reveals pattern
-2. **Design** - Define criteria and test cases
+2. **Design** - Define criteria and test cases (the `phoenix-evaluator-design` skill walks through this)
 3. **Implement** - Build code or LLM evaluator
 4. **Calibrate** - Validate against human labels
 5. **Deploy** - Add to experiment/CI pipeline

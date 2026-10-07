@@ -18,7 +18,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Task | Files |
 | ---- | ----- |
 | Setup | [setup-python](references/setup-python.md), [setup-typescript](references/setup-typescript.md) |
-| Decide what to evaluate | [evaluators-overview](references/evaluators-overview.md) |
+| Decide what to evaluate | [evaluators-overview](references/evaluators-overview.md); design the evaluator with the `phoenix-evaluator-design` skill |
 | Choose a judge model | [fundamentals-model-selection](references/fundamentals-model-selection.md) |
 | Use pre-built evaluators | [evaluators-pre-built](references/evaluators-pre-built.md) |
 | Build code evaluator | [evaluators-code-python](references/evaluators-code-python.md), [evaluators-code-typescript](references/evaluators-code-typescript.md) |
@@ -43,6 +43,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 [observe-tracing-setup](references/observe-tracing-setup.md) → [error-analysis](references/error-analysis.md) → [axial-coding](references/axial-coding.md) → [evaluators-overview](references/evaluators-overview.md)
 
 **Building Evaluator:**
+Plan it first with the `phoenix-evaluator-design` skill (construct, criteria, output schema, calibration cases), then build it with the SDK:
 [fundamentals](references/fundamentals.md) → [common-mistakes-python](references/common-mistakes-python.md) → evaluators-{code|llm}-{python|typescript} → validation-evaluators-{python|typescript}
 
 **RAG Systems:**
