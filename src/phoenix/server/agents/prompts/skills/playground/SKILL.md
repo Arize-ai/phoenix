@@ -67,8 +67,8 @@ Use this workflow when the user wants evidence that a prompt is improving across
 they are comparing prompt variants using evaluator results. Running a prompt over a dataset is
 implicitly an experiment: consult the `experiments` skill before designing the run, not only after
 results arrive — it owns the iteration methodology end to end (what to stage at creation, how to
-read and compare results, when an evaluator is warranted), and the `evaluators` skill owns designing
-the evaluators that score them. This workflow covers only the playground mechanics of setting up and
+read and compare results, when an evaluator is warranted), and the `phoenix-evaluator-design` skill
+owns designing the evaluators that score them. This workflow covers only the playground mechanics of setting up and
 starting a recorded run.
 
 1. Load the dataset with `ui.playground.dataset.load` if it isn't already loaded. If the user named
@@ -89,7 +89,10 @@ starting a recorded run.
    attempts, especially for flaky behavior, structured outputs, or tool-call correctness.
 5. Run the playground over the dataset. When recording is enabled, each prompt instance run over a
    dataset is captured as an experiment, with outputs and evaluator annotations available for
-   review.
+   review. A prompt run's `output` always has the LLM-span shape: a `messages` array (`role`,
+   `content`, and `tool_calls` with `function.name`/`function.arguments`) plus a top-level
+   `available_tools`; evaluators that score these runs, and their calibration cases, read that
+   shape, while the example's own output reaches them as `reference`.
 6. To read the experiment results and decide whether a change helped, follow the `experiments`
    skill (`ui.playground.experiment.readResults` reads a recorded experiment by id, for prompt and
    evaluator tasks alike); to create the next candidate, use `ui.playground.prompt.edit`,
@@ -119,23 +122,32 @@ much earlier in a long session may no longer resolve.
 
 ## Workflow: Compare Evaluators Over A Dataset
 
-Use this workflow when the user wants to calibrate an evaluator against a dataset or compare LLM
-and code evaluators side by side. The `evaluators` skill owns the judgment being designed (labels,
-rubric, signal location); this workflow covers the playground mechanics. Evaluator tasks are
+Use this workflow when the user wants to author, calibrate, or compare evaluators over a dataset, or
+to test a project's online evaluator against recorded examples. The `phoenix-evaluator-design`
+skill owns the judgment being designed (construct, criteria, labels, calibration cases); this
+workflow covers the playground mechanics. Keep that skill's plan file as `evaluator_authoring`
+describes: read the task (`ui.playground.evaluator.read`) and a few loaded examples first, so the
+plan's `Record shape` and real calibration cases come from them; write the plan before the first
+edit; and under `manual` edit permission wait for the user to approve it. Evaluator tasks are
 ordinary playground instances: drive them with `ui.playground.*` and address them by numeric
 `instanceId` (letters A–D are only for talking to the user). `ui.evaluators.*` operates the
 separate evaluator form dialogs and never touches playground tasks.
 
 1. Navigate to `/playground` if the playground is not mounted
    (`/playground?taskKind=evaluator&datasetId=<dataset node id>` opens a fresh evaluator draft over
-   a dataset); stay there once it is. Discover the exact input shapes with `search_browser_actions`.
+   a dataset, and `/playground?projectEvaluator0=<project evaluator node id>` opens a project's
+   online evaluator, with no dataset yet); stay there once it is. Coming from a project, keep its
+   `projectNodeId` for links and queries back to it, and load a dataset built from that project's
+   spans so the cases look like what the evaluator scores online. Discover the exact input shapes with `search_browser_actions`.
 2. Load the dataset with `ui.playground.dataset.load({ datasetName, splitName })` if it is not
    loaded. The dataset and its splits scope the run; to run fewer examples, load a split.
    Evaluator tasks cannot run or save without a dataset.
 3. Make an instance an evaluator task with `ui.playground.task.select({ instanceId, source, discardChanges })`.
    `source` is `{ type: "evaluator", evaluatorId }` for a saved LLM or code evaluator (built-in
    evaluators cannot be loaded), `{ type: "datasetEvaluator", datasetEvaluatorId }` for an
-   evaluator bound to the dataset, or `{ type: "new", kind: "LLM" }` / `{ type: "new", kind: "CODE" }`
+   evaluator bound to the dataset, `{ type: "projectEvaluator", projectEvaluatorId }` for a
+   project's online evaluator (the task carries that binding's input mapping, so what you calibrate
+   is what runs on the project), or `{ type: "new", kind: "LLM" }` / `{ type: "new", kind: "CODE" }`
    for a draft; `instanceId` may be omitted when the page has one instance. Anything other than
    loading another prompt into a prompt task replaces the instance with a fresh one built from the
    source, which requires `discardChanges: true` when the instance has unsaved changes — pass it
@@ -162,7 +174,9 @@ separate evaluator form dialogs and never touches playground tasks.
    `inputMapping` from it rather than assuming a prompt-experiment output shape. Expected
    outputs are stored as HUMAN annotations under the example's `metadata.annotations`; the run
    removes only this task's own expected outputs from that key, so the evaluator never reads
-   its answer key but still sees every other annotation, as it would online.
+   its answer key but still sees every other annotation, as it would online. Choose the plan's
+   calibration cases from these examples (a split that holds them keeps runs small), so every run
+   reports observed results for the cases the plan names.
 6. Run with `ui.playground.run({})`. Every task runs over the loaded dataset as its own
    experiment — recorded when `recordExperiments` is on (`ui.playground.experiment.setRecording`),
    ephemeral otherwise — and the call resolves with `experimentIds` in instance order. It is
@@ -170,7 +184,8 @@ separate evaluator form dialogs and never touches playground tasks.
    `validationError` in its read), naming the reason. Read each experiment with
    `ui.playground.experiment.readResults({ experimentId })`: the evaluator's verdict is the run's
    `output` and an annotation named `annotationName` (from `ui.playground.evaluator.read`), and
-   each run carries `exampleId`, `revisionId`, and its recorded `expectedOutputs`.
+   each run carries `exampleId`, `revisionId`, and its recorded `expectedOutputs`. Write each case's
+   observed verdict into the plan file before changing anything, then change one thing and rerun.
 7. Record expected outputs only from judgments the user made or confirmed, with
    `ui.playground.expectedOutput.set({ instanceId, exampleId, expectedRevisionId, label, score, explanation })`:
    `expectedRevisionId` is the run's `revisionId` (a stale one is rejected with
@@ -182,7 +197,14 @@ separate evaluator form dialogs and never touches playground tasks.
    `attach` updates a shared code evaluator and adds it to the dataset, and `create` saves a new
    dataset evaluator — set its `name` with `ui.playground.evaluator.edit` first. Pass
    `asNew: true` to leave a loaded evaluator unchanged and save a copy named `<name>_copy`
-   instead (the dialog's Save as new). Selecting and running never save.
+   instead (the dialog's Save as new). Selecting and running never save. Save only once the plan's
+   results show the cases matching and the decision is recorded there, and always in its own
+   `execute_browser_action` script, never in the one that ran the task. A task loaded from a project
+   evaluator never changes that project's binding (mapping, filter, sampling, target): `attach`
+   updates the shared code evaluator, which the project evaluator also runs, and `create` saves a
+   dataset copy of an LLM judge, leaving the project evaluator as it was. Tell the user which applies
+   before saving; changes to the binding itself happen on the project's evaluators page
+   (`/projects/<projectId>/evaluators`).
 
 One script can select an evaluator, add a second task, run both, and read a result:
 

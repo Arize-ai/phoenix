@@ -2378,7 +2378,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectUIContext"] | components["schemas"]["TraceUIContext"] | components["schemas"]["SessionUIContext"] | components["schemas"]["PromptUIContext"] | components["schemas"]["PromptVersionUIContext"] | components["schemas"]["SpanUIContext"] | components["schemas"]["PlaygroundUIContext"] | components["schemas"]["CodeEvaluatorUIContext"] | components["schemas"]["LlmEvaluatorUIContext"] | components["schemas"]["DatasetUIContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectUIContext"] | components["schemas"]["ProjectEvaluatorUIContext"] | components["schemas"]["TraceUIContext"] | components["schemas"]["SessionUIContext"] | components["schemas"]["PromptUIContext"] | components["schemas"]["PromptVersionUIContext"] | components["schemas"]["SpanUIContext"] | components["schemas"]["PlaygroundUIContext"] | components["schemas"]["CodeEvaluatorUIContext"] | components["schemas"]["LlmEvaluatorUIContext"] | components["schemas"]["DatasetUIContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
          * ChatRequestBody
          * @description Assistant chat submit request payload.
@@ -4493,6 +4493,21 @@ export interface components {
             modelName: string;
         };
         /**
+         * PlaygroundEvaluatorTaskSourceUIContext
+         * @description The saved evaluator, and the binding of it, that an evaluator task was loaded from.
+         *
+         *     All three ids are null for a new draft. ``evaluator_id`` is the shared evaluator;
+         *     a task opened from a dataset or project binding also names that binding.
+         */
+        PlaygroundEvaluatorTaskSourceUIContext: {
+            /** Evaluatorid */
+            evaluatorId?: string | null;
+            /** Datasetevaluatorid */
+            datasetEvaluatorId?: string | null;
+            /** Projectevaluatorid */
+            projectEvaluatorId?: string | null;
+        };
+        /**
          * PlaygroundEvaluatorTaskUIContext
          * @description An evaluator draft judged over the dataset; its judge prompt is the instance's prompt.
          */
@@ -4514,6 +4529,7 @@ export interface components {
              * @default false
              */
             isDirty?: boolean;
+            source?: components["schemas"]["PlaygroundEvaluatorTaskSourceUIContext"] | null;
         };
         /** PlaygroundEvaluatorUIContext */
         PlaygroundEvaluatorUIContext: {
@@ -4599,6 +4615,28 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /**
+         * ProjectEvaluatorUIContext
+         * @description A project's online evaluator the user is viewing, or the form creating or editing one.
+         *
+         *     The details route advertises the evaluator alone. A mounted create or edit form adds
+         *     ``form`` and ``evaluator_kind``; a create form has no ``project_evaluator_node_id`` yet.
+         */
+        ProjectEvaluatorUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "project_evaluator";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Projectevaluatornodeid */
+            projectEvaluatorNodeId?: string | null;
+            /** Form */
+            form?: ("create" | "edit") | null;
+            /** Evaluatorkind */
+            evaluatorKind?: ("LLM" | "CODE") | null;
         };
         /** ProjectRetentionPolicyData */
         ProjectRetentionPolicyData: {
@@ -6689,6 +6727,7 @@ export interface components {
         /** UIContexts */
         UIContexts: {
             project?: components["schemas"]["ProjectUIContext"] | null;
+            projectEvaluator?: components["schemas"]["ProjectEvaluatorUIContext"] | null;
             trace?: components["schemas"]["TraceUIContext"] | null;
             session?: components["schemas"]["SessionUIContext"] | null;
             span?: components["schemas"]["SpanUIContext"] | null;

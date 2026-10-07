@@ -36,6 +36,7 @@ import {
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { useAdvertiseProjectEvaluatorForm } from "@phoenix/pages/project/evaluators/useAdvertiseProjectEvaluatorForm";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
 export const CreateProjectCodeEvaluatorDialogContent = ({
@@ -57,6 +58,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     sandboxConfigId: string | null;
   };
 }) => {
+  useAdvertiseProjectEvaluatorForm({ form: "create", evaluatorKind: "CODE" });
   const store = useEvaluatorStoreInstance();
   const environment = useRelayEnvironment();
   const { timeRangeISOStrings } = useTimeRange();

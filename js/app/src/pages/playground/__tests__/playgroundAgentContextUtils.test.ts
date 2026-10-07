@@ -103,6 +103,11 @@ describe("getPlaygroundInstanceForAgent", () => {
       evaluatorKind: "CODE",
       name: "tone",
       isDirty: true,
+      source: {
+        evaluatorId: null,
+        datasetEvaluatorId: null,
+        projectEvaluatorId: null,
+      },
     });
     // A nameless draft in position B runs as evaluator_2.
     expect(
@@ -115,6 +120,34 @@ describe("getPlaygroundInstanceForAgent", () => {
 });
 
 describe("arePlaygroundInstancesForAgentEqual", () => {
+  it("returns false when only the evaluator task's source changes", () => {
+    const draft = evaluatorTask("tone");
+    const loaded: PlaygroundInstance["task"] =
+      draft.kind === "evaluator"
+        ? {
+            kind: "evaluator",
+            evaluator: {
+              ...draft.evaluator,
+              source: {
+                evaluatorId: "Q29kZUV2YWx1YXRvcjox",
+                datasetEvaluatorId: null,
+                projectEvaluatorId: "UHJvamVjdEV2YWx1YXRvcjox",
+              },
+            },
+          }
+        : draft;
+    const before = [
+      getPlaygroundInstanceForAgent(makeInstance({ task: draft }), position),
+    ];
+    const after = [
+      getPlaygroundInstanceForAgent(makeInstance({ task: loaded }), position),
+    ];
+    expect(after[0].task).toMatchObject({
+      source: { projectEvaluatorId: "UHJvamVjdEV2YWx1YXRvcjox" },
+    });
+    expect(arePlaygroundInstancesForAgentEqual(before, after)).toBe(false);
+  });
+
   it("returns false when only the experiment id changes", () => {
     const before = [
       getPlaygroundInstanceForAgent(

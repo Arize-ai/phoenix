@@ -419,6 +419,47 @@ describe("setPlaygroundTaskParams", () => {
     });
   });
 
+  it("keeps a task opened from a project evaluator on its binding", () => {
+    // "Open in playground" on a project evaluator links here; the shared
+    // evaluator id alone would drop the binding's input mapping on reload.
+    const searchParams = new URLSearchParams("projectEvaluator0=PE0");
+    const tasks: PlaygroundTaskParams = {
+      kind: "evaluator",
+      evaluators: [
+        {
+          evaluatorId: "E0",
+          datasetEvaluatorId: null,
+          projectEvaluatorId: "PE0",
+        },
+      ],
+    };
+
+    setPlaygroundTaskParams({ searchParams, tasks });
+
+    expect(searchParams.toString()).toBe(
+      "taskKind=evaluator&projectEvaluator0=PE0"
+    );
+    expect(parseEvaluatorTaskParams(searchParams).evaluators).toEqual([
+      {
+        evaluatorId: null,
+        datasetEvaluatorId: null,
+        projectEvaluatorId: "PE0",
+      },
+    ]);
+    expect(
+      arePlaygroundTaskParamsEqual(tasks, {
+        kind: "evaluator",
+        evaluators: [
+          {
+            evaluatorId: "E0",
+            datasetEvaluatorId: null,
+            projectEvaluatorId: null,
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
   it("reports no change when the evaluator params are already in sync", () => {
     const searchParams = new URLSearchParams(
       "taskKind=evaluator&evaluator0=E0"

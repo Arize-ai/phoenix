@@ -31,9 +31,10 @@ over `(output, expected)` pairs, while online evaluators consume a hydrated
 Each evaluator declares a `SpanSelector`; evaluators with the same selector
 share a discovery query:
 
-- **Root targets** — `tool_count_per_turn` and `user_friction` select
-  `names=("pxi.turn",)`, `span_kinds=("AGENT",)`, `parent_id="null"`, so they
-  score and annotate one turn root per trace. They share a single query.
+- **Root targets** — `tool_count_per_turn`, `user_friction`, and
+  `evaluator_authoring_process` select `names=("pxi.turn",)`,
+  `span_kinds=("AGENT",)`, `parent_id="null"`, so they score and annotate one
+  turn root per trace. They share a single query.
 - **TOOL targets** — `suggestion_accepted` selects on the approval attribute
   `pxi.approval.source="user"` with `span_kinds=("TOOL",)` and no parent
   restriction, so it annotates individual tool spans anywhere inside a turn.
@@ -53,6 +54,32 @@ Evaluators consume a trace-shaped input and attach their result as a span
 annotation on their target span. The runner does not create or update project
 annotation configs; configure display or optimization metadata in Phoenix
 separately when needed.
+
+### `evaluator_authoring_process`
+
+A deterministic CODE evaluator for the plan-first evaluator workflow. PXI keeps
+each evaluator's plan at `/home/user/workspace/evaluator-plans/<name>.md` and
+writes it through `bash`, so the plan is visible as bash TOOL spans. For a turn
+that edits, previews, or saves an evaluator (the `ui.evaluators.*` and
+`ui.playground.*` evaluator operations, or `evaluatorPreviews` and the evaluator
+create and update mutations through `phoenix-gql`):
+
+| Turn | Annotation |
+|---|---|
+| no evaluator change | *no annotation* |
+| an evaluator change before any successful plan write or read | `unplanned` / `0.0` |
+| plan first, nothing saved | `planned` / `1.0` |
+| plan first, saved without a preview, or without rewriting the plan after the last preview | `planned_not_validated` / `0.5` |
+| plan first, previewed, plan rewritten, then saved | `planned_and_validated` / `1.0` |
+
+Reading the plan counts as planning, so a turn that resumes work after the user
+approved the plan in an earlier turn is not marked unplanned (PXI is told to
+`cat` the plan when it resumes). Browser operations count only when they ran:
+the tool's output lists each executed call as `ok` or `FAILED`, so a script
+whose source names an edit but returned early (after a failed read, say) is not
+an evaluator change. Traces without that call log fall back to the operations
+the script names. The annotation's metadata lists the classified steps in
+order.
 
 ### `suggestion_accepted`
 
@@ -475,6 +502,13 @@ return carrying a catalog excerpt rendered in the real
 `renderUIOperationCatalog` format — so the agent resumes mid-loop holding the
 catalog and the scored step is the `execute_browser_action` script it
 composes next. Fresh-turn negatives stay unprimed.
+
+`input.headless: true` replays a terminal (CLI) turn instead: the agent is
+built headless, so it has no browser tools and its messages carry no
+`phoenix_ui_state` block, and the example may not set `contexts` or
+`editPermission`. For free text the agent writes itself, such as a plan file
+written through `bash`, the `contains_all_casefold` matcher checks terms
+without pinning their case.
 
 Example IDs must be unique because the runner uses them for stable upserts.
 Use `splits: [regression]` for a regression example.

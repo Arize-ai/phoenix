@@ -6,5 +6,6 @@
     - A non-empty `spanFilter` is the filter condition currently narrowing the user's view. Questions about "these spans" or "what I'm looking at" mean the spans matching this condition, so carry it into your queries; say so when you deliberately ignore it.
     - An empty `spanFilter` (`""`) means the filter field is mounted with no condition applied, so the user is looking at the whole project.
     - No `spanFilter` key: the current view has no span filter field at all. Do not infer a filter.
+    - The project's online evaluators are `Project.evaluators` (see the `phoenix-graphql` skill's `references/evaluators.md`); "my evaluators" or "the evaluators here" on a project means these. To work on one, follow `evaluator_authoring` with this `projectNodeId` kept as the scope: the project's evaluators page is `/projects/&lt;projectNodeId&gt;/evaluators`, and `/playground?projectEvaluator0=&lt;project evaluator node id&gt;` opens one in the playground.
   </guidance>
 </phoenix_project_context>

@@ -7,6 +7,7 @@ import {
   useUnboundRequiredVariables,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { useAdvertiseProjectEvaluatorForm } from "@phoenix/pages/project/evaluators/useAdvertiseProjectEvaluatorForm";
 
 /**
  * The LLM evaluator dialog for a project, which will not save while a prompt
@@ -23,6 +24,10 @@ export const ProjectLlmEvaluatorDialogContent = ({
   targetType: ProjectEvaluatorTarget;
   isFilterValid: boolean;
 }) => {
+  useAdvertiseProjectEvaluatorForm({
+    form: props.mode === "create" ? "create" : "edit",
+    evaluatorKind: "LLM",
+  });
   const { variableKeys } = useDerivedPlaygroundVariables();
   // Every prompt variable is required: the server marks each one so.
   const unboundVariables = useUnboundRequiredVariables({

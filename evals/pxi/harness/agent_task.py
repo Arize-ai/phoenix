@@ -266,8 +266,22 @@ def _ui_state_block(deps: AgentDependencies) -> str:
     )
 
 
+def _is_headless(input: dict[str, Any]) -> bool:
+    """Whether the example replays a terminal (CLI) turn rather than a browser one."""
+    headless = input.get("headless", False)
+    if not isinstance(headless, bool):
+        raise ValueError("PXI eval input.headless must be a boolean")
+    return headless
+
+
 def _prepare_transcript(input: dict[str, Any]) -> list[PhoenixUIMessage]:
     messages = convert_fixture_data_to_datastream_protocol_messages(input.get("messages"))
+    if _is_headless(input):
+        # The terminal client sends no page state, and the server adds no
+        # phoenix_ui_state block to a headless turn.
+        if "contexts" in input or "editPermission" in input:
+            raise ValueError("A headless PXI eval example takes no contexts or editPermission")
+        return messages
     rendered = _prepend_ui_state_blocks_from_metadata(messages)
     # Legacy shorthand has no persisted metadata. Its top-level contexts describe
     # the active turn, including a continuation after a primed tool result.
@@ -420,7 +434,7 @@ async def run_pxi_example(
             )
         agent = build_agent(
             name="PXIAgent",
-            headless=False,
+            headless=_is_headless(input),
             model=model,
             docs_mcp_server=docs_mcp_server,
             phoenix_mcp_server=eval_phoenix_mcp_server(),

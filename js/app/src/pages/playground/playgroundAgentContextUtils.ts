@@ -53,12 +53,28 @@ function getPlaygroundTaskForAgent(
     return { kind: "prompt" };
   }
 
+  const { evaluatorId, datasetEvaluatorId, projectEvaluatorId } =
+    task.evaluator.source;
   return {
     kind: "evaluator",
     evaluatorKind: task.evaluator.kind,
     name: getEvaluatorTaskName(task.evaluator, index),
     isDirty,
+    // Where the task was loaded from, so the agent can tell a page-only draft
+    // from a saved evaluator and say which binding a save would touch.
+    source: { evaluatorId, datasetEvaluatorId, projectEvaluatorId },
   };
+}
+
+function arePlaygroundAgentTaskSourcesEqual(
+  left: Extract<PlaygroundAgentTask, { kind: "evaluator" }>["source"],
+  right: Extract<PlaygroundAgentTask, { kind: "evaluator" }>["source"]
+): boolean {
+  return (
+    left?.evaluatorId === right?.evaluatorId &&
+    left?.datasetEvaluatorId === right?.datasetEvaluatorId &&
+    left?.projectEvaluatorId === right?.projectEvaluatorId
+  );
 }
 
 export function getPlaygroundInstanceForAgent(
@@ -120,7 +136,8 @@ function arePlaygroundAgentTasksEqual(
     return (
       left.evaluatorKind === right.evaluatorKind &&
       left.name === right.name &&
-      left.isDirty === right.isDirty
+      left.isDirty === right.isDirty &&
+      arePlaygroundAgentTaskSourcesEqual(left.source, right.source)
     );
   }
 

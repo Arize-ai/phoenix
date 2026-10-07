@@ -7,7 +7,7 @@ import {
 
 const availableSkillNames = new Set([
   "debug-trace",
-  "evaluators",
+  "phoenix-evaluator-design",
   "playground",
 ]);
 
@@ -110,7 +110,7 @@ describe("getAgentChatPlaceholder", () => {
           suggestionContext,
           availableSkillNames,
         })
-      ).toBe("Try /evaluators to refine this evaluator");
+      ).toBe("Try /phoenix-evaluator-design to plan this evaluator");
     }
   );
 

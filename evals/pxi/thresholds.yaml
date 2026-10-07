@@ -66,6 +66,19 @@ splits:
 # Each regression override records the two-run window (run 28801811562 /
 # 28807005470) and the two-examples-below-minimum rate that now breaches.
 overrides:
+  # New suite for the plan-first evaluator workflow (PHX-585). Report-only
+  # until two baseline runs exist; then anchor regression overrides here the
+  # same way as the cells below and drop `gating: false`.
+  evaluator_planning:
+    correct_tools_called:
+      regression:
+        gating: false
+    tool_call_args_match:
+      regression:
+        gating: false
+    forbidden_tool_call_args_match:
+      regression:
+        gating: false
   evaluators_skill_trigger:
     correct_tools_called:
       regression:

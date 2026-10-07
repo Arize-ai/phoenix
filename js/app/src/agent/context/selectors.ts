@@ -37,6 +37,19 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
         spanFilter: context.spanFilter ?? existing.spanFilter,
       });
     }
+    if (
+      existing.type === "project_evaluator" &&
+      context.type === "project_evaluator"
+    ) {
+      // A mounted create or edit form layers what it is editing onto the
+      // route-derived evaluator entry.
+      byKey.set(key, {
+        ...existing,
+        ...context,
+        form: context.form ?? existing.form,
+        evaluatorKind: context.evaluatorKind ?? existing.evaluatorKind,
+      });
+    }
     if (existing.type === "playground" && context.type === "playground") {
       // Two surfaces contribute one playground context: Playground.tsx owns the instances and the page's task kind, PlaygroundDatasetSection the evaluator roster.
       byKey.set(key, {

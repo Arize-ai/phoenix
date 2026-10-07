@@ -11,7 +11,10 @@ from typing import Any
 
 import pytest
 
-from evals.pxi.evaluators.tools import evaluate_tool_call_args
+from evals.pxi.evaluators.tools import (
+    evaluate_forbidden_tool_call_args,
+    evaluate_tool_call_args,
+)
 
 
 def _output_with_tool_call(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -335,6 +338,42 @@ class TestUnconstrainedArgsAreIgnored:
         )
         expected = {"tool_call_args": {"set_spans_filter": {"condition": "x"}}}
         assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+
+class TestContainsAllCasefold:
+    def test_matches_regardless_of_case(self) -> None:
+        output = _output_with_tool_call(
+            "bash",
+            {
+                "command": "cat > plan.md <<'EOF'\n- [ ] Partial Credit: none\n- [ ] ABSTENTION: fail"
+            },
+        )
+        expected = {
+            "tool_call_args": {
+                "bash": {"command": {"contains_all_casefold": ["partial credit", "abstention"]}}
+            }
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+    def test_fails_when_a_term_is_missing(self) -> None:
+        output = _output_with_tool_call("bash", {"command": "Partial credit: none"})
+        expected = {
+            "tool_call_args": {
+                "bash": {"command": {"contains_all_casefold": ["partial credit", "malformed"]}}
+            }
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
+    def test_forbidden_args_honor_it(self) -> None:
+        output = _output_with_tool_call(
+            "bash", {"command": "mkdir -p /home/user/workspace/Evaluator-Plans"}
+        )
+        expected = {
+            "forbidden_tool_call_args": {
+                "bash": {"command": {"contains_all_casefold": ["evaluator-plans"]}}
+            }
+        }
+        assert evaluate_forbidden_tool_call_args(output, expected)["score"] == 0.0
 
 
 class TestMatcherSchemaErrors:

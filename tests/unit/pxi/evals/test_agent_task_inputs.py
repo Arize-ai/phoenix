@@ -92,6 +92,24 @@ def test_legacy_context_applies_to_active_turn_not_first_turn() -> None:
     assert "UHJvamVjdDoy" in messages[2].model_dump_json()
 
 
+def test_headless_examples_carry_no_ui_state() -> None:
+    messages = _prepare_transcript(
+        {"headless": True, "messages": [{"role": "user", "content": "make an evaluator"}]}
+    )
+    assert "phoenix_ui_state" not in messages[0].model_dump_json()
+
+
+def test_headless_examples_reject_page_state() -> None:
+    with pytest.raises(ValueError, match="headless"):
+        _prepare_transcript(
+            {
+                "headless": True,
+                "editPermission": "bypass",
+                "messages": [{"role": "user", "content": "make an evaluator"}],
+            }
+        )
+
+
 @pytest.mark.parametrize("dynamic", [False, True])
 def test_public_tool_output_keeps_structured_result(dynamic: bool) -> None:
     part = {

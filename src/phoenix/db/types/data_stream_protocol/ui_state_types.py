@@ -12,6 +12,7 @@ from phoenix.server.api.types.node import (
     DatasetVersionNodeId,
     ExperimentNodeId,
     LLMEvaluatorNodeId,
+    ProjectEvaluatorNodeId,
     ProjectNodeId,
     ProjectSessionNodeId,
     PromptNodeId,
@@ -99,6 +100,18 @@ class PlaygroundPromptTaskUIContext(BaseUIContext):
     kind: Literal["prompt"] = "prompt"
 
 
+class PlaygroundEvaluatorTaskSourceUIContext(BaseUIContext):
+    """The saved evaluator, and the binding of it, that an evaluator task was loaded from.
+
+    All three ids are null for a new draft. ``evaluator_id`` is the shared evaluator;
+    a task opened from a dataset or project binding also names that binding.
+    """
+
+    evaluator_id: CodeEvaluatorNodeId | LLMEvaluatorNodeId | None = None
+    dataset_evaluator_id: DatasetEvaluatorNodeId | None = None
+    project_evaluator_id: ProjectEvaluatorNodeId | None = None
+
+
 class PlaygroundEvaluatorTaskUIContext(BaseUIContext):
     """An evaluator draft judged over the dataset; its judge prompt is the instance's prompt."""
 
@@ -109,6 +122,8 @@ class PlaygroundEvaluatorTaskUIContext(BaseUIContext):
     evaluator_kind: Literal["LLM", "CODE"]
     name: str
     is_dirty: bool = False
+    # Absent for older clients, which did not report where a task came from.
+    source: PlaygroundEvaluatorTaskSourceUIContext | None = None
 
 
 PlaygroundInstanceTaskUIContext = Annotated[
@@ -165,6 +180,20 @@ class LlmEvaluatorUIContext(BaseUIContext):
     evaluator_node_id: LLMEvaluatorNodeId | None = None
 
 
+class ProjectEvaluatorUIContext(BaseUIContext):
+    """A project's online evaluator the user is viewing, or the form creating or editing one.
+
+    The details route advertises the evaluator alone. A mounted create or edit form adds
+    ``form`` and ``evaluator_kind``; a create form has no ``project_evaluator_node_id`` yet.
+    """
+
+    type: Literal["project_evaluator"]
+    project_node_id: ProjectNodeId
+    project_evaluator_node_id: ProjectEvaluatorNodeId | None = None
+    form: Literal["create", "edit"] | None = None
+    evaluator_kind: Literal["LLM", "CODE"] | None = None
+
+
 class DatasetUIContext(BaseUIContext):
     type: Literal["dataset"]
     dataset_node_id: DatasetNodeId
@@ -173,6 +202,7 @@ class DatasetUIContext(BaseUIContext):
 
 class UIContexts(CamelBaseModel):
     project: ProjectUIContext | None = None
+    project_evaluator: ProjectEvaluatorUIContext | None = None
     trace: TraceUIContext | None = None
     session: SessionUIContext | None = None
     span: SpanUIContext | None = None

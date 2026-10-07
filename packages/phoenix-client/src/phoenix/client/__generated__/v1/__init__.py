@@ -471,11 +471,18 @@ class PlaygroundCustomProviderModelUIContext(TypedDict):
     modelName: str
 
 
+class PlaygroundEvaluatorTaskSourceUIContext(TypedDict):
+    evaluatorId: NotRequired[str]
+    datasetEvaluatorId: NotRequired[str]
+    projectEvaluatorId: NotRequired[str]
+
+
 class PlaygroundEvaluatorTaskUIContext(TypedDict):
     evaluatorKind: Literal["LLM", "CODE"]
     name: str
     kind: NotRequired[Literal["evaluator"]]
     isDirty: NotRequired[bool]
+    source: NotRequired[PlaygroundEvaluatorTaskSourceUIContext]
 
 
 class PlaygroundEvaluatorUIContext(TypedDict):
@@ -500,6 +507,14 @@ class Project(TypedDict):
     name: str
     id: str
     description: NotRequired[str]
+
+
+class ProjectEvaluatorUIContext(TypedDict):
+    type: Literal["project_evaluator"]
+    projectNodeId: str
+    projectEvaluatorNodeId: NotRequired[str]
+    form: NotRequired[Literal["create", "edit"]]
+    evaluatorKind: NotRequired[Literal["LLM", "CODE"]]
 
 
 class ProjectRetentionPolicyData(TypedDict):
@@ -1967,6 +1982,7 @@ class TraceData(TypedDict):
 
 class UIContexts(TypedDict):
     project: NotRequired[ProjectUIContext]
+    projectEvaluator: NotRequired[ProjectEvaluatorUIContext]
     trace: NotRequired[TraceUIContext]
     session: NotRequired[SessionUIContext]
     span: NotRequired[SpanUIContext]
@@ -2119,6 +2135,7 @@ class LegacyChatRegenerateMessage(TypedDict):
             Union[
                 AppContext,
                 ProjectUIContext,
+                ProjectEvaluatorUIContext,
                 TraceUIContext,
                 SessionUIContext,
                 PromptUIContext,
@@ -2151,6 +2168,7 @@ class LegacyChatSubmitMessage(TypedDict):
             Union[
                 AppContext,
                 ProjectUIContext,
+                ProjectEvaluatorUIContext,
                 TraceUIContext,
                 SessionUIContext,
                 PromptUIContext,
@@ -2315,6 +2333,7 @@ class ChatRequestBody(TypedDict):
             Union[
                 AppContext,
                 ProjectUIContext,
+                ProjectEvaluatorUIContext,
                 TraceUIContext,
                 SessionUIContext,
                 PromptUIContext,

@@ -418,6 +418,10 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 #   every substring. The primary tool for asserting clause membership in
 #   commutative DSL expressions ("filter mentions ``start_time`` AND
 #   ``2026-04-03``") without pinning clause order.
+# - ``contains_all_casefold: [<substr>, ...]`` -- like ``contains_all``, ignoring
+#   case. For free text the agent writes itself, such as the headings and
+#   criteria of a plan file, where "Partial credit" and "partial credit" are
+#   the same answer.
 # - ``contains_any: [<substr>, ...]`` -- observed must be a string containing
 #   at least one substring. Useful when several phrasings are acceptable.
 # - ``not_contains: [<substr>, ...]`` -- observed must be a string containing
@@ -443,6 +447,7 @@ _MATCHER_KEYS: frozenset[str] = frozenset(
         "equals",
         "filter_equals",
         "contains_all",
+        "contains_all_casefold",
         "contains_any",
         "not_contains",
         "any",
@@ -492,7 +497,13 @@ def _matcher_value_error(matcher: dict[str, Any]) -> str | None:
             return "matcher 'empty_or_absent' must be true"
         if len(matcher) > 1:
             return "matcher 'empty_or_absent' cannot be combined with other matchers"
-    for key in ("contains_all", "contains_any", "not_contains", "has_keys"):
+    for key in (
+        "contains_all",
+        "contains_all_casefold",
+        "contains_any",
+        "not_contains",
+        "has_keys",
+    ):
         if key in matcher and _string_list_or_none(matcher[key]) is None:
             return f"matcher {key!r} must be a list of strings"
     return None
@@ -531,6 +542,12 @@ def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
         if not isinstance(observed, str):
             return False
         if not all(needle in observed for needle in matcher["contains_all"]):
+            return False
+    if "contains_all_casefold" in matcher:
+        if not isinstance(observed, str):
+            return False
+        folded = observed.casefold()
+        if not all(needle.casefold() in folded for needle in matcher["contains_all_casefold"]):
             return False
     if "contains_any" in matcher:
         if not isinstance(observed, str):
@@ -685,6 +702,11 @@ def _source_pair_passes(source: str, key: str, expected_value: Any, script: str 
         return False
     if "contains_all" in expected_value and not all(
         needle in value_scope for needle in expected_value["contains_all"]
+    ):
+        return False
+    if "contains_all_casefold" in expected_value and not all(
+        needle.casefold() in value_scope.casefold()
+        for needle in expected_value["contains_all_casefold"]
     ):
         return False
     if "contains_any" in expected_value and not any(

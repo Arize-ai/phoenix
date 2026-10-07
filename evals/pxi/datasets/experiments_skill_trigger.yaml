@@ -398,7 +398,7 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Authoring a judge routes to the evaluators skill, not experiments,
+          Authoring a judge routes to the evaluator-design skill, not experiments,
           even though both surface on a mounted dataset.
 
   - id: negative-average-score-closed-form

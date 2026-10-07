@@ -42,6 +42,8 @@ function contextLabel(context: AgentContext): string {
         : "Playground";
     case "project":
       return "Project";
+    case "project_evaluator":
+      return "Project Evaluator";
     case "trace":
       return "Trace";
     case "session":
@@ -88,6 +90,10 @@ function contextDetail(context: AgentContext): string | undefined {
         : "New evaluator";
     case "dataset":
       return truncateId(context.datasetNodeId);
+    case "project_evaluator":
+      return context.projectEvaluatorNodeId
+        ? truncateId(context.projectEvaluatorNodeId)
+        : "New evaluator";
     default:
       return undefined;
   }

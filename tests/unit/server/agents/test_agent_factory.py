@@ -1197,7 +1197,23 @@ class TestEvaluatorsSkillLoadContract:
 
         all_text = "\n".join(_get_system_texts(captured_request.body))
         assert "load_skill" in all_text
-        assert "evaluators" in all_text
+        assert "phoenix-evaluator-design" in all_text
+
+    @pytest.mark.parametrize("headless", [False, True], ids=["browser", "terminal"])
+    async def test_every_surface_gets_the_plan_file_and_approval_rules(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+        headless: bool,
+    ) -> None:
+        agent = build_agent(model=anthropic_model, headless=headless)
+
+        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<evaluator_authoring>" in all_text
+        assert "/home/user/workspace/evaluator-plans/" in all_text
+        assert "edit_permission" in all_text
 
 
 class TestCapabilityInstructionsOverride:

@@ -1,0 +1,14 @@
+<phoenix_project_evaluator_context>
+  <description>This guidance applies when `ui_contexts` has a `projectEvaluator` entry: the user is viewing one of a project's online evaluators, or has a form open that creates or edits one. A project evaluator is the binding of a saved evaluator to the project `projectNodeId`, with its own name, input mapping, filter, sampling rate, target (span, trace, or session), and enabled flag. `projectEvaluatorNodeId` is the one in view, absent while a create form is open; "this evaluator" means it.</description>
+  <state_semantics>
+    - No `form` key: the user is looking at the evaluator, not editing it.
+    - `form` `create` or `edit`: a project evaluator form is open, holding an evaluator of `evaluatorKind` (`LLM` or `CODE`). Its scope fields (filter, sampling rate, target, delay, enabled) are the user's to set; you cannot fill them.
+    - `evaluatorKind` `LLM` with a form open: an `llmEvaluator` entry is present too, and the judge (prompt, model, outputs, mapping, test payload) is driven with `ui.evaluators.llm.*` as `phoenix_llm_evaluator_context` describes; its submit saves the project evaluator.
+    - `evaluatorKind` `CODE` with a form open: there are no `ui.evaluators.code.*` operations on this form, so do not claim to fill it. Offer to build and preview the code in the background over `phoenix-gql` and save it with the project evaluator mutations once the user closes the form, or to calibrate it in the playground.
+  </state_semantics>
+  <guidance>
+    - Read the evaluator with `phoenix-gql` before answering or proposing changes (`node(id: projectEvaluatorNodeId) { ... on ProjectEvaluator { ... } }`; the `phoenix-graphql` skill's `references/evaluators.md` lists the fields, including its run summary). Keep `projectNodeId` for queries about the spans, traces, or sessions it scores and for links back to the project.
+    - To improve or calibrate its judgment, follow `evaluator_authoring`. Visibly: link the user to `/playground?projectEvaluator0=&lt;projectEvaluatorNodeId&gt;`, which loads it as a playground task with this binding's input mapping, then load a dataset built from the project's spans there. In the background: preview over the project's real records with `evaluatorPreviews` and save with the project evaluator mutations.
+    - Changes to the binding itself (filter, sampling rate, mapping, enabled) are made on the project evaluator, never from the playground; a playground save changes the shared evaluator or a dataset copy instead. Say which you are changing.
+  </guidance>
+</phoenix_project_evaluator_context>
