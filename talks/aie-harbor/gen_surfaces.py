@@ -47,14 +47,14 @@ my=MCP[0]; A(box(L,my,RIGHT-L,MCP[1],'hx-env',10)+svg('mcp',759,my+12,24)+lbl(79
 A(wire(f'M712 {my+MCP[1]} V{API[0]}')+ar_d(712,API[0])+wire(f'M890 {my+MCP[1]} V{API[0]}')+ar_d(890,API[0]))
 ay=API[0]; A(box(L,ay,CW,API[1],'hx-env',10)+svg('rest',L+20,ay+14,20)+lbl(L+50,ay+30,'REST',18)+box(Rc,ay,CW,API[1],'hx-env',10)+svg('gql',Rc+20,ay+14,20)+lbl(Rc+50,ay+30,'GraphQL',18))
 cy=CORE[0]; A(wire(f'M712 {ay+API[1]} V{cy}')+ar_d(712,cy)+wire(f'M890 {ay+API[1]} V{cy}')+ar_d(890,cy))
-A(box(L,cy,RIGHT-L,CORE[1],'hx-env',10)+layers(L+20,cy+12)+lbl(L+50,cy+28,'Core services',18)+sub(L+24,cy+50,'PROJECTS · TRACES · SESSIONS · DATASETS',10.5)+sub(L+24,cy+66,'EXPERIMENTS · PROMPTS · EVALUATORS',10.5))
+A(box(L,cy,RIGHT-L,CORE[1],'hx-env',10)+layers(L+20,cy+12)+lbl(L+50,cy+28,'Core services',18)+sub(L+20,cy+50,'PROJECTS · TRACES · SESSIONS · DATASETS',10.5)+sub(L+20,cy+66,'EXPERIMENTS · PROMPTS · EVALUATORS',10.5))
 # OTLP + your AI app (production only)
 oy=MCP[0]; oh=API[0]+API[1]-oy; rc=oy+oh//2; A('<g class="ap-live">'+box(440,oy,120,oh,'hx-env',10)+svg('otlp',488,oy+24,24)+lbl(500,oy+70,'OTLP',18,' text-anchor="middle"')+sub(500,oy+92,'SPAN INGEST',11,' text-anchor="middle"')
   +wire(f'M500 {oy+oh} V{DB[0]+46} H{L}')+ar_r(L,DB[0]+46)
   +box(240,oy,120,oh)+svg('otel',288,oy+24,24)+lbl(300,oy+70,'Your AI app',16,' text-anchor="middle"')+sub(300,oy+92,'OTEL EXPORTER',11,' text-anchor="middle"')+wire(f'M360 {rc} H440')+ar_r(440,rc)+'</g>')
 # database
 dy=DB[0]; A(wire(f'M795 {cy+CORE[1]} V{dy}')+ar_d(795,dy))
-A(box(L,dy,RIGHT-L,DB[1])+cyl(L+20,dy+12)+lbl(L+50,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+26,dy+55,18)+lbl(L+52,dy+70,'SQLite',16)+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+173,dy+55,18)+lbl(L+197,dy+70,'PostgreSQL',15.5))
+A(box(L,dy,RIGHT-L,DB[1])+cyl(L+20,dy+12)+lbl(L+50,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+20,dy+55,18)+lbl(L+50,dy+70,'SQLite',16)+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+169,dy+55,18)+lbl(L+199,dy+70,'PostgreSQL',15.5))
 A(wire(f'M{RIGHT} {my+24} H968 A7 7 0 0 1 982 {my+24} H1030 V{dy+46} H{RIGHT}')+ar_l(RIGHT,dy+46))   # MCP -> SQL -> database
 # legend
 A('<text class="hx-band a" x="1120" y="16">THREE SURFACES</text>')
