@@ -27,7 +27,7 @@ PXI=(256,48); MCP=(336,48); API=(424,48); CORE=(504,80); SRV_B=CORE[0]+CORE[1]+2
 L,Rc=640,805; CW=145; RIGHT=950           # two columns
 o=[]; A=o.append
 A('<g class="ap-dock">'+box(400,-52,680,DB[0]+DB[1]+28+52,'ap-sbx')+lbl(424,-22,'Docker',18)+'</g>')
-A(box(420,236,640,SRV_B-236)+phx(434,258,18,22)+lbl(460,276,'Phoenix server',18))
+A(box(420,236,640,SRV_B-236)+phx(434,PXI[0]+13,18,22)+lbl(460,PXI[0]+30,'Phoenix server',18))
 # agents
 A(box(550,0,260,84)+lbl(570,38,'Coding agent')+sub(570,62,'CLAUDE CODE · CURSOR · CODEX')+svg('agent1',722,16,22)+svg('agent2',752,16,22)+svg('agent3',782,16,22))
 A(wire('M610 84 V140')+ar_d(610,140)+box(550,140,160,60)+g('cli',596,160,0.75)+lbl(632,176,'CLI',18))
