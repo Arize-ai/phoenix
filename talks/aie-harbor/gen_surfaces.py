@@ -47,9 +47,9 @@ ay=API[0]; A(box(L,ay,CW,API[1],'hx-env',10)+svg('rest',L+20,ay+14,20)+lbl(L+50,
 cy=CORE[0]; A(wire(f'M712 {ay+API[1]} V{cy}')+ar_d(712,cy)+wire(f'M890 {ay+API[1]} V{cy}')+ar_d(890,cy))
 A(box(L,cy,RIGHT-L,CORE[1],'hx-env',10)+layers(L+20,cy+12)+lbl(L+50,cy+28,'Core services',18)+sub(L+24,cy+50,'PROJECTS · TRACES · SESSIONS · DATASETS',10.5)+sub(L+24,cy+66,'EXPERIMENTS · PROMPTS · EVALUATORS',10.5))
 # OTLP + your AI app (production only)
-oy=API[0]; rc=oy+24; A('<g class="ap-live">'+box(440,oy,120,API[1],'hx-env',10)+svg('otlp',461,oy+12,24)+lbl(493,oy+30,'OTLP',18)
-  +wire(f'M500 {oy+API[1]} V{DB[0]+46} H{L}')+ar_r(L,DB[0]+46)
-  +box(140,rc-42,220,84)+svg('otel',164,rc-18,24)+lbl(200,rc+6,'Your AI app')+sub(200,rc+30,'OTEL EXPORTER',13)+wire(f'M360 {rc} H440')+ar_r(440,rc)+'</g>')
+oy=MCP[0]; oh=API[0]+API[1]-oy; rc=oy+oh//2; A('<g class="ap-live">'+box(440,oy,120,oh,'hx-env',10)+svg('otlp',488,oy+24,24)+lbl(500,oy+70,'OTLP',18,' text-anchor="middle"')+sub(500,oy+92,'SPAN INGEST',11,' text-anchor="middle"')
+  +wire(f'M500 {oy+oh} V{DB[0]+46} H{L}')+ar_r(L,DB[0]+46)
+  +box(140,oy,220,oh)+svg('otel',164,rc-20,24)+lbl(200,rc-2,'Your AI app')+sub(200,rc+22,'OTEL EXPORTER',13)+wire(f'M360 {rc} H440')+ar_r(440,rc)+'</g>')
 # database
 dy=DB[0]; A(wire(f'M795 {cy+CORE[1]} V{dy}')+ar_d(795,dy))
 A(box(L,dy,RIGHT-L,DB[1])+lbl(L+20,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+26,dy+55,18)+lbl(L+52,dy+70,'SQLite',16)+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+173,dy+55,18)+lbl(L+197,dy+70,'PostgreSQL',15.5))
