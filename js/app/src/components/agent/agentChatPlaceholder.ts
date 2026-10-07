@@ -8,7 +8,8 @@ const DEBUG_SPAN_PLACEHOLDER = "Try /debug-trace to understand this span";
 const DEBUG_TRACE_PLACEHOLDER = "Try /debug-trace to understand this trace";
 const DEBUG_PROJECT_PLACEHOLDER = "Try /debug-trace to find failure patterns";
 const PLAYGROUND_PLACEHOLDER = "Try /playground to improve this prompt";
-const EVALUATOR_PLACEHOLDER = "Try /evaluators to refine this evaluator";
+const EVALUATOR_SKILL_NAME = "phoenix-evaluator-design";
+const EVALUATOR_PLACEHOLDER = `Try /${EVALUATOR_SKILL_NAME} to plan this evaluator`;
 
 export type AgentChatSuggestionContext = AgentContext["type"] | null;
 
@@ -57,7 +58,7 @@ export function getAgentChatPlaceholder({
         : DEFAULT_PLACEHOLDER;
     case "code_evaluator":
     case "llm_evaluator":
-      return availableSkillNames.has("evaluators")
+      return availableSkillNames.has(EVALUATOR_SKILL_NAME)
         ? EVALUATOR_PLACEHOLDER
         : DEFAULT_PLACEHOLDER;
     default:

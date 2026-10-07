@@ -34,6 +34,7 @@ Per-entity field references and examples are split into reference files. Load **
 - [Datasets](references/datasets.md): Dataset and DatasetExample examples, versions, splits, and labels.
 - [Experiments](references/experiments.md): Experiment and ExperimentRun runs, aggregate metrics, and comparison.
 - [Prompts](references/prompts.md): Prompt and PromptVersion versions, templates, and tags.
+- [Evaluators](references/evaluators.md): Evaluators and their dataset and project bindings; reading, previewing (`evaluatorPreviews`), and saving them without the UI.
 - [Annotations](references/annotations.md): Span, trace, session, and experiment-run annotation fields; how to read them; and the mutations that write notes, labels, and annotation configs.
 - [Filter expressions](references/filter-expressions.md): The span, trace, and session filter languages (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`), including vocabulary, operators, root-span scoping, and compiled examples. Load it before writing any condition beyond the one-liners below.
 

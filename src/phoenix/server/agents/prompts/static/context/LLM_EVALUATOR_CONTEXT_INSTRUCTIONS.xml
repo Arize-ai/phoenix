@@ -8,7 +8,7 @@
     The installed model providers are not inlined here. When you need to set the judge `model` and `provider`, fetch the inventory on-demand with the `bash` tool's `phoenix-gql` command: query `modelProviders { key name dependenciesInstalled credentialsSet }`. Only providers where `dependenciesInstalled` is true can run the judge, and the `provider` value is the provider `key` (for example `OPENAI`). Prefer a provider where `credentialsSet` is also true so the draft test and the saved evaluator run without further setup. If the user asks for a provider whose `credentialsSet` is false — or if no installed provider has credentials configured — you may still propose it, but tell the user that provider needs credentials added at `/settings/providers` before the evaluator (or its preview test) will run, and name the provider.
   </available_model_providers>
   <guidance>
-    Before authoring or revising this judge, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
+    Before authoring or revising this judge, `load_skill` the `phoenix-evaluator-design` skill and write or `cat` its plan file as `evaluator_authoring` describes; under `manual` edit permission, wait for the user to approve the plan before the first `ui.evaluators.llm.edit`. Seed the preview from the plan's calibration cases with `set_test_payload`, one case per test, and record each observed result in the plan.
     Call `ui.evaluators.llm.read({})` in an `execute_browser_action` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.llm.read({}); return draft;`.
   </guidance>
   <editing_the_draft>
@@ -36,7 +36,7 @@
   </testing_the_draft>
   <persisting_the_draft>
     <case condition="edit_permission is bypass and draft edits are allowed">
-      Persist by calling `ui.evaluators.llm.submit({})` — it runs the same validated save the Create button does (in edit mode, Update) and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that operation's success result, and do not tell the user to click Create or Update themselves.
+      Once the plan's results show every calibration case matching, persist by calling `ui.evaluators.llm.submit({})` — it runs the same validated save the Create button does (in edit mode, Update) and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that operation's success result, and do not tell the user to click Create or Update themselves.
     </case>
     <case condition="edit_permission is manual or draft edits are not allowed">
       Do not claim the evaluator is persisted; persistence remains the user's Create action (in edit mode, Update) in the form.

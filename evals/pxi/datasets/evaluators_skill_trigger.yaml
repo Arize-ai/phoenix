@@ -1,13 +1,15 @@
 dataset_name: evaluators_skill_trigger
 description: >-
-  PXI server-side eval suite for evaluators skill trigger correctness.
-  Tests whether the agent calls load_skill(skill_name="evaluators") when the
-  user asks to author or refine a code or LLM evaluator (positive cases), and
-  correctly avoids triggering the skill for trace diagnosis, pure prompt
-  iteration, experiment comparison, and closed-form reads that route to a
-  sibling skill or no skill (negative cases). Positives are spread across the
-  three surfaces that gate the skill into the catalog: a mounted dataset, a
-  mounted code-evaluator form, and a mounted LLM-evaluator form.
+  PXI server-side eval suite for evaluator-design skill trigger correctness.
+  Tests whether the agent calls
+  load_skill(skill_name="phoenix-evaluator-design") when the user asks to
+  author or refine a code or LLM evaluator (positive cases), and correctly
+  avoids triggering the skill for trace diagnosis, pure prompt iteration,
+  experiment comparison, and closed-form reads that route to a sibling skill
+  or no skill (negative cases). Positives are spread across a mounted dataset,
+  a mounted code-evaluator form, and a mounted LLM-evaluator form. The dataset
+  keeps its name so its experiment history stays comparable across the
+  rename of the PXI-only `evaluators` skill to the shared skill.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
@@ -15,11 +17,9 @@ evaluators:
 
 examples:
 
-  # ===== Positive triggers: evaluators skill should fire =====
-  # Each positive carries one of the three gating contexts (dataset,
-  # code_evaluator, or llm_evaluator), because the evaluators skill is gated
-  # into the catalog on the presence of any of them; without one load_skill
-  # cannot resolve the name.
+  # ===== Positive triggers: the evaluator-design skill should fire =====
+  # Each positive carries one of the surfaces evaluators are authored from
+  # (dataset, code_evaluator, or llm_evaluator).
 
   - id: write-code-check-empty-output
     splits: [regression]
@@ -34,7 +34,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       category: code_evaluator_authoring
       difficulty: obvious
@@ -44,7 +44,7 @@ examples:
         n_opinions: 3
         notes: >-
           Deterministic empty-output check on a mounted code-evaluator form —
-          core code-evaluator authoring covered by the evaluators skill.
+          core code-evaluator authoring covered by the evaluator-design skill.
 
   - id: write-llm-judge-grounded
     splits: [regression]
@@ -59,7 +59,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       category: llm_evaluator_authoring
       difficulty: obvious
@@ -69,7 +69,7 @@ examples:
         n_opinions: 3
         notes: >-
           LLM-as-a-judge groundedness evaluator on a mounted LLM-evaluator
-          form. Subsumed by the evaluators skill.
+          form. Subsumed by the evaluator-design skill.
 
   - id: create-evaluator-from-dataset
     splits: [regression]
@@ -85,7 +85,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       category: evaluator_from_dataset
       difficulty: moderate
@@ -95,7 +95,7 @@ examples:
         n_opinions: 3
         notes: >-
           Building a new evaluator from a mounted dataset. Dataset context
-          gates the evaluators skill in alongside experiments; an explicit
+          surfaces the evaluator-design skill alongside experiments; an explicit
           "build an evaluator" ask routes here.
 
   - id: refine-evaluator-labels
@@ -111,7 +111,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       category: evaluator_refinement
       difficulty: moderate
@@ -120,7 +120,7 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Refining label design on an existing judge — the evaluators skill's
+          Refining label design on an existing judge — the evaluator-design skill's
           label/rubric methodology.
 
   - id: deterministic-before-judge
@@ -136,7 +136,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       category: code_evaluator_authoring
       difficulty: moderate
@@ -146,7 +146,7 @@ examples:
         n_opinions: 3
         notes: >-
           Deterministic JSON-validity check on a code-evaluator form — the
-          code-vs-LLM choice the evaluators skill teaches.
+          code-vs-LLM choice the evaluator-design skill teaches.
 
   - id: evaluator-from-observed-failures
     splits: [regression]
@@ -162,7 +162,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       category: evaluator_from_failure
       difficulty: moderate
@@ -174,9 +174,9 @@ examples:
           Evaluator built from an observed failure mode (the skill's "evals
           from observed failures, not generic metrics" guidance). Medium
           because the failure framing sits near phoenix-error-analysis; the explicit
-          "build me an eval" ask resolves it to evaluators.
+          "build me an eval" ask resolves it to phoenix-evaluator-design.
 
-  # ===== Negative triggers: evaluators skill should NOT fire =====
+  # ===== Negative triggers: the evaluator-design skill should NOT fire =====
   # Uses forbidden_tool_call_args so a legitimate load_skill for the correct
   # sibling skill in the same turn does not fail the example.
 
@@ -189,7 +189,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       negative: true
       category: negative_trace_diagnosis
@@ -199,7 +199,7 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Cross-trace failure diagnosis routes to phoenix-error-analysis, not evaluators.
+          Cross-trace failure diagnosis routes to phoenix-error-analysis, not phoenix-evaluator-design.
           No evaluator surface mounted.
 
   - id: negative-rewrite-prompt
@@ -215,7 +215,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       negative: true
       category: negative_prompt_iteration
@@ -225,7 +225,7 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Pure prompt rewrite routes to the playground skill, not evaluators.
+          Pure prompt rewrite routes to the playground skill, not phoenix-evaluator-design.
 
   - id: negative-compare-experiments
     splits: [regression]
@@ -239,7 +239,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       negative: true
       category: negative_experiment_comparison
@@ -250,7 +250,7 @@ examples:
         n_opinions: 3
         notes: >-
           Comparing existing experiment scores routes to experiments, not
-          evaluators. Tricky because it mentions scores, which sits near the
+          phoenix-evaluator-design. Tricky because it mentions scores, which sits near the
           evaluator boundary, but the ask is to read results, not author a
           scorer.
 
@@ -266,7 +266,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: evaluators
+          skill_name: phoenix-evaluator-design
     metadata:
       negative: true
       category: negative_closed_form_read
