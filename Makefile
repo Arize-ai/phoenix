@@ -111,7 +111,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -520,24 +520,31 @@ HARBOR_CLI ?= 1
 HARBOR_DATASET ?=
 HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
-# This client package provides the arize-phoenix Harbor plugin.
-HARBOR_CLIENT_VERSION ?= 3.5.0
+# The client package provides the arize-phoenix Harbor plugin. harbor-stage builds it from
+# this checkout so a job records with the plugin in the tree. Set HARBOR_CLIENT_VERSION to
+# a released version to use that release instead.
+HARBOR_CLIENT_VERSION ?=
+HARBOR_CLIENT_WHEEL_DIR := dist/phoenix-client
+HARBOR_CLIENT = $(if $(HARBOR_CLIENT_VERSION),arize-phoenix-client==$(HARBOR_CLIENT_VERSION),$(firstword $(wildcard $(CURDIR)/$(HARBOR_CLIENT_WHEEL_DIR)/arize_phoenix_client-*.whl)))
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
 # Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.11.
 HARBOR_PYTHON ?= 3.13
 UVX := uvx
-HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
-	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
+HARBOR_UVX := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)'
+HARBOR = $(HARBOR_UVX) --with '$(HARBOR_CLIENT)' harbor
 
-# Require the px archive only when HARBOR_ARGS does not replace the configured agents.
+# Require the px archive only when HARBOR_ARGS does not replace the configured agents, and
+# the client wheel only when no released client version is selected.
 define check-harbor-staged
-	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
+	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,) $(if $(HARBOR_CLIENT_VERSION),,--client-wheel-dir $(HARBOR_CLIENT_WHEEL_DIR))
 endef
 
-harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
+harbor-stage: ## Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=..., HARBOR_CLIENT_VERSION=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_environments.sh
+	$(if $(HARBOR_CLIENT_VERSION),@echo -e "$(YELLOW)Skipping the client wheel (HARBOR_CLIENT_VERSION=$(HARBOR_CLIENT_VERSION))$(NC)",\
+	rm -rf $(HARBOR_CLIENT_WHEEL_DIR) && $(UV) build --wheel packages/phoenix-client --out-dir $(HARBOR_CLIENT_WHEEL_DIR))
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
 	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
@@ -547,13 +554,13 @@ harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 		HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
 		uv run python tests/integration/harbor/run_plugin_e2e.py
 
-harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)
+harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=..., HARBOR_CLIENT_VERSION=...)
 	$(check-harbor-staged)
 	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
-	$(HARBOR) view jobs
+	$(HARBOR_UVX) harbor view jobs
 
 #=============================================================================
 # Cleanup
