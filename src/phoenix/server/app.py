@@ -61,6 +61,7 @@ from phoenix.config import (
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_agents_mcp_code_mode,
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_allowed_sandbox_providers,
@@ -1239,23 +1240,25 @@ def create_app(
         app.add_middleware(MountPathNormalizer)
     app.state.mcp_http_app = mcp_http_app
     # FastMCP adapter backed by ``sandbox_runtime.monty``. None unless code mode
-    # is enabled.
+    # is enabled for the mount.
     app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
-    # The agent's own instance, independent of the mount and its configuration.
-    # Read-only: mutations belong to the agent's editing tools, which route
-    # approval through the user. Its sandbox takes the ``agent`` admission class,
-    # capped one below the worker pool size: consumers compete for workers and a
-    # loser waits at checkout, but no consumer can hold them all.
+    # The agent's own instance, independent of the mount and its configuration:
+    # PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, not PHOENIX_ENABLE_MCP_CODE_MODE,
+    # selects its code-mode surface. Read-only: mutations belong to the agent's
+    # editing tools, which route approval through the user. Its sandbox takes
+    # the ``agent`` admission class, capped one below the worker pool size:
+    # consumers compete for workers and a loser waits at checkout, but no
+    # consumer can hold them all.
     pxi_mcp_server = None
     pxi_mcp_sandbox = None
     if not get_env_disable_agent_assistant():
         pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
             app,
             monty_runtime=sandbox_runtime.monty,
-            code_mode=True,
+            code_mode=get_env_agents_mcp_code_mode(),
             monty_consumer="agent",
             read_only=True,
             db=db,

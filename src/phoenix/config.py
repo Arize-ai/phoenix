@@ -106,6 +106,14 @@ Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
 GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
 for GitHub Enterprise Server or air-gapped deployments.
 """
+ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE = "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE"
+"""
+Whether Phoenix MCP connection uses code-mode. Defaults to True. Under code mode,
+the assistant sees discovery tools (search, get_schema, tags, list_tools) plus a
+sandboxed `execute` tool; set to False to give it one tool per read-only REST
+endpoint instead. PHOENIX_ENABLE_MCP_CODE_MODE is the same switch for the MCP
+server mounted at /mcp, which external clients use.
+"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -3658,6 +3666,10 @@ def get_env_enable_mcp_server() -> bool:
 
 def get_env_mcp_code_mode() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
+
+
+def get_env_agents_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:

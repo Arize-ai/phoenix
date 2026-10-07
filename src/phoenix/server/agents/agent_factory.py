@@ -16,6 +16,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
+from phoenix.config import get_env_agents_mcp_code_mode
 from phoenix.db.types.data_stream_protocol import EditPermission
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
@@ -142,7 +143,9 @@ def build_agent(
                     principal=principal,
                     id="phoenix_rest_api",
                 ),
-                instructions=resolved_prompts.phoenix_mcp_tools,
+                instructions=resolved_prompts.phoenix_mcp_tools.render(
+                    code_mode=get_env_agents_mcp_code_mode()
+                ),
                 initialize_instructions=phoenix_mcp_server.instructions,
             )
         )
