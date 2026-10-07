@@ -63,6 +63,7 @@ from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.EvaluationQueue import ProjectEvaluationQueue
 from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
 from phoenix.server.api.types.EvaluatorComparison import (
     EvaluatorComparisonCoverage,
@@ -400,6 +401,13 @@ class Project(Node):
         )
         async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
+
+    @strawberry.field(  # type: ignore
+        description="This project's part of the online evaluation queue, shared by every project."
+    )
+    async def evaluation_queue(self, info: Info[Context, None]) -> ProjectEvaluationQueue:
+        queue = await info.context.data_loaders.project_evaluation_queue.load(self.id)
+        return ProjectEvaluationQueue(queue=queue)
 
     @strawberry.field
     async def evaluators(

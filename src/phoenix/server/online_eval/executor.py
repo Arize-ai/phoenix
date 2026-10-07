@@ -164,10 +164,13 @@ class HydrationFailure:
 
     @property
     def terminal_status(self) -> RetiredWorkStatus:
-        """The status the unit is retired with. A subject that had no content left to
-        evaluate by the time it was hydrated gets its own."""
+        """The status the unit is retired with. Two reasons get their own: the subject had
+        no content left to evaluate by the time it was hydrated, or the evaluator was
+        disabled, which drops its queued work rather than failing it."""
         if self.reason in _CONTENT_LOST_REASONS:
             return "CONTENT_LOST"
+        if self.reason is HydrationFailureReason.PROJECT_EVALUATOR_DISABLED:
+            return "DROPPED"
         return "EXPIRED"
 
 

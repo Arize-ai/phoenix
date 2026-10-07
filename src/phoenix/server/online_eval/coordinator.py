@@ -1,16 +1,17 @@
 """Consumer-side coordination seam for online-eval work distribution: claim,
-heartbeat, publication, failure, expiration, and queue-lag observability. Producer-side
-operations (materializer leases, watermark advance, and work-row materialization) are
-not part of this interface.
+heartbeat, publication, failure, expiration, and counts of work that recently ended
+without a result. Producer-side operations (materializer leases, watermark advance, and
+work-row materialization) are not part of this interface.
 
 Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --publish--> DONE
                        RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
-                       RUNNING --expire---> EXPIRED | CONTENT_LOST
+                       RUNNING --expire---> EXPIRED | CONTENT_LOST | DROPPED
                        RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
+    PENDING | ERROR (queue cleared) --> DROPPED
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 # session and trace work is never deleted, so all-time aggregates would grow without bound.
 TERMINAL_METRICS_WINDOW_SECONDS = 86_400.0
 
-RetiredWorkStatus = Literal["EXPIRED", "CONTENT_LOST"]
+RetiredWorkStatus = Literal["EXPIRED", "CONTENT_LOST", "DROPPED"]
 
 PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
 """Writes one unit's results, inside the transaction that fenced its publication."""
@@ -62,22 +63,15 @@ class ClaimedWorkUnit:
 
 
 @dataclass(frozen=True)
-class QueueLag:
-    """Observable backlog for one evaluation target.
+class EndedWorkCounts:
+    """Work of one evaluation target that ended without a result, last updated within
+    ``TERMINAL_METRICS_WINDOW_SECONDS``: FAILED (``exhausted_error_count``), EXPIRED and
+    CONTENT_LOST (``expired_count``), and DROPPED, removed from the queue before it ran
+    (``dropped_count``). Live work is measured by ``queue_health``."""
 
-    ``pending_count``, ``running_count`` and ``retryable_error_count`` are the current
-    live work. ``exhausted_error_count`` (FAILED) and ``expired_count`` (EXPIRED and
-    CONTENT_LOST) count work in those statuses last updated within
-    ``TERMINAL_METRICS_WINDOW_SECONDS``.
-    ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is None
-    when that backlog is empty."""
-
-    pending_count: int
-    running_count: int
-    retryable_error_count: int
     exhausted_error_count: int
     expired_count: int
-    oldest_actionable_age_seconds: Optional[float]
+    dropped_count: int
 
 
 class EvalWorkCoordinator(Protocol):
@@ -167,7 +161,6 @@ class EvalWorkCoordinator(Protocol):
         """Return a still-owned RUNNING unit to PENDING without incrementing attempts."""
         ...
 
-    async def lag(self) -> QueueLag:
-        """Report the live backlog and recently terminated work. Returns zeroed metrics
-        when neither exists."""
+    async def ended_work_counts(self) -> EndedWorkCounts:
+        """Count recently ended work that produced no result."""
         ...
