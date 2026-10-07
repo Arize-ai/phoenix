@@ -221,11 +221,12 @@ describe("the binding preview", () => {
             recordKind="span"
             inputMapping={{
               pathMapping: {
-                // A wildcard is the server's to resolve, so this side can only
-                // defer — unlike `nope`, which is checked and wrong.
-                input: "metadata.attributes.llm.input_messages[*].message",
+                // Double-quoted and quoted-wildcard keys are the server's to
+                // resolve, so this side can only defer — unlike `nope`, which
+                // is checked and wrong.
+                input: 'metadata.attributes.llm["input_messages"]',
                 output: "nope",
-                citations: "metadata.annotations[*]",
+                citations: "metadata.annotations['*']",
               },
               literalMapping: {},
             }}
@@ -262,8 +263,8 @@ describe("the binding preview", () => {
         (row) => row.querySelector(".binding-row__message")?.textContent
       )
     ).toEqual([
-      "metadata.attributes.llm.input_messages[*].message is checked when the evaluator runs",
-      "metadata.annotations[*] is checked when the evaluator runs",
+      'metadata.attributes.llm["input_messages"] is checked when the evaluator runs',
+      "metadata.annotations['*'] is checked when the evaluator runs",
     ]);
     expect(
       warningRows[0]?.querySelector('[aria-label="warning"]')

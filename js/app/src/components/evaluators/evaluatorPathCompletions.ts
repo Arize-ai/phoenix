@@ -14,6 +14,11 @@ import {
   unescapeQuotedPathKey,
 } from "@phoenix/utils/objectUtils";
 
+import {
+  findEvaluatorPathMatches,
+  parseEvaluatorPath,
+} from "./evaluatorJsonPath";
+
 /** A member name being typed, up to and including the empty one. */
 const PARTIAL_MEMBER_PATTERN = /^(?:[A-Za-z_][A-Za-z0-9_]*)?$/;
 
@@ -498,9 +503,12 @@ function toCompletion(
  * sampled yet, or the path uses syntax only the server resolves — and is
  * deliberately not an error: a path is only wrong once something has actually
  * checked it.
+ *
+ * A resolved `value` is what the server binds: the one match itself, or the
+ * list of them when there are several.
  */
 export type EvaluatorPathResolution =
-  | { status: "resolved"; value: unknown }
+  | { status: "resolved"; value: unknown; matches: unknown[] }
   | { status: "unresolved"; range: { from: number; to: number } }
   | { status: "unverifiable" };
 
@@ -520,45 +528,26 @@ export function resolveEvaluatorPath({
   path: string;
 }): EvaluatorPathResolution {
   if (path === "") {
-    return { status: "resolved", value: undefined };
+    return { status: "resolved", value: undefined, matches: [] };
   }
   if (Object.keys(source).length === 0) {
     return { status: "unverifiable" };
   }
-  const segments = parsePathSegmentRanges(path);
-  if (segments === null) {
+  const steps = parseEvaluatorPath(path);
+  if (steps === null) {
     return { status: "unverifiable" };
   }
-
-  let current: unknown = source;
-  for (const segment of segments) {
-    const member = readMember(current, segment.key);
-    if (!member.exists) {
-      return {
-        status: "unresolved",
-        range: { from: segment.from, to: segment.to },
-      };
-    }
-    current = member.value;
+  const found = findEvaluatorPathMatches({ source, steps });
+  if (found.status === "unmatched") {
+    return {
+      status: "unresolved",
+      range: { from: found.step.from, to: found.step.to },
+    };
   }
-  return { status: "resolved", value: current };
-}
-
-function readMember(
-  container: unknown,
-  key: string
-): { exists: boolean; value: unknown } {
-  if (Array.isArray(container)) {
-    const index = Number(key);
-    return Number.isInteger(index) && index >= 0 && index < container.length
-      ? { exists: true, value: container[index] }
-      : { exists: false, value: undefined };
-  }
-  // Own keys only: the server resolves these paths with JSONPath, which never
-  // walks the prototype chain, so `in` would preview `metadata.toString` as
-  // resolved and the run would then raise on a path that names nothing.
-  if (isStringKeyedObject(container) && Object.hasOwn(container, key)) {
-    return { exists: true, value: container[key] };
-  }
-  return { exists: false, value: undefined };
+  const { matches } = found;
+  return {
+    status: "resolved",
+    value: matches.length === 1 ? matches[0] : matches,
+    matches,
+  };
 }
