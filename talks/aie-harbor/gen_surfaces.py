@@ -1,0 +1,67 @@
+"""Regenerate the agent-surfaces SVG in the Harbor deck."""
+import re,json,sys
+P=__import__("os").path.join(__import__("os").path.dirname(__file__),"index.html")
+ic=json.load(open(__import__("os").path.join(__import__("os").path.dirname(__file__),"surfaces-icons.json")))
+ic['mcp']=ic['mcp'].replace('#A5B4FC','var(--text)')
+H='fill="none" stroke-width="1.5" style="stroke:var(--line-strong)"'
+def svg(k,x,y,w,h=None):
+    h=h or w; return re.sub(r'^<svg x="[\d.]+" y="[\d.]+" width="\d+" height="\d+"',f'<svg x="{x}" y="{y}" width="{w}" height="{h}"',ic[k])
+def g(k,x,y,sc): return re.sub(r'^<g transform="translate\([\d. ]+\)"',f'<g transform="translate({x} {y}) scale({sc})"',ic[k])
+phx=lambda x,y,w,h:f'<svg x="{x}" y="{y}" width="{w}" height="{h}" viewBox="0 0 305.92 350.13" aria-hidden="true"><use href="#phoenix"/></svg>'
+pxi=lambda x,y,w:f'<svg x="{x}" y="{y}" width="{w}" height="{w}" viewBox="0 0 18.5 18.5" fill="var(--text)" aria-hidden="true"><rect x="0" y="0" width="5.5" height="5.5" rx="1.1"/><rect x="13" y="0" width="5.5" height="5.5" rx="1.1"/><rect x="6.5" y="6.5" width="5.5" height="5.5" rx="1.1"/><rect x="0" y="13" width="5.5" height="5.5" rx="1.1"/><rect x="13" y="13" width="5.5" height="5.5" rx="1.1"/></svg>'
+layers=lambda x,y:f'<g transform="translate({x} {y})" fill="none" stroke="var(--text)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2 L18 6.5 L10 11 L2 6.5 Z"/><path d="M2 10.5 L10 15 L18 10.5"/><path d="M2 14.5 L10 19 L18 14.5"/></g>'
+ar_r=lambda x,y:f'<path d="M{x-8} {y-6} L{x} {y} L{x-8} {y+6}" {H}/>'
+ar_l=lambda x,y:f'<path d="M{x+8} {y-6} L{x} {y} L{x+8} {y+6}" {H}/>'
+ar_d=lambda x,y:f'<path d="M{x-6} {y-8} L{x} {y} L{x+6} {y-8}" {H}/>'
+ar_u=lambda x,y:f'<path d="M{x-6} {y+8} L{x} {y} L{x+6} {y+8}" {H}/>'
+badge=lambda cx,cy,t:f'<g class="hx-b"><circle cx="{cx}" cy="{cy}" r="10"/><text x="{cx}" y="{cy+4}" text-anchor="middle" style="font-size:12px">{t}</text></g>'
+box=lambda x,y,w,h,cls='node',rx=14:f'<rect class="{cls}" x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}"/>'
+wire=lambda d:f'<path class="wire" d="{d}"/>'
+lbl=lambda x,y,t,fs=20,extra='':f'<text class="lbl" x="{x}" y="{y}" style="font-size:{fs}px"{extra}>{t}</text>'
+sub=lambda x,y,t,fs=12,extra='':f'<text class="sub" x="{x}" y="{y}" style="font-size:{fs}px"{extra}>{t}</text>'
+
+# rows
+PXI=(256,70); MCP=(354,48); API=(430,48); CORE=(506,80); SRV_B=CORE[0]+CORE[1]+24; DB=(642,92)
+L,Rc=640,805; CW=145; RIGHT=950           # two columns
+o=[]; A=o.append
+A('<g class="ap-dock">'+box(400,-52,680,DB[0]+DB[1]+28+52,'ap-sbx')+lbl(424,-22,'Docker',18)+'</g>')
+A(box(420,236,640,SRV_B-236)+phx(434,258,18,22)+lbl(460,276,'Phoenix server',18))
+# agents
+A(box(550,0,260,84)+lbl(570,38,'Coding agent')+sub(570,62,'CLAUDE CODE · CURSOR · CODEX')+svg('agent1',722,16,22)+svg('agent2',752,16,22)+svg('agent3',782,16,22))
+A(wire('M610 84 V140')+ar_d(610,140)+box(550,140,160,60)+g('cli',596,160,0.75)+lbl(632,176,'CLI',18))
+A(wire(f'M610 200 V{API[0]+24} H{L}')+ar_r(L,API[0]+24))                                  # CLI -> REST
+A(wire(f'M610 {API[0]+24} V{API[0]+API[1]+14} H705 A7 7 0 0 1 719 {API[0]+API[1]+14} H820 V{API[0]+API[1]}')+ar_u(820,API[0]+API[1]))  # CLI -> GraphQL
+A(wire(f'M750 84 V{MCP[0]}')+ar_d(750,MCP[0]))                                            # coding agent -> MCP
+A(box(825,0,130,84)+g('browser',876,10,0.7).replace('</g>',phx(14,10,16,18)+'</g>')
+  +'<g class="ap-live">'+lbl(890,58,'Browser',18,' text-anchor="middle"')+sub(890,76,'PHOENIX UI',11,' text-anchor="middle"')+'</g>'
+  +'<g class="ap-dock">'+lbl(890,58,'Test client',18,' text-anchor="middle"')+sub(890,76,'SCRIPTED TURNS',11,' text-anchor="middle"')+'</g>')
+A(wire(f'M890 84 V{PXI[0]}')+ar_d(890,PXI[0]))                                            # browser -> PXI
+A(badge(610,112,'1')+badge(750,112,'2')+badge(890,112,'3'))
+# server stack
+py=PXI[0]; A(box(Rc,py,CW,PXI[1],'hx-env',10)+pxi(Rc+24,py+24,22)+lbl(Rc+58,py+34,'PXI',18)+sub(Rc+58,py+52,'AGENT RUNTIME',11))
+A(wire(f'M830 {py+PXI[1]} V{MCP[0]}')+ar_d(830,MCP[0]))                                   # PXI -> MCP
+gy=API[0]+24; A(wire(f'M{RIGHT} {py+35} H975 V{gy} H{RIGHT}')+ar_l(RIGHT,gy))             # PXI -> GraphQL
+my=MCP[0]; A(box(L,my,RIGHT-L,MCP[1],'hx-env',10)+svg('mcp',759,my+12,24)+lbl(793,my+30,'MCP',18))
+A(wire(f'M712 {my+MCP[1]} V{API[0]}')+ar_d(712,API[0])+wire(f'M878 {my+MCP[1]} V{API[0]}')+ar_d(878,API[0]))
+ay=API[0]; A(box(L,ay,CW,API[1],'hx-env',10)+svg('rest',L+20,ay+14,20)+lbl(L+50,ay+30,'REST',18)+box(Rc,ay,CW,API[1],'hx-env',10)+svg('gql',Rc+20,ay+14,20)+lbl(Rc+50,ay+30,'GraphQL',18))
+cy=CORE[0]; A(wire(f'M712 {ay+API[1]} V{cy}')+ar_d(712,cy)+wire(f'M878 {ay+API[1]} V{cy}')+ar_d(878,cy))
+A(box(L,cy,RIGHT-L,CORE[1],'hx-env',10)+layers(L+20,cy+12)+lbl(L+50,cy+28,'Core services',18)+sub(L+24,cy+50,'PROJECTS · TRACES · SESSIONS · DATASETS',10.5)+sub(L+24,cy+66,'EXPERIMENTS · PROMPTS · EVALUATORS',10.5))
+# OTLP + your AI app (production only)
+oy=376; A('<g class="ap-live">'+box(440,oy,120,150,'hx-env',10)+svg('otlp',488,oy+30,24)+lbl(500,oy+78,'OTLP',18,' text-anchor="middle"')+sub(500,oy+100,'SPAN INGEST',11,' text-anchor="middle"')
+  +wire(f'M500 {oy+150} V{DB[0]+46} H{L}')+ar_r(L,DB[0]+46)
+  +box(140,412,220,84)+svg('otel',164,436,24)+lbl(200,454,'Your AI app')+sub(200,478,'OTEL EXPORTER',13)+wire('M360 454 H440')+ar_r(440,454)+'</g>')
+# database
+dy=DB[0]; A(wire(f'M795 {cy+CORE[1]} V{dy}')+ar_d(795,dy))
+A(box(L,dy,RIGHT-L,DB[1])+lbl(L+20,dy+28,'Database',18)+box(L+16,dy+44,131,40,'hx-env',10)+svg('sqlite',L+28,dy+55,18)+lbl(L+54,dy+70,'SQLite',16)+box(Rc-2,dy+44,131,40,'hx-env',10)+svg('pg',Rc+10,dy+55,18)+lbl(Rc+36,dy+70,'PostgreSQL',16))
+A(wire(f'M{RIGHT} {my+24} H968 A7 7 0 0 1 982 {my+24} H1030 V{dy+46} H{RIGHT}')+ar_l(RIGHT,dy+46))   # MCP -> SQL -> database
+# legend
+A('<text class="hx-band a" x="1120" y="16">THREE SURFACES</text>')
+for k,t in enumerate(['Coding agent + CLI','Coding agent + MCP','PXI']):
+    y=64+k*44; A(badge(1130,y-5,str(k+1))+f'<text class="hx-v" x="1150" y="{y}">{t}</text>')
+A('<g class="ap-live"><text class="hx-band a" x="1120" y="224">IN PRODUCTION</text></g><g class="ap-dock"><text class="hx-band e" x="1120" y="224">IN HARBOR</text></g>')
+body=''.join(o)
+s=open(P).read()
+m=re.search(r'(<svg class="diagram ap" viewBox=")[^"]*(" role="img" aria-label="[^"]*">)(.*?)(</svg>\s*</div>\s*</section>)',s,re.S); assert m
+vbh=DB[0]+DB[1]+28+60
+s=s[:m.start()]+m.group(1)+f'120 -60 1256 {vbh}'+m.group(2)+body+m.group(4)+s[m.end():]
+open(P,'w').write(s); print('ok',vbh)
