@@ -5,10 +5,10 @@ The producer runs on every replica. The ``span-producer`` lease is advisory: it 
 one replica scanning at a time so scans aren't repeated, but no write is fenced on it.
 The unique (span, project evaluator) work-unit key absorbs duplicate
 inserts. Each tick takes the lease and deletes aged terminal work rows. When a frontier
-is due and the admission gate is open, it also scans the lag-gated span id window per
-project evaluator and inserts surviving work units. A slow-cadence backstop sweep
-re-covers a bounded id window behind the watermark to catch spans that became visible
-after their window was scanned.
+is due and the queue has room, it also scans the lag-gated span id window per project
+evaluator and inserts surviving work units, as many as the room left under the admission
+lock allows. A slow-cadence backstop sweep re-covers a bounded id window behind the
+watermark to catch spans that became visible after their window was scanned.
 
 Every cursor write is compare-and-set on the position it read, and a scan (frontier or
 backstop) commits only if the cursor still holds the position it scanned against. The
@@ -37,22 +37,20 @@ from phoenix.config import (
     get_env_online_eval_backstop_interval_seconds,
     get_env_online_eval_backstop_lookback_span_ids,
     get_env_online_eval_frontier_lag_seconds,
-    get_env_online_eval_max_outstanding,
     get_env_online_eval_max_span_ids_per_tick,
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
-from phoenix.db.eval_work import (
-    live_eval_work_index_predicate,
-    terminal_eval_work_index_predicate,
-)
+from phoenix.db.eval_work import terminal_eval_work_index_predicate
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
+    ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
@@ -123,9 +121,9 @@ class OnlineEvalProducer(DaemonTask):
         self._backstop_lookback_span_ids = get_env_online_eval_backstop_lookback_span_ids()
         self._max_span_ids_per_tick = get_env_online_eval_max_span_ids_per_tick()
         self._retention_seconds = get_env_online_eval_retention_seconds()
-        self._max_outstanding = get_env_online_eval_max_outstanding()
         self._last_backstop_at = time.monotonic()
         self._publish_metrics = get_env_enable_prometheus()
+        ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(evaluation_target="SPAN")
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
@@ -188,7 +186,6 @@ class OnlineEvalProducer(DaemonTask):
                 active,
                 produced_through_id,
                 frontier,
-                budget,
             )
             if advanced:
                 produced_through_id = frontier
@@ -204,7 +201,7 @@ class OnlineEvalProducer(DaemonTask):
         ):
             if not await self._lease.renew():
                 return
-            await self._backstop_sweep(active, produced_through_id, budget)
+            await self._backstop_sweep(active, produced_through_id)
             self._last_backstop_at = time.monotonic()
 
     async def _load_cursor(self, session: AsyncSession) -> Optional[models.EvalSpanCursor]:
@@ -266,31 +263,14 @@ class OnlineEvalProducer(DaemonTask):
             )
 
     async def _admission_budget(self) -> int:
-        # The gate bounds the backlog that will eventually demand consumer
-        # capacity — every non-terminal row, not just PENDING: RUNNING rows are
-        # claimed but unfinished, and retryable ERROR rows return to the claim
-        # pool after cooldown. Under a provider outage the entire pending
-        # population migrates into retryable ERROR; a PENDING-only count would
-        # see an empty queue and keep materializing into the outage. FAILED rows
-        # are terminal (awaiting the reaper) and excluded.
+        """The room the queue has left, read without the admission lock: a full queue skips
+        this tick's scans, and admission reads the room again under the lock."""
         async with self._db() as session:
-            outstanding = (
-                select(1)
-                .select_from(models.EvalWorkUnit)
-                # SQLite reads a partial index only when the query repeats its predicate.
-                .where(text(live_eval_work_index_predicate()))
-                .limit(self._max_outstanding)
-                .subquery()
-            )
-            outstanding_count = (
-                await session.scalar(select(func.count()).select_from(outstanding)) or 0
-            )
-        budget = max(0, self._max_outstanding - outstanding_count)
+            budget = await admission.room(session)
         if budget == 0:
             logger.warning(
-                f"Online-eval producer admission gate closed: "
-                f"{outstanding_count} outstanding work units reached "
-                f"{self._max_outstanding}"
+                f"Online-eval producer admission gate closed: the queue holds "
+                f"{admission.max_queued()} evaluations"
             )
         return budget
 
@@ -373,26 +353,19 @@ class OnlineEvalProducer(DaemonTask):
         active: list[_ActiveProjectEvaluator],
         low_exclusive: int,
         frontier: int,
-        budget: int,
     ) -> tuple[bool, int]:
-        truncated = False
+        """Queue the window's work, as much as the queue has room for, and advance past the
+        window only if all of it was queued. Returns whether the cursor advanced and the room
+        left in the queue."""
         async with self._db() as session:
-            for index, project_evaluator in enumerate(active):
-                span_ids = await self._scan(session, project_evaluator, low_exclusive, frontier)
-                sampled_span_ids = project_evaluator.sampled(span_ids)
-                admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
-                budget -= len(admitted_span_ids)
-                if len(admitted_span_ids) < len(sampled_span_ids) or (
-                    budget == 0 and index < len(active) - 1
-                ):
-                    logger.warning(
-                        f"Online-eval producer frontier truncated at insertion budget; "
-                        f"{budget} budget remaining"
-                    )
-                    truncated = True
-                    break
+            budget, queued_count, truncated = await self._admit(
+                session, active, low_exclusive, frontier
+            )
             if truncated:
+                logger.warning(
+                    f"Online-eval producer frontier truncated at insertion budget; "
+                    f"{budget} budget remaining"
+                )
                 position_current = await self._cursor_is_at(session, low_exclusive)
             else:
                 position_current = (
@@ -411,6 +384,7 @@ class OnlineEvalProducer(DaemonTask):
                 await session.rollback()
                 logger.warning("Online-eval producer frontier rolled back: the cursor moved")
                 return False, budget
+        self._count_queued(queued_count)
         return not truncated, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
@@ -479,32 +453,63 @@ class OnlineEvalProducer(DaemonTask):
         self,
         active: list[_ActiveProjectEvaluator],
         watermark: int,
-        budget: int,
     ) -> int:
+        """Queue the work the lookback window still needs, as much as the queue has room
+        for, returning the room left in the queue."""
         if watermark <= 0:
-            return budget
+            return 0
         # Window is [watermark - lookback, watermark], matching the reaper's floor
         # exactly so every retained terminal row is inside the swept range.
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
-            for index, project_evaluator in enumerate(active):
-                span_ids = await self._scan(session, project_evaluator, low_exclusive, watermark)
-                sampled_span_ids = project_evaluator.sampled(span_ids)
-                admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
-                budget -= len(admitted_span_ids)
-                if len(admitted_span_ids) < len(sampled_span_ids) or (
-                    budget == 0 and index < len(active) - 1
-                ):
-                    logger.warning(
-                        f"Online-eval producer backstop truncated at insertion budget; "
-                        f"{budget} budget remaining"
-                    )
-                    break
+            budget, queued_count, truncated = await self._admit(
+                session, active, low_exclusive, watermark
+            )
+            if truncated:
+                logger.warning(
+                    f"Online-eval producer backstop truncated at insertion budget; "
+                    f"{budget} budget remaining"
+                )
             if not await self._cursor_is_at(session, watermark):
                 await session.rollback()
                 logger.warning("Online-eval producer backstop rolled back: the cursor moved")
+                return budget
+        self._count_queued(queued_count)
         return budget
+
+    async def _admit(
+        self,
+        session: AsyncSession,
+        active: list[_ActiveProjectEvaluator],
+        low_exclusive: int,
+        high_inclusive: int,
+    ) -> tuple[int, int, bool]:
+        """Scan the window for every project evaluator, then queue the sampled spans in
+        evaluator order while the queue has room. Returns the room left, how many rows were
+        queued, and whether any sampled span was left unqueued.
+
+        The room is read under the admission lock, which holds until the session's
+        transaction ends, so the scans run first and outside it."""
+        sampled = [
+            (
+                project_evaluator,
+                project_evaluator.sampled(
+                    await self._scan(session, project_evaluator, low_exclusive, high_inclusive)
+                ),
+            )
+            for project_evaluator in active
+        ]
+        budget = await admission.lock_room(session, self._db.dialect)
+        queued_count = 0
+        truncated = False
+        for project_evaluator, sampled_span_ids in sampled:
+            admitted_span_ids = sampled_span_ids[:budget]
+            queued_count += await self._insert_work_units(
+                session, project_evaluator, admitted_span_ids
+            )
+            budget -= len(admitted_span_ids)
+            truncated = truncated or len(admitted_span_ids) < len(sampled_span_ids)
+        return budget, queued_count, truncated
 
     async def _scan(
         self,
@@ -548,9 +553,11 @@ class OnlineEvalProducer(DaemonTask):
         session: AsyncSession,
         project_evaluator: _ActiveProjectEvaluator,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
+        """Insert PENDING work for the spans that have none, returning how many rows."""
         if not span_ids:
-            return
+            return 0
+        inserted_count = 0
         records = [
             {
                 "span_rowid": span_rowid,
@@ -560,12 +567,19 @@ class OnlineEvalProducer(DaemonTask):
         ]
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
             batch = records[start : start + _INSERT_BATCH_SIZE]
-            await session.execute(
+            inserted_ids = await session.scalars(
                 insert_on_conflict(
                     *batch,
                     table=models.EvalWorkUnit,
                     dialect=self._db.dialect,
                     unique_by=_WORK_UNIT_UNIQUE_BY,
                     on_conflict=OnConflict.DO_NOTHING,
-                )
+                ).returning(models.EvalWorkUnit.id)
             )
+            inserted_count += len(inserted_ids.all())
+        return inserted_count
+
+    def _count_queued(self, queued_count: int) -> None:
+        """Count work queued by a scan whose transaction has committed."""
+        if self._publish_metrics and queued_count:
+            ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(evaluation_target="SPAN").inc(queued_count)

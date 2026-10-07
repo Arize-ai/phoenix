@@ -452,6 +452,27 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
         )
 
 
+@pytest.mark.parametrize(
+    "table_name", ["eval_work_units", "eval_session_work_units", "eval_trace_work_units"]
+)
+async def test_every_work_unit_table_admits_dropped_status(
+    table_name: str,
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    await _verify_clean_state(_engine, _schema)
+    await _up(_engine, _alembic_config, _UP, _schema)
+
+    def _get_status_checks(conn: Connection) -> list[str]:
+        checks = sa.inspect(conn).get_check_constraints(table_name, schema=_schema or None)
+        return [str(check["sqltext"]) for check in checks if "status" in str(check["sqltext"])]
+
+    status_checks = await _run_async(_engine, _get_status_checks)
+    assert len(status_checks) == 1
+    assert "'DROPPED'" in status_checks[0]
+
+
 @pytest.mark.parametrize("spec", _LIVENESS_TABLES.values(), ids=_LIVENESS_TABLES)
 async def test_liveness_schema(
     spec: _LivenessTable,
