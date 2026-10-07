@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Focusable } from "react-aria";
 
 import { Flex, Text } from "@phoenix/components";
@@ -14,6 +15,10 @@ import {
   getProjectEvaluatorStatus,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
+export const statusTooltipCSS = css`
+  max-width: none;
+`;
+
 export function ProjectEvaluatorStatusCell({
   runSummary,
 }: {
@@ -28,7 +33,7 @@ export function ProjectEvaluatorStatusCell({
           {status.label}
         </Token>
       </Focusable>
-      <Tooltip>
+      <Tooltip css={statusTooltipCSS}>
         <TooltipArrow />
         <Flex direction="column" gap="size-50">
           {status.explanation ? (

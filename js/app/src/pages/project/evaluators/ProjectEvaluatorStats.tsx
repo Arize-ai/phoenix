@@ -32,6 +32,7 @@ import {
   StatField,
   StatFieldList,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorStatFields";
+import { statusTooltipCSS } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 import {
   formatElapsedShort,
   formatLastRun,
@@ -75,6 +76,7 @@ export function ProjectEvaluatorStats({
           lastRunAt
           queuedCount
           oldestQueuedAt
+          overflowedCount
           lastError
         }
         evaluationLoad {
@@ -155,7 +157,7 @@ function ProjectEvaluatorActivityPanel({
               <Focusable>
                 <Badge variant={status.variant}>{status.label}</Badge>
               </Focusable>
-              <Tooltip>
+              <Tooltip css={statusTooltipCSS}>
                 <TooltipArrow />
                 <Text size="XS">{status.explanation}</Text>
               </Tooltip>
