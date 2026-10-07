@@ -230,6 +230,7 @@ function ProjectEvaluatorQueueStatsContent({
                     queuedCount
                     runningCount
                     oldestQueuedAt
+                    overflowedCount
                   }
                 }
               }
@@ -413,7 +414,16 @@ function QueuedStat({
               ) : null
             }
           >
-            <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
+            <Text
+              size="S"
+              color={
+                queue.status === "OVERLOADED"
+                  ? "danger"
+                  : queue.atCapacity
+                    ? "warning"
+                    : "text-700"
+              }
+            >
               {`of ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)} shared`}
             </Text>
           </HoverDetail>
