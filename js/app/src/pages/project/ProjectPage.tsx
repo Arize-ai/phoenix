@@ -327,11 +327,6 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        // Always from the network. A preload dropped when the stream advanced
-        // (see `disposeInactivePreloads`) is reloaded with the same variables,
-        // and the store would answer with the rows it was dropped for. Free on
-        // every other path: an unchanged seed is never re-resolved, and a new
-        // condition misses the store anyway.
         loadSpansQuery(
           {
             id: projectId,
@@ -368,7 +363,6 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        // See `resolveSpansSeed` for why this bypasses the store.
         loadTracesQuery(
           {
             id: projectId,
@@ -404,7 +398,6 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        // See `resolveSpansSeed` for why this bypasses the store.
         loadSessionsQuery(
           {
             id: projectId,
@@ -491,10 +484,6 @@ function ProjectPageContentBody({
     });
   }, [tabIndex, projectId]);
 
-  // A preload answers for the data that existed when it was loaded. The active
-  // tab's table refetches itself when the stream advances, but an inactive
-  // tab's preload cannot, and reusing it on return would show rows as of the
-  // last visit until the next advance. Dropping it makes the return load fresh.
   const { fetchKey } = useStreamState();
   const disposeInactivePreloads = useEffectEvent(() => {
     if (tabIndex !== TAB_INDEX_MAP.spans) {
@@ -563,8 +552,6 @@ function ProjectPageContentBody({
             <Tab id="metrics">Metrics</Tab>
             <Tab id="config">Config</Tab>
           </TabList>
-          {/* The onboarding guide wraps the streaming tabs' panels only. See
-              `ProjectOnboardingOverlay` for why it lives inside the panels. */}
           <LazyTabPanel padded={false} id="spans">
             <ProjectOnboardingOverlay project={data.project}>
               <Outlet />
