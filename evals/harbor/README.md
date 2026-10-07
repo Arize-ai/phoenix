@@ -120,17 +120,6 @@ compare the Phoenix interfaces under the same test conditions.
 | `codex-cli` | Codex | The same px install and skill |
 | `oracle` | No agent | Each task's `solution/solve.sh`, run with `-a oracle` |
 
-Harbor starts Phoenix from the task healthcheck before any agent runs, so a server setting
-has to be in the container's environment from the start. The job file's `environment.env`
-is the one place Harbor applies to every container at creation, and it is job-wide rather
-than per agent. `jobs/trail-benchmark-dev-no-code-mode.yaml` therefore runs PXI with
-`PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false`, which gives it one tool per endpoint instead of
-`execute`, as a separate job on the same tasks:
-
-```bash
-make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev-no-code-mode.yaml
-```
-
 The agent phase runs as an unprivileged user that cannot open `/data/phoenix.db`. Agents
 must access the data through Phoenix. PXI runs inside the server and uses the server's
 database access. This difference is part of the PXI condition.
