@@ -26,7 +26,11 @@ import {
   computeMeanPerRun,
   computeOperationalMetricDelta,
 } from "./experimentDeltaUtils";
-import { ExperimentMetricDelta } from "./ExperimentMetricDelta";
+import {
+  ExperimentMetricDelta,
+  ExperimentMetricStat,
+  ExperimentMetricStatRow,
+} from "./ExperimentMetricDelta";
 
 /**
  * The shape of experiment data needed to render cost and latency summary.
@@ -141,65 +145,75 @@ export function ExperimentCostAndLatencySummary({
         </TriggerWrap>
         <Tooltip>Averages computed over all runs in the experiment</Tooltip>
       </TooltipTrigger>
-      {averageRunLatencyMs != null && (
-        <LatencyText size="S" latencyMs={averageRunLatencyMs} />
-      )}
-      {baseAverages && averageRunLatencyMs != null && (
-        <ExperimentMetricDelta
-          delta={computeOperationalMetricDelta({
-            base: baseAverages.averageRunLatencyMs,
-            compare: averageRunLatencyMs,
-          })}
-          display="relative"
-          metricLabel="Average latency"
-          formatter={latencyMsFormatter}
-          compareValueText={latencyMsFormatter(averageRunLatencyMs)}
-          baseValueText={latencyMsFormatter(baseAverages.averageRunLatencyMs)}
-          tooltipPlacement="top"
-        />
-      )}
-      <ExperimentAverageRunTokenCount
-        averageRunTokenCountTotal={averageRunTokenCountTotal}
-        experimentId={id}
-        size="S"
-      />
-      {baseAverages && averageRunTokenCountTotal != null && (
-        <ExperimentMetricDelta
-          delta={computeOperationalMetricDelta({
-            base: baseAverages.averageRunTokenCountTotal,
-            compare: averageRunTokenCountTotal,
-          })}
-          display="relative"
-          metricLabel="Average tokens per run"
-          formatter={numberFormatter}
-          compareValueText={numberFormatter(averageRunTokenCountTotal)}
-          baseValueText={numberFormatter(
-            baseAverages.averageRunTokenCountTotal
+      <ExperimentMetricStatRow>
+        {averageRunLatencyMs != null && (
+          <ExperimentMetricStat>
+            <LatencyText size="S" latencyMs={averageRunLatencyMs} />
+            {baseAverages && (
+              <ExperimentMetricDelta
+                delta={computeOperationalMetricDelta({
+                  base: baseAverages.averageRunLatencyMs,
+                  compare: averageRunLatencyMs,
+                })}
+                display="relative"
+                metricLabel="Average latency"
+                formatter={latencyMsFormatter}
+                compareValueText={latencyMsFormatter(averageRunLatencyMs)}
+                baseValueText={latencyMsFormatter(
+                  baseAverages.averageRunLatencyMs
+                )}
+                tooltipPlacement="top"
+              />
+            )}
+          </ExperimentMetricStat>
+        )}
+        <ExperimentMetricStat>
+          <ExperimentAverageRunTokenCount
+            averageRunTokenCountTotal={averageRunTokenCountTotal}
+            experimentId={id}
+            size="S"
+          />
+          {baseAverages && averageRunTokenCountTotal != null && (
+            <ExperimentMetricDelta
+              delta={computeOperationalMetricDelta({
+                base: baseAverages.averageRunTokenCountTotal,
+                compare: averageRunTokenCountTotal,
+              })}
+              display="relative"
+              metricLabel="Average tokens per run"
+              formatter={numberFormatter}
+              compareValueText={numberFormatter(averageRunTokenCountTotal)}
+              baseValueText={numberFormatter(
+                baseAverages.averageRunTokenCountTotal
+              )}
+              tooltipPlacement="top"
+            />
           )}
-          tooltipPlacement="top"
-        />
-      )}
-      {averageRunCostTotal != null && (
-        <ExperimentAverageRunTokenCosts
-          averageRunCostTotal={averageRunCostTotal}
-          experimentId={id}
-          size="S"
-        />
-      )}
-      {baseAverages && averageRunCostTotal != null && (
-        <ExperimentMetricDelta
-          delta={computeOperationalMetricDelta({
-            base: baseAverages.averageRunCostTotal,
-            compare: averageRunCostTotal,
-          })}
-          display="relative"
-          metricLabel="Average cost per run"
-          formatter={costFormatter}
-          compareValueText={costFormatter(averageRunCostTotal)}
-          baseValueText={costFormatter(baseAverages.averageRunCostTotal)}
-          tooltipPlacement="top"
-        />
-      )}
+        </ExperimentMetricStat>
+        {averageRunCostTotal != null && (
+          <ExperimentMetricStat>
+            <ExperimentAverageRunTokenCosts
+              averageRunCostTotal={averageRunCostTotal}
+              experimentId={id}
+              size="S"
+            />
+            {baseAverages && (
+              <ExperimentMetricDelta
+                delta={computeOperationalMetricDelta({
+                  base: baseAverages.averageRunCostTotal,
+                  compare: averageRunCostTotal,
+                })}
+                display="relative"
+                metricLabel="Average cost per run"
+                formatter={costFormatter}
+                compareValueText={costFormatter(averageRunCostTotal)}
+                baseValueText={costFormatter(baseAverages.averageRunCostTotal)}
+                tooltipPlacement="top"
+              />
+            )}
+          </ExperimentMetricStat>
+        )}
+      </ExperimentMetricStatRow>
     </Flex>
   );
 }

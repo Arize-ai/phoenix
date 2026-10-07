@@ -9,6 +9,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { dotSeparatedRowCSS } from "@phoenix/components/core/styles";
 import { classNames } from "@phoenix/utils/classNames";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -29,6 +30,39 @@ import {
 export type DeltaSize = "S" | "XS";
 
 export type DeltaTooltipPlacement = "end" | "top";
+
+const metricStatRowCSS = css`
+  ${dotSeparatedRowCSS}
+  white-space: nowrap;
+`;
+
+const metricStatCSS = css`
+  gap: var(--global-dimension-size-50);
+`;
+
+/**
+ * A row of metric stats separated by dots: latency · tokens · cost. Each child
+ * is one `ExperimentMetricStat`.
+ */
+export function ExperimentMetricStatRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="metric-stat-row" css={metricStatRowCSS}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * One metric value kept together with its delta inside an
+ * `ExperimentMetricStatRow`.
+ */
+export function ExperimentMetricStat({ children }: { children: ReactNode }) {
+  return (
+    <span className="metric-stat-row__stat" css={metricStatCSS}>
+      {children}
+    </span>
+  );
+}
 
 const metricDeltaCSS = css`
   display: inline-flex;

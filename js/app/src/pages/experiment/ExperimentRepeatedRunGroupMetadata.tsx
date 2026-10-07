@@ -1,11 +1,14 @@
 import { graphql, useFragment } from "react-relay";
 
-import { Flex } from "@phoenix/components";
 import {
   computeMeanPerRun,
   computeOperationalMetricDelta,
 } from "@phoenix/components/experiment/experimentDeltaUtils";
-import { ExperimentMetricDelta } from "@phoenix/components/experiment/ExperimentMetricDelta";
+import {
+  ExperimentMetricDelta,
+  ExperimentMetricStat,
+  ExperimentMetricStatRow,
+} from "@phoenix/components/experiment/ExperimentMetricDelta";
 import { ExperimentRepeatedRunGroupTokenCosts } from "@phoenix/components/experiment/ExperimentRepeatedRunGroupTokenCosts";
 import { ExperimentRepeatedRunGroupTokenCount } from "@phoenix/components/experiment/ExperimentRepeatedRunGroupTokenCount";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -139,49 +142,55 @@ export function ExperimentRepeatedRunGroupMetadata(props: {
     baseRunCount,
   });
   return (
-    <Flex direction="row" gap="size-100">
+    <ExperimentMetricStatRow>
       {averageLatencyMs != null && (
-        <LatencyText size="S" latencyMs={averageLatencyMs} />
+        <ExperimentMetricStat>
+          <LatencyText size="S" latencyMs={averageLatencyMs} />
+          {showDeltas && (
+            <RunGroupStatDelta
+              base={basePerRun.latencyMs}
+              compare={averageLatencyMs}
+              metricLabel="Latency"
+              formatter={latencyMsFormatter}
+              note={note}
+            />
+          )}
+        </ExperimentMetricStat>
       )}
-      {showDeltas && averageLatencyMs != null && (
-        <RunGroupStatDelta
-          base={basePerRun.latencyMs}
-          compare={averageLatencyMs}
-          metricLabel="Latency"
-          formatter={latencyMsFormatter}
-          note={note}
-        />
-      )}
-      <ExperimentRepeatedRunGroupTokenCount
-        tokenCountTotal={tokenCountTotal}
-        experimentRepeatedRunGroupId={id}
-        size="S"
-      />
-      {showDeltas && perRun.tokens != null && (
-        <RunGroupStatDelta
-          base={basePerRun.tokens}
-          compare={perRun.tokens}
-          metricLabel={isPerRun ? "Tokens per run" : "Total tokens"}
-          formatter={numberFormatter}
-          note={note}
-        />
-      )}
-      {costTotal != null && id ? (
-        <ExperimentRepeatedRunGroupTokenCosts
-          costTotal={costTotal}
+      <ExperimentMetricStat>
+        <ExperimentRepeatedRunGroupTokenCount
+          tokenCountTotal={tokenCountTotal}
           experimentRepeatedRunGroupId={id}
           size="S"
         />
+        {showDeltas && perRun.tokens != null && (
+          <RunGroupStatDelta
+            base={basePerRun.tokens}
+            compare={perRun.tokens}
+            metricLabel={isPerRun ? "Tokens per run" : "Total tokens"}
+            formatter={numberFormatter}
+            note={note}
+          />
+        )}
+      </ExperimentMetricStat>
+      {costTotal != null && id ? (
+        <ExperimentMetricStat>
+          <ExperimentRepeatedRunGroupTokenCosts
+            costTotal={costTotal}
+            experimentRepeatedRunGroupId={id}
+            size="S"
+          />
+          {showDeltas && perRun.cost != null && (
+            <RunGroupStatDelta
+              base={basePerRun.cost}
+              compare={perRun.cost}
+              metricLabel={isPerRun ? "Cost per run" : "Total cost"}
+              formatter={costFormatter}
+              note={note}
+            />
+          )}
+        </ExperimentMetricStat>
       ) : null}
-      {showDeltas && perRun.cost != null && (
-        <RunGroupStatDelta
-          base={basePerRun.cost}
-          compare={perRun.cost}
-          metricLabel={isPerRun ? "Cost per run" : "Total cost"}
-          formatter={costFormatter}
-          note={note}
-        />
-      )}
-    </Flex>
+    </ExperimentMetricStatRow>
   );
 }
