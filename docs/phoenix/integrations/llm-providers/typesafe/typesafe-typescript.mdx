@@ -7,7 +7,7 @@ description: Instrument TypeSafe AI SDK calls in TypeScript/Node.js
 
 [![NPM Version](https://img.shields.io/npm/v/@arizeai%2Fopeninference-instrumentation-typesafe.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-typesafe)
 
-This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for the [TypeSafe AI Node.js SDK](https://www.npmjs.com/package/@typesafe-ai/sdk) (`@typesafe-ai/sdk`). Each `TypeSafeClient.systemOne` call is captured as an OpenInference [`DECISION` span](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision) with JSON `input.value` / `output.value`, and the model and token usage recorded under `decision.*`.
+This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for the [TypeSafe AI Node.js SDK](https://www.npmjs.com/package/@typesafe-ai/sdk) (`@typesafe-ai/sdk`). Each `TypeSafeClient.systemOne` call is captured as an OpenInference [`DECISION` span](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision) with JSON `input.value` / `output.value`, and with the model and token usage recorded under `decision.*`.
 
 Requires Node.js 20+ and `@arizeai/openinference-instrumentation-typesafe >= 0.4.1`. `client.models.list()` is not instrumented.
 
@@ -84,7 +84,7 @@ Spans are exported in batches. In short-lived scripts, call `await provider.forc
 
 ## Observe
 
-With instrumentation enabled, each `systemOne` call shows up in Phoenix as a **DECISION span**, with the decision model named in the span's input card, containing:
+With instrumentation enabled, each `systemOne` call shows up in Phoenix as a **DECISION span** containing:
 
 - The full `state` and `questions` sent to TypeSafe as `input.value` (JSON)
 - The typed `answers` returned as `output.value` (JSON)
@@ -92,7 +92,7 @@ With instrumentation enabled, each `systemOne` call shows up in Phoenix as a **D
 - `decision.request.model_name`, `decision.response.model_name` (the resolved model), and `decision.model_name`
 - `decision.token_count.input` and `decision.token_count.output`, when reported by the SDK
 
-The model and its usage are recorded under `decision.*` rather than `llm.*`, following the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md), so decision-model calls are not counted as LLM usage in Phoenix's token and cost reporting. Releases before 0.4.1 recorded these calls as LLM spans with `llm.*` attributes.
+Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. Earlier releases recorded them under `llm.*`, and releases before 0.3.0 recorded them as LLM spans.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typesafe.png" alt="TypeSafe AI traces in Phoenix" />

@@ -4,7 +4,7 @@
 
 DECISION spans represent a call to a decision model: a model that takes some state plus a fixed set of typed questions and returns a typed, probabilistic answer for each question, rather than generating free-form text. Typical uses are routing (which agent, tool, or department handles a request), classification (judging a condition), and rubric scoring (ranking items against ordered levels).
 
-Known decision models: the OpenAI Decisions API (`client.decisions.create`, predicate / choice / score questions over text or images) and TypeSafe AI System One / Jev (Noul / Choice / Score questions). Both have OpenInference auto-instrumentors that emit DECISION spans (`openinference-instrumentation-openai` >= the Decisions release, `openinference-instrumentation-typesafe` >= 0.1.4 in Python and >= 0.4.1 in TypeScript).
+Known decision models: the OpenAI Decisions API (`client.decisions.create`, predicate / choice / score questions over text or images) and TypeSafe AI System One / Jev (Noul / Choice / Score questions). Both have OpenInference auto-instrumentors that emit DECISION spans: `openinference-instrumentation-openai` >= 0.1.64 and `openinference-instrumentation-typesafe` >= 0.1.4 in Python, `@arizeai/openinference-instrumentation-openai` >= 4.4.0 and `@arizeai/openinference-instrumentation-typesafe` >= 0.4.1 in TypeScript.
 
 Use DECISION instead of LLM when the output is a choice over caller-supplied options, not generated prose. Use EVALUATOR when the span scores a model's output for quality; use GUARDRAIL when it enforces a safety or policy check.
 

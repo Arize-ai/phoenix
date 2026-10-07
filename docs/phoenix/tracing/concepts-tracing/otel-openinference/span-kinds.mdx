@@ -49,7 +49,7 @@ OpenInference defines twelve span-kind values. The first four (LLM, Chain, Agent
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Unknown span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`UNKNOWN`** | Default when no kind is set explicitly. |
 
 <Note>
-**`DECISION` spans are new.** Phoenix renders them with their own icon and a dedicated span view that names the decision model, and the OpenInference OpenAI and TypeSafe AI instrumentors emit them for the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api) and [TypeSafe AI System One](/docs/phoenix/integrations/llm-providers/typesafe). Their `decision.*` attributes are described under [DECISION](#decision) below and may still evolve as more decision-model providers appear.
+**`DECISION` spans are new.** Phoenix renders them with their own icon and a span view that names the decision model. The OpenInference instrumentors for the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api) and [TypeSafe AI System One](/docs/phoenix/integrations/llm-providers/typesafe) emit them. The `decision.*` attributes are described under [DECISION](#decision) below and may still evolve as more decision-model providers appear.
 </Note>
 
 # Common Attributes Across All Kinds
@@ -140,26 +140,26 @@ Chain spans use only the common attributes — `input.value`, `output.value`, `m
 
 ## DECISION
 
-A call to a **decision model**: a model that takes some state plus a fixed set of typed questions and returns a typed, probabilistic answer for each question, instead of generating free-form text. Examples are the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api) (predicate, choice, and score questions over text or images) and [TypeSafe AI's System One / Jev](/docs/phoenix/integrations/llm-providers/typesafe) (Noul, Choice, and Score questions). Decision models are a natural fit for "smart if-statements" inside an application: routing a request to the right agent or department, classifying content, judging whether a condition holds, or scoring an item against a rubric.
+A call to a **decision model**. A decision model takes some state plus a fixed set of typed questions and returns one typed, probabilistic answer per question, instead of generating free-form text. Examples are the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api), which answers predicate, choice, and score questions over text or images, and [TypeSafe AI's System One / Jev](/docs/phoenix/integrations/llm-providers/typesafe), which answers Noul, Choice, and Score questions. Decision models suit the "smart if-statements" inside an application: routing a request to the right agent or department, classifying content, judging whether a condition holds, or scoring an item against a rubric.
 
-Decision spans use a `decision.*` namespace instead of `llm.*`, so decision-model usage is not mixed into LLM model, token, and cost reporting. The `decision.*` identification attributes mirror their `llm.*` counterparts and share the same well-known provider values (`openai`, `typesafe`, ...).
+Decision spans use a `decision.*` namespace instead of `llm.*`, so decision-model usage stays out of LLM model, token, and cost reporting. The `decision.*` identification attributes mirror their `llm.*` counterparts and share the same well-known values (`openai`, `typesafe`, and so on).
 
 | Attribute | Description |
 | :--- | :--- |
-| `decision.system` | The decision API the call conforms to, i.e. the request/response shape the client speaks (e.g. `openai` for the OpenAI Decisions API, `typesafe` for System One). Required. |
-| `decision.provider` | Who hosts the model that answered, when it differs from the system (e.g. `azure` for a Decisions call through Azure OpenAI, or a self-hosted deployment serving a TypeSafe-compatible API). |
+| `decision.system` | The decision API the call speaks, which fixes the request and response shape and the question types: `openai` for the OpenAI Decisions API, `typesafe` for System One. Required. |
+| `decision.provider` | Who hosts the model that answered. Usually the same as the system; differs for a Decisions call through Azure OpenAI (`azure`) or a self-hosted deployment serving a TypeSafe-compatible API. |
 | `decision.model_name` | The decision model that answered (e.g. `gpt-6-luna`, `jev-1.13.0`). Mirrors `llm.model_name`. |
 | `decision.request.model_name` | The model requested by the caller, when it can differ from the model that served the response (e.g. a floating alias such as `jev-latest`). |
 | `decision.response.model_name` | The model that actually produced the decision, as reported by the provider. |
 | `decision.token_count.input` | Input tokens consumed: the state, the questions, and the candidate options. |
-| `decision.token_count.output` | Output tokens produced. Usually a handful, since the answers are typed values rather than text, and some providers do not bill for them. There is no prompt/completion split and no total. |
+| `decision.token_count.output` | Output tokens produced. Usually a handful, since the answers are typed values rather than text, and some providers do not bill for them. |
 | `input.value` / `input.mime_type` | The raw request as JSON, including the candidate options. |
 | `output.value` / `output.mime_type` | The raw response as JSON, including the selection, probabilities, or scores. |
 
-A decision call is not a chat exchange, so decision spans carry no `llm.input_messages` or `llm.output_messages`, and they should not set `llm.system`, `llm.provider`, `llm.model_name`, or `llm.token_count.*`.
+Token counts have no prompt/completion split and no total, since a decision call has no chat-style prompt and completion. A decision call is not a chat exchange either, so decision spans carry no `llm.input_messages` or `llm.output_messages`, and they should not set `llm.system`, `llm.provider`, `llm.model_name`, or `llm.token_count.*`.
 
 <Info>
-**Phoenix UI behavior**: a DECISION span renders with the decision icon in the trace tree, and its details view shows the input and output cards with the decision model named in the input card header. The name comes from `decision.model_name`, falling back to `decision.response.model_name` and then `decision.request.model_name`, and is led by the provider's icon when `decision.provider` is one Phoenix knows. Because decision spans use `decision.token_count.*` rather than `llm.token_count.*`, their usage does not appear in LLM token and cost totals.
+**Phoenix UI behavior**: a DECISION span renders with the decision icon in the trace tree. Its details view shows the input and output cards, with the decision model named in the input card header. The name comes from `decision.model_name`, then `decision.response.model_name`, then `decision.request.model_name`, and is led by the provider's icon when Phoenix has one for `decision.provider`. Decision spans use `decision.token_count.*` rather than `llm.token_count.*`, so their usage does not appear in LLM token and cost totals.
 </Info>
 
 The full convention, including the system-versus-provider rules and a worked example, is in the OpenInference [decision spans specification](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md).
