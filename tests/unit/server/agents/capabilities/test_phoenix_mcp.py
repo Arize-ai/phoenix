@@ -27,7 +27,7 @@ from phoenix.server.bearer_auth import (
     PhoenixUser,
     bind_principal,
 )
-from phoenix.server.mcp_server import build_phoenix_mcp_server, uses_code_mode
+from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import (
     AccessTokenAttributes,
@@ -405,7 +405,7 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     discover, so they are pinned against the code-mode tool names."""
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_tools
+    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=True)
 
     for tool in ("execute", "call_tool", "search", "get_schema", "tags"):
         assert tool in rendered
@@ -424,7 +424,7 @@ def test_the_direct_instructions_name_no_code_mode_tool() -> None:
     """With code mode off there is no `execute`, so guidance must not steer toward it."""
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_direct_tools
+    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=False)
 
     for tool in ("execute", "call_tool", "get_schema", "list_tools"):
         assert f"`{tool}`" not in rendered
@@ -435,27 +435,11 @@ def test_the_direct_instructions_name_no_code_mode_tool() -> None:
     assert "read-only" in rendered.lower()
 
 
-@pytest.mark.parametrize("code_mode", [True, False])
-def test_uses_code_mode_reports_the_built_surface(code_mode: bool) -> None:
-    runtime = MontyRuntime()
-    mcp, sandbox = build_phoenix_mcp_server(
-        _rest_app([]),
-        monty_runtime=runtime,
-        code_mode=code_mode,
-        monty_consumer="agent",
-        read_only=True,
-        db=_unused_db(),
-    )
-
-    assert uses_code_mode(mcp) is code_mode
-    assert (sandbox is not None) is code_mode
-
-
 async def test_the_direct_instructions_account_for_every_directly_named_tool() -> None:
     """Without code mode the custom tools sit on `tools/list` beside the REST tools."""
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_direct_tools
+    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=False)
     mcp, _ = build_phoenix_mcp_server(
         _rest_app([]),
         code_mode=False,
@@ -482,7 +466,7 @@ async def test_the_instructions_account_for_every_directly_named_catalog_tool() 
     """
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_tools
+    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=True)
     runtime = MontyRuntime()
     mcp, _ = build_phoenix_mcp_server(
         _rest_app([]),

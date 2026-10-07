@@ -61,7 +61,6 @@ from phoenix.config import (
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
-    get_env_agents_mcp_code_mode,
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_allowed_sandbox_providers,
@@ -1245,9 +1244,8 @@ def create_app(
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
-    # The agent's own instance, independent of the mount and its configuration:
-    # PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, not PHOENIX_ENABLE_MCP_CODE_MODE,
-    # selects its code-mode surface. Read-only: mutations belong to the agent's
+    # The agent's own instance, built whether or not the mount is enabled and
+    # sharing its code-mode setting. Read-only: mutations belong to the agent's
     # editing tools, which route approval through the user. Its sandbox takes
     # the ``agent`` admission class, capped one below the worker pool size:
     # consumers compete for workers and a loser waits at checkout, but no
@@ -1258,7 +1256,7 @@ def create_app(
         pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
             app,
             monty_runtime=sandbox_runtime.monty,
-            code_mode=get_env_agents_mcp_code_mode(),
+            code_mode=get_env_mcp_code_mode(),
             monty_consumer="agent",
             read_only=True,
             db=db,

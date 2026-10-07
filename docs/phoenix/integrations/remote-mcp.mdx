@@ -281,7 +281,7 @@ These variables are set on the Phoenix server before startup:
 | Environment variable        | Default | Effect                                                                                                                              |
 | --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `PHOENIX_ENABLE_MCP_SERVER` | `true`  | Master switch. Set to `false` to remove the `/mcp` endpoint entirely.                                                               |
-| `PHOENIX_ENABLE_MCP_CODE_MODE`     | `true`  | Set to `false` to disable the MCP `execute` tool and expose plain, group-gated tools instead.                                      |
+| `PHOENIX_ENABLE_MCP_CODE_MODE`     | `true`  | Set to `false` to disable the MCP `execute` tool and expose plain, group-gated tools instead. Also applies to PXI's own connection. |
 | `PHOENIX_SKILLS_PATHS`      | unset   | Comma-separated paths to your own [Agent Skills](https://agentskills.io/specification), served alongside Phoenix's built-in skills. See below. |
 
 ### Mounting your own skills

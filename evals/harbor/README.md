@@ -113,16 +113,21 @@ compare the Phoenix interfaces under the same test conditions.
 | Agent | Runs | Reaches Phoenix through |
 | --- | --- | --- |
 | `phoenix-chat-agent` | PXI inside the Phoenix server | The agent session chat route |
-| `phoenix-chat-agent-no-code-mode` | PXI with `PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false` | The same route, with one MCP tool per endpoint instead of `execute` |
 | `claude-code-mcp` | Claude Code | The remote MCP server at `/mcp` |
 | `claude-code-cli` | Claude Code | `px`, built from this checkout, plus the public `phoenix-cli` skill |
 | `codex-mcp` | Codex | The remote MCP server |
 | `codex-cli` | Codex | The same px install and skill |
 | `oracle` | No agent | Each task's `solution/solve.sh`, run with `-a oracle` |
 
-`PhoenixChatAgent` takes `mcp_code_mode` in `kwargs`. When it is `false`, the agent restarts
-Phoenix during setup with `PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false`, so the two PXI
-conditions differ only in PXI's MCP tool surface. `trail-benchmark-dev.yaml` runs both.
+Harbor starts Phoenix from the task healthcheck before any agent runs, so a server setting
+has to be in the container's environment from the start. Each `task.toml` forwards
+`PHOENIX_ENABLE_MCP_CODE_MODE` from the host, defaulting to `true`. To benchmark the MCP
+surface without code mode, which gives PXI and the `/mcp` agents one tool per endpoint
+instead of `execute`, set it on the host and name the job after the condition:
+
+```bash
+PHOENIX_ENABLE_MCP_CODE_MODE=false make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml HARBOR_ARGS='--job-name trail-no-code-mode'
+```
 
 The agent phase runs as an unprivileged user that cannot open `/data/phoenix.db`. Agents
 must access the data through Phoenix. PXI runs inside the server and uses the server's

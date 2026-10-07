@@ -16,6 +16,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
+from phoenix.config import get_env_mcp_code_mode
 from phoenix.db.types.data_stream_protocol import EditPermission
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
@@ -52,7 +53,6 @@ from phoenix.server.agents.web_access import (
     build_web_search_capability,
 )
 from phoenix.server.api.context import Context
-from phoenix.server.mcp_server import uses_code_mode
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -143,12 +143,8 @@ def build_agent(
                     principal=principal,
                     id="phoenix_rest_api",
                 ),
-                # Read off the server so the guidance always names the tools
-                # the surface actually exposes.
-                instructions=(
-                    resolved_prompts.phoenix_mcp_tools
-                    if uses_code_mode(phoenix_mcp_server)
-                    else resolved_prompts.phoenix_mcp_direct_tools
+                instructions=resolved_prompts.phoenix_mcp_tools.render(
+                    code_mode=get_env_mcp_code_mode()
                 ),
                 initialize_instructions=phoenix_mcp_server.instructions,
             )

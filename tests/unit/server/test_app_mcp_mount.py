@@ -25,7 +25,6 @@ from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     MountPathNormalizer,
     create_phoenix_mcp_app,
-    uses_code_mode,
 )
 from phoenix.server.types import (
     AccessTokenAttributes,
@@ -358,22 +357,18 @@ class TestAgentMCPServerIsIndependentOfTheMount:
 
         assert app.state.pxi_mcp_server is None
 
-    @pytest.mark.parametrize("agent_code_mode", [True, False])
-    async def test_code_mode_follows_its_own_setting(
-        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, agent_code_mode: bool
+    @pytest.mark.parametrize("code_mode", [True, False])
+    async def test_code_mode_follows_the_setting_even_without_the_mount(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, code_mode: bool
     ) -> None:
-        """PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE decides; the mount's setting does not."""
-        monkeypatch.setenv(
-            "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE", "true" if agent_code_mode else "false"
-        )
-        monkeypatch.setenv("PHOENIX_ENABLE_MCP_CODE_MODE", "false" if agent_code_mode else "true")
+        """PHOENIX_ENABLE_MCP_CODE_MODE applies to the agent's surface, mount or not."""
+        monkeypatch.setattr("phoenix.server.app.get_env_mcp_code_mode", lambda: code_mode)
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
 
         app = await self._create_app(db)
 
         assert app.state.pxi_mcp_server is not None
-        assert uses_code_mode(app.state.pxi_mcp_server) is agent_code_mode
-        assert (app.state.pxi_mcp_sandbox is not None) is agent_code_mode
+        assert (app.state.pxi_mcp_sandbox is not None) is code_mode
 
     async def test_surface_is_read_only_except_note_creation(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch

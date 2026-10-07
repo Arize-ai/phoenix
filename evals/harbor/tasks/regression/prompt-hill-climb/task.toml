@@ -19,6 +19,7 @@ build_timeout_sec = 1200.0
 [environment.env]
 ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
 OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+PHOENIX_ENABLE_MCP_CODE_MODE = "${PHOENIX_ENABLE_MCP_CODE_MODE:-true}"
 
 [environment.healthcheck]
 command = "sh /opt/phoenix-eval/start_phoenix_server.sh"

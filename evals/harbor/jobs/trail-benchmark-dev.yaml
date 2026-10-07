@@ -48,12 +48,6 @@ agents:
     import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
     model_name: anthropic/claude-opus-5
     extra_allowed_hosts: [api.anthropic.com]
-  - name: phoenix-chat-agent-no-code-mode
-    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
-    model_name: anthropic/claude-opus-5
-    extra_allowed_hosts: [api.anthropic.com]
-    kwargs:
-      mcp_code_mode: false
 environment:
   type: daytona
   extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]

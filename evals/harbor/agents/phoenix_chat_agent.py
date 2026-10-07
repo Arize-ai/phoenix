@@ -1,7 +1,6 @@
 import json
 import shlex
 from pathlib import Path
-from typing import Any
 
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
@@ -12,18 +11,12 @@ from evals.harbor.agents.atif import llm_latencies_ms, trajectory_from_ui_messag
 _AGENT_DIR = "/installed-agent/phoenix-chat"
 _CHAT_CLIENT = Path(__file__).with_name("chat_client.py")
 _TURN_TIMEOUT_SECONDS = 1800.0
-_START_PHOENIX_SERVER = "/opt/phoenix-eval/start_phoenix_server.sh"
 
 
 class PhoenixChatAgent(BaseAgent):
     _step: int = 0
     _session_id: str | None = None
     _phoenix_version: str | None = None
-
-    def __init__(self, *args: Any, mcp_code_mode: bool = True, **kwargs: Any) -> None:
-        """``mcp_code_mode=False`` gives PXI one tool per endpoint instead of ``execute``."""
-        super().__init__(*args, **kwargs)
-        self._mcp_code_mode = mcp_code_mode
 
     @staticmethod
     def name() -> str:
@@ -33,16 +26,6 @@ class PhoenixChatAgent(BaseAgent):
         return self._phoenix_version
 
     async def setup(self, environment: BaseEnvironment) -> None:
-        if not self._mcp_code_mode:
-            # The task's healthcheck already started Phoenix with the default
-            # surface; restart it as root, which can read the fixture.
-            result = await environment.exec(
-                f"sh {_START_PHOENIX_SERVER} --restart",
-                env={"PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE": "false"},
-                user="root",
-            )
-            if result.return_code != 0:
-                raise RuntimeError(f"Could not restart Phoenix: {result.stderr or result.stdout}")
         await environment.exec(f"mkdir -p {_AGENT_DIR}", user="root")
         await environment.upload_file(_CHAT_CLIENT, f"{_AGENT_DIR}/{_CHAT_CLIENT.name}")
         version = await self._exec(

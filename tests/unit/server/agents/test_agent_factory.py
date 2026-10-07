@@ -834,8 +834,12 @@ class TestPhoenixMCPTools:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
         headless: bool,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Guidance for `execute` on a surface without it costs failed calls."""
+        monkeypatch.setattr(
+            "phoenix.server.agents.agent_factory.get_env_mcp_code_mode", lambda: False
+        )
         agent = build_agent(
             model=anthropic_model,
             headless=headless,
@@ -848,8 +852,8 @@ class TestPhoenixMCPTools:
         assert "execute" not in tool_names
         assert any(name.startswith("projects_v1") for name in tool_names)
         joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert _DEFAULT_PROMPTS.phoenix_mcp_direct_tools in joined_system
-        assert _DEFAULT_PROMPTS.phoenix_mcp_tools not in joined_system
+        assert _DEFAULT_PROMPTS.phoenix_mcp_tools.render(code_mode=False) in joined_system
+        assert _DEFAULT_PROMPTS.phoenix_mcp_tools.render(code_mode=True) not in joined_system
 
 
 class TestRouteInfoTool:
