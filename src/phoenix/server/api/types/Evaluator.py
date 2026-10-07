@@ -181,9 +181,9 @@ class ProjectEvaluatorRunSummary:
     failed_count: int = strawberry.field(description="Evaluations that were given up on.")
     dropped_count: int = strawberry.field(
         description=(
-            "Evaluations removed from the queue before they ran, because a user cleared the "
-            "queue or turned the evaluator on or off. They are not failures and do not "
-            "affect the status."
+            "Evaluations removed from the queue before they ran, because a user cleared them "
+            "or the evaluator was disabled when their turn came. They are not failures and do "
+            "not affect the status."
         )
     )
     last_error: Optional[str] = strawberry.field(

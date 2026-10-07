@@ -267,7 +267,7 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     documentation="Total number of online-eval work units that left the queue, by outcome: "
     "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), or cleared "
     "(DROPPED, removed from the queue before it ran: the queue was cleared, or its evaluator "
-    f"was turned on or off). {_SUMS_ACROSS_REPLICAS}",
+    f"was disabled when its turn came). {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
 
