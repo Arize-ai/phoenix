@@ -5,4 +5,3 @@ export * from "./ProfileAuthorizedApplicationsPage";
 export * from "./ProfileGenerativeAIPage";
 export * from "./ProfilePage";
 export * from "./ProfilePreferencesPage";
-export * from "./ProfileStoragePage";

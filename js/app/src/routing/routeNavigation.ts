@@ -23,7 +23,6 @@ const routeNavigationMetadataSchema = z
       "Eye",
       "GraphQL",
       "Grid",
-      "HardDrive",
       "Key",
       "Link2",
       "MessageCircle",

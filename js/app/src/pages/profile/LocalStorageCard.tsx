@@ -1,14 +1,16 @@
-import { css } from "@emotion/react";
 import { useState } from "react";
 
 import {
   Button,
   Card,
+  ContextualHelp,
   Dialog,
   DialogTrigger,
   Flex,
   Icon,
   Icons,
+  List,
+  ListItem,
   Modal,
   ModalOverlay,
   Text,
@@ -22,45 +24,13 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import type {
-  LocalStorageStoreId,
-  LocalStorageStoreUsage,
-} from "@phoenix/utils/localStorageUsageUtils";
+import type { LocalStorageStoreUsage } from "@phoenix/utils/localStorageUsageUtils";
 import {
   clearAllLocalStorageStores,
   clearLocalStorageStore,
   readLocalStorageUsage,
 } from "@phoenix/utils/localStorageUsageUtils";
 import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
-
-const storageListCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-`;
-
-const storageRowCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--global-dimension-size-200);
-  padding: var(--global-dimension-size-150);
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-medium);
-  background: var(--global-background-color-primary);
-
-  .storage-row__details {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: var(--global-dimension-size-75);
-    min-width: 0;
-  }
-`;
 
 type Usage = { entryCount: number; sizeBytes: number };
 
@@ -146,49 +116,47 @@ function ClearStorageDialog({
   );
 }
 
-function StorageStoreRow({
-  store,
-  onClear,
-}: {
-  store: LocalStorageStoreUsage;
-  onClear: (storeId: LocalStorageStoreId) => void;
-}) {
+function StorageStoreRow({ store }: { store: LocalStorageStoreUsage }) {
   const isEmpty = store.entryCount === 0;
+  const label = store.label.toLowerCase();
   return (
-    <li css={storageRowCSS} data-testid={`storage-store-${store.id}`}>
-      <span className="storage-row__details">
-        <Text weight="heavy">{store.label}</Text>
+    <ListItem>
+      <Flex direction="row" alignItems="center" gap="size-100">
+        <Flex flex="1 1 auto" minWidth={0} alignItems="center" gap="size-50">
+          <Text>{store.label}</Text>
+          <ContextualHelp variant="info" triggerAriaLabel={`About ${label}`}>
+            {store.description}
+          </ContextualHelp>
+        </Flex>
         <Text color="text-500" size="S">
-          {store.description}
-        </Text>
-        <Text color="text-700" size="S">
           {formatUsage(store)}
         </Text>
-      </span>
-      <DialogTrigger>
-        <Button
-          size="S"
-          isDisabled={isEmpty}
-          leadingVisual={<Icon svg={<Icons.Trash />} />}
-          aria-label={`Clear ${store.label.toLowerCase()} storage`}
-        >
-          Clear
-        </Button>
-        <ClearStorageDialog
-          title={`Clear ${store.label.toLowerCase()}`}
-          message={`This removes ${describeUsage(store)} from this browser. ${store.description}`}
-          confirmLabel="Clear"
-          onConfirm={() => onClear(store.id)}
-        />
-      </DialogTrigger>
-    </li>
+        <DialogTrigger>
+          <Button
+            size="S"
+            variant="quiet"
+            isDisabled={isEmpty}
+            leadingVisual={<Icon svg={<Icons.Trash />} />}
+            aria-label={`Clear ${label}`}
+          />
+          <ClearStorageDialog
+            title={`Clear ${label}`}
+            message={`This removes ${describeUsage(store)} from this browser. ${store.description}`}
+            confirmLabel="Clear"
+            onConfirm={() =>
+              clearAndReload(() => clearLocalStorageStore(store.id))
+            }
+          />
+        </DialogTrigger>
+      </Flex>
+    </ListItem>
   );
 }
 
-export function ProfileStoragePage() {
+export function LocalStorageCard() {
   // Read once on mount: every clear reloads the page, so there is no
   // in-session state to keep in sync.
-  const [usage] = useState(() => readLocalStorageUsage());
+  const [usage] = useState(readLocalStorageUsage);
   const isEmpty = usage.totalEntryCount === 0;
   const totalUsage: Usage = {
     entryCount: usage.totalEntryCount,
@@ -197,7 +165,19 @@ export function ProfileStoragePage() {
 
   return (
     <Card
-      title="Browser Storage"
+      title="Local Storage"
+      titleExtra={
+        <ContextualHelp variant="info" triggerAriaLabel="About local storage">
+          Phoenix keeps your preferences and UI state in this browser&apos;s
+          local storage. Nothing here is sent to the server. Clearing a section
+          resets it to its defaults on this device only.
+        </ContextualHelp>
+      }
+      subTitle={
+        isEmpty
+          ? "Nothing is stored"
+          : `${describeUsage(totalUsage)} stored in this browser`
+      }
       extra={
         <DialogTrigger>
           <Button
@@ -209,41 +189,19 @@ export function ProfileStoragePage() {
             Clear all
           </Button>
           <ClearStorageDialog
-            title="Clear all browser storage"
+            title="Clear all local storage"
             message={`This removes ${describeUsage(totalUsage)} that Phoenix has stored in this browser, including preferences, layouts, playground state, and model provider credentials.`}
             confirmLabel="Clear all"
-            onConfirm={() => clearAndReload(() => clearAllLocalStorageStores())}
+            onConfirm={() => clearAndReload(clearAllLocalStorageStores)}
           />
         </DialogTrigger>
       }
     >
-      <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          <Flex direction="column" gap="size-75">
-            <Text color="text-700">
-              Phoenix keeps your preferences and UI state in this browser&apos;s
-              local storage. Nothing here is sent to the server. Clearing a
-              section resets it to its defaults on this device only.
-            </Text>
-            <Text color="text-500" size="S" data-testid="storage-total">
-              {isEmpty
-                ? "Nothing is currently stored."
-                : `${describeUsage(totalUsage)} stored across all sections.`}
-            </Text>
-          </Flex>
-          <ul css={storageListCSS} aria-label="Browser storage sections">
-            {usage.stores.map((store) => (
-              <StorageStoreRow
-                key={store.id}
-                store={store}
-                onClear={(storeId) =>
-                  clearAndReload(() => clearLocalStorageStore(storeId))
-                }
-              />
-            ))}
-          </ul>
-        </Flex>
-      </View>
+      <List size="S" aria-label="Local storage sections">
+        {usage.stores.map((store) => (
+          <StorageStoreRow key={store.id} store={store} />
+        ))}
+      </List>
     </Card>
   );
 }

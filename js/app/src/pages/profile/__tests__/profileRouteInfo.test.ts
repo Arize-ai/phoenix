@@ -19,7 +19,7 @@ describe("profile route information", () => {
         path: "/profile",
         label: "Profile",
         description:
-          "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and browser storage.",
+          "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and local storage.",
       },
       {
         path: "/profile/account",
@@ -43,7 +43,7 @@ describe("profile route information", () => {
         path: "/profile/preferences",
         label: "Profile Preferences",
         description:
-          "Choose your theme, timezone, code language, and package manager defaults.",
+          "Choose your theme, timezone, code language, and package manager defaults, and see or clear what Phoenix keeps in this browser's local storage.",
       },
       {
         path: "/profile/accessibility",
@@ -57,12 +57,6 @@ describe("profile route information", () => {
         description:
           "Configure generative AI features: enable AI query for filter fields, choose the model — your browser's built-in on-device AI or a model provider with an API key — and manage the on-device model (download status, download it ahead of time, how to remove it).",
       },
-      {
-        path: "/profile/storage",
-        label: "Profile Browser Storage",
-        description:
-          "See how much local storage Phoenix uses in this browser, broken down by preferences, layouts, tables, playground, model provider credentials, assistant, chat, filter history, and recently viewed, and clear any section or all of it to reset to defaults.",
-      },
     ]);
   });
 
@@ -73,7 +67,7 @@ describe("profile route information", () => {
     ["change my timezone", "/profile/preferences"],
     ["use native scrollbars", "/profile/accessibility"],
     ["enable AI query", "/profile/generative-ai"],
-    ["clear local storage", "/profile/storage"],
+    ["clear local storage", "/profile/preferences"],
   ])("finds %s at %s", (query, expectedPath) => {
     const result = getRouteInfoFromCatalog({
       catalog,

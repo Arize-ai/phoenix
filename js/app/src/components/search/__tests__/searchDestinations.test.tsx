@@ -35,7 +35,6 @@ describe("search destinations", () => {
       "Preferences",
       "Accessibility",
       "Generative AI",
-      "Browser Storage",
     ]);
   });
 
@@ -80,12 +79,7 @@ describe("search destinations", () => {
     expect(sections).toHaveLength(1);
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual([
-      "Preferences",
-      "Accessibility",
-      "Generative AI",
-      "Browser Storage",
-    ]);
+    ).toEqual(["Preferences", "Accessibility", "Generative AI"]);
   });
 
   it("provides a direct destination and icon for every profile section", () => {
@@ -126,7 +120,7 @@ describe("search destinations", () => {
       {
         path: "/profile/preferences",
         label: "Preferences",
-        description: "Theme, timezone, and code defaults",
+        description: "Theme, timezone, code defaults, and local storage",
         icon: "Options",
         requiresViewer: false,
       },
@@ -142,13 +136,6 @@ describe("search destinations", () => {
         label: "Generative AI",
         description: "AI query and model configuration",
         icon: "Sparkles",
-        requiresViewer: false,
-      },
-      {
-        path: "/profile/storage",
-        label: "Browser Storage",
-        description: "Inspect and clear locally stored UI state",
-        icon: "HardDrive",
         requiresViewer: false,
       },
     ]);
