@@ -10,6 +10,7 @@ def g(k,x,y,sc): return re.sub(r'^<g transform="translate\([\d. ]+\)"',f'<g tran
 phx=lambda x,y,w,h:f'<svg x="{x}" y="{y}" width="{w}" height="{h}" viewBox="0 0 305.92 350.13" aria-hidden="true"><use href="#phoenix"/></svg>'
 pxi=lambda x,y,w:f'<svg x="{x}" y="{y}" width="{w}" height="{w}" viewBox="0 0 18.5 18.5" fill="var(--text)" aria-hidden="true"><rect x="0" y="0" width="5.5" height="5.5" rx="1.1"/><rect x="13" y="0" width="5.5" height="5.5" rx="1.1"/><rect x="6.5" y="6.5" width="5.5" height="5.5" rx="1.1"/><rect x="0" y="13" width="5.5" height="5.5" rx="1.1"/><rect x="13" y="13" width="5.5" height="5.5" rx="1.1"/></svg>'
 robot=lambda x,y,w:f'<svg x="{x}" y="{y}" width="{w}" height="{w}" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="9" width="14" height="10" rx="3"/><path d="M12 5v4M9 14h.01M15 14h.01"/><circle cx="12" cy="4" r="1"/></svg>'
+cyl=lambda x,y:f'<g transform="translate({x} {y})" fill="none" stroke="var(--text)" stroke-width="1.7" stroke-linecap="round"><ellipse cx="10" cy="4.5" rx="8" ry="3"/><path d="M2 4.5 V15.5 C2 17.2 5.6 18.5 10 18.5 C14.4 18.5 18 17.2 18 15.5 V4.5"/><path d="M2 10 C2 11.7 5.6 13 10 13 C14.4 13 18 11.7 18 10"/></g>'
 layers=lambda x,y:f'<g transform="translate({x} {y})" fill="none" stroke="var(--text)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2 L18 6.5 L10 11 L2 6.5 Z"/><path d="M2 10.5 L10 15 L18 10.5"/><path d="M2 14.5 L10 19 L18 14.5"/></g>'
 ar_r=lambda x,y:f'<path d="M{x-8} {y-6} L{x} {y} L{x-8} {y+6}" {H}/>'
 ar_l=lambda x,y:f'<path d="M{x+8} {y-6} L{x} {y} L{x+8} {y+6}" {H}/>'
@@ -53,7 +54,7 @@ oy=MCP[0]; oh=API[0]+API[1]-oy; rc=oy+oh//2; A('<g class="ap-live">'+box(440,oy,
   +box(240,oy,120,oh)+svg('otel',288,oy+24,24)+lbl(300,oy+70,'Your AI app',16,' text-anchor="middle"')+sub(300,oy+92,'OTEL EXPORTER',11,' text-anchor="middle"')+wire(f'M360 {rc} H440')+ar_r(440,rc)+'</g>')
 # database
 dy=DB[0]; A(wire(f'M795 {cy+CORE[1]} V{dy}')+ar_d(795,dy))
-A(box(L,dy,RIGHT-L,DB[1])+lbl(L+20,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+26,dy+55,18)+lbl(L+52,dy+70,'SQLite',16)+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+173,dy+55,18)+lbl(L+197,dy+70,'PostgreSQL',15.5))
+A(box(L,dy,RIGHT-L,DB[1])+cyl(L+20,dy+12)+lbl(L+50,dy+28,'Database',18)+box(L+12,dy+44,137,40,'hx-env',10)+svg('sqlite',L+26,dy+55,18)+lbl(L+52,dy+70,'SQLite',16)+box(L+161,dy+44,137,40,'hx-env',10)+svg('pg',L+173,dy+55,18)+lbl(L+197,dy+70,'PostgreSQL',15.5))
 A(wire(f'M{RIGHT} {my+24} H968 A7 7 0 0 1 982 {my+24} H1030 V{dy+46} H{RIGHT}')+ar_l(RIGHT,dy+46))   # MCP -> SQL -> database
 # legend
 A('<text class="hx-band a" x="1120" y="16">THREE SURFACES</text>')
