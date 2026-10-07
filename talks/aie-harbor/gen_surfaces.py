@@ -38,7 +38,7 @@ A(box(825,0,130,84)+g('browser',876,10,0.7).replace('</g>',phx(14,10,16,18)+'</g
 A(wire(f'M890 84 V{PXI[0]}')+ar_d(890,PXI[0]))                                            # browser -> PXI
 A(badge(610,112,'1')+badge(750,112,'2')+badge(890,112,'3'))
 # server stack
-py=PXI[0]; A(box(Rc,py,CW,PXI[1],'hx-env',10)+pxi(Rc+24,py+24,22)+lbl(Rc+58,py+34,'PXI',18)+sub(Rc+58,py+52,'AGENT RUNTIME',11))
+py=PXI[0]; A(box(Rc,py,CW,PXI[1],'hx-env',10)+pxi(Rc+40,py+24,22)+lbl(Rc+74,py+42,'PXI',18))
 A(wire(f'M830 {py+PXI[1]} V{MCP[0]}')+ar_d(830,MCP[0]))                                   # PXI -> MCP
 gy=API[0]+24; A(wire(f'M{RIGHT} {py+35} H975 V{gy} H{RIGHT}')+ar_l(RIGHT,gy))             # PXI -> GraphQL
 my=MCP[0]; A(box(L,my,RIGHT-L,MCP[1],'hx-env',10)+svg('mcp',759,my+12,24)+lbl(793,my+30,'MCP',18))
