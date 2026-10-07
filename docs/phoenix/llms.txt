@@ -245,9 +245,9 @@
 
 ### LLM Providers
 
-- [OpenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-tracing): Auto-instrument OpenAI Python SDK with openinference-instrumentation-openai
+- [OpenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-tracing): Auto-instrument the OpenAI Python SDK, including the Decisions API, with openinference-instrumentation-openai
 - [OpenAI Agents SDK Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing): Trace OpenAI Agents SDK workflows including tool calls and handoffs
-- [OpenAI Node.js SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk): Instrument OpenAI calls in TypeScript/Node.js
+- [OpenAI Node.js SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk): Instrument OpenAI calls, including the Decisions API, in TypeScript/Node.js
 - [OpenAI Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk): Instrument openai/openai-go with openinference-instrumentation-openai-go middleware
 - [Anthropic Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing): Auto-instrument Anthropic Python SDK
 - [Anthropic TypeScript SDK](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript): Instrument Anthropic calls in TypeScript
@@ -267,8 +267,8 @@
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [Cloudflare AI Gateway Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing): Configure Cloudflare AI Gateway to export OpenTelemetry gen_ai spans to Phoenix over OTLP
 - [Together AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing): Auto-instrument the Together AI Python SDK with openinference-instrumentation-together
-- [TypeSafe AI Tracing (Python)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python): Auto-instrument TypeSafe AI SDK system_one calls in Python with openinference-instrumentation-typesafe
-- [TypeSafe AI Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript): Auto-instrument TypeSafe AI SDK systemOne calls in TypeScript with @arizeai/openinference-instrumentation-typesafe
+- [TypeSafe AI Tracing (Python)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python): Trace TypeSafe AI SDK system_one calls as DECISION spans in Python with openinference-instrumentation-typesafe
+- [TypeSafe AI Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript): Trace TypeSafe AI SDK systemOne calls as DECISION spans in TypeScript with @arizeai/openinference-instrumentation-typesafe
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
 
 ### Python Frameworks
@@ -446,7 +446,7 @@
 - [Tracer Provider and Tracer](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider): Configure the central OpenTelemetry tracing object and handle shutdown on Lambda and Node.js
 - [phoenix.otel Helpers](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers): Collapse OpenTelemetry setup into one register() call with arize-phoenix-otel
 - [OpenInference Semantic Conventions](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions): Standardized span attribute names that make AI trace data portable across tools and languages
-- [OpenInference Span Kinds](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds): The eleven span kinds — LLM, Tool, Agent, Chain, Retriever — and their canonical attributes
+- [OpenInference Span Kinds](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds): Set openinference.span.kind and the per-kind attributes for the twelve span kinds, from LLM and Tool to the decision-model DECISION kind
 - [Instrumentation Approaches](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches): Compare auto, manual, and hybrid instrumentation and the custom span processor pattern
 - [OpenInference Context Managers](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers): Attach session IDs, user IDs, metadata, tags, and prompt templates to spans in scope
 - [Context Propagation](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation): Carry trace context across async boundaries, threads, and microservices

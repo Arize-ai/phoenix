@@ -41,7 +41,62 @@ print(response.choices[0].message.content)
 
 ## Observe
 
-Now that you have tracing setup, all invocations of OpenAI (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+Now that you have tracing setup, all invocations of OpenAI (chat completions, completions, the Responses API, embeddings, images, and decisions) will be streamed to your running Phoenix for observability and evaluation.
+
+## Decisions API
+
+The [OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`client.decisions.create`) asks a decision model a fixed set of typed questions about some text or images and returns one typed, probabilistic answer per question instead of generated text. Use it for routing, classification, and scoring inside your application.
+
+Requires `openai >= 3.26.0` and `openinference-instrumentation-openai >= 0.1.64`. Decisions calls are traced automatically with the same setup as above:
+
+```python expandable
+import openai
+
+client = openai.OpenAI()
+decision = client.decisions.create(
+    model="gpt-6-luna",
+    input="I was charged twice for my order.",
+    questions=[
+        {
+            "type": "predicate",
+            "name": "is_refund",
+            "instructions": "Is this a refund request?",
+        },
+        {
+            "type": "choice",
+            "name": "department",
+            "instructions": "Which department should handle this complaint?",
+            "choices": [
+                {"value": "billing", "description": "Payments, invoices, and refunds."},
+                {"value": "technical", "description": "Problems using the product."},
+                {"value": "shipping", "description": "Delivery and tracking."},
+            ],
+        },
+        {
+            "type": "score",
+            "name": "urgency",
+            "instructions": "How urgent is this message?",
+            "levels": [
+                {"label": "low", "description": "Can wait a week."},
+                {"label": "medium"},
+                {"label": "high", "description": "Needs a reply today."},
+            ],
+        },
+    ],
+)
+for answer in decision.answers:
+    print(answer.model_dump_json())
+```
+
+Each call shows up in Phoenix as a **[DECISION span](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision)** rather than an LLM span, with the decision model named in the span's input card:
+
+- `input.value`: the request body (`model`, `input`, `questions`) as JSON
+- `output.value`: the response body (`answers`, `model`, `usage`) as JSON
+- `decision.system`: `openai`, and `decision.provider`: inferred from the client's host (`openai`, or `azure` for Azure OpenAI)
+- `decision.request.model_name`, `decision.response.model_name`, and `decision.model_name`
+- `decision.token_count.input` and `decision.token_count.output`, from the response's `usage`
+
+The model and its usage are recorded under `decision.*` rather than `llm.*`, so decision-model calls are not counted as LLM usage in Phoenix's token and cost reporting. Because the questions and answers live only in `input.value` and `output.value`, `TraceConfig(hide_inputs=True)` and `hide_outputs=True` redact them completely, and `hide_input_images` applies to inline images in the input.
 
 ## Resources
 

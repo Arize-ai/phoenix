@@ -62,4 +62,4 @@ There are exactly **10 valid span kinds** in OpenInference (plus `PROMPT` and `U
 | `AGENT` | Autonomous reasoning | ReAct agents, planning loops |
 | `GUARDRAIL` | Safety/policy checks | Content moderation, PII detection |
 | `EVALUATOR` | Quality assessment | Answer relevance, faithfulness scoring |
-| `DECISION` | Decision model call (experimental) | Routing, classification, rubric scoring over candidate options |
+| `DECISION` | Decision model call | Routing, classification, rubric scoring over candidate options (OpenAI Decisions API, TypeSafe System One) |
