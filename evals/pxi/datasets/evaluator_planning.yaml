@@ -1,11 +1,12 @@
 dataset_name: evaluator_planning
-description: PXI server-side eval suite for the plan-first evaluator workflow. Positive cases check that,
-  once the records are read, PXI writes its plan file (/home/user/workspace/evaluator-plans/<name>.md
-  with criteria and positive, negative, boundary, and malformed calibration cases) before any draft edit,
-  preview, or save, on the code form, the LLM form, the playground, in the background, and on the terminal;
-  that manual edit permission waits for plan approval while bypass keeps going; and that the terminal
-  previews before saving. Negative cases check that reads write no plan. Report-only (non-gating) until
-  baselines exist; see thresholds.yaml.
+description: PXI server-side eval suite for the plan-first evaluator workflow. Positive cases check that
+  PXI reads real records before planning; that, once the records are read, it writes its plan file
+  (/home/user/workspace/evaluator-plans/<name>.md with criteria and positive, negative, boundary, and
+  malformed calibration cases) before any draft edit, preview, or save, on the code form, the LLM form,
+  the playground, in the background, and on the terminal; that manual edit permission waits for plan
+  approval while bypass keeps going, and an approved plan is read back before work resumes; and that the
+  terminal previews before saving. Negative cases check that reads write no plan. Report-only
+  (non-gating) until baselines exist; see thresholds.yaml.
 evaluators:
 - correct_tools_called
 - tool_call_args_match
@@ -407,6 +408,30 @@ examples:
         stderrBytes: 0
         stdoutTruncated: false
         stderrTruncated: false
+    - role: assistant
+      tool_calls:
+      - id: sandbox-check
+        name: bash
+        args:
+          summary: Confirm a sandbox is usable for a code evaluator.
+          command: 'phoenix-gql ''query { sandboxBackends { backendType status } sandboxProviders { backendType
+            enabled configs { id enabled } } }'''
+    - role: tool
+      tool_call_id: sandbox-check
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { sandboxBackends { backendType status } sandboxProviders { backendType
+          enabled configs { id enabled } } }'''
+        stdout: '{"data":{"sandboxBackends":[{"backendType":"WASM","status":"AVAILABLE"}],"sandboxProviders":[{"backendType":"WASM","enabled":true,"configs":[{"id":"U2FuZGJveENvbmZpZzox","enabled":true}]}]}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:01Z'
+        completedAt: '2026-10-07T17:00:01.001Z'
+        stdoutBytes: 190
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
   expected:
     tools:
       required:
@@ -432,8 +457,8 @@ examples:
     annotation:
       agreement: high
       n_opinions: 1
-      notes: 'Background authoring still plans first, even for a simple check and under bypass: the plan
-        comes before the first mutation.'
+      notes: 'Background authoring still plans first, even for a simple check and under bypass: with the
+        records read and a sandbox confirmed, the plan comes before the first mutation.'
 - id: manual-waits-for-plan-approval
   splits:
   - regression
@@ -506,7 +531,7 @@ examples:
     - role: tool
       tool_call_id: search-ops
       name: search_browser_actions
-      content: |-
+      content: &catalog |-
         // Complete catalog: all 5 UI operations, best query matches first.
         // Further search_browser_actions calls return these same operations re-ranked — reuse
         // this catalog instead of searching again. Only per-operation availability
@@ -641,6 +666,48 @@ examples:
       n_opinions: 1
       notes: Under manual edit permission the plan is presented for approval; nothing in the draft changes
         until the user approves it.
+- id: code-form-reads-before-planning
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: code_evaluator
+    messages:
+    - role: user
+      content: Write a code evaluator that checks the answer cites at least one of the retrieved document
+        ids, like [kb-12].
+    - role: assistant
+      tool_calls:
+      - id: search-ops
+        name: search_browser_actions
+        args:
+          query: code evaluator draft read edit test submit
+    - role: tool
+      tool_call_id: search-ops
+      name: search_browser_actions
+      content: *catalog
+  expected:
+    ui_operations:
+      required:
+      - evaluators.code.read
+      forbidden: *id002
+    forbidden_tool_call_args:
+      bash:
+        command:
+          contains_all:
+          - /home/user/workspace/evaluator-plans/
+  metadata:
+    category: read_before_plan
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: The operation catalog is known but nothing has been read yet. The plan names the record shape,
+        so the next step is reading the draft (its testPayload is a real example), not writing the plan
+        from assumptions about where the document ids live.
 - id: bypass-continues-after-plan
   splits:
   - regression
@@ -1050,9 +1117,19 @@ examples:
     - role: user
       content: Looks good, go ahead.
   expected:
-    ui_operations:
+    tools:
       required:
-      - evaluators.code.edit
+      - bash
+    ui_operations:
+      forbidden: *id002
+    tool_call_args:
+      bash:
+        command:
+          contains_all:
+          - cat
+          - /home/user/workspace/evaluator-plans/cites_document.md
+          not_contains:
+          - '>'
   metadata:
     category: approval
     difficulty: moderate
@@ -1060,7 +1137,9 @@ examples:
     annotation:
       agreement: high
       n_opinions: 1
-      notes: Once the user approves the plan, editing proceeds.
+      notes: Once the user approves the plan, the turn resumes from the plan on record, so it reads the
+        plan file back before the first edit. The bash tool is recorded, not run, so the turn ends there;
+        the edit follows in a real session.
 - id: terminal-plan-before-graphql
   splits:
   - regression
@@ -1097,6 +1176,30 @@ examples:
         stderrBytes: 0
         stdoutTruncated: false
         stderrTruncated: false
+    - role: assistant
+      tool_calls:
+      - id: inventory
+        name: bash
+        args:
+          summary: Check whether the dataset already has an evaluator for this.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { datasetEvaluators(first:
+            20) { edges { node { id name evaluator { id name kind } } } } } } }'''
+    - role: tool
+      tool_call_id: inventory
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { datasetEvaluators(first:
+          20) { edges { node { id name evaluator { id name kind } } } } } } }'''
+        stdout: '{"data":{"node":{"datasetEvaluators":{"edges":[]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:01Z'
+        completedAt: '2026-10-07T17:00:01.001Z'
+        stdoutBytes: 52
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
   expected:
     tools:
       required:
@@ -1112,7 +1215,8 @@ examples:
     annotation:
       agreement: high
       n_opinions: 1
-      notes: The terminal has no forms; the plan file is still written first.
+      notes: The terminal has no forms; with the records and the existing evaluators read, the plan file
+        is written before anything else.
 - id: terminal-previews-before-saving
   splits:
   - regression
@@ -1146,6 +1250,30 @@ examples:
         startedAt: '2026-10-07T17:00:00Z'
         completedAt: '2026-10-07T17:00:00.001Z'
         stdoutBytes: 554
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+    - role: assistant
+      tool_calls:
+      - id: inventory
+        name: bash
+        args:
+          summary: Check whether the dataset already has an evaluator for this.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { datasetEvaluators(first:
+            20) { edges { node { id name evaluator { id name kind } } } } } } }'''
+    - role: tool
+      tool_call_id: inventory
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { datasetEvaluators(first:
+          20) { edges { node { id name evaluator { id name kind } } } } } } }'''
+        stdout: '{"data":{"node":{"datasetEvaluators":{"edges":[]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:01Z'
+        completedAt: '2026-10-07T17:00:01.001Z'
+        stdoutBytes: 52
         stderrBytes: 0
         stdoutTruncated: false
         stderrTruncated: false
@@ -1266,9 +1394,14 @@ examples:
           contains_any:
           - evaluatorPreviews
           - EvaluatorPreview
+          - phoenix-gql schema
     forbidden_tool_call_args:
       bash:
+        # A save is a mutation document naming a create; a schema lookup that mentions
+        # the same name is not.
         command:
+          contains_all:
+          - mutation
           contains_any:
           - createCodeEvaluator
           - createDatasetCodeEvaluator
@@ -1280,7 +1413,42 @@ examples:
       agreement: high
       n_opinions: 1
       notes: With mutations enabled, the next step after the plan is a preview of the calibration cases
-        (or looking up its input), not a save.
+        (or a schema lookup of the preview mutation's input), not a save.
+- id: terminal-reads-before-planning
+  splits:
+  - regression
+  input:
+    headless: true
+    messages:
+    - role: user
+      content: Create a code evaluator on dataset RGF0YXNldDox that checks the answer cites one of the
+        retrieved documents.
+  expected:
+    tools:
+      required:
+      - bash
+      forbidden:
+      - execute_browser_action
+    tool_call_args:
+      bash:
+        command:
+          contains_all:
+          - phoenix-gql
+          - RGF0YXNldDox
+    forbidden_tool_call_args:
+      bash:
+        command:
+          contains_all:
+          - /home/user/workspace/evaluator-plans/
+  metadata:
+    category: read_before_plan
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Nothing has been read yet, so the first command reads the dataset's examples; the plan comes
+        after the record shape is known, and the permission check after the plan.
 - id: explain-existing-needs-no-plan
   splits:
   - regression

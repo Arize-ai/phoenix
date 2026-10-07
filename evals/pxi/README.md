@@ -73,8 +73,13 @@ create and update mutations through `phoenix-gql`):
 | plan first, previewed, plan rewritten, then saved | `planned_and_validated` / `1.0` |
 
 Reading the plan counts as planning, so a turn that resumes work after the user
-approved the plan in an earlier turn is not marked unplanned. The annotation's
-metadata lists the classified steps in order.
+approved the plan in an earlier turn is not marked unplanned (PXI is told to
+`cat` the plan when it resumes). Browser operations count only when they ran:
+the tool's output lists each executed call as `ok` or `FAILED`, so a script
+whose source names an edit but returned early (after a failed read, say) is not
+an evaluator change. Traces without that call log fall back to the operations
+the script names. The annotation's metadata lists the classified steps in
+order.
 
 ### `suggestion_accepted`
 

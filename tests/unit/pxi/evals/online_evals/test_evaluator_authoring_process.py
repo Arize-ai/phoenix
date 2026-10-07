@@ -51,9 +51,20 @@ def _bash(index: int, command: str, *, status: str = "OK") -> v1.Span:
     return _tool(index, "bash", {"summary": "s", "command": command}, status=status)
 
 
-def _browser(index: int, *operations: str) -> v1.Span:
+def _browser(index: int, *operations: str, executed: list[str] | None = None) -> v1.Span:
+    """A browser script naming ``operations``; ``executed`` is the tool's call log, one entry
+    per call that ran, as ``"<operation>"`` or ``"<operation> FAILED"``. Without it, the span
+    carries no output, as older traces do."""
     script = "\n".join(f"await ui.{operation}({{}});" for operation in operations)
-    return _tool(index, "execute_browser_action", {"summary": "s", "script": script})
+    span = _tool(index, "execute_browser_action", {"summary": "s", "script": script})
+    if executed is not None:
+        lines = []
+        for position, entry in enumerate(executed, start=1):
+            operation, _, status = entry.partition(" ")
+            lines.append(f"{position}. {operation} {status or 'ok'} 1ms 10ch")
+        output = f"Script completed after {len(lines)} ui calls.\n\nCalls:\n" + "\n".join(lines)
+        span["attributes"]["output.value"] = json.dumps(output)
+    return span
 
 
 def _evaluate(*tools: v1.Span) -> Any:
@@ -93,6 +104,29 @@ def test_writing_the_plan_first_is_planned() -> None:
         "edit:execute_browser_action",
         "preview:execute_browser_action",
     ]
+
+
+def test_only_operations_that_ran_count() -> None:
+    # The script names an edit after a read, but returned early: the call log shows only the read.
+    read_only = _browser(
+        1, "evaluators.code.read", "evaluators.code.edit", executed=["evaluators.code.read"]
+    )
+    assert _evaluate(read_only) is None
+    # A call that ran and failed changed nothing either.
+    failed = _browser(1, "evaluators.code.edit", executed=["evaluators.code.edit FAILED"])
+    assert _evaluate(failed) is None
+    # When the log shows the edit ran, it counts, whatever else the script names.
+    ran = _browser(
+        1,
+        "evaluators.code.read",
+        "evaluators.code.edit",
+        executed=["evaluators.code.read", "evaluators.code.edit"],
+    )
+    assert _evaluate(ran).label == "unplanned"
+
+
+def test_a_script_without_a_call_log_falls_back_to_its_source() -> None:
+    assert _evaluate(_browser(1, "evaluators.code.edit")).label == "unplanned"
 
 
 def test_reading_the_approved_plan_in_a_later_turn_is_planned() -> None:
