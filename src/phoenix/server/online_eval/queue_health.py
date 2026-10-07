@@ -70,8 +70,7 @@ _QUEUES: dict[models.EvaluationTarget, _Queue] = {
 @dataclass(frozen=True)
 class QueuedWork:
     """Some queued evaluations: how many, how many of those are running, and when the oldest
-    of those waiting to start was queued. The oldest is the head, by the order evaluations
-    were queued.
+    of those waiting to start was queued.
     """
 
     queued_count: int = 0
@@ -164,8 +163,8 @@ class ProjectTargetQueue:
 class ProjectQueue:
     """One project's part of the queue, as measured at ``measured_at``: the queued
     evaluations of its project evaluators, of each evaluation target in
-    ``EVALUATION_TARGETS`` order. ``oldest_queued_at`` is the head of its PENDING
-    evaluations, as for ``EvaluationQueue.waiting``.
+    ``EVALUATION_TARGETS`` order. ``oldest_queued_at`` is when the oldest of its PENDING
+    evaluations was queued, as for ``EvaluationQueue.waiting``.
     """
 
     measured_at: datetime
@@ -297,19 +296,15 @@ async def _load_target_queue(
 ) -> TargetQueue:
     queue = _QUEUES[evaluation_target]
     model = queue.work_unit_model
-    by_status = {
-        status: (count, head_id)
-        for status, count, head_id in await session.execute(
-            sa.select(model.status, sa.func.count(), sa.func.min(model.id))
+    by_status: dict[str, tuple[int, Optional[datetime]]] = {
+        status: (count, oldest_queued_at)
+        for status, count, oldest_queued_at in await session.execute(
+            sa.select(model.status, sa.func.count(), sa.func.min(model.created_at))
             .where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
             .group_by(model.status)
         )
     }
-    pending_count, head_id = by_status.get("PENDING", (0, None))
-    oldest_pending_at: Optional[datetime] = None
-    if head_id is not None:
-        heads = await _load_heads(session, queue, [head_id])
-        oldest_pending_at = heads[head_id]
+    pending_count, oldest_pending_at = by_status.get("PENDING", (0, None))
     return TargetQueue(
         evaluation_target=evaluation_target,
         queued_count=sum(count for count, _ in by_status.values()),
@@ -460,7 +455,7 @@ async def load_project_evaluator_queues(
     project_evaluator_ids: Sequence[int],
 ) -> dict[int, QueuedWork]:
     """Each project evaluator's queued evaluations; evaluators with none are absent. The
-    oldest is the head of those waiting to start, PENDING or awaiting a retry.
+    oldest is the earliest queued of those waiting to start, PENDING or awaiting a retry.
 
     Reads every queued evaluation of each target, which the queue's limit bounds, rather
     than each evaluator's history.
@@ -469,30 +464,15 @@ async def load_project_evaluator_queues(
     result: dict[int, QueuedWork] = {}
     async with db.read() as session:
         for queue in _QUEUES.values():
-            queued = {
-                project_evaluator_id: evaluator_queued
-                for project_evaluator_id, evaluator_queued in (
-                    await _load_queued_by_project_evaluator(session, queue)
-                ).items()
-                if project_evaluator_id in requested
-            }
-            heads = await _load_heads(
-                session,
-                queue,
-                [
-                    evaluator.head_id
-                    for evaluator in queued.values()
-                    if evaluator.head_id is not None
-                ],
-            )
-            for project_evaluator_id, evaluator in queued.items():
-                result[project_evaluator_id] = QueuedWork(
-                    queued_count=evaluator.queued_count,
-                    running_count=evaluator.running_count,
-                    oldest_queued_at=(
-                        None if evaluator.head_id is None else heads.get(evaluator.head_id)
-                    ),
-                )
+            for project_evaluator_id, evaluator in (
+                await _load_queued_by_project_evaluator(session, queue)
+            ).items():
+                if project_evaluator_id in requested:
+                    result[project_evaluator_id] = QueuedWork(
+                        queued_count=evaluator.queued_count,
+                        running_count=evaluator.running_count,
+                        oldest_queued_at=evaluator.oldest_queued_at,
+                    )
     return result
 
 
@@ -519,7 +499,6 @@ async def load_project_queues(
         for evaluation_target in EVALUATION_TARGETS:
             queue = _QUEUES[evaluation_target]
             by_project_evaluator = await _load_queued_by_project_evaluator(session, queue)
-            head_ids: dict[int, int] = {}
             for project_id, ids in project_evaluator_ids.items():
                 evaluators = [by_project_evaluator[i] for i in ids if i in by_project_evaluator]
                 targets[project_id].append(
@@ -529,17 +508,11 @@ async def load_project_queues(
                         running_count=sum(evaluator.running_count for evaluator in evaluators),
                     )
                 )
-                pending_head_ids = [
-                    evaluator.pending_head_id
-                    for evaluator in evaluators
-                    if evaluator.pending_head_id is not None
-                ]
-                if pending_head_ids:
-                    head_ids[project_id] = min(pending_head_ids)
-            heads = await _load_heads(session, queue, list(head_ids.values()))
-            for project_id, head_id in head_ids.items():
-                if (head := heads.get(head_id)) is not None:
-                    oldest_queued_at[project_id] = min(head, oldest_queued_at.get(project_id, head))
+                for evaluator in evaluators:
+                    if (oldest := evaluator.oldest_pending_at) is not None:
+                        oldest_queued_at[project_id] = min(
+                            oldest, oldest_queued_at.get(project_id, oldest)
+                        )
     return {
         project_id: ProjectQueue(
             measured_at=measured_at,
@@ -583,9 +556,9 @@ async def load_queued_by_project(db: DbSessionFactory, limit: int) -> list[tuple
 class _EvaluatorQueued:
     queued_count: int
     running_count: int
-    # The oldest PENDING or awaiting a retry, and the oldest PENDING.
-    head_id: Optional[int]
-    pending_head_id: Optional[int]
+    # When the oldest PENDING or awaiting a retry was queued, and the oldest PENDING.
+    oldest_queued_at: Optional[datetime]
+    oldest_pending_at: Optional[datetime]
 
 
 async def _load_queued_by_project_evaluator(
@@ -599,8 +572,8 @@ async def _load_queued_by_project_evaluator(
             model.project_evaluator_id,
             sa.func.count(),
             sa.func.count(sa.case((model.status == "RUNNING", model.id))),
-            sa.func.min(sa.case((model.status.in_(("PENDING", "ERROR")), model.id))),
-            sa.func.min(sa.case((model.status == "PENDING", model.id))),
+            sa.func.min(sa.case((model.status.in_(("PENDING", "ERROR")), model.created_at))),
+            sa.func.min(sa.case((model.status == "PENDING", model.created_at))),
         )
         .where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
         .group_by(model.project_evaluator_id)
@@ -609,26 +582,11 @@ async def _load_queued_by_project_evaluator(
         project_evaluator_id: _EvaluatorQueued(
             queued_count=count,
             running_count=running_count,
-            head_id=head_id,
-            pending_head_id=pending_head_id,
+            oldest_queued_at=oldest_queued_at,
+            oldest_pending_at=oldest_pending_at,
         )
-        for project_evaluator_id, count, running_count, head_id, pending_head_id in rows
+        for project_evaluator_id, count, running_count, oldest_queued_at, oldest_pending_at in rows
     }
-
-
-async def _load_heads(
-    session: AsyncSession,
-    queue: _Queue,
-    head_ids: Sequence[int],
-) -> dict[int, datetime]:
-    """When each head-of-queue evaluation was queued."""
-    if not head_ids:
-        return {}
-    model = queue.work_unit_model
-    rows = await session.execute(
-        sa.select(model.id, model.created_at).where(model.id.in_(head_ids))
-    )
-    return {head_id: queued_at for head_id, queued_at in rows}
 
 
 def _status_in(model: _WorkUnitModel, statuses: tuple[str, ...]) -> sa.ColumnElement[bool]:
