@@ -10,6 +10,7 @@ compare the conditions in the Phoenix UI.
 | --- | --- | --- | --- |
 | `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
+| `jobs/trail-benchmark-dev-no-code-mode.yaml` | How does PXI fare on the same questions with one MCP tool per endpoint instead of code mode? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
 | --- | --- |
@@ -122,14 +123,12 @@ compare the Phoenix interfaces under the same test conditions.
 Harbor starts Phoenix from the task healthcheck before any agent runs, so a server setting
 has to be in the container's environment from the start. The job file's `environment.env`
 is the one place Harbor applies to every container at creation, and it is job-wide rather
-than per agent. To benchmark PXI without code mode, which gives it one tool per endpoint
-instead of `execute`, derive a job file that sets the variable and name the run after the
-condition:
+than per agent. `jobs/trail-benchmark-dev-no-code-mode.yaml` therefore runs PXI with
+`PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false`, which gives it one tool per endpoint instead of
+`execute`, as a separate job on the same tasks:
 
 ```bash
-uv run --script evals/harbor/scripts/subset_job.py evals/harbor/jobs/trail-benchmark-dev.yaml \
-  --agents phoenix-chat-agent --env PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false --out evals/harbor/.cache/pxi-no-code-mode.yaml
-make harbor-run HARBOR_JOB=evals/harbor/.cache/pxi-no-code-mode.yaml HARBOR_ARGS='--job-name pxi-no-code-mode'
+make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev-no-code-mode.yaml
 ```
 
 The agent phase runs as an unprivileged user that cannot open `/data/phoenix.db`. Agents
