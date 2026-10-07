@@ -52,6 +52,7 @@ from phoenix.server.agents.web_access import (
     build_web_search_capability,
 )
 from phoenix.server.api.context import Context
+from phoenix.server.mcp.routing import without_data_access
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -143,7 +144,10 @@ def build_agent(
                     id="phoenix_rest_api",
                 ),
                 instructions=resolved_prompts.phoenix_mcp_tools,
-                initialize_instructions=phoenix_mcp_server.instructions,
+                # PXI states the SQL-versus-lookup rule in its own tool instructions and
+                # looks entities up through GraphQL, so the server's REST-oriented
+                # data-access block would only pull it toward SQL.
+                initialize_instructions=without_data_access(phoenix_mcp_server.instructions),
             )
         )
     if github_mcp_config is not None:

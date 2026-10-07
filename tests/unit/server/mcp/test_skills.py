@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
+from phoenix.server.mcp.routing import without_data_access
 from phoenix.server.mcp.skills import (
     PXI_SKILLS_ROOT,
     PXI_SKILLS_ROOTS,
@@ -61,6 +62,15 @@ class TestAdvertisedInstructions:
             assert f"<description>{skill.description}</description>" in instructions
         assert "`load_skill`" in instructions
         assert "`load_skill_reference`" in instructions
+
+    async def test_pxi_drops_the_data_access_block_but_keeps_the_skills(self) -> None:
+        async with Client(_server(*PXI_SKILLS_ROOTS)) as client:
+            instructions = client.instructions or ""
+        stripped = without_data_access(instructions) or ""
+        assert "<phoenix_data_access>" in instructions
+        assert "<phoenix_data_access>" not in stripped
+        assert "<available_skills>" in stripped
+        assert without_data_access(None) is None
 
     async def test_no_roots_means_no_skills(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
