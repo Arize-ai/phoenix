@@ -1,0 +1,1381 @@
+dataset_name: evaluator_planning
+description: PXI server-side eval suite for the plan-first evaluator workflow. Positive cases check that,
+  once the records are read, PXI writes its plan file (/home/user/workspace/evaluator-plans/<name>.md
+  with criteria and positive, negative, boundary, and malformed calibration cases) before any draft edit,
+  preview, or save, on the code form, the LLM form, the playground, in the background, and on the terminal;
+  that manual edit permission waits for plan approval while bypass keeps going; and that the terminal
+  previews before saving. Negative cases check that reads write no plan. Report-only (non-gating) until
+  baselines exist; see thresholds.yaml.
+evaluators:
+- correct_tools_called
+- tool_call_args_match
+- forbidden_tool_call_args_match
+examples:
+- id: code-form-plan-before-edit
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: code_evaluator
+    messages:
+    - role: user
+      content: Write a code evaluator that checks the answer cites at least one of the retrieved document
+        ids, like [kb-12].
+    - role: assistant
+      tool_calls:
+      - id: read-draft
+        name: execute_browser_action
+        args:
+          summary: Read the open code evaluator draft.
+          script: |
+            const result = await ui.evaluators.code.read({});
+            return result;
+    - role: tool
+      tool_call_id: read-draft
+      name: execute_browser_action
+      content: |
+        Script completed after 1 ui call.
+
+        Calls:
+        1. evaluators.code.read ok 9ms 660ch
+
+        Return value:
+        {
+          "ok": true,
+          "output": {
+            "mode": "create",
+            "evaluatorNodeId": null,
+            "name": "",
+            "description": "",
+            "language": "PYTHON",
+            "sourceCode": "def evaluate(output):\n    return 1.0\n",
+            "sandboxConfigId": "U2FuZGJveENvbmZpZzox",
+            "inputMapping": {
+              "pathMapping": {},
+              "literalMapping": {}
+            },
+            "testPayload": {
+              "input": {},
+              "output": {},
+              "reference": {},
+              "metadata": {}
+            },
+            "outputConfigs": [],
+            "availableSandboxConfigs": [
+              {
+                "id": "U2FuZGJveENvbmZpZzox",
+                "name": "python-wasm",
+                "language": "PYTHON",
+                "backendType": "WASM"
+              }
+            ]
+          }
+        }
+    - role: assistant
+      tool_calls:
+      - id: read-examples
+        name: bash
+        args:
+          summary: Read a few dataset examples to see where the citations live.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+            3) { edges { node { id revision { input output metadata } } } } } } }'''
+    - role: tool
+      tool_call_id: read-examples
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+          3) { edges { node { id revision { input output metadata } } } } } } }'''
+        stdout: '{"data":{"node":{"name":"support_rag","examples":{"edges":[{"node":{"id":"RGF0YXNldEV4YW1wbGU6MQ==","revision":{"input":{"question":"How
+          do I reset my password?","documents":[{"id":"kb-12","text":"Use Settings > Security."},{"id":"kb-40","text":"Admins
+          can force a reset."}]},"output":{"answer":"Open Settings > Security [kb-12]."},"metadata":{}}}},{"node":{"id":"RGF0YXNldEV4YW1wbGU6Mg==","revision":{"input":{"question":"Can
+          I export invoices?","documents":[{"id":"kb-77","text":"Invoices export as CSV."}]},"output":{"answer":""},"metadata":{}}}}]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 554
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    tools:
+      required:
+      - bash
+    ui_operations:
+      forbidden: &id002
+      - evaluators.code.edit
+      - evaluators.code.test
+      - evaluators.code.submit
+    tool_call_args:
+      bash: &id001
+        command:
+          contains_all:
+          - /home/user/workspace/evaluator-plans/
+          contains_all_casefold:
+          - '## Criteria'
+          - '## Calibration cases'
+          - partial credit
+          - abstention
+          - negative
+          - boundary
+          - malformed
+  metadata:
+    category: plan_before_edit
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: The draft and the records are read; the next step is the plan file, with criteria and calibration
+        cases, before any draft edit or test.
+- id: llm-form-plan-before-edit
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: llm_evaluator
+    messages:
+    - role: user
+      content: build me a judge for whether the answer is grounded in the retrieved documents
+    - role: assistant
+      tool_calls:
+      - id: read-draft
+        name: execute_browser_action
+        args:
+          summary: Read the open LLM evaluator draft.
+          script: |
+            const result = await ui.evaluators.llm.read({});
+            return result;
+    - role: tool
+      tool_call_id: read-draft
+      name: execute_browser_action
+      content: |
+        Script completed after 1 ui call.
+
+        Calls:
+        1. evaluators.llm.read ok 9ms 716ch
+
+        Return value:
+        {
+          "ok": true,
+          "output": {
+            "mode": "create",
+            "evaluatorNodeId": null,
+            "name": "",
+            "description": "",
+            "prompt": {
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "You are an evaluator."
+                },
+                {
+                  "role": "user",
+                  "content": "Input: {{input}}\nOutput: {{output}}"
+                }
+              ],
+              "provider": "OPENAI",
+              "model": "gpt-4o-mini",
+              "invocationParameters": {}
+            },
+            "outputConfigs": [],
+            "inputMapping": {
+              "pathMapping": {},
+              "literalMapping": {}
+            },
+            "includeExplanation": true,
+            "testPayload": {
+              "input": {},
+              "output": {},
+              "reference": {},
+              "metadata": {}
+            }
+          }
+        }
+    - role: assistant
+      tool_calls:
+      - id: read-examples
+        name: bash
+        args:
+          summary: Read a few dataset examples to see the documents and answers.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+            3) { edges { node { id revision { input output metadata } } } } } } }'''
+    - role: tool
+      tool_call_id: read-examples
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+          3) { edges { node { id revision { input output metadata } } } } } } }'''
+        stdout: '{"data":{"node":{"name":"support_rag","examples":{"edges":[{"node":{"id":"RGF0YXNldEV4YW1wbGU6MQ==","revision":{"input":{"question":"How
+          do I reset my password?","documents":[{"id":"kb-12","text":"Use Settings > Security."},{"id":"kb-40","text":"Admins
+          can force a reset."}]},"output":{"answer":"Open Settings > Security [kb-12]."},"metadata":{}}}},{"node":{"id":"RGF0YXNldEV4YW1wbGU6Mg==","revision":{"input":{"question":"Can
+          I export invoices?","documents":[{"id":"kb-77","text":"Invoices export as CSV."}]},"output":{"answer":""},"metadata":{}}}}]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 554
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    tools:
+      required:
+      - bash
+    ui_operations:
+      forbidden:
+      - evaluators.llm.edit
+      - evaluators.llm.test
+      - evaluators.llm.submit
+    tool_call_args:
+      bash: *id001
+  metadata:
+    category: plan_before_edit
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Groundedness is where unplanned judges go wrong (abstention, partial support); the plan must
+        decide those cases before the rubric is written.
+- id: playground-task-plan-before-edit
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: playground
+      taskKind: evaluator
+      recordExperiments: false
+      instances:
+      - instanceId: 1
+        task:
+          kind: evaluator
+          evaluatorKind: CODE
+          name: evaluator_1
+          isDirty: false
+          source:
+            evaluatorId: null
+            datasetEvaluatorId: null
+            projectEvaluatorId: null
+    messages:
+    - role: user
+      content: Let's build an evaluator here that fails answers that are empty or just refuse. Show me
+        as you go.
+    - role: assistant
+      tool_calls:
+      - id: read-task
+        name: execute_browser_action
+        args:
+          summary: Read the evaluator task in the playground.
+          script: |
+            const result = await ui.playground.evaluator.read({});
+            return result;
+    - role: tool
+      tool_call_id: read-task
+      name: execute_browser_action
+      content: |
+        Script completed after 1 ui call.
+
+        Calls:
+        1. playground.evaluator.read ok 9ms 764ch
+
+        Return value:
+        {
+          "ok": true,
+          "output": {
+            "instanceId": 1,
+            "kind": "CODE",
+            "name": "",
+            "description": "",
+            "annotationName": "evaluator_1",
+            "revision": "task-1-r1",
+            "inputMapping": {
+              "pathMapping": {},
+              "literalMapping": {}
+            },
+            "outputConfigs": [],
+            "code": {
+              "language": "PYTHON",
+              "sourceCode": "def evaluate(output):\n    return 1.0\n",
+              "sandboxConfigId": "U2FuZGJveENvbmZpZzox"
+            },
+            "source": {
+              "evaluatorId": null,
+              "datasetEvaluatorId": null,
+              "projectEvaluatorId": null
+            },
+            "datasetId": "RGF0YXNldDox",
+            "saveTarget": {
+              "action": "create"
+            },
+            "validationError": null,
+            "outputConfigRules": "Categorical labels need scores aligned with the direction."
+          }
+        }
+    - role: assistant
+      tool_calls:
+      - id: read-examples
+        name: bash
+        args:
+          summary: Read a few dataset examples to see the answers.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+            3) { edges { node { id revision { input output metadata } } } } } } }'''
+    - role: tool
+      tool_call_id: read-examples
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+          3) { edges { node { id revision { input output metadata } } } } } } }'''
+        stdout: '{"data":{"node":{"name":"support_rag","examples":{"edges":[{"node":{"id":"RGF0YXNldEV4YW1wbGU6MQ==","revision":{"input":{"question":"How
+          do I reset my password?","documents":[{"id":"kb-12","text":"Use Settings > Security."},{"id":"kb-40","text":"Admins
+          can force a reset."}]},"output":{"answer":"Open Settings > Security [kb-12]."},"metadata":{}}}},{"node":{"id":"RGF0YXNldEV4YW1wbGU6Mg==","revision":{"input":{"question":"Can
+          I export invoices?","documents":[{"id":"kb-77","text":"Invoices export as CSV."}]},"output":{"answer":""},"metadata":{}}}}]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 554
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    tools:
+      required:
+      - bash
+    ui_operations:
+      forbidden:
+      - playground.evaluator.edit
+      - playground.prompt.edit
+      - playground.run
+      - playground.evaluator.save
+    tool_call_args:
+      bash: *id001
+  metadata:
+    category: plan_before_edit
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Playground evaluator tasks plan first too; the plan's cases are the dataset examples the
+        task runs on.
+- id: dataset-background-plan-before-save
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    editPermission: bypass
+    messages:
+    - role: user
+      content: Just add a code evaluator to this dataset that fails empty answers. Do it in the background,
+        no need to open anything.
+    - role: assistant
+      tool_calls:
+      - id: read-examples
+        name: bash
+        args:
+          summary: Read a few dataset examples to see the answer field.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+            3) { edges { node { id revision { input output metadata } } } } } } }'''
+    - role: tool
+      tool_call_id: read-examples
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+          3) { edges { node { id revision { input output metadata } } } } } } }'''
+        stdout: '{"data":{"node":{"name":"support_rag","examples":{"edges":[{"node":{"id":"RGF0YXNldEV4YW1wbGU6MQ==","revision":{"input":{"question":"How
+          do I reset my password?","documents":[{"id":"kb-12","text":"Use Settings > Security."},{"id":"kb-40","text":"Admins
+          can force a reset."}]},"output":{"answer":"Open Settings > Security [kb-12]."},"metadata":{}}}},{"node":{"id":"RGF0YXNldEV4YW1wbGU6Mg==","revision":{"input":{"question":"Can
+          I export invoices?","documents":[{"id":"kb-77","text":"Invoices export as CSV."}]},"output":{"answer":""},"metadata":{}}}}]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 554
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    tools:
+      required:
+      - bash
+    ui_operations:
+      forbidden:
+      - evaluators.code.openForm
+      - evaluators.code.edit
+      - evaluators.code.test
+      - evaluators.code.submit
+    tool_call_args:
+      bash: *id001
+    forbidden_tool_call_args:
+      bash:
+        command:
+          contains_any:
+          - createCodeEvaluator
+          - createDatasetCodeEvaluator
+  metadata:
+    category: plan_before_edit
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: 'Background authoring still plans first, even for a simple check and under bypass: the plan
+        comes before the first mutation.'
+- id: manual-waits-for-plan-approval
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: code_evaluator
+    editPermission: manual
+    messages:
+    - role: user
+      content: Write a code evaluator that checks the answer cites at least one of the retrieved document
+        ids, like [kb-12].
+    - role: assistant
+      tool_calls:
+      - id: read-draft
+        name: execute_browser_action
+        args:
+          summary: Read the open code evaluator draft.
+          script: |
+            const result = await ui.evaluators.code.read({});
+            return result;
+    - role: tool
+      tool_call_id: read-draft
+      name: execute_browser_action
+      content: |
+        Script completed after 1 ui call.
+
+        Calls:
+        1. evaluators.code.read ok 9ms 660ch
+
+        Return value:
+        {
+          "ok": true,
+          "output": {
+            "mode": "create",
+            "evaluatorNodeId": null,
+            "name": "",
+            "description": "",
+            "language": "PYTHON",
+            "sourceCode": "def evaluate(output):\n    return 1.0\n",
+            "sandboxConfigId": "U2FuZGJveENvbmZpZzox",
+            "inputMapping": {
+              "pathMapping": {},
+              "literalMapping": {}
+            },
+            "testPayload": {
+              "input": {},
+              "output": {},
+              "reference": {},
+              "metadata": {}
+            },
+            "outputConfigs": [],
+            "availableSandboxConfigs": [
+              {
+                "id": "U2FuZGJveENvbmZpZzox",
+                "name": "python-wasm",
+                "language": "PYTHON",
+                "backendType": "WASM"
+              }
+            ]
+          }
+        }
+    - role: assistant
+      tool_calls:
+      - id: search-ops
+        name: search_browser_actions
+        args:
+          query: edit and test the code evaluator draft
+    - role: tool
+      tool_call_id: search-ops
+      name: search_browser_actions
+      content: |-
+        // Complete catalog: all 5 UI operations, best query matches first.
+        // Further search_browser_actions calls return these same operations re-ranked — reuse
+        // this catalog instead of searching again. Only per-operation availability
+        // ("available on the current page") changes, after navigation.
+
+        // UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }
+        // ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"
+        //   | "NO_SESSION" | "HANDLER_ERROR" | "APPROVAL_REQUIRED" | "NOT_FOUND" | "STALE_REVISION"
+        //   | "NO_RUN_OUTPUT"
+        // Branch on `code` (stable), not on the `error` prose (for humans).
+
+        /**
+         * Open the dataset-backed code-evaluator form from the current playground without navigating away. Use this when a dataset is mounted in the playground and the user wants to author a code evaluator. This opens the existing create-code-evaluator form; it does not persist or create an evaluator.
+         * kind: write; not on this page — requires the Prompt Playground page with a dataset loaded (load one with playground.dataset.load). Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.openForm(input: {}): Promise<UIResult>;
+
+        /**
+         * Read the open code-evaluator draft. Returns the draft's name, description, language, sourceCode, sandboxConfigId, inputMapping, outputConfigs, testPayload, form mode (`create` or `edit`), and `availableSandboxConfigs` (id, name, language, backendType) — pick the `sandboxConfigId` for `set_sandbox_config` from that list instead of querying the API. Call this before `evaluators.code.edit` or `evaluators.code.test` to see the current draft.
+         * kind: read; available on the current page.
+         */
+        ui.evaluators.code.read(input: {}): Promise<UIResult>;
+
+        /**
+         * Edit the open code-evaluator draft. The edit is a state change covered by the script-level approval (write_description). Call `evaluators.code.read` first to see the current draft before proposing edits. Use camelCase field names exactly as shown. Common valid examples: {"type":"set_source_code","sourceCode":"def evaluate(output):\n    return 1.0"}; {"type":"set_language","language":"PYTHON"}; {"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}; {"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}; {"type":"set_test_payload","testPayload":{"input":{},"output":{"messages":[{"role":"assistant","content":"ok"}]},"reference":{},"metadata":{}}}. Do not emit `set_sandbox_config` when the read draft already has a compatible sandbox and the user did not ask to change it.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.edit(input: { operations: { type: "set_source_code"; sourceCode: string } | { type: "set_language"; language: "PYTHON" | "TYPESCRIPT" } | { type: "set_sandbox_config"; sandboxConfigId: unknown } | { type: "set_input_mapping"; inputMapping?: { pathMapping?: unknown; literalMapping?: unknown } } | { type: "set_test_payload"; testPayload?: { input?: unknown; output?: unknown; reference?: unknown; metadata?: unknown } } | { type: "set_description"; description: string } | { type: "set_name"; name: string } | { type: "set_output_configs"; outputConfigs: { kind: "classification"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; values: { label: string; score?: unknown }[] } | { kind: "continuous"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; lowerBound?: unknown; upperBound?: unknown } | { kind: "freeform"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; threshold?: unknown; lowerBound?: unknown; upperBound?: unknown }[] }[] }): Promise<UIResult>;
+
+        /**
+         * Run the open code-evaluator draft against its current test payload through the form preview path. This previews the draft only and does not persist, create, or update an evaluator.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.test(input: {}): Promise<UIResult>;
+
+        /**
+         * Persist the open code-evaluator draft through the form's validated save path — the same create/patch the Create/Update button runs. Terminal save only; it does not modify the draft.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.submit(input: {}): Promise<UIResult>;
+    - role: assistant
+      tool_calls:
+      - id: write-plan
+        name: bash
+        args:
+          summary: Write the evaluator plan.
+          command: |-
+            mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+            # Evaluator plan: cites_document
+
+            ## Construct
+            - [x] Measures: the answer cites at least one retrieved document id
+            - [x] Runs: offline (experiment runs)
+
+            ## Criteria
+            - [x] Success: a [kb-N] citation naming a document in input.documents
+            - [x] Failure: no citation, or a citation to a document that was not retrieved
+            - [x] Partial credit: none, binary
+            - [x] Abstention: an empty or refusing answer fails
+            - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+            ## Evaluator
+            - [x] Type: code (a regex over output.answer against input.documents ids)
+            - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+            ## Calibration cases
+            | Case | Kind | Expected | Observed |
+            | ---- | ---- | -------- | -------- |
+            | cites kb-12 | positive | cited | |
+            | no citation | negative | not_cited | |
+            | cites kb-99 (not retrieved) | boundary | not_cited | |
+            | empty answer | malformed | not_cited | |
+
+            ## Results
+            - [ ] Round 1
+            - [ ] Decision
+            EOF
+    - role: tool
+      tool_call_id: write-plan
+      name: bash
+      content:
+        command: |-
+          mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+          # Evaluator plan: cites_document
+
+          ## Construct
+          - [x] Measures: the answer cites at least one retrieved document id
+          - [x] Runs: offline (experiment runs)
+
+          ## Criteria
+          - [x] Success: a [kb-N] citation naming a document in input.documents
+          - [x] Failure: no citation, or a citation to a document that was not retrieved
+          - [x] Partial credit: none, binary
+          - [x] Abstention: an empty or refusing answer fails
+          - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+          ## Evaluator
+          - [x] Type: code (a regex over output.answer against input.documents ids)
+          - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+          ## Calibration cases
+          | Case | Kind | Expected | Observed |
+          | ---- | ---- | -------- | -------- |
+          | cites kb-12 | positive | cited | |
+          | no citation | negative | not_cited | |
+          | cites kb-99 (not retrieved) | boundary | not_cited | |
+          | empty answer | malformed | not_cited | |
+
+          ## Results
+          - [ ] Round 1
+          - [ ] Decision
+          EOF
+        stdout: ''
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 0
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    ui_operations:
+      forbidden: *id002
+  metadata:
+    category: approval
+    difficulty: moderate
+    polarity: negative
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Under manual edit permission the plan is presented for approval; nothing in the draft changes
+        until the user approves it.
+- id: bypass-continues-after-plan
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: code_evaluator
+    editPermission: bypass
+    messages:
+    - role: user
+      content: Write a code evaluator that checks the answer cites at least one of the retrieved document
+        ids, like [kb-12].
+    - role: assistant
+      tool_calls:
+      - id: read-draft
+        name: execute_browser_action
+        args:
+          summary: Read the open code evaluator draft.
+          script: |
+            const result = await ui.evaluators.code.read({});
+            return result;
+    - role: tool
+      tool_call_id: read-draft
+      name: execute_browser_action
+      content: |
+        Script completed after 1 ui call.
+
+        Calls:
+        1. evaluators.code.read ok 9ms 660ch
+
+        Return value:
+        {
+          "ok": true,
+          "output": {
+            "mode": "create",
+            "evaluatorNodeId": null,
+            "name": "",
+            "description": "",
+            "language": "PYTHON",
+            "sourceCode": "def evaluate(output):\n    return 1.0\n",
+            "sandboxConfigId": "U2FuZGJveENvbmZpZzox",
+            "inputMapping": {
+              "pathMapping": {},
+              "literalMapping": {}
+            },
+            "testPayload": {
+              "input": {},
+              "output": {},
+              "reference": {},
+              "metadata": {}
+            },
+            "outputConfigs": [],
+            "availableSandboxConfigs": [
+              {
+                "id": "U2FuZGJveENvbmZpZzox",
+                "name": "python-wasm",
+                "language": "PYTHON",
+                "backendType": "WASM"
+              }
+            ]
+          }
+        }
+    - role: assistant
+      tool_calls:
+      - id: search-ops
+        name: search_browser_actions
+        args:
+          query: edit and test the code evaluator draft
+    - role: tool
+      tool_call_id: search-ops
+      name: search_browser_actions
+      content: |-
+        // Complete catalog: all 5 UI operations, best query matches first.
+        // Further search_browser_actions calls return these same operations re-ranked — reuse
+        // this catalog instead of searching again. Only per-operation availability
+        // ("available on the current page") changes, after navigation.
+
+        // UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }
+        // ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"
+        //   | "NO_SESSION" | "HANDLER_ERROR" | "APPROVAL_REQUIRED" | "NOT_FOUND" | "STALE_REVISION"
+        //   | "NO_RUN_OUTPUT"
+        // Branch on `code` (stable), not on the `error` prose (for humans).
+
+        /**
+         * Open the dataset-backed code-evaluator form from the current playground without navigating away. Use this when a dataset is mounted in the playground and the user wants to author a code evaluator. This opens the existing create-code-evaluator form; it does not persist or create an evaluator.
+         * kind: write; not on this page — requires the Prompt Playground page with a dataset loaded (load one with playground.dataset.load). Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.openForm(input: {}): Promise<UIResult>;
+
+        /**
+         * Read the open code-evaluator draft. Returns the draft's name, description, language, sourceCode, sandboxConfigId, inputMapping, outputConfigs, testPayload, form mode (`create` or `edit`), and `availableSandboxConfigs` (id, name, language, backendType) — pick the `sandboxConfigId` for `set_sandbox_config` from that list instead of querying the API. Call this before `evaluators.code.edit` or `evaluators.code.test` to see the current draft.
+         * kind: read; available on the current page.
+         */
+        ui.evaluators.code.read(input: {}): Promise<UIResult>;
+
+        /**
+         * Edit the open code-evaluator draft. The edit is a state change covered by the script-level approval (write_description). Call `evaluators.code.read` first to see the current draft before proposing edits. Use camelCase field names exactly as shown. Common valid examples: {"type":"set_source_code","sourceCode":"def evaluate(output):\n    return 1.0"}; {"type":"set_language","language":"PYTHON"}; {"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}; {"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}; {"type":"set_test_payload","testPayload":{"input":{},"output":{"messages":[{"role":"assistant","content":"ok"}]},"reference":{},"metadata":{}}}. Do not emit `set_sandbox_config` when the read draft already has a compatible sandbox and the user did not ask to change it.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.edit(input: { operations: { type: "set_source_code"; sourceCode: string } | { type: "set_language"; language: "PYTHON" | "TYPESCRIPT" } | { type: "set_sandbox_config"; sandboxConfigId: unknown } | { type: "set_input_mapping"; inputMapping?: { pathMapping?: unknown; literalMapping?: unknown } } | { type: "set_test_payload"; testPayload?: { input?: unknown; output?: unknown; reference?: unknown; metadata?: unknown } } | { type: "set_description"; description: string } | { type: "set_name"; name: string } | { type: "set_output_configs"; outputConfigs: { kind: "classification"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; values: { label: string; score?: unknown }[] } | { kind: "continuous"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; lowerBound?: unknown; upperBound?: unknown } | { kind: "freeform"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; threshold?: unknown; lowerBound?: unknown; upperBound?: unknown }[] }[] }): Promise<UIResult>;
+
+        /**
+         * Run the open code-evaluator draft against its current test payload through the form preview path. This previews the draft only and does not persist, create, or update an evaluator.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.test(input: {}): Promise<UIResult>;
+
+        /**
+         * Persist the open code-evaluator draft through the form's validated save path — the same create/patch the Create/Update button runs. Terminal save only; it does not modify the draft.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.submit(input: {}): Promise<UIResult>;
+    - role: assistant
+      tool_calls:
+      - id: write-plan
+        name: bash
+        args:
+          summary: Write the evaluator plan.
+          command: |-
+            mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+            # Evaluator plan: cites_document
+
+            ## Construct
+            - [x] Measures: the answer cites at least one retrieved document id
+            - [x] Runs: offline (experiment runs)
+
+            ## Criteria
+            - [x] Success: a [kb-N] citation naming a document in input.documents
+            - [x] Failure: no citation, or a citation to a document that was not retrieved
+            - [x] Partial credit: none, binary
+            - [x] Abstention: an empty or refusing answer fails
+            - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+            ## Evaluator
+            - [x] Type: code (a regex over output.answer against input.documents ids)
+            - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+            ## Calibration cases
+            | Case | Kind | Expected | Observed |
+            | ---- | ---- | -------- | -------- |
+            | cites kb-12 | positive | cited | |
+            | no citation | negative | not_cited | |
+            | cites kb-99 (not retrieved) | boundary | not_cited | |
+            | empty answer | malformed | not_cited | |
+
+            ## Results
+            - [ ] Round 1
+            - [ ] Decision
+            EOF
+    - role: tool
+      tool_call_id: write-plan
+      name: bash
+      content:
+        command: |-
+          mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+          # Evaluator plan: cites_document
+
+          ## Construct
+          - [x] Measures: the answer cites at least one retrieved document id
+          - [x] Runs: offline (experiment runs)
+
+          ## Criteria
+          - [x] Success: a [kb-N] citation naming a document in input.documents
+          - [x] Failure: no citation, or a citation to a document that was not retrieved
+          - [x] Partial credit: none, binary
+          - [x] Abstention: an empty or refusing answer fails
+          - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+          ## Evaluator
+          - [x] Type: code (a regex over output.answer against input.documents ids)
+          - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+          ## Calibration cases
+          | Case | Kind | Expected | Observed |
+          | ---- | ---- | -------- | -------- |
+          | cites kb-12 | positive | cited | |
+          | no citation | negative | not_cited | |
+          | cites kb-99 (not retrieved) | boundary | not_cited | |
+          | empty answer | malformed | not_cited | |
+
+          ## Results
+          - [ ] Round 1
+          - [ ] Decision
+          EOF
+        stdout: ''
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 0
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    ui_operations:
+      required:
+      - evaluators.code.edit
+  metadata:
+    category: approval
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Under bypass the agent goes straight from the written plan into the draft.
+- id: manual-approved-plan-proceeds
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: code_evaluator
+    editPermission: manual
+    messages:
+    - role: user
+      content: Write a code evaluator that checks the answer cites at least one of the retrieved document
+        ids, like [kb-12].
+    - role: assistant
+      tool_calls:
+      - id: read-draft
+        name: execute_browser_action
+        args:
+          summary: Read the open code evaluator draft.
+          script: |
+            const result = await ui.evaluators.code.read({});
+            return result;
+    - role: tool
+      tool_call_id: read-draft
+      name: execute_browser_action
+      content: |
+        Script completed after 1 ui call.
+
+        Calls:
+        1. evaluators.code.read ok 9ms 660ch
+
+        Return value:
+        {
+          "ok": true,
+          "output": {
+            "mode": "create",
+            "evaluatorNodeId": null,
+            "name": "",
+            "description": "",
+            "language": "PYTHON",
+            "sourceCode": "def evaluate(output):\n    return 1.0\n",
+            "sandboxConfigId": "U2FuZGJveENvbmZpZzox",
+            "inputMapping": {
+              "pathMapping": {},
+              "literalMapping": {}
+            },
+            "testPayload": {
+              "input": {},
+              "output": {},
+              "reference": {},
+              "metadata": {}
+            },
+            "outputConfigs": [],
+            "availableSandboxConfigs": [
+              {
+                "id": "U2FuZGJveENvbmZpZzox",
+                "name": "python-wasm",
+                "language": "PYTHON",
+                "backendType": "WASM"
+              }
+            ]
+          }
+        }
+    - role: assistant
+      tool_calls:
+      - id: search-ops
+        name: search_browser_actions
+        args:
+          query: edit and test the code evaluator draft
+    - role: tool
+      tool_call_id: search-ops
+      name: search_browser_actions
+      content: |-
+        // Complete catalog: all 5 UI operations, best query matches first.
+        // Further search_browser_actions calls return these same operations re-ranked — reuse
+        // this catalog instead of searching again. Only per-operation availability
+        // ("available on the current page") changes, after navigation.
+
+        // UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }
+        // ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"
+        //   | "NO_SESSION" | "HANDLER_ERROR" | "APPROVAL_REQUIRED" | "NOT_FOUND" | "STALE_REVISION"
+        //   | "NO_RUN_OUTPUT"
+        // Branch on `code` (stable), not on the `error` prose (for humans).
+
+        /**
+         * Open the dataset-backed code-evaluator form from the current playground without navigating away. Use this when a dataset is mounted in the playground and the user wants to author a code evaluator. This opens the existing create-code-evaluator form; it does not persist or create an evaluator.
+         * kind: write; not on this page — requires the Prompt Playground page with a dataset loaded (load one with playground.dataset.load). Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.openForm(input: {}): Promise<UIResult>;
+
+        /**
+         * Read the open code-evaluator draft. Returns the draft's name, description, language, sourceCode, sandboxConfigId, inputMapping, outputConfigs, testPayload, form mode (`create` or `edit`), and `availableSandboxConfigs` (id, name, language, backendType) — pick the `sandboxConfigId` for `set_sandbox_config` from that list instead of querying the API. Call this before `evaluators.code.edit` or `evaluators.code.test` to see the current draft.
+         * kind: read; available on the current page.
+         */
+        ui.evaluators.code.read(input: {}): Promise<UIResult>;
+
+        /**
+         * Edit the open code-evaluator draft. The edit is a state change covered by the script-level approval (write_description). Call `evaluators.code.read` first to see the current draft before proposing edits. Use camelCase field names exactly as shown. Common valid examples: {"type":"set_source_code","sourceCode":"def evaluate(output):\n    return 1.0"}; {"type":"set_language","language":"PYTHON"}; {"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}; {"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}; {"type":"set_test_payload","testPayload":{"input":{},"output":{"messages":[{"role":"assistant","content":"ok"}]},"reference":{},"metadata":{}}}. Do not emit `set_sandbox_config` when the read draft already has a compatible sandbox and the user did not ask to change it.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.edit(input: { operations: { type: "set_source_code"; sourceCode: string } | { type: "set_language"; language: "PYTHON" | "TYPESCRIPT" } | { type: "set_sandbox_config"; sandboxConfigId: unknown } | { type: "set_input_mapping"; inputMapping?: { pathMapping?: unknown; literalMapping?: unknown } } | { type: "set_test_payload"; testPayload?: { input?: unknown; output?: unknown; reference?: unknown; metadata?: unknown } } | { type: "set_description"; description: string } | { type: "set_name"; name: string } | { type: "set_output_configs"; outputConfigs: { kind: "classification"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; values: { label: string; score?: unknown }[] } | { kind: "continuous"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; lowerBound?: unknown; upperBound?: unknown } | { kind: "freeform"; name: string; optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"; threshold?: unknown; lowerBound?: unknown; upperBound?: unknown }[] }[] }): Promise<UIResult>;
+
+        /**
+         * Run the open code-evaluator draft against its current test payload through the form preview path. This previews the draft only and does not persist, create, or update an evaluator.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.test(input: {}): Promise<UIResult>;
+
+        /**
+         * Persist the open code-evaluator draft through the form's validated save path — the same create/patch the Create/Update button runs. Terminal save only; it does not modify the draft.
+         * kind: write; available on the current page. Changes state: a script calling it must carry write_description.
+         */
+        ui.evaluators.code.submit(input: {}): Promise<UIResult>;
+    - role: assistant
+      tool_calls:
+      - id: write-plan
+        name: bash
+        args:
+          summary: Write the evaluator plan.
+          command: |-
+            mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+            # Evaluator plan: cites_document
+
+            ## Construct
+            - [x] Measures: the answer cites at least one retrieved document id
+            - [x] Runs: offline (experiment runs)
+
+            ## Criteria
+            - [x] Success: a [kb-N] citation naming a document in input.documents
+            - [x] Failure: no citation, or a citation to a document that was not retrieved
+            - [x] Partial credit: none, binary
+            - [x] Abstention: an empty or refusing answer fails
+            - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+            ## Evaluator
+            - [x] Type: code (a regex over output.answer against input.documents ids)
+            - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+            ## Calibration cases
+            | Case | Kind | Expected | Observed |
+            | ---- | ---- | -------- | -------- |
+            | cites kb-12 | positive | cited | |
+            | no citation | negative | not_cited | |
+            | cites kb-99 (not retrieved) | boundary | not_cited | |
+            | empty answer | malformed | not_cited | |
+
+            ## Results
+            - [ ] Round 1
+            - [ ] Decision
+            EOF
+    - role: tool
+      tool_call_id: write-plan
+      name: bash
+      content:
+        command: |-
+          mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+          # Evaluator plan: cites_document
+
+          ## Construct
+          - [x] Measures: the answer cites at least one retrieved document id
+          - [x] Runs: offline (experiment runs)
+
+          ## Criteria
+          - [x] Success: a [kb-N] citation naming a document in input.documents
+          - [x] Failure: no citation, or a citation to a document that was not retrieved
+          - [x] Partial credit: none, binary
+          - [x] Abstention: an empty or refusing answer fails
+          - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+          ## Evaluator
+          - [x] Type: code (a regex over output.answer against input.documents ids)
+          - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+          ## Calibration cases
+          | Case | Kind | Expected | Observed |
+          | ---- | ---- | -------- | -------- |
+          | cites kb-12 | positive | cited | |
+          | no citation | negative | not_cited | |
+          | cites kb-99 (not retrieved) | boundary | not_cited | |
+          | empty answer | malformed | not_cited | |
+
+          ## Results
+          - [ ] Round 1
+          - [ ] Decision
+          EOF
+        stdout: ''
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 0
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+    - role: assistant
+      content: 'I wrote the plan to /home/user/workspace/evaluator-plans/cites_document.md: a binary code
+        check over output.answer, four calibration cases (cited, no citation, citation to a document that
+        was not retrieved, empty answer). Approve it and I''ll fill in the draft?'
+    - role: user
+      content: Looks good, go ahead.
+  expected:
+    ui_operations:
+      required:
+      - evaluators.code.edit
+  metadata:
+    category: approval
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Once the user approves the plan, editing proceeds.
+- id: terminal-plan-before-graphql
+  splits:
+  - regression
+  input:
+    headless: true
+    messages:
+    - role: user
+      content: Create a code evaluator on dataset RGF0YXNldDox that checks the answer cites one of the
+        retrieved documents.
+    - role: assistant
+      tool_calls:
+      - id: read-examples
+        name: bash
+        args:
+          summary: Read a few dataset examples to see where the citations live.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+            3) { edges { node { id revision { input output metadata } } } } } } }'''
+    - role: tool
+      tool_call_id: read-examples
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+          3) { edges { node { id revision { input output metadata } } } } } } }'''
+        stdout: '{"data":{"node":{"name":"support_rag","examples":{"edges":[{"node":{"id":"RGF0YXNldEV4YW1wbGU6MQ==","revision":{"input":{"question":"How
+          do I reset my password?","documents":[{"id":"kb-12","text":"Use Settings > Security."},{"id":"kb-40","text":"Admins
+          can force a reset."}]},"output":{"answer":"Open Settings > Security [kb-12]."},"metadata":{}}}},{"node":{"id":"RGF0YXNldEV4YW1wbGU6Mg==","revision":{"input":{"question":"Can
+          I export invoices?","documents":[{"id":"kb-77","text":"Invoices export as CSV."}]},"output":{"answer":""},"metadata":{}}}}]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 554
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    tools:
+      required:
+      - bash
+      forbidden:
+      - execute_browser_action
+    tool_call_args:
+      bash: *id001
+  metadata:
+    category: terminal
+    difficulty: moderate
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: The terminal has no forms; the plan file is still written first.
+- id: terminal-previews-before-saving
+  splits:
+  - regression
+  input:
+    headless: true
+    messages:
+    - role: user
+      content: Create a code evaluator on dataset RGF0YXNldDox that checks the answer cites one of the
+        retrieved documents.
+    - role: assistant
+      tool_calls:
+      - id: read-examples
+        name: bash
+        args:
+          summary: Read a few dataset examples to see where the citations live.
+          command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+            3) { edges { node { id revision { input output metadata } } } } } } }'''
+    - role: tool
+      tool_call_id: read-examples
+      name: bash
+      content:
+        command: 'phoenix-gql ''query { node(id: "RGF0YXNldDox") { ... on Dataset { name examples(first:
+          3) { edges { node { id revision { input output metadata } } } } } } }'''
+        stdout: '{"data":{"node":{"name":"support_rag","examples":{"edges":[{"node":{"id":"RGF0YXNldEV4YW1wbGU6MQ==","revision":{"input":{"question":"How
+          do I reset my password?","documents":[{"id":"kb-12","text":"Use Settings > Security."},{"id":"kb-40","text":"Admins
+          can force a reset."}]},"output":{"answer":"Open Settings > Security [kb-12]."},"metadata":{}}}},{"node":{"id":"RGF0YXNldEV4YW1wbGU6Mg==","revision":{"input":{"question":"Can
+          I export invoices?","documents":[{"id":"kb-77","text":"Invoices export as CSV."}]},"output":{"answer":""},"metadata":{}}}}]}}}}'
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 554
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+    - role: assistant
+      tool_calls:
+      - id: write-plan
+        name: bash
+        args:
+          summary: Write the evaluator plan.
+          command: |-
+            mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+            # Evaluator plan: cites_document
+
+            ## Construct
+            - [x] Measures: the answer cites at least one retrieved document id
+            - [x] Runs: offline (experiment runs)
+
+            ## Criteria
+            - [x] Success: a [kb-N] citation naming a document in input.documents
+            - [x] Failure: no citation, or a citation to a document that was not retrieved
+            - [x] Partial credit: none, binary
+            - [x] Abstention: an empty or refusing answer fails
+            - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+            ## Evaluator
+            - [x] Type: code (a regex over output.answer against input.documents ids)
+            - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+            ## Calibration cases
+            | Case | Kind | Expected | Observed |
+            | ---- | ---- | -------- | -------- |
+            | cites kb-12 | positive | cited | |
+            | no citation | negative | not_cited | |
+            | cites kb-99 (not retrieved) | boundary | not_cited | |
+            | empty answer | malformed | not_cited | |
+
+            ## Results
+            - [ ] Round 1
+            - [ ] Decision
+            EOF
+    - role: tool
+      tool_call_id: write-plan
+      name: bash
+      content:
+        command: |-
+          mkdir -p /home/user/workspace/evaluator-plans && cat > /home/user/workspace/evaluator-plans/cites_document.md <<'EOF'
+          # Evaluator plan: cites_document
+
+          ## Construct
+          - [x] Measures: the answer cites at least one retrieved document id
+          - [x] Runs: offline (experiment runs)
+
+          ## Criteria
+          - [x] Success: a [kb-N] citation naming a document in input.documents
+          - [x] Failure: no citation, or a citation to a document that was not retrieved
+          - [x] Partial credit: none, binary
+          - [x] Abstention: an empty or refusing answer fails
+          - [x] Edge cases: several citations; citation inside code; no documents retrieved
+
+          ## Evaluator
+          - [x] Type: code (a regex over output.answer against input.documents ids)
+          - [x] Output: cited=1 / not_cited=0, maximize, explanation names the ids
+
+          ## Calibration cases
+          | Case | Kind | Expected | Observed |
+          | ---- | ---- | -------- | -------- |
+          | cites kb-12 | positive | cited | |
+          | no citation | negative | not_cited | |
+          | cites kb-99 (not retrieved) | boundary | not_cited | |
+          | empty answer | malformed | not_cited | |
+
+          ## Results
+          - [ ] Round 1
+          - [ ] Decision
+          EOF
+        stdout: ''
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 0
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+    - role: assistant
+      tool_calls:
+      - id: help
+        name: bash
+        args:
+          summary: Check GraphQL permissions.
+          command: phoenix-gql --help
+    - role: tool
+      tool_call_id: help
+      name: bash
+      content:
+        command: phoenix-gql --help
+        stdout: |
+          Usage: phoenix-gql [query] [options] [query-or-file]
+
+          Permissions: queries and mutations are ENABLED.
+        stderr: ''
+        exitCode: 0
+        durationMs: 1
+        startedAt: '2026-10-07T17:00:00Z'
+        completedAt: '2026-10-07T17:00:00.001Z'
+        stdoutBytes: 102
+        stderrBytes: 0
+        stdoutTruncated: false
+        stderrTruncated: false
+  expected:
+    tools:
+      required:
+      - bash
+    tool_call_args:
+      bash:
+        command:
+          contains_any:
+          - evaluatorPreviews
+          - EvaluatorPreview
+    forbidden_tool_call_args:
+      bash:
+        command:
+          contains_any:
+          - createCodeEvaluator
+          - createDatasetCodeEvaluator
+  metadata:
+    category: terminal
+    difficulty: hard
+    polarity: positive
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: With mutations enabled, the next step after the plan is a preview of the calibration cases
+        (or looking up its input), not a save.
+- id: explain-existing-needs-no-plan
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: dataset
+      datasetNodeId: RGF0YXNldDox
+    - type: code_evaluator
+      evaluatorNodeId: Q29kZUV2YWx1YXRvcjo3
+    messages:
+    - role: user
+      content: what does this evaluator actually check?
+    - role: assistant
+      tool_calls:
+      - id: read-draft
+        name: execute_browser_action
+        args:
+          summary: Read the open code evaluator draft.
+          script: |
+            const result = await ui.evaluators.code.read({});
+            return result;
+    - role: tool
+      tool_call_id: read-draft
+      name: execute_browser_action
+      content: |
+        Script completed after 1 ui call.
+
+        Calls:
+        1. evaluators.code.read ok 9ms 858ch
+
+        Return value:
+        {
+          "ok": true,
+          "output": {
+            "mode": "edit",
+            "evaluatorNodeId": "Q29kZUV2YWx1YXRvcjo3",
+            "name": "has_answer",
+            "description": "Fails empty answers.",
+            "language": "PYTHON",
+            "sourceCode": "def evaluate(output):\n    answer = (output or {}).get('answer') or ''\n    return {'label': 'answered' if answer.strip() else 'empty',\n            'score': 1.0 if answer.strip() else 0.0}\n",
+            "sandboxConfigId": "U2FuZGJveENvbmZpZzox",
+            "inputMapping": {
+              "pathMapping": {},
+              "literalMapping": {}
+            },
+            "testPayload": {
+              "input": {},
+              "output": {},
+              "reference": {},
+              "metadata": {}
+            },
+            "outputConfigs": [],
+            "availableSandboxConfigs": [
+              {
+                "id": "U2FuZGJveENvbmZpZzox",
+                "name": "python-wasm",
+                "language": "PYTHON",
+                "backendType": "WASM"
+              }
+            ]
+          }
+        }
+  expected:
+    ui_operations:
+      forbidden: *id002
+    forbidden_tool_call_args: &id003
+      bash:
+        command:
+          contains_all_casefold:
+          - evaluator-plans/
+  metadata:
+    category: no_plan
+    difficulty: obvious
+    polarity: negative
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Explaining an evaluator changes nothing, so no plan file is written.
+- id: list-project-evaluators-needs-no-plan
+  splits:
+  - regression
+  input:
+    contexts:
+    - type: project
+      projectNodeId: UHJvamVjdDox
+    messages:
+    - role: user
+      content: Which evaluators run on this project?
+  expected:
+    forbidden_tool_call_args: *id003
+  metadata:
+    category: no_plan
+    difficulty: obvious
+    polarity: negative
+    annotation:
+      agreement: high
+      n_opinions: 1
+      notes: Listing project evaluators is a read; it reaches Project.evaluators, no plan.
