@@ -162,7 +162,9 @@ export function arePlaygroundTaskParamsEqual(
       (param, index) =>
         param?.evaluatorId === right.evaluators[index]?.evaluatorId &&
         param?.datasetEvaluatorId ===
-          right.evaluators[index]?.datasetEvaluatorId
+          right.evaluators[index]?.datasetEvaluatorId &&
+        param?.projectEvaluatorId ===
+          right.evaluators[index]?.projectEvaluatorId
     )
   );
 }
@@ -219,9 +221,12 @@ function setEvaluatorTaskParams({
   next.set(TASK_KIND_PARAM, EVALUATOR_TASK_KIND);
   evaluators.forEach((param, position) => {
     // The binding is the more specific reference: reopening it keeps Save
-    // pointed at the dataset evaluator rather than the shared evaluator.
+    // pointed at the dataset evaluator rather than the shared evaluator, and
+    // keeps a project evaluator's own input mapping on the task.
     if (param?.datasetEvaluatorId) {
       next.set(`datasetEvaluator${position}`, param.datasetEvaluatorId);
+    } else if (param?.projectEvaluatorId) {
+      next.set(`projectEvaluator${position}`, param.projectEvaluatorId);
     } else if (param?.evaluatorId) {
       next.set(`evaluator${position}`, param.evaluatorId);
     }
