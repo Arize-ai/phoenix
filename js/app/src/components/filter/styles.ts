@@ -99,7 +99,8 @@ export const typeaheadMenuCSS = css`
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    li.dsl-filter-suggestion .cm-completionLabel {
+    li.dsl-filter-suggestion .cm-completionLabel,
+    li.typeahead-completion--idea .cm-completionLabel {
       font-family: var(--global-font-family-sans);
     }
     /* A suggestion's detail is a whole example condition, not a short type
