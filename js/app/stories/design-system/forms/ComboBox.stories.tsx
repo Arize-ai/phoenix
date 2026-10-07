@@ -110,6 +110,34 @@ export const KeyboardNavigation = {
   ),
 };
 
+const LONG_PATHS = [
+  "input",
+  "output.messages[0].content",
+  "metadata.retrieval.documents[0].document.metadata.source_document_identifier_with_a_very_long_name",
+  "reference_outputs.expected_response_for_customer_support_conversation_about_billing_refunds",
+];
+
+/**
+ * Items that are long, unbroken strings (such as JSON paths) wrap within the
+ * popover instead of overflowing it.
+ */
+export const LongItems: StoryObj<ComboBoxProps<object>> = {
+  args: {
+    label: "Path",
+  },
+  render: (args) => (
+    <View width="300px">
+      <ComboBox {...args}>
+        {LONG_PATHS.map((path) => (
+          <ComboBoxItem key={path} id={path} textValue={path}>
+            {path}
+          </ComboBoxItem>
+        ))}
+      </ComboBox>
+    </View>
+  ),
+};
+
 const FLAVORS = ["Chocolate", "Mint", "Strawberry", "Vanilla"];
 
 const STATES: { label: string; props: Partial<ComboBoxProps<object>> }[] = [
