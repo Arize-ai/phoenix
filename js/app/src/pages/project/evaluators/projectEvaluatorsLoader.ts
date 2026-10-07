@@ -15,6 +15,7 @@ import {
   CREATE_LLM_EVALUATOR_PARAM,
   EVALUATOR_FILTER_PARAM,
 } from "@phoenix/constants/searchParams";
+import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import { PROJECT_EVALUATORS_TABLE_STORAGE_KEY } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { getUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
@@ -25,10 +26,7 @@ import {
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
-import {
-  DEFAULT_LAST_N_TIME_RANGE_KEY,
-  PREFERENCES_STORAGE_KEY,
-} from "@phoenix/store/preferencesStore";
+import { DEFAULT_LAST_N_TIME_RANGE_KEY } from "@phoenix/store/preferencesStore";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 export const projectEvaluatorsLoaderGQL = graphql`

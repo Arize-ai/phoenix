@@ -16,9 +16,9 @@ from harbor_verifiers.graphql.__generated__ import (
     ContinuousAnnotationConfigInput,
     DatasetEvaluatorFields,
     DatasetEvaluatorFieldsEvaluatorCodeEvaluator,
+    EvaluatorDefinitionInput,
     EvaluatorInputMappingInput,
     EvaluatorKind,
-    EvaluatorPreviewInput,
     EvaluatorPreviewItemInput,
     EvaluatorPreviewsEvaluatorPreviewsResults,
     EvaluatorPreviewsInput,
@@ -147,7 +147,7 @@ def _config_input(config: BaseModel) -> AnnotationConfigInput:
     return AnnotationConfigInput(freeform=FreeformAnnotationConfigInput.model_validate(fields))
 
 
-def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorPreviewInput:
+def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorDefinitionInput:
     """Builtins are previewed by id. Code evaluators are sent inline because the GraphQL
     by-id preview filters them out as the wrong type: with the saved output configs when
     the binding exposes them and otherwise a freeform config, under which Phoenix passes
@@ -159,7 +159,7 @@ def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorPreviewInput:
         configs = [_config_input(c) for c in evaluator.output_configs or inner.output_configs] or [
             AnnotationConfigInput(freeform=FreeformAnnotationConfigInput(name=evaluator.name))
         ]
-        return EvaluatorPreviewInput(
+        return EvaluatorDefinitionInput(
             inline_code_evaluator=InlineCodeEvaluatorInput(
                 name=evaluator.name,
                 language=inner.language,
@@ -169,7 +169,7 @@ def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorPreviewInput:
             )
         )
     if inner.kind is EvaluatorKind.BUILTIN:
-        return EvaluatorPreviewInput(built_in_evaluator_id=inner.id)
+        return EvaluatorDefinitionInput(built_in_evaluator_id=inner.id)
     raise ValueError(f"cannot preview a {inner.kind.value} evaluator")
 
 
