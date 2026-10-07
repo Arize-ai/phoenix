@@ -41,6 +41,16 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 /** Discriminated union of every context type the agent understands. */
 export type AgentContext = components["schemas"]["ChatContext"];
 
+function spanContextKey(
+  context: Extract<AgentContext, { type: "span" }>
+): string {
+  const project = context.projectNodeId ?? "";
+  const span = context.spanNodeId
+    ? `node:${context.spanNodeId}`
+    : `otel:${context.otelSpanId}`;
+  return `span:${project}:${span}`;
+}
+
 /**
  * Stable string key for an {@link AgentContext}.
  *
@@ -54,19 +64,16 @@ export function agentContextKey(context: AgentContext): string {
     case "playground":
       return "playground";
     case "code_evaluator":
-      return context.evaluatorNodeId
-        ? `code_evaluator:${context.evaluatorNodeId}`
-        : "code_evaluator:create";
     case "llm_evaluator":
-      return context.evaluatorNodeId
-        ? `llm_evaluator:${context.evaluatorNodeId}`
-        : "llm_evaluator:create";
+      return `${context.type}:${context.evaluatorNodeId ?? "create"}`;
     case "dataset":
       return context.datasetVersionNodeId
         ? `dataset:${context.datasetNodeId}:${context.datasetVersionNodeId}`
         : `dataset:${context.datasetNodeId}`;
     case "project":
       return `project:${context.projectNodeId}`;
+    case "project_evaluator":
+      return `project_evaluator:${context.projectEvaluatorNodeId ?? "new"}`;
     case "trace":
       return `trace:${context.projectNodeId}:${context.otelTraceId}`;
     case "session":
@@ -75,13 +82,8 @@ export function agentContextKey(context: AgentContext): string {
       return `prompt:${context.promptNodeId}`;
     case "prompt_version":
       return `prompt_version:${context.promptNodeId}:${context.promptVersionNodeId}`;
-    case "span": {
-      const project = context.projectNodeId ?? "";
-      const span = context.spanNodeId
-        ? `node:${context.spanNodeId}`
-        : `otel:${context.otelSpanId}`;
-      return `span:${project}:${span}`;
-    }
+    case "span":
+      return spanContextKey(context);
     case "graphql":
       return "graphql";
     case "web_access":

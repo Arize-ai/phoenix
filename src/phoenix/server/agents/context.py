@@ -15,6 +15,7 @@ from phoenix.db.types.data_stream_protocol.ui_state_types import (
     DatasetUIContext,
     LlmEvaluatorUIContext,
     PlaygroundUIContext,
+    ProjectEvaluatorUIContext,
     ProjectUIContext,
     PromptUIContext,
     PromptVersionUIContext,
@@ -93,6 +94,7 @@ class ChatContext(
         Annotated[
             AppContext
             | ProjectUIContext
+            | ProjectEvaluatorUIContext
             | TraceUIContext
             | SessionUIContext
             | PromptUIContext
@@ -116,6 +118,7 @@ class ChatContext(
 class ResolvedContexts:
     app: AppContext | None = None
     project: ProjectUIContext | None = None
+    project_evaluator: ProjectEvaluatorUIContext | None = None
     trace: TraceUIContext | None = None
     session: SessionUIContext | None = None
     prompt: PromptUIContext | None = None
@@ -151,6 +154,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.dataset = context_value
         elif isinstance(context_value, ProjectUIContext):
             resolved.project = context_value
+        elif isinstance(context_value, ProjectEvaluatorUIContext):
+            resolved.project_evaluator = context_value
         elif isinstance(context_value, TraceUIContext):
             resolved.trace = context_value
         elif isinstance(context_value, SessionUIContext):

@@ -13,6 +13,7 @@ import {
   useUnboundRequiredVariables,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { useAdvertiseProjectEvaluatorForm } from "@phoenix/pages/project/evaluators/useAdvertiseProjectEvaluatorForm";
 
 export const ProjectCodeEvaluatorDialogContent = ({
   title,
@@ -50,6 +51,10 @@ export const ProjectCodeEvaluatorDialogContent = ({
   error?: string;
   mode?: "create" | "update";
 }) => {
+  useAdvertiseProjectEvaluatorForm({
+    form: mode === "create" ? "create" : "edit",
+    evaluatorKind: "CODE",
+  });
   const [isFilterValid, setIsFilterValid] = useState(true);
   const unboundVariables = useUnboundRequiredVariables({
     variables,

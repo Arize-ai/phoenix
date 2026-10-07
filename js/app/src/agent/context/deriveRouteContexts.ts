@@ -42,9 +42,11 @@ export function deriveRouteContexts(
   // The `:projectId` route segment carries a Phoenix relay node ID; the
   // `:traceId` segment carries an OpenTelemetry hex trace ID; the
   // `:spanId` segment (used by /playground/spans/:spanId) carries a Phoenix
-  // relay node ID, as does the `?selectedSpanNodeId=` search param. See
+  // relay node ID, as does the `?selectedSpanNodeId=` search param, and the
+  // `:projectEvaluatorId` segment carries a ProjectEvaluator relay node ID. See
   // agentContextTypes.ts for the format conventions.
   const projectNodeId = params["projectId"];
+  const projectEvaluatorNodeId = params["projectEvaluatorId"];
   const otelTraceId = params["traceId"];
   const sessionNodeId = params["sessionId"];
   const promptNodeId = params["promptId"];
@@ -56,6 +58,14 @@ export function deriveRouteContexts(
 
   if (projectNodeId) {
     contexts.push({ type: "project", projectNodeId });
+  }
+
+  if (projectNodeId && projectEvaluatorNodeId) {
+    contexts.push({
+      type: "project_evaluator",
+      projectNodeId,
+      projectEvaluatorNodeId,
+    });
   }
 
   if (projectNodeId && activeOtelTraceId) {

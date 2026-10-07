@@ -72,3 +72,47 @@ it("keeps the page's task kind when the evaluator roster fragment merges in", ()
     instances: [{ instanceId: 4, task: { evaluatorKind: "CODE" } }],
   });
 });
+
+describe("selectActiveContexts project evaluator merge", () => {
+  it("layers a mounted edit form onto the route's project evaluator", () => {
+    const route: AgentContext = {
+      type: "project_evaluator",
+      projectNodeId: "P1",
+      projectEvaluatorNodeId: "PE1",
+    };
+    const form: AgentContext = {
+      type: "project_evaluator",
+      projectNodeId: "P1",
+      projectEvaluatorNodeId: "PE1",
+      form: "edit",
+      evaluatorKind: "CODE",
+    };
+
+    const active = selectActiveContexts(stateWith([route], { mountId: form }));
+
+    expect(active.filter((ctx) => ctx.type === "project_evaluator")).toEqual([
+      form,
+    ]);
+  });
+
+  it("keeps a create form apart from the evaluator in the route", () => {
+    const route: AgentContext = {
+      type: "project_evaluator",
+      projectNodeId: "P1",
+      projectEvaluatorNodeId: "PE1",
+    };
+    const form: AgentContext = {
+      type: "project_evaluator",
+      projectNodeId: "P1",
+      projectEvaluatorNodeId: null,
+      form: "create",
+      evaluatorKind: "LLM",
+    };
+
+    const active = selectActiveContexts(stateWith([route], { mountId: form }));
+
+    expect(
+      active.filter((ctx) => ctx.type === "project_evaluator")
+    ).toHaveLength(2);
+  });
+});

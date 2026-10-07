@@ -62,6 +62,22 @@ describe("deriveRouteContexts", () => {
     expect(contexts).toEqual([{ type: "span", spanNodeId: "S1" }]);
   });
 
+  it("derives a project evaluator context from its details route", () => {
+    const contexts = deriveRouteContexts(
+      [match({ projectId: "P1" }), match({ projectEvaluatorId: "PE1" })],
+      new URLSearchParams()
+    );
+
+    expect(contexts).toEqual([
+      { type: "project", projectNodeId: "P1" },
+      {
+        type: "project_evaluator",
+        projectNodeId: "P1",
+        projectEvaluatorNodeId: "PE1",
+      },
+    ]);
+  });
+
   it("derives session context from a project session route", () => {
     const contexts = deriveRouteContexts(
       [match({ projectId: "P1" }), match({ sessionId: "SESSION1" })],

@@ -329,6 +329,7 @@ def _get_ui_contexts(contexts: ResolvedContexts) -> UIContexts:
     """The subset of this turn's contexts stored on the user message and shown to the model."""
     return UIContexts(
         project=contexts.project,
+        project_evaluator=contexts.project_evaluator,
         trace=contexts.trace,
         session=contexts.session,
         span=contexts.span,

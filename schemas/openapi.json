@@ -11319,6 +11319,9 @@
             "$ref": "#/components/schemas/ProjectUIContext"
           },
           {
+            "$ref": "#/components/schemas/ProjectEvaluatorUIContext"
+          },
+          {
             "$ref": "#/components/schemas/TraceUIContext"
           },
           {
@@ -11367,6 +11370,7 @@
             "llm_evaluator": "#/components/schemas/LlmEvaluatorUIContext",
             "playground": "#/components/schemas/PlaygroundUIContext",
             "project": "#/components/schemas/ProjectUIContext",
+            "project_evaluator": "#/components/schemas/ProjectEvaluatorUIContext",
             "prompt": "#/components/schemas/PromptUIContext",
             "prompt_version": "#/components/schemas/PromptVersionUIContext",
             "session": "#/components/schemas/SessionUIContext",
@@ -16667,6 +16671,47 @@
         ],
         "title": "PlaygroundCustomProviderModelUIContext"
       },
+      "PlaygroundEvaluatorTaskSourceUIContext": {
+        "properties": {
+          "evaluatorId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluatorid"
+          },
+          "datasetEvaluatorId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetevaluatorid"
+          },
+          "projectEvaluatorId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectevaluatorid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PlaygroundEvaluatorTaskSourceUIContext",
+        "description": "The saved evaluator, and the binding of it, that an evaluator task was loaded from.\n\nAll three ids are null for a new draft. ``evaluator_id`` is the shared evaluator;\na task opened from a dataset or project binding also names that binding."
+      },
       "PlaygroundEvaluatorTaskUIContext": {
         "properties": {
           "kind": {
@@ -16691,6 +16736,16 @@
             "type": "boolean",
             "title": "Isdirty",
             "default": false
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundEvaluatorTaskSourceUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -16949,6 +17004,68 @@
           "id"
         ],
         "title": "Project"
+      },
+      "ProjectEvaluatorUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "project_evaluator",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "projectEvaluatorNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectevaluatornodeid"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "create",
+                  "edit"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form"
+          },
+          "evaluatorKind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "LLM",
+                  "CODE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluatorkind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId"
+        ],
+        "title": "ProjectEvaluatorUIContext",
+        "description": "A project's online evaluator the user is viewing, or the form creating or editing one.\n\nThe details route advertises the evaluator alone. A mounted create or edit form adds\n``form`` and ``evaluator_kind``; a create form has no ``project_evaluator_node_id`` yet."
       },
       "ProjectRetentionPolicyData": {
         "properties": {
@@ -21720,6 +21837,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ProjectUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projectEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectEvaluatorUIContext"
               },
               {
                 "type": "null"

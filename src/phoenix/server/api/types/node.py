@@ -153,6 +153,12 @@ def _llm_evaluator() -> type:
     return LLMEvaluator
 
 
+def _project_evaluator() -> type:
+    from phoenix.server.api.types.Evaluator import ProjectEvaluator
+
+    return ProjectEvaluator
+
+
 ProjectNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_project)]
 ProjectSessionNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_project_session)]
 SpanNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_span)]
@@ -164,3 +170,4 @@ ExperimentNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_experiment
 DatasetEvaluatorNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_dataset_evaluator)]
 CodeEvaluatorNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_code_evaluator)]
 LLMEvaluatorNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_llm_evaluator)]
+ProjectEvaluatorNodeId: TypeAlias = Annotated[str, relay_node_id_validator(_project_evaluator)]
