@@ -129,7 +129,7 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
           question: "input.question",
           missing: "output.missing",
           bracketed: "metadata['custom-key']",
-          complex: "metadata[*]",
+          complex: "metadata['*']",
           unrelated: "unrelated",
         },
         variables: ["question", "answer", "missing", "bracketed", "complex"],
@@ -161,7 +161,7 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
       },
       {
         variable: "complex",
-        path: "metadata[*]",
+        path: "metadata['*']",
         status: "unverified",
         source: "path",
       },
