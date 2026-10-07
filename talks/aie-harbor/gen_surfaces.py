@@ -21,7 +21,7 @@ lbl=lambda x,y,t,fs=20,extra='':f'<text class="lbl" x="{x}" y="{y}" style="font-
 sub=lambda x,y,t,fs=12,extra='':f'<text class="sub" x="{x}" y="{y}" style="font-size:{fs}px"{extra}>{t}</text>'
 
 # rows
-PXI=(256,48); MCP=(344,48); API=(432,48); CORE=(520,80); SRV_B=CORE[0]+CORE[1]+24; DB=(644,92)
+PXI=(256,48); MCP=(336,48); API=(424,48); CORE=(504,80); SRV_B=CORE[0]+CORE[1]+24; DB=(628,92)
 L,Rc=640,805; CW=145; RIGHT=950           # two columns
 o=[]; A=o.append
 A('<g class="ap-dock">'+box(400,-52,680,DB[0]+DB[1]+28+52,'ap-sbx')+lbl(424,-22,'Docker',18)+'</g>')
@@ -47,7 +47,7 @@ ay=API[0]; A(box(L,ay,CW,API[1],'hx-env',10)+svg('rest',L+20,ay+14,20)+lbl(L+50,
 cy=CORE[0]; A(wire(f'M712 {ay+API[1]} V{cy}')+ar_d(712,cy)+wire(f'M890 {ay+API[1]} V{cy}')+ar_d(890,cy))
 A(box(L,cy,RIGHT-L,CORE[1],'hx-env',10)+layers(L+20,cy+12)+lbl(L+50,cy+28,'Core services',18)+sub(L+24,cy+50,'PROJECTS · TRACES · SESSIONS · DATASETS',10.5)+sub(L+24,cy+66,'EXPERIMENTS · PROMPTS · EVALUATORS',10.5))
 # OTLP + your AI app (production only)
-oy=380; A('<g class="ap-live">'+box(440,oy,120,150,'hx-env',10)+svg('otlp',488,oy+30,24)+lbl(500,oy+78,'OTLP',18,' text-anchor="middle"')+sub(500,oy+100,'SPAN INGEST',11,' text-anchor="middle"')
+oy=372; A('<g class="ap-live">'+box(440,oy,120,150,'hx-env',10)+svg('otlp',488,oy+30,24)+lbl(500,oy+78,'OTLP',18,' text-anchor="middle"')+sub(500,oy+100,'SPAN INGEST',11,' text-anchor="middle"')
   +wire(f'M500 {oy+150} V{DB[0]+46} H{L}')+ar_r(L,DB[0]+46)
   +box(140,412,220,84)+svg('otel',164,436,24)+lbl(200,454,'Your AI app')+sub(200,478,'OTEL EXPORTER',13)+wire('M360 454 H440')+ar_r(440,454)+'</g>')
 # database
