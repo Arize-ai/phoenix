@@ -126,8 +126,9 @@ Use this workflow when the user wants to author, calibrate, or compare evaluator
 to test a project's online evaluator against recorded examples. The `phoenix-evaluator-design`
 skill owns the judgment being designed (construct, criteria, labels, calibration cases); this
 workflow covers the playground mechanics. Keep that skill's plan file as `evaluator_authoring`
-describes: write it before the first edit, and under `manual` edit permission wait for the user to
-approve it. Evaluator tasks are
+describes: read the task (`ui.playground.evaluator.read`) and a few loaded examples first, so the
+plan's `Record shape` and real calibration cases come from them; write the plan before the first
+edit; and under `manual` edit permission wait for the user to approve it. Evaluator tasks are
 ordinary playground instances: drive them with `ui.playground.*` and address them by numeric
 `instanceId` (letters A–D are only for talking to the user). `ui.evaluators.*` operates the
 separate evaluator form dialogs and never touches playground tasks.
@@ -197,7 +198,8 @@ separate evaluator form dialogs and never touches playground tasks.
    dataset evaluator — set its `name` with `ui.playground.evaluator.edit` first. Pass
    `asNew: true` to leave a loaded evaluator unchanged and save a copy named `<name>_copy`
    instead (the dialog's Save as new). Selecting and running never save. Save only once the plan's
-   results show the cases matching and record the decision there. A task loaded from a project
+   results show the cases matching and the decision is recorded there, and always in its own
+   `execute_browser_action` script, never in the one that ran the task. A task loaded from a project
    evaluator never changes that project's binding (mapping, filter, sampling, target): `attach`
    updates the shared code evaluator, which the project evaluator also runs, and `create` saves a
    dataset copy of an LLM judge, leaving the project evaluator as it was. Tell the user which applies

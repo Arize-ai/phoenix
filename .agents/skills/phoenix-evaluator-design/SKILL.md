@@ -41,11 +41,17 @@ use; one calibrated on hand-written examples may not.
 
 ## The plan file
 
-Before writing any code or judge prompt, write the plan below as a markdown checklist file, and
-keep it current while you work: tick items off as you settle them, record each calibration case's
-observed result after every preview, and note what you changed and why. The plan is the record of
-what the evaluator is meant to capture, and the place to check the finished evaluator against. If
-you cannot write files, put the same checklist in your reply.
+Look at the records first, then write the plan, then build. Before writing any code or judge
+prompt, write the plan below as a markdown checklist file, and keep it current while you work:
+tick items off as you settle them, record each calibration case's observed result after every
+preview, and note what you changed and why. The plan is the record of what the evaluator is meant
+to capture, and the place to check the finished evaluator against. If you cannot write files, put
+the same checklist in your reply.
+
+A plan written before looking at a real record is a guess about the data. The `Record shape` line
+must name the fields as they appear in records you have read (`output.answer`,
+`input.documents[].id`), not where you expect them to be; an evaluator built on the wrong field
+passes its own invented cases and fails on every real one.
 
 ```markdown
 # Evaluator plan: <name>
@@ -64,17 +70,18 @@ you cannot write files, put the same checklist in your reply.
 - [ ] Edge cases: <empty, very long, multilingual, multi-part, tool-only, ...>
 
 ## Evaluator
+- [ ] Record shape: <where the judged fields live, copied from real records you read>
 - [ ] Type: code | LLM judge, and why
 - [ ] Reads: <only the fields the judgment needs>
 - [ ] Output: <labels with scores, or a numeric range>; optimization direction; explanation on/off
 
 ## Calibration cases
-| Case | Kind | Expected | Observed |
-| ---- | ---- | -------- | -------- |
-| <short name> | positive | <label/score> | |
-| <short name> | negative | <label/score> | |
-| <short name> | boundary | <label/score> | |
-| <short name> | malformed | <label/score or error> | |
+| Case | Kind | Source | Expected | Observed |
+| ---- | ---- | ------ | -------- | -------- |
+| <short name> | positive | real: <record id> | <label/score> | |
+| <short name> | negative | real: <record id> or invented | <label/score> | |
+| <short name> | boundary | invented | <label/score> | |
+| <short name> | malformed | invented | <label/score or error> | |
 
 ## Results
 - [ ] Round 1: <n>/<m> cases match; mismatches: <...>; change: <...>
@@ -83,14 +90,19 @@ you cannot write files, put the same checklist in your reply.
 
 ## Workflow
 
-1. **Define the construct and its boundaries.** Name one quality dimension and the failure mode it
-   targets. Ground both in the stated purpose, the examples or traces in hand, and outputs already
-   produced, rather than in questions to the user. Ask only when the purpose leaves the failure
-   mode, the field to judge, or an acceptable tradeoff undecided. Write down what the evaluator
-   deliberately ignores: an evaluator that tries to judge everything ends up judging nothing well.
-   Before creating one, check whether an existing evaluator already covers the dimension and fits
-   the record's shape; reuse it when it does.
-2. **Enumerate the criteria.** Write success and failure as evidence you could point to in the
+1. **Read the records before planning.** Open a few of the records the evaluator will score: for
+   an offline evaluator, dataset examples (or the example the form shows); for an online one, spans,
+   traces, or sessions from the project. Note where the signal lives (a top-level key, a chat
+   `messages` array, assistant content parts, `tool_calls`, a list of retrieved documents and their
+   ids) and write it into the plan's `Record shape`. Also check whether an existing evaluator
+   already covers the dimension and fits the record's shape; reuse it when it does. Skip reading
+   only when there are no records yet, and say so in the plan.
+2. **Define the construct and its boundaries.** Name one quality dimension and the failure mode it
+   targets. Ground both in the stated purpose, the records you read, and outputs already produced,
+   rather than in questions to the user. Ask only when the purpose leaves the failure mode, the
+   field to judge, or an acceptable tradeoff undecided. Write down what the evaluator deliberately
+   ignores: an evaluator that tries to judge everything ends up judging nothing well.
+3. **Enumerate the criteria.** Write success and failure as evidence you could point to in the
    fields, not as adjectives ("cites a retrieved passage for every claim", not "is grounded").
    Then decide the harder cases explicitly:
    - **Partial credit**: whether a partly right output earns anything, and what separates it from
@@ -103,7 +115,7 @@ you cannot write files, put the same checklist in your reply.
      not apply) are not failures; decide how they are reported.
    - **Edge cases**: empty or whitespace output, very long output, other languages, multi-part
      answers, outputs that are only tool calls.
-3. **Choose the evaluator type and output schema.** Use code when the judgment can be computed
+4. **Choose the evaluator type and output schema.** Use code when the judgment can be computed
    (exact or normalized match, contains, regex, JSON structure, a tool call's name and arguments,
    a distance); use an LLM judge for reading comprehension and open-ended quality. Prefer a
    deterministic floor plus judged dimensions over one judge doing everything. For the output:
@@ -115,23 +127,26 @@ you cannot write files, put the same checklist in your reply.
    - Turn on an explanation for judges: it justifies each verdict and exposes rubric ambiguity.
    See [judgment structures](references/judgment-structures.md) for heavier structures and rubric
    writing.
-4. **Pick representative calibration cases.** Cover every criterion with at least one case, and
+5. **Pick representative calibration cases.** Cover every criterion with at least one case, and
    include each kind: **positive** (should pass), **negative** (should fail, ideally the failure
    mode you named), **boundary** (partial credit, abstention, near misses), and **malformed**
-   (empty, wrong type, stringified JSON, missing field, truncated). Shape each case exactly like a
-   real record, using real records where you have them. See
+   (empty, wrong type, stringified JSON, missing field, truncated). Whenever records exist, at
+   least one case is a real record used as-is, and the plan names which; invent cases only to
+   reach a criterion no real record covers, and shape them exactly like the real ones. A case set
+   that is all invented passes against your own assumptions about the data, not the data. See
    [calibration cases](references/calibration-cases.md).
-5. **Build and preview.** Find where the signal lives by inspecting real records (a top-level key,
-   a chat `messages` array, assistant content parts, `tool_calls`), not by assumption. Declare only
-   the fields the judgment needs; parse nested or stringified JSON in the logic; normalize both
-   sides the same way before comparing. Then run the evaluator on every calibration case. One
-   preview is not calibration.
-6. **Compare against the criteria and revise before saving.** Record each case's observed result
+6. **Build and preview.** Read the fields named in `Record shape`; declare only the fields the
+   judgment needs; parse nested or stringified JSON in the logic; normalize both sides the same
+   way before comparing. Then run the evaluator on every calibration case. One preview is not
+   calibration.
+7. **Compare against the criteria and revise before saving.** Record each case's observed result
    in the plan. For each mismatch, first check the case is representative, then change one thing
    (the rubric, the logic, the labels, or the case) and preview again, so each change can be
    judged on its own. Accept when every case matches its expected result and the remaining
-   tradeoffs are ones the user accepts. Saving is a separate step: an evaluator is not created or
-   updated until the save completes, so never report it as saved before then.
+   tradeoffs are ones the user accepts. Saving is its own step, after the plan records the last
+   preview's results and the accept decision; never preview and save in the same action, so the
+   comparison has somewhere to happen. An evaluator is not created or updated until the save
+   completes, so never report it as saved before then.
 
 ## Reference provenance
 
@@ -147,9 +162,12 @@ before trusting it:
 ## Things to avoid
 
 - Writing the check before the criteria: the plan comes first.
+- Writing the plan before reading a record: the record shape in the plan is observed, not assumed.
+- Calibrating on invented cases only; they share whatever assumption the logic made.
 - Judging several dimensions in one evaluator; split them.
 - Reaching for an LLM judge when a deterministic check settles the question.
 - Calibrating on positives only; a check that never fails looks perfect until it ships.
 - Changing the rubric, logic, labels, and cases in one step; you lose track of what fixed what.
+- Saving in the same action as the last preview; the results never got compared with the plan.
 - Editing an existing evaluator without reading its current definition first.
 - Reporting an evaluator as saved, or as accurate, before the save or the calibration happened.

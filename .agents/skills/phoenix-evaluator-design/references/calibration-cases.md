@@ -20,8 +20,10 @@ the plan decided; what matters is that the behavior is deliberate.
 
 - Shape every case exactly like the records the evaluator will score. Inspect real records first;
   for online evaluators, start from real spans, traces, or sessions.
-- Prefer real records over invented ones. Invent only to reach a criterion no real record covers,
-  and keep invented cases as plausible as real ones.
+- Use at least one real record as-is whenever records exist, and note its id in the case's
+  `Source` column. Invent only to reach a criterion no real record covers, and keep invented cases
+  as plausible as real ones. A set that is all invented shares whatever assumption the logic made
+  about the record shape, so it cannot catch that assumption being wrong.
 - Keep cases small enough to read at a glance, so a mismatch can be diagnosed by eye.
 - Record the expected result before previewing. A case whose expectation is written after seeing
   the output calibrates nothing.
