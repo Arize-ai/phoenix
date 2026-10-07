@@ -178,10 +178,11 @@ test.describe.serial("Projects", () => {
     const panels = page.locator(".project-onboarding-overlay__content");
     await expect(panels).toHaveAttribute("inert", "");
 
-    // Config is usable before the first trace, so it shows its own content.
+    // Config is usable before the first trace: its panel is not wrapped by
+    // the guide at all.
     await page.getByRole("tab", { name: "Config" }).click();
     await expect(guide).not.toBeVisible();
-    await expect(panels).not.toHaveAttribute("inert", "");
+    await expect(page.locator(".project-onboarding-overlay")).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: "Project Settings" })
     ).toBeVisible();

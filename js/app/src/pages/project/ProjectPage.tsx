@@ -55,10 +55,7 @@ import {
   ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
-import {
-  ProjectTimeRangeControls,
-  STREAMING_ENABLED_TABS,
-} from "./ProjectTimeRangeControls";
+import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
 
@@ -566,29 +563,29 @@ function ProjectPageContentBody({
             <Tab id="metrics">Metrics</Tab>
             <Tab id="config">Config</Tab>
           </TabList>
-          {/* The guide covers only the panels: the strip stays usable, and the
-              tabs without a stream poll (Metrics, Config) show their content,
-              since nothing on them would ever dismiss the guide. */}
-          <ProjectOnboardingOverlay
-            project={data.project}
-            isEnabled={STREAMING_ENABLED_TABS.includes(tab)}
-          >
-            <LazyTabPanel padded={false} id="spans">
+          {/* The onboarding guide wraps the streaming tabs' panels only. See
+              `ProjectOnboardingOverlay` for why it lives inside the panels. */}
+          <LazyTabPanel padded={false} id="spans">
+            <ProjectOnboardingOverlay project={data.project}>
               <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="traces">
+            </ProjectOnboardingOverlay>
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="traces">
+            <ProjectOnboardingOverlay project={data.project}>
               <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="sessions">
+            </ProjectOnboardingOverlay>
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="sessions">
+            <ProjectOnboardingOverlay project={data.project}>
               <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="metrics">
-              <Outlet />
-            </LazyTabPanel>
-            <LazyTabPanel padded={false} id="config">
-              <Outlet />
-            </LazyTabPanel>
-          </ProjectOnboardingOverlay>
+            </ProjectOnboardingOverlay>
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="metrics">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="config">
+            <Outlet />
+          </LazyTabPanel>
         </Tabs>
       </ProjectPageQueryReferenceContext.Provider>
     </main>
