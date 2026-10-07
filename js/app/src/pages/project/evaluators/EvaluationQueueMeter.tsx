@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 
+import { SegmentChart } from "@phoenix/components/chart";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 export type EvaluationQueueMeterSegment = {
@@ -12,14 +13,9 @@ export type EvaluationQueueMeterSegment = {
   color: string;
 };
 
-const trackCSS = css`
-  display: flex;
-  flex-direction: row;
-  flex: none;
-  height: var(--global-dimension-size-75);
-  border-radius: 3px;
-  overflow: hidden;
-  background-color: var(--global-color-gray-300);
+const meterCSS = css`
+  width: 100%;
+  --segment-chart-height: var(--global-dimension-size-75);
 `;
 
 const swatchCSS = css`
@@ -31,40 +27,41 @@ const swatchCSS = css`
 `;
 
 /**
- * How full the evaluation queue is, as one bar against its limit with a
- * section per kind of evaluation.
+ * How full the evaluation queue is: a {@link SegmentChart} against the queue's
+ * limit, with a section per kind of evaluation and a track for the room left.
  */
 export function EvaluationQueueMeter({
   segments,
   limit,
-  width = "100px",
 }: {
   segments: ReadonlyArray<EvaluationQueueMeterSegment>;
   limit: number;
-  width?: string;
 }) {
   const total = segments.reduce((sum, segment) => sum + segment.count, 0);
   // A queue can briefly hold more than its limit; the bar never overflows.
   const scale = Math.max(limit, total, 1);
-  // The total sits beside the bar, so the bar names only what fills it.
   const description =
     segments
       .filter((segment) => segment.count > 0)
       .map((segment) => `${segment.label} ${intFormatter(segment.count)}`)
       .join(", ") || "Empty";
   return (
-    <div css={trackCSS} style={{ width }} role="img" aria-label={description}>
-      {segments.map((segment) => (
-        <div
-          key={segment.id}
-          style={{
-            width: `${(segment.count / scale) * 100}%`,
-            // A kind with any work queued stays visible against a large limit.
-            minWidth: segment.count > 0 ? "2px" : undefined,
-            backgroundColor: segment.color,
-          }}
-        />
-      ))}
+    <div
+      css={meterCSS}
+      role="img"
+      aria-label={`${intFormatter(total)} of ${intFormatter(limit)}: ${description}`}
+    >
+      <SegmentChart
+        showTrack
+        totalValue={scale}
+        // A kind with any work queued stays visible against a large limit.
+        minimumSegmentPercentage={1.5}
+        segments={segments.map((segment) => ({
+          name: segment.id,
+          value: segment.count,
+          color: segment.color,
+        }))}
+      />
     </div>
   );
 }

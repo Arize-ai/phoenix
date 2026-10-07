@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Group } from "react-resizable-panels";
 
 import {
   Flex,
@@ -22,6 +23,7 @@ import { useCategoryChartColors } from "@phoenix/components/chart";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { Badge } from "@phoenix/components/core/badge";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
+import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import type {
   EvaluationQueueStatus,
   ProjectEvaluatorQueueStatsQuery,
@@ -32,6 +34,7 @@ import {
   EvaluationQueueSwatch,
 } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import { formatElapsedShort } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { StatItem } from "@phoenix/pages/project/TableAside";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -100,12 +103,12 @@ function formatPerHour(perMinute: number): string {
 }
 
 /**
- * The health of the server's evaluation queue, as one row of stats above the
- * evaluators table. The whole queue is included: span, trace, and session
- * evaluations of all projects share it and its limit, and all project
- * evaluators run under one concurrency limit, so any backlog slows the rest.
+ * The evaluators table's aside: this project's share of the server's
+ * evaluation queue, with the queue-wide figures behind the status. Span,
+ * trace, and session evaluations of all projects share one queue and one
+ * limit, so another project's backlog can slow this one.
  */
-export function ProjectEvaluatorQueueStats({
+export function ProjectEvaluatorQueueAside({
   projectId,
   refreshKey,
   action,
@@ -114,47 +117,37 @@ export function ProjectEvaluatorQueueStats({
   /** Changes when the queue was changed from this page, to refetch at once. */
   refreshKey: number;
   /**
-   * Shown at the right end of the row, such as the button that clears the
-   * queue. Gets how many of this project's queued evaluations clearing would
-   * remove, or null while that is unknown.
+   * Shown under the stats, such as the button that clears the queue. Gets
+   * how many of this project's queued evaluations clearing would remove, or
+   * null while that is unknown.
    */
   action?: (clearableCount: number | null) => ReactNode;
 }) {
   const [clearableCount, setClearableCount] = useState<number | null>(null);
-  const placeholder = <QueueStatsPlaceholder />;
   return (
-    <View
-      paddingX="size-200"
-      paddingY="size-100"
-      borderBottomWidth="thin"
-      borderBottomColor="default"
-      flex="none"
-    >
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="start"
-        wrap="wrap"
-        columnGap="size-200"
-        rowGap="size-100"
-      >
-        <ErrorBoundary fallback={() => placeholder}>
-          <Suspense fallback={placeholder}>
-            <ProjectEvaluatorQueueStatsContent
-              projectId={projectId}
-              refreshKey={refreshKey}
-              onClearableCount={setClearableCount}
-            />
-          </Suspense>
-        </ErrorBoundary>
-        {action != null ? (
-          // An empty label keeps the action level with the values.
-          <div css={actionCSS}>
-            <Stat label="">{action(clearableCount)}</Stat>
-          </div>
-        ) : null}
-      </Flex>
-    </View>
+    <Group orientation="vertical">
+      <TitledPanel title="Evaluation Queue" headingLevel={2}>
+        <View padding="size-200" overflow="auto" height="100%">
+          <Flex
+            direction="column"
+            gap="size-200"
+            alignItems="start"
+            minWidth="size-2400"
+          >
+            <ErrorBoundary fallback={() => <QueueStatsPlaceholder />}>
+              <Suspense fallback={<QueueStatsPlaceholder />}>
+                <ProjectEvaluatorQueueStatsContent
+                  projectId={projectId}
+                  refreshKey={refreshKey}
+                  onClearableCount={setClearableCount}
+                />
+              </Suspense>
+            </ErrorBoundary>
+            {action != null ? action(clearableCount) : null}
+          </Flex>
+        </View>
+      </TitledPanel>
+    </Group>
   );
 }
 
@@ -252,13 +245,7 @@ function ProjectEvaluatorQueueStatsContent({
     onClearableCount(clearableCount);
   }, [clearableCount, onClearableCount]);
   return (
-    <Flex
-      direction="row"
-      alignItems="start"
-      wrap="wrap"
-      columnGap="size-400"
-      rowGap="size-100"
-    >
+    <>
       <QueueStatusStat queue={queue} />
       <QueuedStat
         queue={queue}
@@ -267,54 +254,49 @@ function ProjectEvaluatorQueueStatsContent({
         projectQueuedCount={projectQueuedCount}
         projectRunningCount={projectQueue?.runningCount ?? 0}
       />
-      <QueueRateStat
-        label="Queued per hour"
-        project={projectQueue}
-        getPerMinute={(rates) => rates.queuedPerMinute}
-        description="This project, in the last hour"
-      />
-      <QueueRateStat
-        label="Completed per hour"
-        project={projectQueue}
-        getPerMinute={(rates) => rates.evaluationsPerMinute}
-        description="This project's evaluated or failed, in the last hour"
-      />
+      <Flex direction="row" gap="size-400">
+        <QueueRateStat
+          label="Queued / hr"
+          project={projectQueue}
+          getPerMinute={(rates) => rates.queuedPerMinute}
+          description="This project's evaluations queued in the last hour"
+        />
+        <QueueRateStat
+          label="Completed / hr"
+          project={projectQueue}
+          getPerMinute={(rates) => rates.evaluationsPerMinute}
+          description="This project's evaluations evaluated or failed in the last hour"
+        />
+      </Flex>
       <QueueWaitStat
         projectOldestQueuedAt={projectQueue?.oldestQueuedAt ?? null}
       />
-    </Flex>
+    </>
   );
 }
 
-/** The strip's shape while the queue loads, so the page doesn't shift. */
+/** The aside's shape while the queue loads, so the panel doesn't shift. */
 function QueueStatsPlaceholder() {
   return (
-    <Flex
-      direction="row"
-      alignItems="start"
-      wrap="wrap"
-      columnGap="size-400"
-      rowGap="size-100"
-    >
-      <Stat label="Status" isStatus>
+    <>
+      <StatItem label="Status">
         <StatValue>--</StatValue>
-      </Stat>
-      <Stat label="In queue" isInQueue>
-        <Flex direction="row" gap="size-100" alignItems="center">
+      </StatItem>
+      <StatItem label="In queue">
+        <StatValue>--</StatValue>
+      </StatItem>
+      <Flex direction="row" gap="size-400">
+        <StatItem label="Queued / hr">
           <StatValue>--</StatValue>
-          <EvaluationQueueMeter segments={[]} limit={1} />
-        </Flex>
-      </Stat>
-      <Stat label="Queued per hour">
+        </StatItem>
+        <StatItem label="Completed / hr">
+          <StatValue>--</StatValue>
+        </StatItem>
+      </Flex>
+      <StatItem label="Waiting">
         <StatValue>--</StatValue>
-      </Stat>
-      <Stat label="Completed per hour">
-        <StatValue>--</StatValue>
-      </Stat>
-      <Stat label="Waiting">
-        <StatValue>--</StatValue>
-      </Stat>
-    </Flex>
+      </StatItem>
+    </>
   );
 }
 
@@ -322,7 +304,7 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
   const badge = QUEUE_STATUS_BADGE[queue.status];
   const detail = getQueueStatusDetail(queue);
   return (
-    <Stat label="Status" isStatus>
+    <StatItem label="Status">
       {/* The queue-wide figures live here: the other stats are this project's. */}
       <HoverDetail
         detail={
@@ -337,9 +319,11 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
           </>
         }
       >
-        <Badge variant={badge.variant}>{badge.label}</Badge>
+        <div css={badgeRowCSS}>
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+        </div>
       </HoverDetail>
-    </Stat>
+    </StatItem>
   );
 }
 
@@ -397,52 +381,67 @@ function QueuedStat({
     },
   ];
   return (
-    <Stat label="In queue" isInQueue>
-      <HoverDetail
-        detail={
-          <>
-            {segments
-              .filter((segment) => segment.count > 0)
-              .map((segment) => (
-                <Flex
-                  key={segment.id}
-                  direction="row"
-                  gap="size-75"
-                  alignItems="center"
-                >
-                  <EvaluationQueueSwatch color={segment.color} />
-                  <Text size="S">{`${segment.label}: ${intFormatter(segment.count)}`}</Text>
-                </Flex>
-              ))}
-            {projectRunningCount > 0 ? (
-              <Text size="S">{`Running now: ${intFormatter(projectRunningCount)}`}</Text>
-            ) : null}
-            {queue.projects.length > 0 ? (
-              <>
-                <Text size="S" color="text-700">
-                  Most queued
-                </Text>
-                {queue.projects.map(({ project, queuedCount }) => (
-                  <Text key={project.id} size="S">
-                    {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${intFormatter(queuedCount)}`}
+    <StatItem label="In queue">
+      <Flex direction="column" gap="size-100" width="100%">
+        <Flex direction="row" gap="size-75" alignItems="baseline">
+          <StatValue>{intFormatter(projectQueuedCount)}</StatValue>
+          <HoverDetail
+            detail={
+              queue.projects.length > 0 ? (
+                <>
+                  <Text size="S" color="text-700">
+                    Most queued
                   </Text>
-                ))}
-              </>
-            ) : null}
-          </>
-        }
-      >
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Flex direction="row" gap="size-75" alignItems="baseline">
-            <StatValue>{intFormatter(projectQueuedCount)}</StatValue>
+                  {queue.projects.map(({ project, queuedCount }) => (
+                    <Text key={project.id} size="S">
+                      {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${intFormatter(queuedCount)}`}
+                    </Text>
+                  ))}
+                </>
+              ) : null
+            }
+          >
             <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
-              {`· ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)} shared`}
+              {`of ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)} shared`}
             </Text>
-          </Flex>
-          <EvaluationQueueMeter segments={segments} limit={queue.queuedLimit} />
+          </HoverDetail>
         </Flex>
-      </HoverDetail>
-    </Stat>
+        <EvaluationQueueMeter segments={segments} limit={queue.queuedLimit} />
+        <dl css={legendCSS}>
+          {segments
+            .filter((segment) => segment.count > 0)
+            .map((segment) => (
+              <div key={segment.id} className="queue-legend__row">
+                <dt>
+                  <EvaluationQueueSwatch color={segment.color} />
+                  <Text size="XS" color="text-700">
+                    {segment.label}
+                  </Text>
+                </dt>
+                <dd>
+                  <Text size="XS" fontFamily="mono">
+                    {intFormatter(segment.count)}
+                  </Text>
+                </dd>
+              </div>
+            ))}
+          {projectRunningCount > 0 ? (
+            <div className="queue-legend__row">
+              <dt>
+                <Text size="XS" color="text-700">
+                  Running now
+                </Text>
+              </dt>
+              <dd>
+                <Text size="XS" fontFamily="mono">
+                  {intFormatter(projectRunningCount)}
+                </Text>
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      </Flex>
+    </StatItem>
   );
 }
 
@@ -459,7 +458,7 @@ function QueueRateStat({
   description: string;
 }) {
   return (
-    <Stat label={label}>
+    <StatItem label={label}>
       <HoverDetail
         detail={
           <Text size="S" color="text-700">
@@ -471,7 +470,7 @@ function QueueRateStat({
           {project != null ? formatPerHour(getPerMinute(project)) : "--"}
         </StatValue>
       </HoverDetail>
-    </Stat>
+    </StatItem>
   );
 }
 
@@ -490,7 +489,7 @@ function QueueWaitStat({
   const isWaitingTooLong =
     projectOldestQueuedAt != null && hasWaitedTooLong(projectOldestQueuedAt);
   return (
-    <Stat label="Waiting">
+    <StatItem label="Waiting">
       <HoverDetail
         detail={
           <Text size="S" color="text-700">
@@ -504,66 +503,38 @@ function QueueWaitStat({
             : "--"}
         </StatValue>
       </HoverDetail>
-    </Stat>
+    </StatItem>
   );
 }
 
-/**
- * Wide enough for typical counts ("120 · 4,800 / 10,000 shared") and the bar,
- * so the stats after it stay put as the counts change or load.
- */
-const inQueueColumnCSS = css`
-  min-width: 300px;
-`;
-
-/** Keeps the action at the right edge, also when the row wraps. */
-const actionCSS = css`
-  margin-inline-start: auto;
-`;
-
-/** Wide enough for the widest status badge, so the stats beside it never shift. */
-const statusColumnCSS = css`
-  min-width: 88px;
-`;
-
-/** The value row is one large line tall, so a badge or button centers on it. */
-const statValueRowCSS = css`
+/** The badge sits on the same line height as the mono values beside it. */
+const badgeRowCSS = css`
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   min-height: var(--global-line-height-l);
 `;
 
-function Stat({
-  label,
-  children,
-  isStatus = false,
-  isInQueue = false,
-}: {
-  label: string;
-  children: ReactNode;
-  /** Reserves the width of the widest status badge. */
-  isStatus?: boolean;
-  /** Reserves the width of the widest queue counts and the bar. */
-  isInQueue?: boolean;
-}) {
-  return (
-    <Flex
-      direction="column"
-      flex="none"
-      css={
-        isStatus ? statusColumnCSS : isInQueue ? inQueueColumnCSS : undefined
-      }
-    >
-      <Text elementType="h3" size="S" color="text-700">
-        {/* A non-breaking space keeps an unlabeled column's rows aligned. */}
-        {label || "\u00a0"}
-      </Text>
-      <div css={statValueRowCSS}>{children}</div>
-    </Flex>
-  );
-}
+const legendCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
+  margin: 0;
+  width: 100%;
+  .queue-legend__row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: var(--global-dimension-size-100);
+  }
+  dt {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-75);
+  }
+  dd {
+    margin: 0;
+  }
+`;
 
 function StatValue({
   color = null,
@@ -596,7 +567,6 @@ function HoverDetail({
         <span role="button">{children}</span>
       </Focusable>
       {/* Sized to its lines, so a queue's line never wraps. */}
-      {/* Extends right from its stat, so it never covers the stats to its left. */}
       <RichTooltip placement="bottom start" width="max-content">
         <TooltipArrow />
         <Flex direction="column" gap="size-50">

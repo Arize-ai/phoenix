@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useCallback, useState } from "react";
+import { Group, Panel } from "react-resizable-panels";
 import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -12,7 +13,7 @@ import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evalua
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ClearQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
 import {
-  ProjectEvaluatorQueueStats,
+  ProjectEvaluatorQueueAside,
   QueueStatsRefreshContext,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
@@ -20,6 +21,29 @@ import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluat
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
+import {
+  TableAsidePanel,
+  TableAsideToggleButton,
+} from "@phoenix/pages/project/TableAside";
+
+const QUEUE_ASIDE_DEFAULT_SIZE_PIXELS = 280;
+const QUEUE_ASIDE_MIN_SIZE_PIXELS = 240;
+const QUEUE_ASIDE_MAX_SIZE_PIXELS = 480;
+
+/** Fills the rest of the tab below the toolbar, so the group can size its panels. */
+const tableGroupCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+`;
+
+/** The table scrolls inside its panel rather than growing the panel. */
+const tablePanelCSS = css`
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+`;
 
 export function ProjectEvaluatorsPage() {
   const { projectId } = useParams();
@@ -111,16 +135,6 @@ function ProjectEvaluatorsPageContent({
   );
   return (
     <QueueStatsRefreshContext.Provider value={refreshQueueStats}>
-      <ProjectEvaluatorQueueStats
-        projectId={projectId}
-        refreshKey={queueRefreshKey}
-        action={(clearableCount) => (
-          <ClearQueuedEvaluationsButton
-            projectId={projectId}
-            isProjectQueueEmpty={clearableCount === 0}
-          />
-        )}
-      />
       {isEmptyState ? (
         <View
           padding="size-100"
@@ -139,7 +153,15 @@ function ProjectEvaluatorsPageContent({
               tool calls, then return labels or scores you can filter, chart,
               and alert on.
             </Text>
-            <AddProjectEvaluatorMenu size="M" />
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-100"
+              flex="none"
+            >
+              <AddProjectEvaluatorMenu size="M" />
+              <TableAsideToggleButton />
+            </Flex>
           </Flex>
         </View>
       ) : (
@@ -148,18 +170,46 @@ function ProjectEvaluatorsPageContent({
           onFilterChange={onFilterChange}
         />
       )}
-      <ProjectEvaluatorsTable
-        project={data.project}
-        projectId={projectId}
-        filter={filter}
-        timeRange={timeRangeISOStrings}
-        initialFilter={loaderData.filter}
-        initialTimeRange={initialTimeRange}
-        initialScoreWindow={loaderData.scoreWindow}
-        initialIncludeMeanScore={loaderData.includeMeanScore}
-        selection={selection}
-        onSelectionChange={onSelectionChange}
-      />
+      {/* The table and its queue aside share the rest of the tab, like the
+          spans, traces and sessions tables and theirs. */}
+      <div css={tableGroupCSS}>
+        <Group orientation="horizontal">
+          <Panel id="evaluators-table" minSize="30%">
+            <div css={tablePanelCSS}>
+              <ProjectEvaluatorsTable
+                project={data.project}
+                projectId={projectId}
+                filter={filter}
+                timeRange={timeRangeISOStrings}
+                initialFilter={loaderData.filter}
+                initialTimeRange={initialTimeRange}
+                initialScoreWindow={loaderData.scoreWindow}
+                initialIncludeMeanScore={loaderData.includeMeanScore}
+                selection={selection}
+                onSelectionChange={onSelectionChange}
+              />
+            </div>
+          </Panel>
+          {/* Narrower than the spans and sessions asides: a few counts and a
+              bar, no copyable fields or annotation summaries. */}
+          <TableAsidePanel
+            defaultSize={QUEUE_ASIDE_DEFAULT_SIZE_PIXELS}
+            minSize={QUEUE_ASIDE_MIN_SIZE_PIXELS}
+            maxSize={QUEUE_ASIDE_MAX_SIZE_PIXELS}
+          >
+            <ProjectEvaluatorQueueAside
+              projectId={projectId}
+              refreshKey={queueRefreshKey}
+              action={(clearableCount) => (
+                <ClearQueuedEvaluationsButton
+                  projectId={projectId}
+                  isProjectQueueEmpty={clearableCount === 0}
+                />
+              )}
+            />
+          </TableAsidePanel>
+        </Group>
+      </div>
     </QueueStatsRefreshContext.Provider>
   );
 }

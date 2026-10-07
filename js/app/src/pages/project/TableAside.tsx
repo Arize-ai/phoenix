@@ -66,7 +66,20 @@ function useTableAsidePanel() {
  * error/suspense boundaries around the aside content. Render it as the last
  * child of the table's resizable `Group`.
  */
-export function TableAsidePanel({ children }: { children: ReactNode }) {
+export function TableAsidePanel({
+  children,
+  defaultSize = ASIDE_PANEL_DEFAULT_SIZE_PIXELS,
+  minSize = ASIDE_PANEL_MIN_SIZE_PIXELS,
+  maxSize = ASIDE_PANEL_MAX_SIZE_PIXELS,
+}: {
+  children: ReactNode;
+  /** The panel's width in pixels when first shown. */
+  defaultSize?: number;
+  /** The narrowest the panel can be dragged, in pixels. */
+  minSize?: number;
+  /** The widest the panel can be dragged, in pixels. */
+  maxSize?: number;
+}) {
   const { showTableAside, asidePanelRef, onAsidePanelResize } =
     useTableAsidePanel();
   return (
@@ -78,10 +91,10 @@ export function TableAsidePanel({ children }: { children: ReactNode }) {
       />
       <Panel
         panelRef={asidePanelRef}
-        defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
+        defaultSize={defaultSize}
         collapsedSize={0}
-        minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
-        maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
+        minSize={minSize}
+        maxSize={maxSize}
         collapsible
         onResize={onAsidePanelResize}
       >
