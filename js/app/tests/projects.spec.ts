@@ -18,6 +18,42 @@ async function createProject(
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+/**
+ * Give a project its first span through the REST API. A brand-new project is
+ * covered by the onboarding guide until it has a trace, so tests that work
+ * with the tabs of a fresh project seed one first.
+ */
+async function sendSpan(page: Page, projectName: string) {
+  const now = new Date();
+  const response = await page.request.post(
+    `/v1/projects/${encodeURIComponent(projectName)}/spans`,
+    {
+      data: {
+        data: [
+          {
+            name: "seed-span",
+            context: {
+              trace_id: randomUUID().replace(/-/g, ""),
+              span_id: randomUUID().replace(/-/g, "").slice(0, 16),
+            },
+            span_kind: "CHAIN",
+            parent_id: null,
+            start_time: new Date(now.getTime() - 50).toISOString(),
+            end_time: now.toISOString(),
+            status_code: "OK",
+            attributes: { "input.value": "hello" },
+          },
+        ],
+      },
+    }
+  );
+  expect(response.ok()).toBeTruthy();
+}
+
+function onboardingGuide(page: Page) {
+  return page.getByRole("dialog", { name: "Set up tracing for this project" });
+}
+
 async function clickSortableHeaderAndExpect(
   header: Locator,
   direction: "ascending" | "descending"
@@ -128,11 +164,44 @@ test.describe.serial("Projects", () => {
     ).not.toBeVisible();
   });
 
+  test("blocks a new project's tabs with onboarding until its first trace arrives", async ({
+    page,
+  }) => {
+    const newProjectName = `test-onboarding-${randomUUID().slice(0, 8)}`;
+    await createProject(page, newProjectName, "Awaiting traces");
+
+    // The guide covers every tab and takes focus; the tabs behind it are inert.
+    const guide = onboardingGuide(page);
+    await expect(guide).toBeVisible();
+    await expect(guide).toContainText("Waiting for traces to arrive");
+    await expect(
+      page.locator(".project-onboarding-overlay__content")
+    ).toHaveAttribute("inert", "");
+    // A trial click runs the actionability checks without clicking; the guide
+    // intercepts pointer events, so it must fail.
+    const configTab = page.getByRole("tab", { name: "Config" });
+    await expect(
+      configTab.click({ trial: true, timeout: 2_000 })
+    ).rejects.toThrow();
+
+    // The first span dismisses the guide without a reload, and the table
+    // underneath already shows it.
+    await sendSpan(page, newProjectName);
+    await expect(guide).not.toBeVisible({ timeout: 20_000 });
+    await configTab.click({ trial: true });
+    await expect(page.getByText("seed-span").first()).toBeVisible();
+  });
+
   test("can edit project description and gradient from config tab", async ({
     page,
   }) => {
     const editProjectName = `test-edit-project-${randomUUID().slice(0, 8)}`;
     await createProject(page, editProjectName, "Original description");
+
+    // A project with no traces shows the onboarding guide over its tabs, so
+    // seed one before working with the Config tab.
+    await sendSpan(page, editProjectName);
+    await expect(onboardingGuide(page)).not.toBeVisible({ timeout: 20_000 });
 
     // Navigate to the Config tab
     await page.getByRole("tab", { name: "Config" }).click();
