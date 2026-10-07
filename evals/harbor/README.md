@@ -100,7 +100,7 @@ or full, records to the same dataset. Set `HARBOR_DATASET=<name>` to select anot
 `HARBOR_PLUGIN=` to run without recording results in Phoenix.
 
 Each run includes `reward` and the other verifier measurements. The TRAIL verifier
-adds `tool_call_count` and `agent_turn_count`, which do not affect the reward. The plugin
+adds `tool_count` and `turn_count`, which do not affect the reward. The plugin
 adds Harbor's token counts, cost, and latency, an `infra_ok` score that is `0` when
 Harbor reports an exception, and the agent's full trace. Run `make harbor-view` to open
 Harbor's results viewer.
