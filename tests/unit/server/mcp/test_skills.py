@@ -67,7 +67,9 @@ class TestAdvertisedInstructions:
             FastAPI(), code_mode=False, read_only=True, db=_unused_db()
         )
         async with Client(mcp) as client:
-            assert client.instructions is None
+            instructions = client.instructions or ""
+            assert "<phoenix_data_access>" in instructions
+            assert "<available_skills>" not in instructions
             names = {tool.name for tool in await client.list_tools()}
             assert names.isdisjoint({"load_skill", "load_skill_reference"})
 

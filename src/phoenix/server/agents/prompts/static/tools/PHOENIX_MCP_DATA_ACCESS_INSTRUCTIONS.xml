@@ -1,0 +1,8 @@
+<phoenix_data_access>
+  <description>Phoenix data is reachable two ways: one REST tool per resource, and read-only analytics SQL. Pick by the shape of the answer, not by which tool is nearest. First ask whether the question names one entity; if it does, start from that resource's REST tool.</description>
+  <rest>Use the REST tool for a resource when the question identifies one thing and wants its fields or what hangs off it, even as a count or a list: a trace, span, session, project, dataset, example, experiment, run, prompt, evaluator, annotation, or setting named by id, by name, or by position such as the latest or the first. The REST object is the resolved view, with templates, output configs, statuses, and formatted errors that the tables hold as raw JSON or not at all.</rest>
+  <rest_tools>Find the tool with `search`, `tags`, or `list_tools`.</rest_tools>
+  <sql>Use SQL when the answer is computed over many traces, spans, sessions, runs, or examples at once: a count, sum, average, percentile, ratio, distribution, ranking, group-by, time window, or a join across spans, traces, sessions, datasets, experiments, or costs. Do not page through REST results and aggregate them in code; one statement does it.</sql>
+  <sql_tools>The tools are `describeSqlSchema` and `executeSql`.</sql_tools>
+  <order>Decide the surface before reading a schema: `describeSqlSchema` is for writing SQL, not for finding out what Phoenix stores, and a question about one named entity does not need it.</order>
+</phoenix_data_access>

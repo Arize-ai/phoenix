@@ -6,6 +6,10 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import TypeAdapter
 
+from phoenix.server.mcp.routing import (
+    DESCRIBE_SQL_SCHEMA_DESCRIPTION,
+    EXECUTE_SQL_DESCRIPTION,
+)
 from phoenix.server.mcp.sql.allowlist import load_allowlist
 from phoenix.server.mcp.sql.catalog import (
     EngineInfo,
@@ -194,15 +198,18 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     # returns reaches the model, so neither representation is charged for. It
     # matters for a client that surfaces each tool result directly, where the
     # document would otherwise arrive twice.
-    @mcp.tool(tags={_ANALYTICS_TAG}, annotations=_META_ANNOTATIONS, output_schema=None)
+    @mcp.tool(
+        tags={_ANALYTICS_TAG},
+        annotations=_META_ANNOTATIONS,
+        output_schema=None,
+        description=DESCRIBE_SQL_SCHEMA_DESCRIPTION,
+    )
     async def describeSqlSchema(
         area: Optional[str] = None,
         tables: Optional[list[str]] = None,
         detail: DetailLevel = "brief",
         search: Optional[str] = None,
     ) -> str:
-        """Return the allowlisted analytics SQL schema for telemetry, datasets, experiments,
-        evaluators, and prompts."""
         if detail not in {"brief", "detailed", "full"}:
             raise ToolError("detail must be one of: brief, detailed, full")
 
@@ -262,40 +269,13 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         tags={_ANALYTICS_TAG},
         annotations=_META_ANNOTATIONS,
         output_schema=_EXECUTE_SQL_OUTPUT_SCHEMA,
+        description=EXECUTE_SQL_DESCRIPTION,
     )
     async def executeSql(
         sql: str,
         validate_only: bool = False,
         row_limit: Optional[int] = None,
     ) -> ExecuteSqlOutput:
-        """Execute read-only analytics SQL against allowlisted Phoenix tables.
-
-        Returns either the columns, rows, and applied limits, or an error
-        envelope when the SQL cannot be accepted.
-
-        A statement may be at most 2 KiB of SQL, measured in UTF-8 bytes.
-        Longer ones are refused unexecuted, so split the work rather than
-        generating one long statement.
-
-        `row_count_is_partial` is the authoritative answer to whether the result
-        was truncated by either row or response-byte limits. One row beyond the
-        row limit is fetched, and `notes` identifies the limit that applied.
-        `estimated_rows` is available only on PostgreSQL, where it is the
-        planner's untruncated-row estimate. It is not a count, it can be out by
-        a large factor over JSON paths, and it never answers the truncation
-        question -- that is what the flag is for.
-
-        `applied` describes the effective dialect, row limit, and rewrites;
-        `backend_validated` says whether the backend execution gate ran; `notes`
-        lists caveats callers should not infer.
-
-        Code-mode `call_tool` already returns this envelope as a dictionary.
-        Check for an `error` key before reading `rows`. Preserve any error in
-        your summary; do not call `json.loads` on the result.
-
-        With `validate_only=True`, Phoenix validates the statement but does not
-        execute it for data; the successful empty result carries a note saying so.
-        """
         try:
             result = await execute_analytics_sql(
                 db,
