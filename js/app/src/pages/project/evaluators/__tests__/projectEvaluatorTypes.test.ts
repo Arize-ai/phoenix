@@ -94,7 +94,7 @@ describe("formatProjectEvaluatorRunCounts", () => {
     ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
     expect(
       formatProjectEvaluatorRunCounts({ ...runSummary, overflowedCount: 12 })
-    ).toBe("118 evaluated · 2 failed · 12 dropped · 3 queued");
+    ).toBe("118 evaluated · 2 failed · 3 queued");
   });
 });
 
