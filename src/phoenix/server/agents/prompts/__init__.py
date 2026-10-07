@@ -47,7 +47,6 @@ class AgentPrompts:
     subagent: str = _SUBAGENT_INSTRUCTIONS
     docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
     phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
-    """Rendered with ``code_mode`` to match the surface the server was built with."""
     github_tools: str = _GITHUB_TOOL_INSTRUCTIONS
     ui_contexts: str = _UI_CONTEXT_INSTRUCTIONS
 
