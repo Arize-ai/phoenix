@@ -35,7 +35,11 @@ import {
   EDIT_ANNOTATION_HOTKEY,
   NOTE_HOTKEY,
 } from "@phoenix/constants/annotationConstants";
-import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
+import {
+  useHotkeysEnabled,
+  useNotifySuccess,
+  usePreferencesContext,
+} from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
@@ -93,6 +97,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   );
   const openSpanAside = useOpenSpanAside();
   const openSpanNoteBar = useOpenSpanNoteBar();
+  const areHotkeysEnabled = useHotkeysEnabled();
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
@@ -195,15 +200,19 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
 
   useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
     preventDefault: true,
+    enabled: areHotkeysEnabled,
   });
   useHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
     preventDefault: true,
+    enabled: areHotkeysEnabled,
   });
 
   const hasExceptions = spanHasException(span);
 
   return (
-    <Group orientation="horizontal" id="span-details-layout">
+    // No fixed group id: the aside panel ref resolves its group by id, so two
+    // mounted span details (the compare view) must not share one
+    <Group orientation="horizontal">
       <Panel>
         <Flex
           direction="column"
