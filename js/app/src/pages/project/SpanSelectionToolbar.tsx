@@ -243,22 +243,16 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               data-testid="compare-traces-button"
               size="M"
               leadingVisual={<Icon svg={<Icons.ArrowCompare />} />}
+              isDisabled={comparableTraceSlots === null}
               onPress={() => {
-                // stays enabled so the rule can be explained on press; a
-                // disabled button would not show its tooltip
-                if (comparableTraceSlots === null) {
-                  setError(
-                    "Select exactly two spans from two different traces to compare them."
+                if (comparableTraceSlots) {
+                  navigate(
+                    getCompareTracesPath({
+                      slots: comparableTraceSlots,
+                      searchParams,
+                    })
                   );
-                  return;
                 }
-                setError(null);
-                navigate(
-                  getCompareTracesPath({
-                    slots: comparableTraceSlots,
-                    searchParams,
-                  })
-                );
               }}
             >
               Compare
