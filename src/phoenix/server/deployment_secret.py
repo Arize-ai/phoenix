@@ -46,7 +46,6 @@ def derive_deployment_key(
     seed: bytes,
     secret: SecretStr,
     purpose: bytes,
-    length: int = 32,
 ) -> bytes:
     """Derive a purpose-specific key from the deployment seed and secret.
 
@@ -54,13 +53,12 @@ def derive_deployment_key(
         seed: 32-byte deployment seed.
         secret: ``PHOENIX_SECRET``, empty when unset.
         purpose: Stable, unique domain-separation label.
-        length: Derived key length in bytes.
     """
     # A fixed-length seed makes concatenation with the variable-length secret unambiguous.
     keying_material = secret.get_secret_value().encode("utf-8") + seed
     return HKDF(
         algorithm=hashes.SHA256(),
-        length=length,
+        length=32,
         salt=_HKDF_SALT,
         info=purpose,
     ).derive(keying_material)
