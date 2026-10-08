@@ -97,10 +97,9 @@ class RewriteContext:
 #: 1017066 and 149740 answers 1017066, typed integer.
 _JSON_TEXT_ORDERING_NOTES: dict[str, str] = {
     "postgresql": (
-        "A JSON value was ordered or compared without a cast. On PostgreSQL a "
-        "JSON extraction returns text, so MIN, MAX and ORDER BY compare "
-        "character by character -- '1017066' sorts below '149740'. Cast the "
-        "extraction to the type you mean, as in "
+        "A JSON text extraction was ordered or compared without a cast. PostgreSQL "
+        "`->>`, `#>>`, and `jsonb_extract_path_text` return text, which orders "
+        "lexicographically. For numeric values, cast the extraction, e.g. "
         "`CAST(attributes #>> '{a,b}' AS numeric)`."
     ),
     "sqlite": (
@@ -125,20 +124,20 @@ _JSON_EXTRACTIONS = (
 )
 
 
-def _is_json_extraction(node: exp.Expression) -> bool:
-    """Both spellings, because canonicalisation has already run.
-
-    That pass rebuilds `->>` as an `Anonymous` call to `json_extract`, so a
-    check that knows only the operator classes sees nothing on exactly the
-    statements it was written for.
-    """
-    if isinstance(node, _JSON_EXTRACTIONS):
-        return True
-    return isinstance(node, exp.Anonymous) and str(node.this).lower() in {
-        "json_extract",
-        "jsonb_extract_path",
-        "jsonb_extract_path_text",
-    }
+def _json_extraction_may_return_text(
+    node: exp.Expression, dialect: SupportedSQLDialectName
+) -> bool:
+    """SQLite scalar reads have an unknown SQL type; PostgreSQL text reads are explicit."""
+    classes: tuple[type[exp.Expression], ...]
+    if dialect == "postgresql":
+        classes = (exp.JSONExtractScalar, exp.JSONBExtractScalar)
+        functions = {"jsonb_extract_path_text"}
+    else:
+        classes = _JSON_EXTRACTIONS
+        functions = {"json_extract"}
+    return isinstance(node, classes) or (
+        isinstance(node, exp.Anonymous) and str(node.this).lower() in functions
+    )
 
 
 #: Comparisons where text ordering answers differently from numeric ordering.
@@ -147,19 +146,7 @@ _ORDER_SENSITIVE_COMPARISONS = (exp.GT, exp.GTE, exp.LT, exp.LTE, exp.Between)
 
 
 def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> None:
-    """Say so when a JSON read is ordered as text.
-
-    Engine semantics, not a defect of ours and not a rendering problem, so there
-    is nothing to rewrite: on PostgreSQL `#>>` and `->>` are defined to return
-    text, and on SQLite the accessors that return a value give whatever the
-    document held. Either way `max` over a numeric path answers with the wrong
-    row and reports nothing.
-
-    A note rather than a refusal. Text ordering is the correct answer when the
-    path holds text, and the surface cannot tell which without knowing the
-    document -- so refusing would block a legitimate query to prevent a
-    plausible mistake.
-    """
+    """Warn when an uncast JSON extraction may compare numeric values as text."""
     note = _JSON_TEXT_ORDERING_NOTES[ctx.dialect]
     for node in root.find_all(*_ORDER_SENSITIVE, *_ORDER_SENSITIVE_COMPARISONS):
         for target in (
@@ -173,7 +160,7 @@ def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> Non
             unwrapped = _strip_parens(target)
             if unwrapped is None or isinstance(unwrapped, exp.Cast):
                 continue
-            if _is_json_extraction(unwrapped) and note not in ctx.notes:
+            if _json_extraction_may_return_text(unwrapped, ctx.dialect) and note not in ctx.notes:
                 ctx.notes.append(note)
                 return
 
@@ -193,7 +180,6 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _rewrite_sqlite_median(root, ctx)
     root = _canonicalize_json_extract(root, ctx)
     root = _canonicalize_postgres_json_extract_function(root, ctx)
-    root = _repair_quoted_json_path(root, ctx)
     root = _qualify_schema(root, ctx)
     root = _parenthesize_setop_operands(root, ctx)
     root = _inject_limit(root, ctx)
@@ -539,49 +525,6 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
         changed = True
     if changed:
         ctx.applied.append("json_extract_canonical")
-    return root
-
-
-def _repair_quoted_json_path(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
-    """Emit a JSON key containing a quote as a literal, so it is escaped.
-
-    The generator renders the path of a JSON accessor without escaping, so a
-    key holding an apostrophe closes its own string and the statement does not
-    parse. Attribute keys are arbitrary strings, and `describeSqlSchema`
-    publishes the populated ones, so the surface can print a path it cannot run.
-
-    A plain string literal in the same position is escaped correctly, and keeps
-    the accessor the caller wrote -- which matters on SQLite, where `->` and
-    `json_extract` return different types.
-
-    Workaround for https://github.com/tobymao/sqlglot/issues/8251, fixed
-    upstream but unreleased at the pinned version.
-    """
-    changed = False
-    for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
-        path = node.expression
-        if not isinstance(path, exp.JSONPath):
-            continue
-        parts = [part for part in path.expressions if not isinstance(part, exp.JSONPathRoot)]
-        keys = [part.this for part in parts if isinstance(part, exp.JSONPathKey)]
-        if not any(isinstance(key, str) and "'" in key for key in keys):
-            continue
-        if ctx.dialect == "sqlite":
-            # A subscript belongs to the path as much as a key does, and
-            # `_quoted_json_path` spells both, so the shape it accepts is the
-            # shape this repairs.
-            spelled = _quoted_json_path(path)
-            if spelled is None:
-                continue
-        elif len(keys) == len(parts) == 1:
-            # The operator takes one key, and that key is the literal.
-            spelled = keys[0]
-        else:
-            continue
-        node.set("expression", exp.Literal.string(spelled))
-        changed = True
-    if changed:
-        ctx.applied.append("json_path_quote_repair")
     return root
 
 
