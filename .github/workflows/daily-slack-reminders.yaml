@@ -1,6 +1,7 @@
 name: Collect customer issues
 permissions:
   contents: read
+  pull-requests: read
 
 on:
   schedule:
@@ -38,4 +39,37 @@ jobs:
             {
               "type": "mrkdwn",
               "text": ${{ toJSON(steps.retrieve-issues.outputs.slack_message) }}
+            }
+
+  collect-pull-requests:
+    name: Pull Requests Needing Attention
+    runs-on: ubuntu-latest
+    env:
+      STALENESS_THRESHOLD_IN_DAYS: 14
+      MAX_PRS_PER_GROUP: 10
+      IGNORED_PR_LABELS: "autorelease: pending"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/
+      - name: Retrieve and group pull requests by owner
+        id: retrieve-pull-requests
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const script = require(".github/.scripts/collect-pull-requests.js");
+            await script({github, context, core});
+      - name: Send message to Slack
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        if: steps.retrieve-pull-requests.outputs.has_prs == 'true'
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "type": "mrkdwn",
+              "text": ${{ toJSON(steps.retrieve-pull-requests.outputs.slack_message) }}
             }
