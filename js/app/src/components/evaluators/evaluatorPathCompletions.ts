@@ -242,22 +242,23 @@ export function toMemberPreview(value: unknown): string {
 
 /** One dropdown row: something the cursor's level can be extended with. */
 export type EvaluatorPathCompletion = {
-  /** The text matched against what the user has typed. */
+  /**
+   * What the row shows and is matched as: the path it writes, from where the
+   * typed level starts.
+   */
   key: string;
-  /** What the row shows in place of its key. */
-  displayLabel?: string;
   /** The whole path the row writes into the field. */
   path: string;
-  /** The value the path reads on the sampled record. */
-  preview: string;
+  /** Beside the key: an idea's description, or the value a field reads. */
+  detail: string;
   /** Which group the row sits under. */
   section: CompletionSection;
   /** Where the row sits within its group; higher comes first. */
   boost?: number;
   /** The row's completion type, which styles it. */
   type?: string;
-  /** One line on what the row reaches, shown when highlighted. */
-  description?: string;
+  /** Shown when the row is highlighted: the value an idea reads. */
+  info?: string;
   /** Whether the row names a container the path can keep reaching into. */
   drills?: boolean;
 };
@@ -726,10 +727,11 @@ function toLevelCompletion({
   section: CompletionSection;
 }): EvaluatorPathCompletion {
   const drills = row.idea === undefined && row.holdsMore;
+  const preview = toMemberPreview(row.value);
   return {
     key,
     path: row.path,
-    preview: toMemberPreview(row.value),
+    detail: row.idea ?? preview,
     type:
       row.idea !== undefined
         ? IDEA_COMPLETION_TYPE
@@ -738,9 +740,7 @@ function toLevelCompletion({
           : "variable",
     section,
     drills,
-    ...(row.idea !== undefined
-      ? { displayLabel: row.idea, description: row.path }
-      : {}),
+    ...(row.idea !== undefined && preview !== "" ? { info: preview } : {}),
     ...(row.boost !== undefined ? { boost: row.boost } : {}),
   };
 }
