@@ -75,10 +75,11 @@ The `DISABLE` and `FORCE` variables take `true`. The others take a URL, token, o
 | Variable | Effect |
 | --- | --- |
 | `PHOENIX_DISABLE_AGENT_ASSISTANT` | Turn PXI off for the deployment. |
-| `PHOENIX_ALLOW_EXTERNAL_RESOURCES` | `false` blocks all external access, including docs lookups. |
+| `PHOENIX_ALLOW_EXTERNAL_RESOURCES` | `false` blocks all external access: docs lookups, web search and fetch, and GitHub tools. |
 | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS` | No web search or fetch. |
 | `PHOENIX_AGENTS_DISABLE_BASH` | No server-side bash, subagents, or terminal agent. |
 | `PHOENIX_AGENTS_DISABLE_GITHUB` | No GitHub issue tools. |
+| `PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE` | `false` gives PXI one tool per read-only REST endpoint instead of `search` and sandboxed `execute`. Independent of the `/mcp` server's `PHOENIX_ENABLE_MCP_CODE_MODE`. |
 | `PHOENIX_AGENTS_GITHUB_MCP_URL` | Self-hosted GitHub MCP server URL. |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | Fallback GitHub token for all users. |
 | `PHOENIX_AGENTS_FORCE_TRACING` | Record and export every user's chats. |

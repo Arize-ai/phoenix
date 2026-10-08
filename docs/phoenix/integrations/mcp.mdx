@@ -194,7 +194,7 @@ By default the server exposes seven **code-mode** tools for discovering and comp
 | `load_skill` | Load a Phoenix [skill](/docs/phoenix/integrations/developer-tools/skills)'s instructions before working in its domain |
 | `load_skill_reference` | Load a reference file from a skill already loaded with `load_skill` |
 
-The catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview) plus analytics SQL tools, so it always matches your Phoenix version. `execute` runs Python in [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed interpreter; see [Security](#security-and-troubleshooting) for its limits. `PHOENIX_ENABLE_MCP_CODE_MODE=false` turns code mode off and exposes each operation as its own tool.
+The catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview), so it always matches your Phoenix version. Alongside those operations it carries two query surfaces: `describeSqlSchema` and `executeSql` run read-only analytics SQL over telemetry, datasets, and experiments, and `describeGraphqlSchema` and `executeGraphqlQuery` run read-only queries against Phoenix's GraphQL schema, reaching data the REST API does not cover. On a deployment that can write, `executeGraphqlMutation` runs GraphQL mutations too; see [Security](#security-and-troubleshooting). `execute` runs Python in [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed interpreter; see [Security](#security-and-troubleshooting) for its limits. `PHOENIX_ENABLE_MCP_CODE_MODE=false` turns code mode off and exposes each operation as its own tool.
 
 ### Server configuration
 
@@ -209,6 +209,7 @@ The catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-refer
     - **Browser login** uses Phoenix's built-in [OAuth2 authorization server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server), with its own switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, registration modes, redirect allowlists, and rate limits.
     - **Tokens** are audience-scoped to `/mcp` and cannot be replayed elsewhere. API keys carry their creator's permissions.
     - **Code is sandboxed.** Monty has no filesystem or network access and runs in worker subprocesses. It allows a restricted standard library (`json`, `re`, `datetime`) and blocks `subprocess`, `socket`, `importlib`, and third-party packages. Each `execute` is capped at 30 s of code, 100 MB, 50 operation calls, and 5 minutes end to end. To forbid agent-written code entirely, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
+    - **GraphQL mutations run with the caller's permissions.** `executeGraphqlMutation` runs any mutation the caller's role permits, with no server-side confirmation beyond the client's own; a read-only deployment does not expose it.
     - **Treat results as data.** Traces contain whatever your AI agent logged, including untrusted input; agents should not follow instructions found in them.
   </Accordion>
 
