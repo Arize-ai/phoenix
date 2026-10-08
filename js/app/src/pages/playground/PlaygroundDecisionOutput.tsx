@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
 
 import {
@@ -26,6 +27,14 @@ import type { PlaygroundInstanceProps } from "./types";
 import { useDecisionRunner } from "./useDecisionRunner";
 
 type DecisionDisplayMode = "pretty" | "raw";
+
+// The chat output paints its editor over the AI tint with this translucent
+// layer; the distributions sit on the same layer so both modes share one
+// body color under the card header.
+const prettyBodyCSS = css`
+  padding: var(--global-dimension-size-200);
+  background-color: var(--code-mirror-editor-background-color);
+`;
 
 function prettyPrint(output: string): string {
   try {
@@ -116,9 +125,9 @@ export function PlaygroundDecisionOutput({
             }
           >
             {mode === "pretty" ? (
-              <View padding="size-200">
+              <div css={prettyBodyCSS}>
                 <DecisionResult output={output} request={request} />
-              </View>
+              </div>
             ) : (
               <JSONBlock value={raw} />
             )}
@@ -134,7 +143,7 @@ export function PlaygroundDecisionOutput({
       </View>
       {selected?.spanId ? (
         <Suspense>
-          <RunMetadataFooter spanId={selected.spanId} hideTokenMetrics />
+          <RunMetadataFooter spanId={selected.spanId} />
         </Suspense>
       ) : null}
     </Card>

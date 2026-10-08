@@ -1,13 +1,12 @@
 from datetime import datetime
 from typing import Any, Iterable, Mapping, Optional
 
-from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 from phoenix.datetime_utils import is_timezone_aware
 from phoenix.db import models
 from phoenix.server.cost_tracking import regex_specificity
-from phoenix.trace.attributes import get_attribute_value
+from phoenix.trace.decision import get_model_call_model_name, get_model_call_provider
 
 _RegexPatternStr: TypeAlias = str
 _RegexSpecificityScore: TypeAlias = int
@@ -128,9 +127,8 @@ class CostModelLookup:
         if not is_timezone_aware(start_time):
             raise TypeError("start_time must be timezone-aware")
 
-        model_name = str(
-            get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME) or ""
-        ).strip()
+        # llm.model_name for LLM spans, decision.model_name for DECISION spans
+        model_name = get_model_call_model_name(attributes)
         if not model_name:
             return None
 
@@ -148,7 +146,7 @@ class CostModelLookup:
         if len(candidates) == 1:
             return candidates[0]
 
-        provider = str(get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER) or "").strip()
+        provider = get_model_call_provider(attributes)
 
         # 4. priority-based selection: user-defined models first, then built-in models
         for is_built_in in (False, True):  # False = user-defined, True = built-in

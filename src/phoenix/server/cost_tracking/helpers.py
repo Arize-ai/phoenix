@@ -5,6 +5,7 @@ from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 from phoenix.trace.attributes import get_attribute_value
+from phoenix.trace.decision import DecisionAttributes
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,11 @@ def get_aggregated_tokens(
             attributes,
             SpanAttributes.LLM_TOKEN_COUNT_PROMPT,
         )
+        if prompt_tokens_value is None:
+            # Decision spans record their usage under decision.token_count.*
+            prompt_tokens_value = get_attribute_value(
+                attributes, DecisionAttributes.TOKEN_COUNT_INPUT
+            )
         prompt_tokens: int = (
             0
             if not isinstance(prompt_tokens_value, (int, float))
@@ -32,6 +38,10 @@ def get_aggregated_tokens(
             attributes,
             SpanAttributes.LLM_TOKEN_COUNT_COMPLETION,
         )
+        if completion_tokens_value is None:
+            completion_tokens_value = get_attribute_value(
+                attributes, DecisionAttributes.TOKEN_COUNT_OUTPUT
+            )
         completion_tokens: int = (
             0
             if not isinstance(completion_tokens_value, (int, float))

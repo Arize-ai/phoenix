@@ -113,7 +113,11 @@ async def test_decision_execution(
         assert span is not None
         assert span.attributes["decision"]["token_count"] == {"input": 123, "output": 0}
         assert "llm" not in span.attributes
-        assert span.llm_token_count_prompt is None
+        # Decision usage feeds the same token columns LLM spans use, so the
+        # playground footer and project rollups count it.
+        assert span.llm_token_count_prompt == 123
+        assert span.llm_token_count_completion == 0
+        assert span.cumulative_llm_token_count_prompt == 123
         assert span.status_code == "OK"
 
 
