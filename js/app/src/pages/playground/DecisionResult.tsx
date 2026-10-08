@@ -2,16 +2,7 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
 
-import {
-  Disclosure,
-  DisclosurePanel,
-  DisclosureTrigger,
-  Flex,
-  ProgressBar,
-  Text,
-  View,
-} from "@phoenix/components";
-import { JSONBlockWithCopy } from "@phoenix/components/code";
+import { Flex, ProgressBar, Text } from "@phoenix/components";
 import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
 
 import {
@@ -271,7 +262,7 @@ export function AnswerMeta({
   );
 }
 
-/** Full result for one instance: every answer, usage, and the raw body. */
+/** Every answer for one instance as distributions, then the usage line. */
 export function DecisionResult({
   output,
   request,
@@ -323,14 +314,6 @@ export function DecisionResult({
       >
         {formatUsage(result.model, result.usage)}
       </Text>
-      <Disclosure id="raw-response" size="S">
-        <DisclosureTrigger>Raw response</DisclosureTrigger>
-        <DisclosurePanel>
-          <View paddingTop="size-100">
-            <JSONBlockWithCopy value={output} />
-          </View>
-        </DisclosurePanel>
-      </Disclosure>
     </Flex>
   );
 }

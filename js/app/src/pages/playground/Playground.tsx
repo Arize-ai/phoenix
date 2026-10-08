@@ -855,7 +855,12 @@ function PlaygroundContent() {
                     playgroundInstanceId={instanceId}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
-                    supportsDecisionModels={!isDatasetMode}
+                    supportsDecisionModels
+                    decisionModelsDisabledReason={
+                      isDatasetMode
+                        ? "Decision models can't run over a dataset yet. Clear the dataset to add one."
+                        : undefined
+                    }
                   />
                 </View>
               ))}
