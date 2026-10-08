@@ -93,6 +93,7 @@ jobs:
           echo "Audit playground models: $run"
 
       - name: Prepare audit inputs
+        id: prepare
         if: steps.gate.outputs.run == 'true'
         run: |
           mkdir -p "$AUDIT_DIR"
@@ -104,6 +105,11 @@ jobs:
             -o "$AUDIT_DIR/litellm_model_prices.json"
           git diff -- "$MANIFEST_PATH" > "$AUDIT_DIR/manifest.diff" || true
           date -u +%F > "$AUDIT_DIR/today.txt"
+          # Snapshot the synced manifest outside the workspace (and its hash as a
+          # step output, which Claude cannot change); the restrict step restores
+          # it so no edit Claude makes to the manifest can be published.
+          cp "$MANIFEST_PATH" "$RUNNER_TEMP/model_cost_manifest.synced.json"
+          echo "manifest_sha=$(sha256sum "$MANIFEST_PATH" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           # Install the dev env up front so Claude's `uv run ruff/pytest` calls
           # don't need to resolve or download anything.
           uv sync --frozen
@@ -227,9 +233,20 @@ jobs:
       - name: Restrict and verify model-list changes
         id: audit
         if: steps.gate.outputs.run == 'true'
+        env:
+          MANIFEST_SHA: ${{ steps.prepare.outputs.manifest_sha }}
         run: |
+          # The manifest is owned by the sync step: put back its synced copy so
+          # only the LiteLLM sync's changes to it are ever published.
+          snapshot="$RUNNER_TEMP/model_cost_manifest.synced.json"
+          if [ "$(sha256sum "$snapshot" | cut -d' ' -f1)" != "$MANIFEST_SHA" ]; then
+            echo "::error::Synced manifest snapshot was modified during the audit."
+            exit 1
+          fi
+          cp "$snapshot" "$MANIFEST_PATH"
           # Claude may only change the playground clients and their test; anything
-          # else it touched is discarded (the manifest is owned by the sync step).
+          # else it touched is discarded. The manifest is listed only so the loop
+          # keeps the synced copy just restored above.
           allowed="$MANIFEST_PATH $PLAYGROUND_CLIENTS_PATH $PLAYGROUND_CLIENTS_TEST_PATH"
           for file in $(git diff --name-only; git ls-files --others --exclude-standard); do
             case " $allowed " in
