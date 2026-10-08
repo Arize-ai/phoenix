@@ -13,14 +13,14 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
-<ReleaseUpdate label="10.01.2026" href="/docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans" title="Eval Results in the Trace Tree and Decision Spans">
+<ReleaseUpdate label="10.01.2026" href="/docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans" title="Trace Tree Evals and Decision Spans">
 **Available in arize-phoenix 20.17.0–20.19.0 (Python) and @arizeai/phoenix-client 7.16.0+ (TypeScript)**
 
-Read eval results on every trace tree row, and trace decision-model calls as DECISION spans. arize-phoenix 20.17.0 requires Python 3.11 or newer.
+Scan traces for failed evals before opening a span, and trace routers, classifiers, and rubric scorers as DECISION spans. arize-phoenix 20.17.0 requires Python 3.11 or newer.
 
-- **Eval results in the trace tree**: annotation badges under each row, unfavorable first, with mean scores and label consensus
-- **DECISION span kind**: its own icon, a span view that names the decision model, and span-kind filters
-- **Project annotation configs** from the TypeScript client: assign, unassign, list, and replace
+- **Trace tree evals**: annotation badges under each row, unfavorable first, with mean scores and label consensus
+- **DECISION spans**: a dedicated icon, a detail view that names the decision model, and span-kind filters
+- **Project annotation configs** in the TypeScript client: assign, unassign, list, and replace configs from setup scripts
 - **Experiment token detail charts** for prompt and completion token types
 - **Air-gapped deployments** skip the WebAssembly sandbox download and the UI's update check
 </ReleaseUpdate>
