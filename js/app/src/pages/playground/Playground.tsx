@@ -864,7 +864,9 @@ function PlaygroundContent() {
           <div css={promptsWrapCSS}>
             <Flex
               direction="row"
-              gap="size-200"
+              // Decision headers sit side by side, so a wider gap keeps each
+              // model's controls reading as one group.
+              gap={hasDecisionInstance ? "size-400" : "size-200"}
               maxWidth="100%"
               // Decision columns hold only a model header, so let them wrap
               // rather than forcing a horizontal scroll to reach instance B.

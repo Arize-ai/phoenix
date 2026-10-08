@@ -113,7 +113,9 @@ export function DecisionRequestEditor() {
   };
 
   return (
-    <View paddingX="size-200" paddingBottom="size-100">
+    // The panel already pads the row of model headers, so the cards sit flush
+    // under the instance badges, with the same gap chat messages get.
+    <View paddingY="size-100">
       <Flex direction="column" gap="size-100">
         <Card
           collapsible
