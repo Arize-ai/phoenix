@@ -723,7 +723,7 @@ function getProjectedField(items: readonly unknown[]): string | null {
 }
 
 /** What one item of the list at `containerPath` is called: `messages` → message. */
-function toItemNoun(containerPath: string): string {
+export function toItemNoun(containerPath: string): string {
   const parsed = parseEvaluatorPath(containerPath);
   const lastStep = parsed.isValid ? parsed.steps.at(-1) : undefined;
   const name =
