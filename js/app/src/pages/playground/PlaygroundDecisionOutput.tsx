@@ -1,27 +1,44 @@
-import { Suspense } from "react";
+import { Suspense, useMemo, useState } from "react";
 
 import {
   Alert,
   Card,
+  CopyToClipboardButton,
   Flex,
   ParagraphSkeleton,
+  SegmentedControl,
+  SegmentedControlItem,
   Text,
   View,
 } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/ExperimentRepetitionSelector";
 
 import { DecisionResult } from "./DecisionResult";
 import { RunMetadataFooter } from "./RunMetadataFooter";
+import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import type { PlaygroundInstanceProps } from "./types";
 import { useDecisionRunner } from "./useDecisionRunner";
 
+type DecisionDisplayMode = "pretty" | "raw";
+
+function prettyPrint(output: string): string {
+  try {
+    return JSON.stringify(JSON.parse(output), null, 2);
+  } catch {
+    return output;
+  }
+}
+
 /**
- * Output for one decision instance. Runs its request against its model and
- * shows every answer as a distribution.
+ * Output for one decision instance, shaped like the chat output: an Output
+ * card holding one answers card whose header toggles between the
+ * distributions and the raw response, with the run footer below.
  */
 export function PlaygroundDecisionOutput({
   playgroundInstanceId: instanceId,
@@ -31,15 +48,26 @@ export function PlaygroundDecisionOutput({
   const instance = usePlaygroundContext((state) =>
     state.instances.find((item) => item.id === instanceId)
   );
+  const index = usePlaygroundContext((state) =>
+    state.instances.findIndex((item) => item.id === instanceId)
+  );
+  const [mode, setMode] = useState<DecisionDisplayMode>("pretty");
+  // The response is the model's turn, so it takes the AI message tint.
+  const answersStyles = useChatMessageStyles("ai");
+  const selected = instance?.repetitions[instance.selectedRepetitionNumber];
+  const output = typeof selected?.output === "string" ? selected.output : null;
+  const raw = useMemo(
+    () => (output == null ? "" : prettyPrint(output)),
+    [output]
+  );
   if (!instance) return null;
   const request = instance.decisionRequest ?? null;
   const runId = instance.activeRunId;
-  const selected = instance.repetitions[instance.selectedRepetitionNumber];
   const totalRepetitions = Object.keys(instance.repetitions).length;
   const skeletonLines = Math.max(1, request?.questions.length ?? 0);
   return (
     <Card
-      title="Decision output"
+      title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       extra={
         totalRepetitions > 1 ? (
           <ExperimentRepetitionSelector
@@ -60,23 +88,49 @@ export function PlaygroundDecisionOutput({
       }
     >
       <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          {selected?.error ? (
-            <div role="alert">
-              <Alert variant="danger">{selected.error.message}</Alert>
-            </div>
-          ) : null}
-          {typeof selected?.output === "string" ? (
-            <DecisionResult output={selected.output} request={request} />
-          ) : runId != null && !selected?.error ? (
-            <ParagraphSkeleton lines={skeletonLines * 2} />
-          ) : !selected?.error ? (
-            <Text color="text-700">
-              Run the decision model to see each answer&rsquo;s probabilities,
-              confidence, and usage.
-            </Text>
-          ) : null}
-        </Flex>
+        {selected?.error ? (
+          <div role="alert">
+            <Alert variant="danger">{selected.error.message}</Alert>
+          </div>
+        ) : output != null ? (
+          <Card
+            title="answers"
+            {...answersStyles}
+            extra={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <SegmentedControl
+                  aria-label="Answer display"
+                  size="S"
+                  selectedKey={mode}
+                  onSelectionChange={(key) =>
+                    setMode(key === "raw" ? "raw" : "pretty")
+                  }
+                >
+                  <SegmentedControlItem id="pretty">
+                    Pretty
+                  </SegmentedControlItem>
+                  <SegmentedControlItem id="raw">Raw</SegmentedControlItem>
+                </SegmentedControl>
+                <CopyToClipboardButton text={raw} />
+              </Flex>
+            }
+          >
+            {mode === "pretty" ? (
+              <View padding="size-200">
+                <DecisionResult output={output} request={request} />
+              </View>
+            ) : (
+              <JSONBlock value={raw} />
+            )}
+          </Card>
+        ) : runId != null ? (
+          <ParagraphSkeleton lines={skeletonLines * 2} />
+        ) : (
+          <Text color="text-700">
+            Run the decision model to see each answer&rsquo;s probabilities,
+            confidence, and usage.
+          </Text>
+        )}
       </View>
       {selected?.spanId ? (
         <Suspense>

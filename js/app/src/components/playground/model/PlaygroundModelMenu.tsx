@@ -13,6 +13,7 @@ export type PlaygroundModelMenuProps = {
    */
   playgroundInstanceId: number;
   supportsDecisionModels?: boolean;
+  decisionModelsDisabledReason?: string;
 };
 
 /**
@@ -22,6 +23,7 @@ export type PlaygroundModelMenuProps = {
 export function PlaygroundModelMenu({
   playgroundInstanceId,
   supportsDecisionModels = false,
+  decisionModelsDisabledReason,
 }: PlaygroundModelMenuProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
@@ -147,6 +149,7 @@ export function PlaygroundModelMenu({
       value={value}
       onChange={handleChange}
       supportsDecisionModels={supportsDecisionModels}
+      decisionModelsDisabledReason={decisionModelsDisabledReason}
       isDisabled={instance.activeRunId != null}
     />
   );

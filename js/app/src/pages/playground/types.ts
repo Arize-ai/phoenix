@@ -1,5 +1,7 @@
 export interface PlaygroundInstanceProps {
   supportsDecisionModels?: boolean;
+  /** Why decision models cannot be chosen right now, shown on the disabled tab. */
+  decisionModelsDisabledReason?: string;
   /**
    * Multiple playground instances are supported.
    * The id is used to identify the instance.

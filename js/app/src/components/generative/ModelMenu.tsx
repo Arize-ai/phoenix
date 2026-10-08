@@ -26,6 +26,9 @@ import {
   Tabs,
   TabList,
   Tab,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
   useFilter,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
@@ -209,6 +212,11 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
     credentialSource?: ModelCredentialSource;
     /** Enable decision selection only on surfaces with a decision execution path. */
     supportsDecisionModels?: boolean;
+    /**
+     * When set, the Decision tab is shown but disabled, with this text as the
+     * reason in a tooltip (e.g. a dataset is loaded).
+     */
+    decisionModelsDisabledReason?: string;
   };
 
 export function ModelMenu({
@@ -223,6 +231,7 @@ export function ModelMenu({
   onLeadingItemSelect,
   credentialSource,
   supportsDecisionModels = false,
+  decisionModelsDisabledReason,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -387,7 +396,16 @@ export function ModelMenu({
           >
             <TabList aria-label="Model type">
               <Tab id="LLM">LLM</Tab>
-              <Tab id="DECISION">Decision</Tab>
+              <Tab id="DECISION" isDisabled={!!decisionModelsDisabledReason}>
+                {decisionModelsDisabledReason ? (
+                  <TooltipTrigger delay={0}>
+                    <TriggerWrap>Decision</TriggerWrap>
+                    <Tooltip>{decisionModelsDisabledReason}</Tooltip>
+                  </TooltipTrigger>
+                ) : (
+                  "Decision"
+                )}
+              </Tab>
             </TabList>
           </Tabs>
         ) : null}

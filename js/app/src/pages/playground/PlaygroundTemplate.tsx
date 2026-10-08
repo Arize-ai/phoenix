@@ -174,6 +174,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <PlaygroundModelMenu
               playgroundInstanceId={instanceId}
               supportsDecisionModels={props.supportsDecisionModels}
+              decisionModelsDisabledReason={props.decisionModelsDisabledReason}
             />
             <ModelParametersConfigButton
               playgroundInstanceId={instanceId}
