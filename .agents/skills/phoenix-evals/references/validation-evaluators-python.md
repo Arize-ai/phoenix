@@ -1,6 +1,6 @@
 # Validating Evaluators (Python)
 
-Validate LLM evaluators against human-labeled examples. Target >80% TPR/TNR/Accuracy.
+Validate LLM evaluators against human-labeled examples. Target >80% accuracy, >70% TPR/TNR.
 
 ## Calculate Metrics
 

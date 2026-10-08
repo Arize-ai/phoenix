@@ -22,7 +22,7 @@ without it, so the headline number is Δ (with-plugin minus without-plugin), not
 | `04-validate-judge-labels`    | yes   | Python     | Measures judge/human agreement (confusion matrix, TPR/TNR) against a bar                       |
 | `05-faithfulness-ci-gate`     | yes   | Python     | pytest `@pytest.mark.phoenix` gate: hard invariants asserted, LLM signal gated on an aggregate |
 | `06-ts-relevance-judge`       | yes   | TypeScript | `createClassificationEvaluator` from `@arizeai/phoenix-evals`, discrete choices                |
-| `07-neg-instrument-tracing`   | no    | —          | Pure instrumentation request — belongs to `phoenix-tracing`; the evals skill must stay quiet   |
+| `07-neg-elixir-phoenix`       | no    | —          | Name collision: Elixir Phoenix + ExUnit "evaluate" — the evals skill must not fire             |
 | `08-neg-generic-metric-q`     | no    | —          | A one-off BLEU question needing no Phoenix evaluator guidance                                  |
 
 
@@ -49,8 +49,8 @@ no case runs the file or reaches a live Phoenix, so no mock is needed.
 Deterministic graders first (`file_exists`, `regex` over the written file and the final
 message), then one `llm` grader **per claim** at `weight: 0.5` — the runner's judge fails
 combined rubrics, so each claim is graded in isolation. `skill-fired` is reported under ablation
-but not scored. The two negatives use `skill-not-used` (`tool: Skill`, `input_match: phoenix-evals`, `min: 0`, `max: 0`, `arm: both`); note the match is the narrow `phoenix-evals`,
-not `phoenix`, because `07` legitimately lets the `phoenix-tracing` skill fire.
+but not scored. The two negatives use `skill-not-used` (`tool: Skill`, `input_match: phoenix-evals`, `min: 0`, `max: 0`, `arm: both`); the match is the narrow `phoenix-evals`
+because this suite asserts the `phoenix-evals` skill specifically stays quiet, not that no Phoenix skill fires at all.
 
 ## Record to Phoenix
 
