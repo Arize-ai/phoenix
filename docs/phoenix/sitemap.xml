@@ -477,12 +477,12 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments</loc>
+    <lastmod>2026-09-24T17:58:09+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background</loc>
-    <lastmod>2026-04-28T22:15:51+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background</loc>
+    <lastmod>2026-09-24T17:58:09+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators</loc>
@@ -937,12 +937,32 @@
     <lastmod>2026-07-08T22:09:50+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway</loc>
+    <lastmod>2026-09-22T23:33:20+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing</loc>
+    <lastmod>2026-09-22T23:33:20+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/together</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vertexai</loc>
@@ -1265,6 +1285,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/vector-databases/qdrant</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/e2b</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
   </url>
@@ -1279,6 +1303,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/modal</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/docker</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab</loc>
@@ -1387,6 +1415,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions</loc>
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/secrets</loc>
+    <lastmod>2026-09-21T23:14:46+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users</loc>
@@ -2153,18 +2185,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/relevance-classification-evaluation</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense</loc>
     <lastmod>2026-06-12T16:31:09+00:00</lastmod>
   </url>
@@ -2203,6 +2223,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics</loc>
+    <lastmod>2026-10-06T18:17:14+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis</loc>
+    <lastmod>2026-09-21T22:56:24+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi</loc>

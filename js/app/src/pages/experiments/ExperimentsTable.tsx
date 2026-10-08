@@ -60,6 +60,7 @@ import {
   IntCell,
   LoadMoreRow,
   RowExpandToggleButton,
+  TableViewSettingsButton,
   useColumnOrder,
   useTableRowsExpanded,
 } from "@phoenix/components/table";
@@ -78,6 +79,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
@@ -99,6 +101,7 @@ import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
+import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
 import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
 
 const PAGE_SIZE = 100;
@@ -192,6 +195,7 @@ export function ExperimentsTable({
     setIsExpanded: setAreRowsExpanded,
     tableProps: rowsExpandedTableProps,
   } = useTableRowsExpanded();
+  const chartsViewSetting = useExperimentsMetricChartsViewSetting();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -271,16 +275,16 @@ export function ExperimentsTable({
     );
   const [columnVisibility, setColumnVisibility] = usePersistedState<
     Record<string, boolean>
-  >(`phoenix-experiments-column-visibility-${data.id}`, {
+  >(`${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}visibility-${data.id}`, {
     id: false,
     experimentJobStatus: false,
     experimentJobProgress: false,
   });
   const [columnSizing, setColumnSizing] = usePersistedState<
     Record<string, number>
-  >(`phoenix-experiments-column-sizing-${data.id}`, {});
+  >(`${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}sizing-${data.id}`, {});
   const [storedColumnOrder, setStoredColumnOrder] = usePersistedState<string[]>(
-    `phoenix-experiments-column-order-${data.id}`,
+    `${EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX}order-${data.id}`,
     []
   );
 
@@ -751,6 +755,7 @@ export function ExperimentsTable({
             isExpanded={areRowsExpanded}
             onChange={setAreRowsExpanded}
           />
+          <TableViewSettingsButton settings={[chartsViewSetting]} />
         </Flex>
       </View>
       <div
@@ -937,6 +942,7 @@ function MissingAnnotationPieChart({
         stroke="transparent"
         startAngle={90}
         endAngle={-270}
+        isAnimationActive={false}
       >
         {chartData.map((entry) => (
           <Cell

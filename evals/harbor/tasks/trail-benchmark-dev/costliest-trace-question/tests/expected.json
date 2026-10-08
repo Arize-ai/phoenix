@@ -1,0 +1,5 @@
+{
+  "reference": "The agent in that trace was trying to answer: \"What is the latest chronological year date written in the image on the webpage found when following the first citation reference link on the latest version of Carl Nebel's Wikipedia page as of August 2023?\"",
+  "notes": "The reference names the question the traced agent was working on; the reply should identify that question, not answer it. A reply matches when it quotes or paraphrases the question about the image reached from the first citation on Carl Nebel's Wikipedia page. Trace IDs, costs, token counts, or the traced agent's own final answer are extra context and do not affect the grade. A reply that names a different question does not match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; that trace cost $1.085, next is $1.078"
+}

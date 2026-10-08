@@ -35,7 +35,7 @@ def get_example_ids(revisions: Sequence[Any]) -> set[int]:
     return {r.dataset_example_id for r in revisions}
 
 
-def create_id_subquery(*values: int) -> Union[Select[tuple[int]], CompoundSelect[tuple[int]]]:
+def create_id_subquery(*values: int) -> Union[Select[int], CompoundSelect[int]]:
     """Create a subquery with literal ID values for testing."""
     query = select(literal(values[0]))
     for value in values[1:]:

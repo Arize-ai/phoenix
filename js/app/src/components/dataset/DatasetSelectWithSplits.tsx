@@ -29,6 +29,7 @@ import {
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 
 import type { DatasetSelectWithSplitsQuery } from "./__generated__/DatasetSelectWithSplitsQuery.graphql";
 
@@ -79,7 +80,10 @@ type DatasetItem = {
   selectedSplitIds: string[];
 };
 
+const REFRESH_ON = ["datasets", "datasetLabels", "datasetSplits"] as const;
+
 export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
+  const fetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const [internalOpen, setInternalOpen] = useState(props.isOpen ?? false);
   const _onOpenChange = props.onOpenChange;
   const isOpen = props.isOpen ?? internalOpen;
@@ -120,7 +124,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
       }
     `,
     {},
-    { fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
 
   const { contains } = useFilter({ sensitivity: "base" });

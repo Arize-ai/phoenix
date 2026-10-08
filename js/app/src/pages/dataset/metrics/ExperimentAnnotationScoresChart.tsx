@@ -1,8 +1,9 @@
 import type { TooltipContentProps } from "recharts";
 import {
+  Bar,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -25,7 +26,9 @@ import { useTheme } from "@phoenix/contexts";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
+import type { ExperimentMetricsTooltipDatum } from "./ExperimentMetricsTooltipContent";
 import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import { useExperimentChartDatum } from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -34,15 +37,17 @@ import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+  shape,
+}: TooltipContentProps & { shape: "line" | "square" }) {
   const { theme } = useTheme();
   if (!active || !payload || payload.length === 0) {
     return null;
   }
-  const datum = payload[0]?.payload as {
-    experimentName?: string;
-    isBaseline?: boolean;
-  };
+  const datum = payload[0]?.payload as ExperimentMetricsTooltipDatum;
   const annotationEntries = payload.filter(
     (entry) => typeof entry.value === "number"
   );
@@ -52,12 +57,14 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
         sequenceNumber={Number(label)}
         name={datum?.experimentName}
         isBaseline={datum?.isBaseline}
+        color={datum?.experimentColor}
+        referenceLabel={datum?.referenceLabel}
       />
       {annotationEntries.map((entry) => (
         <ChartTooltipItem
           key={String(entry.dataKey)}
           color={getWordColor({ word: String(entry.dataKey), theme })}
-          shape="line"
+          shape={shape}
           name={String(entry.dataKey)}
           value={
             typeof entry.value === "number" ? formatFloat(entry.value) : "--"
@@ -73,10 +80,16 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
  */
 export function ExperimentAnnotationScoresChart({
   datasetId,
+  experimentSelection,
 }: ExperimentMetricViewProps) {
   const { theme } = useTheme();
-  const { experiments, baselineExperiment } =
-    useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment } = useExperimentMetricsData({
+    datasetId,
+    experimentSelection,
+  });
+  const { toExperimentChartDatum } =
+    useExperimentChartDatum(experimentSelection);
+  const isComparedSelection = experimentSelection.type === "compared";
 
   const scoreKeySet = new Set<string>();
   const chartData = experiments.map((experiment) => {
@@ -86,10 +99,8 @@ export function ExperimentAnnotationScoresChart({
       scores[summary.annotationName] = summary.meanScore ?? undefined;
     }
     return {
-      sequenceNumber: experiment.sequenceNumber,
-      experimentName: experiment.name,
-      isBaseline: experiment.isBaseline,
       ...scores,
+      ...toExperimentChartDatum(experiment),
     };
   });
   const scoreKeys = Array.from(scoreKeySet);
@@ -129,42 +140,69 @@ export function ExperimentAnnotationScoresChart({
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
       message="No annotation data"
-      chartType="line"
+      chartType={isComparedSelection ? "bar" : "line"}
     >
       <ChartResponsiveContainer>
-        <LineChart
+        <ComposedChart
           data={chartData}
+          barSize={isComparedSelection ? 6 : undefined}
           margin={compactChartMargin}
           syncId={EXPERIMENT_METRICS_CHART_SYNC_ID}
           syncMethod="value"
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis
-            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+            {...getExperimentXAxisProps({
+              baselineSequenceNumber: baselineExperiment?.sequenceNumber,
+              experiments: chartData,
+            })}
           />
           <YAxis {...experimentMetricsYAxisProps} domain={yDomain} />
-          {scoreKeys.map((key) => (
-            <Line
-              key={key}
-              type="monotone"
-              dataKey={key}
-              stroke={getWordColor({ word: key, theme })}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
-              hide={isDataKeyHidden(key)}
-              yAxisId={0}
-              animationDuration={COMPACT_CHART_ANIMATION_DURATION_MS}
-            />
-          ))}
+          {scoreKeys.map((key) => {
+            const color = getWordColor({ word: key, theme });
+            const markProps = {
+              dataKey: key,
+              hide: isDataKeyHidden(key),
+              yAxisId: 0,
+              animationDuration: COMPACT_CHART_ANIMATION_DURATION_MS,
+            };
+            // Compared experiments have no inherent order, so a line between
+            // them would imply a trend
+            return isComparedSelection ? (
+              <Bar
+                key={key}
+                {...markProps}
+                fill={color}
+                radius={[2, 2, 0, 0]}
+              />
+            ) : (
+              <Line
+                key={key}
+                {...markProps}
+                type="monotone"
+                stroke={color}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            );
+          })}
           <InteractiveLegend
             {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
           />
-          <Tooltip {...defaultTooltipProps} content={TooltipContent} />
-        </LineChart>
+          <Tooltip
+            {...defaultTooltipProps}
+            content={(props) => (
+              <TooltipContent
+                {...props}
+                shape={isComparedSelection ? "square" : "line"}
+              />
+            )}
+          />
+        </ComposedChart>
       </ChartResponsiveContainer>
     </ChartEmptyStateOverlay>
   );

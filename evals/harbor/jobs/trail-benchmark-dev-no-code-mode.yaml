@@ -1,0 +1,26 @@
+# Run PXI without MCP code mode on every TRAIL task.
+#   make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev-no-code-mode.yaml
+#
+# Harbor starts Phoenix from the task healthcheck before any agent runs, so the setting
+# has to be in the container's environment from the start. The job's environment.env is
+# the one place Harbor applies to every container at creation, and it is job-wide, so
+# this condition is its own job rather than an agent entry in trail-benchmark-dev.yaml.
+datasets:
+  - path: evals/harbor/tasks/trail-benchmark-dev
+agents:
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+environment:
+  type: daytona
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
+  env:
+    PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE: "false"
+  # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+# Retry infrastructure errors, but do not retry trials that produce a reward.
+retry:
+  max_retries: 1

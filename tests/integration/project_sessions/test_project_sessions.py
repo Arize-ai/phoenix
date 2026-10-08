@@ -7,8 +7,9 @@ from typing import Any, List, Optional
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.trace import Span, format_span_id, use_span
-from opentelemetry.util.types import AttributeValue
 from pytest import param
+
+from phoenix.trace.attributes import AttributeValue
 
 from .._helpers import _AppInfo, _get, _gql, _grpc_span_exporter, _start_span
 

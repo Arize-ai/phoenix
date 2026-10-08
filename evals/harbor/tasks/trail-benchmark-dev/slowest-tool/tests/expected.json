@@ -1,0 +1,5 @@
+{
+  "reference": "VisitTool, about 55.7 seconds per call",
+  "notes": "VisitTool (tool.name visit_page) has the highest mean duration per call. The duration is optional, but if given should round to about 56 seconds. A reply matches when it identifies VisitTool as the tool with the highest average, even if it adds that one long span inflates that average or that another tool is slower by median or with the outlier removed. A reply that says another tool has the highest average does not match. ArchiveSearchTool (find_archived_url) is second, at 11.5 seconds.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; mean TOOL span duration by span name"
+}

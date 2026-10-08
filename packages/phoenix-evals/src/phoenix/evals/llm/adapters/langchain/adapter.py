@@ -326,7 +326,9 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 lc_messages.append(HumanMessage(content=text_content))
             elif role == MessageRole.AI:
                 lc_messages.append(AIMessage(content=text_content))
-            elif role == MessageRole.SYSTEM:
+            elif role in (MessageRole.SYSTEM, MessageRole.DEVELOPER):
+                # LangChain has no "developer" message class, so DEVELOPER
+                # maps to the same SystemMessage as SYSTEM.
                 lc_messages.append(SystemMessage(content=text_content))
             else:
                 # Default to HumanMessage for unknown roles

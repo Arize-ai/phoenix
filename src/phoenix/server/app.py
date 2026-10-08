@@ -40,7 +40,6 @@ from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.authentication import UnauthenticatedUser
 from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -62,6 +61,7 @@ from phoenix.config import (
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_agents_mcp_code_mode,
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_allowed_sandbox_providers,
@@ -131,7 +131,12 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS
+from phoenix.server.mcp.skills import (
+    PXI_SKILLS_ROOTS,
+    load_external_skills,
+    load_skills,
+    merge_skills,
+)
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     BearerAuthGuard,
@@ -1209,6 +1214,8 @@ def create_app(
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
+    external_skills = load_external_skills()
+    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), external_skills)
     mcp_http_app = None
     mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
@@ -1220,6 +1227,8 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
+            read_only=read_only,
+            external_skills=external_skills,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
@@ -1232,27 +1241,35 @@ def create_app(
         app.add_middleware(MountPathNormalizer)
     app.state.mcp_http_app = mcp_http_app
     # FastMCP adapter backed by ``sandbox_runtime.monty``. None unless code mode
-    # is enabled.
+    # is enabled for the mount.
     app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
-    # The agent's own instance, independent of the mount and its configuration.
-    # Read-only: mutations belong to the agent's editing tools, which route
-    # approval through the user. Its sandbox takes the ``agent`` admission class,
-    # capped one below the worker pool size: consumers compete for workers and a
-    # loser waits at checkout, but no consumer can hold them all.
+    # The agent's own instance, independent of the mount and its configuration:
+    # PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, not PHOENIX_ENABLE_MCP_CODE_MODE,
+    # selects its code-mode surface. Read-only: mutations belong to the agent's
+    # editing tools, which route approval through the user. Its sandbox takes
+    # the ``agent`` admission class, capped one below the worker pool size:
+    # consumers compete for workers and a loser waits at checkout, but no
+    # consumer can hold them all.
     pxi_mcp_server = None
     pxi_mcp_sandbox = None
     if not get_env_disable_agent_assistant():
         pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
             app,
             monty_runtime=sandbox_runtime.monty,
-            code_mode=True,
+            code_mode=get_env_agents_mcp_code_mode(),
             monty_consumer="agent",
             read_only=True,
             db=db,
+            # PXI reaches GraphQL through the `phoenix-gql` shell builtin, which
+            # carries the mutation policy and the approval gate. These tools
+            # stand in only where the bash capability, and the builtin with it,
+            # is off.
+            graphql_tools=get_env_phoenix_agents_disable_bash(),
             skills_roots=PXI_SKILLS_ROOTS,
+            external_skills=external_skills,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
@@ -1473,12 +1490,10 @@ def _get_build_graphql_context_function(
     """Factory for creating GraphQL context."""
 
     def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
-        request = Request(
-            {
-                "type": "http",
-                "user": user if user is not None else UnauthenticatedUser(),
-            }
-        )
+        scope: dict[str, Any] = {"type": "http"}
+        if user is not None:
+            scope["user"] = user
+        request = Request(scope)
         return build_context(
             db=db,
             settings=system_settings,

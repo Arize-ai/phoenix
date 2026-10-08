@@ -1,4 +1,5 @@
 import {
+  DecisionAttributePostfixes,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MessageAttributePostfixes,
@@ -19,7 +20,11 @@ import type {
   AttributeToolCall,
 } from "@phoenix/openInference/tracing/types";
 import { isAttributeMessages } from "@phoenix/openInference/tracing/types";
-import { isObject, isStringArray } from "@phoenix/typeUtils";
+import {
+  isObject,
+  isStringArray,
+  isStringKeyedObject,
+} from "@phoenix/typeUtils";
 import {
   toContentPreview,
   toRecordPreview,
@@ -381,6 +386,51 @@ function asToolAttributeString(value: unknown): string | undefined {
     return undefined;
   }
   return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/**
+ * The attributes of a decision span extracted into the shapes the decision
+ * span components render.
+ */
+export type DecisionSpanAttributes = {
+  modelName: string | null;
+  provider: string | null;
+};
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * Extract the decision model attributes from the parsed span attributes of a
+ * decision span. The model name prefers `decision.model_name`, then the model
+ * the provider reports in the response, then the one the caller requested.
+ */
+export function getDecisionAttributes(
+  spanAttributes: AttributeObject
+): DecisionSpanAttributes {
+  const decisionAttributes = spanAttributes[SemanticAttributePrefixes.decision];
+  if (!isStringKeyedObject(decisionAttributes)) {
+    return { modelName: null, provider: null };
+  }
+  const request = decisionAttributes[DecisionAttributePostfixes.request];
+  const response = decisionAttributes[DecisionAttributePostfixes.response];
+  const modelName =
+    asNonEmptyString(
+      decisionAttributes[DecisionAttributePostfixes.model_name]
+    ) ??
+    (isStringKeyedObject(response)
+      ? asNonEmptyString(response[DecisionAttributePostfixes.model_name])
+      : null) ??
+    (isStringKeyedObject(request)
+      ? asNonEmptyString(request[DecisionAttributePostfixes.model_name])
+      : null);
+  return {
+    modelName,
+    provider: asNonEmptyString(
+      decisionAttributes[DecisionAttributePostfixes.provider]
+    ),
+  };
 }
 
 /**

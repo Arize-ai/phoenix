@@ -12,12 +12,14 @@ from unittest.mock import AsyncMock, Mock
 import nest_asyncio  # type: ignore[import-untyped]
 import pytest
 
+from phoenix.client.exceptions import PhoenixException
 from phoenix.client.utils.executors import (
     AsyncExecutor,
     ExecutionStatus,
     SyncExecutor,
     get_executor_on_sync_context,
 )
+from phoenix.client.utils.rate_limiters import RateLimitError
 
 # AsyncExecutor tests
 
@@ -400,6 +402,57 @@ def test_sync_executor_retries() -> None:
     executor.run([1])  # by default the executor does not raise on generation errors
 
     assert mock_generate.call_count == 4, "1 initial call + 3 retries"
+
+
+def test_sync_executor_recovers_from_transient_rate_limit_error() -> None:
+    attempts = 0
+
+    def dummy_fn(payload: int) -> int:
+        nonlocal attempts
+        if payload == 3:
+            attempts += 1
+            if attempts < 2:
+                raise RateLimitError("throttled")
+        return payload - 1
+
+    executor = SyncExecutor(
+        dummy_fn,
+        max_retries=3,
+        exit_on_error=True,
+        fallback_return_value=52,
+    )
+    inputs = [1, 2, 3, 4, 5]
+    outputs, execution_details = executor.run(inputs)
+
+    assert outputs == [0, 1, 2, 3, 4], "the throttled row succeeds on retry"
+    assert execution_details[2].status == ExecutionStatus.COMPLETED_WITH_RETRIES
+
+
+def test_sync_executor_still_treats_other_phoenix_exceptions_as_fatal() -> None:
+    def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            raise PhoenixException("boom")
+        return payload - 1
+
+    executor = SyncExecutor(
+        dummy_fn,
+        max_retries=3,
+        exit_on_error=True,
+        fallback_return_value=52,
+    )
+    inputs = [1, 2, 3, 4, 5]
+    outputs, execution_details = executor.run(inputs)
+
+    assert outputs == [0, 1, 52, 52, 52]
+    assert execution_details[2].status == ExecutionStatus.FAILED
+    assert len(execution_details[2].exceptions) == 1, "fatal: no retries"
+    assert [status.status for status in execution_details] == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.DID_NOT_RUN,
+        ExecutionStatus.DID_NOT_RUN,
+    ]
 
 
 # test executor factory

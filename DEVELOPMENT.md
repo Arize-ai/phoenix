@@ -29,12 +29,12 @@ The fastest path from a fresh clone to a running Phoenix dev server. See the sec
 
 **Prerequisites**
 
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python environment management)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python environment management). Any recent 0.12.x works; you don't need the exact version the repo pins.
 - [nvm](https://github.com/nvm-sh/nvm) (Node version management)
 
 ```bash
 # 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
-uv sync --all-extras
+uv sync --all-extras --all-packages
 
 # 2. Install the pinned Node.js and pnpm versions
 nvm install
@@ -68,12 +68,17 @@ If a step fails, consult the detailed setup instructions below.
 
 We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-We recommend installing the project version of `uv` (found in `pyproject.toml` under `tool.uv.required-version`) by using the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer). This will enable you to upgrade `uv` using the `uv self update` command when the project `uv` version is updated.
-
-The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the lowest currently supported Python version to ensure compatibility with all supported Python versions.
+Your system `uv` only needs to satisfy the range in `pyproject.toml` under `tool.uv.required-version`. The range's lower bound is the exact version CI uses, and `uv.lock` should be written by that version: different `uv` versions can serialize the same lockfile differently. You don't have to install it. `scripts/uv.sh` runs the pinned `uv` through `uv tool run` (cached, nothing installed globally), and `make`, the `js/app` pnpm scripts and the Playwright test server all go through it. When you change dependencies, use the wrapper instead of a bare `uv`:
 
 ```bash
-uv sync --python 3.10
+scripts/uv.sh add <package>   # or: scripts/uv.sh lock
+pnpm --dir js/app uv lock     # the same wrapper, from pnpm
+```
+
+The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the default development Python version. CI still tests the lowest supported version.
+
+```bash
+uv sync --python 3.11 --all-packages
 ```
 
 The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located under the packages/ directory are automatically installed in editable mode via the `uv` workspace configuration.

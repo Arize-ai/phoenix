@@ -1,30 +1,37 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import posixpath
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Generic, Optional
+from typing import Any, Awaitable, Callable, Generic, Mapping, Optional, Sequence
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
-from graphql import GraphQLSyntaxError
 from graphql import OperationType as GraphQLOperationType
-from graphql import parse as parse_graphql
-from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
 from pydantic_ai import RunContext, Tool
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
-from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.api.context import Context
+from phoenix.server.api.graphql_execute import (
+    MAX_QUERY_BYTES,
+    GraphQLRefusal,
+    execute_operation,
+    operation_count,
+    operation_types,
+)
+from phoenix.server.api.schema_search import cached_index, describe
 
+BASH_TOOL_NAME = "bash"
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
 
@@ -53,8 +60,15 @@ should not be assumed to work.
 - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or \
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
+- awk's postfix increment on an array element returns the new value, so the \
+`!seen[$1]++` dedupe idiom prints nothing; use `sort -u`, jq's `unique_by` / \
+`group_by`, or `!($1 in seen) {seen[$1]=1; print}`.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-Run `phoenix-gql --help` for usage and current permissions.
+`phoenix-gql schema --search <text>` finds the types and fields to query and \
+`--names <A,B>` prints named ones in full; run `phoenix-gql --help` for usage \
+and current permissions. Pass filter strings such as `name == 'X'` through \
+a `--vars-file` written with a quoted heredoc rather than inlining them, so their \
+quotes never nest inside shell quotes.
 - Dataset reads go through here. `Query.datasets(filter: {col: name, value: "..."}, \
 first, after)` lists datasets (names are unique — check before a `ui.dataset.create`). \
 `node(id: <datasetId>) { ... on Dataset { examples(first, after) { edges { node { id \
@@ -81,42 +95,6 @@ Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.\
 """
 
 
-def _operation_types(query: str) -> set[GraphQLOperationType]:
-    """Return the set of GraphQL operation types declared in ``query``.
-
-    Comments abutting the keyword and shorthand syntax defeat a naive regex, but the
-    AST-based classifier handles them. Invalid syntax yields an empty set and is left
-    for ``schema.execute`` to report.
-
-    >>> _operation_types("mutation# do it later\\n{ deleteEverything }")
-    {<OperationType.MUTATION: 'mutation'>}
-    >>> _operation_types("# subscription example\\nquery { hello }")
-    {<OperationType.QUERY: 'query'>}
-    >>> _operation_types("subscription { hello }")
-    {<OperationType.SUBSCRIPTION: 'subscription'>}
-    >>> _operation_types("{ hello }")
-    {<OperationType.QUERY: 'query'>}
-    >>> _operation_types("this is not graphql !!")
-    set()
-
-    A document declaring several operations reports every type it contains (sorted here
-    for a stable repr):
-
-    >>> doc = "query A { hello }\\nmutation B { deleteEverything }"
-    >>> sorted(op.value for op in _operation_types(doc))
-    ['mutation', 'query']
-    """
-    try:
-        document = parse_graphql(query)
-    except GraphQLSyntaxError:
-        return set()
-    return {
-        definition.operation
-        for definition in document.definitions
-        if isinstance(definition, OperationDefinitionNode)
-    }
-
-
 def _resolve_path(cwd: str, path: str) -> str:
     """Resolve ``path`` against ``cwd``.resolvePath`` does.
 
@@ -135,9 +113,20 @@ def _resolve_path(cwd: str, path: str) -> str:
     return posixpath.normpath(posixpath.join(cwd, path))
 
 
-def _format_graphql_errors(messages: list[str]) -> str:
-    formatted = "\n".join(f"- {message}" for message in messages)
-    return f"GraphQL errors:\n{formatted}\n"
+def _format_graphql_errors(errors: Sequence[Mapping[str, Any]]) -> str:
+    """One line per error, led by its ``line:column`` and closed by its path.
+
+    >>> _format_graphql_errors([{"message": "bad", "locations": [{"line": 3, "column": 5}],
+    ...     "path": ["a", 0, "b"]}])
+    'GraphQL errors:\\n- [3:5] bad (at a.0.b)\\n'
+    """
+    lines = []
+    for error in errors:
+        where = "".join(f"[{loc['line']}:{loc['column']}] " for loc in error.get("locations") or [])
+        path = error.get("path")
+        at = f" (at {'.'.join(map(str, path))})" if path else ""
+        lines.append(f"- {where}{error.get('message', '')}{at}")
+    return "GraphQL errors:\n" + "\n".join(lines) + "\n"
 
 
 # Annotated because jinja2's `Template.__new__` returns `t.Any`, which would
@@ -145,8 +134,9 @@ def _format_graphql_errors(messages: list[str]) -> str:
 _HELP_TEXT_TEMPLATE: Template = Template(
     """\
 Usage: phoenix-gql [query] [options] [query-or-file]
+       phoenix-gql schema [--search <text>]... [--names <A,B>]...
 
-Execute GraphQL operations against Phoenix.
+Execute GraphQL operations against Phoenix, or search its schema.
 
 {% if not mutations_enabled -%}
 Permissions: queries only (mutations are disabled).
@@ -158,24 +148,45 @@ executes for real, exactly once.
 {% else -%}
 Permissions: queries and mutations are ENABLED.
 {% endif %}
+Size: a document may be at most {{ max_query_kib }} KiB of UTF-8. Values passed with --vars or --vars-file do not count toward it, so put large inputs there.
+
 Recommended flow:
-  1. start with a tiny query or an introspection query to confirm the schema
+  1. `phoenix-gql schema --search <text>` to find the types and fields you
+     need, and `--names <Type,Type.field>` to see each in full with how to
+     reach it; both repeat, and both fit in one call, so batch what you
+     already know you need. With no flags it prints the query root. Narrow a
+     noisy search to one type with `--search "Span.cost"`. Name the return
+     types and input types you see rather than repeating the same terms
+{%- if mutations_enabled %}. Add
+     the word "mutations" to a search to see only mutations, and pass a
+     mutation's name to `--names` to see the inputs it takes
+{%- endif %}
   2. add filters, sorting, and deeper fields only after the base query works
+{%- if approval_required %}
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
+{%- endif %}
 
 Options:
   --vars <json>         JSON object of GraphQL variables
   --variables <json>    Alias for --vars
   --vars-file <path>    Read GraphQL variables from a file
+  --operation-name <n>  Operation to run when the document declares several
   --output <path>       Write JSON response to a file instead of stdout
   --data-only           Print only the .data payload
   --help                Show this help text
 
 Examples:
+  phoenix-gql schema --search "span cost"
+  phoenix-gql schema --names Experiment
+  phoenix-gql schema --search "trace by otel id" --names TimeRange,TimeBinConfig
   phoenix-gql '{ projects { edges { node { name } } } }'
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
+  cat > vars.json <<'EOF'
+  {"f": "name == 'X' and status_code == 'ERROR'"}
+  EOF
+  phoenix-gql 'query($f: String!) { node(id: "UHJvamVjdDox") { ... on Project { recordCount(filterCondition: $f) } } }' --vars-file vars.json
 """
 )
 
@@ -184,7 +195,42 @@ def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> 
     return _HELP_TEXT_TEMPLATE.render(
         mutations_enabled=mutations_enabled,
         approval_required=approval_required,
+        max_query_kib=MAX_QUERY_BYTES // 1024,
     )
+
+
+# The query root alone needs most of this, and a root cut short hides entry
+# points; the MCP tool uses the same figure.
+_SCHEMA_BUDGET = 4000
+
+
+_MAX_VALUE_CHARS = 2000
+_MAX_ARGS = 64
+
+
+def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
+    """``(searches, names)`` from the flags after ``schema``.
+
+    ``--search TEXT`` adds a search and ``--names A,B`` adds exact names; both
+    repeat. Nothing else is accepted.
+    """
+    searches: list[str] = []
+    names: list[str] = []
+    it = iter(args[:_MAX_ARGS])
+    for arg in it:
+        arg = arg[: _MAX_VALUE_CHARS + len("--search=")]
+        flag, has_value, inline = arg.partition("=")
+        if flag not in ("--search", "--names"):
+            raise ValueError(f"unexpected argument {arg!r}: use --search <text> and --names <A,B>")
+        value = inline if has_value else next(it, None)
+        value = value[:_MAX_VALUE_CHARS] if value is not None else None
+        if value is None or not value.strip():
+            raise ValueError(f"{flag} needs a value")
+        if flag == "--search":
+            searches.append(value.strip())
+        else:
+            names.extend(n for n in re.split(r"[,\s]+", value) if n)
+    return searches, names
 
 
 @dataclass
@@ -192,6 +238,7 @@ class _ParsedArgs:
     query_source: Optional[str]
     variables_text: Optional[str]
     variables_file_path: Optional[str]
+    operation_name: Optional[str]
     output_path: Optional[str]
     data_only: bool
     show_help: bool
@@ -208,6 +255,7 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
     query_source: Optional[str] = None
     variables_text: Optional[str] = None
     variables_file_path: Optional[str] = None
+    operation_name: Optional[str] = None
     output_path: Optional[str] = None
     data_only = False
     show_help = False
@@ -225,6 +273,9 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
         elif arg == "--vars-file":
             variables_file_path = args[index + 1] if index + 1 < len(args) else None
             index += 1
+        elif arg == "--operation-name":
+            operation_name = args[index + 1] if index + 1 < len(args) else None
+            index += 1
         elif arg == "--output":
             output_path = args[index + 1] if index + 1 < len(args) else None
             index += 1
@@ -240,6 +291,7 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
         query_source=query_source,
         variables_text=variables_text,
         variables_file_path=variables_file_path,
+        operation_name=operation_name,
         output_path=output_path,
         data_only=data_only,
         show_help=show_help,
@@ -277,12 +329,19 @@ def _resolve_query_text(parsed: _ParsedArgs, ctx: BuiltinContext) -> str:
                 is_file = False
             if is_file:
                 return ctx.fs.read_file(resolved_path).decode("utf-8")
+            if _names_a_file(parsed.query_source):
+                raise ValueError(f"File not found: {parsed.query_source}")
         return parsed.query_source
 
     piped_query = (ctx.stdin or "").strip()
     if not piped_query:
         raise ValueError("Provide a GraphQL query string, file path, or stdin")
     return piped_query
+
+
+def _names_a_file(query_source: str) -> bool:
+    """Whether ``query_source`` is unmistakably a path rather than an inline document."""
+    return query_source.endswith((".graphql", ".gql")) or "/" in query_source
 
 
 def _resolve_variables(parsed: _ParsedArgs, ctx: BuiltinContext) -> Optional[dict[str, Any]]:
@@ -295,7 +354,13 @@ def _resolve_variables(parsed: _ParsedArgs, ctx: BuiltinContext) -> Optional[dic
     if not variables_text:
         return None
 
-    parsed_variables = json.loads(variables_text)
+    try:
+        parsed_variables = json.loads(variables_text)
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"GraphQL variables are not valid JSON: {error}. Shell quoting often "
+            "mangles inline JSON; --vars-file <path> avoids it."
+        ) from error
     if not isinstance(parsed_variables, dict):
         raise ValueError("GraphQL variables must be a JSON object")
     return parsed_variables
@@ -315,9 +380,17 @@ def create_phoenix_gql_builtin(
     mutation_policy: GraphQLMutationPolicy,
 ) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
     """Build the ``phoenix-gql`` custom shell command."""
+    # The compiled graphql-core schema carries the descriptions and
+    # deprecations the index renders; strawberry exposes it only as ``_schema``.
+    index = cached_index(schema._schema, include_mutations=mutation_policy.allow_mutations)
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:
         try:
+            if ctx.argv and ctx.argv[0] == "schema":
+                flags = list(itertools.islice(ctx.argv, 1, _MAX_ARGS + 1))
+                searches, names = _parse_schema_args(flags)
+                text = describe(index, search=searches, names=names, budget=_SCHEMA_BUDGET)
+                return BuiltinResult(stdout=text + "\n", stderr="", exit_code=0)
             parsed = _parse_args(list(ctx.argv))
 
             if parsed.show_help:
@@ -332,15 +405,13 @@ def create_phoenix_gql_builtin(
 
             query = _resolve_query_text(parsed, ctx)
 
-            operation_types = _operation_types(query)
-
-            if GraphQLOperationType.SUBSCRIPTION in operation_types:
-                raise ValueError("Subscriptions are not supported by phoenix-gql")
-
-            is_mutation = GraphQLOperationType.MUTATION in operation_types
-            if is_mutation and not mutation_policy.allow_mutations:
-                raise ValueError("Mutations are not permitted.")
-            if is_mutation and not mutation_policy.mutations_allowed:
+            # Approval asks whether a person sanctioned this call. Only this
+            # transport can answer that, so the shared core does not.
+            if (
+                GraphQLOperationType.MUTATION in operation_types(query)
+                and mutation_policy.allow_mutations
+                and not mutation_policy.mutations_allowed
+            ):
                 raise ValueError(
                     "This mutation requires the user's approval, which this "
                     "command did not request. Re-issue the bash call with a "
@@ -348,30 +419,29 @@ def create_phoenix_gql_builtin(
                     "can approve it before the command runs."
                 )
 
+            if parsed.operation_name is None and operation_count(query) > 1:
+                raise ValueError(
+                    "The document declares several operations; pick one with --operation-name"
+                )
+
             variables = _resolve_variables(parsed, ctx)
 
-            allowed_operation_types = (
-                {OperationType.QUERY, OperationType.MUTATION}
-                if mutation_policy.allow_mutations
-                else {OperationType.QUERY}
-            )
-            result = await schema.execute(
-                query,
-                variable_values=variables,
-                context_value=build_graphql_context(),
-                allowed_operation_types=allowed_operation_types,
+            outcome = await execute_operation(
+                schema,
+                query=query,
+                variables=variables,
+                context=build_graphql_context(),
+                allow_mutations=mutation_policy.allow_mutations,
+                operation_name=parsed.operation_name,
             )
 
-            errors = list(result.errors or [])
-            payload: dict[str, Any] = {"data": result.data}
-            if errors:
-                payload["errors"] = [error.formatted for error in errors]
-            graphql_error_text = (
-                _format_graphql_errors([error.message for error in errors]) if errors else ""
-            )
-            has_only_errors = bool(errors) and result.data is None
+            payload: dict[str, Any] = {"data": outcome.data}
+            if outcome.errors:
+                payload["errors"] = list(outcome.errors)
+            graphql_error_text = _format_graphql_errors(outcome.errors) if outcome.errors else ""
+            has_only_errors = outcome.failed_outright
 
-            output_payload: Any = result.data if parsed.data_only else payload
+            output_payload: Any = outcome.data if parsed.data_only else payload
             serialized_output = json.dumps(output_payload, indent=2, ensure_ascii=False) + "\n"
 
             if parsed.output_path:
@@ -380,7 +450,9 @@ def create_phoenix_gql_builtin(
                 return BuiltinResult(
                     stdout=f"{output_path}\n",
                     stderr=(
-                        f"{graphql_error_text}Response written to {output_path}\n" if errors else ""
+                        f"{graphql_error_text}Response written to {output_path}\n"
+                        if outcome.errors
+                        else ""
                     ),
                     exit_code=1 if has_only_errors else 0,
                 )
@@ -390,6 +462,8 @@ def create_phoenix_gql_builtin(
                 stderr=graphql_error_text,
                 exit_code=1 if has_only_errors else 0,
             )
+        except GraphQLRefusal as refusal:
+            return BuiltinResult(stdout="", stderr=f"{refusal.message}\n", exit_code=1)
         except Exception as error:
             return BuiltinResult(stdout="", stderr=f"{error}\n", exit_code=1)
 
@@ -410,6 +484,12 @@ class BashToolResult(TypedDict):
     stderrBytes: int
     stdoutTruncated: bool
     stderrTruncated: bool
+
+
+def get_bash_tool_error(result: BashToolResult) -> Optional[str]:
+    """Returns a span error description for a bash command that exited non-zero."""
+    exit_code = result["exitCode"]
+    return f"exit code {exit_code}" if exit_code != 0 else None
 
 
 def _make_custom_builtins(
@@ -533,6 +613,7 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                 Tool(
                     bash,
                     takes_ctx=True,
+                    name=BASH_TOOL_NAME,
                     description=_BASH_TOOL_DESCRIPTION,
                 )
             ]

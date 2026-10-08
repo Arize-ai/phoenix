@@ -69,7 +69,21 @@ from typing import Any, Optional, Union, cast
 import numpy as np
 from openinference.semconv import trace
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
+
+# Mirrors opentelemetry.util.types.AttributeValue, which mypy does not accept as a type
+# alias since opentelemetry-api 1.45 (it is defined by chained assignment).
+AttributeValue: TypeAlias = Union[
+    str,
+    bool,
+    int,
+    float,
+    bytes,
+    Sequence["AttributeValue"],
+    Mapping[str, "AttributeValue"],
+    None,
+]
+Attributes: TypeAlias = Optional[Mapping[str, AttributeValue]]
 
 DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES

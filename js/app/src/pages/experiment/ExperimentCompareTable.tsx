@@ -50,13 +50,21 @@ import {
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { CellTop, PaddedCell } from "@phoenix/components/table";
+import {
+  CellTop,
+  PaddedCell,
+  TableViewSettingsButton,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
+import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
+import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -65,6 +73,11 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { useExperimentCompareDeltasViewSetting } from "./experimentCompareDeltasViewSetting";
+import {
+  ExperimentCompareChartSelector,
+  useExperimentCompareChartsViewSetting,
+} from "./ExperimentCompareMetricsCharts";
 import { ExperimentRepeatedRunGroupMetadata } from "./ExperimentRepeatedRunGroupMetadata";
 import { ExperimentRepetitionSelector } from "./ExperimentRepetitionSelector";
 import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
@@ -72,8 +85,10 @@ import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditio
 type ExampleCompareTableProps = {
   queryRef: PreloadedQuery<ExperimentCompareTableQueryType>;
   datasetId: string;
-  baseExperimentId: string;
-  compareExperimentIds: string[];
+  /**
+   * The compared experiments, base experiment first
+   */
+  experimentSelection: ComparedExperimentSelection;
 };
 
 type Experiment = NonNullable<
@@ -125,11 +140,39 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
   >(null);
-  const { datasetId, baseExperimentId, compareExperimentIds } = props;
+  const [selectedTraceDetails, setSelectedTraceDetails] =
+    useState<SelectedTraceDetails | null>(null);
+  const { datasetId, experimentSelection } = props;
+  const { baseExperimentId, compareExperimentIds } = experimentSelection;
+  const chartsViewSetting = useExperimentCompareChartsViewSetting(datasetId);
+  const deltasViewSetting = useExperimentCompareDeltasViewSetting(datasetId);
+  const areDeltasVisible = deltasViewSetting.isEnabled;
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [, setSearchParams] = useSearchParams();
+  const clearSelectedSpanSearchParam = useCallback(() => {
+    // Clear the URL search params for the span selection
+    setSearchParams(
+      (prev) => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return newParams;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+  const openTraceDetails = useCallback(
+    (details: SelectedTraceDetails) => {
+      // The drawer is non-modal, so a trace can be opened while another one
+      // is already showing (or after the table unmounted without closing the
+      // drawer). The span selection in the URL belongs to that previous
+      // trace, so drop it before the new trace renders.
+      clearSelectedSpanSearchParam();
+      setSelectedTraceDetails(details);
+    },
+    [clearSelectedSpanSearchParam]
+  );
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
   const preloadedData = usePreloadedQuery<ExperimentCompareTableQueryType>(
@@ -255,6 +298,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   node {
                     name
                     outputConfigs {
+                      __typename
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection
@@ -408,6 +452,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       (experimentId, experimentIndex) => ({
         header: () => {
           const experiment = experimentInfoById[experimentId];
+          const isBaseColumn = experimentIndex === 0;
+          const deltaBaseExperiment =
+            areDeltasVisible && !isBaseColumn ? baseExperiment : undefined;
           const name = experiment?.name || "unknown-experiment";
           const metadata = experiment?.metadata;
           const projectId = experiment?.project?.id;
@@ -450,6 +497,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   <ExperimentCostAndLatencySummary
                     executionState="complete"
                     experiment={experiment}
+                    baseExperiment={deltaBaseExperiment}
                   />
                 )}
               </div>
@@ -457,6 +505,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 executionState="complete"
                 annotationConfigs={annotationConfigs}
                 annotationSummaries={experiment?.annotationSummaries ?? []}
+                baseAnnotationSummaries={
+                  deltaBaseExperiment?.annotationSummaries ?? undefined
+                }
               />
             </Flex>
           );
@@ -472,6 +523,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             return null;
           }
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
+          const baseRepeatedRunGroup =
+            areDeltasVisible && experimentIndex !== 0
+              ? (row.original.repeatedRunGroupsByExperimentId[
+                  baseExperimentId
+                ] ?? null)
+              : undefined;
 
           return (
             <ExperimentRunOutputCell
@@ -480,7 +537,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
-              setDialog={setDialog}
+              baseRepeatedRunGroup={baseRepeatedRunGroup}
+              onOpenTraceDetails={openTraceDetails}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
               annotationConfigs={annotationConfigs}
@@ -492,11 +550,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     );
   }, [
     annotationConfigs,
+    areDeltasVisible,
+    baseExperiment,
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
     experimentInfoById,
     getExperimentColor,
+    openTraceDetails,
   ]);
 
   const columns = useMemo(() => {
@@ -580,7 +641,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   ]);
 
   return (
-    <View overflow="auto">
+    <View overflow="auto" height="100%">
       <Flex direction="column" height="100%">
         <View
           paddingTop="size-100"
@@ -591,9 +652,22 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           borderBottomWidth="thin"
           flex="none"
         >
-          <ExperimentRunFilterConditionField
-            onValidCondition={({ condition }) => setFilterCondition(condition)}
-          />
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <View flex="1 1 auto">
+              <ExperimentRunFilterConditionField
+                onValidCondition={({ condition }) =>
+                  setFilterCondition(condition)
+                }
+              />
+            </View>
+            <ExperimentCompareChartSelector
+              datasetId={datasetId}
+              experimentSelection={experimentSelection}
+            />
+            <TableViewSettingsButton
+              settings={[chartsViewSetting, deltasViewSetting]}
+            />
+          </Flex>
         </View>
         <div
           css={tableWrapCSS}
@@ -744,20 +818,23 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       <ViewportModalOverlay
         isOpen={!!dialog}
         onOpenChange={() => {
-          // Clear the URL search params for the span selection
-          setSearchParams(
-            (prev) => {
-              const newParams = new URLSearchParams(prev);
-              newParams.delete("selectedSpanNodeId");
-              return newParams;
-            },
-            { replace: true }
-          );
+          clearSelectedSpanSearchParam();
           setDialog(null);
         }}
       >
         <ViewportModal size="fullscreen">{dialog}</ViewportModal>
       </ViewportModalOverlay>
+      {selectedTraceDetails !== null && (
+        <TraceDetailsDrawer
+          traceId={selectedTraceDetails.traceId}
+          projectId={selectedTraceDetails.projectId}
+          title={selectedTraceDetails.title}
+          onClose={() => {
+            clearSelectedSpanSearchParam();
+            setSelectedTraceDetails(null);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -851,14 +928,28 @@ const outputContentCSS = css`
 function ExperimentRunOutput(
   props: ExperimentRun & {
     numRepetitions: number;
-    setDialog: (dialog: ReactNode) => void;
+    onOpenTraceDetails: (details: SelectedTraceDetails) => void;
     annotationSummaries: readonly AnnotationSummary[];
     annotationConfigs: readonly AnnotationConfig[];
     height: number;
+    /**
+     * The base experiment's run group for the same example, to show deltas
+     * against. Omitted on the base column and when deltas are hidden; `null`
+     * when the base has no group for the example.
+     */
+    baseRepeatedRunGroup?: ExperimentRepeatedRunGroup | null;
   }
 ) {
-  const { output, error, annotations, setDialog, height, annotationConfigs } =
-    props;
+  const {
+    output,
+    error,
+    annotations,
+    onOpenTraceDetails,
+    height,
+    annotationConfigs,
+    repetitionNumber,
+    baseRepeatedRunGroup,
+  } = props;
 
   if (error) {
     return <RunError error={error} height={height} />;
@@ -866,6 +957,11 @@ function ExperimentRunOutput(
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
     : [];
+  const baseRun = baseRepeatedRunGroup?.runs.find(
+    (run) => run.repetitionNumber === repetitionNumber
+  );
+  const baseAnnotationsList =
+    baseRun?.annotations?.edges.map((edge) => edge.annotation) ?? undefined;
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
@@ -879,14 +975,15 @@ function ExperimentRunOutput(
         annotationSummaries={props.annotationSummaries}
         annotationConfigs={annotationConfigs}
         numRepetitions={props.numRepetitions}
+        showDeltas={baseRepeatedRunGroup !== undefined}
+        baseAnnotations={baseAnnotationsList}
+        baseAnnotationSummaries={baseRepeatedRunGroup?.annotationSummaries}
         onTraceClick={({ traceId, projectId, annotationName }) => {
-          setDialog(
-            <TraceDetailsDialog
-              title={`Evaluator Trace: ${annotationName}`}
-              traceId={traceId}
-              projectId={projectId}
-            />
-          );
+          onOpenTraceDetails({
+            traceId,
+            projectId,
+            title: `Evaluator Trace: ${annotationName}`,
+          });
         }}
         renderFilters={true}
       />
@@ -909,7 +1006,8 @@ function RunError({ error, height }: { error: string; height: number }) {
 function ExperimentRunOutputCell({
   experimentRepetitionCount,
   repeatedRunGroup,
-  setDialog,
+  baseRepeatedRunGroup,
+  onOpenTraceDetails,
   rowIndex,
   setSelectedExampleIndex,
   annotationSummaries,
@@ -918,7 +1016,13 @@ function ExperimentRunOutputCell({
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
-  setDialog: (dialog: ReactNode) => void;
+  /**
+   * The base experiment's run group for the same example, to show deltas
+   * against. Omitted on the base column and when deltas are hidden; `null`
+   * when the base has no group for the example.
+   */
+  baseRepeatedRunGroup?: ExperimentRepeatedRunGroup | null;
+  onOpenTraceDetails: (details: SelectedTraceDetails) => void;
   rowIndex: number;
   setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
@@ -982,13 +1086,14 @@ function ExperimentRunOutputCell({
           size="S"
           aria-label="View run trace"
           onPress={() => {
-            setDialog(
-              <TraceDetailsDialog
-                traceId={traceId || ""}
-                projectId={projectId || ""}
-                title={`Experiment Run Trace`}
-              />
-            );
+            if (!hasTrace) {
+              return;
+            }
+            onOpenTraceDetails({
+              traceId,
+              projectId,
+              title: "Experiment Run Trace",
+            });
           }}
           isDisabled={!hasTrace}
         >
@@ -1005,16 +1110,22 @@ function ExperimentRunOutputCell({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={runControls}>
-        <ExperimentRepeatedRunGroupMetadata fragmentRef={repeatedRunGroup} />
+        <ExperimentRepeatedRunGroupMetadata
+          fragmentRef={repeatedRunGroup}
+          baseFragmentRef={baseRepeatedRunGroup}
+          runCount={repeatedRunGroup.runs.length}
+          baseRunCount={baseRepeatedRunGroup?.runs.length ?? 0}
+        />
       </CellTop>
       {run ? (
         <ExperimentRunOutput
           {...run}
           numRepetitions={experimentRepetitionCount}
-          setDialog={setDialog}
+          onOpenTraceDetails={onOpenTraceDetails}
           annotationSummaries={annotationSummaries}
           annotationConfigs={annotationConfigs}
           height={height}
+          baseRepeatedRunGroup={baseRepeatedRunGroup}
         />
       ) : (
         <PaddedCell>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<761ad520fc6fdca5135e5412c0228d79>>
+ * @generated SignedSource<<b1c19fcbe6c1ba48afe62c079ae7e9ef>>
  * @lightSyntaxTransform
  */
 
@@ -200,7 +200,7 @@ return {
             "selections": [
               (v7/*:: as any*/),
               {
-                "alias": null,
+                "alias": "configsByName",
                 "args": [
                   {
                     "kind": "Literal",
@@ -687,12 +687,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "343ac4dae2b0d68d610a8e6253ea305b",
+    "cacheID": "606496c10aad99cd1439de38afa2b7fc",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQueriesSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesSessionsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $sessionFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_3vjI8\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_3vjI8 on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: 30, sort: {col: startTime, dir: desc}, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectPageQueriesSessionsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $sessionFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_3vjI8\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_3vjI8 on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: 30, sort: {col: startTime, dir: desc}, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

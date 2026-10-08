@@ -49,7 +49,7 @@ While not strictly required, these attributes are **highly recommended** on all 
 
 ## Valid Span Kinds
 
-There are exactly **9 valid span kinds** in OpenInference:
+There are exactly **10 valid span kinds** in OpenInference (plus `PROMPT` and `UNKNOWN`):
 
 | Span Kind | Purpose | Common Use Case |
 |-----------|---------|-----------------|
@@ -62,3 +62,4 @@ There are exactly **9 valid span kinds** in OpenInference:
 | `AGENT` | Autonomous reasoning | ReAct agents, planning loops |
 | `GUARDRAIL` | Safety/policy checks | Content moderation, PII detection |
 | `EVALUATOR` | Quality assessment | Answer relevance, faithfulness scoring |
+| `DECISION` | Decision model call | Routing, classification, rubric scoring over candidate options (OpenAI Decisions API, TypeSafe System One) |

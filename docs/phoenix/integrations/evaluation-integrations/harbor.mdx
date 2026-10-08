@@ -8,14 +8,35 @@ keywords: ["harbor", "agent evaluation", "agent benchmark", "atif", "experiments
 
 Harbor remains responsible for running agents and verifiers. Phoenix stores and displays the resulting tasks, runs, rewards, errors, and traces. The plugin does not rerun tasks or calculate a replacement reward.
 
-```mermaid
-flowchart LR
-    H["Harbor job"] --> D["Phoenix dataset<br/>one example per task"]
-    H --> E["Phoenix experiment<br/>one per agent and model"]
-    E --> R["Experiment run<br/>one per final logical trial"]
-    R --> S["Harbor rewards<br/>and infra_ok"]
-    R --> T["ATIF trace<br/>agent, LLM, and tool spans"]
-```
+<Frame caption="The plugin sits between Harbor and Phoenix. It creates the dataset and experiments at job start, then adds a run, its annotations, and its trace as each trial ends.">
+  <img className="block dark:hidden" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-phoenix-plugin-light.svg" alt="How the Phoenix plugin maps Harbor to Phoenix" />
+  <img className="hidden dark:block" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-phoenix-plugin-dark.svg" alt="How the Phoenix plugin maps Harbor to Phoenix" />
+</Frame>
+
+Recording a job in Phoenix gives you four things:
+
+- **An experiment per agent configuration.** A job that runs three agent and model combinations produces three experiments on one dataset, so you can compare them with each other and with earlier jobs.
+- **Rewards as annotations.** Each verifier reward becomes a named score on the run it belongs to, next to an `infra_ok` score that tells a failed agent apart from a broken sandbox.
+- **A trace for every trial.** The plugin converts the agent's ATIF trajectory into a span tree of LLM calls, tool calls, and subagents, with no tracing code inside the sandbox.
+- **Efficiency next to reward.** Traces carry token counts, so each experiment shows tokens and cost beside its scores. When two agents pass every task, compare tokens, cost, and iterations to see which one did less work to get there.
+
+## How a Harbor trial runs
+
+A trial is one attempt by one agent at one task. Knowing its order of events explains what Phoenix receives.
+
+<Frame caption="One trial. The agent works in the sandbox first. Harbor copies tests/ in only after the agent stops, then the verifier inspects the sandbox and writes the rewards.">
+  <img className="block dark:hidden" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-trial-light.svg" alt="How a Harbor trial runs" />
+  <img className="hidden dark:block" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-trial-dark.svg" alt="How a Harbor trial runs" />
+</Frame>
+
+A task is a directory with an `environment/`, an `instruction.md`, and a `tests/` folder. For each trial, Harbor:
+
+1. builds a fresh sandbox container from `environment/`;
+2. runs the agent, which reads `instruction.md` and changes files and services in the sandbox;
+3. copies `tests/` into the sandbox after the agent finishes, so the agent never sees the checks that grade it; and
+4. runs the verifier, which inspects the sandbox and writes its rewards to `reward.txt` or `reward.json`.
+
+The reward grades what the agent left behind in the sandbox, not what it said it did. The plugin copies those rewards into Phoenix unchanged and attaches the agent's trajectory as a trace, so a low score links to the steps that produced it.
 
 ## When to use the plugin
 
@@ -38,7 +59,7 @@ The integration requires Python 3.12 or newer, Harbor 0.21.0 or newer, and Phoen
 Install the Phoenix client and Harbor in the same Python environment:
 
 ```bash
-pip install "arize-phoenix-client[harbor]"
+uv pip install "arize-phoenix-client[harbor]"
 ```
 
 Set the connection to your Phoenix instance. Self-hosted Phoenix uses `http://localhost:6006` by default.
@@ -68,6 +89,7 @@ At job start, the plugin creates or reuses a versioned dataset for the resolved 
 As each final logical trial finishes, Phoenix records:
 
 - an experiment run linked to the task's dataset example;
+- the agent's final textual response when its terminal ATIF trajectory contains one;
 - Harbor's verifier rewards as experiment evaluations;
 - an `infra_ok` evaluation for execution health;
 - a run error when Harbor recorded an exception; and
@@ -87,13 +109,66 @@ Start with the default `atif` mode when your Harbor agent writes ATIF trajectori
 | Agent and model | Experiment | Each distinct agent and model configuration gets its own experiment. |
 | Planned task attempt | Repetition | Repetitions use stable, one-based numbers from the job plan. |
 | Final logical trial | Experiment run | Physical retries keep the logical repetition number. The plugin records only the terminal attempt. |
+| Final agent response | Run output | Text from the terminal ATIF agent turn appears as Markdown in experiment comparisons. |
 | Verifier reward | Experiment evaluation | The plugin records each Harbor reward as a named CODE evaluation on the experiment run. |
 | Trial or step exception | Run error | Errors are stored separately from behavioral rewards. |
 | ATIF trajectory | Trace | One trial-level trace links to the experiment run when conversion succeeds. Multi-step trials include one span per attempted step. |
 
-Each Harbor task becomes one dataset example, including a multi-step task. For a multi-step task, the example input also contains the ordered step names and instructions. Phoenix dataset examples have an empty reference `output` because Harbor verifies an environment state rather than a single reference response.
+Each Harbor task becomes one dataset example, including a multi-step task. For a multi-step task, the example input also contains the ordered step names and instructions. Reference outputs are optional. Without an explicit reference file, the dataset example's `output` stays empty.
 
-Each run output includes the Harbor trial ID, trial name, trial URI, and task name. It also includes Harbor's token totals and cost when the agent reports them. Task metadata keeps environment variable names but redacts their values.
+When the terminal ATIF trajectory ends with a textual agent turn, the run output uses Phoenix's chat-message format and the experiment comparison renders the response as Markdown. For structured ATIF messages, the plugin joins text parts in order and omits media parts. It leaves the output empty when the final turn is a tool call, contains only media, or is otherwise not a user-facing text response. This is expected for tasks whose result is an environment change rather than a written answer.
+
+Run output extraction is independent of trace upload. `trace_mode=null` still records a saved terminal ATIF response without creating a trace. Missing or invalid trajectories leave the output empty. Multi-step tasks use the last attempted step, continued trajectories use their terminal continuation, and Harbor retries contribute only the terminal physical attempt.
+
+Successful experiment runs are immutable. Runs created by earlier plugin versions keep their legacy Harbor metadata output when a job resumes; the plugin recognizes and reuses them instead of treating the changed output format as a conflict.
+
+### Optional reference outputs
+
+To display an expected answer beside an experiment result, add this setting to the task's `task.toml`:
+
+```toml
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+```
+
+The file must contain either a JSON string or a JSON object. A string becomes an assistant message in the example's output:
+
+```json
+"117 traces"
+```
+
+```json
+{"messages": [{"role": "assistant", "content": "117 traces"}]}
+```
+
+An object is stored unchanged. Use it for structured expected results, chat messages, or existing verifier references:
+
+```json
+{"reference": "117 traces", "notes": "Count every trace in the seeded project."}
+```
+
+Wrap top-level arrays, numbers, booleans, or null in an object, such as `{"count": 117}`. The plugin does not interpret object keys or use the reference to calculate rewards.
+
+Paths resolve relative to the downloaded task root on the host running Harbor, not the agent sandbox or the job's working directory. Absolute paths, `..` components, and symlinks that resolve outside the task root are rejected. Keep references under `tests/` beside verifier assets; do not copy them into the agent's workspace. The plugin reads files during setup and never runs a solution to obtain a reference.
+
+The same setting works for a task selected from a local dataset or passed directly:
+
+```bash
+harbor run -p ./my-dataset -a oracle --plugin arize-phoenix
+harbor run -p ./my-dataset/my-task -a oracle --plugin arize-phoenix
+```
+
+It also travels with tasks in registry, package, and repository datasets. Each task opts in independently, so jobs can mix tasks with and without references. No job-wide Phoenix option is needed.
+
+For a multi-step task, put the setting in the root `task.toml` as above. There is one reference output for the whole task. It should describe the expected final result. If useful, an object can describe expected intermediate results as well:
+
+```json
+{"steps": {"collect": {"count": 117}, "summarize": {"answer": "117 traces"}}}
+```
+
+The plugin stores this object as one example output; it does not split it into step examples or match its keys to step names.
+
+Omitting the setting leaves the reference blank, even if a file named `expected.json` exists. A configured file that is missing, unreadable, invalid JSON, or has an unsupported top-level type stops setup before trials begin. Errors identify the task and configured path. Changing reference content updates the dataset example and creates a new dataset version; existing experiments retain their original version.
 
 ### Dataset versions
 

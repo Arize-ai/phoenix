@@ -33,6 +33,10 @@ Do **not** use this hook when:
 - **Use `useOwnedPreloadedQuery` for loader-owned query refs.** If a route loader returns a `loadQuery` ref that this component owns directly, read it with `useOwnedPreloadedQuery` instead of `usePreloadedQuery`.
 - **Treat disposal as an ownership decision.** Only the owner should dispose a query ref. Disposing a shared ref too early can make still-mounted readers hit missing-data or GC-related crashes later.
 
+## Refreshing mounted queries after PXI writes
+
+When a PXI `ui.*` write changes which records a mounted list contains or how it is filtered, emit the corresponding typed agent data change after the mutation succeeds. In the query owner, pass a module-level array of the relevant `AgentDataChange["entity"]` values to `useAgentDataChangeFetchKey` from `@phoenix/hooks`, then pass its result as the query's `fetchKey`. Use a network-fetching policy so the changed key actually refreshes the server result. Select only events that affect that query; normalized mutation payloads already update individual records without this refresh.
+
 ## Don't over-fetch to look up one entity
 
 When you need a single object by id (e.g. a lazy tooltip, a detail popover), fetch it directly via the `node(id: $id)` root field with an inline fragment on the concrete type — do **not** fetch a whole collection and `.find()` the one you want on the client. Over-fetching a list to grab one row wastes a round trip and scales badly.

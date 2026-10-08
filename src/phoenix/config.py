@@ -8,7 +8,6 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from importlib.metadata import version
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -52,6 +51,14 @@ ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
+"""
+Comma-separated skill directories or directories containing skills, loaded at startup.
+For example: "./.agents/skills,/opt/skills/team-analysis". Paths are on the Phoenix
+server. A relative path resolves against the directory the server was started from,
+not PHOENIX_WORKING_DIR, so deployments should use absolute paths. Unset means no
+external skills.
+"""
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -98,6 +105,14 @@ ENV_PHOENIX_AGENTS_GITHUB_MCP_URL = "PHOENIX_AGENTS_GITHUB_MCP_URL"
 Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
 GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
 for GitHub Enterprise Server or air-gapped deployments.
+"""
+ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE = "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE"
+"""
+Whether Phoenix MCP connection uses code-mode. Defaults to True. Under code mode,
+the assistant sees discovery tools (search, get_schema, tags, list_tools) plus a
+sandboxed `execute` tool; set to False to give it one tool per read-only REST
+endpoint instead. PHOENIX_ENABLE_MCP_CODE_MODE is the same switch for the MCP
+server mounted at /mcp, which external clients use.
 """
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
@@ -148,8 +163,9 @@ individual environment variable settings. Defaults to True.
 """
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
-Allows calls to external resources, like Google Fonts in the web interface
-Defaults to True. Set to False in air-gapped environments to prevent external requests.
+When False, Phoenix makes no public-internet requests on its own initiative, such as web fonts,
+telemetry, or the WASM sandbox binary download. Services the operator configures, such as LLM
+providers and hosted sandboxes, are unaffected. Defaults to True.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -856,7 +872,7 @@ The default retention policy for traces in days.
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
 A comma-separated list of sandbox providers to allow.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY. Case-insensitive.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY, DOCKER. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
@@ -864,8 +880,8 @@ ENV_PHOENIX_WASM_BINARY_PATH = "PHOENIX_WASM_BINARY_PATH"
 """
 Override path to a pre-downloaded CPython WASM binary used by the WASM sandbox
 provider. When set, the binary at this path is used as-is (no SHA verification,
-no download). When unset, the binary is downloaded on first use under
-PHOENIX_WORKING_DIR/wasm. Primarily used in CI to point at a cached binary.
+no download). When unset, the binary is downloaded under PHOENIX_WORKING_DIR/wasm
+unless PHOENIX_ALLOW_EXTERNAL_RESOURCES is False.
 """
 
 
@@ -3652,6 +3668,10 @@ def get_env_mcp_code_mode() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
 
 
+def get_env_agents_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, True)
+
+
 def get_env_mask_internal_server_errors() -> bool:
     return _bool_val(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, True)
 
@@ -3774,7 +3794,6 @@ def verify_server_environment_variables() -> None:
         )
 
 
-SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
 
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
@@ -3838,8 +3857,8 @@ def _validate_file_exists_and_is_readable(
 
 def get_env_allow_external_resources() -> bool:
     """
-    Gets the value of the PHOENIX_ALLOW_EXTERNAL_RESOURCES environment variable.
-    Defaults to True if not set.
+    Whether Phoenix may fetch public-internet resources on its own initiative. Services the
+    operator configures, such as LLM providers and hosted sandboxes, are unaffected by this flag.
     """
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
 
@@ -3873,4 +3892,11 @@ def get_env_postgres_azure_scope() -> str:
     """
     return getenv(ENV_PHOENIX_POSTGRES_AZURE_SCOPE) or (
         "https://ossrdbms-aad.database.windows.net/.default"
+    )
+
+
+def get_env_skills_paths() -> tuple[Path, ...]:
+    value = getenv(ENV_PHOENIX_SKILLS_PATHS, "")
+    return tuple(
+        Path(path.strip()).expanduser().resolve() for path in value.split(",") if path.strip()
     )

@@ -22,6 +22,8 @@ Validate LLM judges against human labels before deploying. Target >80% agreement
 
 ## Quick Validation
 
+Requires scikit-learn, which no Phoenix package installs: `pip install scikit-learn`.
+
 ```python
 from sklearn.metrics import classification_report, confusion_matrix, cohen_kappa_score
 

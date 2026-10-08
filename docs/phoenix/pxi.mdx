@@ -470,10 +470,11 @@ present, so it does not offer an action that cannot succeed on your current page
   | Environment variable | Effect |
   | --- | --- |
   | `PHOENIX_DISABLE_AGENT_ASSISTANT=true` | Disable PXI for the whole deployment (requires restart). |
-  | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups. |
+  | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups, web search/fetch, and GitHub tools. |
   | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
   | `PHOENIX_AGENTS_DISABLE_BASH=true` | Remove PXI's server-side bash tool. This strips bash from the assistant, disables subagents (and hides the subagents toggle in **Settings → Assistant**), and rejects the headless terminal agent, which depends on it. To turn PXI off entirely use `PHOENIX_DISABLE_AGENT_ASSISTANT`. |
   | `PHOENIX_AGENTS_DISABLE_GITHUB=true` | Disable PXI's GitHub issue tools and hide the GitHub settings UI. |
+  | `PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE=false` | Give PXI one tool per read-only REST endpoint instead of the code-mode `search` and sandboxed `execute` tools. Defaults to `true`. Independent of `PHOENIX_ENABLE_MCP_CODE_MODE`, which applies to the `/mcp` server. |
   | `PHOENIX_AGENTS_GITHUB_MCP_URL` | Base URL of the GitHub MCP server (default `https://api.githubcopilot.com/mcp/`). Point at a self-hosted `github-mcp-server` for GitHub Enterprise Server or air-gapped deployments. |
   | `GITHUB_PERSONAL_ACCESS_TOKEN` | Server-side fallback GitHub token, used when a request carries no personal token and no workspace secret is configured. |
   | `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local PXI tracing, remote trace export, and signed-in user email attribution for every user, regardless of workspace or browser settings. Configure the remote collector variables below before enabling it. |

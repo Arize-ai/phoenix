@@ -248,7 +248,10 @@ function TraceHeader({
           <Text elementType="h3" size="S" color="text-700">
             Total Cost
           </Text>
-          <TooltipTrigger delay={0}>
+          <TooltipTrigger
+            delay={0}
+            isDisabled={(costSummary?.total?.cost ?? 0) === 0}
+          >
             <Focusable>
               <Text size="L" role="button">
                 {costFormatter(costSummary?.total?.cost ?? 0)}

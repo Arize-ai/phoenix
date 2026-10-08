@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from typing import NamedTuple, Optional, cast
+from typing import NamedTuple, Optional
 
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, func, insert, select, update
@@ -27,7 +27,7 @@ async def insert_span(
     span: Span,
     project_name: str,
 ) -> Optional[SpanInsertionEvent]:
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
 
     trace_id = span.context.trace_id
     trace: models.Trace = await session.scalar(
@@ -133,9 +133,9 @@ async def insert_span(
             )
         )
     ).first():
-        cumulative_error_count += cast(int, accumulation[0] or 0)
-        cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
-        cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
+        cumulative_error_count += accumulation[0] or 0
+        cumulative_llm_token_count_prompt += accumulation[1] or 0
+        cumulative_llm_token_count_completion += accumulation[2] or 0
     span_rowid = await session.scalar(
         insert_on_conflict(
             dict(

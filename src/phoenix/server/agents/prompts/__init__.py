@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from jinja2 import Template
+
 from phoenix.server.agents.prompts.static_prompts import read_static_prompt
 from phoenix.server.agents.prompts.templating import get_template
 
@@ -9,7 +11,7 @@ _BASE_INSTRUCTIONS = read_static_prompt("base/BASE_INSTRUCTIONS.xml")
 _VIEWER_ACCESS_INSTRUCTIONS = read_static_prompt("base/VIEWER_ACCESS_INSTRUCTIONS.xml")
 _SUBAGENT_INSTRUCTIONS = read_static_prompt("base/SUBAGENT_INSTRUCTIONS.xml")
 _DOCS_TOOL_INSTRUCTIONS = read_static_prompt("tools/DOCS_TOOL_INSTRUCTIONS.xml")
-_PHOENIX_MCP_TOOL_INSTRUCTIONS = read_static_prompt("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml")
+_PHOENIX_MCP_TOOL_INSTRUCTIONS = get_template("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml.j2")
 _GITHUB_TOOL_INSTRUCTIONS = read_static_prompt("tools/GITHUB_TOOL_INSTRUCTIONS.xml")
 
 _UI_CONTEXT_PROMPT_NAMES = (
@@ -44,7 +46,7 @@ class AgentPrompts:
     viewer_access: str = _VIEWER_ACCESS_INSTRUCTIONS
     subagent: str = _SUBAGENT_INSTRUCTIONS
     docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
-    phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
+    phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     github_tools: str = _GITHUB_TOOL_INSTRUCTIONS
     ui_contexts: str = _UI_CONTEXT_INSTRUCTIONS
 

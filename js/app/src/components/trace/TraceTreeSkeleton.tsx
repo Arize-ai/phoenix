@@ -4,16 +4,28 @@ import {
   createContext,
   Fragment,
   isValidElement,
-  type PropsWithChildren,
   type ReactNode,
   useContext,
 } from "react";
 
-import { Flex } from "@phoenix/components";
 import { Skeleton } from "@phoenix/components/core/loading/Skeleton";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
+import {
+  SpanTreeDrop,
+  SpanTreeEdge,
+  SpanTreeEdgeConnector,
+} from "./TraceTreeEdges";
+import {
+  headingLineCSS,
+  nestingLevelStyle,
+  spanControlsCSS,
+  spanNodeContentCSS,
+  spanNodeIconCSS,
+  spanNodeWrapCSS,
+  spanTimingCSS,
+  traceTreeListCSS,
+} from "./traceTreeStyles";
 
 const NestingLevelContext = createContext(0);
 
@@ -37,6 +49,9 @@ export interface TraceTreeSkeletonProps {
 /**
  * Skeleton placeholder for `TraceTree`. Accepts `TraceTreeNodeSkeleton`
  * children to shape the tree, or renders a default tree when empty.
+ *
+ * Rows share their layout styles and tree lines with the real tree, so the
+ * skeleton cannot drift from what it stands in for.
  */
 export function TraceTreeSkeleton({ children }: TraceTreeSkeletonProps) {
   return (
@@ -96,11 +111,9 @@ export function TraceTreeNodeSkeleton({
                   css={css`
                     position: relative;
                   `}
+                  style={nestingLevelStyle(nestingLevel)}
                 >
-                  {hasSiblingBelow ? (
-                    <EdgeConnectorSkeleton nestingLevel={nestingLevel} />
-                  ) : null}
-                  <EdgeSkeleton nestingLevel={nestingLevel} />
+                  {hasSiblingBelow ? <SpanTreeEdgeConnector /> : null}
                   {child}
                 </li>
               );
@@ -125,37 +138,38 @@ function SpanNodeRowSkeleton({
     (state) => state.showMetricsInTraceTree
   );
   return (
-    <SpanNodeWrapSkeleton nestingLevel={nestingLevel}>
-      <Flex
-        direction="row"
-        gap="size-100"
-        justifyContent="start"
-        alignItems="center"
-        flex="1 1 auto"
-        minWidth={0}
-        css={css`
-          overflow: hidden;
-        `}
-      >
+    <div
+      className="span-node-wrap"
+      css={spanNodeWrapCSS}
+      style={nestingLevelStyle(nestingLevel)}
+    >
+      {nestingLevel > 0 ? <SpanTreeEdge /> : null}
+      {hasChildren ? <SpanTreeDrop /> : null}
+      <div css={spanNodeIconCSS}>
         <Skeleton width={20} height={20} borderRadius="S" animation="wave" />
-        <Skeleton
-          width={nameWidth}
-          height={14}
-          borderRadius="S"
-          animation="wave"
-        />
-      </Flex>
+      </div>
+      <div css={spanNodeContentCSS}>
+        <div css={headingLineCSS}>
+          <Skeleton
+            width={nameWidth}
+            height={14}
+            borderRadius="S"
+            animation="wave"
+          />
+        </div>
+        {showMetricsInTraceTree ? (
+          <Skeleton
+            width={72}
+            height={10}
+            borderRadius="S"
+            animation="wave"
+            className="span-metrics"
+          />
+        ) : null}
+      </div>
       {showMetricsInTraceTree ? (
         <div css={spanTimingCSS} className="span-tree-timing">
-          <Skeleton width={36} height={10} borderRadius="S" animation="wave" />
-          <Flex flex="1 1 auto">
-            <Skeleton
-              width="100%"
-              height={6}
-              borderRadius={3}
-              animation="wave"
-            />
-          </Flex>
+          <Skeleton width="100%" height={6} borderRadius={3} animation="wave" />
         </div>
       ) : null}
       <div css={spanControlsCSS} className="span-controls">
@@ -163,90 +177,9 @@ function SpanNodeRowSkeleton({
           <Skeleton width={20} height={20} borderRadius="S" animation="wave" />
         ) : null}
       </div>
-    </SpanNodeWrapSkeleton>
-  );
-}
-
-function SpanNodeWrapSkeleton(
-  props: PropsWithChildren<{ nestingLevel: number }>
-) {
-  return (
-    <div
-      className="span-node-wrap"
-      css={css`
-        width: 100%;
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        gap: var(--global-dimension-size-100);
-        padding-right: var(--global-dimension-size-100);
-        padding-top: var(--global-dimension-size-100);
-        padding-bottom: var(--global-dimension-size-100);
-        border-left: 4px solid transparent;
-        box-sizing: border-box;
-        & > *:first-of-type {
-          margin-left: calc(
-            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
-          );
-        }
-      `}
-    >
-      {props.children}
     </div>
   );
 }
-
-function EdgeConnectorSkeleton({ nestingLevel }: { nestingLevel: number }) {
-  return (
-    <div
-      className="span-tree-edge-connector"
-      css={css`
-        position: absolute;
-        border-left: 1px solid var(--global-color-gray-300);
-        top: 0;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
-        width: 42px;
-        bottom: 0;
-        z-index: 1;
-      `}
-    />
-  );
-}
-
-function EdgeSkeleton({ nestingLevel }: { nestingLevel: number }) {
-  return (
-    <div
-      className="span-tree-edge"
-      css={css`
-        position: absolute;
-        border-left: 1px solid var(--global-color-gray-300);
-        border-bottom: 1px solid var(--global-color-gray-300);
-        border-radius: 0 0 0 11px;
-        top: -5px;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
-        width: 11px;
-        height: 22px;
-      `}
-    />
-  );
-}
-
-const spanControlsCSS = css`
-  width: 20px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const spanTimingCSS = css`
-  gap: var(--global-dimension-size-100);
-  width: 150px;
-  flex: none;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-`;
 
 function DefaultTraceTreeSkeletonBody() {
   return (

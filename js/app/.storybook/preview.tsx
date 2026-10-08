@@ -1,8 +1,20 @@
 import type { DocsContainerProps } from "@storybook/addon-docs/blocks";
-import { DocsContainer } from "@storybook/addon-docs/blocks";
+import {
+  Controls,
+  Description,
+  DocsContainer,
+  Primary,
+  Stories,
+  Subtitle,
+  Title,
+  useOf,
+} from "@storybook/addon-docs/blocks";
 import type { Preview } from "@storybook/react";
 import React, { useEffect, useMemo, useState } from "react";
+import { UNSAFE_PortalProvider } from "react-aria/PortalProvider";
+import { createPortal } from "react-dom";
 import { MemoryRouter } from "react-router";
+import { GLOBALS_UPDATED, SET_GLOBALS } from "storybook/internal/core-events";
 import { addons as previewAddons } from "storybook/preview-api";
 import { CacheProvider, createCache, themes } from "storybook/theming";
 import { create } from "storybook/theming/create";
@@ -10,9 +22,16 @@ import { create } from "storybook/theming/create";
 import type { ProviderTheme } from "../src/contexts";
 import { PreferencesProvider, ThemeProvider } from "../src/contexts";
 import { GlobalStyles } from "../src/GlobalStyles";
+import {
+  THUMBNAIL_FRAME_TEST_ID,
+  THUMBNAIL_HOVER_ATTRIBUTE,
+  THUMBNAIL_SCALE_ATTRIBUTE,
+  THUMBNAIL_SIZE,
+  THUMBNAIL_STORY_NAME,
+  type ThumbnailParameters,
+} from "../stories/_meta/thumbnail";
 
 export const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
-export const THEME_MODE_CHANGE_EVENT = "phoenix:theme-mode-change";
 
 /**
  * Phoenix design system background colors (gray-75)
@@ -309,15 +328,91 @@ function getDocsTheme(themeMode: string, systemTheme: ProviderTheme) {
   return systemTheme === "dark" ? darkDocsTheme : lightDocsTheme;
 }
 
+type GlobalsPayload = { globals?: { theme?: unknown } } | undefined;
+
+function getThemeModeFromGlobals(payload: GlobalsPayload): string | undefined {
+  const theme = payload?.globals?.theme;
+  return typeof theme === "string" ? theme : undefined;
+}
+
+/**
+ * The toolbar theme mode, read from Storybook's own globals events.
+ *
+ * `useGlobals` only works inside decorators, and a docs page renders a
+ * decorator only when it embeds a story — an MDX page such as a subject
+ * Overview embeds none. The preview emits `GLOBALS_UPDATED` before every docs
+ * render and on every toolbar change regardless, and `channel.last` returns
+ * the payload sent before this container mounted.
+ */
+function useDocsThemeMode(): string {
+  const [themeMode, setThemeMode] = useState(() => {
+    const channel = previewAddons.getChannel();
+    return (
+      getThemeModeFromGlobals(channel.last(GLOBALS_UPDATED)?.[0]) ??
+      getThemeModeFromGlobals(channel.last(SET_GLOBALS)?.[0]) ??
+      "both"
+    );
+  });
+
+  useEffect(() => {
+    const channel = previewAddons.getChannel();
+    const handler = (payload: GlobalsPayload) => {
+      const next = getThemeModeFromGlobals(payload);
+      if (next) {
+        setThemeMode(next);
+      }
+    };
+    channel.on(GLOBALS_UPDATED, handler);
+    channel.on(SET_GLOBALS, handler);
+    return () => {
+      channel.off(GLOBALS_UPDATED, handler);
+      channel.off(SET_GLOBALS, handler);
+    };
+  }, []);
+
+  return themeMode;
+}
+
 /**
  * Custom DocsContainer that respects the toolbar theme selector while also
  * responding to system theme changes when "auto" or "both" is selected.
- *
- * Since useGlobals can't be used outside decorators, we listen for theme mode
- * changes via the Storybook channel (emitted by the decorator).
  */
+/**
+ * Storybook's default autodocs page with two changes. The Stories list leaves
+ * out the primary story. The default includes it, so every docs page drew its
+ * first story twice, once as the primary canvas and again at the head of the
+ * list. With it excluded, a single-story file's docs page shows that story
+ * once and a multi-story page lists only the stories below the primary one.
+ * And the props table is omitted when the file sets
+ * `parameters.controls.disable`.
+ *
+ * A file whose stories are peers, with no single representative instance,
+ * sets `parameters.phoenixDocs.showPrimary: false`. The page then skips the
+ * unlabeled primary canvas and lists every story under Stories, each with
+ * its name as a heading.
+ */
+function DocsPage() {
+  // Storybook's Controls block ignores `parameters.controls.disable`, which
+  // only hides the canvas panel. Honor it here too, so a file whose args are
+  // fixtures rather than reader choices shows no props table.
+  const { preparedMeta } = useOf("meta", ["meta"]);
+  const controlsDisabled = preparedMeta.parameters.controls?.disable === true;
+  const showPrimary =
+    preparedMeta.parameters.phoenixDocs?.showPrimary !== false;
+  return (
+    <>
+      <Title />
+      <Subtitle />
+      <Description />
+      {showPrimary ? <Primary /> : null}
+      {controlsDisabled || !showPrimary ? null : <Controls />}
+      <Stories includePrimary={!showPrimary} />
+    </>
+  );
+}
+
 function ThemedDocsContainer(props: DocsContainerProps) {
-  const [themeMode, setThemeMode] = useState("auto");
+  const themeMode = useDocsThemeMode();
   const systemTheme = useSystemTheme();
   const effectiveTheme = getEffectiveTheme(themeMode, systemTheme);
   const docsTheme = getDocsTheme(themeMode, systemTheme);
@@ -325,13 +420,6 @@ function ThemedDocsContainer(props: DocsContainerProps) {
     () => createDocsEmotionCache(effectiveTheme),
     [effectiveTheme]
   );
-
-  useEffect(() => {
-    const channel = previewAddons.getChannel();
-    const handler = (mode: string) => setThemeMode(mode);
-    channel.on(THEME_MODE_CHANGE_EVENT, handler);
-    return () => channel.off(THEME_MODE_CHANGE_EVENT, handler);
-  }, []);
 
   // Directly set background color on body to bypass Storybook theme caching
   useEffect(() => {
@@ -342,6 +430,45 @@ function ThemedDocsContainer(props: DocsContainerProps) {
     <CacheProvider value={docsCache}>
       <DocsContainer {...props} theme={docsTheme} />
     </CacheProvider>
+  );
+}
+
+/**
+ * Re-homes the story's React Aria portals into a host on `document.body`
+ * that carries the story's theme classes.
+ *
+ * A layer the story launches (a popover, menu, tooltip or modal) portals out
+ * of the themed surface. On `document.body` it would resolve its tokens from
+ * `:root`, which every `GlobalStyles` also writes, so in `Both` mode each
+ * panel's layers took whichever theme mounted last. The host sits where the
+ * portal would have gone, so the layer's positioning is unchanged; only its
+ * theme scope moves. Children mount once the host exists, so the first
+ * portal already has its home.
+ */
+function ThemedPortalHost({
+  children,
+  theme,
+}: {
+  children: React.ReactNode;
+  theme: ProviderTheme;
+}) {
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+  return (
+    <>
+      {createPortal(
+        <div
+          ref={setHost}
+          className={`theme theme--${theme}`}
+          data-testid="story-portal-host"
+        />,
+        document.body
+      )}
+      {host && (
+        <UNSAFE_PortalProvider getContainer={() => host}>
+          {children}
+        </UNSAFE_PortalProvider>
+      )}
+    </>
   );
 }
 
@@ -382,7 +509,7 @@ function ThemedStory({
                 data-testid="story-content"
                 style={getStoryContentStyle(frame.width, frame.maxWidth)}
               >
-                {children}
+                <ThemedPortalHost theme={theme}>{children}</ThemedPortalHost>
               </div>
             </div>
           </div>
@@ -393,19 +520,71 @@ function ThemedStory({
 }
 
 /**
- * Hook that resolves the toolbar theme selection to concrete theme(s),
- * emits theme mode to the channel, and tracks system theme.
+ * The frame a `Thumbnail` story renders in, so its screenshot always has the
+ * Overview card's aspect ratio. Content that overflows is clipped: the story
+ * is authored to fit, and the frame is what gets photographed.
+ *
+ * `scale` never transforms anything. A scaled frame is laid out at
+ * `1 / scale` times the thumbnail size in real CSS pixels, and the generator
+ * photographs it at a proportionally lower pixel density, so the image is
+ * always the same size. A CSS `transform` would shrink what the story
+ * renders but not what it measures: React Aria would anchor overlays and
+ * Recharts would size axes from scaled rectangles applied in unscaled units.
+ *
+ * The frame is also where overlays go. React Aria portals are re-homed into
+ * it, and its (identity) `transform` makes it the containing block for their
+ * fixed positioning, so an open popover, modal, or tooltip renders inside the
+ * frame (and inside the story's theme) instead of against the window.
+ * Children mount once the frame exists, so the first portal already has its
+ * home.
+ *
+ * @see app/stories/_meta/thumbnail.ts
+ */
+function ThumbnailFrame({
+  children,
+  scale = 1,
+  hover,
+}: {
+  children: React.ReactNode;
+} & ThumbnailParameters) {
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
+  return (
+    <div
+      ref={setFrame}
+      data-testid={THUMBNAIL_FRAME_TEST_ID}
+      {...{
+        [THUMBNAIL_HOVER_ATTRIBUTE]: hover,
+        [THUMBNAIL_SCALE_ATTRIBUTE]: scale,
+      }}
+      style={{
+        alignItems: "center",
+        backgroundColor: "var(--global-background-color-default)",
+        boxSizing: "border-box",
+        display: "flex",
+        height: THUMBNAIL_SIZE.height / scale,
+        justifyContent: "center",
+        overflow: "hidden",
+        padding: "var(--global-dimension-size-200)",
+        position: "relative",
+        transform: "translateZ(0)",
+        width: THUMBNAIL_SIZE.width / scale,
+      }}
+    >
+      {frame && (
+        <UNSAFE_PortalProvider getContainer={() => frame}>
+          {children}
+        </UNSAFE_PortalProvider>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Hook that resolves the toolbar theme selection to concrete theme(s) and
+ * tracks system theme.
  */
 function useResolvedThemes(themeMode: string) {
   const systemTheme = useSystemTheme(true);
-
-  useEffect(() => {
-    try {
-      previewAddons.getChannel().emit(THEME_MODE_CHANGE_EVENT, themeMode);
-    } catch {
-      // Channel may not be ready yet
-    }
-  }, [themeMode]);
 
   if (themeMode === "both") {
     return {
@@ -435,35 +614,103 @@ const preview: Preview = {
     },
     docs: {
       container: ThemedDocsContainer,
+      page: DocsPage,
       canvas: {
         withToolbar: false,
       },
     },
     options: {
+      // MUST be an inline literal. Storybook statically parses this file to
+      // read `options.storySort` — it never evaluates it — so an imported
+      // constant fails the build with "Unexpected '<identifier>'".
+      // `stories/_meta/taxonomy.ts` stays the declarative source of truth and
+      // `pnpm lint:storybook` asserts this array agrees with it.
       storySort: {
         order: [
-          "Reference",
-          ["Storybook frames", "Lines: border, divider"],
-          "Core",
+          "Design System",
           [
-            "Content",
-            "Actions",
-            "Forms",
-            "Feedback",
-            "Overlays",
+            "Color",
+            ["Overview"],
+            "Typography",
+            ["Overview"],
             "Layout",
+            ["Overview"],
+            "Icons",
+            "Actions",
+            ["Overview"],
+            "Menus",
+            [
+              "Overview",
+              "Menu",
+              "Menu Item",
+              "Menu Container",
+              "Grid List",
+              "Menu Button",
+              "Composition",
+            ],
+            "Forms",
+            ["Overview"],
+            "Overlays",
+            ["Overview"],
+            "Badges",
+            ["Overview"],
+            "Feedback",
+            [
+              "Overview",
+              "Alert",
+              "Toast",
+              "Progress Bar",
+              "Progress Circle",
+              "Loading",
+              "Skeleton",
+              "Timer",
+              "*",
+              "Empty states",
+              ["Overview", "Empty State", "Empty State Graphic", "In Context"],
+            ],
+            "Errors",
             "Navigation",
+            ["Overview"],
+            "Tables",
+            ["Overview"],
+            "Data visualization",
+            ["Overview"],
+            "Dates and times",
+            ["Overview"],
+            "Code",
+            ["Overview"],
             "Media",
+            ["Overview"],
+            "Drag and resize",
+            ["Overview"],
           ],
-          "Charting",
-          "DateTime",
-          "Table",
-          "Annotation",
-          "Chat",
-          "Experiment",
-          "Prompt",
-          "Tokens",
-          "Trace",
+          "Domains",
+          [
+            "Tracing",
+            ["Overview"],
+            "Experiments",
+            ["Overview"],
+            "Datasets",
+            "Evaluators",
+            "Annotations",
+            ["Overview"],
+            "Playground",
+            ["Overview"],
+            "Prompts",
+            ["Overview"],
+            "PXI",
+            ["Overview"],
+            "Cost",
+            ["Overview"],
+            "App shell",
+            ["Overview"],
+            "Auth",
+            ["Overview"],
+            "Settings",
+            ["Overview"],
+          ],
+          "Storybook",
+          ["Writing a story", "Tags", "Storybook frames"],
         ],
       },
     },
@@ -476,14 +723,26 @@ const preview: Preview = {
     },
   },
   initialGlobals: {
-    theme: "auto",
+    theme: "both",
   },
   decorators: [
-    (Story, { globals, parameters }) => {
-      const themeMode = globals.theme ?? "auto";
+    (Story, { globals, parameters, name }) => {
+      const themeMode = globals.theme ?? "both";
       const { resolvedThemes, systemTheme } = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
-      const frame = getStoryFrame(parameters);
+      const isThumbnail = name === THUMBNAIL_STORY_NAME;
+      // A thumbnail owns its framing: no inset, no width mode, just the frame.
+      const frame: ResolvedStoryFrame = isThumbnail
+        ? { hasInset: false, width: "intrinsic" }
+        : getStoryFrame(parameters);
+      const thumbnail: ThumbnailParameters = parameters.thumbnail ?? {};
+      const content = isThumbnail ? (
+        <ThumbnailFrame {...thumbnail}>
+          <Story />
+        </ThumbnailFrame>
+      ) : (
+        <Story />
+      );
       const themeLayout =
         parameters.themeLayout === "column" ? "column" : "row";
 
@@ -494,7 +753,7 @@ const preview: Preview = {
             style={{ display: "flex", minHeight: "100%", width: "100%" }}
           >
             <ThemedStory theme={resolvedThemes[0]} frame={frame}>
-              <Story />
+              {content}
             </ThemedStory>
           </div>
         );
@@ -518,7 +777,7 @@ const preview: Preview = {
               style={{ display: "flex", flex: 1, minHeight: 0, minWidth: 0 }}
             >
               <ThemedStory theme={theme} frame={frame}>
-                <Story />
+                {content}
               </ThemedStory>
             </div>
           ))}

@@ -11,7 +11,7 @@ def minimal_admission_allowlist() -> Allowlist:
     """A three-table allowlist that keeps the real function policy.
 
     Only the table set is narrowed, so corpus statements stay short and their
-    outcomes turn on the rule being tested rather than on which of sixteen tables
+    outcomes turn on the rule being tested rather than on which of the allowlisted tables
     happens to be named.
 
     The function policy is deliberately *not* overridden. Leaving it unset makes

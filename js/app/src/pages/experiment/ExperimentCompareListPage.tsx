@@ -62,6 +62,7 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -134,6 +135,17 @@ export function ExperimentCompareListPage({
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const clearSelectedSpanSearchParam = useCallback(() => {
+    // Clear the URL search params for the span selection
+    setSearchParams(
+      (prev) => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return newParams;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
   const experimentIds = useMemo(
     () => searchParams.getAll("experimentId"),
     [searchParams]
@@ -203,6 +215,7 @@ export function ExperimentCompareListPage({
                   node {
                     name
                     outputConfigs {
+                      __typename
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection
@@ -1341,6 +1354,10 @@ export function ExperimentCompareListPage({
                   }
                 }}
                 openTraceDialog={(traceId, projectId, title) => {
+                  // A span selection left in the URL by another view (e.g.
+                  // the grid view's trace drawer) belongs to a different
+                  // trace, so drop it before this trace renders.
+                  clearSelectedSpanSearchParam();
                   setSelectedTraceDetails({
                     traceId,
                     projectId,
@@ -1355,15 +1372,7 @@ export function ExperimentCompareListPage({
         isOpen={selectedTraceDetails !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            // Clear the URL search params for the span selection
-            setSearchParams(
-              (prev) => {
-                const newParams = new URLSearchParams(prev);
-                newParams.delete("selectedSpanNodeId");
-                return newParams;
-              },
-              { replace: true }
-            );
+            clearSelectedSpanSearchParam();
             setSelectedTraceDetails(null);
           }
         }}

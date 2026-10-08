@@ -354,14 +354,15 @@ def _smtpd(
 
 @pytest.fixture(autouse=True, scope="session")
 def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
-    from opentelemetry.exporter.otlp.proto.grpc import exporter
-    from opentelemetry.exporter.otlp.proto.http import trace_exporter
+    from opentelemetry.exporter.otlp.common import http as otlp_http
+    from opentelemetry.exporter.otlp.proto.grpc import exporter as grpc_exporter
 
-    assert isinstance(exporter, ModuleType)
-    assert isinstance(trace_exporter, ModuleType)
+    assert isinstance(grpc_exporter, ModuleType)
+    assert isinstance(otlp_http, ModuleType)
 
-    name = "_MAX_RETRYS"
-    assert isinstance(getattr(exporter, name), int)
-    assert isinstance(getattr(trace_exporter, name), int)
-    setattr(exporter, name, 2)
-    setattr(trace_exporter, name, 2)
+    grpc_name = "_MAX_RETRYS"  # upstream name is misspelled
+    http_name = "_MAX_RETRIES"
+    assert isinstance(getattr(grpc_exporter, grpc_name), int)
+    assert isinstance(getattr(otlp_http, http_name), int)
+    setattr(grpc_exporter, grpc_name, 2)
+    setattr(otlp_http, http_name, 2)

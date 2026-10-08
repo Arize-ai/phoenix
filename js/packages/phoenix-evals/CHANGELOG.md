@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 2.6.0
+
+### Minor Changes
+
+- b7b7dfb: Classification evaluators now accept AI SDK evaluation models such as TypeSafe's Jev. When an evaluation model is passed as `model`, the classification is routed through `experimental_evaluate` as a single choice question instead of `generateObject`. Results carry a `label` and `score` but no `explanation`, since evaluation models do not generate text.
+
 ## 2.5.0
 
 ### Minor Changes

@@ -7,7 +7,7 @@ pytest.importorskip("litellm")
 
 from phoenix.evals.llm.adapters.litellm.adapter import LiteLLMAdapter
 from phoenix.evals.llm.adapters.litellm.client import LiteLLMClient
-from phoenix.evals.llm.prompts import Message, MessageRole
+from phoenix.evals.llm.prompts import Message, MessageRole, PromptTemplate
 
 
 def _make_adapter(model: str = "gpt-4o") -> LiteLLMAdapter:
@@ -54,6 +54,30 @@ def test_typed_message_list_roundtrips() -> None:
         {"role": "user", "content": "q"},
         {"role": "assistant", "content": "a"},
     ]
+
+
+def test_typed_message_list_preserves_developer_role() -> None:
+    """A typed ``MessageRole.DEVELOPER`` message must not collapse to
+    "system" — LiteLLM routes "developer" to the correct provider-side role
+    for reasoning models, so silently downgrading it would misroute."""
+    adapter = _make_adapter()
+    prompt = [Message(role=MessageRole.DEVELOPER, content="be strict")]
+    assert adapter._build_messages(prompt) == [{"role": "developer", "content": "be strict"}]
+
+
+def test_prompt_template_render_then_build_messages_preserves_developer_role() -> None:
+    """Regression for the gap PR #16002 introduced: routing a "developer"
+    role through ``PromptTemplate.render()`` (the documented message-list
+    path) used to lose the distinction from "system" once it reached
+    ``LiteLLMAdapter._build_messages()``, because rendering produced a typed
+    ``Message`` list and the typed path only knew "system"/"user"/
+    "assistant". It must match the dict-path behavior exactly."""
+    rendered = PromptTemplate(template=[{"role": "developer", "content": "be strict"}]).render({})
+    adapter = _make_adapter()
+    assert adapter._build_messages(rendered) == adapter._build_messages(
+        [{"role": "developer", "content": "be strict"}]
+    )
+    assert adapter._build_messages(rendered) == [{"role": "developer", "content": "be strict"}]
 
 
 @pytest.mark.parametrize(

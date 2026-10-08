@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8b2a6c2da728184c134e53ac516b4b4e>>
+ * @generated SignedSource<<2e185738afbf1d7fda1d3475eb3a0c53>>
  * @lightSyntaxTransform
  */
 
@@ -22,15 +22,28 @@ export type ExperimentCompareDetailsQuery$data = {
         readonly node: {
           readonly name: string;
           readonly outputConfigs: ReadonlyArray<{
-            readonly lowerBound?: number | null;
-            readonly name?: string;
-            readonly optimizationDirection?: OptimizationDirection;
-            readonly threshold?: number | null;
-            readonly upperBound?: number | null;
-            readonly values?: ReadonlyArray<{
+            readonly __typename: "CategoricalAnnotationConfig";
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly values: ReadonlyArray<{
               readonly label: string;
               readonly score: number | null;
             }>;
+          } | {
+            readonly __typename: "ContinuousAnnotationConfig";
+            readonly lowerBound: number | null;
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly upperBound: number | null;
+          } | {
+            readonly __typename: "FreeformAnnotationConfig";
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly threshold: number | null;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
           }>;
         };
       }>;
@@ -409,14 +422,21 @@ v26 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "optimizationDirection",
+  "name": "__typename",
   "storageKey": null
 },
 v27 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v28 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v26/*:: as any*/),
+    (v27/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -434,11 +454,11 @@ v27 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v28 = {
+v29 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v26/*:: as any*/),
+    (v27/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -457,11 +477,11 @@ v28 = {
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v29 = {
+v30 = {
   "kind": "InlineFragment",
   "selections": [
     (v17/*:: as any*/),
-    (v26/*:: as any*/),
+    (v27/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -472,13 +492,6 @@ v29 = {
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
-},
-v30 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
 },
 v31 = {
   "alias": null,
@@ -651,9 +664,10 @@ return {
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
-                              (v27/*:: as any*/),
+                              (v26/*:: as any*/),
                               (v28/*:: as any*/),
-                              (v29/*:: as any*/)
+                              (v29/*:: as any*/),
+                              (v30/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -696,7 +710,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v30/*:: as any*/),
+          (v26/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -797,7 +811,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v30/*:: as any*/),
+          (v26/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -836,10 +850,10 @@ return {
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
-                              (v30/*:: as any*/),
-                              (v27/*:: as any*/),
+                              (v26/*:: as any*/),
                               (v28/*:: as any*/),
                               (v29/*:: as any*/),
+                              (v30/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -882,6 +896,6 @@ return {
 };
 })();
 
-(node as any).hash = "d01842590d45b0790703b88bf78544a5";
+(node as any).hash = "68c1e16af64fe678f56846ad14aa51c6";
 
 export default node;

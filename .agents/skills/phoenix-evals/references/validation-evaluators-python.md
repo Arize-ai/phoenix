@@ -4,6 +4,8 @@ Validate LLM evaluators against human-labeled examples. Target >80% TPR/TNR/Accu
 
 ## Calculate Metrics
 
+These snippets use scikit-learn, which no Phoenix package installs: `pip install scikit-learn`.
+
 ```python
 from sklearn.metrics import classification_report, confusion_matrix
 

@@ -37,7 +37,12 @@ from phoenix.client.helpers.atif._validate import _validate_span_graph
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["HarborTrace", "build_harbor_trace", "harbor_trace_id"]
+__all__ = [
+    "HarborTrace",
+    "build_harbor_trace",
+    "extract_harbor_run_output",
+    "harbor_trace_id",
+]
 
 _NAMESPACE = "phoenix.harbor.atif.v1"
 _CANONICAL_FILENAME = "trajectory.json"
@@ -79,6 +84,76 @@ class _Loader:
 
     def warn(self, message: str) -> None:
         logger.warning("%s: %s", self.warning_prefix, message)
+
+
+def extract_harbor_run_output(trial_result: TrialResult) -> dict[str, Any] | None:
+    """Return the terminal user-facing agent message as a Phoenix chat output.
+
+    ``None`` means the terminal trajectory was unavailable or invalid. An empty
+    mapping means the trajectory was valid but ended without a textual agent
+    response, as is common for tasks whose result lives only in the environment.
+    """
+    location = _terminal_agent_location(trial_result)
+    root_path = location.directory / _CANONICAL_FILENAME
+    if not root_path.is_file():
+        return None
+
+    trial_name = str(trial_result.trial_name)
+    loader = _Loader(
+        trial_root=Path(trial_result.config.trials_dir) / trial_name,
+        trial_key=f"output:{trial_result.id}",
+        trace_id="0" * 32,
+        warning_prefix=(f"Harbor output trial_id={trial_result.id} trial={trial_name}"),
+    )
+    documents = _load_root(loader, location, trial_result)
+    if not documents:
+        return None
+
+    root = documents[0]
+    root_id = root.get("trajectory_id")
+    chain = [root]
+    chain.extend(
+        document for document in documents[1:] if document.get(_CONTINUATION_OF_KEY) == root_id
+    )
+    terminal = max(
+        chain,
+        key=lambda document: int(document.get(_CONTINUATION_INDEX_KEY, 0)),
+    )
+    if terminal.get("continued_trajectory_ref"):
+        return None
+
+    steps = terminal.get("steps")
+    if not isinstance(steps, Sequence) or isinstance(steps, (str, bytes)) or not steps:
+        return None
+    final_step = steps[-1]
+    if not isinstance(final_step, Mapping):
+        return None
+    if final_step.get("source") != "agent" or final_step.get("is_copied_context", False):
+        return {}
+    if final_step.get("tool_calls"):
+        return {}
+
+    text = _textual_message(final_step.get("message"))
+    if text is None:
+        return {}
+    return {"messages": [{"role": "assistant", "content": text}]}
+
+
+def _textual_message(message: Any) -> str | None:
+    if isinstance(message, str):
+        return message if message.strip() else None
+    if not isinstance(message, Sequence) or isinstance(message, (str, bytes)):
+        return None
+    text_parts = [
+        text
+        for part in message
+        if isinstance(part, Mapping)
+        and part.get("type") == "text"
+        and isinstance((text := part.get("text")), str)
+        and text
+    ]
+    text = "\n".join(text_parts)
+    return text if text.strip() else None
 
 
 def build_harbor_trace(
@@ -354,6 +429,16 @@ def _root_locations(trial_result: TrialResult) -> tuple[_RootLocation, ...]:
             )
         ]
     return tuple(_RootLocation(paths.step_agent_dir(name), "agent", name) for name in step_names)
+
+
+def _terminal_agent_location(trial_result: TrialResult) -> _RootLocation:
+    config = trial_result.config
+    paths = TrialPaths(Path(config.trials_dir) / str(trial_result.trial_name))
+    step_results = trial_result.step_results
+    if not step_results:
+        return _RootLocation(paths.agent_dir, "agent", None)
+    step_name = str(step_results[-1].step_name)
+    return _RootLocation(paths.step_agent_dir(step_name), "agent", step_name)
 
 
 def _step_result(trial_result: TrialResult, step_name: str | None) -> Any:
