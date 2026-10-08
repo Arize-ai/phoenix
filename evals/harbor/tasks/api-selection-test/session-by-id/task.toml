@@ -8,6 +8,7 @@ description = "Trace count and first input of a session"
 [metadata]
 fixture = "sql-benchmark"
 domain = "sessions"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

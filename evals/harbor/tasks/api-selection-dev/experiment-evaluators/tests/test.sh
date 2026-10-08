@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-exec python -m harbor_verifiers.verify --expected /tests/expected.json
+exec python -m api_selection_verifiers.verify --expected /tests/expected.json

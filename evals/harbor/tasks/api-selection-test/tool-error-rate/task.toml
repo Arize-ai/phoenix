@@ -8,6 +8,7 @@ description = "Tool with the highest error rate"
 [metadata]
 fixture = "sql-benchmark"
 domain = "tools"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

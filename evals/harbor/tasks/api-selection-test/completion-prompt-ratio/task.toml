@@ -8,6 +8,7 @@ description = "Most completion-heavy model"
 [metadata]
 fixture = "sql-benchmark"
 domain = "llm-usage"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

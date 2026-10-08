@@ -8,6 +8,7 @@ description = "Number of annotation configs and the undescribed one"
 [metadata]
 fixture = "sql-benchmark"
 domain = "annotations"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

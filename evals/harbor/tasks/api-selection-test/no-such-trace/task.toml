@@ -8,6 +8,7 @@ description = "Lookup of a trace that does not exist"
 [metadata]
 fixture = "sql-benchmark"
 domain = "traces"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

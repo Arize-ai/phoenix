@@ -8,6 +8,7 @@ description = "Models recorded on an end-to-end experiment"
 [metadata]
 fixture = "sql-benchmark"
 domain = "experiments"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

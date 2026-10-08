@@ -8,6 +8,7 @@ description = "Evaluator runs by sandbox backend"
 [metadata]
 fixture = "sql-benchmark"
 domain = "evaluators"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

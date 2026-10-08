@@ -8,6 +8,7 @@ description = "Prompt and tag behind an LLM evaluator"
 [metadata]
 fixture = "sql-benchmark"
 domain = "evaluators"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

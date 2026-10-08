@@ -8,6 +8,7 @@ description = "The longest span by duration"
 [metadata]
 fixture = "sql-benchmark"
 domain = "traces"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

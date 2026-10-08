@@ -8,6 +8,7 @@ description = "Count spans with an exception event"
 [metadata]
 fixture = "sql-benchmark"
 domain = "traces"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

@@ -8,6 +8,7 @@ description = "Dataset with the most unreferenced outputs"
 [metadata]
 fixture = "sql-benchmark"
 domain = "datasets"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

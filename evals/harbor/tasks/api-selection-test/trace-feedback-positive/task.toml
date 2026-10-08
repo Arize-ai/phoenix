@@ -8,6 +8,7 @@ description = "Traces with positive user feedback in a project"
 [metadata]
 fixture = "sql-benchmark"
 domain = "annotations"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

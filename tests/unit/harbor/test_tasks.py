@@ -29,9 +29,18 @@ DOMAINS = {
     "traces",
 }
 TASKS = sorted(
-    path for dataset in DATASETS for path in (TASKS_DIR / dataset).iterdir() if path.is_dir()
+    path
+    for dataset in DATASETS
+    for path in (TASKS_DIR / dataset).iterdir()
+    if (path / "task.toml").is_file()
 )
 REFERENCE = TASKS[0]
+
+
+def _reference_test_script(task: Path) -> bytes:
+    """A dataset grades with its own verifier module, so test.sh is shared per dataset."""
+    first = min(path for path in TASKS if path.parent == task.parent)
+    return (first / "tests" / "test.sh").read_bytes()
 
 
 def _expected(task: Path) -> dict[str, Any]:
@@ -51,6 +60,7 @@ def _task_config(task: Path) -> tuple[str, str, str]:
     if task.parent.name in API_SELECTION:
         domain = _domain(task)
         shared = shared.replace(f'fixture = ""\ndomain = "{domain}"\n', 'fixture = ""\n')
+        shared = shared.replace('fixture = ""\nverifiers = "api-selection-dev"\n', 'fixture = ""\n')
     return header, metadata, shared
 
 
@@ -71,8 +81,8 @@ def _domain(task: Path) -> str:
 
 @pytest.mark.parametrize("task", TASKS, ids=lambda path: f"{path.parent.name}/{path.name}")
 def test_task_layout_matches_the_shared_files(task: Path) -> None:
-    for name in (".gitignore", "tests/test.sh"):
-        assert (task / name).read_bytes() == (REFERENCE / name).read_bytes(), name
+    assert (task / ".gitignore").read_bytes() == (REFERENCE / ".gitignore").read_bytes()
+    assert (task / "tests" / "test.sh").read_bytes() == _reference_test_script(task)
     header, metadata, shared = _task_config(task)
     reference_header, _, reference_shared = _task_config(REFERENCE)
     assert (header, shared) == (reference_header, reference_shared), "task.toml"
@@ -88,6 +98,11 @@ def test_task_layout_matches_the_shared_files(task: Path) -> None:
     assert 'user = "agent"' in shared
     if task.parent.name in API_SELECTION:
         assert _domain(task) in DOMAINS
+        assert b"api_selection_verifiers.verify" in (task / "tests" / "test.sh").read_bytes()
+    if task.parent.name == "api-selection-test":
+        assert 'verifiers = "api-selection-dev"' in (task / "task.toml").read_text(), (
+            "the test split grades with the dev split's verifier package"
+        )
     for name in ("tests/test.sh", "solution/solve.sh"):
         assert os.access(task / name, os.X_OK), f"{name} is not executable"
     assert "environment/" in (task / ".gitignore").read_text().splitlines(), (

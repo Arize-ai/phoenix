@@ -51,7 +51,7 @@ controls. Entries not written, and why:
 
 Draft for review. Each entry becomes one Harbor task in the shape of `trail-benchmark-dev`: a
 one-line `instruction.md`, an `expected.json` with `reference`, `notes`, and `source`, graded by
-`harbor_verifiers.verify`, plus a `solution/` that recomputes the reference. The fixture is
+`api_selection_verifiers.verify`, plus a `solution/` that recomputes the reference. The fixture is
 the full `~/data/phoenix.db` dump (2.4 GB, data through 2026-09-01). Every reference below was
 computed with `sqlite3` directly against that file on 2026-10-01.
 

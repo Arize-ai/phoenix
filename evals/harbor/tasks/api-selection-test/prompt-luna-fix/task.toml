@@ -8,6 +8,7 @@ description = "Note on the latest version of the triage prompt"
 [metadata]
 fixture = "sql-benchmark"
 domain = "prompts"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

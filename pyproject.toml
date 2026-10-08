@@ -350,7 +350,7 @@ exclude = [
   "dist/",
   "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "evals/harbor/tasks/trail-benchmark-dev/",
-  "evals/harbor/tasks/api-selection-dev/",
+  "evals/harbor/tasks/api-selection-dev/(?!verifiers/)",
   "evals/harbor/tasks/api-selection-test/",
   "examples/",
   "packages/",

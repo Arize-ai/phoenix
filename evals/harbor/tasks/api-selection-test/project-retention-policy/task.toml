@@ -8,6 +8,7 @@ description = "Trace retention policy of a project"
 [metadata]
 fixture = "sql-benchmark"
 domain = "projects"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

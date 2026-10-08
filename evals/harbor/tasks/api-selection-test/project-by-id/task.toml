@@ -8,6 +8,7 @@ description = "Project name and trace count for a Phoenix id"
 [metadata]
 fixture = "sql-benchmark"
 domain = "projects"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

@@ -8,6 +8,7 @@ description = "Traces that errored in a session"
 [metadata]
 fixture = "sql-benchmark"
 domain = "sessions"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

@@ -8,6 +8,7 @@ description = "All prompt version tags"
 [metadata]
 fixture = "sql-benchmark"
 domain = "prompts"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

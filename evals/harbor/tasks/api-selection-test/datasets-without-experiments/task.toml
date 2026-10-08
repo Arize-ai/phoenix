@@ -8,6 +8,7 @@ description = "Datasets with no experiments"
 [metadata]
 fixture = "sql-benchmark"
 domain = "datasets"
+verifiers = "api-selection-dev"
 
 [metadata.arize-phoenix]
 reference_output_path = "tests/reference.json"

@@ -32,7 +32,7 @@ Conventions pinned for every task:
 - JSON answers (an example input, a template) are graded on the quoted substrings in the notes,
   not on byte equality.
 - Each task is one `instruction.md`, `tests/expected.json` with `reference`, `notes`, `source`,
-  graded by `harbor_verifiers.verify`, and a `solution/solve.py` that recomputes the
+  graded by `api_selection_verifiers.verify`, and a `solution/solve.py` that recomputes the
   reference through `phoenix_api.client()` (REST) or `phoenix_api.graphql()`; the task image
   denies `/data` to the oracle, so no sqlite.
 
