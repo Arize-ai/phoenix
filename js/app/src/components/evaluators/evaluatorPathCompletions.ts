@@ -505,7 +505,7 @@ export function getEvaluatorPathCompletions({
  * dot. A name inside a subscript is matched from after its quote, so a row
  * that read past it would have nowhere to write its path from.
  */
-export function getTypedKey({
+function getTypedKey({
   textBeforeCursor,
   cursor,
 }: {
