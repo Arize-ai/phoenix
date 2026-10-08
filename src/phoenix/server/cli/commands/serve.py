@@ -234,7 +234,6 @@ def run(args: Namespace) -> None:
 
     host = get_env_host()
     auth_settings = get_env_auth_settings()
-    bind_host: Optional[str] = None if host == "::" else host
     local_host = local_url_host(host)
 
     port = args.port or get_env_port()
@@ -257,7 +256,7 @@ def run(args: Namespace) -> None:
     if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
-        start_prometheus(bind_host)
+        start_prometheus(host)
 
     read_replica_connection_str = get_env_read_replica_url()
     factory, shutdown_callbacks = _create_db_session_factory(
@@ -365,7 +364,7 @@ def run(args: Namespace) -> None:
         serve_ui=not args.no_ui,
         read_only=read_only,
         grpc_port=grpc_port,
-        grpc_host=bind_host,
+        grpc_host=host,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_annotation_precursors=fixture_annotation_precursors,
@@ -380,7 +379,8 @@ def run(args: Namespace) -> None:
 
     server_config = Config(
         app=app,
-        host=bind_host,  # type: ignore[arg-type]
+        # uvicorn binds IPv4 and IPv6 separately for None, which :: alone does not do.
+        host=None if host == "::" else host,  # type: ignore[arg-type]
         port=port,
         root_path=host_root_path,
         log_level=Settings.logging_level,

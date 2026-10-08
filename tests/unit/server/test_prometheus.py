@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from fastapi import APIRouter, FastAPI
 
@@ -69,11 +67,11 @@ class _IdleThread:
         pytest.param("::1", "::1", id="ipv6_loopback"),
         pytest.param("localhost", "localhost", id="localhost"),
         pytest.param("0.0.0.0", "0.0.0.0", id="all_ipv4"),
-        pytest.param(None, "::", id="all_interfaces"),
+        pytest.param("::", "::", id="all_interfaces"),
     ],
 )
 def test_start_prometheus_binds_host(
-    monkeypatch: pytest.MonkeyPatch, host: Optional[str], expected: str
+    monkeypatch: pytest.MonkeyPatch, host: str, expected: str
 ) -> None:
     bound: dict[str, object] = {}
 
