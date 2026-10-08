@@ -1,5 +1,5 @@
 import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { toBracketSegment } from "@phoenix/utils/jsonUtils";
 
 import type { EvaluatorPathStep } from "./evaluatorJsonPath";
@@ -362,6 +362,8 @@ function toStepSyntax(step: EvaluatorPathStep): EvaluatorPathSyntax[] {
       return step.keys.includes("*") ? ["wildcard"] : [];
     case "root":
       return [];
+    default:
+      return assertUnreachable(step);
   }
 }
 
