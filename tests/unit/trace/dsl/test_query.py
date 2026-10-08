@@ -208,7 +208,8 @@ async def test_default_project(
         }
     ).set_index("context.span_id")
     async with db() as session:
-        actual = await session.run_sync(sq, root_spans_only=True)
+        with pytest.warns(DeprecationWarning, match="root_spans_only"):
+            actual = await session.run_sync(sq, root_spans_only=True)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
@@ -232,7 +233,8 @@ async def test_root_spans_only(
         }
     ).set_index("context.span_id")
     async with db() as session:
-        actual = await session.run_sync(sq, project_name="abc", root_spans_only=True)
+        with pytest.warns(DeprecationWarning, match="root_spans_only"):
+            actual = await session.run_sync(sq, project_name="abc", root_spans_only=True)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
