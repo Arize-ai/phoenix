@@ -1235,7 +1235,7 @@ class TestLoopbackBindRule:
             pytest.param(None, "::", True, id="unset_ipv6_unspecified"),
         ],
     )
-    def test_get_env_enable_auth(
+    def test_auth_default_follows_env_host(
         self,
         monkeypatch: MonkeyPatch,
         env_value: Optional[str],
@@ -1250,7 +1250,8 @@ class TestLoopbackBindRule:
             monkeypatch.delenv(phoenix_config.ENV_PHOENIX_HOST, raising=False)
         else:
             monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, host)
-        assert phoenix_config.get_env_enable_auth() is expected
+        host = phoenix_config.get_env_host()
+        assert phoenix_config.auth_enabled_for_host(host) is expected
 
 
 def test_ensure_working_dir_if_needed_skips_when_no_local_storage(

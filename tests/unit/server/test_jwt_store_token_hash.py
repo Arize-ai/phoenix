@@ -20,7 +20,7 @@ from pydantic import SecretStr
 from sqlalchemy import select, update
 
 from phoenix.auth import DEFAULT_ADMIN_EMAIL, TOKEN_RANDOM_CLAIM, Token, compute_token_hash
-from phoenix.config import get_env_app_auth_kwargs
+from phoenix.config import app_auth_kwargs, get_env_auth_settings
 from phoenix.db import models
 from phoenix.db.engines import create_engine
 from phoenix.server.app import _db, create_app
@@ -398,7 +398,7 @@ class TestLegacyRowThroughStartup:
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
             shutdown_callbacks=[engine.dispose],
-            **get_env_app_auth_kwargs(),
+            **app_auth_kwargs(get_env_auth_settings()),
         )
         async with contextlib.AsyncExitStack() as stack:
             await stack.enter_async_context(patch_grpc_server())
