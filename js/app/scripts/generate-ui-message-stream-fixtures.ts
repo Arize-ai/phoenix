@@ -303,14 +303,48 @@ function findConstInitializer({
   return undefined;
 }
 
+/**
+ * Resolve a test parameter or a literal constant without executing upstream code.
+ * @param params - Literal evaluation context.
+ * @param params.node - Identifier to resolve.
+ * @param params.sourceFile - Parsed upstream test source.
+ * @param params.caseName - Test name used in errors.
+ * @param params.bindings - Values supplied by a parameterized test row.
+ */
+function evaluateIdentifier({
+  node,
+  sourceFile,
+  caseName,
+  bindings,
+}: {
+  node: ts.Identifier;
+  sourceFile: ts.SourceFile;
+  caseName: string;
+  bindings: Readonly<Record<string, unknown>>;
+}): unknown {
+  if (Object.hasOwn(bindings, node.text)) {
+    return bindings[node.text];
+  }
+  if (node.text === "undefined") {
+    return undefined;
+  }
+  const initializer = findConstInitializer({ node });
+  if (initializer == null) {
+    throw new Error(`${caseName}: unresolved identifier ${node.text}`);
+  }
+  return evaluateLiteral({ node: initializer, sourceFile, caseName, bindings });
+}
+
 function evaluateLiteral({
   node,
   sourceFile,
   caseName,
+  bindings = {},
 }: {
   node: ts.Expression;
   sourceFile: ts.SourceFile;
   caseName: string;
+  bindings?: Readonly<Record<string, unknown>>;
 }): unknown {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
     return node.text;
@@ -328,20 +362,14 @@ function evaluateLiteral({
     return null;
   }
   if (ts.isIdentifier(node)) {
-    if (node.text === "undefined") {
-      return undefined;
-    }
-    const initializer = findConstInitializer({ node });
-    if (initializer == null) {
-      throw new Error(`${caseName}: unresolved identifier ${node.text}`);
-    }
-    return evaluateLiteral({ node: initializer, sourceFile, caseName });
+    return evaluateIdentifier({ node, sourceFile, caseName, bindings });
   }
   if (ts.isPrefixUnaryExpression(node)) {
     const operand = evaluateLiteral({
       node: node.operand,
       sourceFile,
       caseName,
+      bindings,
     });
     if (typeof operand !== "number") {
       throw new Error(`${caseName}: unary operator requires a numeric literal`);
@@ -362,6 +390,7 @@ function evaluateLiteral({
       node: node.expression,
       sourceFile,
       caseName,
+      bindings,
     });
   }
   if (ts.isArrayLiteralExpression(node)) {
@@ -371,11 +400,11 @@ function evaluateLiteral({
           `${caseName}: array spreads and omitted values are not literals`
         );
       }
-      return evaluateLiteral({ node: element, sourceFile, caseName });
+      return evaluateLiteral({ node: element, sourceFile, caseName, bindings });
     });
   }
   if (ts.isObjectLiteralExpression(node)) {
-    return evaluateObjectLiteral({ node, sourceFile, caseName });
+    return evaluateObjectLiteral({ node, sourceFile, caseName, bindings });
   }
   throw new Error(
     `${caseName}: non-literal expression ${node.getText(sourceFile)}`
@@ -386,10 +415,12 @@ function evaluateObjectLiteral({
   node,
   sourceFile,
   caseName,
+  bindings,
 }: {
   node: ts.ObjectLiteralExpression;
   sourceFile: ts.SourceFile;
   caseName: string;
+  bindings: Readonly<Record<string, unknown>>;
 }): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const property of node.properties) {
@@ -405,6 +436,7 @@ function evaluateObjectLiteral({
         node: name,
         sourceFile,
         caseName,
+        bindings,
       });
       continue;
     }
@@ -422,6 +454,7 @@ function evaluateObjectLiteral({
       node: property.initializer,
       sourceFile,
       caseName,
+      bindings,
     });
   }
   return result;
@@ -500,6 +533,93 @@ function getCaseName({
   return names.join(" > ");
 }
 
+/**
+ * Expand literal object rows from an upstream `it.each` test.
+ * @param params - Upstream test context.
+ * @param params.containingFunction - Callback containing the stream constructor.
+ * @param params.sourceFile - Parsed upstream test source.
+ * @param params.caseName - Enclosing test and suite names.
+ */
+function getCaseContexts({
+  containingFunction,
+  sourceFile,
+  caseName,
+}: {
+  containingFunction: ts.FunctionLikeDeclaration;
+  sourceFile: ts.SourceFile;
+  caseName: string;
+}): { name: string; bindings: Readonly<Record<string, unknown>> }[] {
+  const testCall = containingFunction.parent;
+  if (
+    !ts.isCallExpression(testCall) ||
+    !ts.isCallExpression(testCall.expression) ||
+    !ts.isPropertyAccessExpression(testCall.expression.expression) ||
+    testCall.expression.expression.name.text !== "each"
+  ) {
+    return [{ name: caseName, bindings: {} }];
+  }
+  const [tableExpression] = testCall.expression.arguments;
+  const [nameExpression] = testCall.arguments;
+  const [parameter] = containingFunction.parameters;
+  if (
+    tableExpression == null ||
+    nameExpression == null ||
+    !ts.isStringLiteral(nameExpression) ||
+    parameter == null ||
+    !ts.isObjectBindingPattern(parameter.name)
+  ) {
+    throw new Error(`${caseName}: unsupported parameterized test`);
+  }
+  const rows = evaluateLiteral({
+    node: tableExpression,
+    sourceFile,
+    caseName,
+  });
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error(`${caseName}: expected a nonempty test table`);
+  }
+  const parameterBindings = parameter.name.elements;
+  return rows.map((row: unknown) => {
+    if (typeof row !== "object" || row === null || Array.isArray(row)) {
+      throw new Error(`${caseName}: test table rows must be objects`);
+    }
+    const values = row as Record<string, unknown>;
+    const bindings: Record<string, unknown> = {};
+    for (const binding of parameterBindings) {
+      if (
+        binding.name == null ||
+        !ts.isIdentifier(binding.name) ||
+        binding.dotDotDotToken != null ||
+        binding.initializer != null
+      ) {
+        throw new Error(`${caseName}: unsupported test parameter binding`);
+      }
+      const propertyName = getPropertyName({
+        node: binding.propertyName ?? binding.name,
+        sourceFile,
+        caseName,
+      });
+      if (!Object.hasOwn(values, propertyName)) {
+        throw new Error(`${caseName}: missing test parameter ${propertyName}`);
+      }
+      bindings[binding.name.text] = values[propertyName];
+    }
+    const name = nameExpression.text.replace(
+      /\$(\w+)/g,
+      (_match, property: string) => {
+        const value = values[property];
+        if (typeof value !== "string" && typeof value !== "number") {
+          throw new Error(
+            `${caseName}: unsupported test name parameter ${property}`
+          );
+        }
+        return String(value);
+      }
+    );
+    return { name: `${caseName} > ${name}`, bindings };
+  });
+}
+
 function extractCases({
   sourceFile,
 }: {
@@ -516,13 +636,8 @@ function extractCases({
   }
 
   const names = new Set<string>();
-  return streamCalls.map((streamCall) => {
+  return streamCalls.flatMap((streamCall) => {
     const caseName = getCaseName({ node: streamCall, sourceFile });
-    if (!caseName || names.has(caseName)) {
-      throw new Error(`Missing or duplicate upstream case name: ${caseName}`);
-    }
-    names.add(caseName);
-
     const containingFunction = getContainingFunction({
       node: streamCall,
       sourceFile,
@@ -543,45 +658,63 @@ function extractCases({
       throw new Error(`${caseName}: missing stream or state arguments`);
     }
 
-    const chunks = evaluateLiteral({
-      node: chunksExpression,
-      sourceFile,
-      caseName,
-    });
-    const state = evaluateLiteral({
-      node: stateExpression,
-      sourceFile,
-      caseName,
-    });
-    if (!Array.isArray(chunks)) {
-      throw new Error(`${caseName}: stream chunks must be an array literal`);
-    }
-    if (typeof state !== "object" || state === null || Array.isArray(state)) {
-      throw new Error(`${caseName}: state options must be an object literal`);
-    }
+    return getCaseContexts({ containingFunction, sourceFile, caseName }).map(
+      ({ name, bindings }) => {
+        if (!name || names.has(name)) {
+          throw new Error(`Missing or duplicate upstream case name: ${name}`);
+        }
+        names.add(name);
+        const chunks = evaluateLiteral({
+          node: chunksExpression,
+          sourceFile,
+          caseName,
+          bindings,
+        });
+        const state = evaluateLiteral({
+          node: stateExpression,
+          sourceFile,
+          caseName,
+          bindings,
+        });
+        if (!Array.isArray(chunks)) {
+          throw new Error(
+            `${caseName}: stream chunks must be an array literal`
+          );
+        }
+        if (
+          typeof state !== "object" ||
+          state === null ||
+          Array.isArray(state)
+        ) {
+          throw new Error(
+            `${caseName}: state options must be an object literal`
+          );
+        }
 
-    const stateOptions = state as Record<string, unknown>;
-    if (typeof stateOptions.messageId !== "string") {
-      throw new Error(`${caseName}: messageId must be a string literal`);
-    }
-    const lastMessage = stateOptions.lastMessage;
-    if (
-      lastMessage !== undefined &&
-      (typeof lastMessage !== "object" ||
-        lastMessage === null ||
-        Array.isArray(lastMessage))
-    ) {
-      throw new Error(
-        `${caseName}: lastMessage must be an object or undefined`
-      );
-    }
+        const stateOptions = state as Record<string, unknown>;
+        if (typeof stateOptions.messageId !== "string") {
+          throw new Error(`${caseName}: messageId must be a string literal`);
+        }
+        const lastMessage = stateOptions.lastMessage;
+        if (
+          lastMessage !== undefined &&
+          (typeof lastMessage !== "object" ||
+            lastMessage === null ||
+            Array.isArray(lastMessage))
+        ) {
+          throw new Error(
+            `${caseName}: lastMessage must be an object or undefined`
+          );
+        }
 
-    return {
-      name: caseName,
-      messageId: stateOptions.messageId,
-      lastMessage: lastMessage as UIMessage | undefined,
-      chunks: chunks as UIMessageChunk[],
-    };
+        return {
+          name,
+          messageId: stateOptions.messageId,
+          lastMessage: lastMessage as UIMessage | undefined,
+          chunks: chunks as UIMessageChunk[],
+        };
+      }
+    );
   });
 }
 

@@ -209,10 +209,11 @@ schema-openapi: ## Generate OpenAPI schema from Python
 	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
+# The generator requires graphql-core<3.3; keep it separate from the server.
 codegen-harbor-graphql: ## Compile evals/harbor/verifiers/harbor_verifiers/graphql/operations/*.graphql into evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
 	@echo -e "$(CYAN)Compiling Harbor GraphQL queries against js/app/schema.graphql...$(NC)"
 	@rm -rf $(CURDIR)/evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
-	@$(UV) run ariadne-codegen
+	@$(UV) tool run --from ariadne-codegen==0.19.0 ariadne-codegen
 	@echo -e "$(GREEN)✓ evals/harbor/verifiers/harbor_verifiers/graphql/__generated__$(NC)"
 
 codegen-python-client: ## Generate Python client types from OpenAPI

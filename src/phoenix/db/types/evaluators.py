@@ -108,18 +108,18 @@ import re
 from typing import Annotated, Any
 
 from jsonpath_ng import JSONPath as JSONPathAST
-from jsonpath_ng import parse as parse_jsonpath
-from jsonpath_ng.exceptions import (  # type: ignore[import-untyped]
+from jsonpath_ng.exceptions import (
     JsonPathLexerError,
     JsonPathParserError,
 )
-from jsonpath_ng.jsonpath import (  # type: ignore[import-untyped]
+from jsonpath_ng.jsonpath import (
     Child,
     Fields,
     Index,
     Root,
     Slice,
 )
+from jsonpath_ng.parser import JsonPathParser
 from pydantic import AfterValidator
 
 from .db_helper_types import DBBaseModel
@@ -236,7 +236,9 @@ def validate_jsonpath(value: str) -> str:
         )
 
     try:
-        ast = parse_jsonpath(value)
+        # jsonpath-ng 1.9 types JsonPathParser.parse, but not its constructor.
+        parser = JsonPathParser()  # type: ignore[no-untyped-call]
+        ast = parser.parse(value)
     except (JsonPathLexerError, JsonPathParserError) as e:
         raise ValueError(f"Invalid JSONPath syntax: {e}")
 

@@ -340,6 +340,7 @@ async def process_ui_message_stream(
                 tool_name=partial_tool_call.tool_name,
                 part_state="input-streaming",
                 input_value=_parse_partial_json(partial_tool_call.text),
+                raw_input=partial_tool_call.text,
                 dynamic=partial_tool_call.dynamic,
             )
             write()
@@ -370,8 +371,7 @@ async def process_ui_message_stream(
                 tool_call_id=chunk.tool_call_id,
                 tool_name=chunk.tool_name,
                 part_state="output-error",
-                input_value=chunk.input if is_dynamic else None,
-                raw_input=None if is_dynamic else chunk.input,
+                input_value=chunk.input,
                 error_text=chunk.error_text,
                 provider_executed=chunk.provider_executed,
                 provider_metadata=chunk.provider_metadata,
@@ -408,7 +408,9 @@ async def process_ui_message_stream(
                 part_state="output-error",
                 input_value=tool_part.input,
                 raw_input=(
-                    tool_part.raw_input if isinstance(tool_part, ToolOutputErrorPart) else None
+                    tool_part.raw_input
+                    if isinstance(tool_part, (ToolInputStreamingPart, ToolOutputErrorPart))
+                    else None
                 ),
                 error_text=chunk.error_text,
                 provider_executed=chunk.provider_executed,
@@ -702,6 +704,7 @@ def _update_tool_part(
                 tool_call_id=tool_call_id,
                 title=resolved_title,
                 input=input_value,
+                raw_input=raw_input,
                 provider_executed=resolved_provider_executed,
                 call_provider_metadata=call_provider_metadata,
                 approval=resolved_approval,
@@ -779,6 +782,7 @@ def _update_tool_part(
             tool_call_id=tool_call_id,
             title=resolved_title,
             input=input_value,
+            raw_input=raw_input,
             provider_executed=resolved_provider_executed,
             call_provider_metadata=call_provider_metadata,
             approval=resolved_approval,

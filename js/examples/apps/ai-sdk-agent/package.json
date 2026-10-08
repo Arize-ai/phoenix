@@ -9,14 +9,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.78",
-    "@ai-sdk/otel": "^1.0.116",
+    "@ai-sdk/openai": "^4.0.87",
+    "@ai-sdk/otel": "^1.0.131",
     "@arizeai/phoenix-otel": "workspace:*",
-    "ai": "^7.0.116",
+    "ai": "^7.0.131",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
