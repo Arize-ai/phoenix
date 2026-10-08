@@ -6,6 +6,7 @@ import base64
 import contextlib
 import hashlib
 import hmac
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from secrets import token_hex
@@ -30,12 +31,15 @@ from phoenix.server.deployment_secret import (
 )
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.types import (
+    AccessTokenAttributes,
+    AccessTokenClaims,
     ApiKeyAttributes,
     ApiKeyClaims,
     ApiKeyId,
     DbSessionFactory,
     RefreshTokenAttributes,
     RefreshTokenClaims,
+    TokenId,
     UserId,
 )
 from phoenix.settings import Settings
@@ -317,22 +321,47 @@ class TestStoredHashCache:
         await store._api_key_store.evict(token_id)
         assert await store.read(token) is None
 
+    @pytest.mark.parametrize("kind", ["api_key", "access_token"])
     async def test_hash_changed_between_reloads_is_the_hash_used(
-        self, db: DbSessionFactory
+        self, db: DbSessionFactory, kind: str
     ) -> None:
-        secret = token_hex(32)
-        store = _store(db, secret, require_stored_hash=False)
-        token, token_id = await store.create_api_key(_api_key_claims(await _create_user(db)))
-        await store._api_key_store._update()
+        store = _store(db, token_hex(32), require_stored_hash=False)
+        user_id = await _create_user(db)
+        token: Token
+        token_id: TokenId
+        table: type[models.ApiKey] | type[models.AccessToken]
+        reload: Callable[[], Awaitable[None]]
+        if kind == "api_key":
+            token, token_id = await store.create_api_key(_api_key_claims(user_id))
+            table, reload = models.ApiKey, store._api_key_store._update
+        else:
+            now = datetime.now(timezone.utc)
+            _, refresh_token_id = await store.create_refresh_token(
+                RefreshTokenClaims(
+                    subject=user_id,
+                    issued_at=now,
+                    expiration_time=now + timedelta(days=1),
+                    attributes=RefreshTokenAttributes(user_role="ADMIN"),
+                )
+            )
+            token, token_id = await store.create_access_token(
+                AccessTokenClaims(
+                    subject=user_id,
+                    issued_at=now,
+                    expiration_time=now + timedelta(days=1),
+                    attributes=AccessTokenAttributes(
+                        user_role="ADMIN", refresh_token_id=refresh_token_id
+                    ),
+                )
+            )
+            table, reload = models.AccessToken, store._access_token_store._update
+        await reload()
         assert await store.read(token) is not None
-        row_id = int(token_id.split(":")[1])
         async with db() as session:
             await session.execute(
-                update(models.ApiKey)
-                .where(models.ApiKey.id == row_id)
-                .values(token_hash=b"\x11" * 32)
+                update(table).where(table.id == int(token_id)).values(token_hash=b"\x11" * 32)
             )
-        await store._api_key_store._update()
+        await reload()
         assert await store.read(token) is None
 
 
