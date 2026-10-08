@@ -429,6 +429,8 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "GOOGLE":
       // TODO: Add Google message support
       return message as ProviderToMessageMap[T];
+    case "TYPESAFE":
+      throw new Error("Decision models do not accept chat messages");
     default:
       return assertUnreachable(targetProvider);
   }
@@ -447,6 +449,7 @@ export const llmProviderMessageSchema = z.union([
 export type LlmProviderMessage = z.infer<typeof llmProviderMessageSchema>;
 
 type ProviderToMessageMap = {
+  TYPESAFE: never;
   OPENAI: OpenAIMessage;
   AZURE_OPENAI: OpenAIMessage;
   DEEPSEEK: OpenAIMessage;

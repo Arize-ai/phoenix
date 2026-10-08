@@ -34,7 +34,7 @@ NC := \033[0m # No Color
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
-	dev dev-backend dev-frontend dev-docker dev-mock-llm \
+	dev dev-backend dev-frontend dev-docker dev-mock-llm dev-decision-fixture \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
@@ -275,7 +275,11 @@ dev: ## Full dev environment (backend + frontend with hot reload)
 
 dev-backend: ## Backend only (FastAPI server)
 	@echo -e "$(CYAN)Starting backend server...$(NC)"
-	$(UV) run phoenix serve --debug
+	$(UV) run phoenix serve --debug $(ARGS)
+
+dev-decision-fixture: ## Local mock System One provider for decision playground verification
+	$(UV) run python scripts/dev/decision_provider_fixture.py
+
 dev-frontend: ## Frontend only (React dev server)
 	@echo -e "$(CYAN)Starting frontend dev server...$(NC)"
 	cd $(APP_DIR) && $(PNPM) run dev:ui
@@ -290,6 +294,9 @@ test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
 	@$(TOX) run -q -e integration_tests
 
+test-python-unit: ## Run targeted Python unit tests (ARGS="path/to/test.py")
+	@$(UV) run pytest $(ARGS)
+
 # Run doctests across all modules under src/ by default; override on the command
 # line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
 DOCTEST_MODULES ?= src/phoenix
@@ -301,7 +308,7 @@ doctest: ## Run doctests across all modules in src/ (override with MODULES=...)
 
 test-frontend: ## Run frontend tests (js/app/)
 	@echo -e "$(CYAN)Running frontend tests...$(NC)"
-	@cd $(APP_DIR) && $(PNPM) test
+	@cd $(APP_DIR) && $(PNPM) test $(ARGS)
 
 test-ts: ## Run all TypeScript tests (js/ workspace, including the app)
 	@echo -e "$(CYAN)Running TypeScript tests...$(NC)"
