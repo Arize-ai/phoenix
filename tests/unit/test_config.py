@@ -1132,9 +1132,7 @@ class TestLoopbackBindRule:
         [
             pytest.param("0.0.0.0", "127.0.0.1", id="ipv4_unspecified"),
             pytest.param("::", "[::1]", id="ipv6_unspecified"),
-            pytest.param("[::]", "[::1]", id="bracketed_ipv6_unspecified"),
             pytest.param("::1", "[::1]", id="ipv6_loopback"),
-            pytest.param("[::1]", "[::1]", id="bracketed_ipv6_loopback"),
             pytest.param("fd00::5", "[fd00::5]", id="ipv6_address"),
             pytest.param("192.168.1.5", "192.168.1.5", id="ipv4_address"),
             pytest.param("example.com", "example.com", id="hostname"),

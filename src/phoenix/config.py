@@ -3504,32 +3504,21 @@ def is_loopback_host(host: Optional[str]) -> bool:
 
 
 def is_unspecified_host(host: str) -> bool:
-    """Whether ``host`` is an unspecified address, such as 0.0.0.0 or ::."""
-    try:
-        return ipaddress.ip_address(host.strip().strip("[]")).is_unspecified
-    except ValueError:
-        return False
+    """Whether a host from ``canonicalize_host`` is 0.0.0.0 or ::."""
+    return host in ("0.0.0.0", "::")
 
 
 def url_host(host: str) -> str:
-    """Format a URL host, bracketing IPv6 literals."""
-    candidate = host.strip().strip("[]")
-    try:
-        address = ipaddress.ip_address(candidate)
-    except ValueError:
-        return host.strip()
-    return f"[{candidate}]" if isinstance(address, ipaddress.IPv6Address) else candidate
+    """Format a host from ``canonicalize_host`` for a URL, bracketing IPv6 literals."""
+    return f"[{host}]" if ":" in host else host
 
 
 def local_url_host(host: str) -> str:
-    """Format a bind host for local connections.
+    """Format a bind host from ``canonicalize_host`` for local connections.
 
     Map 0.0.0.0 to 127.0.0.1 and :: to [::1].
     """
-    if is_unspecified_host(host):
-        unspecified = ipaddress.ip_address(host.strip().strip("[]"))
-        return "127.0.0.1" if isinstance(unspecified, ipaddress.IPv4Address) else "[::1]"
-    return url_host(host)
+    return {"0.0.0.0": "127.0.0.1", "::": "[::1]"}.get(host) or url_host(host)
 
 
 def get_env_host_root_path() -> str:
