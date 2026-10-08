@@ -279,6 +279,8 @@ describe("getEvaluatorPathCompletions", () => {
       5, 4, 3, 2, 1,
     ]);
     expect(result?.completions[1]?.description).toBe("input.messages[-1]");
+    // Accepting an idea finishes the path; a `.` goes on from it.
+    expect(result?.completions.some(({ drills }) => drills)).toBe(false);
   });
 
   it("shows only the ideas that resolve, named after the list", () => {
@@ -318,14 +320,13 @@ describe("getEvaluatorPathCompletions", () => {
     ]);
   });
 
-  it("opens the level below a path that ends in a subscript", () => {
-    const result = completionsFor("input.messages[-1]", CHAT_SOURCE);
-
-    expect(result?.from).toBe(0);
-    expect(result?.completions.map(({ key }) => key)).toEqual([
-      "input.messages[-1].role",
-      "input.messages[-1].content",
-    ]);
+  it("waits for a dot after a closed subscript", () => {
+    expect(completionsFor("input.messages[-1]", CHAT_SOURCE)).toBeNull();
+    expect(
+      completionsFor("input.messages[-1].", CHAT_SOURCE)?.completions.map(
+        ({ key }) => key
+      )
+    ).toEqual(["role", "content"]);
   });
 
   it("pins suggested paths above the candidate tree, at the top only", () => {
@@ -354,7 +355,7 @@ describe("getEvaluatorPathCompletions", () => {
         type: IDEA_COMPLETION_TYPE,
         section: SUGGESTED_PATH_SECTION,
         description: "metadata.attributes.llm",
-        drills: true,
+        drills: false,
         boost: 1,
       },
     ]);

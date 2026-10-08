@@ -6,7 +6,7 @@ import type {
 import { acceptCompletion } from "@codemirror/autocomplete";
 import { keymap } from "@codemirror/view";
 import { css } from "@emotion/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { DSLFilterConditionValidationResult } from "@phoenix/components/filter/DSLFilterConditionField";
 import { DSLFilterConditionField } from "@phoenix/components/filter/DSLFilterConditionField";
@@ -63,6 +63,7 @@ const evaluatorPathFieldCSS = css`
  * without knowing where it sits. Each `.` after that opens the next level with
  * the value every field holds on it, so a path is drilled rather than
  * remembered. Left empty, the field shows what the variable reads instead.
+ * A path that does not parse is flagged once the field is left.
  */
 export function EvaluatorPathField({
   value,
@@ -73,6 +74,7 @@ export function EvaluatorPathField({
   evaluatorMappingSource,
   recordKind,
   placeholder,
+  onFocusChange,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -84,6 +86,7 @@ export function EvaluatorPathField({
   recordKind: ProjectEvaluatorRecordKind;
   /** What the variable reads while the field is empty. */
   placeholder: string;
+  onFocusChange?: (isFocused: boolean) => void;
 }) {
   const suggestedPaths = getEvaluatorSuggestedPaths(recordKind);
 
@@ -136,6 +139,20 @@ export function EvaluatorPathField({
     [mappingSource, rootCandidates, suggestedPaths]
   );
 
+  // Read through a ref so focusing does not re-run validation; leaving does.
+  const isFocusedRef = useRef(false);
+  const [blurCount, setBlurCount] = useState(0);
+  const handleFocusChange = useCallback(
+    (isFocused: boolean) => {
+      isFocusedRef.current = isFocused;
+      if (!isFocused) {
+        setBlurCount((count) => count + 1);
+      }
+      onFocusChange?.(isFocused);
+    },
+    [onFocusChange]
+  );
+
   const validatePath = useCallback(
     async (path: string): Promise<DSLFilterConditionValidationResult> => {
       if (isInvalid) {
@@ -145,7 +162,7 @@ export function EvaluatorPathField({
       if (resolution.status === "unresolved") {
         return { isValid: false, errorMessage: UNRESOLVED_PATH_MESSAGE };
       }
-      if (resolution.status === "invalid") {
+      if (resolution.status === "invalid" && !isFocusedRef.current) {
         return { isValid: false, errorMessage: INVALID_PATH_MESSAGE };
       }
       return { isValid: true };
@@ -179,6 +196,8 @@ export function EvaluatorPathField({
       extensions={pathFieldKeys}
       selectOnOpen
       validateCondition={validatePath}
+      validationRetryKey={blurCount}
+      onFocusChange={handleFocusChange}
       getErrorRange={getErrorRange}
       // The field holds the stored path itself, so there is no separate
       // applied value for a settled path to publish.

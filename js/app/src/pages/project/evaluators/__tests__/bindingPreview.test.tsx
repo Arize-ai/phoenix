@@ -210,7 +210,7 @@ describe("the binding preview", () => {
     expect(errorRows[2]?.querySelector("button")).toBeNull();
   });
 
-  it("flags a path the server rejects in place, not in a banner", async () => {
+  it("flags a path the server rejects in place, unless it is being typed", async () => {
     await act(async () => {
       root.render(
         <EvaluatorInputVariablesContext.Provider
@@ -221,6 +221,7 @@ describe("the binding preview", () => {
             recordKind="span"
             inputMapping={{
               pathMapping: {
+                input: "metadata.attributes[]",
                 output: "nope",
                 citations: "metadata.annotations[",
               },
@@ -228,6 +229,7 @@ describe("the binding preview", () => {
             }}
             requiredVariables={["input", "output", "metadata", "citations"]}
             isSampleContext={false}
+            focusedMappingVariable="input"
           />
         </EvaluatorInputVariablesContext.Provider>
       );
@@ -249,6 +251,13 @@ describe("the binding preview", () => {
     expect(
       errorRows[1]?.querySelector(".binding-row__message")?.textContent
     ).toBe("metadata.annotations[ is not a valid path");
+    // The path being typed shows no value and no message yet.
+    const typedRow = container.querySelector(
+      ".binding-row__keyword"
+    )?.parentElement;
+    expect(typedRow?.querySelector(".binding-row__value")?.textContent).toBe(
+      "—"
+    );
     expect(container.querySelector('[data-variant="warning"]')).toBeNull();
   });
 

@@ -417,10 +417,9 @@ export function getEvaluatorPathCompletions({
   suggestedPaths?: readonly EvaluatorSuggestedPathLike[];
   textBeforeCursor: string;
 }): EvaluatorPathCompletionResult | null {
-  const rootPaths = rootCandidates.map((candidate) => candidate.path);
   const cursor = getEvaluatorPathCursor(textBeforeCursor);
   if (cursor === null) {
-    return getSubscriptContinuation({ source, textBeforeCursor, rootPaths });
+    return null;
   }
   if (cursor.containerPath === "") {
     const suggested = suggestedPaths
@@ -428,6 +427,7 @@ export function getEvaluatorPathCompletions({
         resolveLevelRow({ source, path, key: path }).map((row) => ({
           ...row,
           idea: description,
+          drills: false,
         }))
       )
       .slice(0, MAX_SUGGESTED_PATHS)
@@ -446,7 +446,7 @@ export function getEvaluatorPathCompletions({
   const reached = reachEvaluatorContainerPath({
     source,
     containerPath: cursor.containerPath,
-    rootPaths,
+    rootPaths: rootCandidates.map((candidate) => candidate.path),
   });
   const containerPath = reached ?? cursor.containerPath;
   const rows = getEvaluatorPathLevelRows({
@@ -497,45 +497,6 @@ export function getEvaluatorPathCompletions({
     from: reached === null ? cursor.from : 0,
     containerPath,
     completions,
-  };
-}
-
-/**
- * A path that ends in a closed subscript offers the level below it as whole
- * paths, so accepting "Last message" opens what the message holds.
- */
-function getSubscriptContinuation({
-  source,
-  textBeforeCursor,
-  rootPaths,
-}: {
-  source: Record<string, unknown>;
-  textBeforeCursor: string;
-  rootPaths: readonly string[];
-}): EvaluatorPathCompletionResult | null {
-  if (
-    !textBeforeCursor.endsWith("]") ||
-    !parseEvaluatorPath(textBeforeCursor).isValid
-  ) {
-    return null;
-  }
-  const containerPath =
-    reachEvaluatorContainerPath({
-      source,
-      containerPath: textBeforeCursor,
-      rootPaths,
-    }) ?? textBeforeCursor;
-  const rows = getEvaluatorPathLevelRows({ source, containerPath });
-  if (rows.length === 0) {
-    return null;
-  }
-  const section = toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK);
-  return {
-    from: 0,
-    containerPath,
-    completions: capBrowsedMembers({ members: rows, isBrowsing: true }).map(
-      (row) => ({ ...toLevelCompletion(row, section), key: row.path })
-    ),
   };
 }
 
@@ -645,6 +606,7 @@ function getListRows({
       toSubscriptRow(subscript).map((row) => ({
         ...row,
         idea: description,
+        drills: false,
         boost: ideas.length - index,
       }))
   );
@@ -652,7 +614,7 @@ function getListRows({
     const subscript = `[${typedSelector}]`;
     for (const row of toSubscriptRow(subscript)) {
       if (!rows.some((existing) => existing.path === row.path)) {
-        rows.push({ ...row, displayLabel: subscript });
+        rows.push({ ...row, displayLabel: subscript, drills: false });
       }
     }
   }
