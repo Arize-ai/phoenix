@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Score progression across a prompt iteration series"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select x.name, round(avg(a.score), 3) as mean, count(*) as runs
 from experiments x join datasets d on d.id = x.dataset_id
 join experiment_runs r on r.experiment_id = x.id

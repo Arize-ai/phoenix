@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Cost breakdown by token type for the top model"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select d.token_type, round(sum(d.cost), 2) as cost
 from span_cost_details d join span_costs sc on sc.id = d.span_cost_id
 join generative_models gm on gm.id = sc.model_id

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Searches that never loaded a skill"""
 
-from harbor_verifiers.phoenix_api import scalar, write_answer
+from harbor_verifiers.phoenix_api import get_scalar_from_sql_query, write_answer
 
-n = scalar("""
+n = get_scalar_from_sql_query("""
 select count(distinct a.trace_rowid) from spans a
 where json_extract(a.attributes, '$.tool.name') = 'search_phoenix'
 and not exists (

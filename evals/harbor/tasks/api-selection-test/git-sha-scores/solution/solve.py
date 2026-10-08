@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Weakest commit by evaluator score"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select json_extract(x.metadata, '$.git_sha') as sha, round(avg(a.score), 3) as rate, count(*) as runs
 from experiments x join experiment_runs r on r.experiment_id = x.id
 join experiment_run_annotations a on a.experiment_run_id = r.id and a.name = 'correct_tools_called'

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Count spans whose parent is missing"""
 
-from harbor_verifiers.phoenix_api import scalar, write_answer
+from harbor_verifiers.phoenix_api import get_scalar_from_sql_query, write_answer
 
-n = scalar("""
+n = get_scalar_from_sql_query("""
 select count(*) from spans c
 where c.parent_id is not null and not exists (select 1 from spans p where p.span_id = c.parent_id)
 """)

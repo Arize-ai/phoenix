@@ -5,21 +5,23 @@ import json  # noqa: F401
 from collections import Counter  # noqa: F401
 
 from harbor_verifiers.phoenix_api import (  # noqa: F401
-    attribute,
-    dataset_id,
-    experiment_by_name,
-    experiment_runs,
-    generative_models,
+    format_utc_timestamp,
+    get_dataset_id_from_name,
+    get_experiment_by_name,
+    get_experiment_runs,
+    get_generative_models,
+    get_nested_attribute,
     graphql,
     rest,
     rest_pages,
     rowid,
-    utc,
     write_answer,
 )
 
 versions = sorted(
-    rest_pages(f"/datasets/{dataset_id('High Token Count Spans (>20k)')}/versions", limit=100),
+    rest_pages(
+        f"/datasets/{get_dataset_id_from_name('High Token Count Spans (>20k)')}/versions", limit=100
+    ),
     key=lambda v: v["created_at"],
 )
 write_answer(

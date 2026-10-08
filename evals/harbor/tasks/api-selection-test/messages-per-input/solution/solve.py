@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Dataset with the longest conversational inputs"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select d.name, round(avg(m.n), 2) as messages from (
   select r.dataset_example_id, count(*) as n
   from dataset_example_revisions r, json_each(r.input, '$.messages')

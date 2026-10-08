@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Peak week of experiment creation"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-row = execute_sql("""
+row = execute_sql_query("""
 select strftime('%Y-%W', x.created_at) as week, min(date(x.created_at)) as first_day, d.name, count(*) as n
 from experiments x join datasets d on d.id = x.dataset_id
 group by week, d.name order by n desc limit 1

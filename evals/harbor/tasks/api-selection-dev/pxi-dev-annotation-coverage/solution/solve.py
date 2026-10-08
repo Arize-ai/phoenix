@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Span annotation coverage for one project"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-row = execute_sql("""
+row = execute_sql_query("""
 select count(distinct case when a.id is not null then t.id end) as annotated, count(distinct t.id) as total
 from traces t join projects p on p.id = t.project_rowid
 left join spans s on s.trace_rowid = t.id

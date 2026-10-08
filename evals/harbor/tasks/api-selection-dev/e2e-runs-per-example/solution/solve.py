@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Most and least exercised examples in one dataset"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select r.dataset_example_id as example, count(*) as n
 from experiment_runs r join experiments x on x.id = r.experiment_id
 join datasets d on d.id = x.dataset_id

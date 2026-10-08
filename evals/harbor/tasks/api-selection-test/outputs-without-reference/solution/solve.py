@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Dataset with the most unreferenced outputs"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-row = execute_sql("""
+row = execute_sql_query("""
 select d.name, count(*) as n
 from dataset_example_revisions r join dataset_examples e on e.id = r.dataset_example_id
 join datasets d on d.id = e.dataset_id

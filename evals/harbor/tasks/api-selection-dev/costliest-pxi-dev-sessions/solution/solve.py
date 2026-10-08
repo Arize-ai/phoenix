@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Top three sessions by spend in one project"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select ps.session_id, round(sum(sc.total_cost), 2) as cost
 from span_costs sc join traces t on t.id = sc.trace_rowid
 join project_sessions ps on ps.id = t.project_session_rowid

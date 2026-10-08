@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Span name with the highest error rate"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select name, count(*) as n, sum(case when status_code = 'ERROR' then 1 else 0 end) as errors
 from spans group by name having count(*) >= 50
 order by 1.0 * sum(case when status_code = 'ERROR' then 1 else 0 end) / count(*) desc limit 2

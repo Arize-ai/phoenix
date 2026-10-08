@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Most common opening tool in one project"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select tool, count(*) as n from (
   select json_extract(s.attributes, '$.tool.name') as tool,
          row_number() over (partition by t.id order by s.start_time) as rn

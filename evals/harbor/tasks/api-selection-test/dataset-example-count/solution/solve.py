@@ -5,17 +5,19 @@ import json  # noqa: F401
 from collections import Counter  # noqa: F401
 
 from harbor_verifiers.phoenix_api import (  # noqa: F401
-    attribute,
-    dataset_id,
-    experiment_by_name,
-    experiment_runs,
-    generative_models,
+    format_utc_timestamp,
+    get_dataset_id_from_name,
+    get_experiment_by_name,
+    get_experiment_runs,
+    get_generative_models,
+    get_nested_attribute,
     graphql,
     rest,
     rest_pages,
     rowid,
-    utc,
     write_answer,
 )
 
-write_answer(str(rest(f"/datasets/{dataset_id('set_spans_filter')}")["data"]["example_count"]))
+write_answer(
+    str(rest(f"/datasets/{get_dataset_id_from_name('set_spans_filter')}")["data"]["example_count"])
+)

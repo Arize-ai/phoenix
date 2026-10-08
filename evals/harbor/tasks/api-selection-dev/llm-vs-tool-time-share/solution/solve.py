@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """LLM versus tool time share per project"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select p.name,
        round(100.0 * sum(case when s.span_kind = 'LLM' then s.latency_ms else 0 end) / sum(s.latency_ms), 1) as llm,
        round(100.0 * sum(case when s.span_kind = 'TOOL' then s.latency_ms else 0 end) / sum(s.latency_ms), 1) as tool

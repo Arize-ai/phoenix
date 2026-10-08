@@ -106,16 +106,16 @@ import json  # noqa: F401
 from collections import Counter  # noqa: F401
 
 from harbor_verifiers.phoenix_api import (  # noqa: F401
-    attribute,
-    dataset_id,
-    experiment_by_name,
-    experiment_runs,
-    generative_models,
+    format_utc_timestamp,
+    get_dataset_id_from_name,
+    get_experiment_by_name,
+    get_experiment_runs,
+    get_generative_models,
+    get_nested_attribute,
     graphql,
     rest,
     rest_pages,
     rowid,
-    utc,
     write_answer,
 )
 
@@ -285,8 +285,8 @@ write_answer(", ".join(sorted(names)))
 first = rest("/projects/pxi_agent_tony/traces", sort="start_time", order="asc", limit=1)
 last = rest("/projects/pxi_agent_tony/traces", sort="start_time", order="desc", limit=1)
 write_answer(
-    f"first trace {utc(first['data'][0]['start_time'])}, "
-    f"last trace {utc(last['data'][0]['start_time'])}"
+    f"first trace {format_utc_timestamp(first['data'][0]['start_time'])}, "
+    f"last trace {format_utc_timestamp(last['data'][0]['start_time'])}"
 )
 """,
     ),
@@ -374,7 +374,7 @@ spans = [
     )["getTraceByOtelId"]["spans"]["edges"]
 ]
 errors = [s for s in spans if s["statusCode"] == "ERROR"]
-models = sorted({{attribute(s["attributes"], "llm.model_name") for s in spans}} - {{None}})
+models = sorted({{get_nested_attribute(s["attributes"], "llm.model_name") for s in spans}} - {{None}})
 write_answer(
     f"status message {{errors[0]['statusMessage']!r}} on {{', '.join(s['name'] for s in errors)}}; "
     f"model {{', '.join(models)}}"
@@ -580,7 +580,7 @@ span = graphql({SPAN_Q % "tokenCountPrompt tokenCountCompletion attributes"!r},
                {{"s": "24aed90fbeebb7c2"}})["getSpanByOtelId"]
 write_answer(
     f"{{span['tokenCountPrompt']}} prompt tokens, {{span['tokenCountCompletion']}} completion tokens, "
-    f"model {{attribute(span['attributes'], 'llm.model_name')}}"
+    f"model {{get_nested_attribute(span['attributes'], 'llm.model_name')}}"
 )
 """,
     ),
@@ -602,7 +602,7 @@ spans = [
 (llm,) = [s for s in spans if s["spanKind"].lower() == "llm"]
 write_answer(
     f"{{llm['tokenCountPrompt']}} prompt, {{llm['tokenCountCompletion']}} completion, "
-    f"{{llm['tokenCountTotal']}} total, model {{attribute(llm['attributes'], 'llm.model_name')}} "
+    f"{{llm['tokenCountTotal']}} total, model {{get_nested_attribute(llm['attributes'], 'llm.model_name')}} "
     f"(span {{llm['spanId']}})"
 )
 """,
@@ -906,7 +906,7 @@ write_answer(", ".join(s["session_id"] for s in sorted(sessions, key=lambda s: s
 session = graphql({SESSION_Q % "numTraces startTime endTime"!r},
                   {{"s": "c07e3780-9929-40ff-9465-9e8b30eb1656"}})["getProjectSessionById"]
 write_answer(
-    f"{{session['numTraces']}} traces, from {{utc(session['startTime'])}} to {{utc(session['endTime'])}}"
+    f"{{session['numTraces']}} traces, from {{format_utc_timestamp(session['startTime'])}} to {{format_utc_timestamp(session['endTime'])}}"
 )
 """,
     ),
@@ -1023,7 +1023,7 @@ write_answer(f"{dataset['description']!r}; id {dataset['id']}")
         "48",
         "",
         """
-write_answer(str(rest(f"/datasets/{dataset_id('set_spans_filter')}")["data"]["example_count"]))
+write_answer(str(rest(f"/datasets/{get_dataset_id_from_name('set_spans_filter')}")["data"]["example_count"]))
 """,
     ),
     spec(
@@ -1034,7 +1034,7 @@ write_answer(str(rest(f"/datasets/{dataset_id('set_spans_filter')}")["data"]["ex
         "7",
         "The versions are ids 8 through 14.",
         """
-versions = rest_pages(f"/datasets/{dataset_id('PXI E2E Agent Tests')}/versions", limit=100)
+versions = rest_pages(f"/datasets/{get_dataset_id_from_name('PXI E2E Agent Tests')}/versions", limit=100)
 write_answer(f"{len(versions)} versions")
 """,
     ),
@@ -1047,7 +1047,7 @@ write_answer(f"{len(versions)} versions")
         "The first version was described as 'Spans with >20k total tokens'.",
         """
 versions = sorted(
-    rest_pages(f"/datasets/{dataset_id('High Token Count Spans (>20k)')}/versions", limit=100),
+    rest_pages(f"/datasets/{get_dataset_id_from_name('High Token Count Spans (>20k)')}/versions", limit=100),
     key=lambda v: v["created_at"],
 )
 write_answer(f"second version: {versions[1]['description']!r} (first: {versions[0]['description']!r})")
@@ -1061,7 +1061,7 @@ write_answer(f"second version: {versions[1]['description']!r} (first: {versions[
         "case url_without_access, should_ask_question true",
         "Both metadata values are required. The example id is RGF0YXNldEV4YW1wbGU6MTEz.",
         """
-examples = rest(f"/datasets/{dataset_id('phoenix-issue-triage-initial-responses')}/examples")
+examples = rest(f"/datasets/{get_dataset_id_from_name('phoenix-issue-triage-initial-responses')}/examples")
 (example,) = [
     e for e in examples["data"]["examples"]
     if str(e["input"].get("issue", "")).startswith("https://github.com/")
@@ -1081,7 +1081,7 @@ write_answer(
         "expected_tool apply_github_triage (scenario apply_confirmed_duplicate)",
         "apply_github_triage is required.",
         """
-examples = rest(f"/datasets/{dataset_id('github-support-triage-tool-routing')}/examples")
+examples = rest(f"/datasets/{get_dataset_id_from_name('github-support-triage-tool-routing')}/examples")
 (example,) = [e for e in examples["data"]["examples"] if "acme/widget#2128" in e["input"]["ticket"]]
 write_answer(f"{json.dumps(example['output'])} (scenario {example['metadata'].get('scenario')})")
 """,
@@ -1096,7 +1096,7 @@ write_answer(f"{json.dumps(example['output'])} (scenario {example['metadata'].ge
         f"""
 dataset = graphql(
     {NODE_Q % ("Dataset", "examples(first: 100) {{ edges {{ node {{ id datasetSplits {{ name }} revision {{ input }} }} }} }}")!r},
-    {{"id": dataset_id("banking_saas_dataset_clean")}},
+    {{"id": get_dataset_id_from_name("banking_saas_dataset_clean")}},
 )["node"]
 (example,) = [
     e["node"]
@@ -1114,7 +1114,7 @@ write_answer(", ".join(s["name"] for s in example["datasetSplits"]) + f" (exampl
         "happy path 15, refusal 13",
         "Both counts are required.",
         """
-splits = rest_pages(f"/datasets/{dataset_id('banking_saas_dataset_clean')}/splits", limit=100)
+splits = rest_pages(f"/datasets/{get_dataset_id_from_name('banking_saas_dataset_clean')}/splits", limit=100)
 write_answer(", ".join(f"{s['name']} {s['example_count']}" for s in sorted(splits, key=lambda s: s["name"])))
 """,
     ),
@@ -1151,7 +1151,7 @@ write_answer(
         "the second version (id 4) deleted one example and added 'Show me my current account balance!'; the third version (id 5) patched that example's input to 'Show me my current account balance!!!!!'",
         "The reply must say the second version deleted one example and added one, and that the third version patched the added one. Exact example ids are a bonus.",
         f"""
-did = dataset_id("banking_saas_dataset_auto_ids")
+did = get_dataset_id_from_name("banking_saas_dataset_auto_ids")
 versions = sorted(
     (e["node"] for e in graphql({NODE_Q % ("Dataset", "versions(first: 50) {{ edges {{ node {{ id }} }} }}")!r}, {{"id": did}})["node"]["versions"]["edges"]),
     key=lambda v: rowid(v["id"]),
@@ -1184,7 +1184,7 @@ write_answer(
         "4 revisions; the current prompt is 'How do I change the default project name' (scenario pxi-docs-smoke:tracing-project-env-var-v1)",
         "The count of 4 and the current prompt text are required.",
         f"""
-did = dataset_id("PXI E2E Agent Tests")
+did = get_dataset_id_from_name("PXI E2E Agent Tests")
 versions = sorted(
     (e["node"]["id"] for e in graphql({NODE_Q % ("Dataset", "versions(first: 50) {{ edges {{ node {{ id }} }} }}")!r}, {{"id": did}})["node"]["versions"]["edges"]),
     key=rowid,
@@ -1216,7 +1216,7 @@ write_answer(
         f"""
 dataset = graphql(
     {NODE_Q % ("Dataset", "examples(first: 100) {{ edges {{ node {{ id span {{ spanId name trace {{ traceId }} }} revision {{ output }} }} }} }}")!r},
-    {{"id": dataset_id("High Token Count Spans (>20k)")}},
+    {{"id": get_dataset_id_from_name("High Token Count Spans (>20k)")}},
 )["node"]
 example = min((e["node"] for e in dataset["examples"]["edges"]), key=lambda e: rowid(e["id"]))
 span = example["span"]
@@ -1236,7 +1236,7 @@ write_answer(
         f"""
 dataset = graphql(
     {NODE_Q % ("Dataset", "datasetEvaluators(first: 50) {{ edges {{ node {{ name }} }} }}")!r},
-    {{"id": dataset_id("banking_saas_dataset")}},
+    {{"id": get_dataset_id_from_name("banking_saas_dataset")}},
 )["node"]
 write_answer(", ".join(sorted(e["node"]["name"] for e in dataset["datasetEvaluators"]["edges"])))
 """,
@@ -1251,7 +1251,7 @@ write_answer(", ".join(sorted(e["node"]["name"] for e in dataset["datasetEvaluat
         f"""
 dataset = graphql(
     {NODE_Q % ("Dataset", "datasetEvaluators(first: 50) {{ edges {{ node {{ name project {{ name traceCount }} }} }} }}")!r},
-    {{"id": dataset_id("banking_saas_dataset_clean")}},
+    {{"id": get_dataset_id_from_name("banking_saas_dataset_clean")}},
 )["node"]
 (evaluator,) = [e["node"] for e in dataset["datasetEvaluators"]["edges"] if e["node"]["name"] == "safe_sql_exact_match"]
 write_answer(f"{{evaluator['project']['name']}} with {{evaluator['project']['traceCount']}} traces")
@@ -1297,7 +1297,7 @@ write_answer("; ".join(f"{d['name']} ({d['example_count']} example)" for d in so
         "77",
         "",
         f"""
-dataset = graphql({NODE_Q % ("Dataset", "experimentCount")!r}, {{"id": dataset_id("PXI E2E Agent Tests")}})
+dataset = graphql({NODE_Q % ("Dataset", "experimentCount")!r}, {{"id": get_dataset_id_from_name("PXI E2E Agent Tests")}})
 write_answer(str(dataset["node"]["experimentCount"]))
 """,
     ),
@@ -1309,7 +1309,7 @@ write_answer(str(dataset["node"]["experimentCount"]))
         "example RGF0YXNldEV4YW1wbGU6MTg2, added in the third version (id 38)",
         "The reply must identify the example (by id or by its pytest node id) and say it arrived in the third and latest version.",
         f"""
-did = dataset_id("experiment_observations")
+did = get_dataset_id_from_name("experiment_observations")
 examples = rest(f"/datasets/{{did}}/examples")["data"]["examples"]
 (example,) = [e for e in examples if str(e["metadata"].get("pytest_nodeid", "")).rstrip("]").endswith("compare-only-no-patch")]
 versions = sorted(
@@ -1346,7 +1346,7 @@ write_answer(f"{experiment['name']}, on dataset {dataset['name']}")
         "Adds one authorization clarification for the user's own external transfers.",
         "",
         """
-experiment = experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v3 authorization fix")
+experiment = get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v3 authorization fix")
 write_answer(str(experiment["description"]))
 """,
     ),
@@ -1358,7 +1358,7 @@ write_answer(str(experiment["description"]))
         "'Explicit override mappings for paycheck, external transfers, and system-wide balances will yield 28/28 exact matches.'; baseline RXhwZXJpbWVudDoxMDc= (safe-sql prompt v3 authorization fix)",
         "The hypothesis and the baseline (by id or name) are required.",
         """
-experiment = experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")
+experiment = get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")
 baseline_id = experiment["metadata"]["baseline_experiment_id"]
 baseline = rest(f"/experiments/{baseline_id}")["data"]
 write_answer(f"{experiment['metadata']['hypothesis']!r}; baseline {baseline_id} ({baseline['name']})")
@@ -1372,7 +1372,7 @@ write_answer(f"{experiment['metadata']['hypothesis']!r}; baseline {baseline_id} 
         "at 2026-08-11T15:10:35-04:00, by pxi: 'Hypothesis confirmed: 28/28 examples passed safe_sql_exact_match with zero run or evaluator errors.'",
         "The timestamp (any format) and the 'hypothesis confirmed, 28/28' gist are required.",
         """
-experiment = experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")
+experiment = get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")
 (observation,) = experiment["metadata"]["observations"]
 write_answer(f"at {observation['at']}, by {observation['by']}: {observation['note'][:300]!r}")
 """,
@@ -1385,7 +1385,7 @@ write_answer(f"at {observation['at']}, by {observation['by']}: {observation['not
         "RXhwZXJpbWVudDoxMzY= (validated evaluator) -> RXhwZXJpbWVudDoxMzU= (strict schema fixed) -> RXhwZXJpbWVudDoxMzQ= (corrected credentials) -> RXhwZXJpbWVudDoxMzM= (baseline, no further link)",
         "All four experiments in this order, by id or name.",
         """
-experiment = experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — validated evaluator")
+experiment = get_experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — validated evaluator")
 chain = []
 while experiment:
     chain.append(f"{experiment['id']} ({experiment['name']})")
@@ -1413,7 +1413,7 @@ write_answer(str(rest("/experiments/RXhwZXJpbWVudDoxMDg=")["data"]["project_name
         "version RGF0YXNldFZlcnNpb246NDU= : 'Added 12 example(s) via the assistant'",
         "The description is required; the version id is a bonus.",
         """
-experiment = experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing baseline")
+experiment = get_experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing baseline")
 (version,) = [
     v for v in rest_pages(f"/datasets/{experiment['dataset_id']}/versions", limit=100)
     if v["version_id"] == experiment["dataset_version_id"]
@@ -1429,15 +1429,15 @@ write_answer(f"version {version['version_id']}: {version['description']!r}")
         "it answered 'REFUSED: Query attempts to access other users' data.' and failed (safe_sql_exact_match 0)",
         "The refusal text and the fail verdict are required.",
         """
-experiment = experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v3 authorization fix")
+experiment = get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v3 authorization fix")
 (run,) = [
-    r for r in experiment_runs(experiment["id"])
-    if "Did I receive my paycheck this week?" in json.dumps(r["example"]["revision"]["input"])
+    r for r in get_experiment_runs(experiment["id"])
+    if "Did I receive my paycheck this week?" in json.dumps(r.example.revision.input)
 ]
-output = run["output"]
+output = run.output
 output = output.get("task_output", output)  # REST and GraphQL unwrap the task output
 answer = output["messages"][0]["content"]
-verdicts = ", ".join(f"{a['name']} {a['label']} ({a['score']:g})" for a in run["annotations"])
+verdicts = ", ".join(f"{a.node.name} {a.node.label} ({a.node.score:g})" for a in run.annotations.edges)
 write_answer(f"it answered {answer!r}; {verdicts}")
 """,
     ),
@@ -1449,9 +1449,9 @@ write_answer(f"it answered {answer!r}; {verdicts}")
         "Expected first tool search_github_issues, but observed get_github_issue.",
         "The expected-versus-observed tool pair is required.",
         """
-experiment = experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — validated evaluator")
-(run,) = [r for r in experiment_runs(experiment["id"]) if "Dark mode" in r["example"]["revision"]["input"]["ticket"]]
-write_answer("; ".join(f"{a['name']} {a['label']}: {a['explanation']}" for a in run["annotations"]) + f" (run {run['id']})")
+experiment = get_experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — validated evaluator")
+(run,) = [r for r in get_experiment_runs(experiment["id"]) if "Dark mode" in r.example.revision.input["ticket"]]
+write_answer("; ".join(f"{a.node.name} {a.node.label}: {a.node.explanation}" for a in run.annotations.edges) + f" (run {run.id})")
 """,
     ),
     spec(
@@ -1462,12 +1462,12 @@ write_answer("; ".join(f"{a['name']} {a['label']}: {a['explanation']}" for a in 
         "duplicate_search_visual_regression, apply_reviewed_docs_triage, apply_confirmed_duplicate (3 of 12)",
         "All three scenario names are required.",
         """
-experiment = experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — validated evaluator")
-runs = experiment_runs(experiment["id"])
+experiment = get_experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — validated evaluator")
+runs = get_experiment_runs(experiment["id"])
 failed = sorted(
-    r["example"]["revision"]["metadata"]["scenario"]
+    r.example.revision.metadata["scenario"]
     for r in runs
-    if any(a["name"] == "first_tool_matches_expected" and a["score"] == 0 for a in r["annotations"])
+    if any(a.node.name == "first_tool_matches_expected" and a.node.score == 0 for a in r.annotations.edges)
 )
 write_answer(f"{len(failed)} of {len(runs)}: " + ", ".join(failed))
 """,
@@ -1480,12 +1480,12 @@ write_answer(f"{len(failed)} of {len(runs)}: " + ", ".join(failed))
         "trace 8ff53c090a79d9b5bc27a381fd49a6c1 in project Experiment-e2b97126b637414e0545df8d",
         "Accept a prefix of the trace id; the project name is required.",
         """
-experiment = experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")
+experiment = get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")
 (run,) = [
-    r for r in experiment_runs(experiment["id"])
-    if "Did I receive my paycheck this week?" in json.dumps(r["example"]["revision"]["input"])
+    r for r in get_experiment_runs(experiment["id"])
+    if "Did I receive my paycheck this week?" in json.dumps(r.example.revision.input)
 ]
-write_answer(f"trace {run['traceId']} in project {experiment['project_name']}")
+write_answer(f"trace {run.trace_id} in project {experiment['project_name']}")
 """,
     ),
     spec(
@@ -1496,7 +1496,7 @@ write_answer(f"trace {run['traceId']} in project {experiment['project_name']}")
         "all 5 runs failed with a 401: 'Incorrect API key provided: 1234'",
         "The 401 or the incorrect-API-key message is required.",
         """
-experiment = experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing baseline")
+experiment = get_experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing baseline")
 runs = rest_pages(f"/experiments/{experiment['id']}/runs", limit=100)
 errors = Counter(str(r["error"])[:120] for r in runs if r["error"])
 write_answer(f"{sum(errors.values())} of {len(runs)} runs errored: " + "; ".join(f"{n} x {e!r}" for e, n in errors.most_common()))
@@ -1510,7 +1510,7 @@ write_answer(f"{sum(errors.values())} of {len(runs)} runs errored: " + "; ".join
         "a 400: invalid schema for the function search_github_issues, 'required' must be supplied (all 5 runs)",
         "The invalid-schema message for search_github_issues is required.",
         """
-experiment = experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — corrected credentials")
+experiment = get_experiment_by_name("github-support-triage-tool-routing", "Luna first-tool routing — corrected credentials")
 runs = rest_pages(f"/experiments/{experiment['id']}/runs", limit=100)
 errors = Counter(str(r["error"])[:160] for r in runs if r["error"])
 write_answer(f"{sum(errors.values())} of {len(runs)} runs errored: " + "; ".join(f"{n} x {e!r}" for e, n in errors.most_common()))
@@ -1525,10 +1525,10 @@ write_answer(f"{sum(errors.values())} of {len(runs)} runs errored: " + "; ".join
         "The false label and the gist of the explanation are required.",
         """
 (run,) = [
-    r for r in experiment_runs("RXhwZXJpbWVudDoxMDE=")
-    if r["example"]["revision"]["metadata"].get("case") == "url_without_access"
+    r for r in get_experiment_runs("RXhwZXJpbWVudDoxMDE=")
+    if r.example.revision.metadata.get("case") == "url_without_access"
 ]
-write_answer("; ".join(f"{a['name']} {a['label']} ({a['score']:g}): {a['explanation']}" for a in run["annotations"]))
+write_answer("; ".join(f"{a.node.name} {a.node.label} ({a.node.score:g}): {a.node.explanation}" for a in run.annotations.edges))
 """,
     ),
     spec(
@@ -1539,7 +1539,7 @@ write_answer("; ".join(f"{a['name']} {a['label']} ({a['score']:g}): {a['explanat
         "the sufficient_python_report case (example RGF0YXNldEV4YW1wbGU6MTE1, trace 92e91e256d387a0a295bf9e8fb868f7e); the job log records a ReadTimeout task error",
         "The case name and the ReadTimeout are required.",
         f"""
-runs = [r for r in experiment_runs("RXhwZXJpbWVudDoxMDE=") if not r["annotations"]]
+runs = [r for r in get_experiment_runs("RXhwZXJpbWVudDoxMDE=") if not r.annotations.edges]
 job = graphql(
     {NODE_Q % ("Experiment", "job {{ status errors(first: 50) {{ edges {{ node {{ category level message }} }} }} }}")!r},
     {{"id": "RXhwZXJpbWVudDoxMDE="}},
@@ -1547,7 +1547,7 @@ job = graphql(
 logs = "; ".join(f"{{e['node']['category']}} {{e['node']['level']}} {{e['node']['message']}}" for e in job["errors"]["edges"])
 write_answer(
     "; ".join(
-        f"case {{r['example']['revision']['metadata'].get('case')}} (example {{r['example']['id']}}, trace {{r['traceId']}})"
+        f"case {{r.example.revision.metadata.get('case')}} (example {{r.example.id}}, trace {{r.trace_id}})"
         for r in runs
     )
     + f"; job log: {{logs}}"
@@ -1603,7 +1603,7 @@ write_answer(
         f"""
 dataset = graphql(
     {NODE_Q % ("Dataset", "experimentJobs(first: 100) {{ edges {{ node {{ status experiment {{ id name }} lastError {{ message }} }} }} }}")!r},
-    {{"id": dataset_id("banking_saas_dataset")}},
+    {{"id": get_dataset_id_from_name("banking_saas_dataset")}},
 )["node"]
 failed = [e["node"] for e in dataset["experimentJobs"]["edges"] if e["node"]["status"] == "ERROR"]
 write_answer(
@@ -1622,8 +1622,8 @@ write_answer(
         "it stopped on 'Circuit breaker tripped (eval): Exception' after 5 evaluator errors; the rerun completed all 28 and 12 passed",
         "The evaluator circuit breaker and the rerun's 28 runs with 12 passing are required.",
         f"""
-first = experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v1")
-rerun = experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v1 rerun")
+first = get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v1")
+rerun = get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v1 rerun")
 job = graphql(
     {NODE_Q % ("Experiment", "runCount job {{ status lastError {{ message }} errors(first: 50) {{ edges {{ node {{ category message }} }} }} }}")!r},
     {{"id": first["id"]}},
@@ -1679,7 +1679,7 @@ write_answer(", ".join(names) + (" only" if len(names) == 1 else ""))
         "assistant gpt-4.1-mini, judge gpt-4.1 (Playwright project chromium)",
         "Both models are required.",
         """
-experiment = experiment_by_name("PXI E2E Agent Tests", "pxi-e2e-docs-smoke-2026-05-04T14-34-34-020Z")
+experiment = get_experiment_by_name("PXI E2E Agent Tests", "pxi-e2e-docs-smoke-2026-05-04T14-34-34-020Z")
 meta = experiment["metadata"]
 write_answer(
     f"assistant {meta.get('assistantModel')}, judge {meta.get('judgeModel')} "
@@ -1695,9 +1695,9 @@ write_answer(
         "pass (1.0): 'The answer correctly identifies PHOENIX_PROJECT_NAME as the environment variable for setting the Phoenix tracing project name'",
         "The pass label and the PHOENIX_PROJECT_NAME gist are required.",
         """
-experiment = experiment_by_name("PXI E2E Agent Tests", "pxi-e2e-docs-smoke-2026-05-04T14-34-34-020Z")
-(run,) = experiment_runs(experiment["id"])
-write_answer("; ".join(f"{a['name']} {a['label']} ({a['score']:g}): {a['explanation']}" for a in run["annotations"]))
+experiment = get_experiment_by_name("PXI E2E Agent Tests", "pxi-e2e-docs-smoke-2026-05-04T14-34-34-020Z")
+(run,) = get_experiment_runs(experiment["id"])
+write_answer("; ".join(f"{a.node.name} {a.node.label} ({a.node.score:g}): {a.node.explanation}" for a in run.annotations.edges))
 """,
     ),
     spec(
@@ -1708,7 +1708,7 @@ write_answer("; ".join(f"{a['name']} {a['label']} ({a['score']:g}): {a['explanat
         "0dc26e61a087b221da2d825440da9602828d2642 (model gpt-5.4), 48 runs",
         "The commit sha (or a prefix) and the run count are required.",
         f"""
-experiment = experiment_by_name("set_spans_filter", "set_span-64502b8e")
+experiment = get_experiment_by_name("set_spans_filter", "set_span-64502b8e")
 count = graphql({NODE_Q % ("Experiment", "runCount")!r}, {{"id": experiment["id"]}})["node"]["runCount"]
 write_answer(f"{{experiment['metadata'].get('git_sha')}} (model {{experiment['metadata'].get('model')}}), {{count}} runs")
 """,
@@ -1721,7 +1721,7 @@ write_answer(f"{{experiment['metadata'].get('git_sha')}} (model {{experiment['me
         "1",
         "",
         """
-write_answer(str(experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")["repetitions"]))
+write_answer(str(get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v4 disambiguation")["repetitions"]))
 """,
     ),
     spec(
@@ -1732,7 +1732,7 @@ write_answer(str(experiment_by_name("banking_saas_dataset_clean", "safe-sql prom
         "RXhwZXJpbWVudDoxMDU=",
         "That id decodes to Experiment:105.",
         """
-write_answer(str(experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v1 rerun")["id"]))
+write_answer(str(get_experiment_by_name("banking_saas_dataset_clean", "safe-sql prompt v1 rerun")["id"]))
 """,
     ),
     # -------------------------------------------------------------- evaluators
@@ -1863,7 +1863,7 @@ write_answer(f"{values}; direction {config['optimizationDirection']}, so {best['
         f"""
 dataset = graphql(
     {NODE_Q % ("Dataset", "datasetEvaluators(first: 50) {{ edges {{ node {{ name outputConfigs {{ ... on CategoricalAnnotationConfig {{ optimizationDirection }} ... on ContinuousAnnotationConfig {{ optimizationDirection }} }} }} }} }}")!r},
-    {{"id": dataset_id("banking_saas_dataset")}},
+    {{"id": get_dataset_id_from_name("banking_saas_dataset")}},
 )["node"]
 none = sorted(
     e["node"]["name"]
@@ -2096,7 +2096,7 @@ write_answer(f"{version['description']!r}; model {version['model_name']}")
         """
 prompts = [e["node"] for e in graphql("{ prompts(first: 100) { edges { node { name createdAt } } } }")["prompts"]["edges"]]
 latest = max(prompts, key=lambda p: p["createdAt"])
-write_answer(f"{latest['name']}, {utc(latest['createdAt'])}")
+write_answer(f"{latest['name']}, {format_utc_timestamp(latest['createdAt'])}")
 """,
     ),
     # --------------------------------------------------- users, models, settings
@@ -2134,11 +2134,11 @@ write_answer(", ".join(sorted(r["name"] for r in graphql("{ userRoles { name } }
         "$4.00 per million input tokens and $20.00 per million output tokens (cache read $0.40, cache write $5.00)",
         "Input and output prices in any consistent unit (per token or per million) are required.",
         """
-(model,) = [m for m in generative_models() if m["name"] == "gpt-5.6-sol"]
+(model,) = [m for m in get_generative_models() if m.name == "gpt-5.6-sol"]
 write_answer(
     "; ".join(
-        f"{p['tokenType']} ({p['kind']}): ${p['costPerMillionTokens']:g} per million"
-        for p in sorted(model["tokenPrices"], key=lambda p: p["tokenType"])
+        f"{p.token_type} ({p.kind.value}): ${p.cost_per_million_tokens:g} per million"
+        for p in sorted(model.token_prices, key=lambda p: p.token_type)
     )
 )
 """,
@@ -2152,10 +2152,10 @@ write_answer(
         "The answer no with both prices is required.",
         """
 prices = {}
-for model in generative_models():
-    if model["name"] in ("gpt-5.6-luna", "gpt-4o-mini"):
-        (price,) = [p for p in model["tokenPrices"] if p["tokenType"] == "input"]
-        prices[model["name"]] = price["costPerMillionTokens"]
+for model in get_generative_models():
+    if model.name in ("gpt-5.6-luna", "gpt-4o-mini"):
+        (price,) = [p for p in model.token_prices if p.token_type == "input"]
+        prices[model.name] = price.cost_per_million_tokens
 cheaper = prices["gpt-5.6-luna"] < prices["gpt-4o-mini"]
 write_answer(
     f"{'yes' if cheaper else 'no'}: gpt-5.6-luna costs ${prices['gpt-5.6-luna']:g} per million input tokens "
@@ -2171,8 +2171,8 @@ write_answer(
         "input, output, and cache_read (no cache_write price)",
         "All three types are required.",
         """
-(model,) = [m for m in generative_models() if m["name"] == "gpt-4o"]
-write_answer(", ".join(sorted(p["tokenType"] for p in model["tokenPrices"])))
+(model,) = [m for m in get_generative_models() if m.name == "gpt-4o"]
+write_answer(", ".join(sorted(p.token_type for p in model.token_prices)))
 """,
     ),
     spec(
@@ -2183,8 +2183,8 @@ write_answer(", ".join(sorted(p["tokenType"] for p in model["tokenPrices"])))
         "all built-in, none user-defined (401 models on this server)",
         "That none of them is custom is what is graded. The count comes from the server's built-in price table and changes with the Phoenix version, so accept any count.",
         """
-models = generative_models()
-kinds = Counter(m["kind"] for m in models)
+models = get_generative_models()
+kinds = Counter(m.kind.value for m in models)
 write_answer(f"{len(models)} models: " + ", ".join(f"{n} {kind}" for kind, n in sorted(kinds.items())))
 """,
     ),
@@ -2196,8 +2196,8 @@ write_answer(f"{len(models)} models: " + ", ".join(f"{n} {kind}" for kind, n in 
         "gpt-5\\.4-2026-03-05",
         "The pattern with the escaped dot is the exact value; accept it with or without the backslash.",
         """
-(model,) = [m for m in generative_models() if m["name"] == "gpt-5.4-2026-03-05"]
-write_answer(model["namePattern"])
+(model,) = [m for m in get_generative_models() if m.name == "gpt-5.4-2026-03-05"]
+write_answer(model.name_pattern)
 """,
     ),
     spec(
@@ -2315,7 +2315,7 @@ write_answer("none" if not providers else ", ".join(p.get("name", str(p)) for p 
         "none; no dataset labels exist",
         "",
         """
-labels = rest(f"/datasets/{dataset_id('save_prompt')}/labels")["data"]
+labels = rest(f"/datasets/{get_dataset_id_from_name('save_prompt')}/labels")["data"]
 write_answer("none" if not labels else ", ".join(label["name"] for label in labels))
 """,
     ),

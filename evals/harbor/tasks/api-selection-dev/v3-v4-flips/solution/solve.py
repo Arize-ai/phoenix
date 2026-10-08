@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Per-example score changes between two experiments"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select r3.dataset_example_id as example, a3.score as before, a4.score as after
 from experiments x3 join experiment_runs r3 on r3.experiment_id = x3.id
 join experiment_run_annotations a3 on a3.experiment_run_id = r3.id and a3.name = 'safe_sql_exact_match'

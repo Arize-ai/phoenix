@@ -5,24 +5,24 @@ import json  # noqa: F401
 from collections import Counter  # noqa: F401
 
 from harbor_verifiers.phoenix_api import (  # noqa: F401
-    attribute,
-    dataset_id,
-    experiment_by_name,
-    experiment_runs,
-    generative_models,
+    format_utc_timestamp,
+    get_dataset_id_from_name,
+    get_experiment_by_name,
+    get_experiment_runs,
+    get_generative_models,
+    get_nested_attribute,
     graphql,
     rest,
     rest_pages,
     rowid,
-    utc,
     write_answer,
 )
 
 prices = {}
-for model in generative_models():
-    if model["name"] in ("gpt-5.6-luna", "gpt-4o-mini"):
-        (price,) = [p for p in model["tokenPrices"] if p["tokenType"] == "input"]
-        prices[model["name"]] = price["costPerMillionTokens"]
+for model in get_generative_models():
+    if model.name in ("gpt-5.6-luna", "gpt-4o-mini"):
+        (price,) = [p for p in model.token_prices if p.token_type == "input"]
+        prices[model.name] = price.cost_per_million_tokens
 cheaper = prices["gpt-5.6-luna"] < prices["gpt-4o-mini"]
 write_answer(
     f"{'yes' if cheaper else 'no'}: gpt-5.6-luna costs ${prices['gpt-5.6-luna']:g} per million input tokens "

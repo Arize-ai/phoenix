@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Disagreement between two evaluators"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select a.label as original, b.label as fixed, count(*) as n
 from experiment_run_annotations a join experiment_run_annotations b on b.experiment_run_id = a.experiment_run_id
 where a.name = 'refusal_detection' and b.name = 'refusal_detection_fixed' and a.score <> b.score

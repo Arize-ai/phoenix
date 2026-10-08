@@ -5,16 +5,16 @@ import json  # noqa: F401
 from collections import Counter  # noqa: F401
 
 from harbor_verifiers.phoenix_api import (  # noqa: F401
-    attribute,
-    dataset_id,
-    experiment_by_name,
-    experiment_runs,
-    generative_models,
+    format_utc_timestamp,
+    get_dataset_id_from_name,
+    get_experiment_by_name,
+    get_experiment_runs,
+    get_generative_models,
+    get_nested_attribute,
     graphql,
     rest,
     rest_pages,
     rowid,
-    utc,
     write_answer,
 )
 
@@ -26,7 +26,7 @@ spans = [
     )["getTraceByOtelId"]["spans"]["edges"]
 ]
 errors = [s for s in spans if s["statusCode"] == "ERROR"]
-models = sorted({attribute(s["attributes"], "llm.model_name") for s in spans} - {None})
+models = sorted({get_nested_attribute(s["attributes"], "llm.model_name") for s in spans} - {None})
 write_answer(
     f"status message {errors[0]['statusMessage']!r} on {', '.join(s['name'] for s in errors)}; "
     f"model {', '.join(models)}"

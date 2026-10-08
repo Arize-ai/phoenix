@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Session with the best prompt cache hit ratio"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-row = execute_sql("""
+row = execute_sql_query("""
 select ps.session_id,
        round(1.0 * sum(json_extract(s.attributes, '$.llm.token_count.prompt_details.cache_read'))
              / sum(s.llm_token_count_prompt), 3) as ratio

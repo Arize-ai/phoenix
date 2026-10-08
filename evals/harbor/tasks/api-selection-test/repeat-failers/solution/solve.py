@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Examples that fail repeatedly across experiments"""
 
-from harbor_verifiers.phoenix_api import execute_sql, write_answer
+from harbor_verifiers.phoenix_api import execute_sql_query, write_answer
 
-rows = execute_sql("""
+rows = execute_sql_query("""
 select r.dataset_example_id as example, sum(case when a.score = 0 then 1 else 0 end) as failures
 from experiments x join experiment_runs r on r.experiment_id = x.id
 join experiment_run_annotations a on a.experiment_run_id = r.id and a.name = 'safe_sql_exact_match'
