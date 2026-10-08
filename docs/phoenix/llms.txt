@@ -406,7 +406,7 @@
 - [OpenAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openai): Pick an OpenAI tracing or evals path across Python, Node.js, Go, and Agents SDK
 - [OpenRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): Trace calls routed through OpenRouter's unified multi-model API
 - [OrcaRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): Trace calls through OrcaRouter's OpenAI-compatible gateway to 200+ models
-- [Cloudflare AI Gateway Integration](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway): Overview of sending Cloudflare AI Gateway traces to Phoenix
+- [Cloudflare AI Gateway Integration](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway): Send Cloudflare AI Gateway traces to Phoenix
 - [Together AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/together): Trace Together AI's fast open-source model inference calls in Phoenix
 - [TypeSafe AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe): Pick a TypeSafe AI tracing path for Python or TypeScript
 - [VertexAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai): Trace and evaluate Google Cloud Vertex AI model calls in Phoenix
@@ -855,6 +855,7 @@
 - [09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates): File GitHub issues from PXI, screen conversations for PII, and create prompt versions over REST
 - [09.08.2026: New Model Providers, Trace Filters, and PXI Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi): Run Z.ai, MiniMax, and Meta models in the Playground and PXI; filter traces by error status and latency
 - [09.14.2026: Coding Agent Plugins and Error Analysis](https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis): Install Phoenix as a Claude Code, Cursor, or Codex plugin; run error analysis over MCP; score completeness
+- [09.29.2026: Editable Dataset Examples, Trace Metrics, and Custom Skills](https://arize.com/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics): Edit dataset examples in the table, see latency and cost per trace row, and mount custom skills into MCP and PXI
 
 ### 2025
 
