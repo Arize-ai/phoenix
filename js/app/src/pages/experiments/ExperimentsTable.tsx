@@ -137,6 +137,14 @@ const PER_RUN_DELTA_NOTE = "Compared per run: total divided by run count";
 /** The width of the bar that places a mean score between the column's min and max */
 const ANNOTATION_BAR_WIDTH = "40px";
 
+/**
+ * The narrowest annotation column that fits the bar beside the score, and
+ * beside the score and its delta when a baseline is set. Below these the bar
+ * is dropped so it does not overlap the digits.
+ */
+const ANNOTATION_BAR_MIN_COLUMN_WIDTH = 140;
+const ANNOTATION_BAR_WITH_DELTA_MIN_COLUMN_WIDTH = 200;
+
 const annotationBarSlotCSS = css`
   display: inline-block;
   width: ${ANNOTATION_BAR_WIDTH};
@@ -589,13 +597,20 @@ export function ExperimentsTable({
         ),
         id: `${ANNOTATION_COLUMN_PREFIX}${annotationName}`,
         meta: { textAlign: "right" },
-        cell: ({ row }) => {
+        cell: ({ row, column }) => {
+          const isBarShown =
+            column.getSize() >=
+            (hasDeltaSlot
+              ? ANNOTATION_BAR_WITH_DELTA_MIN_COLUMN_WIDTH
+              : ANNOTATION_BAR_MIN_COLUMN_WIDTH);
           const annotation = row.original.annotationSummaryMap[annotationName];
           if (!annotation || annotation.meanScore == null) {
             return (
               <ExperimentMetricCell
                 value="--"
-                bar={<span css={annotationBarSlotCSS} />}
+                bar={
+                  isBarShown ? <span css={annotationBarSlotCSS} /> : undefined
+                }
                 hasDeltaSlot={hasDeltaSlot}
               />
             );
@@ -617,6 +632,7 @@ export function ExperimentsTable({
               }
               config={annotationConfigByName[annotationName]}
               hasDeltaSlot={hasDeltaSlot}
+              isBarShown={isBarShown}
             />
           );
         },
@@ -1170,6 +1186,7 @@ function AnnotationAggregationCell({
   baselineMeanScore,
   config,
   hasDeltaSlot = false,
+  isBarShown = true,
 }: {
   annotationName: string;
   value: number;
@@ -1186,6 +1203,8 @@ function AnnotationAggregationCell({
   config?: AnnotationConfig;
   /** Keeps the delta slot open on rows without a delta, such as the baseline */
   hasDeltaSlot?: boolean;
+  /** Whether the column is wide enough for the percentile bar */
+  isBarShown?: boolean;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(
@@ -1255,14 +1274,16 @@ function AnnotationAggregationCell({
         </TooltipTrigger>
       }
       bar={
-        <ProgressBar
-          css={css`
-            --mod-barloader-fill-color: ${color};
-          `}
-          width={ANNOTATION_BAR_WIDTH}
-          value={percentile}
-          aria-label="where the mean score lands between overall min max"
-        />
+        isBarShown ? (
+          <ProgressBar
+            css={css`
+              --mod-barloader-fill-color: ${color};
+            `}
+            width={ANNOTATION_BAR_WIDTH}
+            value={percentile}
+            aria-label="where the mean score lands between overall min max"
+          />
+        ) : undefined
       }
       delta={
         baselineMeanScore !== undefined ? (
