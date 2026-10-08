@@ -533,25 +533,20 @@ function toIndexResult({
       path: toMappingPath(typedName),
     });
     if (typed.status === "resolved") {
-      rows.push({
-        name: typedName,
-        description: `[${Number(typedIndex)}]`,
-        value: typed.value,
-      });
+      rows.push({ name: typedName, description: "", value: typed.value });
     }
   }
   const section = toMemberSection(listName, TEMPLATE_MEMBER_SECTION_RANK);
   const options = rows.map(({ name, description, value }, order) => {
-    const detail = toMemberDetail({
+    const preview = toMemberDetail({
       member: { key: name, path: name, value, isIndex: true },
       evaluationContext,
     });
     return {
       label: name,
-      displayLabel: description,
-      type: IDEA_COMPLETION_TYPE,
-      ...(detail ? { detail } : {}),
-      info: name,
+      type: description ? IDEA_COMPLETION_TYPE : toMemberCompletionType(value),
+      ...(description || preview ? { detail: description || preview } : {}),
+      ...(description && preview ? { info: preview } : {}),
       section,
       boost: 99 - order,
       apply: applyTemplateInsertion(name, closingBrackets),

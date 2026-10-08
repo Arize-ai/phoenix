@@ -441,18 +441,21 @@ describe("getEvaluatorTemplateCompletions", () => {
         doc,
         recordKind: "session",
         templateFormat: TemplateFormats.FString,
-      })?.options.map(({ label, displayLabel }) => ({
-        label,
-        displayLabel,
-      })) ?? null;
+      })?.options.map(({ label, detail, info }) => ({ label, detail, info })) ??
+      null;
     const positions = [
       {
         label: "metadata.turns[-1].input",
-        displayLabel: "Last user message",
+        detail: "Last user message",
+        info: "Hello",
       },
-      { label: "metadata.turns[-1].output", displayLabel: "Last response" },
-      { label: "metadata.turns[0]", displayLabel: "First turn" },
-      { label: "metadata.turns[-1]", displayLabel: "Last turn" },
+      {
+        label: "metadata.turns[-1].output",
+        detail: "Last response",
+        info: "Because.",
+      },
+      { label: "metadata.turns[0]", detail: "First turn", info: "object · 2" },
+      { label: "metadata.turns[-1]", detail: "Last turn", info: "object · 2" },
     ];
 
     expect(rowsAt("{metadata.turns.")).toEqual(positions);
