@@ -5,6 +5,7 @@ import {
 } from "@phoenix/constants/timeConstants";
 
 import {
+  errorRateFormatter,
   formatFloat,
   formatInt,
   formatCostPrecise,
@@ -80,5 +81,13 @@ describe("formatCostPrecise", () => {
     // Rounds up to a dollar and is shown like a dollar is
     expect(formatCostPrecise(0.99996)).toEqual("$1.00");
     expect(formatCostPrecise(27.09)).toEqual("$27.09");
+  });
+});
+
+describe("errorRateFormatter", () => {
+  it("formats a fraction as a percentage and tolerates missing values", () => {
+    expect(errorRateFormatter(0.125)).toEqual("12.50%");
+    expect(errorRateFormatter(0)).toEqual("0.00%");
+    expect(errorRateFormatter(null)).toEqual("--");
   });
 });

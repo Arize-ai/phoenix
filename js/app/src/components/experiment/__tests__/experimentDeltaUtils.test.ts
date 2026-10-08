@@ -1,18 +1,23 @@
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import type { ExperimentRunMetricsSource } from "../experimentDeltaUtils";
 import {
   computeLabelDelta,
   computeMeanPerRun,
   computeMetricDelta,
+  computeOperationalMetricDelta,
   DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
   describeLabelDelta,
   describeMetricDelta,
+  EXPERIMENT_RUN_METRICS,
   formatLabelDelta,
   formatMetricDelta,
   formatRelativeDelta,
   formatSignedMetricDelta,
+  formatZeroDelta,
   getDeltaState,
+  getExperimentRunMetricValue,
 } from "../experimentDeltaUtils";
 
 const statusConfig: AnnotationConfig = {
@@ -271,6 +276,99 @@ describe("computeMeanPerRun", () => {
   });
 });
 
+describe("getExperimentRunMetricValue", () => {
+  const experiment: ExperimentRunMetricsSource = {
+    runCount: 4,
+    averageRunLatencyMs: 1_500,
+    errorRate: 0.25,
+    costSummary: { total: { cost: 2, tokens: 1_000 } },
+  };
+
+  it("reads latency and error rate as they are", () => {
+    expect(getExperimentRunMetricValue({ experiment, metric: "latency" })).toBe(
+      1_500
+    );
+    expect(
+      getExperimentRunMetricValue({ experiment, metric: "errorRate" })
+    ).toBe(0.25);
+  });
+
+  it("divides token and cost totals by the run count", () => {
+    expect(getExperimentRunMetricValue({ experiment, metric: "tokens" })).toBe(
+      250
+    );
+    expect(getExperimentRunMetricValue({ experiment, metric: "cost" })).toBe(
+      0.5
+    );
+  });
+
+  it("is null without runs, totals or an error rate", () => {
+    const empty: ExperimentRunMetricsSource = {
+      runCount: 0,
+      averageRunLatencyMs: null,
+      costSummary: { total: { cost: null, tokens: null } },
+    };
+    expect(
+      getExperimentRunMetricValue({ experiment: empty, metric: "tokens" })
+    ).toBeNull();
+    expect(
+      getExperimentRunMetricValue({ experiment: empty, metric: "cost" })
+    ).toBeNull();
+    expect(
+      getExperimentRunMetricValue({ experiment: empty, metric: "errorRate" })
+    ).toBeNull();
+    expect(
+      getExperimentRunMetricValue({
+        experiment: { ...experiment, runCount: 0 },
+        metric: "cost",
+      })
+    ).toBeNull();
+  });
+
+  it("compares totals per run so a different run count is no change", () => {
+    const halfTheRuns: ExperimentRunMetricsSource = {
+      ...experiment,
+      runCount: 2,
+      costSummary: { total: { cost: 1, tokens: 500 } },
+    };
+    expect(
+      computeOperationalMetricDelta({
+        base: getExperimentRunMetricValue({ experiment, metric: "cost" }),
+        compare: getExperimentRunMetricValue({
+          experiment: halfTheRuns,
+          metric: "cost",
+        }),
+      })
+    ).toEqual({ kind: "unchanged" });
+  });
+
+  it("shows an error rate rising from zero in percentage points", () => {
+    const delta = computeOperationalMetricDelta({
+      base: getExperimentRunMetricValue({
+        experiment: { ...experiment, errorRate: 0 },
+        metric: "errorRate",
+      }),
+      compare: getExperimentRunMetricValue({
+        experiment: { ...experiment, errorRate: 0.04 },
+        metric: "errorRate",
+      }),
+    });
+    expect(delta).toMatchObject({
+      kind: "changed",
+      sign: "up",
+      direction: "regressed",
+      relative: null,
+    });
+    expect(
+      formatMetricDelta({
+        delta,
+        display: EXPERIMENT_RUN_METRICS.errorRate.display,
+        formatter: EXPERIMENT_RUN_METRICS.errorRate.formatter,
+      })
+    ).toBe("4.00%");
+  });
+});
+
 describe("formatRelativeDelta", () => {
   it("formats an unsigned percentage, with a decimal only under 10%", () => {
     expect(formatRelativeDelta(-0.364)).toBe("36%");
@@ -325,6 +423,16 @@ describe("formatMetricDelta", () => {
     expect(
       formatMetricDelta({ delta: { kind: "undefined" }, display: "relative" })
     ).toBe("--");
+  });
+});
+
+describe("formatZeroDelta", () => {
+  it("formats zero in the column's display", () => {
+    expect(formatZeroDelta({ display: "relative" })).toBe("0%");
+    expect(
+      formatZeroDelta({ display: "absolute", formatter: costFormatter })
+    ).toBe("$0");
+    expect(formatZeroDelta({ display: "absolute" })).toBe("0");
   });
 });
 
