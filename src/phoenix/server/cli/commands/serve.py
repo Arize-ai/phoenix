@@ -158,7 +158,7 @@ def _add_server_args(parser: ArgumentParser) -> None:
 
 
 def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
-    serve_parser = subparsers.add_parser("serve")
+    serve_parser = subparsers.add_parser("serve", help="Start the Phoenix server.")
     serve_parser.set_defaults(func=run)
     _add_server_args(serve_parser)
     serve_parser.add_argument(
@@ -202,6 +202,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
         ),
     )
 
+    # No `help=`, so argparse leaves this internal command out of `phoenix --help`.
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.set_defaults(func=run)
     _add_server_args(trace_fixture_parser)
