@@ -157,7 +157,14 @@ async def test_default_admin_reset_rejects_public_password(
         )
         assert still_blocked.status_code == 403
         _assert_no_auth_cookies(still_blocked)
-        token = still_blocked.json()["password_reset_token"]
+        first_token, token = token, still_blocked.json()["password_reset_token"]
+
+        # Issuing a new reset token revokes the previous one.
+        revoked = await client.post(
+            "/auth/password-reset",
+            json={"token": first_token, "password": _NEW_PASSWORD},
+        )
+        assert revoked.status_code == 401
 
         reset = await client.post(
             "/auth/password-reset",
