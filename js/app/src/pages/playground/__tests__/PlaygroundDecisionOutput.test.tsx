@@ -123,7 +123,7 @@ describe("decision execution", () => {
     expect(
       container.querySelector('[data-testid="answer-department"]')?.textContent
     ).toBe("billing");
-    expect(container.textContent).toContain("0 output");
+    expect(container.textContent).toContain("0 out");
   });
 
   it("surfaces provider errors inline and retains the trace", async () => {

@@ -103,6 +103,10 @@ export function createScoreLevel(description = ""): DecisionScoreLevelDraft {
   return { id: generateDecisionDraftId(), description };
 }
 
+/**
+ * A new question seeded with a valid, editable starting point, so switching
+ * type never opens on a validation error; the user replaces the seeds.
+ */
 export function createDecisionQuestion(
   type: DecisionQuestionType = "noul",
   overrides: Partial<Omit<DecisionQuestionDraft, "id" | "type">> = {}
@@ -113,8 +117,13 @@ export function createDecisionQuestion(
     name: "",
     instructions: "",
     choices:
-      type === "choice" ? [createChoiceOption(), createChoiceOption()] : [],
-    levels: type === "score" ? [createScoreLevel(), createScoreLevel()] : [],
+      type === "choice"
+        ? [createChoiceOption("yes"), createChoiceOption("no")]
+        : [],
+    levels:
+      type === "score"
+        ? [createScoreLevel("Low"), createScoreLevel("High")]
+        : [],
     noul: { trueDescription: "", falseDescription: "" },
     ...overrides,
   };

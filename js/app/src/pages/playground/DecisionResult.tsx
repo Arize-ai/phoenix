@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { CSSProperties } from "react";
 import { useMemo } from "react";
 
 import {
@@ -6,6 +7,7 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
+  ProgressBar,
   Text,
   View,
 } from "@phoenix/components";
@@ -17,24 +19,6 @@ import {
   normalizeDecisionResult,
 } from "./decisionUtils";
 
-const barTrackCSS = css`
-  position: relative;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--global-color-primary-100);
-  overflow: hidden;
-`;
-
-const barFillCSS = css`
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 3px;
-  background: var(--global-color-primary-500);
-  &[data-chosen="true"] {
-    background: var(--global-color-primary-900);
-  }
-`;
-
 const distributionCSS = css`
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 3.5em;
@@ -44,32 +28,82 @@ const distributionCSS = css`
   font-variant-numeric: tabular-nums;
 `;
 
-function percent(value: number | null): string {
+const wrapAnywhereCSS = css`
+  overflow-wrap: anywhere;
+`;
+
+const alignEndCSS = css`
+  text-align: right;
+`;
+
+export function formatPercent(value: number | null): string {
   return value == null ? "–" : `${Math.round(value * 100)}%`;
 }
 
+/**
+ * A probability drawn with the design system's bar. The chosen row keeps
+ * the primary fill; the rest step back to gray so the eye finds the answer.
+ */
 function ProbabilityBar({
   value,
+  label,
   chosen = false,
 }: {
   value: number | null;
+  label: string;
   chosen?: boolean;
 }) {
-  const width = value == null ? 0 : Math.max(0, Math.min(1, value)) * 100;
+  const percentage = value == null ? 0 : Math.max(0, Math.min(1, value)) * 100;
   return (
     <div
-      css={barTrackCSS}
-      role="meter"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(width)}
+      style={
+        chosen
+          ? undefined
+          : ({
+              "--mod-barloader-fill-color": "var(--global-color-gray-500)",
+            } as CSSProperties)
+      }
     >
-      <div
-        css={barFillCSS}
-        data-chosen={chosen}
-        style={{ width: `${width}%` }}
-      />
+      <ProgressBar aria-label={label} value={percentage} width="100%" />
     </div>
+  );
+}
+
+function DistributionRow({
+  label,
+  index,
+  value,
+  chosen,
+  barLabel,
+}: {
+  label: string;
+  index?: number;
+  value: number | null;
+  chosen: boolean;
+  barLabel: string;
+}) {
+  return (
+    <>
+      <Flex direction="row" gap="size-75" alignItems="baseline" minWidth={0}>
+        {index != null ? (
+          <Text size="XS" color="text-700" fontFamily="mono">
+            {index}
+          </Text>
+        ) : null}
+        <Text
+          size="S"
+          weight={chosen ? "heavy" : "normal"}
+          color={chosen ? "text-900" : "text-700"}
+          css={wrapAnywhereCSS}
+        >
+          {label}
+        </Text>
+      </Flex>
+      <ProbabilityBar value={value} label={barLabel} chosen={chosen} />
+      <Text size="S" color={chosen ? "text-900" : "text-700"} css={alignEndCSS}>
+        {formatPercent(value)}
+      </Text>
+    </>
   );
 }
 
@@ -85,136 +119,67 @@ export function DecisionAnswerView({
 }) {
   switch (answer.kind) {
     case "choice":
+      if (answer.probabilities.length === 0) {
+        return (
+          <Text size="S" weight="heavy">
+            {answer.choice ?? "–"}
+          </Text>
+        );
+      }
       return (
         <div css={distributionCSS} aria-label={`${answer.name} probabilities`}>
-          {answer.probabilities.map((p) => {
-            const chosen = p.value === answer.choice;
-            return (
-              <Flex
-                key={p.value}
-                direction="row"
-                gap="size-100"
-                alignItems="center"
-                css={css`
-                  display: contents;
-                `}
-              >
-                <Text
-                  size="S"
-                  weight={chosen ? "heavy" : "normal"}
-                  color={chosen ? "text-900" : "text-700"}
-                  css={css`
-                    overflow-wrap: anywhere;
-                  `}
-                >
-                  {p.value}
-                </Text>
-                <ProbabilityBar value={p.probability} chosen={chosen} />
-                <Text
-                  size="S"
-                  color={chosen ? "text-900" : "text-700"}
-                  css={css`
-                    text-align: right;
-                  `}
-                >
-                  {percent(p.probability)}
-                </Text>
-              </Flex>
-            );
-          })}
-          {answer.probabilities.length === 0 && answer.choice != null ? (
-            <Text
-              size="S"
-              weight="heavy"
-              css={css`
-                grid-column: 1 / -1;
-              `}
-            >
-              {answer.choice}
-            </Text>
-          ) : null}
+          {answer.probabilities.map((p) => (
+            <DistributionRow
+              key={p.value}
+              label={p.value}
+              value={p.probability}
+              chosen={p.value === answer.choice}
+              barLabel={`${p.value} probability`}
+            />
+          ))}
         </div>
       );
     case "score": {
       const nearest =
         answer.score == null
           ? null
-          : answer.levels.reduce<{ index: number; label: string } | null>(
-              (best, level) =>
-                best == null ||
-                Math.abs(level.index - answer.score!) <
-                  Math.abs(best.index - answer.score!)
-                  ? level
-                  : best,
-              null
-            );
+          : answer.levels.reduce<number | null>((best, level) => {
+              if (best == null) return level.index;
+              return Math.abs(level.index - (answer.score as number)) <
+                Math.abs(best - (answer.score as number))
+                ? level.index
+                : best;
+            }, null);
       return (
         <div css={distributionCSS} aria-label={`${answer.name} score levels`}>
-          {answer.levels.map((level) => {
-            const chosen = nearest?.index === level.index;
-            return (
-              <Flex
-                key={level.index}
-                direction="row"
-                css={css`
-                  display: contents;
-                `}
-              >
-                <Text
-                  size="S"
-                  weight={chosen ? "heavy" : "normal"}
-                  color={chosen ? "text-900" : "text-700"}
-                  css={css`
-                    overflow-wrap: anywhere;
-                  `}
-                >
-                  <Text
-                    size="XS"
-                    color="text-700"
-                    css={css`
-                      font-family: var(--global-font-family-mono);
-                      margin-right: 0.5em;
-                    `}
-                  >
-                    {level.index}
-                  </Text>
-                  {level.label}
-                </Text>
-                <ProbabilityBar value={level.probability} chosen={chosen} />
-                <Text
-                  size="S"
-                  color={chosen ? "text-900" : "text-700"}
-                  css={css`
-                    text-align: right;
-                  `}
-                >
-                  {percent(level.probability)}
-                </Text>
-              </Flex>
-            );
-          })}
+          {answer.levels.map((level) => (
+            <DistributionRow
+              key={level.index}
+              index={level.index}
+              label={level.label}
+              value={level.probability}
+              chosen={nearest === level.index}
+              barLabel={`${level.label} probability`}
+            />
+          ))}
         </div>
       );
     }
     case "noul":
       return (
         <div css={distributionCSS} aria-label={`${answer.name} probability`}>
-          <Text size="S" weight="heavy">
-            {answer.probability == null
-              ? "–"
-              : answer.probability >= 0.5
-                ? "True"
-                : "False"}
-          </Text>
-          <ProbabilityBar value={answer.probability} chosen />
-          <Text
-            size="S"
-            css={css`
-              text-align: right;
-            `}
-          >
-            {percent(answer.probability)}
-          </Text>
+          <DistributionRow
+            label={
+              answer.probability == null
+                ? "–"
+                : answer.probability >= 0.5
+                  ? "True"
+                  : "False"
+            }
+            value={answer.probability}
+            chosen
+            barLabel={`${answer.name} probability of true`}
+          />
         </div>
       );
     case "refusal":
@@ -232,25 +197,45 @@ export function DecisionAnswerView({
   }
 }
 
-function answerHeadline(answer: NormalizedDecisionAnswer): string {
+/**
+ * The short value to show beside a question name. Choice and score answers
+ * already carry their value in the emphasized distribution row, so only
+ * noul, refusal, and scores (a number the bars cannot show) get a headline.
+ */
+export function answerHeadline(
+  answer: NormalizedDecisionAnswer | undefined
+): string | null {
+  if (!answer) return null;
   switch (answer.kind) {
-    case "choice":
-      return answer.choice ?? "–";
     case "score":
-      return answer.score == null ? "–" : answer.score.toFixed(2);
+      return answer.score == null ? null : answer.score.toFixed(2);
     case "noul":
-      return percent(answer.probability);
+      return formatPercent(answer.probability);
     case "refusal":
       return "Refused";
     default:
-      return "–";
+      return null;
   }
 }
 
-function confidenceOf(answer: NormalizedDecisionAnswer): number | null {
-  return answer.kind === "choice" || answer.kind === "score"
+export function answerConfidence(
+  answer: NormalizedDecisionAnswer | undefined
+): number | null {
+  return answer && (answer.kind === "choice" || answer.kind === "score")
     ? answer.confidence
     : null;
+}
+
+export function formatUsage(
+  model: string | null,
+  usage: { input: number | null; output: number | null }
+): string {
+  const parts = [
+    model,
+    usage.input != null ? `${usage.input} in` : null,
+    usage.output != null ? `${usage.output} out` : null,
+  ].filter((part): part is string => part != null);
+  return parts.length ? parts.join(" · ") : "usage unavailable";
 }
 
 /** Full result for one instance: every answer, usage, and the raw body. */
@@ -277,12 +262,13 @@ export function DecisionResult({
           padding: 0;
           display: flex;
           flex-direction: column;
-          gap: var(--global-dimension-size-150);
+          gap: var(--global-dimension-size-200);
         `}
         aria-label="Decision answers"
       >
         {result.answers.map((answer) => {
-          const confidence = confidenceOf(answer);
+          const confidence = answerConfidence(answer);
+          const headline = answerHeadline(answer);
           return (
             <li key={answer.name}>
               <Flex direction="column" gap="size-75">
@@ -292,23 +278,27 @@ export function DecisionResult({
                   alignItems="baseline"
                   gap="size-100"
                 >
-                  <Text
-                    weight="heavy"
-                    css={css`
-                      overflow-wrap: anywhere;
-                    `}
-                  >
+                  <Text weight="heavy" css={wrapAnywhereCSS}>
                     {answer.name}
                   </Text>
                   <Flex direction="row" gap="size-100" alignItems="baseline">
                     {confidence != null ? (
                       <Text size="XS" color="text-700">
-                        confidence {percent(confidence)}
+                        confidence {formatPercent(confidence)}
                       </Text>
                     ) : null}
-                    <Text weight="heavy" data-testid={`answer-${answer.name}`}>
-                      {answerHeadline(answer)}
-                    </Text>
+                    {headline != null ? (
+                      <Text
+                        weight="heavy"
+                        data-testid={`answer-${answer.name}`}
+                      >
+                        {headline}
+                      </Text>
+                    ) : (
+                      <span data-testid={`answer-${answer.name}`} hidden>
+                        {answer.kind === "choice" ? answer.choice : ""}
+                      </span>
+                    )}
                   </Flex>
                 </Flex>
                 <DecisionAnswerView answer={answer} />
@@ -324,15 +314,7 @@ export function DecisionResult({
           font-variant-numeric: tabular-nums;
         `}
       >
-        {result.model ? `${result.model} · ` : ""}
-        {result.usage.input != null
-          ? `${result.usage.input} input`
-          : "input tokens unknown"}
-        {" · "}
-        {result.usage.output != null
-          ? `${result.usage.output} output`
-          : "output tokens unknown"}
-        {" tokens"}
+        {formatUsage(result.model, result.usage)}
       </Text>
       <Disclosure id="raw-response" size="S">
         <DisclosureTrigger>Raw response</DisclosureTrigger>
