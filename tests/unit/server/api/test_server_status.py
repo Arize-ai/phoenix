@@ -17,6 +17,7 @@ from phoenix.server.types import (
     RefreshTokenId,
     UserId,
 )
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 def _user(role: UserRoleName) -> PhoenixUser:
@@ -82,3 +83,12 @@ async def test_database_encryption_key_is_public_follows_admin_access(
     )
     status = await cast(Awaitable[ServerStatus], Query().server_status(info))
     assert status.database_encryption_key_is_public is expected
+
+
+async def test_database_encryption_key_is_public_without_secret(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    # The unit app has no PHOENIX_SECRET, so create_app must flag the key as public.
+    result = await gql_client.execute(query="{ serverStatus { databaseEncryptionKeyIsPublic } }")
+    assert not result.errors
+    assert result.data == {"serverStatus": {"databaseEncryptionKeyIsPublic": True}}
