@@ -109,7 +109,7 @@ describe("decision execution", () => {
         {
           createDecision: {
             result: {
-              answers: { department: { choice: "billing" } },
+              answers: { department: { type: "choice", choice: "billing" } },
               usage: { output_tokens: 0 },
             },
             error: null,
@@ -120,8 +120,10 @@ describe("decision execution", () => {
       )
     );
     expect(store.getState().instances[0].activeRunId).toBeNull();
-    expect(container.textContent).toContain('"billing"');
-    expect(container.textContent).toContain('"output_tokens": 0');
+    expect(
+      container.querySelector('[data-testid="answer-department"]')?.textContent
+    ).toBe("billing");
+    expect(container.textContent).toContain("0 output");
   });
 
   it("surfaces provider errors inline and retains the trace", async () => {

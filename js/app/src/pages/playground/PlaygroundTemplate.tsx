@@ -26,7 +26,6 @@ import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChat
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
-import { PlaygroundDecisionTemplate } from "./PlaygroundDecisionTemplate";
 import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
@@ -161,20 +160,18 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               playgroundInstanceId={instanceId}
               supportsDecisionModels={props.supportsDecisionModels}
             />
-            {!isDecision ? (
-              <ModelParametersConfigButton
-                playgroundInstanceId={instanceId}
-                disableEphemeralRouting={props.disableEphemeralRouting}
-              />
-            ) : null}
+            <ModelParametersConfigButton
+              playgroundInstanceId={instanceId}
+              disableEphemeralRouting={props.disableEphemeralRouting}
+            />
           </CompositeField>
           {instances.length > 1 ? <DeleteButton {...props} /> : null}
         </Flex>
       </Flex>
-      <View paddingY="size-100">
-        {isDecision ? (
-          <PlaygroundDecisionTemplate {...props} />
-        ) : instance.template.__type === "chat" ? (
+      {/* Decision instances share one request editor rendered by the page
+          below the instance headers, so the column body is empty. */}
+      <View paddingY="size-100" isHidden={isDecision}>
+        {instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />
           </Suspense>

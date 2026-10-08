@@ -213,7 +213,6 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
       provider: initialProps.defaultModelProvider ?? DEFAULT_MODEL_PROVIDER,
       modelName: initialProps.defaultModelName ?? null,
     };
-    instance.decision = createDecisionDraft();
     return { instances: [instance], instanceMessages };
   }
 
@@ -287,6 +286,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       variablesValueCache: {},
     },
     templateFormat: TemplateFormats.Mustache,
+    // The decision request is shared by every decision instance. It exists
+    // from the start when the playground opens in decision mode and is
+    // created on first use otherwise.
+    decisionRequest:
+      props.decisionRequest ??
+      (props.defaultModelType === "DECISION" ? createDecisionDraft() : null),
+    setDecisionRequest: (decisionRequest) => {
+      set({ decisionRequest }, false, { type: "setDecisionRequest" });
+    },
     ...props,
     instances,
     allInstanceMessages: instanceMessages,

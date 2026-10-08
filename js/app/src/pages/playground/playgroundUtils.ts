@@ -56,6 +56,7 @@ import {
   generateMessageId,
   generateToolId,
 } from "@phoenix/store/playground";
+import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   formatContentAsString,
@@ -84,6 +85,7 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
+import { extractDecisionVariables } from "./decisionUtils";
 import {
   getVisibleInvocationParameterSpecs,
   getDefaultInvocationConfig,
@@ -1339,18 +1341,33 @@ export const getVariablesMapFromInstances = ({
   instances,
   templateFormat,
   input,
+  decisionRequest,
 }: {
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
+  /** The shared decision request; its text fields may reference variables too. */
+  decisionRequest?: DecisionRequestDraft | null;
 }) => {
   if (templateFormat === TemplateFormats.NONE) {
     return { variablesMap: {}, variableKeys: [] };
   }
-  const variableKeys = extractVariablesFromInstances({
-    instances,
-    templateFormat,
-  });
+  const hasDecisionInstance = instances.some(
+    (instance) => instance.model.modelType === "DECISION"
+  );
+  const variableKeys = Array.from(
+    new Set([
+      ...extractVariablesFromInstances({
+        instances: instances.filter(
+          (instance) => instance.model.modelType !== "DECISION"
+        ),
+        templateFormat,
+      }),
+      ...(hasDecisionInstance
+        ? extractDecisionVariables(decisionRequest, templateFormat)
+        : []),
+    ])
+  );
 
   const variableValueCache = input.variablesValueCache ?? {};
 
