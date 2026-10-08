@@ -4,7 +4,7 @@ import parity from "./evaluatorPathParity.json";
 type ParityCase = {
   context: string;
   path: string;
-  outcome: "value" | "unresolved" | "unverifiable";
+  outcome: "value" | "unresolved" | "invalid";
   value?: unknown;
 };
 

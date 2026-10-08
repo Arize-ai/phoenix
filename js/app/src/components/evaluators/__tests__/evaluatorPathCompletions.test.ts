@@ -128,6 +128,12 @@ describe("appendPathSegment", () => {
     expect(path).toBe("metadata.turns[0]");
     expect(parsePathSegments(path)).toEqual(["metadata", "turns", "0"]);
   });
+
+  it("quotes a key the server's parser reserves", () => {
+    expect(appendPathSegment("metadata", "where", false)).toBe(
+      "metadata['where']"
+    );
+  });
 });
 
 describe("getEvaluatorPathCursor", () => {
@@ -524,14 +530,20 @@ describe("resolveEvaluatorPath", () => {
     ).toBe("unresolved");
   });
 
-  it("holds back on paths nothing here can check", () => {
+  it("holds back on a path until a record is sampled", () => {
     expect(resolveEvaluatorPath({ source: {}, path: "metadata.nope" })).toEqual(
       { status: "unverifiable" }
     );
-    // Syntax only the server resolves
-    expect(
-      resolveEvaluatorPath({ source: SPAN_SOURCE, path: 'metadata["events"]' })
-    ).toEqual({ status: "unverifiable" });
+  });
+
+  it("blames the text where a path the server rejects goes wrong", () => {
+    const path = "metadata.events.0";
+
+    expect(resolveEvaluatorPath({ source: SPAN_SOURCE, path })).toEqual({
+      status: "invalid",
+      range: { from: 16, to: 17 },
+    });
+    expect(resolveEvaluatorPath({ source: {}, path }).status).toBe("invalid");
   });
 
   it("binds one match bare and several as a list, keeping every match", () => {
