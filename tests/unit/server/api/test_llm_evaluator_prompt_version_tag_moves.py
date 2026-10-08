@@ -745,6 +745,25 @@ async def _add_compatible_dataset_override(
         return binding.id
 
 
+async def _add_project_binding(db: DbSessionFactory, evaluator_id: int) -> int:
+    binding = models.ProjectEvaluator(
+        project=models.Project(name=f"binding-edit-{token_hex(4)}"),
+        evaluator_id=evaluator_id,
+        trace_project=models.Project(name=f"binding-edit-trace-{token_hex(4)}"),
+        name=Identifier.model_validate(f"binding-edit-{token_hex(4)}"),
+        filter_condition="",
+        sampling_rate=1.0,
+        evaluation_target="TRACE",
+        input_mapping=None,
+        evaluation_delay_seconds=300,
+        enabled=True,
+    )
+    async with db() as session:
+        session.add(binding)
+        await session.flush()
+        return binding.id
+
+
 def _change_llm_definition(
     update_input: dict[str, Any],
     *,
@@ -895,36 +914,72 @@ async def test_graphql_llm_binding_edit_rejects_incompatible_dataset_override_at
     assert await _llm_edit_state(db, evaluator_id) == before
 
 
-@pytest.mark.parametrize("binding_type", ["project", "dataset"])
-async def test_llm_edit_allows_compatible_dataset_override(
+@pytest.mark.parametrize(
+    ("binding_type", "other_binding_type"),
+    [
+        ("project", "dataset"),
+        ("project", "project"),
+        ("dataset", "dataset"),
+        ("dataset", "project"),
+    ],
+)
+async def test_llm_edit_keeps_shared_name_when_another_binding_exists(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     binding_type: str,
+    other_binding_type: str,
 ) -> None:
     evaluator_id, mutation, update_input = await _undescribed_evaluator(
         gql_client, db, binding_type
     )
-    override_binding_id = await _add_compatible_dataset_override(
-        db, evaluator_id, description="correctness", labels=_EVALUATOR_LABELS
+    other_binding_id = (
+        await _add_compatible_dataset_override(
+            db, evaluator_id, description="correctness", labels=_EVALUATOR_LABELS
+        )
+        if other_binding_type == "dataset"
+        else await _add_project_binding(db, evaluator_id)
     )
     before = await _llm_edit_state(db, evaluator_id)
 
     result = await gql_client.execute(
         mutation,
-        {"input": _change_llm_definition(update_input, change_contract=False)},
+        {
+            "input": _change_llm_definition(update_input, change_contract=False),
+        },
     )
 
     assert result.data and not result.errors
     after = await _llm_edit_state(db, evaluator_id)
+    assert after["name"] == before["name"]
     assert after["tag_version_id"] != before["tag_version_id"]
     async with db() as session:
         evaluator = await session.get(models.LLMEvaluator, evaluator_id)
         assert evaluator is not None
-        assert evaluator.name.root.startswith("edited-")
-        override = await session.get(models.DatasetEvaluators, override_binding_id)
-        assert override is not None
-        assert override.description == "correctness"
-        assert override.output_configs == [_output_config(_EVALUATOR_LABELS)]
+        assert evaluator.name.root == before["name"]
+        if other_binding_type == "dataset":
+            dataset_binding = await session.get(models.DatasetEvaluators, other_binding_id)
+            assert dataset_binding is not None
+            assert dataset_binding.description == "correctness"
+            assert dataset_binding.output_configs == [_output_config(_EVALUATOR_LABELS)]
+        else:
+            project_binding = await session.get(models.ProjectEvaluator, other_binding_id)
+            assert project_binding is not None
+        if binding_type == "dataset":
+            edited_binding_id = int(GlobalID.from_id(update_input["datasetEvaluatorId"]).node_id)
+            edited_binding_name = await session.scalar(
+                select(models.DatasetEvaluators.name).where(
+                    models.DatasetEvaluators.id == edited_binding_id
+                )
+            )
+        else:
+            edited_binding_id = int(GlobalID.from_id(update_input["projectEvaluatorId"]).node_id)
+            edited_binding_name = await session.scalar(
+                select(models.ProjectEvaluator.name).where(
+                    models.ProjectEvaluator.id == edited_binding_id
+                )
+            )
+        assert edited_binding_name is not None
+        assert edited_binding_name.root == f"edited-{update_input['name']}"
 
 
 async def test_dataset_llm_edit_clears_its_overrides_before_checking_compatibility(

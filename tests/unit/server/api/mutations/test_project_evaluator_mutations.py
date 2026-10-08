@@ -60,6 +60,12 @@ mutation($input: UpdateProjectCodeEvaluatorInput!) {{
 }}
 """
 
+_CREATE_DATASET_CODE = """
+mutation($input: CreateDatasetCodeEvaluatorInput!) {
+  createDatasetCodeEvaluator(input: $input) { evaluator { id } }
+}
+"""
+
 _CREATE_LLM = f"""
 mutation($input: CreateProjectLLMEvaluatorInput!) {{
   createProjectLlmEvaluator(input: $input) {{
@@ -473,6 +479,75 @@ async def test_project_code_evaluator_crud_and_connection(
     )
     assert emptied_result.data and not emptied_result.errors
     assert emptied_result.data["node"]["evaluatorCount"] == 0
+
+
+@pytest.mark.parametrize("other_binding_type", ["project", "dataset"])
+async def test_project_code_binding_rename_keeps_shared_definition_name(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    other_binding_type: str,
+) -> None:
+    source_project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(source_project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
+    evaluator_id = int(GlobalID.from_id(created["evaluator"]["id"]).node_id)
+    original_definition_name = created["evaluator"]["name"]
+
+    if other_binding_type == "dataset":
+        async with db() as session:
+            dataset = models.Dataset(name=f"shared-code-{token_hex(4)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            dataset_id = dataset.id
+        attach_result = await gql_client.execute(
+            _CREATE_DATASET_CODE,
+            {
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                    "evaluatorId": created["evaluator"]["id"],
+                    "name": "dataset-code-binding",
+                    "inputMapping": _mapping(output="value"),
+                }
+            },
+        )
+    else:
+        other_project = await _add_project(db)
+        attach_result = await gql_client.execute(
+            _ADD_CODE,
+            {"input": _code_add_input(other_project, created["evaluator"]["id"])},
+        )
+    assert attach_result.data and not attach_result.errors
+
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": "renamed-project-binding",
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+            }
+        },
+    )
+
+    assert result.data and not result.errors
+    updated = result.data["updateProjectCodeEvaluator"]["evaluator"]
+    assert updated["name"] == "renamed-project-binding"
+    assert updated["evaluator"]["name"] == original_definition_name
+    async with db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        assert project_evaluator is not None and project_evaluator.name.root == (
+            "renamed-project-binding"
+        )
+        assert evaluator is not None and evaluator.name.root == original_definition_name
 
 
 async def test_add_project_code_evaluator_binds_existing_core(

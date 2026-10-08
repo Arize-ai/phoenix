@@ -36,6 +36,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     garbage_collect_evaluators,
     generate_unique_evaluator_name,
     get_project_for_dataset_evaluator,
+    is_sole_evaluator_binding,
     parse_evaluator_id,
     release_evaluator_prompt_label,
 )
@@ -384,9 +385,9 @@ async def update_dataset_llm_evaluator(
 
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
-        # The shared evaluator follows the binding's name, as a project
-        # binding's evaluator does, so lists of evaluators show the rename.
-        if dataset_evaluator.name != evaluator_name:
+        if dataset_evaluator.name != evaluator_name and await is_sole_evaluator_binding(
+            session, llm_evaluator.id
+        ):
             llm_evaluator.name = await generate_unique_evaluator_name(session, evaluator_name)
             shared_evaluator_changed = True
         # The input describes the evaluator itself, so the binding stores no

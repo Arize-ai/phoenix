@@ -28,6 +28,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     garbage_collect_evaluators,
     generate_unique_evaluator_name,
     get_trace_project_for_project_evaluator,
+    is_sole_evaluator_binding,
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     raise_on_uninferable_evaluate_signature,
@@ -311,7 +312,9 @@ async def update_project_llm_evaluator(
                 input.evaluation_target,
             )
             shared_evaluator_changed = False
-            if project_evaluator.name != name:
+            if project_evaluator.name != name and await is_sole_evaluator_binding(
+                session, evaluator.id
+            ):
                 evaluator.name = await generate_unique_evaluator_name(session, name)
                 shared_evaluator_changed = True
 
@@ -731,7 +734,9 @@ async def update_project_code_evaluator(
                 input.evaluation_target,
             )
             shared_evaluator_changed = False
-            if project_evaluator.name != name:
+            if project_evaluator.name != name and await is_sole_evaluator_binding(
+                session, evaluator.id
+            ):
                 evaluator.name = await generate_unique_evaluator_name(session, name)
                 shared_evaluator_changed = True
             if input.description is not UNSET and evaluator.description != input.description:

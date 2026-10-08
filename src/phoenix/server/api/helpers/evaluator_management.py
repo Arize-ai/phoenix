@@ -3,7 +3,7 @@
 from secrets import token_hex
 from typing import Callable, Optional
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -34,6 +34,30 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
     "CodeEvaluator": "CODE",
     "BuiltInEvaluator": "BUILTIN",
 }
+
+
+async def is_sole_evaluator_binding(
+    session: AsyncSession,
+    evaluator_id: int,
+) -> bool:
+    """Whether the evaluator has exactly one binding across both binding tables."""
+    # Preserve existing UI behavior: a sole-binding rename also renames its definition.
+    # This check is best effort; a concurrent attachment may still see the new name.
+    # CODE renames accept that race to avoid extra locks and lock-order complexity.
+    dataset_binding_count = (
+        select(func.count())
+        .select_from(models.DatasetEvaluators)
+        .where(models.DatasetEvaluators.evaluator_id == evaluator_id)
+        .scalar_subquery()
+    )
+    project_binding_count = (
+        select(func.count())
+        .select_from(models.ProjectEvaluator)
+        .where(models.ProjectEvaluator.evaluator_id == evaluator_id)
+        .scalar_subquery()
+    )
+    binding_count = await session.scalar(select(dataset_binding_count + project_binding_count))
+    return binding_count == 1
 
 
 def raise_on_uninferable_evaluate_signature(
