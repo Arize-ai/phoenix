@@ -3,6 +3,10 @@ import { useState } from "react";
 
 import { Text } from "@phoenix/components";
 import {
+  type AnnotationOptimizationConfig,
+  getOptimizationValueFromConfig,
+} from "@phoenix/components/annotation";
+import {
   AnnotationMetricsChart,
   type AnnotationMetricsChartPoint,
   type AnnotationMetricsInputPoint,
@@ -15,6 +19,8 @@ import {
   getDefaultAnnotationMetricsView,
   normalizeAnnotationMetrics,
 } from "@phoenix/components/chart";
+
+import { OptionGrid } from "../../utils/OptionGrid";
 
 const ANNOTATION_NAME = "response quality";
 const LONG_ANNOTATION_NAME =
@@ -194,6 +200,77 @@ const longNamesSeries = createAnnotationMetricsSeries({
   ],
 });
 
+const SCORE_COLOR_MEANS = [0.1, 0.3, 0.5, 0.7, 0.9];
+
+function createScoreColorSeries({
+  annotationName,
+  meanScores = SCORE_COLOR_MEANS,
+}: {
+  annotationName: string;
+  meanScores?: ReadonlyArray<number>;
+}): AnnotationMetricsSeries {
+  return createAnnotationMetricsSeries({
+    points: meanScores.map((meanScore, index) =>
+      createAnnotationMetricsPoint({ x: index + 1, annotationName, meanScore })
+    ),
+  });
+}
+
+type ScoreColorCase = {
+  label: string;
+  series: AnnotationMetricsSeries;
+  annotationConfig?: AnnotationOptimizationConfig;
+};
+
+const scoreColorCases: ReadonlyArray<ScoreColorCase> = [
+  {
+    label: "Maximize, bounds 0 to 1",
+    series: createScoreColorSeries({ annotationName: "correctness" }),
+    annotationConfig: {
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 1,
+    },
+  },
+  {
+    label: "Minimize, bounds 0 to 1",
+    series: createScoreColorSeries({ annotationName: "hallucination" }),
+    annotationConfig: {
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MINIMIZE",
+      lowerBound: 0,
+      upperBound: 1,
+    },
+  },
+  {
+    label: "Maximize, threshold 0.5 only",
+    series: createScoreColorSeries({ annotationName: "tool_call_accuracy" }),
+    annotationConfig: {
+      annotationType: "FREEFORM",
+      optimizationDirection: "MAXIMIZE",
+      threshold: 0.5,
+    },
+  },
+  {
+    label: "Maximize, bounds 0 to 1, means out of bounds",
+    series: createScoreColorSeries({
+      annotationName: "relevance",
+      meanScores: [-0.4, 0.3, 0.5, 0.7, 1.4],
+    }),
+    annotationConfig: {
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 1,
+    },
+  },
+  {
+    label: "No config",
+    series: createScoreColorSeries({ annotationName: "user_feedback" }),
+  },
+];
+
 const emptySeries: AnnotationMetricsSeries = {
   name: ANNOTATION_NAME,
   views: ["labels"],
@@ -205,12 +282,14 @@ type AnnotationMetricsChartStoryProps = {
   series: AnnotationMetricsSeries;
   initialView?: AnnotationMetricsView;
   width?: number;
+  annotationConfig?: AnnotationOptimizationConfig;
 };
 
 function AnnotationMetricsChartStory({
   series,
   initialView,
   width = 720,
+  annotationConfig,
 }: AnnotationMetricsChartStoryProps) {
   const [view, setView] = useState(
     () => initialView ?? getDefaultAnnotationMetricsView(series)
@@ -242,6 +321,12 @@ function AnnotationMetricsChartStory({
           }}
           yAxisProps={compactYAxisProps}
           syncId="annotation-metrics-story"
+          getMeanScoreOptimizationValue={(meanScore) =>
+            getOptimizationValueFromConfig({
+              config: annotationConfig,
+              score: meanScore,
+            })
+          }
           renderTooltipHeader={(point: AnnotationMetricsChartPoint) => (
             <Text weight="heavy" size="S">
               {String(point.metadata.runName ?? `Run ${point.x}`)}
@@ -255,7 +340,7 @@ function AnnotationMetricsChartStory({
 
 const meta: Meta<typeof AnnotationMetricsChartStory> = {
   title: "Domains/Annotations/Annotation Metrics Chart",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "incomplete", "unreviewed"],
   component: AnnotationMetricsChartStory,
   parameters: {
     layout: "padded",
@@ -294,6 +379,31 @@ export const ScoresAndLabels: Story = {
     series: mixedSeries,
     initialView: "labels",
   },
+};
+
+/**
+ * Hover a run to open the synchronized tooltips: every chart shares one sync
+ * id, so all five show the same run's mean score, colored by that
+ * annotation's config. Runs 1 to 5 move from below the pivot, through it at
+ * run 3, to above it, and the color strengthens with the distance from the
+ * pivot toward the best or worst bound. A threshold with no bounds colors
+ * every score on either side at full strength, means outside the bounds are
+ * clamped to full strength, and an annotation with no config is not colored.
+ */
+export const ScoreColors: Story = {
+  render: () => (
+    <OptionGrid
+      rows={scoreColorCases}
+      renderCell={({ series, annotationConfig }) => (
+        <AnnotationMetricsChartStory
+          series={series}
+          annotationConfig={annotationConfig}
+          width={480}
+        />
+      )}
+    />
+  ),
+  parameters: { themeLayout: "column" },
 };
 
 /**
