@@ -35,6 +35,7 @@ function buildContext(recordKind: ProjectEvaluatorRecordKind) {
       : {
           first_input: "Hello",
           turns: [{ input: "Hello", output: "Because." }],
+          where: { region: "eu" },
         };
   return materializeEvaluatorContext({
     recordKind,
@@ -382,6 +383,57 @@ describe("getEvaluatorTemplateCompletions", () => {
         section: { name: "Blocks" },
       },
     ]);
+  });
+
+  it("offers only names Mustache can render", () => {
+    const labelsAt = (doc: string) =>
+      complete({ doc, recordKind: "session" })?.options.map(
+        (option) => option.label
+      ) ?? null;
+
+    expect(
+      [
+        "{{metadata.turns[",
+        "{{metadata.turns[0].",
+        "{{metadata.turns[*].",
+        "{{metadata.*.",
+        "{{$.metadata.",
+        "{{metadata['where'].",
+      ].map(labelsAt)
+    ).toEqual([null, null, null, null, null, null]);
+    // A key the mapping path grammar reserves is a plain name to a template.
+    expect(labelsAt("{{metadata.")).toContain("where");
+    expect(labelsAt("{{metadata.where.")).toEqual(["region"]);
+  });
+
+  it("offers only names an f-string can render", () => {
+    const labelsAt = (doc: string) =>
+      complete({
+        doc,
+        recordKind: "session",
+        templateFormat: TemplateFormats.FString,
+      })?.options.map((option) => option.label) ?? null;
+
+    expect(
+      ["{metadata.turns[0].", "{metadata.turns[-1].", "{turns[0]."].map(
+        labelsAt
+      )
+    ).toEqual([
+      ["input", "output"],
+      ["input", "output"],
+      ["metadata.turns[0].input", "metadata.turns[0].output"],
+    ]);
+    expect(
+      [
+        "{metadata.turns[",
+        "{metadata.turns[*].",
+        "{metadata.turns[0:1].",
+        "{metadata.turns[0,0].",
+        "{metadata['turns'][0].",
+        "{metadata[turns][0].",
+        "{metadata.*.",
+      ].map(labelsAt)
+    ).toEqual([null, null, null, null, null, null, null]);
   });
 
   it("names a section's own fields while the cursor is inside it", () => {
