@@ -41,7 +41,6 @@ from .conftest import (
     _assert_issued_token_verifies_with_secret_configuration,
     _oauth2_app_env,
     _OAuthPublicClient,
-    _unset_secrets,
 )
 
 
@@ -456,9 +455,7 @@ def _app_mcp_code_mode(
     env = _oauth2_app_env(
         port=next(_ports),
         grpc_port=next(_ports),
-        database=str(
-            tmp_path_factory.mktemp(f"oauth2_mcp_code_mode_{_secret_configuration}") / "phoenix.db"
-        ),
+        database=str(tmp_path_factory.mktemp("oauth2_mcp_code_mode") / "phoenix.db"),
         extra={
             "PHOENIX_ENABLE_MCP_SERVER": "true",
             "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
@@ -466,7 +463,7 @@ def _app_mcp_code_mode(
         },
         secret_configuration=_secret_configuration,
     )
-    with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
+    with _server(_AppInfo(env)) as app:
         yield app
 
 
