@@ -1,6 +1,7 @@
 import { EditorState, type TransactionSpec } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { parsePathSegments } from "@phoenix/utils/objectUtils";
 
 import type { EvaluatorPathCompletion } from "../evaluatorPathCompletions";
@@ -9,7 +10,6 @@ import {
   applyEvaluatorPathCompletion,
   getEvaluatorPathCompletions,
   getEvaluatorPathCursor,
-  IDEA_COMPLETION_TYPE,
   MAX_BROWSE_MEMBERS,
   PATH_CONTINUATION_SECTION_RANK,
   PATH_MEMBER_SECTION_RANK,
@@ -17,6 +17,10 @@ import {
   SUGGESTED_PATH_SECTION,
   toMemberSection,
 } from "../evaluatorPathCompletions";
+import {
+  getEvaluatorPathIdeas,
+  MAPPING_PATH_SYNTAX,
+} from "../evaluatorPathIdeas";
 
 const SPAN_SOURCE: Record<string, unknown> = {
   input: "what is the weather?",
@@ -91,13 +95,23 @@ const SESSION_ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
 const completionsFor = (
   textBeforeCursor: string,
   source = SPAN_SOURCE,
-  suggestedPaths: readonly { path: string; description: string }[] = [],
+  ideasFor?: ProjectEvaluatorRecordKind,
   rootCandidates: EvaluatorPathCompletion[] = ROOT_CANDIDATES
 ) =>
   getEvaluatorPathCompletions({
     source,
     rootCandidates,
-    suggestedPaths,
+    ...(ideasFor === undefined
+      ? {}
+      : {
+          getIdeas: (containerPath: string) =>
+            getEvaluatorPathIdeas({
+              recordKind: ideasFor,
+              source,
+              containerPath,
+              syntax: MAPPING_PATH_SYNTAX,
+            }),
+        }),
     textBeforeCursor,
   });
 
@@ -215,20 +229,22 @@ describe("getEvaluatorPathCompletions", () => {
     expect(result?.from).toBe(9);
     expect(result?.completions.map(({ key, drills }) => [key, drills])).toEqual(
       [
-        ["span_id", false],
-        ["latency_ms", false],
         // The name itself is already written, so its row ends the path.
         ["attributes", false],
+        ["span_id", false],
+        ["latency_ms", false],
         ["events", true],
         ["attributes.llm", true],
         ["attributes['llm.deprecated']", false],
       ]
     );
     expect(result?.completions[4]?.section).toEqual(
-      toMemberSection("metadata.attributes", PATH_CONTINUATION_SECTION_RANK)
+      toMemberSection("metadata.attributes", PATH_CONTINUATION_SECTION_RANK + 1)
     );
     expect(
-      completionsFor("metadata.events")?.completions.map((c) => c.key)
+      completionsFor("metadata.events", SPAN_SOURCE, "span")?.completions.map(
+        (c) => c.key
+      )
     ).toContain("events[0]");
   });
 
@@ -252,60 +268,49 @@ describe("getEvaluatorPathCompletions", () => {
     expect(byKey.get("events")).toBe("list · 1");
   });
 
-  it("offers ideas for a list rather than each of its items", () => {
-    const result = completionsFor("input.messages[", CHAT_SOURCE);
+  it("leads each level with its ideas, written from the level", () => {
+    const result = completionsFor("input.messages[", CHAT_SOURCE, "span");
 
+    // A list's rows are subscripts, matched from the bracket that opens one.
+    expect(result?.from).toBe(14);
     expect(
-      result?.completions.map(({ displayLabel, path, preview }) => [
-        displayLabel,
+      result?.completions.map(({ key, path, section }) => [
+        key,
         path,
-        preview,
+        section.name,
       ])
     ).toEqual([
-      ["First message", "input.messages[0]", "object · 2"],
-      ["Last message", "input.messages[-1]", "object · 2"],
-      ["Every message", "input.messages[*]", "list · 2"],
-      ["All but the last message", "input.messages[:-1]", "object · 2"],
-      ["Every message's content", "input.messages[*].content", "list · 2"],
-    ]);
-    expect(result?.completions.map(({ key }) => key)).toEqual([
-      "0]",
-      "-1]",
-      "*]",
-      ":-1]",
-      "*].content",
+      ["[-1].content", "input.messages[-1].content", "Suggestions"],
+      ["[0]", "input.messages[0]", "Suggestions"],
+      ["[-1]", "input.messages[-1]", "Suggestions"],
+      ["[*]", "input.messages[*]", "Suggestions"],
+      ["[:-1]", "input.messages[:-1]", "Suggestions"],
     ]);
     expect(result?.completions.map(({ boost }) => boost)).toEqual([
       5, 4, 3, 2, 1,
     ]);
-    expect(result?.completions[1]?.description).toBe("input.messages[-1]");
-    // Accepting an idea finishes the path; a `.` goes on from it.
-    expect(result?.completions.some(({ drills }) => drills)).toBe(false);
-  });
 
-  it("shows only the ideas that resolve, named after the list", () => {
+    // A field an idea already offers is not offered twice.
     expect(
-      completionsFor("metadata.turns.", SESSION_SOURCE)?.completions.map(
-        ({ displayLabel }) => displayLabel
+      completionsFor("input.", CHAT_SOURCE, "span")?.completions.filter(
+        ({ path }) => path === "input.messages"
       )
-    ).toEqual(["First turn", "Last turn", "Every turn", "Every turn's output"]);
+    ).toHaveLength(1);
   });
 
   it("offers an index typed in full when the list has it", () => {
     const at = (text: string) =>
-      completionsFor(text, CHAT_SOURCE)?.completions.map(
-        ({ displayLabel, path }) => [displayLabel, path]
-      );
+      completionsFor(text, CHAT_SOURCE)?.completions.map(({ key, path }) => [
+        key,
+        path,
+      ]);
 
     expect(at("input.messages[-2")).toContainEqual([
       "[-2]",
       "input.messages[-2]",
     ]);
     expect(at("input.messages[1")).toContainEqual(["[1]", "input.messages[1]"]);
-    expect(at("input.messages[7")).not.toContainEqual([
-      "[7]",
-      "input.messages[7]",
-    ]);
+    expect(at("input.messages[7")).toBeUndefined();
   });
 
   it("offers the fields several matches have between them", () => {
@@ -329,75 +334,21 @@ describe("getEvaluatorPathCompletions", () => {
     ).toEqual(["role", "content"]);
   });
 
-  it("pins suggested paths above the candidate tree, at the top only", () => {
-    const rooted = completionsFor("", SPAN_SOURCE, [
-      { path: "metadata.latency_ms", description: "the span latency" },
-      { path: "metadata.attributes.llm", description: "the llm block" },
-    ]);
-
-    expect(rooted?.completions.slice(0, 2)).toEqual([
-      {
-        key: "metadata.latency_ms",
-        displayLabel: "the span latency",
-        path: "metadata.latency_ms",
-        preview: "842.5",
-        type: IDEA_COMPLETION_TYPE,
-        section: SUGGESTED_PATH_SECTION,
-        description: "metadata.latency_ms",
-        drills: false,
-        boost: 2,
-      },
-      {
-        key: "metadata.attributes.llm",
-        displayLabel: "the llm block",
-        path: "metadata.attributes.llm",
-        preview: "object · 2",
-        type: IDEA_COMPLETION_TYPE,
-        section: SUGGESTED_PATH_SECTION,
-        description: "metadata.attributes.llm",
-        drills: false,
-        boost: 1,
-      },
-    ]);
-
-    const drilled = completionsFor("metadata.attributes.", SPAN_SOURCE, [
-      { path: "metadata.latency_ms", description: "the span latency" },
-    ]);
+  it("leads the top level with its ideas, above the candidate tree", () => {
+    const rooted = completionsFor("", CHAT_SOURCE, "span");
 
     expect(
-      drilled?.completions.every((c) => c.section !== SUGGESTED_PATH_SECTION)
-    ).toBe(true);
-  });
-
-  it("leads with at most five suggestions", () => {
-    const suggestions = Array.from({ length: 7 }, (_, index) => ({
-      path: "metadata.latency_ms",
-      description: `suggestion ${index}`,
-    }));
-
-    expect(
-      completionsFor("", SPAN_SOURCE, suggestions)
-        ?.completions.filter((c) => c.section === SUGGESTED_PATH_SECTION)
-        .map((c) => c.displayLabel)
-    ).toEqual([0, 1, 2, 3, 4].map((index) => `suggestion ${index}`));
-  });
-
-  it("offers a suggestion only when it resolves on the record", () => {
-    // The record has no attributes.retrieval, so suggesting it would pin a
-    // path that fails the moment it is accepted.
-    const rooted = completionsFor("", SPAN_SOURCE, [
-      {
-        path: "metadata.attributes.retrieval.documents",
-        description: "no such field",
-      },
-      { path: "metadata.attributes.llm", description: "the llm block" },
+      rooted?.completions.map(({ key, section }) => [key, section.name])
+    ).toEqual([
+      ["input.messages[-1].content", "Suggestions"],
+      ["input.messages", "Suggestions"],
+      ["output.documents[*].content", "Suggestions"],
+      ["output.documents[0].content", "Suggestions"],
+      ["input", "Evaluator input"],
+      ["metadata.latency_ms", "From the span"],
+      ["metadata.attributes", "From the span"],
     ]);
-
-    expect(
-      rooted?.completions
-        .filter((c) => c.section === SUGGESTED_PATH_SECTION)
-        .map((c) => c.key)
-    ).toEqual(["metadata.attributes.llm"]);
+    expect(rooted?.completions[0]?.section).toBe(SUGGESTED_PATH_SECTION);
   });
 
   // A record name is offered by its whole path, so drilling one has to read
@@ -424,14 +375,15 @@ describe("getEvaluatorPathCompletions", () => {
       completionsFor(
         "turns.",
         SESSION_SOURCE,
-        [],
+        "session",
         SESSION_ROOT_CANDIDATES
-      )?.completions.map((completion) => completion.path)
+      )?.completions.map((completion) => completion.key)
     ).toEqual([
+      "metadata.turns[-1].input",
+      "metadata.turns[-1].output",
+      "metadata.turns[*].input",
       "metadata.turns[0]",
       "metadata.turns[-1]",
-      "metadata.turns[*]",
-      "metadata.turns[*].output",
     ]);
   });
 
@@ -449,7 +401,7 @@ describe("getEvaluatorPathCompletions", () => {
   });
 
   it("offers nothing when the surface has no tree to offer", () => {
-    expect(completionsFor("", {}, [], [])).toBeNull();
+    expect(completionsFor("", {}, "span", [])).toBeNull();
   });
 
   it("caps a browsed level, and lifts the cap once the user types", () => {

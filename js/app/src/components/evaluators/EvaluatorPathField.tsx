@@ -17,7 +17,10 @@ import type { EvaluatorInputMapping } from "@phoenix/types";
 import { closeCompletionOnEscape } from "./completionKeys";
 import { materializeEvaluatorContext } from "./evaluatorContext";
 import { buildEvaluatorContextCandidates } from "./evaluatorContextCompletions";
-import type { EvaluatorPathCompletion } from "./evaluatorPathCompletions";
+import type {
+  EvaluatorPathCompletion,
+  EvaluatorPathIdea,
+} from "./evaluatorPathCompletions";
 import {
   applyEvaluatorPathCompletion,
   EVALUATOR_ROOT_PATH_PATTERN,
@@ -26,8 +29,10 @@ import {
   resolveEvaluatorPath,
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
-import type { EvaluatorSuggestedPath } from "./evaluatorSlotDefaults";
-import { getEvaluatorSuggestedPaths } from "./evaluatorSlotDefaults";
+import {
+  getEvaluatorPathIdeas,
+  MAPPING_PATH_SYNTAX,
+} from "./evaluatorPathIdeas";
 
 const UNRESOLVED_PATH_MESSAGE = "No such field";
 const INVALID_PATH_MESSAGE = "Not a valid path";
@@ -88,8 +93,6 @@ export function EvaluatorPathField({
   placeholder: string;
   onFocusChange?: (isFocused: boolean) => void;
 }) {
-  const suggestedPaths = getEvaluatorSuggestedPaths(recordKind);
-
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
   // This only stops churn; a reconfigure the data genuinely earned is what
@@ -133,10 +136,16 @@ export function EvaluatorPathField({
       createEvaluatorPathCompletionSource({
         source: mappingSource,
         rootCandidates,
-        suggestedPaths,
+        getIdeas: (containerPath) =>
+          getEvaluatorPathIdeas({
+            recordKind,
+            source: mappingSource,
+            containerPath,
+            syntax: MAPPING_PATH_SYNTAX,
+          }),
       }),
     ],
-    [mappingSource, rootCandidates, suggestedPaths]
+    [mappingSource, rootCandidates, recordKind]
   );
 
   // Read through a ref so focusing does not re-run validation; leaving does.
@@ -225,17 +234,17 @@ const pathFieldKeys = [
 function createEvaluatorPathCompletionSource({
   source,
   rootCandidates,
-  suggestedPaths,
+  getIdeas,
 }: {
   source: Record<string, unknown>;
   rootCandidates: readonly EvaluatorPathCompletion[];
-  suggestedPaths: readonly EvaluatorSuggestedPath[];
+  getIdeas: (containerPath: string) => readonly EvaluatorPathIdea[];
 }): CompletionSource {
   return (context: CompletionContext) => {
     const result = getEvaluatorPathCompletions({
       source,
       rootCandidates,
-      suggestedPaths,
+      getIdeas,
       textBeforeCursor: context.state.doc.sliceString(0, context.pos),
     });
     if (result === null) {

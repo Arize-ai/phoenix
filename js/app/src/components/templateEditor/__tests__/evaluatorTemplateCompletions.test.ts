@@ -435,28 +435,24 @@ describe("getEvaluatorTemplateCompletions", () => {
     ).toEqual([null, null, null, null, null, null]);
   });
 
-  it("offers a list's first and last item by position in an f-string", () => {
+  it("offers a list's ideas by position in an f-string", () => {
     const rowsAt = (doc: string) =>
       complete({
         doc,
         recordKind: "session",
         templateFormat: TemplateFormats.FString,
-      })?.options.map(({ label, displayLabel, detail }) => ({
+      })?.options.map(({ label, displayLabel }) => ({
         label,
         displayLabel,
-        detail,
       })) ?? null;
     const positions = [
       {
-        label: "metadata.turns[0]",
-        displayLabel: "First turn",
-        detail: "object · 2",
+        label: "metadata.turns[-1].input",
+        displayLabel: "Last user message",
       },
-      {
-        label: "metadata.turns[-1]",
-        displayLabel: "Last turn",
-        detail: "object · 2",
-      },
+      { label: "metadata.turns[-1].output", displayLabel: "Last response" },
+      { label: "metadata.turns[0]", displayLabel: "First turn" },
+      { label: "metadata.turns[-1]", displayLabel: "Last turn" },
     ];
 
     expect(rowsAt("{metadata.turns.")).toEqual(positions);

@@ -9,7 +9,6 @@ import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
   getEvaluatorInputPlaceholder,
-  getEvaluatorSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
 /**
@@ -103,58 +102,6 @@ describe("evaluator slot defaults", () => {
         expect(
           resolveEvaluatorPath({ source: sampleContextFor(recordKind), path })
         ).toMatchObject({ status: "resolved" });
-      }
-    }
-  });
-
-  // The sample span is a plain LLM call; these are the other span shapes the
-  // server's span-to-example conversion produces.
-  const SPAN_SHAPES: Record<string, unknown>[] = [
-    {
-      input: {
-        messages: [{ role: "user", content: "Weather in Paris?" }],
-        tools: [{ type: "function", function: { name: "get_weather" } }],
-      },
-      output: {
-        messages: [
-          {
-            role: "assistant",
-            tool_calls: [
-              {
-                id: "call_1",
-                function: { name: "get_weather", arguments: "{}" },
-              },
-            ],
-          },
-        ],
-      },
-      metadata: {},
-    },
-    {
-      input: { query: "key rotation" },
-      output: {
-        documents: [{ id: "doc-1", content: "Rotate keys...", score: 0.9 }],
-      },
-      metadata: {},
-    },
-  ];
-
-  it("suggests only paths a record of its kind resolves", () => {
-    for (const recordKind of RECORD_KINDS) {
-      const records = [
-        sampleContextFor(recordKind),
-        ...(recordKind === "span" ? SPAN_SHAPES : []),
-      ];
-      for (const { path, description } of getEvaluatorSuggestedPaths(
-        recordKind
-      )) {
-        expect(description).not.toBe("");
-        expect(
-          records.some(
-            (source) =>
-              resolveEvaluatorPath({ source, path }).status === "resolved"
-          )
-        ).toBe(true);
       }
     }
   });
