@@ -1332,11 +1332,6 @@ def auth_enabled_for_host(host: Optional[str]) -> bool:
     return not is_loopback_host(host)
 
 
-def get_env_enable_auth() -> bool:
-    """Resolve authentication from PHOENIX_ENABLE_AUTH and the PHOENIX_HOST default."""
-    return auth_enabled_for_host(get_env_host())
-
-
 def get_env_disable_basic_auth() -> bool:
     """
     Gets the value of the ENV_PHOENIX_DISABLE_BASIC_AUTH environment variable.
@@ -3176,11 +3171,6 @@ def app_auth_kwargs(settings: AuthSettings) -> AppAuthKwargs:
         "ldap_config": settings.ldap_config,
         "basic_auth_disabled": settings.disable_basic_auth,
     }
-
-
-def get_env_app_auth_kwargs(host: Optional[str] = None) -> AppAuthKwargs:
-    """Auth-related ``create_app`` arguments for ``host``, or ``PHOENIX_HOST`` when omitted."""
-    return app_auth_kwargs(get_env_auth_settings(host))
 
 
 def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
