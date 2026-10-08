@@ -76,8 +76,8 @@ def test_get_note_identifier_is_unique() -> None:
     ],
 )
 @pytest.mark.parametrize(
-    "required_field, graphql_type",
-    [("annotatorKind", "AnnotatorKind"), ("source", "AnnotationSource")],
+    "required_field",
+    ["annotatorKind", "source"],
 )
 async def test_annotation_mutations_require_explicit_provenance(
     gql_client: AsyncGraphQLClient,
@@ -86,7 +86,6 @@ async def test_annotation_mutations_require_explicit_provenance(
     input_type: str,
     input_value: dict[str, object] | list[dict[str, object]],
     required_field: str,
-    graphql_type: str,
 ) -> None:
     inputs = input_value if isinstance(input_value, list) else [input_value]
     complete_inputs = [{**value, "annotatorKind": "HUMAN", "source": "APP"} for value in inputs]
@@ -103,8 +102,9 @@ async def test_annotation_mutations_require_explicit_provenance(
 
     assert result.data is None
     assert result.errors
+    object_type = input_type.strip("[]!")
     assert (
-        f"Field '{required_field}' of required type '{graphql_type}!' was not provided."
+        f"Expected value of type '{object_type}' to include required field '{required_field}'"
         in caplog.text
     )
 

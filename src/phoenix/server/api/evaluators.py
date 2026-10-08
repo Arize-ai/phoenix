@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
 import openinference.instrumentation as oi
-from jsonpath_ng import parse as parse_jsonpath
+from jsonpath_ng.parser import JsonPathParser
 from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -1023,7 +1023,9 @@ def apply_input_mapping(
                 ignored_keys.append(key)
                 continue
             try:
-                jsonpath = parse_jsonpath(path_expr)
+                # jsonpath-ng 1.9 types JsonPathParser.parse, but not its constructor.
+                parser = JsonPathParser()  # type: ignore[no-untyped-call]
+                jsonpath = parser.parse(path_expr)
             except Exception as e:
                 raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
             matches = jsonpath.find(context)

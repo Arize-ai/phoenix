@@ -269,7 +269,7 @@ async def test_trace_spans_require_first(
     assert len(response.errors) == 1
     assert (
         response.errors[0].message
-        == "Field 'spans' argument 'first' of type 'Int!' is required, but it was not provided."
+        == "Argument 'Trace.spans(first:)' of type 'Int!' is required, but it was not provided."
     )
 
 

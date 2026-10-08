@@ -45,8 +45,8 @@
     "tsc-alias": "1.9.0",
     "typedoc": "^0.28.20",
     "typescript": "^7.0.2",
-    "vite": "^8.3.1",
-    "vitest": "^5.0.2"
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": ">=24.20.0",
