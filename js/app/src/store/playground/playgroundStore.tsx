@@ -10,6 +10,7 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { PLAYGROUND_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   getDefaultInvocationConfig,
@@ -201,6 +202,20 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     };
   }
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+
+  if (initialProps.defaultModelType === "DECISION") {
+    // The page resolves the provider and model from the decision catalog;
+    // the store does not know which providers offer decision models.
+    instance.llmModel = instance.model;
+    instance.model = {
+      ...instance.model,
+      modelType: "DECISION",
+      provider: initialProps.defaultModelProvider ?? DEFAULT_MODEL_PROVIDER,
+      modelName: initialProps.defaultModelName ?? null,
+    };
+    instance.decision = createDecisionDraft();
+    return { instances: [instance], instanceMessages };
+  }
 
   const preferredProvider =
     initialProps.defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;

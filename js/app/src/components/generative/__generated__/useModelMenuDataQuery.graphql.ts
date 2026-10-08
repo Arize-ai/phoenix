@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e8aa9784af6cd280fa69de1c0dc95a0>>
+ * @generated SignedSource<<e893a007be9d4b770a6035ddf2dffdb0>>
  * @lightSyntaxTransform
  */
 
@@ -10,8 +10,14 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
+export type ModelType = "DECISION" | "LLM";
 export type useModelMenuDataQuery$variables = Record<PropertyKey, never>;
 export type useModelMenuDataQuery$data = {
+  readonly decisionModels: ReadonlyArray<{
+    readonly modelType: ModelType;
+    readonly name: string;
+    readonly providerKey: GenerativeProviderKey;
+  }>;
   readonly generativeModelCustomProviders: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -29,6 +35,7 @@ export type useModelMenuDataQuery$data = {
     readonly name: string;
   }>;
   readonly playgroundModels: ReadonlyArray<{
+    readonly modelType: ModelType;
     readonly name: string;
     readonly providerKey: GenerativeProviderKey;
   }>;
@@ -47,6 +54,23 @@ var v0 = {
   "storageKey": null
 },
 v1 = [
+  (v0/*:: as any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "providerKey",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "modelType",
+    "storageKey": null
+  }
+],
+v2 = [
   {
     "alias": null,
     "args": null,
@@ -142,17 +166,27 @@ v1 = [
     "kind": "LinkedField",
     "name": "playgroundModels",
     "plural": true,
-    "selections": [
-      (v0/*:: as any*/),
+    "selections": (v1/*:: as any*/),
+    "storageKey": null
+  },
+  {
+    "alias": "decisionModels",
+    "args": [
       {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "providerKey",
-        "storageKey": null
+        "kind": "Literal",
+        "name": "input",
+        "value": {
+          "modelType": "DECISION",
+          "providerKey": null
+        }
       }
     ],
-    "storageKey": null
+    "concreteType": "PlaygroundModel",
+    "kind": "LinkedField",
+    "name": "playgroundModels",
+    "plural": true,
+    "selections": (v1/*:: as any*/),
+    "storageKey": "playgroundModels(input:{\"modelType\":\"DECISION\",\"providerKey\":null})"
   }
 ];
 return {
@@ -161,7 +195,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*:: as any*/),
+    "selections": (v2/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -170,19 +204,19 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*:: as any*/)
+    "selections": (v2/*:: as any*/)
   },
   "params": {
-    "cacheID": "700a417c415e5bc889e79dce3bf18e53",
+    "cacheID": "2a5997f348fccc709e43c6c174edd2a6",
     "id": null,
     "metadata": {},
     "name": "useModelMenuDataQuery",
     "operationKind": "query",
-    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n  }\n  playgroundModels {\n    name\n    providerKey\n    modelType\n  }\n  decisionModels: playgroundModels(input: {providerKey: null, modelType: DECISION}) {\n    name\n    providerKey\n    modelType\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f60d71682e63a12728470a15b4d7daf4";
+(node as any).hash = "52927a0b467250bcfca5509be16ca79c";
 
 export default node;

@@ -11,6 +11,7 @@ import type {
 } from "./__generated__/useModelMenuDataQuery.graphql";
 
 export type { GenerativeModelSDK, GenerativeProviderKey };
+export type ModelType = "LLM" | "DECISION";
 import {
   getProviderKeyForGenerativeModelSDK,
   isProviderProvisioned,
@@ -112,9 +113,11 @@ const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
 export function useModelMenuData({
   fetchPolicy = "store-and-network",
   credentialSource = "any",
+  modelType = "LLM",
 }: {
   fetchPolicy?: FetchPolicy;
   credentialSource?: ModelCredentialSource;
+  modelType?: ModelType;
 } = {}) {
   const data = useLazyLoadQuery<useModelMenuDataQuery>(
     graphql`
@@ -138,6 +141,14 @@ export function useModelMenuData({
         playgroundModels {
           name
           providerKey
+          modelType
+        }
+        decisionModels: playgroundModels(
+          input: { providerKey: null, modelType: DECISION }
+        ) {
+          name
+          providerKey
+          modelType
         }
       }
     `,
@@ -145,10 +156,9 @@ export function useModelMenuData({
     { fetchPolicy }
   );
 
-  const modelsByProvider = useMemo(
-    () => getModelsByProvider(data.playgroundModels),
-    [data.playgroundModels]
-  );
+  const catalogModels =
+    modelType === "DECISION" ? data.decisionModels : data.playgroundModels;
+  const modelsByProvider = getModelsByProvider(catalogModels);
 
   const providerInfoMap = useMemo(() => {
     const map = new Map<
@@ -251,16 +261,26 @@ export function useModelMenuData({
     [providersWithStatus, localCredentials]
   );
 
-  // Whether the user has explicitly set up any provider — credentials for a
-  // built-in provider or a custom provider. Zero-credential providers (e.g.
-  // Ollama) are always ready but do not count as provisioned.
+  // Providers that offer LLM (chat) models. Decision-only providers such as
+  // TypeSafe are excluded so that configuring only a decision key does not
+  // change which LLM providers the picker shows.
+  const llmProviderKeys = useMemo(
+    () => new Set(data.playgroundModels.map((model) => model.providerKey)),
+    [data.playgroundModels]
+  );
+
+  // Whether the user has explicitly set up any LLM provider — credentials for
+  // a built-in provider with chat models, or a custom provider. Zero-credential
+  // providers (e.g. Ollama) are always ready but do not count as provisioned.
   const hasProvisionedProvider = useMemo(
     () =>
       customProviders.length > 0 ||
-      data.modelProviders.some((provider) =>
-        isProviderProvisioned({ provider, localCredentials })
+      data.modelProviders.some(
+        (provider) =>
+          llmProviderKeys.has(provider.key) &&
+          isProviderProvisioned({ provider, localCredentials })
       ),
-    [customProviders, data.modelProviders, localCredentials]
+    [customProviders, data.modelProviders, llmProviderKeys, localCredentials]
   );
 
   // Providers to list in the picker. Once the user has provisioned a
@@ -268,8 +288,19 @@ export function useModelMenuData({
   // flagship providers so the picker is not empty. Fallback providers with
   // missing server dependencies render disabled.
   const visibleProviders = useMemo<ModelProviderInfo[]>(() => {
+    if (modelType === "DECISION") {
+      return providersWithStatus
+        .filter((provider) =>
+          data.decisionModels.some(
+            (model) => model.providerKey === provider.key
+          )
+        )
+        .map((provider) => ({ ...provider, dependenciesInstalled: true }));
+    }
     if (hasProvisionedProvider) {
-      return readyProviders;
+      return readyProviders.filter((provider) =>
+        modelsByProvider.has(provider.key)
+      );
     }
     const providersByKey = new Map(
       providersWithStatus.map((provider) => [provider.key, provider])
@@ -277,7 +308,14 @@ export function useModelMenuData({
     return FALLBACK_PROVIDER_KEYS.flatMap(
       (key) => providersByKey.get(key) ?? []
     );
-  }, [hasProvisionedProvider, readyProviders, providersWithStatus]);
+  }, [
+    hasProvisionedProvider,
+    readyProviders,
+    providersWithStatus,
+    modelType,
+    data.decisionModels,
+    modelsByProvider,
+  ]);
 
   return {
     availableBuiltinModels,

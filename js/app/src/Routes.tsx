@@ -723,7 +723,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                "Test LLM prompts or decision models with state and Choice, Noul/Predicate, and Score questions. Supports modelType=DECISION, decisionProvider, decisionModel, experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
             },
             navigation: {
               section: "Pages",
@@ -741,7 +741,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                  "Test LLM prompts or decision models with state and Choice, Noul/Predicate, and Score questions. Supports modelType=DECISION, decisionProvider, decisionModel, experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
               },
             }}
           />
