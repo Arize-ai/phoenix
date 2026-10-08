@@ -5,7 +5,6 @@ description: Connect Claude Code, Cursor, VS Code, or any MCP client to your liv
 
 The Remote [MCP](https://modelcontextprotocol.io/) Server (beta) is built into Phoenix at `/mcp`, so any MCP client can read and act on your Phoenix data with nothing to install. Agents with a shell can reach the same data through the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli); see [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server).
 
-
 ## Remote MCP Server
 
 The URL is your [Phoenix endpoint](/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint) plus `/mcp`: `http://localhost:6006/mcp` for a local Phoenix. Requires Phoenix 19.0.0 or later.
@@ -101,7 +100,7 @@ To configure by hand, or for other clients, use the steps below with your own en
     Gemini disables all MCP servers in untrusted folders, so trust the folder when prompted. Then `gemini mcp list` shows **phoenix** connected; run `/mcp` inside Gemini CLI to log in.
 
     <Note>
-      **Antigravity** is a different tool that also writes under `~/.gemini/`; see the last section.
+      **Antigravity** is a different tool that also writes under `~/.gemini/`; see **Antigravity and other clients** below.
     </Note>
   </Accordion>
 
@@ -140,7 +139,7 @@ Check with `/mcp` in Claude Code or Codex, or `claude mcp list`: `phoenix` shows
 
 ### What your agent can do with it
 
-Everything the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview) can do, about 116 operations the agent composes in one call. Try:
+Everything the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview) can do, and the agent composes the operations it needs in one call. Try:
 
 ```text
 Which experiments ran on my agent-inputs dataset this week, and how did their scores compare?

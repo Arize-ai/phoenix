@@ -56,10 +56,11 @@
           {
             "group": "Get Started",
             "pages": [
+              "docs/phoenix/get-started",
               "docs/phoenix/get-started/get-started-tracing",
               "docs/phoenix/get-started/get-started-evaluations",
               {
-                "group": "Arize Phoenix for Agents",
+                "group": "Coding Agent Tools",
                 "expanded": true,
                 "pages": [
                   "docs/phoenix/integrations/developer-tools/coding-agents",
@@ -73,7 +74,7 @@
                 "tag": "BETA",
                 "pages": [
                   "docs/phoenix/pxi",
-                  "docs/phoenix/pxi-learn-more"
+                  "docs/phoenix/pxi-advanced"
                 ]
               },
               "docs/phoenix/phoenix-demo"
@@ -1707,6 +1708,14 @@
     {
       "source": "/docs/phoenix/agent-assisted-setup",
       "destination": "/docs/phoenix/integrations/developer-tools/cli"
+    },
+    {
+      "source": "/docs/phoenix/pxi-learn-more",
+      "destination": "/docs/phoenix/pxi-advanced"
+    },
+    {
+      "source": "/docs/phoenix/end-to-end-features-notebook",
+      "destination": "/docs/phoenix/cookbook"
     },
     {
       "source": "/docs/phoenix/integrations/remote-mcp",

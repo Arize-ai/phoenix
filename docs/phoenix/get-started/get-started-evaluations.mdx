@@ -1,6 +1,7 @@
 ---
 sidebarTitle: "Evaluate"
 title: "Evaluate Your Agent"
+description: Build a dataset, write an LLM judge, and compare two prompts as experiments, in Python or TypeScript.
 ---
 
 An evaluation scores your agent's output so you can compare prompts or models and catch regressions. It has three parts:
@@ -21,10 +22,11 @@ The example below runs two experiments over three airline-policy questions. The 
 
     Save as `evaluate.py` and run `python evaluate.py`.
 
+    {/* snippet: examples/quickstarts/python/evaluate.py#main */}
     ```python
     from openai import OpenAI
     from phoenix.client import Client
-    from phoenix.evals import LLM, create_classifier
+    from phoenix.evals import LLM, bind_evaluator, create_classifier
 
     phoenix = Client()  # reads PHOENIX_ENDPOINT, default http://localhost:6006
     openai = OpenAI()
@@ -32,16 +34,30 @@ The example below runs two experiments over three airline-policy questions. The 
     dataset = phoenix.datasets.create_dataset(
         name="travel-support",
         examples=[
-            {"input": {"question": "How long do I have to cancel a Basic fare for a full refund?"},
-             "output": {"expected_answer": "Basic fares can be cancelled for a full refund within 48 hours of booking."}},
-            {"input": {"question": "Can I change the date on a Basic fare, and what does it cost?"},
-             "output": {"expected_answer": "Basic fares can be changed once for a 40 dollar fee, plus any difference in price."}},
-            {"input": {"question": "How many checked bags come with a Basic fare, and what does a second bag cost?"},
-             "output": {"expected_answer": "Basic fares include one checked bag. A second bag is 45 dollars."}},
+            {
+                "input": {"question": "How long do I have to cancel a Basic fare for a full refund?"},
+                "output": {
+                    "expected_answer": "Basic fares can be cancelled for a full refund within 48 hours of booking."
+                },
+            },
+            {
+                "input": {"question": "Can I change the date on a Basic fare, and what does it cost?"},
+                "output": {
+                    "expected_answer": "Basic fares can be changed once for a 40 dollar fee, plus any difference in price."
+                },
+            },
+            {
+                "input": {
+                    "question": "How many checked bags come with a Basic fare, and what does a second bag cost?"
+                },
+                "output": {
+                    "expected_answer": "Basic fares include one checked bag. A second bag is 45 dollars."
+                },
+            },
         ],
     )
 
-    correctness = create_classifier(
+    judge = create_classifier(
         name="correctness",
         llm=LLM(provider="openai", model="gpt-4o-mini"),
         prompt_template="""Compare the provided answer to the reference answer. Label true if it states the same policy: same time windows, fees, and quantities, in any wording. Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
@@ -49,6 +65,11 @@ The example below runs two experiments over three airline-policy questions. The 
     Reference answer: {{reference}}
     Provided answer: {{output}}""",
         choices={"true": 1.0, "false": 0.0},
+    )
+
+    # The expected output is {"expected_answer": ...}; hand the judge just the answer.
+    correctness = bind_evaluator(
+        evaluator=judge, input_mapping={"reference": "reference.expected_answer"}
     )
 
 
@@ -88,6 +109,7 @@ The example below runs two experiments over three airline-policy questions. The 
 
     Save as `evaluate.ts` and run `npx tsx evaluate.ts`.
 
+    {/* snippet: examples/quickstarts/typescript/evaluate.ts#main */}
     ```typescript
     import { openai } from "@ai-sdk/openai";
     import { generateText } from "ai";
@@ -104,12 +126,18 @@ The example below runs two experiments over three airline-policy questions. The 
       name: "travel-support",
       description: "Questions about a fictional airline's Basic fare.",
       examples: [
-        { input: { question: "How long do I have to cancel a Basic fare for a full refund?" },
-          output: { expected_answer: "Basic fares can be cancelled for a full refund within 48 hours of booking." } },
-        { input: { question: "Can I change the date on a Basic fare, and what does it cost?" },
-          output: { expected_answer: "Basic fares can be changed once for a 40 dollar fee, plus any difference in price." } },
-        { input: { question: "How many checked bags come with a Basic fare, and what does a second bag cost?" },
-          output: { expected_answer: "Basic fares include one checked bag. A second bag is 45 dollars." } },
+        {
+          input: { question: "How long do I have to cancel a Basic fare for a full refund?" },
+          output: { expected_answer: "Basic fares can be cancelled for a full refund within 48 hours of booking." },
+        },
+        {
+          input: { question: "Can I change the date on a Basic fare, and what does it cost?" },
+          output: { expected_answer: "Basic fares can be changed once for a 40 dollar fee, plus any difference in price." },
+        },
+        {
+          input: { question: "How many checked bags come with a Basic fare, and what does a second bag cost?" },
+          output: { expected_answer: "Basic fares include one checked bag. A second bag is 45 dollars." },
+        },
       ],
     });
 
@@ -127,7 +155,10 @@ The example below runs two experiments over three airline-policy questions. The 
       name: "correctness",
       kind: "LLM",
       evaluate: ({ output, expected }) =>
-        judge.evaluate({ reference: (expected as { expected_answer: string }).expected_answer, output: String(output) }),
+        judge.evaluate({
+          reference: (expected as { expected_answer: string }).expected_answer,
+          output: String(output),
+        }),
     });
 
     async function run(prompt: string, experimentName: string) {
@@ -164,4 +195,9 @@ Open the dataset's **Experiments** tab to compare the two runs side by side. A h
 
 ## Learn more
 
-[Datasets and Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) covers building datasets, comparing variants, and tracking quality over time. [Server Evals](/docs/phoenix/evaluation/server-evals/overview) covers UI-managed evaluators; [Evaluation](/docs/phoenix/evaluation/evals) covers writing your own.
+- [Datasets and Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets): building datasets, comparing variants, and tracking quality over time.
+- [Server Evals](/docs/phoenix/evaluation/server-evals/overview): evaluators you manage in the UI, including templates and code evaluators.
+- [Evaluate a Prompt Change in Code](/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change): the same loop with a deterministic code evaluator, example ids and metadata, and a dataset you built in the UI.
+- [Evaluation](/docs/phoenix/evaluation/evals): writing your own evaluators in code.
+
+The code on this page lives in [examples/quickstarts](https://github.com/Arize-ai/phoenix/tree/main/examples/quickstarts), ready to run.

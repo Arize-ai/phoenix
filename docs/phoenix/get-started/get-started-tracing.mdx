@@ -1,6 +1,7 @@
 ---
 sidebarTitle: "Observe"
 title: "Observe Your Agent"
+description: Instrument an AI agent and send its first trace to Phoenix, in Python or TypeScript.
 ---
 
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
@@ -32,6 +33,7 @@ To have a coding agent do this instead, run `npx -y @arizeai/phoenix-cli setup`.
     pip install -U arize-phoenix-otel openai openinference-instrumentation-openai
     ```
 
+    {/* snippet: examples/quickstarts/python/observe.py#register */}
     ```python
     from phoenix.otel import register
 
@@ -46,6 +48,7 @@ To have a coding agent do this instead, run `npx -y @arizeai/phoenix-cli setup`.
 
     Put this in `instrumentation.ts` and import it before anything else:
 
+    {/* snippet: examples/quickstarts/typescript/instrumentation.ts#register */}
     ```typescript
     import OpenAI from "openai";
     import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
@@ -66,6 +69,7 @@ To have a coding agent do this instead, run `npx -y @arizeai/phoenix-cli setup`.
 
     <Tabs>
       <Tab title="Python">
+    {/* snippet: examples/quickstarts/python/observe.py#call */}
     ```python
     from openai import OpenAI
 
@@ -78,6 +82,7 @@ To have a coding agent do this instead, run `npx -y @arizeai/phoenix-cli setup`.
       </Tab>
 
       <Tab title="TypeScript">
+    {/* snippet: examples/quickstarts/typescript/app.ts#call */}
     ```typescript
     import "./instrumentation";
     import OpenAI from "openai";
@@ -106,5 +111,5 @@ Other ways to read your traces:
 - **By asking [PXI](/docs/phoenix/pxi)**, for example *"why did this trace fail?"*
 - **Across multi-turn conversations**, with [Sessions](/docs/phoenix/tracing/llm-traces/sessions).
 
-To go deeper on tracing, the [Tracing Tutorial](/docs/phoenix/tracing/tutorial) covers how to read spans, understand timing, and use trace data to debug and analyze your agent.
+To go deeper on tracing, the [Tracing Tutorial](/docs/phoenix/tracing/tutorial) covers how to read spans, understand timing, and use trace data to debug and analyze your agent. The code on this page lives in [examples/quickstarts](https://github.com/Arize-ai/phoenix/tree/main/examples/quickstarts), ready to run.
 

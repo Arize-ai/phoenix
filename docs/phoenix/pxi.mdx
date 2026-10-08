@@ -11,7 +11,7 @@ description: >-
 </Frame>
 
 <Warning>
-PXI is in **beta** and will make mistakes. Use it with care on production data. Agent assistance is opt-in and controllable: see [Permissions and approval](/docs/phoenix/pxi-learn-more#permissions-and-approval).
+PXI is in **beta** and will make mistakes. Use it with care on production data. Agent assistance is opt-in and controllable: see [Permissions and approval](/docs/phoenix/pxi-advanced#permissions-and-approval).
 </Warning>
 
 **PXI** (pronounced *"pixie"*, short for **Phoenix Intelligence**) is a coding agent pointed at your observability data instead of a codebase. It reads the page you are already on, so you hand it the investigation rather than clicking through traces, prompts, and experiments yourself.
@@ -31,7 +31,7 @@ PXI is in **beta** and will make mistakes. Use it with care on production data. 
 
 <Steps>
   <Step title="Configure a model">
-    Set credentials for at least one provider: OpenAI, Anthropic, Gemini, AWS Bedrock, or a custom provider under **Settings → AI Providers**. PXI defaults to an Anthropic model, so pick a model that matches the provider you configured. See [Bring your own model](/docs/phoenix/pxi-learn-more#bring-your-own-model).
+    Set credentials for at least one provider: OpenAI, Anthropic, Gemini, AWS Bedrock, or a custom provider under **Settings → AI Providers**. PXI defaults to an Anthropic model, so pick a model that matches the provider you configured. See [Bring your own model](/docs/phoenix/pxi-advanced#bring-your-own-model).
   </Step>
   <Step title="Open it">
     Click the assistant button on any Phoenix page, or press <kbd>⌘I</kbd> (<kbd>Ctrl+I</kbd> on Windows and Linux). Accept the consent gate the first time.
@@ -43,7 +43,7 @@ PXI is in **beta** and will make mistakes. Use it with care on production data. 
 
 ## Try a full workflow
 
-Set PXI to Bypass Approval and paste:
+This is the [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations) flow, handed to PXI. Paste it from any page:
 
 ```text
 Create a dataset called travel-support with these 3 examples, input {"question": ...} and output {"expected_answer": ...}:
@@ -53,6 +53,8 @@ Create a dataset called travel-support with these 3 examples, input {"question":
 Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
 ```
 
+PXI shows the dataset and the evaluator as cards for you to approve before it saves anything, then runs the experiment on its own. Leave approval on: **Bypass Approval** skips those cards, so keep it off until you have seen what PXI does with your data.
+
 Every example scores 0: the prompt knows nothing about this airline. Then reply:
 
 ```text
@@ -61,4 +63,4 @@ Add this policy to the prompt and rerun: full refund if cancelled within 48 hour
 
 ## Learn more
 
-[Learn more](/docs/phoenix/pxi-learn-more) covers skills, the permission model, the terminal client, slash commands, model providers, and every configuration setting.
+[PXI Advanced](/docs/phoenix/pxi-advanced) covers skills, conversations, the permission model, the terminal client, slash commands, model providers, and every configuration setting.

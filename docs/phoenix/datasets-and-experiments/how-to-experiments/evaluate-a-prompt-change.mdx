@@ -5,29 +5,38 @@ description: >-
   a baseline prompt against an edited one.
 ---
 
-This is the code version of [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations), which runs the same flow from the Phoenix UI. It uses the support agent from [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), so the scenario carries across both guides.
+[Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations) scores two prompts with an LLM judge in one short script. This page is the longer code walkthrough: a deterministic code evaluator instead of a judge, examples with ids and metadata, and a dataset you built from traces in the UI. The examples are billing-support replies, like the ones [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) traces. It needs a running Phoenix and no model key.
 
-You define two tasks, a baseline and an edited prompt, score both with one deterministic evaluator, and read the difference.
+You define two tasks, a baseline and an edited prompt, score both with one deterministic evaluator, and read the difference. The code lives in [examples/quickstarts](https://github.com/Arize-ai/phoenix/tree/main/examples/quickstarts), ready to run.
 
 ## Build and run the experiment
 
-The script creates its own dataset, so you can run it without traces in Phoenix. Choose Python or TypeScript.
-
-<Tabs>
-<Tab title="Python">
+The script creates its own dataset, so you can run it without traces in Phoenix. Choose Python or TypeScript in each step.
 
 <Steps>
 <Step title={<span className="step-title">Install experiment packages</span>}>
-  Install the Phoenix client package.
-
+  <Tabs>
+  <Tab title="Python">
   ```bash
   pip install -U arize-phoenix-client
   ```
+  </Tab>
+  <Tab title="TypeScript">
+  ```bash
+  npm install @arizeai/phoenix-client tsx
+  ```
+  </Tab>
+  </Tabs>
 </Step>
 
 <Step title={<span className="step-title">Create an experiment file</span>}>
-  Create a file named `experiment.py`. The dataset uses two billing support examples; replace them with selected traces or examples from your agent when you are ready.
+  The dataset uses two billing support examples; replace them with selected traces or examples from your agent when you are ready.
 
+  <Tabs>
+  <Tab title="Python">
+  Create a file named `experiment.py`.
+
+  {/* snippet: examples/quickstarts/python/experiment.py#main */}
   ```python
   from phoenix.client import Client
 
@@ -67,7 +76,9 @@ The script creates its own dataset, so you can run it without traces in Phoenix.
 
   def edited_task(input):
       if "renewal" in input["text"]:
-          return "Plan changes can create prorated usage charges and updated taxes on a renewal invoice."
+          return (
+              "Plan changes can create prorated usage charges and updated taxes on a renewal invoice."
+          )
       return "Invoice totals can change when usage, taxes, or plan adjustments are applied."
 
 
@@ -78,65 +89,26 @@ The script creates its own dataset, so you can run it without traces in Phoenix.
       has_plan = "plan" in text
       return has_usage and has_taxes and has_plan
 
+
   client.experiments.run_experiment(
       dataset=dataset,
       task=baseline_task,
       evaluators=[covers_billing_context],
-      experiment_name="support-response-baseline-docs-run",
+      experiment_name="support-response-baseline",
   )
 
   client.experiments.run_experiment(
       dataset=dataset,
       task=edited_task,
       evaluators=[covers_billing_context],
-      experiment_name="support-response-edited-docs-run",
+      experiment_name="support-response-edited",
   )
   ```
+  </Tab>
+  <Tab title="TypeScript">
+  Create a file named `experiment.ts`.
 
-  Each task takes one dataset input and returns an agent output. Swap in your agent's entry point. The evaluator is intentionally deterministic: it checks for the billing context the response must include before you add broader LLM-as-a-judge evals.
-</Step>
-
-<Step title={<span className="step-title">Run the experiment</span>}>
-  Run the file.
-
-  ```bash
-  python experiment.py
-  ```
-
-  If you already created a dataset from traces in the UI, replace the `create_dataset` call with:
-
-  ```python
-  dataset = client.datasets.get_dataset(dataset="<YOUR DATASET NAME>")
-  ```
-</Step>
-
-<Step title={<span className="step-title">Review the scores</span>}>
-  Head back to Phoenix and open the dataset's **Experiments** tab. You can compare outputs, evaluator labels, scores, and explanations for each example.
-
-  <Frame caption="Side-by-side experiment comparison">
-    <img
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-compare-score-delta.png"
-      alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
-    />
-  </Frame>
-</Step>
-</Steps>
-
-</Tab>
-<Tab title="TypeScript">
-
-<Steps>
-<Step title={<span className="step-title">Install experiment packages</span>}>
-  Install the Phoenix client package and `tsx` for running the TypeScript file.
-
-  ```bash
-  npm install @arizeai/phoenix-client tsx
-  ```
-</Step>
-
-<Step title={<span className="step-title">Create an experiment file</span>}>
-  Create a file named `experiment.ts`. The dataset uses two billing support examples; replace them with selected traces or examples from your agent when you are ready.
-
+  {/* snippet: examples/quickstarts/typescript/experiment.ts#main */}
   ```typescript
   import { createClient } from "@arizeai/phoenix-client";
   import { createDataset } from "@arizeai/phoenix-client/datasets";
@@ -147,9 +119,34 @@ The script creates its own dataset, so you can run it without traces in Phoenix.
   import type { Example } from "@arizeai/phoenix-client/types/datasets";
 
   const client = createClient();
-  const datasetName = "support-quickstart";
 
-  const baselineTask = async (example: Example): Promise<string> => {
+  const dataset = await createDataset({
+    client,
+    name: "support-quickstart",
+    description: "Support reply examples from the Phoenix quickstart.",
+    examples: [
+      {
+        id: "invoice-change",
+        input: { text: "Draft a short reply about why an invoice changed." },
+        output: {
+          text: "Explain that invoice totals can change when usage, taxes, or plan adjustments are applied.",
+        },
+        metadata: { kind: "billing" },
+      },
+      {
+        id: "renewal-plan-change",
+        input: {
+          text: "A customer says their renewal invoice is higher after changing plans.",
+        },
+        output: {
+          text: "Explain that plan changes can cause prorated usage charges and updated taxes.",
+        },
+        metadata: { kind: "billing" },
+      },
+    ],
+  });
+
+  const baselineTask = (example: Example): string => {
     const input = example.input as { text: string };
 
     if (input.text.includes("renewal")) {
@@ -158,8 +155,7 @@ The script creates its own dataset, so you can run it without traces in Phoenix.
     return "Invoice totals can change when billing settings change.";
   };
 
-
-  const editedTask = async (example: Example): Promise<string> => {
+  const editedTask = (example: Example): string => {
     const input = example.input as { text: string };
 
     if (input.text.includes("renewal")) {
@@ -168,11 +164,10 @@ The script creates its own dataset, so you can run it without traces in Phoenix.
     return "Invoice totals can change when usage, taxes, or plan adjustments are applied.";
   };
 
-
   const coversBillingContext = asExperimentEvaluator({
     name: "covers_billing_context",
     kind: "CODE",
-    evaluate: async ({ output }) => {
+    evaluate: ({ output }) => {
       const text = String(output).toLowerCase();
       const hasUsage = text.includes("usage") || text.includes("prorat");
       const hasTaxes = text.includes("tax");
@@ -185,67 +180,55 @@ The script creates its own dataset, so you can run it without traces in Phoenix.
     },
   });
 
-  async function main() {
-    await createDataset({
-      client,
-      name: datasetName,
-      description: "Support reply examples from the Phoenix quickstart.",
-      examples: [
-        {
-          id: "invoice-change",
-          input: { text: "Draft a short reply about why an invoice changed." },
-          output: {
-            text: "Explain that invoice totals can change when usage, taxes, or plan adjustments are applied.",
-          },
-          metadata: { kind: "billing" },
-        },
-        {
-          id: "renewal-plan-change",
-          input: {
-            text: "A customer says their renewal invoice is higher after changing plans.",
-          },
-          output: {
-            text: "Explain that plan changes can cause prorated usage charges and updated taxes.",
-          },
-          metadata: { kind: "billing" },
-        },
-      ],
-    });
+  await runExperiment({
+    client,
+    dataset,
+    task: baselineTask,
+    evaluators: [coversBillingContext],
+    experimentName: "support-response-baseline",
+  });
 
-    await runExperiment({
-      client,
-      dataset: { datasetName },
-      task: baselineTask,
-      evaluators: [coversBillingContext],
-      experimentName: "support-response-baseline-docs-run",
-    });
-
-    await runExperiment({
-      client,
-      dataset: { datasetName },
-      task: editedTask,
-      evaluators: [coversBillingContext],
-      experimentName: "support-response-edited-docs-run",
-    });
-  }
-
-  main().catch((error) => {
-    console.error(error);
-    process.exit(1);
+  await runExperiment({
+    client,
+    dataset,
+    task: editedTask,
+    evaluators: [coversBillingContext],
+    experimentName: "support-response-edited",
   });
   ```
+  </Tab>
+  </Tabs>
 
   Each task takes one dataset example and returns an agent output. Swap in your agent's entry point. The evaluator is intentionally deterministic: it checks for the billing context the response must include before you add broader LLM-as-a-judge evals.
 </Step>
 
 <Step title={<span className="step-title">Run the experiment</span>}>
-  Run the file.
+  <Tabs>
+  <Tab title="Python">
+  ```bash
+  python experiment.py
+  ```
 
+  If you already created a dataset from traces in the UI, replace the `create_dataset` call with:
+
+  ```python
+  dataset = client.datasets.get_dataset(dataset="<YOUR DATASET NAME>")
+  ```
+  </Tab>
+  <Tab title="TypeScript">
   ```bash
   npx tsx experiment.ts
   ```
 
-  If you already created a dataset from traces in the UI, keep `datasetName` set to that dataset name and remove the `createDataset` call.
+  If you already created a dataset from traces in the UI, replace the `createDataset` call with:
+
+  ```typescript
+  import { getDataset } from "@arizeai/phoenix-client/datasets";
+
+  const dataset = await getDataset({ client, dataset: { datasetName: "<YOUR DATASET NAME>" } });
+  ```
+  </Tab>
+  </Tabs>
 </Step>
 
 <Step title={<span className="step-title">Review the scores</span>}>
@@ -260,9 +243,6 @@ The script creates its own dataset, so you can run it without traces in Phoenix.
 </Step>
 </Steps>
 
-</Tab>
-</Tabs>
-
 ## Mark a persistent baseline
 
-The comparison above is transient. To pin one experiment as the reference point that later comparisons measure against, see [Set a Baseline Experiment](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#set-a-baseline-experiment).
+The comparison above is transient. To pin one experiment as the reference point that later comparisons measure against, see [Set a Baseline Experiment](/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments#set-a-baseline-experiment).
