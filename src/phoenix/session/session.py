@@ -294,7 +294,9 @@ def launch_app(
         The trace dataset containing the trace data.
     host: str, optional
         The host on which the server runs. It can also be set using environment
-        variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
+        variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1` (`0.0.0.0` on
+        Databricks, whose driver proxy cannot reach loopback). A non-loopback host
+        enables authentication unless `PHOENIX_ENABLE_AUTH` is set.
     port: int, optional
         The port on which the server listens. When using traces this should not be
         used and should instead set the environment variable `PHOENIX_PORT`.
@@ -377,7 +379,8 @@ def launch_app(
             DeprecationWarning,
         )
 
-    host = host or get_env_host()
+    nb_env = nb_env or _get_notebook_environment()
+    host = _default_host(host, nb_env)
     port = port or get_env_port()
     if use_temp_dir:
         global _session_working_dir
@@ -436,6 +439,18 @@ def launch_app(
         print(f"💽 Your data is being persisted to {get_printable_db_url(database_url)}")
     print("📖 For more information on how to use Phoenix, check out https://arize.com/docs/phoenix")
     return _session
+
+
+def _default_host(host: Optional[str], notebook_env: NotebookEnvironment) -> str:
+    """Resolve the launch_app host from the argument, PHOENIX_HOST, or the environment default."""
+    if (
+        host is None
+        and not os.getenv(ENV_PHOENIX_HOST)
+        and notebook_env is NotebookEnvironment.DATABRICKS
+    ):
+        # The Databricks driver proxy reaches the app over the network, not via loopback.
+        return "0.0.0.0"
+    return host or get_env_host()
 
 
 def active_session() -> Optional[Session]:
