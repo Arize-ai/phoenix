@@ -13,7 +13,7 @@ Phoenix runs these offline. Online evals, scoring live traffic, are in developme
 
 Everything below works on a fresh Phoenix with nothing instrumented yet. It needs an OpenAI key: the agent being tested and the judge both call a model.
 
-Prefer to hand this to your coding agent or [PXI](/docs/phoenix/pxi)? [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job) has the prompt.
+To have a coding agent or [PXI](/docs/phoenix/pxi) do this instead, see [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job).
 
 Both tabs run the same flow: a dataset of three questions about a fictional airline's Basic fare with the answer each should get, an LLM judge that compares each reply to that answer, and two experiments. The first prompt knows nothing about the airline and scores 0. The second includes the policy and scores 1.
 
