@@ -817,9 +817,11 @@ def _get_ssl_context(env: Mapping[str, str]) -> Optional[ssl.SSLContext]:
 
 _SCHEMA_PREFIX = f"_{token_hex(3)}"
 
+_SECRET_ENV = ("PHOENIX_SECRET", "PHOENIX_ADMIN_SECRET")
+
 
 @contextmanager
-def _server(app: _AppInfo, *, unset_env: tuple[str, ...] = ()) -> Iterator[_AppInfo]:
+def _server(app: _AppInfo) -> Iterator[_AppInfo]:
     if not (sql_database_url := app.env.get(ENV_PHOENIX_SQL_DATABASE_URL)):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_URL} is required.")
     if sql_database_url.startswith("postgresql") and not str(
@@ -827,9 +829,13 @@ def _server(app: _AppInfo, *, unset_env: tuple[str, ...] = ()) -> Iterator[_AppI
     ).startswith(_SCHEMA_PREFIX):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve --debug"
-    env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
-    for key in unset_env:
-        env.pop(key, None)
+    if sys.platform == "win32":
+        # Windows needs the parent's environment to start Python. Leave out inherited
+        # secrets so app.env alone decides whether the server has them.
+        env = {k: v for k, v in os.environ.items() if k not in _SECRET_ENV}
+        env.update(app.env)
+    else:
+        env = dict(app.env)
     # The server's stdio and this pipe's reader must agree on an encoding, and
     # the reader must never die on a byte it cannot decode: it is the only
     # thing draining the pipe, and a server whose pipe is full blocks on its

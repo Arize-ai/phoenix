@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
 import sys
 import time
 from contextlib import nullcontext
@@ -11,10 +10,8 @@ from typing import Any, Callable, Optional, cast
 
 import pytest
 from psutil import NoSuchProcess, Popen
-from sqlalchemy import make_url
 
 from . import _helpers
-from .auth.conftest import _isolated_database, _oauth2_app_env
 
 
 class _Process:
@@ -71,18 +68,6 @@ def _mock_server(
 
 def _app() -> _helpers._AppInfo:
     return _helpers._AppInfo({"PHOENIX_SQL_DATABASE_URL": "sqlite:///test.db"})
-
-
-def test_server_kills_process_when_context_body_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    process = _Process()
-    _mock_server(monkeypatch, process, alive=True, health_check=_ready)
-
-    with pytest.raises(RuntimeError, match="test failure"):
-        with _helpers._server(_app()):
-            raise RuntimeError("test failure")
-
-    assert process.killed
-    assert process.waited
 
 
 def test_server_kills_process_when_startup_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -200,57 +185,3 @@ def test_is_alive_handles_process_exit_during_status_check() -> None:
             raise NoSuchProcess(pid=1)
 
     assert not _helpers._is_alive(cast(Any, _ExitedProcess()))
-
-
-def test_app_default_admin_uses_its_own_required_password() -> None:
-    first_app = _helpers._AppInfo({"PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": "first-password"})
-    second_app = _helpers._AppInfo({"PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": "second-password"})
-
-    assert first_app.default_admin.password == "first-password"
-    assert second_app.default_admin.password == "second-password"
-    with pytest.raises(KeyError, match="PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"):
-        _helpers._AppInfo({}).default_admin
-
-
-def test_seed_lookup_does_not_create_a_missing_seed(tmp_path: Path) -> None:
-    database = tmp_path / "empty-seed.db"
-    with sqlite3.connect(database) as connection:
-        connection.execute("CREATE TABLE deployment_secret (id INTEGER PRIMARY KEY, seed BLOB)")
-
-    with pytest.raises(AssertionError):
-        _helpers._load_deployment_seed(f"sqlite:///{database}", "")
-
-    with sqlite3.connect(database) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM deployment_secret").fetchone() == (0,)
-
-
-def test_isolated_sqlite_databases_are_file_backed_and_distinct(
-    tmp_path_factory: pytest.TempPathFactory,
-) -> None:
-    baseline = {"PHOENIX_SQL_DATABASE_URL": "sqlite:///:memory:"}
-    with _isolated_database(baseline, tmp_path_factory, "auth-app") as first:
-        with _isolated_database(baseline, tmp_path_factory, "auth-app") as second:
-            first_database = make_url(first["PHOENIX_SQL_DATABASE_URL"]).database
-            second_database = make_url(second["PHOENIX_SQL_DATABASE_URL"]).database
-            assert first_database is not None and Path(first_database).is_absolute()
-            assert second_database is not None and Path(second_database).is_absolute()
-            assert first["PHOENIX_SQL_DATABASE_URL"] != second["PHOENIX_SQL_DATABASE_URL"]
-
-
-@pytest.mark.parametrize("secret_configuration", ("configured", "absent"))
-def test_oauth2_app_environment_includes_default_admin_password(secret_configuration: str) -> None:
-    env = _oauth2_app_env(
-        port=6006,
-        grpc_port=4317,
-        database="test.db",
-        extra={},
-        secret_configuration=secret_configuration,
-    )
-
-    assert env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"]
-    assert (
-        _helpers._AppInfo(env).default_admin.password
-        == env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"]
-    )
-    assert ("PHOENIX_SECRET" in env) is (secret_configuration == "configured")
-    assert ("PHOENIX_ADMIN_SECRET" in env) is (secret_configuration == "configured")

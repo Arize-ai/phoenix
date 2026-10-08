@@ -553,15 +553,6 @@ def _env(
         yield env
 
 
-_SECRET_ENV = ("PHOENIX_SECRET", "PHOENIX_ADMIN_SECRET")
-
-
-def _unset_secrets(secret_configuration: str) -> tuple[str, ...]:
-    if secret_configuration == "absent":
-        return _SECRET_ENV
-    return ()
-
-
 def _assert_issued_token_verifies_with_secret_configuration(
     app: _AppInfo,
     secret_configuration: str,
@@ -592,11 +583,8 @@ def _assert_issued_token_verifies_with_secret_configuration(
 
 
 @pytest.fixture(scope="package")
-def _app(
-    _env: dict[str, str],
-    _secret_configuration: str,
-) -> Iterator[_AppInfo]:
-    with _server(_AppInfo(_env), unset_env=_unset_secrets(_secret_configuration)) as app:
+def _app(_env: dict[str, str]) -> Iterator[_AppInfo]:
+    with _server(_AppInfo(_env)) as app:
         yield app
 
 
@@ -606,11 +594,37 @@ def _redactor(_app: _AppInfo) -> "Redactor":
 
 
 @pytest.fixture(scope="package")
+def _env_ldap_app_base(
+    _env_auth: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_oauth2: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+    _env_tls: Mapping[str, str],
+) -> dict[str, str]:
+    """Settings each dedicated LDAP app shares with the package app."""
+    return {**_env_tls, **_env_database, **_env_auth, **_env_smtp, **_env_oauth2}
+
+
+@contextmanager
+def _ldap_app(
+    env: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
+    name: str,
+) -> Iterator[_AppInfo]:
+    with _isolated_database(env, tmp_path_factory, name) as isolated:
+        with _server(_AppInfo(isolated)) as app:
+            yield app
+
+
+@pytest.fixture(scope="package")
 def _env_ports_ldap_no_sign_up(
     _ports: Iterator[int],
     _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for LDAP no-sign-up app."""
+    """Separate port allocation for LDAP no-sign-up app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -619,32 +633,18 @@ def _env_ports_ldap_no_sign_up(
 
 @pytest.fixture(scope="package")
 def _app_ldap_no_sign_up(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_no_sign_up: Mapping[str, str],
     _env_ports_ldap_no_sign_up: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
-    _secret_configuration: str,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP allow_sign_up=false.
 
     Uses separate ports from _app_ldap to allow both apps to run concurrently.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_ldap_no_sign_up,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_no_sign_up,
-    }
-    with _isolated_database(env, tmp_path_factory, "ldap-no-sign-up") as env:
-        with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
-            yield app
+    env = {**_env_ldap_app_base, **_env_ports_ldap_no_sign_up, **_env_ldap_no_sign_up}
+    with _ldap_app(env, tmp_path_factory, "ldap-no-sign-up") as app:
+        yield app
 
 
 @pytest.fixture(scope="package")
@@ -652,7 +652,10 @@ def _env_ports_posix(
     _ports: Iterator[int],
     _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for POSIX LDAP app to avoid conflicts with _app_ldap."""
+    """Separate port allocation for POSIX LDAP app to avoid conflicts with _app_ldap.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -664,7 +667,10 @@ def _env_ports_ldap_no_email(
     _ports: Iterator[int],
     _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for LDAP no-email app."""
+    """Separate port allocation for LDAP no-email app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -676,7 +682,10 @@ def _env_ports_ldap_unique_id(
     _ports: Iterator[int],
     _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for LDAP unique_id app."""
+    """Separate port allocation for LDAP unique_id app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -685,14 +694,9 @@ def _env_ports_ldap_unique_id(
 
 @pytest.fixture(scope="package")
 def _app_ldap_posix(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_posix: Mapping[str, str],
     _env_ports_posix: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
-    _secret_configuration: str,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for POSIX group search (OpenLDAP).
@@ -700,18 +704,9 @@ def _app_ldap_posix(
     Uses separate ports from _app_ldap to allow both apps to run concurrently
     during integration tests.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_posix,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_posix,
-    }
-    with _isolated_database(env, tmp_path_factory, "ldap-posix") as env:
-        with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
-            yield app
+    env = {**_env_ldap_app_base, **_env_ports_posix, **_env_ldap_posix}
+    with _ldap_app(env, tmp_path_factory, "ldap-posix") as app:
+        yield app
 
 
 @pytest.fixture(scope="package")
@@ -719,7 +714,10 @@ def _env_ports_posix_memberuid(
     _ports: Iterator[int],
     _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for POSIX memberUid LDAP app."""
+    """Separate port allocation for POSIX memberUid LDAP app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -728,14 +726,9 @@ def _env_ports_posix_memberuid(
 
 @pytest.fixture(scope="package")
 def _app_ldap_posix_memberuid(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_posix_memberuid: Mapping[str, str],
     _env_ports_posix_memberuid: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
-    _secret_configuration: str,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for POSIX memberUid group search.
@@ -743,30 +736,16 @@ def _app_ldap_posix_memberuid(
     Uses GROUP_SEARCH_FILTER_USER_ATTR=uid to test the code path where Phoenix
     must fetch the uid attribute from the user entry for group filter substitution.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_posix_memberuid,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_posix_memberuid,
-    }
-    with _isolated_database(env, tmp_path_factory, "ldap-posix-memberuid") as env:
-        with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
-            yield app
+    env = {**_env_ldap_app_base, **_env_ports_posix_memberuid, **_env_ldap_posix_memberuid}
+    with _ldap_app(env, tmp_path_factory, "ldap-posix-memberuid") as app:
+        yield app
 
 
 @pytest.fixture(scope="package")
 def _app_ldap_unique_id(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_unique_id: Mapping[str, str],
     _env_ports_ldap_unique_id: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
-    _secret_configuration: str,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for unique_id identification (enterprise mode).
@@ -775,30 +754,16 @@ def _app_ldap_unique_id(
     unique identifier rather than email. This enables identity preservation
     across email and DN changes.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_ldap_unique_id,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_unique_id,
-    }
-    with _isolated_database(env, tmp_path_factory, "ldap-unique-id") as env:
-        with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
-            yield app
+    env = {**_env_ldap_app_base, **_env_ports_ldap_unique_id, **_env_ldap_unique_id}
+    with _ldap_app(env, tmp_path_factory, "ldap-unique-id") as app:
+        yield app
 
 
 @pytest.fixture(scope="package")
 def _app_ldap_no_email(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_no_email: Mapping[str, str],
     _env_ports_ldap_no_email: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
-    _secret_configuration: str,
     tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for no-email mode (null email markers).
@@ -807,18 +772,9 @@ def _app_ldap_no_email(
     identified by entryUUID instead of email. Phoenix generates null email
     markers for the database.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_ldap_no_email,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_no_email,
-    }
-    with _isolated_database(env, tmp_path_factory, "ldap-no-email") as env:
-        with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
-            yield app
+    env = {**_env_ldap_app_base, **_env_ports_ldap_no_email, **_env_ldap_no_email}
+    with _ldap_app(env, tmp_path_factory, "ldap-no-email") as app:
+        yield app
 
 
 @pytest.fixture(scope="package")
@@ -1235,7 +1191,7 @@ def _app_dcr_rate_limited(
         extra={"PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR": "1"},
         secret_configuration=_secret_configuration,
     )
-    with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
+    with _server(_AppInfo(env)) as app:
         yield app
 
 
@@ -1257,7 +1213,7 @@ def _app_dcr_enabled(
         },
         secret_configuration=_secret_configuration,
     )
-    with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
+    with _server(_AppInfo(env)) as app:
         yield app
 
 
@@ -1287,7 +1243,7 @@ def _app_short_grant(
         },
         secret_configuration=_secret_configuration,
     )
-    with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
+    with _server(_AppInfo(env)) as app:
         yield app
 
 
@@ -1309,7 +1265,7 @@ def _app_dcr_disabled(
         },
         secret_configuration=_secret_configuration,
     )
-    with _server(_AppInfo(env), unset_env=_unset_secrets(_secret_configuration)) as app:
+    with _server(_AppInfo(env)) as app:
         yield app
 
 
