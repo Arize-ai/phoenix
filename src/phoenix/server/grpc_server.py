@@ -125,10 +125,12 @@ class GrpcServer:
 
 
 def _bind_address(host: Optional[str], port: int) -> str:
-    """Format a gRPC bind address; None binds all interfaces."""
+    """Format a gRPC bind address for a host from ``canonicalize_host``.
+
+    None binds all interfaces.
+    """
     if host is None:
         return f"[::]:{port}"
-    address = host.strip().strip("[]")
-    if ":" in address:
-        return f"[{address}]:{port}"
-    return f"{address}:{port}"
+    if ":" in host:
+        return f"[{host}]:{port}"
+    return f"{host}:{port}"
