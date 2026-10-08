@@ -402,48 +402,49 @@ export type EvaluatorPathCompletionResult = {
 
 const NO_IDEAS = () => [];
 
+type EvaluatorPathIdeaSource = (
+  containerPath: string
+) => readonly EvaluatorPathIdea[];
+
 /**
  * The rows the typeahead offers for the path being typed.
  *
  * The top level is the evaluation context itself, so `rootCandidates` names it
  * — the shared candidate tree, whose rows are already whole paths. Each `.`
  * after that opens the level below, read off the context. Every level leads
- * with `getIdeas` for it.
+ * with `getIdeas` for it. A path typed in full that holds more is offered
+ * first as itself, then by what it holds; after a closed subscript, only when
+ * the menu was asked for.
  */
 export function getEvaluatorPathCompletions({
   source,
   rootCandidates = [],
   getIdeas = NO_IDEAS,
   textBeforeCursor,
+  isExplicit = false,
 }: {
   /** The evaluation context a path is resolved against. */
   source: Record<string, unknown>;
   rootCandidates?: readonly EvaluatorPathCompletion[];
   /** The ideas one level below a path, empty for the top level. */
-  getIdeas?: (containerPath: string) => readonly EvaluatorPathIdea[];
+  getIdeas?: EvaluatorPathIdeaSource;
   textBeforeCursor: string;
+  /** Whether the menu was asked for rather than opened by typing. */
+  isExplicit?: boolean;
 }): EvaluatorPathCompletionResult | null {
   const cursor = getEvaluatorPathCursor(textBeforeCursor);
   if (cursor === null) {
-    return null;
+    return isExplicit
+      ? getClosedSubscriptCompletions({
+          source,
+          rootCandidates,
+          getIdeas,
+          textBeforeCursor,
+        })
+      : null;
   }
   if (cursor.containerPath === "") {
-    const ideas = toIdeaRows(getIdeas(""));
-    const completions = [
-      ...ideas.map((row) =>
-        toLevelCompletion({
-          row,
-          key: row.path,
-          section: SUGGESTED_PATH_SECTION,
-        })
-      ),
-      ...rootCandidates.filter(
-        (candidate) => !ideas.some((idea) => idea.path === candidate.path)
-      ),
-    ];
-    return completions.length === 0
-      ? null
-      : { from: cursor.from, containerPath: "", completions };
+    return getRootCompletions({ source, rootCandidates, getIdeas, cursor });
   }
 
   const reached = reachEvaluatorContainerPath({
@@ -467,73 +468,47 @@ export function getEvaluatorPathCompletions({
   const toKey = (path: string) =>
     reached === null ? toRelativePath(path, containerPath) : path;
   const typedKey = getTypedKey({ textBeforeCursor, cursor });
-  const typed = [...level.ideas, ...level.fields].find(
+  const rows = [...level.ideas, ...level.fields];
+  const typed = rows.find(
     (row) =>
       row.holdsMore &&
       typedKey !== null &&
       toRelativePath(row.path, containerPath) === typedKey
   );
   const section = toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK);
-  const completions: EvaluatorPathCompletion[] = [];
-  if (typed === undefined) {
-    completions.push(
-      ...level.ideas.map((row) =>
-        toLevelCompletion({
-          row,
-          key: toKey(row.path),
-          section: SUGGESTED_PATH_SECTION,
-        })
-      ),
-      ...capBrowsedMembers({
-        members: level.fields,
-        isBrowsing: cursor.partial === "",
-      }).map((row) => toLevelCompletion({ row, key: toKey(row.path), section }))
-    );
-  } else {
-    // A name typed in full is already the path; accepting it again ends the
-    // path rather than reopening what its row already shows. What it holds
-    // is offered below it, so the author can go on without typing the dot.
-    completions.push(
-      toLevelCompletion({
-        row: { ...typed, holdsMore: false },
-        key: toKey(typed.path),
-        section,
-      }),
-      ...[...level.ideas, ...level.fields]
-        .filter((row) => row !== typed && !isWithinPath(row.path, typed.path))
-        .map((row) => toLevelCompletion({ row, key: toKey(row.path), section }))
-    );
-    const below = getEvaluatorPathLevel({
-      source,
-      containerPath: typed.path,
-      getIdeas,
-    });
-    if (below !== null) {
-      completions.push(
-        ...below.ideas.map((row) =>
-          toLevelCompletion({
-            row,
-            key: toKey(row.path),
-            section: {
-              ...SUGGESTED_PATH_SECTION,
-              rank: PATH_CONTINUATION_SECTION_RANK,
-            },
-          })
-        ),
-        ...capBrowsedMembers({ members: below.fields, isBrowsing: true }).map(
-          (row) =>
+  const completions =
+    typed === undefined
+      ? [
+          ...level.ideas.map((row) =>
             toLevelCompletion({
               row,
               key: toKey(row.path),
-              section: toMemberSection(
-                typed.path,
-                PATH_CONTINUATION_SECTION_RANK + 1
-              ),
+              section: SUGGESTED_PATH_SECTION,
             })
-        )
-      );
-    }
-  }
+          ),
+          ...capBrowsedMembers({
+            members: level.fields,
+            isBrowsing: cursor.partial === "",
+          }).map((row) =>
+            toLevelCompletion({ row, key: toKey(row.path), section })
+          ),
+        ]
+      : [
+          toFinishedCompletion({ row: typed, key: toKey(typed.path), section }),
+          ...rows
+            .filter(
+              (row) => row !== typed && !isWithinPath(row.path, typed.path)
+            )
+            .map((row) =>
+              toLevelCompletion({ row, key: toKey(row.path), section })
+            ),
+          ...getBelowCompletions({
+            source,
+            getIdeas,
+            path: typed.path,
+            toKey,
+          }),
+        ];
   if (completions.length === 0) {
     return null;
   }
@@ -552,6 +527,172 @@ export function getEvaluatorPathCompletions({
     containerPath,
     completions,
   };
+}
+
+function getRootCompletions({
+  source,
+  rootCandidates,
+  getIdeas,
+  cursor,
+}: {
+  source: Record<string, unknown>;
+  rootCandidates: readonly EvaluatorPathCompletion[];
+  getIdeas: EvaluatorPathIdeaSource;
+  cursor: EvaluatorPathCursor;
+}): EvaluatorPathCompletionResult | null {
+  const typed = rootCandidates.find(
+    (candidate) => candidate.drills && candidate.key === cursor.partial
+  );
+  if (typed !== undefined) {
+    return {
+      from: cursor.from,
+      containerPath: "",
+      completions: [
+        {
+          ...typed,
+          drills: false,
+          type:
+            typed.type === CONTAINER_COMPLETION_TYPE ? "variable" : typed.type,
+        },
+        ...getBelowCompletions({
+          source,
+          getIdeas,
+          path: typed.path,
+          toKey: (path) => path,
+        }),
+      ],
+    };
+  }
+  const ideas = toIdeaRows(getIdeas(""));
+  const completions = [
+    ...ideas.map((row) =>
+      toLevelCompletion({
+        row,
+        key: row.path,
+        section: SUGGESTED_PATH_SECTION,
+      })
+    ),
+    ...rootCandidates.filter(
+      (candidate) => !ideas.some((idea) => idea.path === candidate.path)
+    ),
+  ];
+  return completions.length === 0
+    ? null
+    : { from: cursor.from, containerPath: "", completions };
+}
+
+/**
+ * A path that ends in a closed subscript, offered as itself and then by what
+ * it holds: accepting "Last message" opens what the message holds.
+ */
+function getClosedSubscriptCompletions({
+  source,
+  rootCandidates,
+  getIdeas,
+  textBeforeCursor,
+}: {
+  source: Record<string, unknown>;
+  rootCandidates: readonly EvaluatorPathCompletion[];
+  getIdeas: EvaluatorPathIdeaSource;
+  textBeforeCursor: string;
+}): EvaluatorPathCompletionResult | null {
+  if (!textBeforeCursor.endsWith("]")) {
+    return null;
+  }
+  const reached = reachEvaluatorContainerPath({
+    source,
+    containerPath: textBeforeCursor,
+    rootPaths: rootCandidates.map((candidate) => candidate.path),
+  });
+  const typedPath = reached ?? textBeforeCursor;
+  const parsed = parseEvaluatorPath(typedPath);
+  const subscript = parsed.isValid ? parsed.steps.at(-1) : undefined;
+  if (subscript === undefined || subscript.from === 0) {
+    return null;
+  }
+  const containerPath = typedPath.slice(0, subscript.from);
+  const level = getEvaluatorPathLevel({
+    source,
+    containerPath,
+    getIdeas,
+    typedSelector: typedPath.slice(subscript.from + 1, -1),
+  });
+  const typed =
+    level?.ideas.find((row) => row.path === typedPath) ??
+    level?.fields.find((row) => row.path === typedPath) ??
+    resolveLevelRow({ source, path: typedPath })[0];
+  if (typed === undefined || !typed.holdsMore) {
+    return null;
+  }
+  const toKey = (path: string) =>
+    reached === null ? toRelativePath(path, containerPath) : path;
+  return {
+    from: reached === null ? subscript.from : 0,
+    containerPath,
+    completions: [
+      toFinishedCompletion({
+        row: typed,
+        key: toKey(typed.path),
+        section: toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK),
+      }),
+      ...getBelowCompletions({ source, getIdeas, path: typed.path, toKey }),
+    ],
+  };
+}
+
+/**
+ * A path typed in full is already written, so its row ends the path when it is
+ * accepted again rather than reopening what follows it.
+ */
+function toFinishedCompletion({
+  row,
+  key,
+  section,
+}: {
+  row: EvaluatorPathLevelRow;
+  key: string;
+  section: CompletionSection;
+}): EvaluatorPathCompletion {
+  return toLevelCompletion({ row: { ...row, holdsMore: false }, key, section });
+}
+
+/** What a path typed in full holds, offered after the path itself. */
+function getBelowCompletions({
+  source,
+  getIdeas,
+  path,
+  toKey,
+}: {
+  source: Record<string, unknown>;
+  getIdeas: EvaluatorPathIdeaSource;
+  path: string;
+  toKey: (path: string) => string;
+}): EvaluatorPathCompletion[] {
+  const below = getEvaluatorPathLevel({
+    source,
+    containerPath: path,
+    getIdeas,
+  });
+  if (below === null) {
+    return [];
+  }
+  const ideaSection = {
+    ...SUGGESTED_PATH_SECTION,
+    rank: PATH_CONTINUATION_SECTION_RANK,
+  };
+  const fieldSection = toMemberSection(
+    path,
+    PATH_CONTINUATION_SECTION_RANK + 1
+  );
+  return [
+    ...below.ideas.map((row) =>
+      toLevelCompletion({ row, key: toKey(row.path), section: ideaSection })
+    ),
+    ...capBrowsedMembers({ members: below.fields, isBrowsing: true }).map(
+      (row) =>
+        toLevelCompletion({ row, key: toKey(row.path), section: fieldSection })
+    ),
+  ];
 }
 
 /**
@@ -685,9 +826,16 @@ function resolveLevelRow({
   return [{ path, value: resolution.value, holdsMore: holdsMore(resolution) }];
 }
 
+/** Whether a value has members to drill into: a non-empty list or object. */
+export function hasEvaluatorPathMembers(value: unknown): boolean {
+  return (
+    isEvaluatorPathContainer(value) && Object.keys(value as object).length > 0
+  );
+}
+
 /**
- * Whether a path reads something with members of its own: a non-empty list or
- * object, or several matches that have fields between them.
+ * Whether a path reads something with members of its own: a value that has
+ * them, or several matches that have fields between them.
  */
 function holdsMore({
   value,
@@ -699,9 +847,7 @@ function holdsMore({
   if (matches.length > 1) {
     return getMatchedFields(matches).length > 0;
   }
-  return (
-    isEvaluatorPathContainer(value) && Object.keys(value as object).length > 0
-  );
+  return hasEvaluatorPathMembers(value);
 }
 
 /** The fields of every object among `matches`, in the order they appear. */
@@ -726,20 +872,18 @@ function toLevelCompletion({
   key: string;
   section: CompletionSection;
 }): EvaluatorPathCompletion {
-  const drills = row.idea === undefined && row.holdsMore;
   const preview = toMemberPreview(row.value);
+  const type = [
+    ...(row.idea !== undefined ? [IDEA_COMPLETION_TYPE] : []),
+    ...(row.holdsMore ? [CONTAINER_COMPLETION_TYPE] : []),
+  ].join(" ");
   return {
     key,
     path: row.path,
     detail: row.idea ?? preview,
-    type:
-      row.idea !== undefined
-        ? IDEA_COMPLETION_TYPE
-        : drills
-          ? CONTAINER_COMPLETION_TYPE
-          : "variable",
+    type: type || "variable",
     section,
-    drills,
+    drills: row.holdsMore,
     ...(row.idea !== undefined && preview !== "" ? { info: preview } : {}),
     ...(row.boost !== undefined ? { boost: row.boost } : {}),
   };

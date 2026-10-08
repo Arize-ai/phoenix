@@ -31,7 +31,10 @@ export const popoverSurfaceCSS = css`
 export const TYPEAHEAD_COMPLETION_CLASS_PREFIX = "typeahead-completion--";
 
 export function toTypeaheadCompletionClass(type: string | undefined): string {
-  return type?.startsWith(TYPEAHEAD_COMPLETION_CLASS_PREFIX) ? type : "";
+  return (type ?? "")
+    .split(" ")
+    .filter((name) => name.startsWith(TYPEAHEAD_COMPLETION_CLASS_PREFIX))
+    .join(" ");
 }
 
 export const typeaheadMenuCSS = css`
