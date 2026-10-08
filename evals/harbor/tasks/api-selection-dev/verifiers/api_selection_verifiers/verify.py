@@ -22,11 +22,7 @@ EXPECTED_APIS = frozenset({"sql", "http"})
 
 
 def api_selection_correct(expected_api: str, usage: dict[str, float]) -> float:
-    """1.0 when the agent used SQL exactly if the task expected SQL.
-
-    A SQL task is answered correctly through SQL alone; touching SQL on an HTTP task
-    counts as the wrong choice even if the answer came from REST in the end.
-    """
+    """Touching SQL on an HTTP task is the wrong choice even if REST gave the answer."""
     if expected_api not in EXPECTED_APIS:
         raise ValueError(
             f"expected_api must be one of {sorted(EXPECTED_APIS)}, not {expected_api!r}"

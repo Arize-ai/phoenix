@@ -37,8 +37,7 @@ _VERIFIERS = re.compile(r'^verifiers = "(.*)"$', re.MULTILINE)
 _PROJECT_NAME = re.compile(r'^name = "(.*)"$', re.MULTILINE)
 
 
-def dataset_wheel(task: Path) -> str | None:
-    """The glob of the wheel for the dataset's own verifiers/ package, if it has one."""
+def dataset_wheel_glob(task: Path) -> str | None:
     match = _VERIFIERS.search((task / "task.toml").read_text())
     dataset = task.parent.parent / match.group(1) if match else task.parent
     pyproject = dataset / "verifiers" / "pyproject.toml"
@@ -74,7 +73,7 @@ def main() -> int:
     failures = []
     for task in job_tasks(job):
         environment = task / "environment"
-        parts = STAGED + tuple(filter(None, [dataset_wheel(task)]))
+        parts = STAGED + tuple(filter(None, [dataset_wheel_glob(task)]))
         missing = [part for part in parts if not any(environment.glob(part))]
         if missing:
             failures.append(f"{task}/environment/ is missing {', '.join(missing)}")

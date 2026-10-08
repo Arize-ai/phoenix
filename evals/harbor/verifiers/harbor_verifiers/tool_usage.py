@@ -2,9 +2,7 @@
 
 Every value is numeric so it rides along in ``reward.json`` as its own evaluation
 beside ``reward``. None of them changes the pass or fail verdict. Tokens, cost, and
-latency are not repeated here: the plugin's trace carries them per LLM span. Whether
-the surface was the right one for the question is a dataset's judgement; the
-api-selection verifier scores it from these counts.
+latency are not repeated here: the plugin's trace carries them per LLM span.
 
 Agents reach Phoenix three ways and name their tools differently, so classification
 works on the tool name after any ``mcp__<server>__`` prefix, then on the arguments:

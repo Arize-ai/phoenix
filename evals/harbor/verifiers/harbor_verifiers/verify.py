@@ -180,8 +180,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def grade(
     args: argparse.Namespace, expected: dict[str, Any], **diagnostics: Any
 ) -> dict[str, float]:
-    """Grade the reply against ``expected``, write the reward file with the diagnostics,
-    and print the summary that the verifier log shows."""
     reply, source = read_reply(args.trajectory, args.answer)
     reward, reason = check(reply, expected)
     scores = write_reward(

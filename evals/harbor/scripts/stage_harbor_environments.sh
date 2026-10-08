@@ -57,7 +57,6 @@ ensure_fixture() {
   exit "$status"
 }
 
-# Print the wheel of a dataset's verifiers/ package, building it on first use.
 dataset_wheel() {
   local dataset=$1 out="$DATASET_WHEELS/$1"
   if [ ! -d "$out" ]; then
