@@ -933,7 +933,6 @@ describe("processAttributeToolCalls", () => {
     TOGETHER: ["TOGETHER", testSpanToolCall, expectedTestOpenAIToolCall],
     ZAI: ["ZAI", testSpanToolCall, expectedTestOpenAIToolCall],
     META: ["META", testSpanToolCall, expectedTestOpenAIToolCall],
-    // TypeSafe AI has no tool call format of its own
     TYPESAFE: ["TYPESAFE", testSpanToolCall, expectedUnknownToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(

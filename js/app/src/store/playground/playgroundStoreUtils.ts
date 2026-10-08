@@ -58,7 +58,6 @@ export const convertMessageToolCallsToProvider = ({
       }
       // TODO(apowell): #5348 Add Google tool call
       case "GOOGLE":
-      // TypeSafe AI has no tool call format of its own
       case "TYPESAFE":
         return toolCall;
       default:

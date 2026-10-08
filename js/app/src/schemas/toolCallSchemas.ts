@@ -309,7 +309,6 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
         toolCall
       ) as ProviderToToolCallMap[T];
     case "GOOGLE":
-    // TypeSafe AI has no tool call format of its own
     case "TYPESAFE":
       return toolCall as ProviderToToolCallMap[T];
     default:
