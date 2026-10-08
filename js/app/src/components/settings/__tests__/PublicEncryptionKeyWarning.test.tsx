@@ -1,12 +1,20 @@
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
-import { Environment, Network, RecordSource, Store } from "relay-runtime";
+import {
+  createOperationDescriptor,
+  Environment,
+  getRequest,
+  Network,
+  RecordSource,
+  Store,
+} from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
+import PublicEncryptionKeyWarningQuery from "../__generated__/PublicEncryptionKeyWarningQuery.graphql";
 import { PublicEncryptionKeyWarning } from "../PublicEncryptionKeyWarning";
 
 installTestMatchMedia();
@@ -26,16 +34,12 @@ function environmentFor(databaseEncryptionKeyIsPublic: boolean | null) {
   });
 }
 
-function renderWarning(databaseEncryptionKeyIsPublic: boolean | null) {
-  return (
-    <ThemeProvider themeMode="light" disableBodyTheme>
-      <RelayEnvironmentProvider
-        environment={environmentFor(databaseEncryptionKeyIsPublic)}
-      >
-        <PublicEncryptionKeyWarning />
-      </RelayEnvironmentProvider>
-    </ThemeProvider>
+function committedServerStatus(environment: Environment) {
+  const operation = createOperationDescriptor(
+    getRequest(PublicEncryptionKeyWarningQuery),
+    {}
   );
+  return environment.lookup(operation.fragment).data;
 }
 
 describe("PublicEncryptionKeyWarning", () => {
@@ -53,25 +57,34 @@ describe("PublicEncryptionKeyWarning", () => {
     container.remove();
   });
 
-  async function render(node: ReactNode) {
+  async function render(environment: Environment) {
     await act(async () => {
-      root.render(node);
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <RelayEnvironmentProvider environment={environment}>
+            <PublicEncryptionKeyWarning />
+          </RelayEnvironmentProvider>
+        </ThemeProvider>
+      );
     });
   }
 
   it("renders the warning when the encryption key is public", async () => {
-    await render(renderWarning(true));
+    await render(environmentFor(true));
     expect(container.textContent).toContain(WARNING);
     expect(container.textContent).toContain("PHOENIX_SECRET is not set");
   });
 
-  it("renders nothing when the encryption key is private", async () => {
-    await render(renderWarning(false));
-    expect(container.textContent).not.toContain(WARNING);
-  });
-
-  it("renders nothing when the viewer is not told", async () => {
-    await render(renderWarning(null));
+  it.each([
+    { value: false, name: "the encryption key is private" },
+    { value: null, name: "the viewer is not told" },
+  ])("renders nothing when $name", async ({ value }) => {
+    const environment = environmentFor(value);
+    await render(environment);
+    // The Suspense fallback is also empty, so prove the query resolved first.
+    expect(committedServerStatus(environment)).toEqual({
+      serverStatus: { databaseEncryptionKeyIsPublic: value },
+    });
     expect(container.textContent).not.toContain(WARNING);
   });
 });
