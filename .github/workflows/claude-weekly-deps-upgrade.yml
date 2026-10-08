@@ -2,7 +2,7 @@ name: Weekly Dependency Upgrade
 
 on:
   schedule:
-    - cron: "0 12 * * 1"
+    - cron: "0 12 * * MON"
   workflow_dispatch:
 
 concurrency:
