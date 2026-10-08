@@ -425,7 +425,6 @@ describe("getEvaluatorTemplateCompletions", () => {
     ]);
     expect(
       [
-        "{metadata.turns[",
         "{metadata.turns[*].",
         "{metadata.turns[0:1].",
         "{metadata.turns[0,0].",
@@ -433,7 +432,53 @@ describe("getEvaluatorTemplateCompletions", () => {
         "{metadata[turns][0].",
         "{metadata.*.",
       ].map(labelsAt)
-    ).toEqual([null, null, null, null, null, null, null]);
+    ).toEqual([null, null, null, null, null, null]);
+  });
+
+  it("offers a list's first and last item by position in an f-string", () => {
+    const rowsAt = (doc: string) =>
+      complete({
+        doc,
+        recordKind: "session",
+        templateFormat: TemplateFormats.FString,
+      })?.options.map(({ label, displayLabel, detail }) => ({
+        label,
+        displayLabel,
+        detail,
+      })) ?? null;
+    const positions = [
+      {
+        label: "metadata.turns[0]",
+        displayLabel: "First turn",
+        detail: "object · 2",
+      },
+      {
+        label: "metadata.turns[-1]",
+        displayLabel: "Last turn",
+        detail: "object · 2",
+      },
+    ];
+
+    expect(rowsAt("{metadata.turns.")).toEqual(positions);
+    expect(rowsAt("{metadata.turns[")).toEqual(positions);
+    expect(rowsAt("{turns[")).toEqual(positions);
+    expect(rowsAt("{metadata.turns[3")).toEqual(positions);
+    expect(
+      complete({
+        doc: "{metadata.turns[",
+        recordKind: "session",
+        templateFormat: TemplateFormats.FString,
+      })?.filter
+    ).toBe(false);
+  });
+
+  it("keeps blocks, not positions, at a list in Mustache", () => {
+    const labels = complete({
+      doc: "{{metadata.turns.",
+      recordKind: "session",
+    })?.options.map((option) => option.label);
+
+    expect(labels).toEqual(["#metadata.turns", "^metadata.turns"]);
   });
 
   it("names a section's own fields while the cursor is inside it", () => {
