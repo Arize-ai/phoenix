@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
 
 import { Flex, ProgressBar, Text } from "@phoenix/components";
 import {
@@ -15,6 +14,12 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import {
+  computeMetricDelta,
+  indexSummariesByAnnotationName,
+} from "./experimentDeltaUtils";
+import { ExperimentMetricDelta } from "./ExperimentMetricDelta";
 
 /**
  * The shape of annotation summary data needed to render aggregates.
@@ -46,6 +51,11 @@ type ExperimentAnnotationAggregatesProps = {
    * When true, renders with reduced opacity.
    */
   isPlaceholder?: boolean;
+  /**
+   * The base experiment's annotation summaries to show deltas against.
+   * Omitted on the base column and when deltas are hidden.
+   */
+  baseAnnotationSummaries?: readonly AnnotationSummary[];
 };
 
 const listCSS = css`
@@ -77,19 +87,13 @@ export function ExperimentAnnotationAggregates({
   annotationConfigs,
   annotationSummaries,
   isPlaceholder = false,
+  baseAnnotationSummaries,
 }: ExperimentAnnotationAggregatesProps) {
-  // Build a map for quick lookup of summaries by name
-  const summaryByName = useMemo(() => {
-    return (
-      annotationSummaries?.reduce(
-        (acc, summary) => {
-          acc[summary.annotationName] = summary;
-          return acc;
-        },
-        {} as Record<string, AnnotationSummary>
-      ) ?? {}
-    );
-  }, [annotationSummaries]);
+  const summaryByName = indexSummariesByAnnotationName(annotationSummaries);
+  const baseSummaryByName =
+    baseAnnotationSummaries != null
+      ? indexSummariesByAnnotationName(baseAnnotationSummaries)
+      : null;
 
   // Don't render if there are no annotation configs
   if (annotationConfigs.length === 0) {
@@ -108,6 +112,11 @@ export function ExperimentAnnotationAggregates({
             config={config}
             meanScore={meanScore}
             executionState={executionState}
+            baseMeanScore={
+              baseSummaryByName
+                ? (baseSummaryByName[config.name]?.meanScore ?? null)
+                : undefined
+            }
           />
         );
       })}
@@ -123,13 +132,20 @@ function ExperimentAnnotationAggregateItem({
   config,
   meanScore,
   executionState,
+  baseMeanScore,
 }: {
   config: AnnotationConfig;
   meanScore: number | null | undefined;
   executionState: ExecutionState;
+  /**
+   * The base experiment's mean score; `null` when the base has none and
+   * `undefined` when no delta is shown.
+   */
+  baseMeanScore?: number | null;
 }) {
   const annotationColor = useWordColor(config.name);
-  const { lowerBound, upperBound } = getOptimizationBounds(config);
+  const { lowerBound, upperBound, optimizationDirection } =
+    getOptimizationBounds(config);
   // Default to 0-1 range if bounds not specified
   const min = lowerBound ?? 0;
   const max = upperBound ?? 1;
@@ -197,6 +213,26 @@ function ExperimentAnnotationAggregateItem({
           >
             <Truncate maxWidth="100%">{floatFormatter(meanScore)}</Truncate>
           </AnnotationScoreText>
+          {baseMeanScore !== undefined && meanScore != null && (
+            <ExperimentMetricDelta
+              delta={computeMetricDelta({
+                base: baseMeanScore,
+                compare: meanScore,
+                optimizationDirection,
+              })}
+              display="absolute"
+              metricLabel={`${config.name} average`}
+              formatter={floatFormatter}
+              compareValueText={floatFormatter(meanScore)}
+              baseValueText={floatFormatter(baseMeanScore)}
+              note={
+                optimizationDirection == null
+                  ? "No optimization direction set"
+                  : undefined
+              }
+              tooltipPlacement="top"
+            />
+          )}
         </Flex>
       )}
 
