@@ -3,19 +3,13 @@ sidebarTitle: "Evaluate"
 title: "Evaluate Your Agent"
 ---
 
-An evaluation scores your AI agent's output so you can compare prompts or models and catch regressions before you ship. It has three parts:
+An evaluation scores your agent's output so you can compare prompts or models and catch regressions. It has three parts:
 
 - **Dataset**: test cases, with inputs and expected outputs.
 - **Task**: the change you want to test, such as a new prompt.
 - **Evaluator**: code or an LLM judge that scores each output.
 
-Phoenix runs these offline. Online evals, scoring live traffic, are in development.
-
-Everything below works on a fresh Phoenix with nothing instrumented yet. It needs an OpenAI key: the agent being tested and the judge both call a model.
-
-To have a coding agent or [PXI](/docs/phoenix/pxi) do this instead, see [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job).
-
-Both tabs run the same flow: a dataset of three questions about a fictional airline's Basic fare with the answer each should get, an LLM judge that compares each reply to that answer, and two experiments. The first prompt knows nothing about the airline and scores 0. The second includes the policy and scores 1.
+Below, a dataset of three airline-policy questions, an LLM judge, and two experiments: the first prompt scores 0, the second adds the policy and scores 1. Needs an OpenAI key and nothing else. To have a coding agent or [PXI](/docs/phoenix/pxi) do this instead, see [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job).
 
 <Tabs>
   <Tab title="Python">
