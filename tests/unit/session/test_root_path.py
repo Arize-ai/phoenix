@@ -121,3 +121,20 @@ def test_launch_app_passes_trace_dataset_evaluations_to_create_app() -> None:
     assert any(isinstance(p, Precursors.SpanAnnotation) for p in initial_annotation_precursors)
     assert any(isinstance(p, Precursors.DocumentAnnotation) for p in initial_annotation_precursors)
     assert any(isinstance(p, Precursors.TraceAnnotation) for p in initial_annotation_precursors)
+
+
+@pytest.mark.parametrize(
+    "host,expected",
+    [
+        ("127.0.0.1", "http://localhost:6006/"),
+        ("0.0.0.0", "http://localhost:6006/"),
+        ("::", "http://localhost:6006/"),
+        ("::1", "http://[::1]:6006/"),
+        ("fd00::1", "http://[fd00::1]:6006/"),
+        ("10.0.0.5", "http://10.0.0.5:6006/"),
+        ("example.com", "http://example.com:6006/"),
+    ],
+)
+def test_get_url_formats_local_host(host: str, expected: str) -> None:
+    url = session_module._get_url(host, 6006, session_module.NotebookEnvironment.LOCAL, "/")
+    assert url == expected
