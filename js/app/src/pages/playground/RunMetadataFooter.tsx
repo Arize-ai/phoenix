@@ -23,7 +23,13 @@ import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
-export function RunMetadataFooter({ spanId }: { spanId: string }) {
+export function RunMetadataFooter({
+  spanId,
+  hideTokenMetrics = false,
+}: {
+  spanId: string;
+  hideTokenMetrics?: boolean;
+}) {
   const [, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
@@ -73,12 +79,14 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
       <Flex direction="row" gap="size-200" justifyContent="space-between">
         <Flex direction="row" gap="size-100" alignItems="center">
           <LatencyText size="S" latencyMs={data.span.latencyMs || 0} />
-          <SpanTokenCount
-            tokenCountTotal={data.span.tokenCountTotal || 0}
-            nodeId={data.span.id}
-            size="S"
-          />
-          {totalCost != null && (
+          {!hideTokenMetrics ? (
+            <SpanTokenCount
+              tokenCountTotal={data.span.tokenCountTotal || 0}
+              nodeId={data.span.id}
+              size="S"
+            />
+          ) : null}
+          {!hideTokenMetrics && totalCost != null && (
             <SpanTokenCosts
               totalCost={totalCost}
               spanNodeId={data.span.id}

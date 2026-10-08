@@ -1,4 +1,5 @@
 export interface PlaygroundInstanceProps {
+  supportsDecisionModels?: boolean;
   /**
    * Multiple playground instances are supported.
    * The id is used to identify the instance.

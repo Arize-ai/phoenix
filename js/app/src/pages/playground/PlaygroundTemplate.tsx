@@ -26,6 +26,7 @@ import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChat
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
+import { PlaygroundDecisionTemplate } from "./PlaygroundDecisionTemplate";
 import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
@@ -113,6 +114,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   const { disablePromptMenu, disablePromptSave, disableAlphabeticIndex } =
     props;
+  const isDecision = instance.model.modelType === "DECISION";
 
   return (
     <>
@@ -133,10 +135,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <AlphabeticIndexIcon index={index} />
             </View>
           ) : null}
-          {!disablePromptMenu ? (
+          {!disablePromptMenu && !isDecision ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}
-          {!disablePromptSave ? (
+          {!disablePromptSave && !isDecision ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}
         </Flex>
@@ -150,20 +152,29 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           >
             {/* Keeps instance invocation parameters aligned with the frontend
               spec table when model metadata or saved defaults change. */}
-            <InvocationParameterSpecsSync instanceId={instanceId} />
+            {!isDecision ? (
+              <InvocationParameterSpecsSync instanceId={instanceId} />
+            ) : null}
           </Suspense>
           <CompositeField>
-            <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-            <ModelParametersConfigButton
+            <PlaygroundModelMenu
               playgroundInstanceId={instanceId}
-              disableEphemeralRouting={props.disableEphemeralRouting}
+              supportsDecisionModels={props.supportsDecisionModels}
             />
+            {!isDecision ? (
+              <ModelParametersConfigButton
+                playgroundInstanceId={instanceId}
+                disableEphemeralRouting={props.disableEphemeralRouting}
+              />
+            ) : null}
           </CompositeField>
           {instances.length > 1 ? <DeleteButton {...props} /> : null}
         </Flex>
       </Flex>
       <View paddingY="size-100">
-        {instance.template.__type === "chat" ? (
+        {isDecision ? (
+          <PlaygroundDecisionTemplate {...props} />
+        ) : instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />
           </Suspense>

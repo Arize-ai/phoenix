@@ -11,6 +11,7 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
+import { getDecisionValidationError } from "./decisionUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 export function PlaygroundRunButton() {
@@ -25,11 +26,18 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  const hasInvalidDecision = instances.some(
+    (instance) =>
+      instance.model.modelType === "DECISION" &&
+      (!instance.decision ||
+        !!getDecisionValidationError(instance.decision) ||
+        !instance.model.modelName?.trim())
+  );
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {
       cancelPlaygroundRun({ instances, cancelPlaygroundInstances });
-    } else {
+    } else if (!hasInvalidDecision) {
       runPlaygroundInstances();
     }
   }, [
@@ -38,6 +46,7 @@ export function PlaygroundRunButton() {
     cancelPlaygroundRun,
     runPlaygroundInstances,
     instances,
+    hasInvalidDecision,
   ]);
   useHotkeys(
     "mod+enter",
@@ -56,6 +65,7 @@ export function PlaygroundRunButton() {
     <Button
       data-testid="playground-run-button"
       variant="primary"
+      isDisabled={!isRunning && hasInvalidDecision}
       leadingVisual={
         <Icon svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />} />
       }

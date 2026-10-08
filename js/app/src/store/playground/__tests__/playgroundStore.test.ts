@@ -23,6 +23,29 @@ const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
 };
 
 describe("getInitialInstances", () => {
+  // The page resolves provider and model from the server's decision catalog;
+  // the store carries them through without knowing any provider by name.
+  it.each([
+    ["OPENAI", "gpt-6-luna"],
+    ["TYPESAFE", "jev-latest"],
+    ["ANTHROPIC", "some-future-decision-model"],
+  ] as const)(
+    "initializes a %s decision without interpreting it as chat",
+    (provider, modelName) => {
+      const { instances, instanceMessages } = getInitialInstances({
+        defaultModelType: "DECISION",
+        defaultModelProvider: provider,
+        defaultModelName: modelName,
+        modelConfigByProvider: {},
+      });
+      expect(instances[0].model.modelType).toBe("DECISION");
+      expect(instances[0].model.provider).toBe(provider);
+      expect(instances[0].model.modelName).toBe(modelName);
+      expect(instances[0].decision?.questions[0].type).toBe("choice");
+      expect(instances[0].llmModel?.provider).toBe("OPENAI");
+      expect(Object.keys(instanceMessages).length).toBeGreaterThan(0);
+    }
+  );
   beforeEach(() => {
     _resetInstanceId();
   });
