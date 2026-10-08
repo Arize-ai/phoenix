@@ -980,6 +980,9 @@ function RecordedRunList({
   const inputMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping
   );
+  const focusedMappingVariable = useEvaluatorStore(
+    (state) => state.focusedMappingVariable ?? null
+  );
   useEvaluatorMappingSourceBoundToRow({
     recordKind: recordNoun,
     rowKey: activeRow?.key ?? null,
@@ -1032,6 +1035,7 @@ function RecordedRunList({
             onRun={() => runOnContext(row.key, row.context)}
             inputMapping={inputMapping}
             requiredVariables={requiredVariables}
+            focusedMappingVariable={focusedMappingVariable}
           />
         ))}
       </ul>
@@ -1099,6 +1103,7 @@ export function RecordedRunRow({
   onRun,
   inputMapping,
   requiredVariables,
+  focusedMappingVariable,
 }: {
   row: RecordedRunListRow;
   recordNoun: ProjectEvaluatorRecordKind;
@@ -1109,6 +1114,7 @@ export function RecordedRunRow({
   onRun: () => void;
   inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
+  focusedMappingVariable?: string | null;
 }) {
   const isRunning = run?.status === "running";
   const isUnavailable = row.unavailableReason != null;
@@ -1231,6 +1237,7 @@ export function RecordedRunRow({
                         inputMapping={inputMapping}
                         requiredVariables={requiredVariables}
                         isSampleContext={row.isSample}
+                        focusedMappingVariable={focusedMappingVariable}
                       />
                     </Flex>
                   </TabPanel>
@@ -1386,6 +1393,7 @@ export function BindingPreview({
   inputMapping,
   requiredVariables,
   isSampleContext,
+  focusedMappingVariable,
 }: {
   context: unknown;
   /** The kind of record the row holds; the same word its prose uses. */
@@ -1393,12 +1401,17 @@ export function BindingPreview({
   inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
+  /** A path there that does not parse is still being typed, so is not flagged. */
+  focusedMappingVariable?: string | null;
 }) {
   const diagnostics = useEvaluatorMappingDiagnostics({
     context,
     inputMapping,
     requiredVariables,
   });
+  const isBeingTyped = (diagnostic: ProjectEvaluatorMappingDiagnostic) =>
+    diagnostic.status === "invalid" &&
+    diagnostic.variable === focusedMappingVariable;
   // The preview binds what a live run binds because it is the same
   // materialization the authoring tools read — the slot fallbacks, the
   // `metadata` key, and the path resolver all live there, not here.
@@ -1424,10 +1437,10 @@ export function BindingPreview({
   const messageRows = new Map(
     diagnostics
       .filter(
-        ({ status }) =>
-          status === "missing" ||
-          status === "invalid" ||
-          status === "unverified"
+        (diagnostic) =>
+          diagnostic.status === "missing" ||
+          diagnostic.status === "unverified" ||
+          (diagnostic.status === "invalid" && !isBeingTyped(diagnostic))
       )
       .map((diagnostic): [string, BindingRow] => [
         diagnostic.variable,
@@ -1466,6 +1479,15 @@ export function BindingPreview({
       const messageRow = messageRows.get(diagnostic.variable);
       if (messageRow) {
         return [messageRow];
+      }
+      if (isBeingTyped(diagnostic)) {
+        return [
+          {
+            keyword: diagnostic.variable,
+            path: diagnostic.path,
+            value: undefined,
+          },
+        ];
       }
       if (
         diagnostic.status !== "resolved" ||
