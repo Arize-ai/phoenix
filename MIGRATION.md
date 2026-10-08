@@ -10,7 +10,7 @@ The upgrade from v20.x to v21.0.0 changes the default bind address and how authe
   listeners all bind `PHOENIX_HOST`. To accept connections from other machines, set `PHOENIX_HOST=0.0.0.0` (or `::`).
 - **The auth default follows the bind address.** An explicit `PHOENIX_ENABLE_AUTH` is always honored. When it is
   unset, authentication is on for a non-loopback `PHOENIX_HOST` and off for loopback.
-- **The Docker image requires login by default.** The image sets `PHOENIX_HOST=0.0.0.0`, so authentication is on
+- **The Docker image requires login by default.** The image sets `PHOENIX_HOST=::` (dual-stack), so authentication is on
   unless `PHOENIX_ENABLE_AUTH=false` is set. The initial admin is `admin@localhost` with password `admin` unless
   `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` is set; set that variable or change the password immediately. Helm
   already enables auth explicitly and is unaffected. Trace exporters and other clients that send data without an
