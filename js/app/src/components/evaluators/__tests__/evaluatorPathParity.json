@@ -93,6 +93,9 @@
         "s": "str",
         "star": {
           "*": 9
+        },
+        "v1.0 correctness": {
+          "label": "ok"
         }
       }
     }
@@ -439,42 +442,287 @@
     {
       "context": "edges",
       "path": "metadata.where",
-      "outcome": "unverifiable"
+      "outcome": "invalid"
     },
     {
       "context": "edges",
       "path": "metadata['a.0']",
-      "outcome": "unverifiable"
+      "outcome": "value",
+      "value": 2
     },
     {
       "context": "edges",
       "path": "metadata['*']",
-      "outcome": "unverifiable"
+      "outcome": "value",
+      "value": [
+        [
+          {
+            "role": "user"
+          },
+          {
+            "role": "assistant"
+          }
+        ],
+        {
+          "k": 1,
+          "j": 2
+        },
+        1,
+        2,
+        null,
+        5,
+        true,
+        false,
+        0,
+        [],
+        {},
+        "",
+        [[1, 2], [3]],
+        [
+          {
+            "b": 1
+          },
+          {
+            "c": 2
+          }
+        ],
+        "a😀b",
+        "str",
+        {
+          "*": 9
+        },
+        {
+          "label": "ok"
+        }
+      ]
     },
     {
       "context": "edges",
       "path": "metadata.star['*']",
-      "outcome": "unverifiable"
+      "outcome": "value",
+      "value": 9
     },
     {
       "context": "edges",
       "path": "metadata.messages[ 0 ].role",
-      "outcome": "unverifiable"
+      "outcome": "value",
+      "value": "user"
     },
     {
       "context": "edges",
       "path": "metadata[\"obj\"].k",
-      "outcome": "unverifiable"
+      "outcome": "value",
+      "value": 1
     },
     {
       "context": "edges",
       "path": "metadata.messages.[0]",
-      "outcome": "unverifiable"
+      "outcome": "value",
+      "value": {
+        "role": "user"
+      }
     },
     {
       "context": "edges",
       "path": "metadata['obj','s']",
-      "outcome": "unverifiable"
+      "outcome": "value",
+      "value": [
+        {
+          "k": 1,
+          "j": 2
+        },
+        "str"
+      ]
+    },
+    {
+      "context": "edges",
+      "path": "metadata['v1.0 correctness'].label",
+      "outcome": "value",
+      "value": "ok"
+    },
+    {
+      "context": "edges",
+      "path": "metadata[\"a.0\"]",
+      "outcome": "value",
+      "value": 2
+    },
+    {
+      "context": "edges",
+      "path": "metadata.obj.*",
+      "outcome": "value",
+      "value": [1, 2]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[*].*",
+      "outcome": "value",
+      "value": ["user", "assistant"]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.s.*",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "$.metadata.obj.*",
+      "outcome": "value",
+      "value": [1, 2]
+    },
+    {
+      "context": "edges",
+      "path": "metadata[obj].k",
+      "outcome": "value",
+      "value": 1
+    },
+    {
+      "context": "edges",
+      "path": "metadata .s",
+      "outcome": "value",
+      "value": "str"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.$.metadata.s",
+      "outcome": "value",
+      "value": "str"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[0]['role']",
+      "outcome": "value",
+      "value": "user"
+    },
+    {
+      "context": "edges",
+      "path": "metadata['obj','nope']",
+      "outcome": "value",
+      "value": {
+        "k": 1,
+        "j": 2
+      }
+    },
+    {
+      "context": "edges",
+      "path": "metadata['*','s']",
+      "outcome": "value",
+      "value": [
+        [
+          {
+            "role": "user"
+          },
+          {
+            "role": "assistant"
+          }
+        ],
+        {
+          "k": 1,
+          "j": 2
+        },
+        1,
+        2,
+        null,
+        5,
+        true,
+        false,
+        0,
+        [],
+        {},
+        "",
+        [[1, 2], [3]],
+        [
+          {
+            "b": 1
+          },
+          {
+            "c": 2
+          }
+        ],
+        "a😀b",
+        "str",
+        {
+          "*": 9
+        },
+        {
+          "label": "ok"
+        }
+      ]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages.0",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata..s",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata. s",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.@",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata[?(@.s)]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata | metadata",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata[0,'a']",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "(metadata).s",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata['ab",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages.*",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages['0']",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "[*].$[0].metadata.s",
+      "outcome": "value",
+      "value": "str"
     }
   ]
 }

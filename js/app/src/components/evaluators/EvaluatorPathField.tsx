@@ -30,6 +30,7 @@ import type { EvaluatorSuggestedPath } from "./evaluatorSlotDefaults";
 import { getEvaluatorSuggestedPaths } from "./evaluatorSlotDefaults";
 
 const UNRESOLVED_PATH_MESSAGE = "No such field";
+const INVALID_PATH_MESSAGE = "Not a valid path";
 
 const NO_COMPLETIONS: Completion[] = [];
 const EMPTY_SOURCE: Record<string, unknown> = {};
@@ -141,9 +142,13 @@ export function EvaluatorPathField({
         return { isValid: false, errorMessage };
       }
       const resolution = resolveEvaluatorPath({ source: mappingSource, path });
-      return resolution.status === "unresolved"
-        ? { isValid: false, errorMessage: UNRESOLVED_PATH_MESSAGE }
-        : { isValid: true };
+      if (resolution.status === "unresolved") {
+        return { isValid: false, errorMessage: UNRESOLVED_PATH_MESSAGE };
+      }
+      if (resolution.status === "invalid") {
+        return { isValid: false, errorMessage: INVALID_PATH_MESSAGE };
+      }
+      return { isValid: true };
     },
     [mappingSource, isInvalid, errorMessage]
   );
@@ -151,7 +156,10 @@ export function EvaluatorPathField({
   const getErrorRange = useCallback(
     (path: string) => {
       const resolution = resolveEvaluatorPath({ source: mappingSource, path });
-      return resolution.status === "unresolved" ? resolution.range : null;
+      return resolution.status === "unresolved" ||
+        resolution.status === "invalid"
+        ? resolution.range
+        : null;
     },
     [mappingSource]
   );
