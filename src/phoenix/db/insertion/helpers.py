@@ -3,7 +3,7 @@ from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Se
 from enum import Enum, auto
 from typing import Any, Optional
 
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from sqlalchemy import Insert
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -15,7 +15,6 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, truncate_name
 from phoenix.db.models import Base
 from phoenix.trace.attributes import get_attribute_value
-from phoenix.trace.decision import get_model_call_model_name, is_model_call_span_kind
 
 
 class DataManipulationEvent(ABC):
@@ -105,12 +104,11 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
 def should_calculate_span_cost(
     attributes: Optional[Mapping[str, Any]],
 ) -> bool:
-    """A span costs something when it is a model call that names its model.
-
-    LLM spans name the model in ``llm.model_name``; DECISION spans in
-    ``decision.model_name``.
-    """
-    span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
-    if not isinstance(span_kind, str) or not is_model_call_span_kind(span_kind):
-        return False
-    return bool(get_model_call_model_name(attributes))
+    return bool(
+        (span_kind := get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND))
+        and isinstance(span_kind, str)
+        and span_kind == OpenInferenceSpanKindValues.LLM.value
+        and (llm_name := get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME))
+        and isinstance(llm_name, str)
+        and llm_name.strip()
+    )

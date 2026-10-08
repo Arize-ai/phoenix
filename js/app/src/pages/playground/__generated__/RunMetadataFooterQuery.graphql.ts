@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53da5f32fbcb93ccdf3af0203ac3c878>>
+ * @generated SignedSource<<46e1097e7e96e9e83fa5ce1a3dd0e090>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,7 @@ export type RunMetadataFooterQuery$variables = {
 };
 export type RunMetadataFooterQuery$data = {
   readonly span: {
+    readonly attributes?: string;
     readonly costSummary?: {
       readonly total: {
         readonly cost: number | null;
@@ -116,6 +117,13 @@ v3 = {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "attributes",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
       "name": "costSummary",
@@ -199,16 +207,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5f0974276186eb5032c3aadb289adbe3",
+    "cacheID": "bbe8c05a70891f01e516ead81f942274",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      attributes\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ea9edc5ec856a42e5e53663d6a570de1";
+(node as any).hash = "2c469d671759cbfebc0126ce113689df";
 
 export default node;

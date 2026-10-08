@@ -143,7 +143,7 @@ export function PlaygroundDecisionOutput({
       </View>
       {selected?.spanId ? (
         <Suspense>
-          <RunMetadataFooter spanId={selected.spanId} />
+          <RunMetadataFooter spanId={selected.spanId} tokenSource="decision" />
         </Suspense>
       ) : null}
     </Card>
