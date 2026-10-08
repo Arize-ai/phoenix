@@ -19,8 +19,9 @@ The upgrade from v20.x to v21.0.0 changes the default bind address and how authe
 - **`launch_app` follows the same rule.** Notebook sessions previously ran with authentication off regardless of
   `PHOENIX_ENABLE_AUTH`. They now honor it, and when it is unset, a non-loopback host (the `host` argument or
   `PHOENIX_HOST`, such as `0.0.0.0`) requires login, and `register()`, `px.Client()`, and other clients in the
-  notebook need `PHOENIX_API_KEY`. The default loopback host keeps authentication off. Set
-  `PHOENIX_ENABLE_AUTH=false` to restore the previous behavior.
+  notebook need `PHOENIX_API_KEY`. The default loopback host keeps authentication off, except on Databricks,
+  where `launch_app` defaults to `0.0.0.0` because the driver proxy cannot reach loopback, so authentication is
+  on. Set `PHOENIX_ENABLE_AUTH=false` to restore the previous behavior.
 - **The public default password cannot open a session.** Logging in with the password `admin` while the account
   still requires a password reset returns HTTP 403 and a password reset token instead of access and refresh
   tokens. The password must be changed via `POST /auth/password-reset` before signing in. A custom

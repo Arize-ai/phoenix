@@ -138,3 +138,27 @@ def test_launch_app_passes_trace_dataset_evaluations_to_create_app() -> None:
 def test_get_url_formats_local_host(host: str, expected: str) -> None:
     url = session_module._get_url(host, 6006, session_module.NotebookEnvironment.LOCAL, "/")
     assert url == expected
+
+
+@pytest.mark.parametrize(
+    "notebook_env, host, env_host, expected",
+    [
+        pytest.param("databricks", None, None, "0.0.0.0", id="databricks_default"),
+        pytest.param("databricks", None, "127.0.0.1", "127.0.0.1", id="databricks_env_host"),
+        pytest.param("databricks", "127.0.0.1", None, "127.0.0.1", id="databricks_host_arg"),
+        pytest.param("local", None, None, "127.0.0.1", id="local_default"),
+    ],
+)
+def test_default_host(
+    monkeypatch: pytest.MonkeyPatch,
+    notebook_env: str,
+    host: str | None,
+    env_host: str | None,
+    expected: str,
+) -> None:
+    if env_host is None:
+        monkeypatch.delenv("PHOENIX_HOST", raising=False)
+    else:
+        monkeypatch.setenv("PHOENIX_HOST", env_host)
+    nb_env = session_module.NotebookEnvironment(notebook_env)
+    assert session_module._default_host(host, nb_env) == expected
