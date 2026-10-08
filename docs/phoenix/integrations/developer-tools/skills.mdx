@@ -3,7 +3,7 @@ title: "Skills"
 description: Teach your coding agent Phoenix's conventions for the CLI, tracing, and evals, so it gets them right the first time.
 ---
 
-A skill is a set of instructions your coding agent loads when a task matches it, such as debugging with the `px` CLI or writing an evaluator. Phoenix ships its skills in the [Phoenix repository](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills), and the [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents) paths install them for you. This page is for installing or updating them on their own.
+A skill is a set of instructions your coding agent loads when a task matches it, such as debugging with `px` or writing an evaluator. Phoenix ships five, in the [Phoenix repository](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills).
 
 ## Install
 
@@ -11,9 +11,9 @@ A skill is a set of instructions your coding agent loads when a task matches it,
 npx -y @arizeai/phoenix-cli setup skills
 ```
 
-That installs the five skills written for people using Phoenix: `phoenix-cli`, `phoenix-evals`, `phoenix-tracing`, `phoenix-error-analysis`, and `phoenix-harbor`. To pick from them instead, use `npx skills add Arize-ai/phoenix --skill <name>`. Each lands in the agent's directory, such as `.claude/skills/` or `.cursor/skills/`. Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents). It needs no Phoenix instance and no traces.
+Installs all five into your agent's skills directory, such as `.claude/skills/`. To pick specific ones, `npx skills add Arize-ai/phoenix --skill <name>`.
 
-**Plugin or `setup skills`?** The [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` and keeps them current as Phoenix updates. `setup skills` and `skills add` are one-time copies: rerun them, or `npx skills update`, to pick up changes. Use them when your agent has no plugin. The [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) also serves every skill through its `load_skill` tool, so a connected client needs nothing installed.
+The [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) installs `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` and keeps them updated. `setup skills` is a one-time copy; rerun it to pick up changes.
 
 ## What your agent can do with them
 
@@ -47,41 +47,12 @@ Review the last 50 traces in my support-agent project and tell me what categorie
 - [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) is what the `phoenix-cli` skill teaches an agent to use.
 - [Agent Skills specification](https://agentskills.io/specification) is the format these follow.
 
-## Reference
+## Add your own skills
 
-### `skills add` options
-
-| Option | Description |
-|--------|-------------|
-| `--all` | Every skill in the repository for every detected agent, without prompts. That includes Phoenix's internal development skills, so name the skills you want instead. |
-| `-g, --global` | Install to user directory instead of project |
-| `-a, --agent <agents...>` | Target specific agents (for example, `claude-code`, `cursor`) |
-| `-s, --skill <skills...>` | Install specific skills by name |
-| `-l, --list` | List available skills without installing |
-| `-y, --yes` | Skip confirmation prompts |
-
-Examples:
-
-```bash
-# Install the CLI skill globally for all projects
-npx skills add Arize-ai/phoenix --skill phoenix-cli -g
-
-# Install only the CLI and tracing skills
-npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
-
-# Install for specific coding agents
-npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
-
-# Non-interactive installation
-npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
-```
-
-### Add your own skills
-
-Point `PHOENIX_SKILLS_PATHS` on the Phoenix server at one or more skill directories to serve your own [Agent Skills](https://agentskills.io/specification) alongside the built-in ones. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
+Set `PHOENIX_SKILLS_PATHS` on the Phoenix server to one or more directories of your own [Agent Skills](https://agentskills.io/specification); the MCP server serves them alongside the built-in ones:
 
 ```bash
 PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
 ```
 
-Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references, named by their path, for example `references/notes.md`. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the [Remote MCP Server](/docs/phoenix/integrations/mcp)'s instructions, through `load_skill`, and in PXI's skill picker.
+Each skill is a directory named after the `name` in its `SKILL.md` frontmatter, which also needs a `description`.
