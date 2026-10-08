@@ -19,7 +19,9 @@ import {
   capBrowsedMembers,
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathMembers,
+  IDEA_COMPLETION_TYPE,
   resolveEvaluatorPath,
+  toItemNoun,
   toMemberCompletionType,
   toMemberSection,
   toWholePathValidFor,
@@ -63,6 +65,10 @@ const F_STRING_NAME_GRAMMAR: TemplateNameGrammar = {
 
 const TEMPLATE_NAME_SEGMENT_PATTERN = /\[(-?\d+)\]|[^.[\]]+/g;
 
+/** An f-string name followed by a subscript still being typed: `turns[`, `turns[-1`. */
+const F_STRING_OPEN_INDEX_PATTERN =
+  /^([A-Za-z_]\w*(?:\.[A-Za-z]\w*|\[-?\d+\])*)\[(-?\d*)$/;
+
 /**
  * The menu shown inside a template variable while a project evaluator is being
  * authored: what the evaluator receives, what the record supplies, and the
@@ -93,6 +99,15 @@ export function getEvaluatorTemplateCompletions({
     templateFormat === TemplateFormats.Mustache
       ? MUSTACHE_NAME_GRAMMAR
       : F_STRING_NAME_GRAMMAR;
+  const openIndex = getOpenIndex({ text: variable.text, templateFormat });
+  if (openIndex !== null) {
+    return getListIndexResult({
+      evaluationContext,
+      from: variable.from,
+      ...openIndex,
+      closingBrackets,
+    });
+  }
   const cursor = getTemplateNameCursor(variable.text, grammar);
   if (cursor === null) {
     return null;
@@ -154,7 +169,14 @@ export function getEvaluatorTemplateCompletions({
           path: containerName,
           value: container.value,
         })
-      : null;
+      : toIndexResult({
+          from: variable.from,
+          listName: containerName,
+          items: container.value,
+          typedIndex: "",
+          evaluationContext,
+          closingBrackets,
+        });
   }
   return toResult({
     // A row that fills the home back in writes the whole name, so it replaces
@@ -414,6 +436,115 @@ function getBlockCompletions({
   return options.length === 0
     ? null
     : { from: variable.from, options, validFor: /^[#^][\w.]*$/ };
+}
+
+/** A list name and the subscript being typed after it, in an f-string only. */
+function getOpenIndex({
+  text,
+  templateFormat,
+}: {
+  text: string;
+  templateFormat: TemplateFormat;
+}): { listName: string; typedIndex: string } | null {
+  const match =
+    templateFormat === TemplateFormats.FString
+      ? F_STRING_OPEN_INDEX_PATTERN.exec(text)
+      : null;
+  return match === null ? null : { listName: match[1], typedIndex: match[2] };
+}
+
+function getListIndexResult({
+  evaluationContext,
+  from,
+  listName,
+  typedIndex,
+  closingBrackets,
+}: {
+  evaluationContext: MaterializedEvaluatorContext;
+  from: number;
+  listName: string;
+  typedIndex: string;
+  closingBrackets: string;
+}): CompletionResult | null {
+  const source = evaluationContext.values;
+  const reached = reachTemplateContainer({
+    source,
+    containerName: listName,
+    rootNames: buildEvaluatorContextCandidates(evaluationContext).map(
+      (candidate) => candidate.label
+    ),
+  });
+  const name = reached ?? listName;
+  const list = resolveEvaluatorPath({ source, path: toMappingPath(name) });
+  if (list.status !== "resolved" || !Array.isArray(list.value)) {
+    return null;
+  }
+  return toIndexResult({
+    from,
+    listName: name,
+    items: list.value,
+    typedIndex,
+    evaluationContext,
+    closingBrackets,
+  });
+}
+
+/** One item of a list by position, the way an f-string reads it: `turns[-1]`. */
+function toIndexResult({
+  from,
+  listName,
+  items,
+  typedIndex,
+  evaluationContext,
+  closingBrackets,
+}: {
+  from: number;
+  listName: string;
+  items: unknown[];
+  /** Digits typed inside an open subscript, if any. */
+  typedIndex: string;
+  evaluationContext: MaterializedEvaluatorContext;
+  closingBrackets: string;
+}): CompletionResult | null {
+  const noun = toItemNoun(toMappingPath(listName));
+  const positions = [
+    { index: 0, description: `First ${noun}` },
+    { index: -1, description: `Last ${noun}` },
+  ];
+  const typed = Number(typedIndex);
+  const isTypedPosition =
+    /^-?\d+$/.test(typedIndex) &&
+    !positions.some((position) => position.index === typed);
+  if (isTypedPosition) {
+    positions.push({ index: typed, description: `[${typed}]` });
+  }
+  const section = toMemberSection(listName, TEMPLATE_MEMBER_SECTION_RANK);
+  const options = positions.flatMap(({ index, description }, order) => {
+    const item = items.at(index);
+    if (item === undefined) {
+      return [];
+    }
+    const name = `${listName}[${index}]`;
+    const detail = toMemberDetail({
+      member: { key: `${index}`, path: name, value: item, isIndex: true },
+      evaluationContext,
+    });
+    return [
+      {
+        label: name,
+        displayLabel: description,
+        type: IDEA_COMPLETION_TYPE,
+        ...(detail ? { detail } : {}),
+        info: name,
+        section,
+        boost: 99 - order,
+        apply: applyTemplateInsertion(name, closingBrackets),
+      },
+    ];
+  });
+  // The typed name ends in a dot or an open bracket the labels do not carry,
+  // so the rows are shown as they are rather than matched against it.
+  return options.length === 0 ? null : { from, options, filter: false };
 }
 
 /** Both wrappers for one list, replacing whatever the author dotted into it. */
