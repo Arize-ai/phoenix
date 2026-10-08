@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import {
   memo,
   startTransition,
@@ -444,30 +445,45 @@ export function ExperimentsTable({
       ? baselineExperiment
       : null;
   /**
-   * A row's delta token for a per-run metric, or nothing when the row has no
-   * baseline to compare against.
+   * A cell for a per-run metric: the value, then its delta against the
+   * baseline when the row has a value and a baseline to compare against.
    */
-  const renderRunMetricDelta = ({
+  const renderRunMetricCell = ({
     row,
     metric,
+    value,
+    hasValue,
     note,
   }: {
     row: TableRow;
     metric: ExperimentRunMetric;
+    /** The value as the cell shows it, or the missing-value placeholder */
+    value: ReactNode;
+    /** Whether the row has a value to compare; a missing value gets no delta */
+    hasValue: boolean;
+    /** An extra tooltip line, such as how the per-run value was derived */
     note?: string;
   }) => {
-    const baseline = getRowDeltaBaseline(row);
-    return baseline ? (
-      <ExperimentRunMetricDelta
-        metric={metric}
-        experiment={row}
-        baseExperiment={baseline}
-        note={note}
-        size="XS"
-        tooltipPlacement="top"
-        variant="tabular"
+    const baseline = hasValue ? getRowDeltaBaseline(row) : null;
+    return (
+      <ExperimentMetricCell
+        value={value}
+        delta={
+          baseline ? (
+            <ExperimentRunMetricDelta
+              metric={metric}
+              experiment={row}
+              baseExperiment={baseline}
+              note={note}
+              size="XS"
+              tooltipPlacement="top"
+              variant="tabular"
+            />
+          ) : undefined
+        }
+        hasDeltaSlot={hasDeltaSlot}
       />
-    ) : undefined;
+    );
   };
 
   const { selectRow } = useShiftClickRowSelection<TableRow>({
@@ -698,17 +714,12 @@ export function ExperimentsTable({
       cell: ({ getValue, row }) => {
         const value = getValue();
         const hasValue = typeof value === "number";
-        return (
-          <ExperimentMetricCell
-            value={hasValue ? <LatencyText latencyMs={value} size="S" /> : "--"}
-            delta={
-              hasValue
-                ? renderRunMetricDelta({ row: row.original, metric: "latency" })
-                : undefined
-            }
-            hasDeltaSlot={hasDeltaSlot}
-          />
-        );
+        return renderRunMetricCell({
+          row: row.original,
+          metric: "latency",
+          value: hasValue ? <LatencyText latencyMs={value} size="S" /> : "--",
+          hasValue,
+        });
       },
     },
     {
@@ -717,30 +728,21 @@ export function ExperimentsTable({
       meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
-        return (
-          <ExperimentMetricCell
-            value={
-              value != null ? (
-                <ExperimentTokenCosts
-                  totalCost={value}
-                  experimentId={row.original.id}
-                />
-              ) : (
-                "--"
-              )
-            }
-            delta={
-              value != null
-                ? renderRunMetricDelta({
-                    row: row.original,
-                    metric: "cost",
-                    note: PER_RUN_DELTA_NOTE,
-                  })
-                : undefined
-            }
-            hasDeltaSlot={hasDeltaSlot}
-          />
-        );
+        return renderRunMetricCell({
+          row: row.original,
+          metric: "cost",
+          value:
+            value != null ? (
+              <ExperimentTokenCosts
+                totalCost={value}
+                experimentId={row.original.id}
+              />
+            ) : (
+              "--"
+            ),
+          hasValue: value != null,
+          note: PER_RUN_DELTA_NOTE,
+        });
       },
     },
     {
@@ -749,43 +751,34 @@ export function ExperimentsTable({
       meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
-        return (
-          <ExperimentMetricCell
-            value={
-              <ExperimentTokenCount
-                tokenCountTotal={value}
-                experimentId={row.original.id}
-                size="S"
-              />
-            }
-            delta={
-              value != null
-                ? renderRunMetricDelta({
-                    row: row.original,
-                    metric: "tokens",
-                    note: PER_RUN_DELTA_NOTE,
-                  })
-                : undefined
-            }
-            hasDeltaSlot={hasDeltaSlot}
-          />
-        );
+        return renderRunMetricCell({
+          row: row.original,
+          metric: "tokens",
+          value: (
+            <ExperimentTokenCount
+              tokenCountTotal={value}
+              experimentId={row.original.id}
+              size="S"
+            />
+          ),
+          hasValue: value != null,
+          note: PER_RUN_DELTA_NOTE,
+        });
       },
     },
     {
       header: "error rate",
       accessorKey: "errorRate",
       meta: { textAlign: "right" },
-      cell: ({ row }) => (
-        <ExperimentMetricCell
-          value={<ErrorRateText errorRate={row.original.errorRate} />}
-          delta={renderRunMetricDelta({
-            row: row.original,
-            metric: "errorRate",
-          })}
-          hasDeltaSlot={hasDeltaSlot}
-        />
-      ),
+      cell: ({ row }) => {
+        const { errorRate } = row.original;
+        return renderRunMetricCell({
+          row: row.original,
+          metric: "errorRate",
+          value: <ErrorRateText errorRate={errorRate} />,
+          hasValue: errorRate != null,
+        });
+      },
     },
     {
       header: "metadata",
