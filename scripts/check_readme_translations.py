@@ -6,22 +6,42 @@ only the surrounding prose may differ. Lines with no prose (HTML blocks, code,
 badge-only table rows) must be byte-identical. The language bar line and the
 Scarf pixel's ``page=`` parameter are expected to differ per language.
 
-Usage: python scripts/check_readme_translations.py [README.<lang>.md ...]
-With no arguments, every README.*.md next to README.md is checked.
+Relative link targets are compared after resolving them against each file's
+directory, so a translation in docs/i18n/ links ``../../MIGRATION.md`` where
+README.md links ``./MIGRATION.md``.
+
+Usage: python scripts/check_readme_translations.py [docs/i18n/README.<lang>.md ...]
+With no arguments, every docs/i18n/README.*.md is checked.
 """
 
+import posixpath
 import re
 import sys
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+I18N = ROOT / "docs" / "i18n"
 TOKEN = re.compile(
     r"!\[[^\]]*\]\([^)]*\)|\]\([^)]*\)|`[^`]+`|<[^>]+>"
     r"|\[!(?:NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]|https?://\S+"
 )
-LANG_BAR = re.compile(r'<a href="README(\.[\w-]+)?\.md">')
+LANG_BAR = re.compile(r'<a href="[\w./-]*README(\.[\w-]+)?\.md">')
 SCARF_PAGE = re.compile(r"page=README[\w.-]*\.md")
+LINK_TARGET = re.compile(r'(\]\(|href="|src=")([^)"\s]+)')
+ABSOLUTE = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*:|#|/")
+
+
+def resolve_links(line: str, base: str) -> str:
+    """Rewrite relative link targets as paths from the repository root."""
+
+    def repl(m: re.Match[str]) -> str:
+        target = m.group(2)
+        if ABSOLUTE.match(target):
+            return m.group(0)
+        return m.group(1) + posixpath.normpath(posixpath.join(base, target))
+
+    return LINK_TARGET.sub(repl, line)
 
 
 def tokens(line: str) -> Counter[str]:
@@ -43,6 +63,7 @@ def leading(line: str) -> str:
 
 def check(english: list[str], path: Path) -> list[str]:
     lines = path.read_text(encoding="utf-8").split("\n")
+    base = path.resolve().parent.relative_to(ROOT).as_posix()
     # A translation may end with a translator's note after the mirrored content.
     if len(lines) < len(english):
         return [f"{path.name}: {len(lines)} lines, README.md has {len(english)}"]
@@ -55,6 +76,7 @@ def check(english: list[str], path: Path) -> list[str]:
         if len(LANG_BAR.findall(en)) > 3:
             continue
         en, tr = SCARF_PAGE.sub("page=*", en), SCARF_PAGE.sub("page=*", tr)
+        en, tr = resolve_links(en, "."), resolve_links(tr, base)
         translatable = (
             stripped.startswith("# ")
             if in_code
@@ -84,7 +106,7 @@ def check(english: list[str], path: Path) -> list[str]:
 
 def main() -> int:
     english = (ROOT / "README.md").read_text(encoding="utf-8").split("\n")
-    paths = [Path(p) for p in sys.argv[1:]] or sorted(ROOT.glob("README.*.md"))
+    paths = [Path(p) for p in sys.argv[1:]] or sorted(I18N.glob("README.*.md"))
     errors = [e for p in paths for e in check(english, p)]
     for e in errors:
         print(e)
