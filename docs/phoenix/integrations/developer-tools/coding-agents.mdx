@@ -3,23 +3,13 @@ title: "Connect Your Coding Agent"
 description: Connect your coding agent to Phoenix so it can instrument your app, read the traces that come back, and act on what it finds.
 ---
 
-import AgentAssistedOnboardingPrereq from "../../../snippets/agent-assisted-onboarding-prereq.mdx";
-
-Works with Claude Code, Codex, Cursor, or any other coding agent. You ask in plain language:
+Works with Claude Code, Codex, Cursor, or any other coding agent. Once connected, you ask in plain language:
 
 ```text
 Show me the latest traces in my default project and summarize any errors
 ```
 
-```text
-Pull my rag-pipeline prompt and suggest improvements based on recent trace failures
-```
-
-<AgentAssistedOnboardingPrereq />
-
 ## Connect your agent
-
-The steps to connect depend on your agent. Find yours in the table.
 
 | Agent | Setup |
 | --- | --- |
@@ -48,16 +38,16 @@ Every example scores 0 on that first run: the prompt knows nothing about this ai
 
 ## Find your Phoenix endpoint
 
-Every setup needs the **endpoint** of your Phoenix instance: the base URL you open Phoenix at in the browser, with no trailing slash and no path such as `/mcp` or `/v1`. Go to the **Settings** page in your Phoenix instance to find your endpoint and, if auth is enabled, to create an **API key**.
+Every setup needs your Phoenix **endpoint**: the base URL you open Phoenix at, with no trailing slash or path.
 
 | Deployment | Endpoint | MCP server URL the tools derive from it |
 | ---------- | -------- | --------------------------------------- |
 | Local Phoenix (`phoenix serve`) | `http://localhost:6006` | `http://localhost:6006/mcp` |
 | Deployed Phoenix | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
 
-The plugins and the `px` CLI take the endpoint and append `/mcp` themselves, so do not add it. Registering a server by hand, with `claude mcp add` or the per-client steps on the [MCP Server](/docs/phoenix/integrations/mcp) page, takes the full `/mcp` URL. A local Phoenix works with the defaults; the API key is only needed when auth is on.
+The plugins and `px` append `/mcp` themselves; only hand-written MCP config takes the full `/mcp` URL.
 
-The `px` CLI and the Codex plugin read the endpoint from your shell:
+`px` and the Codex plugin read it from your shell:
 
 ```bash
 export PHOENIX_ENDPOINT=http://localhost:6006    # Your Phoenix endpoint
@@ -65,19 +55,13 @@ export PHOENIX_PROJECT=my-project                # Project name
 export PHOENIX_API_KEY=your-api-key              # API key (if auth enabled)
 ```
 
-<Tip>
-Keep API keys out of committed config files. Prefer environment variables and local-only config.
-</Tip>
-
 ## Plugins
 
-The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each plugin bundles the MCP and skills steps into one install that stays up to date, and requires **Phoenix 19.0.0 or later**. They are optional: the [per-client MCP steps](/docs/phoenix/integrations/mcp#remote-mcp-server) work for Claude Code and Codex too.
+The plugins bundle the MCP server and skills into one install that stays up to date. They need Phoenix 19.0.0 or later.
 
 <AccordionGroup>
   <Accordion title="Claude Code plugin">
-    The `arize-phoenix` plugin registers the Phoenix MCP server and the Phoenix skills in one install, and because the marketplace is versioned in the repository, Claude Code updates both as new versions land.
-
-    **Prerequisites:** Phoenix 19.0.0 or later, and a current Claude Code. If `/plugin` is not recognized, update Claude Code first. Steps 1, 2, and 4 are slash commands typed inside a Claude Code session; the shell equivalents follow the steps.
+    Steps 1, 2, and 4 are slash commands inside a Claude Code session. If `/plugin` is not recognized, update Claude Code.
 
     <Steps>
       <Step title="Add the marketplace">
@@ -85,7 +69,6 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
         /plugin marketplace add Arize-ai/phoenix
         ```
 
-        The `owner/repo` shorthand and the full `https://github.com/Arize-ai/phoenix` URL both work. Adding a marketplace registers the catalog; it installs nothing on its own.
       </Step>
       <Step title="Install the plugin">
         ```bash
@@ -100,11 +83,11 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
       <Step title="Verify">
         Run `/mcp` and select **phoenix**. If your Phoenix has auth enabled, a browser window opens to sign in with your Phoenix account; without auth, it connects straight away.
 
-        To see everything the plugin added, run `claude plugin details arize-phoenix@arize-phoenix` in your shell. It lists the MCP server and the three skills, and reports what they add to your context window. The plugin has to be enabled: on a disabled one the command reports the plugin as not found.
+        `claude plugin details arize-phoenix@arize-phoenix` lists what it added.
       </Step>
     </Steps>
 
-    To script the install, run `claude plugin marketplace add Arize-ai/phoenix` and `claude plugin install arize-phoenix@arize-phoenix`. They install to user scope unless you pass `--scope project` or `--scope local`, and take effect the next time you start Claude Code (or after `/reload-plugins` in an open session).
+    From a shell: `claude plugin marketplace add Arize-ai/phoenix` then `claude plugin install arize-phoenix@arize-phoenix` (add `--scope project` or `--scope local` to narrow it).
 
     **What it registers**
 
@@ -115,9 +98,9 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
     | `phoenix-evals` skill | Building and running evaluators. |
     | `phoenix-tracing` skill | Instrumenting apps with OpenInference. |
 
-    The plugin leaves out two things: the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli), which the `phoenix-cli` skill needs on your `PATH`, and the [Phoenix Docs MCP](/docs/phoenix/integrations/mcp#phoenix-docs-mcp). Add either separately.
+    It does not install the `px` CLI; add that separately if you want it.
 
-    **Change the endpoint.** Set it at install time with `claude plugin install arize-phoenix@arize-phoenix --config endpoint=https://phoenix.example.com`. To change it afterward, run `/plugin configure` inside Claude Code, or edit `pluginConfigs` in `~/.claude/settings.json`:
+    **Change the endpoint.** `claude plugin install arize-phoenix@arize-phoenix --config endpoint=https://phoenix.example.com` at install time, `/plugin configure` afterward, or edit `~/.claude/settings.json`:
 
     ```json
     {
@@ -129,11 +112,9 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
     }
     ```
 
-    This setting configures the MCP server only. The `px` CLI reads `PHOENIX_ENDPOINT` and `PHOENIX_API_KEY` from your shell, so export those as well.
+    **Authentication.** With auth on, the first use opens a browser sign-in. For headless use, register the server by hand with an [API key](/docs/phoenix/integrations/mcp#fallback-api-keys) instead.
 
-    **Authentication.** With auth enabled, the plugin's MCP server signs in with OAuth in the browser the first time you use it; the plugin has no slot for an API key. For a headless environment where no browser can open, uninstall or disable the plugin and register the server with an [API key](/docs/phoenix/integrations/mcp#fallback-api-keys) instead. Both register a server named `phoenix`, so keep one.
-
-    **Update, remove, or develop locally**
+    **Update or remove**
 
     ```bash
     claude plugin update arize-phoenix@arize-phoenix     # pull the latest version
@@ -141,13 +122,11 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
     claude plugin uninstall arize-phoenix@arize-phoenix  # remove the plugin
     ```
 
-    `disable` and `uninstall` act on user scope by default. Pass the scope you installed at, such as `--scope local`, or the command reports which scope holds the plugin and stops.
-
-    To work on the plugin itself, add the marketplace from a checkout with `/plugin marketplace add ./` at the repository root (a bare `.` is rejected), and check your changes with `claude plugin validate plugins/claude/arize-phoenix`. The catalog is [`.claude-plugin/marketplace.json`](https://github.com/Arize-ai/phoenix/blob/main/.claude-plugin/marketplace.json) and the plugin lives in [`plugins/claude/arize-phoenix`](https://github.com/Arize-ai/phoenix/tree/main/plugins/claude/arize-phoenix).
+    Pass the scope you installed at, such as `--scope local`, to `disable` and `uninstall`.
   </Accordion>
 
   <Accordion title="Codex plugin">
-    The `arize-phoenix` plugin registers the Phoenix MCP server in Codex. It ships no skills: add those with [`skills add`](/docs/phoenix/integrations/developer-tools/skills), passing `-a codex`.
+    Registers the MCP server. Skills are separate: `npx -y @arizeai/phoenix-cli setup skills`.
 
     **Prerequisites:** Phoenix 19.0.0 or later, and Node.js. The plugin starts its MCP bridge with `npx`. The `codex plugin` commands below run in your shell.
 
@@ -167,14 +146,14 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
         Codex caches the plugin under `~/.codex/plugins/cache/arize-phoenix/arize-phoenix/<version>` and enables it in `~/.codex/config.toml`. You can also browse and install from the `/plugins` browser inside Codex.
       </Step>
       <Step title="Export your Phoenix endpoint">
-        The Codex plugin has no settings dialog; it reads your endpoint from `PHOENIX_ENDPOINT`, the same variable the `px` CLI reads. Export it, and your API key if auth is enabled, in the shell you launch Codex from:
+        The plugin reads `PHOENIX_ENDPOINT` from the shell you launch Codex from:
 
         ```bash
         export PHOENIX_ENDPOINT=https://phoenix.example.com   # base URL only; the plugin appends /mcp
         export PHOENIX_API_KEY=your-api-key                   # only if auth is enabled
         ```
 
-        Leave `PHOENIX_ENDPOINT` unset for a local Phoenix; it defaults to `http://localhost:6006`. Codex forwards only these two variables to the plugin.
+        Unset, it defaults to `http://localhost:6006`.
       </Step>
       <Step title="Verify">
         ```bash
@@ -185,14 +164,12 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
       </Step>
     </Steps>
 
-    **How it connects.** Codex plugin MCP entries cannot contain environment variables in the URL, so the plugin registers a small stdio launcher, [`scripts/phoenix-mcp`](https://github.com/Arize-ai/phoenix/blob/main/plugins/codex/arize-phoenix/scripts/phoenix-mcp), that bridges to `<PHOENIX_ENDPOINT>/mcp` with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) via `npx`.
-
     | Variable | Effect |
     | -------- | ------ |
-    | `PHOENIX_ENDPOINT` | Your Phoenix endpoint. The launcher strips a trailing slash and appends `/mcp`, and leaves a value that already ends in `/mcp` alone, so `https://phoenix.example.com`, `https://phoenix.example.com/`, and `https://phoenix.example.com/mcp` all connect to the same server. Defaults to `http://localhost:6006`. |
-    | `PHOENIX_API_KEY` | Optional. When set, requests carry it as a bearer token and no browser login is needed. The key never appears in process arguments. |
+    | `PHOENIX_ENDPOINT` | Base URL; `/mcp` is appended for you. |
+    | `PHOENIX_API_KEY` | Optional. Sent as a bearer token, so no browser login. |
 
-    **Enable, disable, or remove.** Installing writes an entry to `~/.codex/config.toml`. Set `enabled = false` to turn the plugin off without uninstalling it:
+    **Disable or remove.** In `~/.codex/config.toml`:
 
     ```toml
     [plugins."arize-phoenix@arize-phoenix"]
@@ -205,7 +182,6 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
     codex plugin marketplace remove arize-phoenix    # drop the marketplace
     ```
 
-    To work on the plugin itself, add the marketplace from a checkout with `codex plugin marketplace add .` at the repository root. The catalog is [`.agents/plugins/marketplace.json`](https://github.com/Arize-ai/phoenix/blob/main/.agents/plugins/marketplace.json) and the plugin lives in [`plugins/codex/arize-phoenix`](https://github.com/Arize-ai/phoenix/tree/main/plugins/codex/arize-phoenix).
   </Accordion>
 </AccordionGroup>
 
