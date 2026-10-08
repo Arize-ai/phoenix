@@ -5,4 +5,4 @@ allowed_tools: [Skill, Write]
 runs: 3
 tags: [phoenix-evals]
 ---
-I want my CI to fail when my RAG bot's faithfulness regresses. We already use pytest for everything else, so I'd like the eval to run as a pytest test, record results to Phoenix so I can track them over time, and gate the build. The suite also has a couple of hard invariants (the response must be non-empty and valid JSON) that should fail immediately. Create the file `test_faithfulness.py` in the current directory with the complete test — actually write the file, don't just print the code. Do not run it.
+I want my CI to fail when my RAG bot's faithfulness regresses. We already use pytest for everything else, so I'd like the eval to run as a pytest test, record results to Phoenix so I can track them over time, and gate the build. The suite also has a couple of hard invariants (the response must be non-empty and valid JSON) that should fail immediately. Add it as `test_faithfulness.py`.
