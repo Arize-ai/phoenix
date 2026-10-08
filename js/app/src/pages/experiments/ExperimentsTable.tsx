@@ -55,9 +55,10 @@ import {
   indexAnnotationConfigsByName,
   indexSummariesByAnnotationName,
 } from "@phoenix/components/experiment/experimentDeltaUtils";
+import type { ExperimentRunMetric } from "@phoenix/components/experiment/experimentDeltaUtils";
 import {
   ExperimentAnnotationMeanDelta,
-  ExperimentMetricStat,
+  ExperimentMetricCell,
   ExperimentRunMetricDelta,
 } from "@phoenix/components/experiment/ExperimentMetricDelta";
 import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentTokenCosts";
@@ -133,6 +134,14 @@ const defaultColumnSettings = {
  */
 const PER_RUN_DELTA_NOTE = "Compared per run: total divided by run count";
 
+/** The width of the bar that places a mean score between the column's min and max */
+const ANNOTATION_BAR_WIDTH = "40px";
+
+const annotationBarSlotCSS = css`
+  display: inline-block;
+  width: ${ANNOTATION_BAR_WIDTH};
+`;
+
 const TableBody = <T extends { id: string }>({
   table,
   hasNext,
@@ -166,6 +175,7 @@ const TableBody = <T extends { id: string }>({
                 <td
                   key={cell.id}
                   className={TABLE_DATA_CELL_CLASS}
+                  align={cell.column.columnDef.meta?.textAlign}
                   style={{
                     ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
@@ -411,15 +421,45 @@ export function ExperimentsTable({
     )
   );
   /**
+   * Whether the numeric columns hold a delta slot: a baseline is set and the
+   * deltas are shown. The baseline row keeps the slot empty so its values
+   * line up with the other rows.
+   */
+  const hasDeltaSlot =
+    deltasViewSetting.isEnabled && baselineExperiment != null;
+  /**
    * The baseline to show a row's deltas against: none for the baseline row
    * itself, when no baseline is set, or when deltas are hidden.
    */
   const getRowDeltaBaseline = (row: TableRow) =>
-    deltasViewSetting.isEnabled &&
-    baselineExperiment != null &&
-    baselineExperiment.id !== row.id
+    hasDeltaSlot && baselineExperiment.id !== row.id
       ? baselineExperiment
       : null;
+  /**
+   * A row's delta token for a per-run metric, or nothing when the row has no
+   * baseline to compare against.
+   */
+  const renderRunMetricDelta = ({
+    row,
+    metric,
+    note,
+  }: {
+    row: TableRow;
+    metric: ExperimentRunMetric;
+    note?: string;
+  }) => {
+    const baseline = getRowDeltaBaseline(row);
+    return baseline ? (
+      <ExperimentRunMetricDelta
+        metric={metric}
+        experiment={row}
+        baseExperiment={baseline}
+        note={note}
+        tooltipPlacement="top"
+        variant="tabular"
+      />
+    ) : undefined;
+  };
 
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
@@ -536,23 +576,27 @@ export function ExperimentsTable({
       const { annotationName, minScore, maxScore } = annotationSummary;
       return {
         header: () => (
-          <Flex direction="row" gap="size-100" alignItems="center">
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            justifyContent="end"
+          >
             <Text>{annotationName}</Text>
             <AnnotationColorSwatch annotationName={annotationName} />
           </Flex>
         ),
         id: `${ANNOTATION_COLUMN_PREFIX}${annotationName}`,
+        meta: { textAlign: "right" },
         cell: ({ row }) => {
           const annotation = row.original.annotationSummaryMap[annotationName];
           if (!annotation || annotation.meanScore == null) {
             return (
-              <span
-                css={css`
-                  float: right;
-                `}
-              >
-                --
-              </span>
+              <ExperimentMetricCell
+                value="--"
+                bar={<span css={annotationBarSlotCSS} />}
+                hasDeltaSlot={hasDeltaSlot}
+              />
             );
           }
           const rowBaseline = getRowDeltaBaseline(row.original);
@@ -571,6 +615,7 @@ export function ExperimentsTable({
                   : undefined
               }
               config={annotationConfigByName[annotationName]}
+              hasDeltaSlot={hasDeltaSlot}
             />
           );
         },
@@ -581,11 +626,13 @@ export function ExperimentsTable({
     {
       header: "repetitions",
       accessorKey: "repetitions",
+      meta: { textAlign: "right" },
       cell: IntCell,
     },
     {
       header: "run count",
       accessorKey: "runCount",
+      meta: { textAlign: "right" },
       cell: IntCell,
     },
     {
@@ -630,89 +677,97 @@ export function ExperimentsTable({
     {
       header: "avg latency",
       accessorKey: "averageRunLatencyMs",
+      meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue();
-        if (value === null || typeof value !== "number") {
-          return "--";
-        }
+        const hasValue = typeof value === "number";
         return (
-          <ExperimentMetricStat>
-            <LatencyText latencyMs={value} size="S" />
-            <ExperimentRunMetricDelta
-              metric="latency"
-              experiment={row.original}
-              baseExperiment={getRowDeltaBaseline(row.original)}
-              tooltipPlacement="top"
-            />
-          </ExperimentMetricStat>
+          <ExperimentMetricCell
+            value={hasValue ? <LatencyText latencyMs={value} size="S" /> : "--"}
+            delta={
+              hasValue
+                ? renderRunMetricDelta({ row: row.original, metric: "latency" })
+                : undefined
+            }
+            hasDeltaSlot={hasDeltaSlot}
+          />
         );
       },
     },
     {
       header: "total cost",
       accessorKey: "costSummary.total.cost",
+      meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
-        const experimentId = row.original.id;
-        if (value == null) {
-          return "--";
-        }
         return (
-          <ExperimentMetricStat>
-            <ExperimentTokenCosts
-              totalCost={value}
-              experimentId={experimentId}
-            />
-            <ExperimentRunMetricDelta
-              metric="cost"
-              experiment={row.original}
-              baseExperiment={getRowDeltaBaseline(row.original)}
-              note={PER_RUN_DELTA_NOTE}
-              tooltipPlacement="top"
-            />
-          </ExperimentMetricStat>
+          <ExperimentMetricCell
+            value={
+              value != null ? (
+                <ExperimentTokenCosts
+                  totalCost={value}
+                  experimentId={row.original.id}
+                />
+              ) : (
+                "--"
+              )
+            }
+            delta={
+              value != null
+                ? renderRunMetricDelta({
+                    row: row.original,
+                    metric: "cost",
+                    note: PER_RUN_DELTA_NOTE,
+                  })
+                : undefined
+            }
+            hasDeltaSlot={hasDeltaSlot}
+          />
         );
       },
     },
     {
       header: "total tokens",
       accessorKey: "costSummary.total.tokens",
+      meta: { textAlign: "right" },
       cell: ({ getValue, row }) => {
         const value = getValue() as number | null;
-        const experimentId = row.original.id;
         return (
-          <ExperimentMetricStat>
-            <ExperimentTokenCount
-              tokenCountTotal={value}
-              experimentId={experimentId}
-              size="S"
-            />
-            {value != null && (
-              <ExperimentRunMetricDelta
-                metric="tokens"
-                experiment={row.original}
-                baseExperiment={getRowDeltaBaseline(row.original)}
-                note={PER_RUN_DELTA_NOTE}
-                tooltipPlacement="top"
+          <ExperimentMetricCell
+            value={
+              <ExperimentTokenCount
+                tokenCountTotal={value}
+                experimentId={row.original.id}
+                size="S"
               />
-            )}
-          </ExperimentMetricStat>
+            }
+            delta={
+              value != null
+                ? renderRunMetricDelta({
+                    row: row.original,
+                    metric: "tokens",
+                    note: PER_RUN_DELTA_NOTE,
+                  })
+                : undefined
+            }
+            hasDeltaSlot={hasDeltaSlot}
+          />
         );
       },
     },
     {
       header: "error rate",
       accessorKey: "errorRate",
+      meta: { textAlign: "right" },
       cell: ({ row }) => (
-        <ExperimentMetricStat>
-          <ErrorRateText errorRate={row.original.errorRate} />
-          <ExperimentRunMetricDelta
-            metric="errorRate"
-            experiment={row.original}
-            baseExperiment={getRowDeltaBaseline(row.original)}
-            tooltipPlacement="top"
-          />
-        </ExperimentMetricStat>
+        <ExperimentMetricCell
+          value={<ErrorRateText errorRate={row.original.errorRate} />}
+          delta={renderRunMetricDelta({
+            row: row.original,
+            metric: "errorRate",
+          })}
+          hasDeltaSlot={hasDeltaSlot}
+        />
       ),
     },
     {
@@ -942,6 +997,7 @@ export function ExperimentsTable({
                           : undefined
                       }
                       colSpan={header.colSpan}
+                      align={header.column.columnDef.meta?.textAlign}
                       style={{
                         ...getCommonPinningStyles(header.column),
                         width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
@@ -1112,6 +1168,7 @@ function AnnotationAggregationCell({
   totalRunCount,
   baselineMeanScore,
   config,
+  hasDeltaSlot = false,
 }: {
   annotationName: string;
   value: number;
@@ -1126,6 +1183,8 @@ function AnnotationAggregationCell({
   baselineMeanScore?: number | null;
   /** The annotation's evaluator config, for the delta's optimization direction */
   config?: AnnotationConfig;
+  /** Keeps the delta slot open on rows without a delta, such as the baseline */
+  hasDeltaSlot?: boolean;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(
@@ -1135,86 +1194,88 @@ function AnnotationAggregationCell({
   const unannotatedRatio =
     totalRunCount > 0 ? 1 - annotatedCount / totalRunCount : 0;
   return (
-    <div
-      css={css`
-        float: right;
-        --mod-barloader-fill-color: ${color};
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: var(--global-dimension-size-100);
-      `}
-    >
-      {unannotatedRatio > 0.0 && (
+    <ExperimentMetricCell
+      leading={
+        unannotatedRatio > 0.0 ? (
+          <TooltipTrigger>
+            <TriggerWrap>
+              <MissingAnnotationPieChart unannotatedRatio={unannotatedRatio} />
+            </TriggerWrap>
+            <RichTooltip>
+              <View width="size-2000">
+                <Text size="XS">
+                  {formatPercent(unannotatedRatio * 100)} (
+                  {totalRunCount - annotatedCount}/{totalRunCount}) missing{" "}
+                  {annotationName}
+                </Text>
+              </View>
+            </RichTooltip>
+          </TooltipTrigger>
+        ) : undefined
+      }
+      value={
         <TooltipTrigger>
           <TriggerWrap>
-            <MissingAnnotationPieChart unannotatedRatio={unannotatedRatio} />
+            <span className="font-mono">{floatFormatter(value)}</span>
           </TriggerWrap>
           <RichTooltip>
-            <View width="size-2000">
-              <Text size="XS">
-                {formatPercent(unannotatedRatio * 100)} (
-                {totalRunCount - annotatedCount}/{totalRunCount}) missing{" "}
+            <View width="size-2400">
+              <Heading level={3} weight="heavy">
                 {annotationName}
-              </Text>
+              </Heading>
+              <Flex direction="column">
+                <Flex justifyContent="space-between">
+                  <Text weight="heavy" size="XS">
+                    Mean Score
+                  </Text>
+                  <Text size="XS">{floatFormatter(value)}</Text>
+                </Flex>
+                <Flex justifyContent="space-between">
+                  <Text weight="heavy" size="XS">
+                    All Experiments Min
+                  </Text>
+                  <Text size="XS">{floatFormatter(min)}</Text>
+                </Flex>
+                <Flex justifyContent="space-between">
+                  <Text weight="heavy" size="XS">
+                    All Experiments Max
+                  </Text>
+                  <Text size="XS">{floatFormatter(max)}</Text>
+                </Flex>
+                <Flex justifyContent="space-between">
+                  <Text weight="heavy" size="XS">
+                    Mean Score Percentile
+                  </Text>
+                  <Text size="XS">{formatPercent(percentile)}</Text>
+                </Flex>
+              </Flex>
             </View>
           </RichTooltip>
         </TooltipTrigger>
-      )}
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Flex direction="row" alignItems="center" gap="size-100">
-            {floatFormatter(value)}
-            <ProgressBar
-              width="40px"
-              value={percentile}
-              aria-label="where the mean score lands between overall min max"
-            />
-          </Flex>
-        </TriggerWrap>
-        <RichTooltip>
-          <View width="size-2400">
-            <Heading level={3} weight="heavy">
-              {annotationName}
-            </Heading>
-            <Flex direction="column">
-              <Flex justifyContent="space-between">
-                <Text weight="heavy" size="XS">
-                  Mean Score
-                </Text>
-                <Text size="XS">{floatFormatter(value)}</Text>
-              </Flex>
-              <Flex justifyContent="space-between">
-                <Text weight="heavy" size="XS">
-                  All Experiments Min
-                </Text>
-                <Text size="XS">{floatFormatter(min)}</Text>
-              </Flex>
-              <Flex justifyContent="space-between">
-                <Text weight="heavy" size="XS">
-                  All Experiments Max
-                </Text>
-                <Text size="XS">{floatFormatter(max)}</Text>
-              </Flex>
-              <Flex justifyContent="space-between">
-                <Text weight="heavy" size="XS">
-                  Mean Score Percentile
-                </Text>
-                <Text size="XS">{formatPercent(percentile)}</Text>
-              </Flex>
-            </Flex>
-          </View>
-        </RichTooltip>
-      </TooltipTrigger>
-      {baselineMeanScore !== undefined && (
-        <ExperimentAnnotationMeanDelta
-          annotationName={annotationName}
-          meanScore={value}
-          baseMeanScore={baselineMeanScore}
-          config={config}
-          tooltipPlacement="top"
+      }
+      bar={
+        <ProgressBar
+          css={css`
+            --mod-barloader-fill-color: ${color};
+          `}
+          width={ANNOTATION_BAR_WIDTH}
+          value={percentile}
+          aria-label="where the mean score lands between overall min max"
         />
-      )}
-    </div>
+      }
+      delta={
+        baselineMeanScore !== undefined ? (
+          <ExperimentAnnotationMeanDelta
+            annotationName={annotationName}
+            meanScore={value}
+            baseMeanScore={baselineMeanScore}
+            config={config}
+            tooltipPlacement="top"
+            variant="tabular"
+          />
+        ) : undefined
+      }
+      hasDeltaSlot={hasDeltaSlot}
+    />
   );
 }

@@ -34,11 +34,20 @@ import {
   formatLabelDelta,
   formatMetricDelta,
   formatSignedMetricDelta,
+  formatZeroDelta,
   getDeltaState,
   getExperimentRunMetricValue,
 } from "./experimentDeltaUtils";
 
 export type DeltaSize = "S" | "XS";
+
+/**
+ * How a delta token sits among its neighbors. `inline` follows a value in a
+ * row of stats. `tabular` is for a column of deltas: the arrow slot is always
+ * held, the value is right-aligned at a fixed minimum width, and an
+ * unchanged delta reads as a muted zero so digits stack vertically.
+ */
+export type DeltaVariant = "inline" | "tabular";
 
 export type DeltaTooltipPlacement = "end" | "top";
 
@@ -76,6 +85,12 @@ export function ExperimentMetricStat({ children }: { children: ReactNode }) {
     </span>
   );
 }
+
+/**
+ * Holds an arrow and about five monospace characters, which fits every delta
+ * the tables show: `↑0.05`, `↓12%`, `<0.1%`, `0.00`.
+ */
+const TABULAR_DELTA_MIN_WIDTH = "4.75em";
 
 const metricDeltaCSS = css`
   display: inline-flex;
@@ -127,11 +142,113 @@ const metricDeltaCSS = css`
       text-overflow: ellipsis;
     }
   }
+
+  &.metric-delta--tabular {
+    justify-content: flex-end;
+    min-width: ${TABULAR_DELTA_MIN_WIDTH};
+    .metric-delta__glyph {
+      width: 1em;
+      justify-content: center;
+    }
+    .metric-delta__value {
+      text-align: right;
+    }
+  }
+`;
+
+const metricCellCSS = css`
+  display: grid;
+  align-items: center;
+  justify-items: end;
+  column-gap: var(--global-dimension-size-100);
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+
+  .metric-cell__value {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .metric-cell__slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
 `;
 
 const tooltipLineCSS = css`
   display: block;
 `;
+
+/**
+ * A table cell of a numeric value and its delta in fixed slots, so values,
+ * bars and deltas each share one right edge down the column. Each slot is
+ * rendered only when given, except the delta slot, which `hasDeltaSlot` keeps
+ * open on rows without a delta (such as the baseline row) so the rest of the
+ * cell does not shift.
+ */
+export function ExperimentMetricCell({
+  leading,
+  value,
+  bar,
+  delta,
+  hasDeltaSlot = false,
+}: {
+  /** Content before the value, such as a missing-data indicator */
+  leading?: ReactNode;
+  value: ReactNode;
+  /** A bar or other visual after the value */
+  bar?: ReactNode;
+  /** The delta token, when this row has one */
+  delta?: ReactNode;
+  /** Keeps the delta slot open when `delta` is absent */
+  hasDeltaSlot?: boolean;
+}) {
+  const showsDeltaSlot = hasDeltaSlot || delta != null;
+  const gridTemplateColumns = [
+    leading != null ? "auto" : null,
+    "minmax(0, 1fr)",
+    bar != null ? "auto" : null,
+    showsDeltaSlot ? "auto" : null,
+  ]
+    .filter((column) => column != null)
+    .join(" ");
+  return (
+    <div
+      className="metric-cell"
+      css={metricCellCSS}
+      style={{ gridTemplateColumns }}
+    >
+      {leading != null ? (
+        <span className="metric-cell__slot">{leading}</span>
+      ) : null}
+      <span className="metric-cell__value">{value}</span>
+      {bar != null ? <span className="metric-cell__slot">{bar}</span> : null}
+      {showsDeltaSlot ? (
+        <span className="metric-cell__slot">
+          {delta ?? <ExperimentMetricDeltaPlaceholder />}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * An empty token the width of a tabular delta, for rows in a delta column
+ * that have nothing to compare, such as the baseline row.
+ */
+export function ExperimentMetricDeltaPlaceholder() {
+  return (
+    <span
+      className="metric-delta metric-delta--tabular"
+      data-size="S"
+      css={metricDeltaCSS}
+      aria-hidden="true"
+    />
+  );
+}
 
 /**
  * The inline token shared by every delta: colored by state, focusable so the
@@ -146,6 +263,7 @@ function DeltaToken({
   tooltipLines,
   size,
   tooltipPlacement,
+  variant = "inline",
   isLabel = false,
 }: {
   state: ReturnType<typeof getDeltaState>;
@@ -155,9 +273,11 @@ function DeltaToken({
   tooltipLines: readonly string[];
   size: DeltaSize;
   tooltipPlacement: DeltaTooltipPlacement;
+  variant?: DeltaVariant;
   /** Truncates the value, since a label can be arbitrarily long */
   isLabel?: boolean;
 }) {
+  const holdsGlyphSlot = variant === "tabular";
   return (
     <TooltipTrigger delay={200}>
       <Pressable>
@@ -167,11 +287,12 @@ function DeltaToken({
           aria-label={description}
           className={classNames("metric-delta", `metric-delta--${state}`, {
             "metric-delta--label": isLabel,
+            "metric-delta--tabular": variant === "tabular",
           })}
           data-size={size}
           css={metricDeltaCSS}
         >
-          {glyph ? (
+          {glyph || holdsGlyphSlot ? (
             <span className="metric-delta__glyph" aria-hidden="true">
               {glyph}
             </span>
@@ -211,6 +332,7 @@ export function ExperimentMetricDelta({
   note,
   size = "S",
   tooltipPlacement = "end",
+  variant = "inline",
 }: {
   delta: MetricDelta;
   /** Which form a change shows; a 0 base falls back to absolute */
@@ -227,6 +349,7 @@ export function ExperimentMetricDelta({
   note?: string;
   size?: DeltaSize;
   tooltipPlacement?: DeltaTooltipPlacement;
+  variant?: DeltaVariant;
 }) {
   const description = describeMetricDelta({
     metricLabel,
@@ -253,15 +376,20 @@ export function ExperimentMetricDelta({
         svg={delta.sign === "up" ? <Icons.ArrowUp /> : <Icons.ArrowDown />}
       />
     ) : undefined;
+  const valueText =
+    variant === "tabular" && delta.kind === "unchanged"
+      ? formatZeroDelta({ display, formatter })
+      : formatMetricDelta({ delta, display, formatter });
   return (
     <DeltaToken
       state={getDeltaState(delta)}
       glyph={glyph}
-      valueText={formatMetricDelta({ delta, display, formatter })}
+      valueText={valueText}
       description={description}
       tooltipLines={tooltipLines}
       size={size}
       tooltipPlacement={tooltipPlacement}
+      variant={variant}
     />
   );
 }
@@ -279,6 +407,7 @@ export function ExperimentAnnotationMeanDelta({
   config,
   size = "S",
   tooltipPlacement = "end",
+  variant = "inline",
 }: {
   annotationName: string;
   /** The experiment's mean score */
@@ -289,6 +418,7 @@ export function ExperimentAnnotationMeanDelta({
   config: AnnotationOptimizationConfig | undefined;
   size?: DeltaSize;
   tooltipPlacement?: DeltaTooltipPlacement;
+  variant?: DeltaVariant;
 }) {
   const { optimizationDirection } = getOptimizationBounds(config);
   return (
@@ -310,6 +440,7 @@ export function ExperimentAnnotationMeanDelta({
       }
       size={size}
       tooltipPlacement={tooltipPlacement}
+      variant={variant}
     />
   );
 }
@@ -327,6 +458,7 @@ export function ExperimentRunMetricDelta({
   note,
   size = "S",
   tooltipPlacement = "end",
+  variant = "inline",
 }: {
   metric: ExperimentRunMetric;
   /** The experiment whose change is shown */
@@ -337,6 +469,7 @@ export function ExperimentRunMetricDelta({
   note?: string;
   size?: DeltaSize;
   tooltipPlacement?: DeltaTooltipPlacement;
+  variant?: DeltaVariant;
 }) {
   if (baseExperiment == null) {
     return null;
@@ -359,6 +492,7 @@ export function ExperimentRunMetricDelta({
       note={note}
       size={size}
       tooltipPlacement={tooltipPlacement}
+      variant={variant}
     />
   );
 }

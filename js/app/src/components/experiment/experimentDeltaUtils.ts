@@ -413,6 +413,22 @@ export function formatMetricDelta({
 }
 
 /**
+ * The text of an unchanged delta shown as a number rather than `no change`,
+ * for columns of deltas that need equal widths: `0%`, `0.00`, `$0`.
+ * @param params.display - which form the column's changes show
+ * @param params.formatter - formats absolute magnitudes (default `numberFormatter`)
+ */
+export function formatZeroDelta({
+  display,
+  formatter = numberFormatter,
+}: {
+  display: DeltaDisplay;
+  formatter?: (value: number) => string;
+}): string {
+  return display === "relative" ? formatRelativeDelta(0) : formatter(0);
+}
+
+/**
  * The signed absolute change with the signed relative change in parentheses
  * when it exists, e.g. `−$0.59 (−40%)`.
  * @param params.delta - a changed delta

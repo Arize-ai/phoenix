@@ -18,9 +18,12 @@ import {
   computeLabelDelta,
   computeMetricDelta,
   DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
+  EXPERIMENT_RUN_METRICS,
+  getExperimentRunMetricValue,
 } from "@phoenix/components/experiment/experimentDeltaUtils";
 import {
   ExperimentLabelDelta,
+  ExperimentMetricCell,
   ExperimentMetricDelta,
   ExperimentRunMetricDelta,
 } from "@phoenix/components/experiment/ExperimentMetricDelta";
@@ -330,6 +333,64 @@ export const LabelChanges: Story = {
           size={column?.label}
         />
       )}
+    />
+  ),
+};
+
+const tabularRows: { label: string; experiment: ExperimentRunMetricsSource }[] =
+  [
+    { label: "Baseline", experiment: baselineRunMetrics },
+    ...runMetricCases.slice(0, 2),
+    {
+      label: "Ten times the cost",
+      experiment: {
+        runCount: 50,
+        averageRunLatencyMs: 9_000,
+        errorRate: 0.5,
+        costSummary: { total: { cost: 120.0, tokens: 105_000_000 } },
+      },
+    },
+  ];
+
+/**
+ * A table column of values and deltas in fixed slots: values share a right
+ * edge, every row holds the arrow slot, an unchanged delta reads as a muted
+ * zero, and the baseline row keeps the slot empty so nothing shifts.
+ */
+export const TabularColumn: Story = {
+  name: "Tabular Column",
+  tags: ["!dev"],
+  parameters: { themeLayout: "column" },
+  render: () => (
+    <OptionGrid
+      rows={tabularRows}
+      columns={runMetrics}
+      cellWidth="160px"
+      justifyCells="stretch"
+      renderCell={(row, column) => {
+        const metric = column?.label ?? "latency";
+        const { formatter } = EXPERIMENT_RUN_METRICS[metric];
+        const value = getExperimentRunMetricValue({
+          experiment: row.experiment,
+          metric,
+        });
+        return (
+          <ExperimentMetricCell
+            value={<span className="font-mono">{formatter(value)}</span>}
+            delta={
+              row.experiment === baselineRunMetrics ? undefined : (
+                <ExperimentRunMetricDelta
+                  metric={metric}
+                  experiment={row.experiment}
+                  baseExperiment={baselineRunMetrics}
+                  variant="tabular"
+                />
+              )
+            }
+            hasDeltaSlot
+          />
+        );
+      }}
     />
   ),
 };

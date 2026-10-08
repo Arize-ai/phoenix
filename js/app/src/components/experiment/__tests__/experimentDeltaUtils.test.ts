@@ -15,6 +15,7 @@ import {
   formatMetricDelta,
   formatRelativeDelta,
   formatSignedMetricDelta,
+  formatZeroDelta,
   getDeltaState,
   getExperimentRunMetricValue,
 } from "../experimentDeltaUtils";
@@ -422,6 +423,16 @@ describe("formatMetricDelta", () => {
     expect(
       formatMetricDelta({ delta: { kind: "undefined" }, display: "relative" })
     ).toBe("--");
+  });
+});
+
+describe("formatZeroDelta", () => {
+  it("formats zero in the column's display", () => {
+    expect(formatZeroDelta({ display: "relative" })).toBe("0%");
+    expect(
+      formatZeroDelta({ display: "absolute", formatter: costFormatter })
+    ).toBe("$0");
+    expect(formatZeroDelta({ display: "absolute" })).toBe("0");
   });
 });
 
