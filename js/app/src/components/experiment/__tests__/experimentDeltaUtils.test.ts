@@ -3,15 +3,14 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { ExperimentRunMetricsSource } from "../experimentDeltaUtils";
 import {
-  computeExperimentRunMetricDelta,
   computeLabelDelta,
   computeMeanPerRun,
   computeMetricDelta,
+  computeOperationalMetricDelta,
   DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
   describeLabelDelta,
   describeMetricDelta,
   EXPERIMENT_RUN_METRICS,
-  formatErrorRate,
   formatLabelDelta,
   formatMetricDelta,
   formatRelativeDelta,
@@ -324,52 +323,34 @@ describe("getExperimentRunMetricValue", () => {
       })
     ).toBeNull();
   });
-});
-
-describe("computeExperimentRunMetricDelta", () => {
-  const base: ExperimentRunMetricsSource = {
-    runCount: 50,
-    averageRunLatencyMs: 100_000,
-    errorRate: 0,
-    costSummary: { total: { cost: 10, tokens: 1_000_000 } },
-  };
 
   it("compares totals per run so a different run count is no change", () => {
-    const compare: ExperimentRunMetricsSource = {
-      ...base,
-      runCount: 25,
-      costSummary: { total: { cost: 5, tokens: 500_000 } },
+    const halfTheRuns: ExperimentRunMetricsSource = {
+      ...experiment,
+      runCount: 2,
+      costSummary: { total: { cost: 1, tokens: 500 } },
     };
     expect(
-      computeExperimentRunMetricDelta({ base, compare, metric: "cost" })
-    ).toEqual({ kind: "unchanged" });
-    expect(
-      computeExperimentRunMetricDelta({ base, compare, metric: "tokens" })
+      computeOperationalMetricDelta({
+        base: getExperimentRunMetricValue({ experiment, metric: "cost" }),
+        compare: getExperimentRunMetricValue({
+          experiment: halfTheRuns,
+          metric: "cost",
+        }),
+      })
     ).toEqual({ kind: "unchanged" });
   });
 
-  it("treats lower as better and applies the neutral band", () => {
-    const compare: ExperimentRunMetricsSource = {
-      ...base,
-      averageRunLatencyMs: 90_000,
-      costSummary: { total: { cost: 10.05, tokens: 1_200_000 } },
-    };
-    expect(
-      computeExperimentRunMetricDelta({ base, compare, metric: "latency" })
-    ).toMatchObject({ kind: "changed", sign: "down", direction: "improved" });
-    expect(
-      computeExperimentRunMetricDelta({ base, compare, metric: "cost" })
-    ).toMatchObject({ kind: "changed", sign: "up", direction: "neutral" });
-    expect(
-      computeExperimentRunMetricDelta({ base, compare, metric: "tokens" })
-    ).toMatchObject({ kind: "changed", sign: "up", direction: "regressed" });
-  });
-
-  it("shows an error rate rising from zero as an absolute regression", () => {
-    const delta = computeExperimentRunMetricDelta({
-      base,
-      compare: { ...base, errorRate: 0.04 },
-      metric: "errorRate",
+  it("shows an error rate rising from zero in percentage points", () => {
+    const delta = computeOperationalMetricDelta({
+      base: getExperimentRunMetricValue({
+        experiment: { ...experiment, errorRate: 0 },
+        metric: "errorRate",
+      }),
+      compare: getExperimentRunMetricValue({
+        experiment: { ...experiment, errorRate: 0.04 },
+        metric: "errorRate",
+      }),
     });
     expect(delta).toMatchObject({
       kind: "changed",
@@ -384,25 +365,6 @@ describe("computeExperimentRunMetricDelta", () => {
         formatter: EXPERIMENT_RUN_METRICS.errorRate.formatter,
       })
     ).toBe("4.00%");
-  });
-
-  it("is undefined when a side has no error rate", () => {
-    const { errorRate: _omitted, ...withoutErrorRate } = base;
-    expect(
-      computeExperimentRunMetricDelta({
-        base: withoutErrorRate,
-        compare: base,
-        metric: "errorRate",
-      })
-    ).toEqual({ kind: "undefined" });
-  });
-});
-
-describe("formatErrorRate", () => {
-  it("formats a fraction as a percentage", () => {
-    expect(formatErrorRate(0.125)).toBe("12.50%");
-    expect(formatErrorRate(0)).toBe("0.00%");
-    expect(formatErrorRate(null)).toBe("--");
   });
 });
 

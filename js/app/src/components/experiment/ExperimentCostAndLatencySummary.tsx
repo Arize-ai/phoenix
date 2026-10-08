@@ -121,14 +121,12 @@ export function ExperimentCostAndLatencySummary({
         {averageRunLatencyMs != null && (
           <ExperimentMetricStat>
             <LatencyText size="S" latencyMs={averageRunLatencyMs} />
-            {baseExperiment && (
-              <ExperimentRunMetricDelta
-                metric="latency"
-                experiment={experiment}
-                baseExperiment={baseExperiment}
-                tooltipPlacement="top"
-              />
-            )}
+            <ExperimentRunMetricDelta
+              metric="latency"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
+              tooltipPlacement="top"
+            />
           </ExperimentMetricStat>
         )}
         <ExperimentMetricStat>
@@ -137,7 +135,7 @@ export function ExperimentCostAndLatencySummary({
             experimentId={id}
             size="S"
           />
-          {baseExperiment && averageRunTokenCountTotal != null && (
+          {averageRunTokenCountTotal != null && (
             <ExperimentRunMetricDelta
               metric="tokens"
               experiment={experiment}
@@ -153,14 +151,12 @@ export function ExperimentCostAndLatencySummary({
               experimentId={id}
               size="S"
             />
-            {baseExperiment && (
-              <ExperimentRunMetricDelta
-                metric="cost"
-                experiment={experiment}
-                baseExperiment={baseExperiment}
-                tooltipPlacement="top"
-              />
-            )}
+            <ExperimentRunMetricDelta
+              metric="cost"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
+              tooltipPlacement="top"
+            />
           </ExperimentMetricStat>
         )}
       </ExperimentMetricStatRow>

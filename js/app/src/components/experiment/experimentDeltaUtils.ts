@@ -6,7 +6,7 @@ import { getOptimizationBounds } from "@phoenix/components/annotation/optimizati
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   costFormatter,
-  formatPercent,
+  errorRateFormatter,
   formatPercentShort,
   latencyMsFormatter,
   numberFormatter,
@@ -95,13 +95,6 @@ export type ExperimentRunMetricDefinition = {
 };
 
 /**
- * Formats an error rate fraction as a percentage, e.g. `0.125` → `12.50%`.
- */
-export function formatErrorRate(rate: MaybeNumber): string {
-  return rate == null ? MISSING_VALUE_TEXT : formatPercent(rate * 100);
-}
-
-/**
  * How each run metric is labeled and formatted. Latency, tokens and cost show
  * the relative change; the error rate shows the change in percentage points.
  */
@@ -126,7 +119,7 @@ export const EXPERIMENT_RUN_METRICS: Record<
   },
   errorRate: {
     label: "Error rate",
-    formatter: formatErrorRate,
+    formatter: errorRateFormatter,
     display: "absolute",
   },
 };
@@ -224,6 +217,17 @@ export function computeOperationalMetricDelta({
     optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
     neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
   });
+}
+
+/**
+ * Indexes annotation configs by annotation name.
+ */
+export function indexAnnotationConfigsByName<
+  T extends { readonly name: string },
+>(configs: readonly T[] | undefined): Partial<Record<string, T>> {
+  return Object.fromEntries(
+    (configs ?? []).map((config) => [config.name, config])
+  );
 }
 
 /**
@@ -336,28 +340,6 @@ export function getExperimentRunMetricValue({
     default:
       return assertUnreachable(metric);
   }
-}
-
-/**
- * Compares an experiment's per-run metric against the base experiment's:
- * lower is better, and changes inside the neutral band are neutral.
- * @param params.base - the base experiment's aggregate fields
- * @param params.compare - the compare experiment's aggregate fields
- * @param params.metric - which run metric to compare
- */
-export function computeExperimentRunMetricDelta({
-  base,
-  compare,
-  metric,
-}: {
-  base: ExperimentRunMetricsSource;
-  compare: ExperimentRunMetricsSource;
-  metric: ExperimentRunMetric;
-}): MetricDelta {
-  return computeOperationalMetricDelta({
-    base: getExperimentRunMetricValue({ experiment: base, metric }),
-    compare: getExperimentRunMetricValue({ experiment: compare, metric }),
-  });
 }
 
 /**

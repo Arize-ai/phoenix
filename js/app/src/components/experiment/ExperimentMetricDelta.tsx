@@ -9,9 +9,14 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
+import { getOptimizationBounds } from "@phoenix/components/annotation";
 import { dotSeparatedRowCSS } from "@phoenix/components/core/styles";
 import { classNames } from "@phoenix/utils/classNames";
-import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  floatFormatter,
+  numberFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 
 import type {
   DeltaDisplay,
@@ -21,6 +26,7 @@ import type {
   MetricDelta,
 } from "./experimentDeltaUtils";
 import {
+  computeMetricDelta,
   computeOperationalMetricDelta,
   describeLabelDelta,
   describeMetricDelta,
@@ -261,10 +267,58 @@ export function ExperimentMetricDelta({
 }
 
 /**
+ * An experiment's change in the mean score of an annotation against the base
+ * experiment: the absolute change, colored by the annotation config's
+ * optimization direction. Without a direction the change is neutral and the
+ * tooltip says so.
+ */
+export function ExperimentAnnotationMeanDelta({
+  annotationName,
+  meanScore,
+  baseMeanScore,
+  config,
+  size = "S",
+  tooltipPlacement = "end",
+}: {
+  annotationName: string;
+  /** The experiment's mean score */
+  meanScore: number;
+  /** The base experiment's mean score; `null` when the base has none */
+  baseMeanScore: number | null;
+  /** The annotation's config, for its optimization direction */
+  config: AnnotationOptimizationConfig | undefined;
+  size?: DeltaSize;
+  tooltipPlacement?: DeltaTooltipPlacement;
+}) {
+  const { optimizationDirection } = getOptimizationBounds(config);
+  return (
+    <ExperimentMetricDelta
+      delta={computeMetricDelta({
+        base: baseMeanScore,
+        compare: meanScore,
+        optimizationDirection,
+      })}
+      display="absolute"
+      metricLabel={`${annotationName} average`}
+      formatter={floatFormatter}
+      compareValueText={floatFormatter(meanScore)}
+      baseValueText={floatFormatter(baseMeanScore)}
+      note={
+        optimizationDirection == null
+          ? "No optimization direction set"
+          : undefined
+      }
+      size={size}
+      tooltipPlacement={tooltipPlacement}
+    />
+  );
+}
+
+/**
  * An experiment's change in a per-run metric (latency, tokens, cost or error
  * rate) against the base experiment. Totals are compared per run so
  * experiments with different run counts line up, lower is better, and changes
- * inside the neutral band are neutral.
+ * inside the neutral band are neutral. Renders nothing without a base.
  */
 export function ExperimentRunMetricDelta({
   metric,
@@ -277,13 +331,16 @@ export function ExperimentRunMetricDelta({
   metric: ExperimentRunMetric;
   /** The experiment whose change is shown */
   experiment: ExperimentRunMetricsSource;
-  /** The experiment the change is measured against */
-  baseExperiment: ExperimentRunMetricsSource;
+  /** The experiment the change is measured against; absent shows no delta */
+  baseExperiment: ExperimentRunMetricsSource | null | undefined;
   /** An extra tooltip line, such as how the per-run value was derived */
   note?: string;
   size?: DeltaSize;
   tooltipPlacement?: DeltaTooltipPlacement;
 }) {
+  if (baseExperiment == null) {
+    return null;
+  }
   const { label, formatter, display } = EXPERIMENT_RUN_METRICS[metric];
   const compare = getExperimentRunMetricValue({ experiment, metric });
   const base = getExperimentRunMetricValue({
