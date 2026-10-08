@@ -6,14 +6,12 @@ import type { EditorView } from "@codemirror/view";
 import { TYPEAHEAD_COMPLETION_CLASS_PREFIX } from "@phoenix/components/filter/styles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
-import {
-  BARE_IDENTIFIER_PATTERN,
-  toBracketSegment,
-} from "@phoenix/utils/jsonUtils";
+import { toBracketSegment } from "@phoenix/utils/jsonUtils";
 import { unescapeQuotedPathKey } from "@phoenix/utils/objectUtils";
 
 import {
   findEvaluatorPathMatches,
+  isPlainEvaluatorPathKey,
   parseEvaluatorPath,
 } from "./evaluatorJsonPath";
 
@@ -49,8 +47,9 @@ export function capBrowsedMembers<T>({
  * Extends a path by one key, in the notation the server parses.
  *
  * Attribute keys carry dots of their own — `llm.model_name` is one key, not two
- * — so anything that is not a bare identifier is quoted into a bracket segment
- * rather than joined with a dot.
+ * — so anything that is not a plain identifier, or is a word the server's
+ * parser reserves, is quoted into a bracket segment rather than joined with a
+ * dot.
  */
 export function appendPathSegment(
   parentPath: string,
@@ -63,7 +62,7 @@ export function appendPathSegment(
   if (!parentPath) {
     return key;
   }
-  return BARE_IDENTIFIER_PATTERN.test(key)
+  return isPlainEvaluatorPathKey(key)
     ? `${parentPath}.${key}`
     : `${parentPath}${toBracketSegment(key)}`;
 }
@@ -154,7 +153,7 @@ export function getEvaluatorPathCursor(
     }
 
     const containerPath = textBeforeCursor.slice(0, containerEnd);
-    if (containerPath !== "" && parseEvaluatorPath(containerPath) === null) {
+    if (containerPath !== "" && !parseEvaluatorPath(containerPath).isValid) {
       continue;
     }
     return { containerPath, partial, from };
@@ -516,7 +515,7 @@ function getSubscriptContinuation({
 }): EvaluatorPathCompletionResult | null {
   if (
     !textBeforeCursor.endsWith("]") ||
-    parseEvaluatorPath(textBeforeCursor) === null
+    !parseEvaluatorPath(textBeforeCursor).isValid
   ) {
     return null;
   }
@@ -763,9 +762,12 @@ function getProjectedField(items: readonly unknown[]): string | null {
 
 /** What one item of the list at `containerPath` is called: `messages` → message. */
 function toItemNoun(containerPath: string): string {
-  const lastStep = parseEvaluatorPath(containerPath)?.at(-1);
+  const parsed = parseEvaluatorPath(containerPath);
+  const lastStep = parsed.isValid ? parsed.steps.at(-1) : undefined;
   const name =
-    lastStep?.kind === "field" ? (lastStep.key.split(".").at(-1) ?? "") : "";
+    lastStep?.kind === "fields" && lastStep.keys.length === 1
+      ? (lastStep.keys[0].split(".").at(-1) ?? "")
+      : "";
   const words = toWords(name);
   return /[a-z]/.test(words) ? singularize(words) : "item";
 }
@@ -819,8 +821,8 @@ function toLevelCompletion(
 /**
  * What became of a path written against the mapping source.
  *
- * `unverifiable` covers everything this side cannot answer — no record has been
- * sampled yet, or the path uses syntax only the server resolves — and is
+ * `invalid` is a path the server rejects when the evaluator is saved.
+ * `unverifiable` is a valid path with no record to read it against yet, and is
  * deliberately not an error: a path is only wrong once something has actually
  * checked it.
  *
@@ -830,6 +832,7 @@ function toLevelCompletion(
 export type EvaluatorPathResolution =
   | { status: "resolved"; value: unknown; matches: unknown[] }
   | { status: "unresolved"; range: { from: number; to: number } }
+  | { status: "invalid"; range: { from: number; to: number } }
   | { status: "unverifiable" };
 
 /**
@@ -850,14 +853,20 @@ export function resolveEvaluatorPath({
   if (path === "") {
     return { status: "resolved", value: undefined, matches: [] };
   }
+  const parsed = parseEvaluatorPath(path);
+  if (!parsed.isValid) {
+    return {
+      status: "invalid",
+      range: {
+        from: Math.min(parsed.errorAt, Math.max(path.length - 1, 0)),
+        to: path.length,
+      },
+    };
+  }
   if (Object.keys(source).length === 0) {
     return { status: "unverifiable" };
   }
-  const steps = parseEvaluatorPath(path);
-  if (steps === null) {
-    return { status: "unverifiable" };
-  }
-  const found = findEvaluatorPathMatches({ source, steps });
+  const found = findEvaluatorPathMatches({ source, steps: parsed.steps });
   if (found.status === "unmatched") {
     return {
       status: "unresolved",

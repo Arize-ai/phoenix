@@ -390,7 +390,12 @@ export function formatProjectEvaluatorRunCounts(
 export type ProjectEvaluatorMappingDiagnostic = {
   variable: string;
   path: string;
-  status: "resolved" | "missing" | "optional-missing" | "unverified";
+  status:
+    | "resolved"
+    | "missing"
+    | "optional-missing"
+    | "invalid"
+    | "unverified";
   /**
    * Where the value comes from: a path the author wrote, text saved on the
    * evaluator, or a field of the same name at the top of the evaluation
@@ -457,16 +462,15 @@ export function getProjectEvaluatorMappingDiagnostics({
   return variables.map((variable): ProjectEvaluatorMappingDiagnostic => {
     const mappedPath = pathMapping[variable];
     if (mappedPath != null) {
-      // One resolver reads every path this feature writes; what it cannot
-      // answer from here — a wildcard only the server resolves, a context
-      // with nothing in it yet — is unverified rather than wrong.
+      // One resolver reads every path this feature writes; a context with
+      // nothing in it yet leaves a valid path unverified rather than wrong.
       const resolution = resolveEvaluatorPath({ source, path: mappedPath });
       const status =
         resolution.status === "unverifiable"
           ? "unverified"
           : resolution.status === "unresolved"
             ? missingStatus(variable)
-            : "resolved";
+            : resolution.status;
       // The server still resolves the path, and fails on one that matches
       // nothing, but then applies the literal over what it found.
       if (status === "resolved" && Object.hasOwn(literalMapping, variable)) {

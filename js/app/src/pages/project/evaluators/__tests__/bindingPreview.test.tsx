@@ -210,7 +210,7 @@ describe("the binding preview", () => {
     expect(errorRows[2]?.querySelector("button")).toBeNull();
   });
 
-  it("replaces an unverified path with a warning in place, not a banner", async () => {
+  it("flags a path the server rejects in place, not in a banner", async () => {
     await act(async () => {
       root.render(
         <EvaluatorInputVariablesContext.Provider
@@ -221,12 +221,8 @@ describe("the binding preview", () => {
             recordKind="span"
             inputMapping={{
               pathMapping: {
-                // Double-quoted and quoted-wildcard keys are the server's to
-                // resolve, so this side can only defer — unlike `nope`, which
-                // is checked and wrong.
-                input: 'metadata.attributes.llm["input_messages"]',
                 output: "nope",
-                citations: "metadata.annotations['*']",
+                citations: "metadata.annotations[",
               },
               literalMapping: {},
             }}
@@ -237,41 +233,23 @@ describe("the binding preview", () => {
       );
     });
 
-    // Slot order holds: each deferred path replaces its own row rather than
+    // Slot order holds: each flagged path replaces its own row rather than
     // stacking in a banner after the list.
     expect(
       [...container.querySelectorAll(".binding-row__keyword")].map(
         (node) => node.textContent
       )
     ).toEqual(["input", "output", "metadata", "citations"]);
-    const warningRows = [
-      ...container.querySelectorAll('[data-variant="warning"]'),
-    ];
+    const errorRows = [...container.querySelectorAll('[data-variant="error"]')];
     expect(
-      warningRows.map(
+      errorRows.map(
         (row) => row.querySelector(".binding-row__keyword")?.textContent
       )
-    ).toEqual(["input", "citations"]);
-    // A path that is checked and wrong stays an error beside them.
+    ).toEqual(["output", "citations"]);
     expect(
-      [...container.querySelectorAll('[data-variant="error"]')].map(
-        (row) => row.querySelector(".binding-row__keyword")?.textContent
-      )
-    ).toEqual(["output"]);
-    expect(
-      warningRows.map(
-        (row) => row.querySelector(".binding-row__message")?.textContent
-      )
-    ).toEqual([
-      'metadata.attributes.llm["input_messages"] is checked when the evaluator runs',
-      "metadata.annotations['*'] is checked when the evaluator runs",
-    ]);
-    expect(
-      warningRows[0]?.querySelector('[aria-label="warning"]')
-    ).not.toBeNull();
-    // Nothing is left to open onto, and no banner follows the rows.
-    expect(warningRows[1]?.querySelector("button")).toBeNull();
-    expect(container.querySelector(".alert__icon-title-wrap")).toBeNull();
+      errorRows[1]?.querySelector(".binding-row__message")?.textContent
+    ).toBe("metadata.annotations[ is not a valid path");
+    expect(container.querySelector('[data-variant="warning"]')).toBeNull();
   });
 
   it("counts mapping errors on the collapsed row and names each on hover", async () => {

@@ -4,10 +4,9 @@ js/app/src/components/evaluators/__tests__/evaluatorPathParity.json lists mappin
 paths, the context each is read against, and the outcome the path field's reader
 reports for it. A vitest test holds the reader to the same fixture, so a path that
 previews one value in the editor and binds another at evaluation time fails one
-side or the other. Rows marked `unverifiable` are paths the reader declines to
-evaluate, and are not run here. Because the check spans both languages, it runs
-as its own CI job, not inside the Python unit test suite, which must never depend
-on js/ sources.
+side or the other, as does a path one side accepts and the other rejects. Because
+the check spans both languages, it runs as its own CI job, not inside the Python
+unit test suite, which must never depend on js/ sources.
 
 Exits non-zero listing every row whose server outcome differs from the fixture.
 """
@@ -48,14 +47,16 @@ def main() -> int:
     failures: list[str] = []
     for case in fixture["cases"]:
         outcome = case["outcome"]
-        if outcome == "unverifiable":
-            continue
         checked += 1
         path = case["path"]
         try:
             mapping = InputMapping(literal_mapping={}, path_mapping={MAPPED_KEY: path})
         except ValidationError as error:
-            failures.append(f"{path!r}: the server rejects this path: {error}")
+            if outcome != "invalid":
+                failures.append(f"{path!r}: the server rejects this path: {error}")
+            continue
+        if outcome == "invalid":
+            failures.append(f"{path!r}: expected the server to reject this path")
             continue
         try:
             value = apply_input_mapping(

@@ -1423,7 +1423,12 @@ export function BindingPreview({
   // rather than in a banner under the list.
   const messageRows = new Map(
     diagnostics
-      .filter(({ status }) => status === "missing" || status === "unverified")
+      .filter(
+        ({ status }) =>
+          status === "missing" ||
+          status === "invalid" ||
+          status === "unverified"
+      )
       .map((diagnostic): [string, BindingRow] => [
         diagnostic.variable,
         diagnostic.status === "missing"
@@ -1432,13 +1437,19 @@ export function BindingPreview({
               keyword: diagnostic.variable,
               message: formatMissingBindingMessage(diagnostic, recordKind),
             }
-          : {
-              variant: "warning",
-              keyword: diagnostic.variable,
-              // Only paths reach `unverified`, so this is always a real
-              // authored path rather than a bare variable name.
-              message: `${diagnostic.path} is checked when the evaluator runs`,
-            },
+          : diagnostic.status === "invalid"
+            ? {
+                variant: "error",
+                keyword: diagnostic.variable,
+                message: `${diagnostic.path} is not a valid path`,
+              }
+            : {
+                variant: "warning",
+                keyword: diagnostic.variable,
+                // Only paths reach `unverified`, so this is always a real
+                // authored path rather than a bare variable name.
+                message: `${diagnostic.path} is checked when the evaluator runs`,
+              },
       ])
   );
   const slotKeywords = new Set(slotRows.map(({ keyword }) => keyword));
