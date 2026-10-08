@@ -247,3 +247,44 @@ async def test_thread_session_password_reset_uses_configured_smtp(
     assert reset.path == "/reset-password-with-token"
     token = parse_qs(reset.query).get("token")
     assert token and token[0]
+
+
+@pytest.mark.parametrize(
+    "host, env_value, expected",
+    [
+        pytest.param("0.0.0.0", None, True, id="non_loopback"),
+        pytest.param("127.0.0.1", None, False, id="loopback"),
+        pytest.param("0.0.0.0", "false", False, id="explicit_off"),
+        pytest.param("127.0.0.1", "true", True, id="explicit_on"),
+    ],
+)
+def test_launch_app_prints_auth_notice(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    host: str,
+    env_value: str | None,
+    expected: bool,
+) -> None:
+    if env_value is None:
+        monkeypatch.delenv(ENV_PHOENIX_ENABLE_AUTH, raising=False)
+    else:
+        monkeypatch.setenv(ENV_PHOENIX_ENABLE_AUTH, env_value)
+    monkeypatch.setenv("PHOENIX_HOST", host)
+    monkeypatch.delenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, raising=False)
+    _clear_login_providers(monkeypatch)
+    thread = Mock()
+    thread.is_alive.return_value = True
+    try:
+        with (
+            patch("phoenix.session.session.ThreadServer") as mock_server,
+            patch.object(session_module, "_session", None),
+        ):
+            mock_server.return_value.run_in_thread.return_value = (t for t in [thread])
+            session = launch_app(port=_free_port())
+            assert session is not None
+            session.end()
+    finally:
+        if (working_dir := session_module._session_working_dir) is not None:
+            session_module._session_working_dir = None
+            working_dir.cleanup()
+    assert ("Authentication is enabled" in capsys.readouterr().out) is expected

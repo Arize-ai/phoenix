@@ -20,6 +20,7 @@ from phoenix.config import (
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_PORT,
     app_auth_kwargs,
+    auth_enabled_for_host,
     canonicalize_host,
     ensure_working_dir_if_needed,
     get_env_auth_settings,
@@ -425,6 +426,12 @@ def launch_app(
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
+    if auth_enabled_for_host(_session.host):
+        print(
+            "🔐 Authentication is enabled, so you must sign in to the app. Clients and trace "
+            "exporters need an API key (PHOENIX_API_KEY), or their requests are rejected. "
+            "To turn authentication off, set PHOENIX_ENABLE_AUTH=false."
+        )
     if not use_temp_dir:
         print(f"💽 Your data is being persisted to {get_printable_db_url(database_url)}")
     print("📖 For more information on how to use Phoenix, check out https://arize.com/docs/phoenix")
