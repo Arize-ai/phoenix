@@ -159,6 +159,7 @@ const metricDeltaCSS = css`
 const metricCellCSS = css`
   display: grid;
   align-items: center;
+  justify-content: end;
   justify-items: end;
   column-gap: var(--global-dimension-size-150);
   width: 100%;
@@ -217,13 +218,8 @@ export function ExperimentMetricCell({
   deltaSize?: DeltaSize;
 }) {
   const showsDeltaSlot = hasDeltaSlot || delta != null;
-  const gridTemplateColumns = [
-    leading != null ? "auto" : null,
-    bar != null ? "auto" : null,
-    "minmax(0, 1fr)",
-  ]
-    .filter((column) => column != null)
-    .join(" ");
+  const slotCount = 1 + (leading != null ? 1 : 0) + (bar != null ? 1 : 0);
+  const gridTemplateColumns = `repeat(${slotCount}, auto)`;
   return (
     <div
       className="metric-cell"
