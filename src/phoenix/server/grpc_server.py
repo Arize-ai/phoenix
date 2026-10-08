@@ -57,7 +57,7 @@ class GrpcServer:
         self,
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
         port: int,
-        host: Optional[str] = None,
+        host: str,
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
         disabled: bool = False,
@@ -124,13 +124,8 @@ class GrpcServer:
             GrpcAioInstrumentorServer().uninstrument()  # type: ignore
 
 
-def _bind_address(host: Optional[str], port: int) -> str:
-    """Format a gRPC bind address for a host from ``canonicalize_host``.
-
-    None binds all interfaces.
-    """
-    if host is None:
-        return f"[::]:{port}"
+def _bind_address(host: str, port: int) -> str:
+    """Format a gRPC bind address for a host from ``canonicalize_host``."""
     if ":" in host:
         return f"[{host}]:{port}"
     return f"{host}:{port}"
