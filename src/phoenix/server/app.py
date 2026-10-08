@@ -650,24 +650,6 @@ class CapacityInterceptor(AsyncServerInterceptor):
         return await method(request_or_iterator, context)
 
 
-def _install_token_signing_key(
-    token_store: JwtStore,
-    seed: bytes,
-    secret: Optional[SecretStr],
-) -> None:
-    if secret:
-        token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
-        return
-    token_store.set_signing_key(
-        derive_deployment_key(
-            seed=seed,
-            secret=SecretStr(""),
-            purpose=TOKEN_SIGNING_KEY_PURPOSE,
-        ),
-        require_stored_hash=True,
-    )
-
-
 def _lifespan(
     *,
     db: DbSessionFactory,
@@ -715,7 +697,15 @@ def _lifespan(
             )
         )
         if isinstance(token_store, JwtStore):
-            _install_token_signing_key(token_store, seed, secret)
+            if secret:
+                token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
+            else:
+                token_store.set_signing_key(
+                    derive_deployment_key(
+                        seed=seed, secret=SecretStr(""), purpose=TOKEN_SIGNING_KEY_PURPOSE
+                    ),
+                    require_stored_hash=True,
+                )
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
