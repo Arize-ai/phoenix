@@ -169,7 +169,7 @@ from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
-from phoenix.server.redaction import Redactor, RedactorNotBoundError, current_redactor
+from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -434,13 +434,7 @@ class RedactorMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        redactor = getattr(request.app.state, "redactor", None)
-        if redactor is None:
-            raise RedactorNotBoundError(
-                "No Redactor is set on the application. Startup sets "
-                "app.state.redactor from the deployment seed before requests are served."
-            )
-        token = current_redactor.set(redactor)
+        token = current_redactor.set(request.app.state.redactor)
         try:
             return await call_next(request)
         finally:
@@ -702,7 +696,7 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     grpc_port: Optional[int] = None,
-    grpc_host: Optional[str] = None,
+    grpc_host: str,
     initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
@@ -710,9 +704,6 @@ def _lifespan(
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
     secret: Optional[SecretStr] = None,
 ) -> StatefulLifespan[FastAPI]:
-    if grpc_host is None:
-        grpc_host = get_env_host()
-
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
         seed = await load_deployment_seed(db)
