@@ -7,7 +7,9 @@ name: Sync Model Pricing Data
 #      drop and new GA models to add (when prices changed, on Mondays, or on
 #      manual dispatch).
 #   3. Publish both to one fixed branch so the open PR is updated in place
-#      instead of opening a new PR every weekday.
+#      instead of opening a new PR every weekday. Publishing runs in its own
+#      job from a fresh checkout, so the PAT never shares a runner with code
+#      Claude could have edited.
 
 permissions:
   contents: read
@@ -39,10 +41,13 @@ jobs:
     name: Sync Model Pricing Data
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      publish: ${{ steps.body.outputs.publish }}
+      title: ${{ steps.body.outputs.title }}
     permissions:
       # contents: read is all Claude can reach: the read-only workflow token is
       # passed to the action below (so no write-scoped App token is minted via
-      # OIDC), and publishing is done by the final step with a PAT.
+      # OIDC). Publishing happens in the separate publish-pr job with a PAT.
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -140,7 +145,7 @@ jobs:
 
           # Hand the action the read-only workflow token instead of letting it
           # mint a write-scoped Claude App token via OIDC. Claude never writes
-          # to GitHub here (the final step publishes with a PAT).
+          # to GitHub here (the publish-pr job publishes with a PAT).
           github_token: ${{ github.token }}
 
           # Surface the full Claude SDK message stream in the step log instead of
@@ -332,20 +337,75 @@ jobs:
             echo "title=fix(cost): update built-in model token prices" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Reset git remote
+      - name: Export catalog patch
         if: steps.body.outputs.publish == 'true'
-        # The Claude step rewrites origin to embed its (now revoked) token in
-        # the URL; reset it so the publishing step authenticates with its PAT.
-        run: git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+        run: |
+          # Only a patch of the three publishable files leaves this job. Code
+          # Claude can edit has run here (pytest), so this job never holds the
+          # publishing token; external diff drivers and hooks are disabled so
+          # anything that code planted in .git/ cannot shape the patch.
+          mkdir -p "$RUNNER_TEMP/catalog"
+          git -c core.hooksPath=/dev/null diff --no-ext-diff --no-textconv --binary -- \
+            "$MANIFEST_PATH" "$PLAYGROUND_CLIENTS_PATH" "$PLAYGROUND_CLIENTS_TEST_PATH" \
+            > "$RUNNER_TEMP/catalog/catalog.patch"
+          cp "$RUNNER_TEMP/pr-body.md" "$RUNNER_TEMP/catalog/pr-body.md"
+          git apply --numstat "$RUNNER_TEMP/catalog/catalog.patch"
+
+      - name: Upload catalog patch
+        if: steps.body.outputs.publish == 'true'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: model-catalog-patch
+          path: ${{ runner.temp }}/catalog/
+          retention-days: 7
+          if-no-files-found: error
+
+  publish-pr:
+    name: Publish Model Catalog PR
+    runs-on: ubuntu-latest
+    needs: [sync-model-pricing]
+    if: needs.sync-model-pricing.outputs.publish == 'true'
+    permissions:
+      contents: read
+    steps:
+      # Fresh checkout: nothing from the audit job's working tree, .git/ or
+      # virtualenv reaches the job that holds the publishing token, and no
+      # repository code is executed here.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download catalog patch
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: model-catalog-patch
+          path: ${{ runner.temp }}/catalog
+
+      - name: Apply catalog patch
+        run: |
+          patch="$RUNNER_TEMP/catalog/catalog.patch"
+          # Refuse anything beyond in-place content edits to the three files.
+          if grep -Eq '^(old mode|new mode|new file mode|deleted file mode|rename from|rename to|copy from|copy to) ' "$patch"; then
+            echo "::error::Catalog patch changes file modes or paths; refusing to publish."
+            exit 1
+          fi
+          allowed="$MANIFEST_PATH $PLAYGROUND_CLIENTS_PATH $PLAYGROUND_CLIENTS_TEST_PATH"
+          while IFS=$'\t' read -r _ _ file; do
+            case " $allowed " in
+              *" $file "*) ;;
+              *) echo "::error::Catalog patch touches $file; refusing to publish."; exit 1 ;;
+            esac
+          done < <(git apply --numstat "$patch")
+          git apply "$patch"
+          git diff --stat
 
       - name: Create or update Pull Request
-        if: steps.body.outputs.publish == 'true'
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-          commit-message: ${{ steps.body.outputs.title }}
-          title: ${{ steps.body.outputs.title }}
-          body-path: ${{ runner.temp }}/pr-body.md
+          commit-message: ${{ needs.sync-model-pricing.outputs.title }}
+          title: ${{ needs.sync-model-pricing.outputs.title }}
+          body-path: ${{ runner.temp }}/catalog/pr-body.md
           add-paths: |
             ${{ env.MANIFEST_PATH }}
             ${{ env.PLAYGROUND_CLIENTS_PATH }}
@@ -359,7 +419,7 @@ jobs:
   slack-notification:
     name: Slack Notification
     runs-on: ubuntu-latest
-    needs: [sync-model-pricing]
+    needs: [sync-model-pricing, publish-pr]
     if: always()
     permissions: {}
     steps:
