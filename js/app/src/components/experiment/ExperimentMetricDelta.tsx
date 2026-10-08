@@ -156,6 +156,12 @@ const metricDeltaCSS = css`
   }
 `;
 
+/**
+ * Below this cell width the bar no longer fits beside the figure and is
+ * hidden rather than overlapping the digits.
+ */
+const METRIC_CELL_BAR_MIN_WIDTH = "160px";
+
 const metricCellCSS = css`
   display: grid;
   align-items: center;
@@ -164,7 +170,15 @@ const metricCellCSS = css`
   column-gap: var(--global-dimension-size-150);
   width: 100%;
   min-width: 0;
+  overflow: hidden;
+  container-type: inline-size;
   font-variant-numeric: tabular-nums;
+
+  @container (max-width: ${METRIC_CELL_BAR_MIN_WIDTH}) {
+    .metric-cell__slot--bar {
+      display: none;
+    }
+  }
 
   .metric-cell__slot {
     display: inline-flex;
@@ -207,7 +221,7 @@ export function ExperimentMetricCell({
 }: {
   /** An indicator before everything else, such as a missing-data marker */
   leading?: ReactNode;
-  /** A bar or other visual that supports the value */
+  /** A bar or other visual that supports the value; hidden in narrow cells */
   bar?: ReactNode;
   value: ReactNode;
   /** The delta token, when this row has one; pass it at `deltaSize` */
@@ -229,7 +243,9 @@ export function ExperimentMetricCell({
       {leading != null ? (
         <span className="metric-cell__slot">{leading}</span>
       ) : null}
-      {bar != null ? <span className="metric-cell__slot">{bar}</span> : null}
+      {bar != null ? (
+        <span className="metric-cell__slot metric-cell__slot--bar">{bar}</span>
+      ) : null}
       <span className="metric-cell__figure">
         <span className="metric-cell__value">{value}</span>
         {showsDeltaSlot
