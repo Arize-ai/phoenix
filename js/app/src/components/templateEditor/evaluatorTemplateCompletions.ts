@@ -21,11 +21,14 @@ import {
   getEvaluatorPathMembers,
   IDEA_COMPLETION_TYPE,
   resolveEvaluatorPath,
-  toItemNoun,
   toMemberCompletionType,
   toMemberSection,
   toWholePathValidFor,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import {
+  F_STRING_PATH_SYNTAX,
+  getEvaluatorPathIdeas,
+} from "@phoenix/components/evaluators/evaluatorPathIdeas";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { BARE_IDENTIFIER_PATTERN } from "@phoenix/utils/jsonUtils";
 
@@ -64,6 +67,9 @@ const F_STRING_NAME_GRAMMAR: TemplateNameGrammar = {
 };
 
 const TEMPLATE_NAME_SEGMENT_PATTERN = /\[(-?\d+)\]|[^.[\]]+/g;
+
+/** A whole name an f-string can render. */
+const F_STRING_NAME_PATTERN = /^[A-Za-z_]\w*(?:\.[A-Za-z]\w*|\[-?\d+\])*$/;
 
 /** An f-string name followed by a subscript still being typed: `turns[`, `turns[-1`. */
 const F_STRING_OPEN_INDEX_PATTERN =
@@ -172,7 +178,6 @@ export function getEvaluatorTemplateCompletions({
       : toIndexResult({
           from: variable.from,
           listName: containerName,
-          items: container.value,
           typedIndex: "",
           evaluationContext,
           closingBrackets,
@@ -482,65 +487,75 @@ function getListIndexResult({
   return toIndexResult({
     from,
     listName: name,
-    items: list.value,
     typedIndex,
     evaluationContext,
     closingBrackets,
   });
 }
 
-/** One item of a list by position, the way an f-string reads it: `turns[-1]`. */
+/**
+ * The ideas for a list that an f-string can render, and an item typed by
+ * position: `turns[-1]`.
+ */
 function toIndexResult({
   from,
   listName,
-  items,
   typedIndex,
   evaluationContext,
   closingBrackets,
 }: {
   from: number;
   listName: string;
-  items: unknown[];
   /** Digits typed inside an open subscript, if any. */
   typedIndex: string;
   evaluationContext: MaterializedEvaluatorContext;
   closingBrackets: string;
 }): CompletionResult | null {
-  const noun = toItemNoun(toMappingPath(listName));
-  const positions = [
-    { index: 0, description: `First ${noun}` },
-    { index: -1, description: `Last ${noun}` },
-  ];
-  const typed = Number(typedIndex);
-  const isTypedPosition =
+  const source = evaluationContext.values;
+  const rows = getEvaluatorPathIdeas({
+    recordKind: evaluationContext.recordKind,
+    source,
+    containerPath: toMappingPath(listName),
+    syntax: F_STRING_PATH_SYNTAX,
+  }).flatMap(({ relativePath, description, value }) => {
+    const name = `${listName}${relativePath}`;
+    return F_STRING_NAME_PATTERN.test(name)
+      ? [{ name, description, value }]
+      : [];
+  });
+  const typedName = `${listName}[${Number(typedIndex)}]`;
+  if (
     /^-?\d+$/.test(typedIndex) &&
-    !positions.some((position) => position.index === typed);
-  if (isTypedPosition) {
-    positions.push({ index: typed, description: `[${typed}]` });
+    !rows.some((row) => row.name === typedName)
+  ) {
+    const typed = resolveEvaluatorPath({
+      source,
+      path: toMappingPath(typedName),
+    });
+    if (typed.status === "resolved") {
+      rows.push({
+        name: typedName,
+        description: `[${Number(typedIndex)}]`,
+        value: typed.value,
+      });
+    }
   }
   const section = toMemberSection(listName, TEMPLATE_MEMBER_SECTION_RANK);
-  const options = positions.flatMap(({ index, description }, order) => {
-    const item = items.at(index);
-    if (item === undefined) {
-      return [];
-    }
-    const name = `${listName}[${index}]`;
+  const options = rows.map(({ name, description, value }, order) => {
     const detail = toMemberDetail({
-      member: { key: `${index}`, path: name, value: item, isIndex: true },
+      member: { key: name, path: name, value, isIndex: true },
       evaluationContext,
     });
-    return [
-      {
-        label: name,
-        displayLabel: description,
-        type: IDEA_COMPLETION_TYPE,
-        ...(detail ? { detail } : {}),
-        info: name,
-        section,
-        boost: 99 - order,
-        apply: applyTemplateInsertion(name, closingBrackets),
-      },
-    ];
+    return {
+      label: name,
+      displayLabel: description,
+      type: IDEA_COMPLETION_TYPE,
+      ...(detail ? { detail } : {}),
+      info: name,
+      section,
+      boost: 99 - order,
+      apply: applyTemplateInsertion(name, closingBrackets),
+    };
   });
   // The typed name ends in a dot or an open bracket the labels do not carry,
   // so the rows are shown as they are rather than matched against it.
