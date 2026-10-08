@@ -19,6 +19,7 @@ from weakref import WeakKeyDictionary
 import sqlean
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import TextClause
 
 from phoenix.db.helpers import SupportedSQLDialectName
@@ -838,6 +839,26 @@ def _estimated_rows(plan_json: list[dict[str, Any]]) -> Optional[int]:
     return int(rows) if isinstance(rows, (int, float)) else None
 
 
+async def _set_temp_file_limit(session: AsyncSession) -> None:
+    """Cap temp-file usage for this transaction when the role is allowed to.
+
+    ``temp_file_limit`` can only be set by a superuser (or a role granted ``SET``
+    on it), which is not the case on most managed PostgreSQL services. A failed
+    ``SET`` aborts the whole transaction on the server, so catching the Python
+    exception is not enough: every later statement would fail with
+    ``InFailedSQLTransactionError``. The statement runs inside a savepoint so
+    that a refusal rolls back only itself, and a successful ``SET LOCAL`` still
+    holds until the end of the outer transaction.
+    """
+    try:
+        async with session.begin_nested():
+            await session.execute(text("SET LOCAL temp_file_limit = '512MB'"))
+    except SQLAlchemyError:
+        # Not every role can set this. The statement still runs under the
+        # server default rather than failing before it starts.
+        logger.debug("analytics sql: temp_file_limit could not be set", exc_info=True)
+
+
 async def _execute_postgres(
     db: DbSessionFactory,
     rendered_sql: str,
@@ -872,12 +893,7 @@ async def _execute_postgres(
         await session.execute(text("SET LOCAL TimeZone = 'UTC'"))
         await session.execute(text(f"SET LOCAL statement_timeout = '{PG_STATEMENT_TIMEOUT_MS}'"))
         await session.execute(text("SET LOCAL work_mem = '64MB'"))
-        try:
-            await session.execute(text("SET LOCAL temp_file_limit = '512MB'"))
-        except SQLAlchemyError:
-            # Not every role can set this. The statement still runs under the
-            # server default rather than failing before it starts.
-            logger.debug("analytics sql: temp_file_limit could not be set", exc_info=True)
+        await _set_temp_file_limit(session)
         deadline = time.monotonic() + PG_STATEMENT_TIMEOUT_MS / 1000
 
         # EXPLAIN resolves names, so a name error surfaces here rather than at
