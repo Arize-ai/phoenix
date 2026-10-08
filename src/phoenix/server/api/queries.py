@@ -1700,7 +1700,7 @@ class Query:
         ):
             database_encryption_key_is_public = None
         else:
-            database_encryption_key_is_public = info.context.database_encryption_key_is_public
+            database_encryption_key_is_public = not info.context.secret
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
             database_encryption_key_is_public=database_encryption_key_is_public,
