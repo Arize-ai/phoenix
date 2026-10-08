@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -34,6 +35,14 @@ const PLACEHOLDER = `{
     }
   }
 }`;
+
+function Mono({ children }: { children: string }) {
+  return (
+    <Text size="S" fontFamily="mono">
+      {children}
+    </Text>
+  );
+}
 
 /**
  * Paste a request body from code or a trace and load it into the shared
@@ -85,11 +94,11 @@ export function DecisionImportDialog({ isDisabled }: { isDisabled: boolean }) {
                 <View padding="size-200">
                   <Flex direction="column" gap="size-100">
                     <Text size="S" color="text-700">
-                      Paste a System One body (<code>state</code> and{" "}
-                      <code>questions</code>) or an OpenAI Decisions body (
-                      <code>input</code> and <code>questions</code>). The format
+                      Paste a System One body (<Mono>state</Mono> and{" "}
+                      <Mono>questions</Mono>) or an OpenAI Decisions body (
+                      <Mono>input</Mono> and <Mono>questions</Mono>). The format
                       is detected automatically and replaces the current
-                      request. A <code>model</code> field is ignored; pick the
+                      request. A <Mono>model</Mono> field is ignored; pick the
                       model on each instance.
                     </Text>
                     <View
@@ -111,41 +120,31 @@ export function DecisionImportDialog({ isDisabled }: { isDisabled: boolean }) {
                     </View>
                   </Flex>
                 </View>
-                <View
-                  padding="size-200"
-                  borderTopWidth="thin"
-                  borderTopColor="default"
-                >
-                  <Flex direction="row" justifyContent="end" gap="size-100">
-                    <Button size="S" onPress={close}>
-                      Cancel
-                    </Button>
-                    <Button
-                      size="S"
-                      variant="primary"
-                      isDisabled={!text.trim()}
-                      onPress={() => {
-                        setError(null);
-                        try {
-                          const { draft } = parseDecisionImport(text);
-                          setDecisionRequest({
-                            ...draft,
-                            revision: Date.now(),
-                          });
-                          close();
-                        } catch (e) {
-                          setError(
-                            e instanceof Error
-                              ? e.message
-                              : "Could not import the request"
-                          );
-                        }
-                      }}
-                    >
-                      Import
-                    </Button>
-                  </Flex>
-                </View>
+                <DialogFooter>
+                  <Button variant="default" slot="close">
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    isDisabled={!text.trim()}
+                    onPress={() => {
+                      setError(null);
+                      try {
+                        const { draft } = parseDecisionImport(text);
+                        setDecisionRequest({ ...draft, revision: Date.now() });
+                        close();
+                      } catch (e) {
+                        setError(
+                          e instanceof Error
+                            ? e.message
+                            : "Could not import the request"
+                        );
+                      }
+                    }}
+                  >
+                    Import
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             )}
           </Dialog>

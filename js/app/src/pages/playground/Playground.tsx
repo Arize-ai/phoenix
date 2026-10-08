@@ -853,12 +853,23 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
-            <Flex direction="row" gap="size-200" maxWidth="100%">
+            <Flex
+              direction="row"
+              gap="size-200"
+              maxWidth="100%"
+              // Decision columns hold only a model header, so let them wrap
+              // rather than forcing a horizontal scroll to reach instance B.
+              wrap={hasDecisionInstance}
+            >
               {instanceIds.map((instanceId) => (
                 <View
                   flex="1 1 0px"
                   key={`${instanceId}-prompt`}
-                  minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
+                  minWidth={
+                    hasDecisionInstance
+                      ? undefined
+                      : PLAYGROUND_PROMPT_PANEL_MIN_WIDTH
+                  }
                 >
                   <PlaygroundTemplate
                     playgroundInstanceId={instanceId}

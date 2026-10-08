@@ -177,12 +177,8 @@ export function ModelParametersConfigButton(
               />
               <BaseUrlConfigFormField
                 playgroundInstanceId={playgroundInstanceId}
+                description="Blank uses the provider default. Set it to run against a compatible host, such as a System One proxy or a self-hosted decision model."
               />
-              <Text size="S" color="text-700">
-                Leave the base URL blank for the provider default. Set it to run
-                against a compatible host, such as a System One proxy or a
-                self-hosted decision model.
-              </Text>
             </div>
           ) : (
             <div css={formFieldsCSS}>
