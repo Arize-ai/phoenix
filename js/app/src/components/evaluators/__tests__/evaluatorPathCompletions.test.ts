@@ -66,19 +66,19 @@ const ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
   {
     key: "input",
     path: "input",
-    preview: "what is the weather?",
+    detail: "what is the weather?",
     section: { name: "Evaluator input", rank: 1 },
   },
   {
     key: "metadata.latency_ms",
     path: "metadata.latency_ms",
-    preview: "842.5",
+    detail: "842.5",
     section: { name: "From the span", rank: 2 },
   },
   {
     key: "metadata.attributes",
     path: "metadata.attributes",
-    preview: "object · 2",
+    detail: "object · 2",
     section: { name: "From the span", rank: 2 },
   },
 ];
@@ -87,7 +87,7 @@ const SESSION_ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
   {
     key: "metadata.turns",
     path: "metadata.turns",
-    preview: "list · 1",
+    detail: "list · 1",
     section: { name: "From the session", rank: 2 },
   },
 ];
@@ -251,17 +251,17 @@ describe("getEvaluatorPathCompletions", () => {
   it("previews the value each member holds on the record", () => {
     const result = completionsFor("metadata.attributes.llm.");
 
-    expect(
-      result?.completions.map(({ key, preview }) => [key, preview])
-    ).toEqual([
-      ["model_name", "gpt-4o-mini"],
-      ["token_count", "object · 1"],
-    ]);
+    expect(result?.completions.map(({ key, detail }) => [key, detail])).toEqual(
+      [
+        ["model_name", "gpt-4o-mini"],
+        ["token_count", "object · 1"],
+      ]
+    );
   });
 
   it("describes a branch by what it is rather than by its contents", () => {
     const byKey = new Map(
-      completionsFor("metadata.")?.completions.map((c) => [c.key, c.preview])
+      completionsFor("metadata.")?.completions.map((c) => [c.key, c.detail])
     );
 
     expect(byKey.get("attributes")).toBe("object · 2");
@@ -273,19 +273,32 @@ describe("getEvaluatorPathCompletions", () => {
 
     // A list's rows are subscripts, matched from the bracket that opens one.
     expect(result?.from).toBe(14);
+    // An idea shows its path beside what it reaches, and previews its value
+    // when highlighted.
     expect(
-      result?.completions.map(({ key, path, section }) => [
+      result?.completions.map(({ key, path, detail, info }) => [
         key,
         path,
-        section.name,
+        detail,
+        info,
       ])
     ).toEqual([
-      ["[-1].content", "input.messages[-1].content", "Suggestions"],
-      ["[0]", "input.messages[0]", "Suggestions"],
-      ["[-1]", "input.messages[-1]", "Suggestions"],
-      ["[*]", "input.messages[*]", "Suggestions"],
-      ["[:-1]", "input.messages[:-1]", "Suggestions"],
+      [
+        "[-1].content",
+        "input.messages[-1].content",
+        "Last message",
+        "What is the weather?",
+      ],
+      ["[0]", "input.messages[0]", "First message", "object · 2"],
+      ["[-1]", "input.messages[-1]", "Last message", "object · 2"],
+      ["[*]", "input.messages[*]", "All messages", "list · 2"],
+      ["[:-1]", "input.messages[:-1]", "All but last", "object · 2"],
     ]);
+    expect(
+      result?.completions.every(
+        ({ section }) => section === SUGGESTED_PATH_SECTION
+      )
+    ).toBe(true);
     expect(result?.completions.map(({ boost }) => boost)).toEqual([
       5, 4, 3, 2, 1,
     ]);
@@ -317,7 +330,7 @@ describe("getEvaluatorPathCompletions", () => {
     const result = completionsFor("output.documents[*].", CHAT_SOURCE);
 
     expect(
-      result?.completions.map(({ key, path, preview }) => [key, path, preview])
+      result?.completions.map(({ key, path, detail }) => [key, path, detail])
     ).toEqual([
       ["id", "output.documents[*].id", "list · 2"],
       ["content", "output.documents[*].content", "Sunny"],
@@ -568,7 +581,7 @@ describe("applyEvaluatorPathCompletion", () => {
         {
           key: "attributes",
           path: "metadata.attributes",
-          preview: "",
+          detail: "",
           section,
           drills: true,
         },
@@ -580,7 +593,7 @@ describe("applyEvaluatorPathCompletion", () => {
         {
           key: "latency_ms",
           path: "metadata.latency_ms",
-          preview: "",
+          detail: "",
           section,
         },
         "lat"
@@ -592,14 +605,14 @@ describe("applyEvaluatorPathCompletion", () => {
     const section = { name: "input.messages" };
     expect(
       accept(
-        { key: "-1]", path: "input.messages[-1]", preview: "", section },
+        { key: "-1]", path: "input.messages[-1]", detail: "", section },
         "input.messages[-",
         "]"
       )
     ).toEqual({ doc: "input.messages[-1]", head: 18 });
     expect(
       accept(
-        { key: "llm", path: "metadata['llm']", preview: "", section },
+        { key: "llm", path: "metadata['llm']", detail: "", section },
         "metadata['ll",
         "']"
       )

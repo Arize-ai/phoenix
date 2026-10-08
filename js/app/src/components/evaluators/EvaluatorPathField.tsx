@@ -118,11 +118,11 @@ export function EvaluatorPathField({
             (candidate) => ({
               key: candidate.label,
               path: candidate.label,
-              preview: candidate.detail,
+              detail: candidate.detail,
               section: candidate.section,
               boost: candidate.boost,
               type: candidate.type,
-              ...(candidate.info ? { description: candidate.info } : {}),
+              ...(candidate.info ? { info: candidate.info } : {}),
               // One of the evaluator's own inputs is a finished path; its
               // members have rows of their own.
               drills:
@@ -254,11 +254,8 @@ function createEvaluatorPathCompletionSource({
       from: result.from,
       options: result.completions.map((completion) => ({
         label: completion.key,
-        ...(completion.displayLabel
-          ? { displayLabel: completion.displayLabel }
-          : {}),
-        ...(completion.preview ? { detail: completion.preview } : {}),
-        ...(completion.description ? { info: completion.description } : {}),
+        ...(completion.detail ? { detail: completion.detail } : {}),
+        ...(completion.info ? { info: completion.info } : {}),
         type: completion.type ?? "property",
         ...(completion.boost != null ? { boost: completion.boost } : {}),
         section: completion.section,
