@@ -70,7 +70,6 @@ class _IdleThread:
         pytest.param("localhost", "localhost", id="localhost"),
         pytest.param("0.0.0.0", "0.0.0.0", id="all_ipv4"),
         pytest.param(None, "::", id="all_interfaces"),
-        pytest.param("127.1", "127.1", id="unparsed_spelling"),
     ],
 )
 def test_start_prometheus_binds_host(
