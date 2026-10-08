@@ -2336,7 +2336,6 @@ def task_toml(item: Spec) -> str:
     metadata = re.sub(r'^domain = ".*"$', f'domain = "{item["domain"]}"', metadata, flags=re.M)
     assert f'domain = "{item["domain"]}"' in metadata
     if item["slug"] in TEST:
-        # The test split grades with the dev split's verifier package.
         metadata += f'\nverifiers = "{HERE.name}"'
     return "\n\n".join((header, task, metadata, shared))
 
