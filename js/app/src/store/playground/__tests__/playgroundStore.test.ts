@@ -41,13 +41,8 @@ describe("getInitialInstances", () => {
       expect(instances[0].model.modelType).toBe("DECISION");
       expect(instances[0].model.provider).toBe(provider);
       expect(instances[0].model.modelName).toBe(modelName);
-      // The request itself is shared store state, not instance state.
-      expect(
-        createPlaygroundStore({
-          modelConfigByProvider: {},
-          defaultModelType: "DECISION",
-        }).getState().decisionRequest?.questions[0].type
-      ).toBe("choice");
+      // Each instance owns its request, like a prompt.
+      expect(instances[0].decisionRequest?.questions[0].type).toBe("choice");
       expect(instances[0].llmModel?.provider).toBe("OPENAI");
       expect(Object.keys(instanceMessages).length).toBeGreaterThan(0);
     }

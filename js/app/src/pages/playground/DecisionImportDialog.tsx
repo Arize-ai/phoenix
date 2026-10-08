@@ -23,6 +23,7 @@ import { JSONEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { parseDecisionImport } from "./decisionUtils";
+import type { PlaygroundInstanceProps } from "./types";
 
 const PLACEHOLDER = `{
   "model": "jev-latest",
@@ -45,14 +46,21 @@ function Mono({ children }: { children: string }) {
 }
 
 /**
- * Paste a request body from code or a trace and load it into the shared
- * editor. Accepts TypeSafe System One and OpenAI Decisions shapes; the format
+ * Paste a request body from code or a trace and load it into this
+ * instance. Accepts TypeSafe System One and OpenAI Decisions shapes; the format
  * is detected from the body. The body's `model` is reported but not applied,
  * since each instance owns its model.
  */
-export function DecisionImportDialog({ isDisabled }: { isDisabled: boolean }) {
-  const setDecisionRequest = usePlaygroundContext(
-    (state) => state.setDecisionRequest
+export function DecisionImportDialog({
+  playgroundInstanceId: instanceId,
+}: PlaygroundInstanceProps) {
+  const updateDecisionRequest = usePlaygroundContext(
+    (state) => state.updateDecisionRequest
+  );
+  const isDisabled = usePlaygroundContext(
+    (state) =>
+      state.instances.find((item) => item.id === instanceId)?.activeRunId !=
+      null
   );
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +107,7 @@ export function DecisionImportDialog({ isDisabled }: { isDisabled: boolean }) {
                       <Mono>input</Mono> and <Mono>questions</Mono>). The format
                       is detected automatically and replaces the current
                       request. A <Mono>model</Mono> field is ignored; pick the
-                      model on each instance.
+                      model from the instance&rsquo;s model menu.
                     </Text>
                     <View
                       borderWidth="thin"
@@ -131,7 +139,10 @@ export function DecisionImportDialog({ isDisabled }: { isDisabled: boolean }) {
                       setError(null);
                       try {
                         const { draft } = parseDecisionImport(text);
-                        setDecisionRequest({ ...draft, revision: Date.now() });
+                        updateDecisionRequest(instanceId, {
+                          ...draft,
+                          revision: Date.now(),
+                        });
                         close();
                       } catch (e) {
                         setError(
