@@ -24,6 +24,7 @@ openinference-semantic-conventions = "2099-12-31T00:00:00Z"
 
 [manifest]
 members = [
+    "api-selection-verifiers",
     "arize-phoenix",
     "arize-phoenix-client",
     "arize-phoenix-evals",
@@ -331,6 +332,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/a9/d2/f4d173e22df740bc3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/b8/4bd346e22b28902df4d651910f5242c28d84e4a5c2435ca5c3f797ed7e2e/anyio-4.15.1-py3-none-any.whl", hash = "sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101", size = 132079, upload-time = "2026-09-05T10:42:37.923Z" },
 ]
+
+[[package]]
+name = "api-selection-verifiers"
+version = "0.0.0"
+source = { editable = "evals/harbor/tasks/api-selection-dev/verifiers" }
+dependencies = [
+    { name = "harbor-verifiers" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "harbor-verifiers", editable = "evals/harbor/verifiers" }]
 
 [[package]]
 name = "appnope"

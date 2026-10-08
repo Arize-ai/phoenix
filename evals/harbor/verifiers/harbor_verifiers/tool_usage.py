@@ -1,9 +1,10 @@
-"""Diagnostics from an ATIF trajectory: which Phoenix surfaces the agent reached, and
-whether that was the surface the task was written for.
+"""Diagnostics from an ATIF trajectory: which Phoenix surfaces the agent reached.
 
 Every value is numeric so it rides along in ``reward.json`` as its own evaluation
 beside ``reward``. None of them changes the pass or fail verdict. Tokens, cost, and
-latency are not repeated here: the plugin's trace carries them per LLM span.
+latency are not repeated here: the plugin's trace carries them per LLM span. Whether
+the surface was the right one for the question is a dataset's judgement; the
+api-selection verifier scores it from these counts.
 
 Agents reach Phoenix three ways and name their tools differently, so classification
 works on the tool name after any ``mcp__<server>__`` prefix, then on the arguments:
@@ -135,32 +136,4 @@ def surface_usage(trajectory: dict[str, Any] | None) -> dict[str, float]:
     for category, count in counts.items():
         usage[f"used_{category}"] = 1.0 if count else 0.0
         usage[f"{category}_call_count"] = float(count)
-    return usage
-
-
-EXPECTED_APIS = frozenset({"sql", "http"})
-
-
-def api_selection_correct(expected_api: str, usage: dict[str, float]) -> float:
-    """1.0 when the agent used SQL exactly if the task expected SQL.
-
-    ``expected_api`` is ``"sql"`` for a question written to be answered through the
-    ``executeSql`` tool and ``"http"`` for one written for the REST or GraphQL APIs. A
-    SQL task is answered correctly through SQL alone; touching SQL on an HTTP task counts
-    as the wrong choice even if the answer came from REST in the end.
-    """
-    if expected_api not in EXPECTED_APIS:
-        raise ValueError(
-            f"expected_api must be one of {sorted(EXPECTED_APIS)}, not {expected_api!r}"
-        )
-    return 1.0 if bool(usage.get("used_sql")) == (expected_api == "sql") else 0.0
-
-
-def diagnostics(
-    trajectory: dict[str, Any] | None, expected_api: str | None = None
-) -> dict[str, float]:
-    """Every numeric diagnostic for ``write_reward``."""
-    usage = surface_usage(trajectory)
-    if expected_api is not None:
-        usage["api_selection_correct"] = api_selection_correct(expected_api, usage)
     return usage

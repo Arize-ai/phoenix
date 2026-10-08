@@ -12,11 +12,10 @@ solution script instead of an agent. In that case, the verifier reads the answer
 Use ``{"exact": "ok"}`` in ``expected.json`` to compare normalized strings. The
 normalization removes emphasis, extra whitespace, and final punctuation and ignores
 letter case. Use ``{"reference": "117 traces", "notes": "..."}`` to ask the LLM judge
-in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer. Add
-``"expected_api": "sql"`` or ``"http"`` to score ``api_selection_correct`` from the
-surfaces the agent used (see :mod:`harbor_verifiers.tool_usage`).
+in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer.
 State verifiers can call :func:`write_reward` to record their own reward and include the
-trajectory measurements.
+trajectory measurements. A dataset with its own scoring calls :func:`parse_args` and
+:func:`grade` with extra numeric diagnostics.
 """
 
 from __future__ import annotations
@@ -167,7 +166,7 @@ def write_reward(
     return scores
 
 
-def main(argv: list[str] | None = None) -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -175,15 +174,16 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--answer", type=Path, default=ANSWER_PATH)
     parser.add_argument("--trajectory", type=Path, default=TRAJECTORY_PATH)
     parser.add_argument("--reward-file", type=Path, default=REWARD_PATH)
-    args = parser.parse_args(argv)
-    from harbor_verifiers import tool_usage
+    return parser.parse_args(argv)
 
-    expected = json.loads(args.expected.read_text())
+
+def grade(
+    args: argparse.Namespace, expected: dict[str, Any], **diagnostics: Any
+) -> dict[str, float]:
+    """Grade the reply against ``expected``, write the reward file with the diagnostics,
+    and print the summary that the verifier log shows."""
     reply, source = read_reply(args.trajectory, args.answer)
     reward, reason = check(reply, expected)
-    diagnostics: dict[str, Any] = tool_usage.diagnostics(
-        read_trajectory(args.trajectory), expected.get("expected_api")
-    )
     scores = write_reward(
         reward, trajectory_path=args.trajectory, reward_path=args.reward_file, **diagnostics
     )
@@ -198,6 +198,12 @@ def main(argv: list[str] | None = None) -> None:
             }
         )
     )
+    return scores
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    grade(args, json.loads(args.expected.read_text()))
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ compare the conditions in the Phoenix UI.
 | `jobs/` | One configuration file for each benchmark |
 | `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
 | `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
+| `tasks/<dataset>/verifiers/` | A package of grading that only that dataset needs, installed beside `harbor_verifiers` in that dataset's images |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
 ## Prerequisites
@@ -174,6 +175,18 @@ For a task that changes Phoenix state instead of answering a question, write a c
 verifier runs as root. Calculate the reward, and call
 `harbor_verifiers.verify.write_reward(reward, **extra)` to include the trajectory
 measurements.
+
+### Add grading that only one dataset needs
+
+Put a helper in `harbor_verifiers` when a second dataset would use it unchanged. Put
+grading that names the dataset's own concepts in a `verifiers/` package inside the dataset
+directory instead, such as `tasks/api-selection-dev/verifiers/`, whose
+`api_selection_verifiers.verify` adds `api_selection_correct` to the shared grader's
+output. Staging builds that package into a wheel for the dataset's tasks only, and
+`test.sh` runs its module in place of `harbor_verifiers.verify`. Another dataset shares
+the package by naming its directory in `task.toml` with `[metadata] verifiers =
+"api-selection-dev"`. Add the package to the uv workspace and the tox install lines so
+its tests run with the others.
 
 ### Add a condition
 

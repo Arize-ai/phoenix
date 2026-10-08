@@ -1,7 +1,5 @@
 from typing import Any
 
-import pytest
-
 from harbor_verifiers import tool_usage
 
 
@@ -127,23 +125,10 @@ def test_surface_usage_counts_calls_and_skips_copied_context() -> None:
     }
 
 
-def test_diagnostics_are_all_numeric() -> None:
-    values = tool_usage.diagnostics(_trajectory(_call("executeSql", sql="select 1")))
+def test_surface_usage_is_all_numeric_and_empty_without_a_trajectory() -> None:
+    values = tool_usage.surface_usage(_trajectory(_call("executeSql", sql="select 1")))
     assert values and all(isinstance(value, float) for value in values.values())
-    assert "api_selection_correct" not in values
-
-
-def test_api_selection_is_correct_when_sql_is_used_exactly_on_sql_tasks() -> None:
-    sql = _trajectory(_call("executeSql", sql="select 1"))
-    rest = _trajectory(_call("getProjects"))
-    both = _trajectory(_call("getProjects"), _call("executeSql", sql="select 1"))
-    assert tool_usage.diagnostics(sql, "sql")["api_selection_correct"] == 1.0
-    assert tool_usage.diagnostics(rest, "sql")["api_selection_correct"] == 0.0
-    assert tool_usage.diagnostics(rest, "http")["api_selection_correct"] == 1.0
-    assert tool_usage.diagnostics(both, "http")["api_selection_correct"] == 0.0
-    assert tool_usage.diagnostics(None, "http")["api_selection_correct"] == 1.0
-    with pytest.raises(ValueError, match="expected_api"):
-        tool_usage.diagnostics(sql, "graphql")
+    assert not any(tool_usage.surface_usage(None).values())
 
 
 def test_shell_heuristics_ignore_lookalikes() -> None:
