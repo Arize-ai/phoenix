@@ -261,6 +261,30 @@ class TestShouldCalculateSpanCost:
                 True,
                 id="model_name_with_tab",
             ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                True,
+                id="decision_span_with_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"system": "typesafe"},
+                },
+                False,
+                id="decision_span_without_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "CHAIN"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                False,
+                id="decision_attributes_on_non_model_span",
+            ),
         ],
     )
     def test_should_calculate_span_cost(

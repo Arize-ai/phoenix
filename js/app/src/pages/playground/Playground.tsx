@@ -94,6 +94,7 @@ import {
   Icons,
   Loading,
   PageHeader,
+  Alert,
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
@@ -122,7 +123,10 @@ import {
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import {
+  DECISION_DATASET_BLOCKED_REASON,
+  NUM_MAX_PLAYGROUND_INSTANCES,
+} from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -844,6 +848,13 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
+            {isDatasetMode && hasDecisionInstance ? (
+              <View paddingBottom="size-200">
+                <Alert variant="danger" title="Run blocked">
+                  {DECISION_DATASET_BLOCKED_REASON}
+                </Alert>
+              </View>
+            ) : null}
             <Flex direction="row" gap="size-200" maxWidth="100%">
               {instanceIds.map((instanceId) => (
                 <View

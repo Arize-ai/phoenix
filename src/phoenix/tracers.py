@@ -52,6 +52,7 @@ from phoenix.trace.attributes import (
     load_json_strings,
     unflatten,
 )
+from phoenix.trace.decision import get_model_call_token_counts, is_model_call_span_kind
 from phoenix.trace.schemas import SpanKind
 
 logger = logging.getLogger(__name__)
@@ -401,15 +402,10 @@ def _get_db_span(
         }
         events.append(event_dict)
 
-    llm_token_count_prompt = None
-    llm_token_count_completion = None
-    if span_kind == OpenInferenceSpanKindValues.LLM.value:
-        llm_token_count_prompt = get_attribute_value(
-            attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-        )
-        llm_token_count_completion = get_attribute_value(
-            attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-        )
+    # LLM spans count llm.token_count.*; DECISION spans decision.token_count.*
+    llm_token_count_prompt, llm_token_count_completion = get_model_call_token_counts(
+        span_kind, attributes
+    )
 
     return models.Span(
         span_id=span_id,
@@ -472,11 +468,11 @@ def get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]
             if parent_id not in parent_to_children_ids:
                 parent_to_children_ids[parent_id] = []
             parent_to_children_ids[parent_id].append(span.span_id)
-        is_llm_span = (span.span_kind or "").upper() == "LLM"
+        is_model_span = is_model_call_span_kind((span.span_kind or "").upper())
         counts_by_span_id[span.span_id] = CumulativeCount(
             errors=int(span.status_code == "ERROR"),
-            prompt_tokens=(span.llm_token_count_prompt or 0) if is_llm_span else 0,
-            completion_tokens=(span.llm_token_count_completion or 0) if is_llm_span else 0,
+            prompt_tokens=(span.llm_token_count_prompt or 0) if is_model_span else 0,
+            completion_tokens=(span.llm_token_count_completion or 0) if is_model_span else 0,
         )
 
     # iterative post-order traversal
