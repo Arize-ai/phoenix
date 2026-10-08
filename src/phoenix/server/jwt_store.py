@@ -145,9 +145,9 @@ class JwtStore:
     async def read(self, token: Token) -> Optional[ClaimSet]:
         if (token_id := self._parse_token_id(token)) is None:
             return None
-        if (claims := await self._get(token_id)) is None:
-            return None
-        if not self._store_for(token_id).matches(token_id, token):
+        store = self._store_for(token_id)
+        claims: Optional[ClaimSet] = await store.get(token_id)
+        if claims is None or not store.matches(token_id, token):
             return None
         return claims
 
@@ -175,26 +175,6 @@ class JwtStore:
         if not isinstance(token_id, RefreshTokenId):
             return None
         return await self._refresh_token_store.consumed_grant_id(token_id, token)
-
-    @singledispatchmethod
-    async def _get(self, _: TokenId) -> Optional[ClaimSet]:
-        return None
-
-    @_get.register
-    async def _(self, token_id: PasswordResetTokenId) -> Optional[ClaimSet]:
-        return await self._password_reset_token_store.get(token_id)
-
-    @_get.register
-    async def _(self, token_id: AccessTokenId) -> Optional[ClaimSet]:
-        return await self._access_token_store.get(token_id)
-
-    @_get.register
-    async def _(self, token_id: RefreshTokenId) -> Optional[ClaimSet]:
-        return await self._refresh_token_store.get(token_id)
-
-    @_get.register
-    async def _(self, token_id: ApiKeyId) -> Optional[ClaimSet]:
-        return await self._api_key_store.get(token_id)
 
     @singledispatchmethod
     async def _evict(self, _: TokenId) -> Optional[ClaimSet]:
