@@ -101,6 +101,49 @@ export type PlaygroundTemplate =
   | PlaygroundChatTemplate
   | PlaygroundTextCompletionTemplate;
 
+export type DecisionQuestionType = "choice" | "noul" | "score";
+
+export type DecisionChoiceOptionDraft = {
+  id: string;
+  value: string;
+  description: string;
+};
+
+export type DecisionScoreLevelDraft = {
+  id: string;
+  description: string;
+};
+
+/**
+ * One typed question in the decision request. Every type keeps its own
+ * criteria so switching the type back and forth does not lose work.
+ */
+export type DecisionQuestionDraft = {
+  id: string;
+  name: string;
+  type: DecisionQuestionType;
+  instructions: string;
+  choices: DecisionChoiceOptionDraft[];
+  levels: DecisionScoreLevelDraft[];
+  noul: { trueDescription: string; falseDescription: string };
+};
+
+/**
+ * The decision request shared by every decision instance in the playground.
+ * Instances differ only by model, so comparing models means asking the same
+ * questions over the same evidence. Text fields may use template variables.
+ */
+export type DecisionRequestDraft = {
+  state: string;
+  stateFormat: "text" | "json";
+  questions: DecisionQuestionDraft[];
+  /**
+   * Bumped when the request is replaced wholesale (import), so uncontrolled
+   * editors remount and show the new text. Local typing never changes it.
+   */
+  revision?: number;
+};
+
 export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
 };
@@ -295,17 +338,6 @@ export type PlaygroundInstanceExperiment = {
 export interface PlaygroundInstance {
   /** Preserve chat configuration while the decision editor is active. */
   llmModel?: ModelConfig;
-  decision?: {
-    state: string;
-    stateFormat: "text" | "json";
-    questions: Array<{
-      id: string;
-      name: string;
-      type: "choice" | "noul" | "score";
-      instructions: string;
-      criteria: string;
-    }>;
-  };
   /**
    * An ID to uniquely identify the instance
    */
@@ -376,6 +408,11 @@ export interface PlaygroundProps {
    * @default "MUSTACHE"
    */
   templateFormat: TemplateFormat;
+  /**
+   * The decision request shared by all decision instances, or null until a
+   * decision model is first selected.
+   */
+  decisionRequest: DecisionRequestDraft | null;
   /**
    * Whether or not to use streaming
    * @default true
@@ -678,6 +715,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Set the value of a variable in the input
    */
   setVariableValue: (key: string, value: string) => void;
+  /**
+   * Replace the shared decision request.
+   */
+  setDecisionRequest: (request: DecisionRequestDraft) => void;
   /**
    * Set multiple variable values in the input
    */

@@ -13,6 +13,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group, useDefaultLayout } from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { createReadExperimentResultsClientAction } from "@phoenix/agent/tools/experimentResults";
@@ -122,6 +123,7 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { DecisionRequestEditor } from "./DecisionRequestEditor";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -137,6 +139,7 @@ import {
   PlaygroundDatasetSection,
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
+import { PlaygroundDecisionComparison } from "./PlaygroundDecisionComparison";
 import { PlaygroundDecisionOutput } from "./PlaygroundDecisionOutput";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
@@ -330,11 +333,17 @@ function PlaygroundContent() {
   const hasLLMInstance = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.model.modelType !== "DECISION")
   );
-  const decisionInstanceIds = usePlaygroundContext((state) =>
-    state.instances
-      .filter((instance) => instance.model.modelType === "DECISION")
-      .map((instance) => instance.id)
+  const decisionInstances = usePlaygroundContext(
+    useShallow((state) =>
+      state.instances.filter(
+        (instance) => instance.model.modelType === "DECISION"
+      )
+    )
   );
+  const decisionInstanceIds = decisionInstances.map((instance) => instance.id);
+  // When every instance is a decision model, output is one comparison grid
+  // (same question across models) instead of one card per instance.
+  const showDecisionComparison = hasDecisionInstance && !hasLLMInstance;
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -786,10 +795,10 @@ function PlaygroundContent() {
     () =>
       isDatasetMode
         ? ["prompts", "io"]
-        : templateFormat !== TemplateFormats.NONE && hasLLMInstance
+        : templateFormat !== TemplateFormats.NONE
           ? ["prompts", "input", "output"]
           : ["prompts", "output"],
-    [isDatasetMode, templateFormat, hasLLMInstance]
+    [isDatasetMode, templateFormat]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "playground-panels-v2",
@@ -834,7 +843,7 @@ function PlaygroundContent() {
           title={hasDecisionInstance ? "Models & input" : "Prompts"}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
-              {hasLLMInstance ? <TemplateFormatRadioGroup size="S" /> : null}
+              <TemplateFormatRadioGroup size="S" />
               <AddPromptButton />
             </Flex>
           }
@@ -860,6 +869,7 @@ function PlaygroundContent() {
                 </View>
               ))}
             </Flex>
+            {hasDecisionInstance ? <DecisionRequestEditor /> : null}
           </div>
         </TitledPanel>
         {isDatasetMode ? (
@@ -900,7 +910,7 @@ function PlaygroundContent() {
           </Suspense>
         ) : (
           <>
-            {templateFormat !== TemplateFormats.NONE && hasLLMInstance ? (
+            {templateFormat !== TemplateFormats.NONE ? (
               <TitledPanel
                 ref={inputsPanelRef}
                 headingLevel={2}
@@ -930,19 +940,23 @@ function PlaygroundContent() {
               }
             >
               <View padding="size-200" height="100%" overflow="auto">
-                <Flex direction="row" gap="size-200">
-                  {instanceIds.map((instanceId) => (
-                    <View key={`${instanceId}-output`} flex="1 1 0px">
-                      {decisionInstanceIds.includes(instanceId) ? (
-                        <PlaygroundDecisionOutput
-                          playgroundInstanceId={instanceId}
-                        />
-                      ) : (
-                        <PlaygroundOutput playgroundInstanceId={instanceId} />
-                      )}
-                    </View>
-                  ))}
-                </Flex>
+                {showDecisionComparison ? (
+                  <PlaygroundDecisionComparison instances={decisionInstances} />
+                ) : (
+                  <Flex direction="row" gap="size-200">
+                    {instanceIds.map((instanceId) => (
+                      <View key={`${instanceId}-output`} flex="1 1 0px">
+                        {decisionInstanceIds.includes(instanceId) ? (
+                          <PlaygroundDecisionOutput
+                            playgroundInstanceId={instanceId}
+                          />
+                        ) : (
+                          <PlaygroundOutput playgroundInstanceId={instanceId} />
+                        )}
+                      </View>
+                    ))}
+                  </Flex>
+                )}
               </View>
             </TitledPanel>
           </>

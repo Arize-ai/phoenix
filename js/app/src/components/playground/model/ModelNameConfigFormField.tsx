@@ -44,10 +44,14 @@ export function ModelNameConfigFormField({
   const provider = instance.model.provider;
   const isAzure = provider === "AZURE_OPENAI";
 
+  const isDecision = instance.model.modelType === "DECISION";
+
   const label = isAzure ? "Deployment Name" : "Model Name";
   const placeholder = isAzure
     ? "e.g. azure-openai-deployment-name"
-    : "e.g. gpt-4o";
+    : isDecision
+      ? "e.g. jev-latest"
+      : "e.g. gpt-4o";
 
   return (
     <TextField
