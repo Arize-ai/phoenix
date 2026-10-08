@@ -315,40 +315,50 @@ export function buildDecisionRequest(
   // own property rather than a prototype assignment.
   const questions: Record<string, SystemOneQuestion> = Object.create(null);
   for (const question of draft.questions) {
-    const name = question.name.trim();
-    const instructions = fmt(question.instructions);
-    if (question.type === "choice") {
-      const criteria: Record<string, unknown> = {};
-      for (const option of question.choices) {
-        criteria[option.value.trim()] = option.description.trim()
-          ? fmt(option.description)
-          : null;
-      }
-      questions[name] = { type: "choice", instructions, criteria };
-    } else if (question.type === "score") {
-      questions[name] = {
-        type: "score",
-        instructions,
-        criteria: question.levels.map((level) => fmt(level.description)),
-      };
-    } else {
-      const t = question.noul.trueDescription.trim();
-      const f = question.noul.falseDescription.trim();
-      questions[name] = {
-        type: "noul",
-        instructions,
-        ...(t || f
-          ? {
-              criteria: {
-                ...(t ? { true: fmt(t) } : {}),
-                ...(f ? { false: fmt(f) } : {}),
-              },
-            }
-          : {}),
-      };
-    }
+    questions[question.name.trim()] = questionDraftToSystemOne(question, fmt);
   }
   return { state, questions };
+}
+
+/**
+ * One question in System One shape. Lenient: it never validates, so a card
+ * can copy a half-written question. `fmt` applies template variables.
+ */
+export function questionDraftToSystemOne(
+  question: DecisionQuestionDraft,
+  fmt: (text: string) => string = (text) => text
+): SystemOneQuestion {
+  const instructions = fmt(question.instructions);
+  if (question.type === "choice") {
+    const criteria: Record<string, unknown> = {};
+    for (const option of question.choices) {
+      criteria[option.value.trim()] = option.description.trim()
+        ? fmt(option.description)
+        : null;
+    }
+    return { type: "choice", instructions, criteria };
+  }
+  if (question.type === "score") {
+    return {
+      type: "score",
+      instructions,
+      criteria: question.levels.map((level) => fmt(level.description)),
+    };
+  }
+  const t = question.noul.trueDescription.trim();
+  const f = question.noul.falseDescription.trim();
+  return {
+    type: "noul",
+    instructions,
+    ...(t || f
+      ? {
+          criteria: {
+            ...(t ? { true: fmt(t) } : {}),
+            ...(f ? { false: fmt(f) } : {}),
+          },
+        }
+      : {}),
+  };
 }
 
 /** Kept for the mutation input: the server takes `state` and `questions`. */

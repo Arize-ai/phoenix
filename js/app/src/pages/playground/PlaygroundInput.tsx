@@ -12,6 +12,9 @@ export function PlaygroundInput() {
     (state) => state.setVariableValue
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const isDecision = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.model.modelType === "DECISION")
+  );
   if (variableKeys.length === 0) {
     let templateSyntax = "";
     switch (templateFormat) {
@@ -33,9 +36,19 @@ export function PlaygroundInput() {
       <View padding="size-100">
         <Flex direction="column" justifyContent="center" alignItems="center">
           <Text color="text-700">
-            Add variable inputs to your prompt using{" "}
-            <Text color="text-900">{templateSyntax}</Text> within your prompt
-            template.
+            {isDecision ? (
+              <>
+                Add variables to the state or a question&rsquo;s instructions
+                using <Text color="text-900">{templateSyntax}</Text> to fill
+                them in here.
+              </>
+            ) : (
+              <>
+                Add variable inputs to your prompt using{" "}
+                <Text color="text-900">{templateSyntax}</Text> within your
+                prompt template.
+              </>
+            )}
           </Text>
         </Flex>
       </View>
