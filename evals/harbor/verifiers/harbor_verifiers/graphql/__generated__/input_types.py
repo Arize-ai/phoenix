@@ -82,12 +82,7 @@ class ContinuousAnnotationConfigInput(BaseModel):
     upper_bound: Optional[float] = Field(alias="upperBound", default=None)
 
 
-class EvaluatorInputMappingInput(BaseModel):
-    literal_mapping: Any = Field(alias="literalMapping")
-    path_mapping: Any = Field(alias="pathMapping")
-
-
-class EvaluatorPreviewInput(BaseModel):
+class EvaluatorDefinitionInput(BaseModel):
     built_in_evaluator_id: Optional[str] = Field(
         alias="builtInEvaluatorId", default=None
     )
@@ -100,10 +95,19 @@ class EvaluatorPreviewInput(BaseModel):
     )
 
 
+class EvaluatorInputMappingInput(BaseModel):
+    literal_mapping: Any = Field(alias="literalMapping")
+    path_mapping: Any = Field(alias="pathMapping")
+
+
 class EvaluatorPreviewItemInput(BaseModel):
-    evaluator: "EvaluatorPreviewInput"
+    evaluator: "EvaluatorDefinitionInput"
     context: Any
     input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
+    apply_online_evaluation_limits: bool = Field(
+        alias="applyOnlineEvaluationLimits", default=False
+    )
+    "Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request."
 
 
 class EvaluatorPreviewsInput(BaseModel):
@@ -297,7 +301,7 @@ AnnotationConfigInput.model_rebuild()
 CategoricalAnnotationConfigInput.model_rebuild()
 ChatPromptVersionInput.model_rebuild()
 ContentPartInput.model_rebuild()
-EvaluatorPreviewInput.model_rebuild()
+EvaluatorDefinitionInput.model_rebuild()
 EvaluatorPreviewItemInput.model_rebuild()
 EvaluatorPreviewsInput.model_rebuild()
 InlineCodeEvaluatorInput.model_rebuild()

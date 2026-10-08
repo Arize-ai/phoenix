@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
-import { FieldError, Input, Label } from "@phoenix/components";
+import { FieldError, Input, Label, Text } from "@phoenix/components";
 import { TextField, type TextFieldProps } from "@phoenix/components/core/field";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
+import type { EvaluatorKind } from "@phoenix/types";
 import {
   IDENTIFIER_ERROR_MESSAGES,
   validateIdentifier,
@@ -17,6 +18,12 @@ import {
  * The field name used by react-hook-form and as the error key in the validation registry.
  */
 const FIELD_NAME = "name" as const;
+
+const NAME_PLACEHOLDERS: Record<EvaluatorKind, string> = {
+  LLM: "e.g. llm_eval",
+  CODE: "e.g. code_eval",
+  BUILTIN: "e.g. correctness",
+};
 
 /**
  * Transforms an evaluator name by lowercasing, converting spaces to dashes,
@@ -86,11 +93,18 @@ const useEvaluatorNameInputForm = () => {
 };
 
 export const EvaluatorNameInput = ({
-  placeholder = "e.g. code_eval",
+  placeholder,
+  description,
+  onValueChange,
   ...props
-}: Partial<TextFieldProps> & { placeholder?: string }) => {
+}: Partial<TextFieldProps> & {
+  placeholder?: string;
+  description?: string;
+  onValueChange?: () => void;
+}) => {
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
+  const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   const { control, trigger } = form;
   const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
@@ -132,6 +146,7 @@ export const EvaluatorNameInput = ({
           const selectionStart = input?.selectionStart ?? value.length;
 
           const transformed = transformEvaluatorName(value);
+          onValueChange?.();
 
           // Calculate new cursor position by transforming the text before cursor
           const beforeCursor = value.slice(0, selectionStart);
@@ -154,7 +169,7 @@ export const EvaluatorNameInput = ({
           hasBlurredRef.current = true;
           field.onBlur();
           // Re-trigger validation to include blur-only rules
-          trigger("name");
+          void trigger("name");
         };
 
         return (
@@ -169,7 +184,11 @@ export const EvaluatorNameInput = ({
             {...props}
           >
             <Label>Name</Label>
-            <Input ref={inputRef} placeholder={placeholder} />
+            <Input
+              ref={inputRef}
+              placeholder={placeholder ?? NAME_PLACEHOLDERS[evaluatorKind]}
+            />
+            {description ? <Text slot="description">{description}</Text> : null}
             <FieldError>{displayedError}</FieldError>
           </TextField>
         );

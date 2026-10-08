@@ -45,3 +45,30 @@ describe("selectActiveContexts playground merge", () => {
     expect(active.filter((ctx) => ctx.type === "playground")).toHaveLength(1);
   });
 });
+
+it("keeps the page's task kind when the evaluator roster fragment merges in", () => {
+  const page: AgentContext = {
+    type: "playground",
+    taskKind: "evaluator",
+    recordExperiments: false,
+    instances: [
+      {
+        instanceId: 4,
+        task: { kind: "evaluator", evaluatorKind: "CODE", name: "judge" },
+      },
+    ],
+  };
+
+  const merged = selectActiveContexts(
+    stateWith([page], {
+      roster: { type: "playground", evaluators: [] },
+    })
+  );
+
+  expect(merged).toHaveLength(1);
+  expect(merged[0]).toMatchObject({
+    taskKind: "evaluator",
+    recordExperiments: false,
+    instances: [{ instanceId: 4, task: { evaluatorKind: "CODE" } }],
+  });
+});

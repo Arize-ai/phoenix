@@ -29,11 +29,68 @@ from phoenix.server.encryption import EncryptionService
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
 
 # The in-process test app is constructed with no PHOENIX_SECRET, so the
 # server-side Redactor is keyed off SecretStr("").
 _REDACTOR = Redactor(secret=SecretStr(""))
+
+
+async def test_evaluator_gallery_configs_contract(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.__generated__.classification_evaluator_configs import (
+        ClassificationEvaluatorConfig,
+        PromptMessage,
+    )
+    from phoenix.server.api import queries
+
+    config = ClassificationEvaluatorConfig.model_validate(
+        {
+            "name": "quality",
+            "description": "Quality evaluator",
+            "optimization_direction": "maximize",
+            "messages": [PromptMessage(role="user", content="Review {{input}}")],
+            "choices": {"good": 1, "bad": 0},
+            "scope": "trace",
+            "recommended": True,
+            "category": "response_quality",
+            "details": "Detailed guidance.",
+            "inputs": {"input": {"description": "The user request."}},
+        }
+    )
+    monkeypatch.setattr(
+        queries,
+        "get_classification_evaluator_configs",
+        lambda *, gallery_ready: [config] if gallery_ready else [],
+    )
+
+    response = await gql_client.execute(
+        query="""
+          query {
+            evaluatorGalleryConfigs {
+              name scope recommended category details
+              inputs { name description }
+            }
+          }
+        """
+    )
+
+    assert response.data == {
+        "evaluatorGalleryConfigs": [
+            {
+                "name": "quality",
+                "scope": "TRACE",
+                "recommended": True,
+                "category": "RESPONSE_QUALITY",
+                "details": "Detailed guidance.",
+                "inputs": [{"name": "input", "description": "The user request."}],
+            }
+        ]
+    }
+    assert not response.errors
 
 
 async def test_projects_omits_experiment_projects(
@@ -482,6 +539,208 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> N
         }
 
 
+async def test_evaluation_queue(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # One evaluation of each target, and a running span evaluation, fill the queue.
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "4")
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        running_span = await _add_span(session, trace)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        project_evaluator_ids: dict[str, int] = {}
+        for evaluation_target in ("SPAN", "TRACE", "SESSION"):
+            project_evaluator = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(f"project-evaluator-{uuid.uuid4().hex[:8]}"),
+                evaluation_target=evaluation_target,
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            session.add(project_evaluator)
+            await session.flush()
+            project_evaluator_ids[evaluation_target] = project_evaluator.id
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=span.id,
+                    project_evaluator_id=project_evaluator_ids["SPAN"],
+                    created_at=now - timedelta(minutes=5),
+                ),
+                # Running: queued, and not cleared by clearing the queue.
+                models.EvalWorkUnit(
+                    span_rowid=running_span.id,
+                    project_evaluator_id=project_evaluator_ids["SPAN"],
+                    status="RUNNING",
+                    created_at=now - timedelta(minutes=10),
+                ),
+                # Awaiting a retry: queued, but not waiting in line.
+                models.EvalTraceWorkUnit(
+                    trace_rowid=trace.id,
+                    project_evaluator_id=project_evaluator_ids["TRACE"],
+                    evaluated_through=now,
+                    status="ERROR",
+                    attempts=1,
+                    created_at=now - timedelta(minutes=30),
+                ),
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    project_evaluator_id=project_evaluator_ids["SESSION"],
+                    evaluated_through=now,
+                    created_at=now - timedelta(minutes=1),
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        """query {
+            evaluationQueue {
+                status
+                queuedCount
+                runningCount
+                queuedLimit
+                atCapacity
+                retryingCount
+                oldestQueuedAt
+                queuedPerMinute
+                evaluationsPerMinute
+                targets {
+                    evaluationTarget
+                    queuedCount
+                    runningCount
+                    retryingCount
+                    oldestQueuedAt
+                    queuedPerMinute
+                    evaluationsPerMinute
+                }
+            }
+        }"""
+    )
+
+    assert not response.errors and response.data
+    queue = response.data["evaluationQueue"]
+    targets = queue.pop("targets")
+    # Full: the queue is at capacity across every target, so it is degraded.
+    assert queue == {
+        "status": "DEGRADED",
+        "queuedCount": 4,
+        "runningCount": 1,
+        "queuedLimit": 4,
+        "atCapacity": True,
+        "retryingCount": 1,
+        "oldestQueuedAt": queue["oldestQueuedAt"],
+        "queuedPerMinute": pytest.approx(4 / 60),
+        "evaluationsPerMinute": 0,
+    }
+    assert datetime.fromisoformat(queue["oldestQueuedAt"]) == now - timedelta(minutes=5)
+    assert [target["evaluationTarget"] for target in targets] == ["SPAN", "TRACE", "SESSION"]
+    assert [
+        (
+            target["queuedCount"],
+            target["runningCount"],
+            target["retryingCount"],
+            target["queuedPerMinute"],
+        )
+        for target in targets
+    ] == [
+        (2, 1, 0, pytest.approx(2 / 60)),
+        (1, 0, 1, pytest.approx(1 / 60)),
+        (1, 0, 0, pytest.approx(1 / 60)),
+    ]
+    oldest = [target["oldestQueuedAt"] for target in targets]
+    assert oldest[1] is None
+    assert datetime.fromisoformat(oldest[2]) == now - timedelta(minutes=1)
+
+
+async def test_evaluation_queue_projects(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        units: list[Any] = []
+        project_names: list[str] = []
+        # One queued span evaluation and two finished ones; two queued span evaluations and
+        # a queued trace evaluation.
+        for queued_spans, finished_spans, queued_traces in ((1, 2, 0), (2, 0, 1)):
+            project = await _add_project(session)
+            project_names.append(project.name)
+            trace = await _add_trace(session, project)
+            project_evaluators: dict[str, models.ProjectEvaluator] = {}
+            for evaluation_target in ("SPAN", "TRACE"):
+                project_evaluators[evaluation_target] = models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
+                    project_id=project.id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(f"project-evaluator-{uuid.uuid4().hex[:8]}"),
+                    evaluation_target=evaluation_target,
+                    filter_condition="",
+                    sampling_rate=1.0,
+                )
+            session.add_all(project_evaluators.values())
+            await session.flush()
+            for status in ["PENDING"] * queued_spans + ["DONE"] * finished_spans:
+                span = await _add_span(session, trace)
+                units.append(
+                    models.EvalWorkUnit(
+                        span_rowid=span.id,
+                        project_evaluator_id=project_evaluators["SPAN"].id,
+                        status=status,
+                    )
+                )
+            if queued_traces:
+                units.append(
+                    models.EvalTraceWorkUnit(
+                        trace_rowid=trace.id,
+                        project_evaluator_id=project_evaluators["TRACE"].id,
+                        evaluated_through=datetime.now(timezone.utc),
+                    )
+                )
+        session.add_all(units)
+    fewer_queued, more_queued = project_names
+
+    response = await gql_client.execute(
+        """query {
+            evaluationQueue {
+                projects { project { name } queuedCount }
+                top: projects(first: 1) { project { name } queuedCount }
+            }
+        }"""
+    )
+
+    assert not response.errors and response.data
+    queue = response.data["evaluationQueue"]
+    assert queue["projects"] == [
+        {"project": {"name": more_queued}, "queuedCount": 3},
+        {"project": {"name": fewer_queued}, "queuedCount": 1},
+    ]
+    assert queue["top"] == [{"project": {"name": more_queued}, "queuedCount": 3}]
+
+
 async def test_agents_config_returns_env_values(
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -765,6 +1024,62 @@ async def projects_with_and_without_dataset_evaluators(
         )
         session.add(dataset_evaluator)
         await session.flush()
+
+
+@pytest.fixture
+async def project_with_a_project_evaluator_trace_project(
+    db: DbSessionFactory,
+) -> None:
+    """Insert an evaluated project plus an evaluator whose trace project must stay hidden."""
+    async with db() as session:
+        evaluated_project = models.Project(name="evaluated-project-name")
+        # An arbitrary name: the listing exclusion keys off the FK, not a name pattern.
+        trace_project = models.Project(name="trace-sink-name")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root="listing-test-evaluator"),
+            kind="BUILTIN",
+            key="listing-test-key",
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                trace_project=trace_project,
+                name=Identifier(root="listing-test-project-evaluator"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+
+
+async def test_projects_omits_project_evaluator_trace_projects(
+    gql_client: AsyncGraphQLClient,
+    project_with_a_project_evaluator_trace_project: Any,
+) -> None:
+    query = """
+      query {
+        projects {
+          edges {
+            project: node {
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data == {
+        "projects": {"edges": [{"project": {"name": "evaluated-project-name"}}]}
+    }
 
 
 async def test_experiment_run_metric_comparisons(
@@ -2770,6 +3085,62 @@ class TestEvaluatorsQuery:
         )
         assert not response.errors
         assert response.data == {"evaluators": {"edges": []}}
+
+    async def test_evaluators_excludes_project_associations_before_pagination(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        evaluators_for_querying: Any,
+    ) -> None:
+        from sqlalchemy import select
+
+        async with db() as session:
+            llm_evaluator = await session.scalar(
+                select(models.LLMEvaluator).where(
+                    models.LLMEvaluator.name == Identifier(root="llm_eval")
+                )
+            )
+            assert llm_evaluator is not None
+            project = models.Project(name="project-with-evaluator")
+            trace_project = models.Project(name="project-with-evaluator-traces")
+            session.add_all([project, trace_project])
+            await session.flush()
+            session.add(
+                models.ProjectEvaluator(
+                    project_id=project.id,
+                    evaluator_id=llm_evaluator.id,
+                    trace_project_id=trace_project.id,
+                    name=Identifier(root="llm-online"),
+                    filter_condition="",
+                    evaluation_target="SPAN",
+                    sampling_rate=1.0,
+                )
+            )
+            await session.flush()
+            project_id = str(GlobalID("Project", str(project.id)))
+
+        query = """
+          query ($excludeProjectId: ID) {
+            evaluators(
+              first: 1
+              sort: { col: name, dir: desc }
+              excludeProjectId: $excludeProjectId
+            ) {
+              edges {
+                evaluator: node {
+                  name
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={"excludeProjectId": project_id},
+        )
+
+        assert not response.errors
+        assert response.data == {"evaluators": {"edges": [{"evaluator": {"name": "contains"}}]}}
 
     async def test_evaluators_sort_by_name(
         self,

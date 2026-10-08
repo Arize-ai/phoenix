@@ -21,6 +21,8 @@ from starlette.responses import Response
 from starlette.routing import BaseRoute, Match
 from starlette.types import Scope
 
+from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
+
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
     documentation="Summary of requests processing time by method and path (in seconds)",
@@ -133,6 +135,140 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     name="retention_policy_executions_total",
     documentation="Total number of retention policy executions",
     labelnames=["status"],
+)
+
+_EVALUATION_TARGET_LABELS = ["evaluation_target"]
+_TERMINAL_METRICS_WINDOW = f"{TERMINAL_METRICS_WINDOW_SECONDS / 3600:g}h"
+_SAME_ON_EVERY_REPLICA = (
+    "Every replica reports the same database-wide value, so aggregate with max(), not sum()."
+)
+_SUMS_ACROSS_REPLICAS = "Each replica counts only its own work, so aggregate with sum()."
+
+ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_pending_work_units",
+    documentation="Current number of online-eval work units in PENDING status. "
+    f"{_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_RUNNING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_running_work_units",
+    documentation="Current number of online-eval work units in RUNNING status. "
+    f"{_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_retryable_error_work_units",
+    documentation="Current number of retryable online-eval work units in ERROR status. "
+    f"{_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_exhausted_error_work_units",
+    documentation="Number of online-eval work units in FAILED status, out of retries, whose "
+    f"last update was in the past {_TERMINAL_METRICS_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_expired_work_units",
+    documentation="Number of online-eval work units in EXPIRED or CONTENT_LOST status whose "
+    f"last update was in the past {_TERMINAL_METRICS_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_CLEARED_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_cleared_work_units",
+    documentation="Number of online-eval work units cleared from the queue before they ran "
+    f"(DROPPED status), whose last update was in the past {_TERMINAL_METRICS_WINDOW}. "
+    f"{_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_oldest_pending_age_seconds",
+    documentation="Seconds the oldest PENDING online-eval work unit has waited to start "
+    f"(0 when none is pending). {_SAME_ON_EVERY_REPLICA}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_AT_CAPACITY = Gauge(
+    namespace="phoenix",
+    name="online_eval_at_capacity",
+    documentation="1 when the online-eval queue, shared by span, trace, and session work, is "
+    f"full and new work is not being queued, else 0. {_SAME_ON_EVERY_REPLICA}",
+)
+ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_frontier_gap_span_ids",
+    documentation="Distance in span ids between the highest span id and the online-eval "
+    "producer's produced-through watermark",
+)
+ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
+    namespace="phoenix",
+    name="online_eval_ingest_spans_per_second",
+    documentation="Span ingest rate derived from successive online-eval cursor "
+    "high-water observations",
+)
+ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
+    namespace="phoenix",
+    name="online_eval_eligible_pair_backlog",
+    documentation="Number of entity and evaluator pairs on the latest sweep page that pass "
+    "their evaluator's filter. A page holds at most one tick's work limit, and the value is "
+    "not updated while the queue is full",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_result_watermark_lag_seconds",
+    documentation="Largest time by which a session's or trace's latest span postdates the "
+    "content its completed evaluation covered, over work units completed in the past "
+    f"{_TERMINAL_METRICS_WINDOW}. A large value means spans keep arriving after the evaluation "
+    "delay has passed, so the delay may be shorter than the quiet gaps in those sessions or "
+    "traces",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_SWEEP_ATTEMPTS = Counter(
+    namespace="phoenix",
+    name="online_eval_sweep_attempts_total",
+    documentation="Total number of online-eval sweep attempts",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_SWEEP_SUCCESSES = Counter(
+    namespace="phoenix",
+    name="online_eval_sweep_successes_total",
+    documentation="Total number of committed online-eval sweeps",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_SWEEP_FAILURES = Counter(
+    namespace="phoenix",
+    name="online_eval_sweep_failures_total",
+    documentation="Total number of failed or rolled-back online-eval sweeps",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_SWEEP_DURATION_SECONDS = Histogram(
+    namespace="phoenix",
+    name="online_eval_sweep_duration_seconds",
+    documentation="Online-eval sweep duration in seconds",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_MATERIALIZED_WORK_UNITS = Counter(
+    namespace="phoenix",
+    name="online_eval_materialized_work_units_total",
+    documentation="Total number of online-eval work units queued (written as PENDING). "
+    f"{_SUMS_ACROSS_REPLICAS}",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
+    namespace="phoenix",
+    name="online_eval_completed_work_units_total",
+    documentation="Total number of online-eval work units that left the queue, by outcome: "
+    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), or cleared "
+    "(DROPPED, removed from the queue before it ran: the queue was cleared, or its evaluator "
+    f"was turned on or off). {_SUMS_ACROSS_REPLICAS}",
+    labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
 
 

@@ -7082,6 +7082,18 @@
             "description": "Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators."
           },
           {
+            "name": "include_project_evaluator_trace_projects",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include project evaluator trace projects in the response. These projects hold the execution traces of online evaluators and are created with each evaluator.",
+              "default": false,
+              "title": "Include Project Evaluator Trace Projects"
+            },
+            "description": "Include project evaluator trace projects in the response. These projects hold the execution traces of online evaluators and are created with each evaluator."
+          },
+          {
             "name": "name_contains",
             "in": "query",
             "required": false,
@@ -16655,6 +16667,41 @@
         ],
         "title": "PlaygroundCustomProviderModelUIContext"
       },
+      "PlaygroundEvaluatorTaskUIContext": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "evaluator",
+            "title": "Kind",
+            "default": "evaluator"
+          },
+          "evaluatorKind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE"
+            ],
+            "title": "Evaluatorkind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "isDirty": {
+            "type": "boolean",
+            "title": "Isdirty",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evaluatorKind",
+          "name"
+        ],
+        "title": "PlaygroundEvaluatorTaskUIContext",
+        "description": "An evaluator draft judged over the dataset; its judge prompt is the instance's prompt."
+      },
       "PlaygroundEvaluatorUIContext": {
         "properties": {
           "datasetEvaluatorId": {
@@ -16769,6 +16816,31 @@
               }
             ],
             "title": "Experimentid"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PlaygroundPromptTaskUIContext"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PlaygroundEvaluatorTaskUIContext"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "evaluator": "#/components/schemas/PlaygroundEvaluatorTaskUIContext",
+                    "prompt": "#/components/schemas/PlaygroundPromptTaskUIContext"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
           }
         },
         "additionalProperties": false,
@@ -16778,12 +16850,34 @@
         ],
         "title": "PlaygroundInstanceUIContext"
       },
+      "PlaygroundPromptTaskUIContext": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "prompt",
+            "title": "Kind",
+            "default": "prompt"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PlaygroundPromptTaskUIContext"
+      },
       "PlaygroundUIContext": {
         "properties": {
           "type": {
             "type": "string",
             "const": "playground",
             "title": "Type"
+          },
+          "taskKind": {
+            "type": "string",
+            "enum": [
+              "prompt",
+              "evaluator"
+            ],
+            "title": "Taskkind",
+            "default": "prompt"
           },
           "recordExperiments": {
             "type": "boolean",
@@ -16820,7 +16914,6 @@
             "title": "Evaluators"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"

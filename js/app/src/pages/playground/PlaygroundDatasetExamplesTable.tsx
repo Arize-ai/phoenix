@@ -18,17 +18,24 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Disposable } from "react-relay";
 import {
   graphql,
   useLazyLoadQuery,
   usePaginationFragment,
+  useRefetchableFragment,
   useRelayEnvironment,
 } from "react-relay";
 import { useSearchParams } from "react-router";
-import type { GraphQLSubscriptionConfig } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
+import { useStore } from "zustand";
 
+import {
+  createSetExpectedOutputClientAction,
+  type ExpectedOutputExampleRow,
+} from "@phoenix/agent/tools/playgroundEvaluator";
+import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import { setExpectedOutputOperation } from "@phoenix/agent/uiOperations/operations/playgroundEvaluator";
 import {
   Alert,
   ExpandableContent,
@@ -42,6 +49,7 @@ import {
   View,
   ViewportModal,
   ViewportModalOverlay,
+  VisuallyHidden,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import {
@@ -49,7 +57,6 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
-import type { ExecutionState } from "@phoenix/components/core/types";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import {
   type AnnotationError,
@@ -59,24 +66,39 @@ import {
   CELL_PRIMARY_CONTENT_HEIGHT,
   ExperimentAnnotationAggregates,
   ExperimentCostAndLatencySummary,
-  type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
+  ExperimentMetadataCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
-import type { AnnotationSummary } from "@phoenix/components/experiment/ExperimentAnnotationAggregates";
-import { CellTop } from "@phoenix/components/table";
-import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { CellTop, EditableJSONCell } from "@phoenix/components/table";
+import {
+  borderedTableCSS,
+  editableTableCSS,
+  tableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import {
+  getPlaygroundEvaluatorTask,
+  getPlaygroundTaskKind,
+  getTemplateVariablesPath,
+} from "@phoenix/store/playground";
+import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
+import type {
+  EditableTableDiff,
+  EditableTableStore,
+} from "@phoenix/types/table";
 import {
   assertUnreachable,
   isStringArray,
@@ -90,15 +112,50 @@ import {
 
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
+import type { PlaygroundDatasetExamplesTableExpectedOutputsFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsFragment.graphql";
+import type { PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery.graphql";
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import type { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import type { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
 import type {
-  EvaluatorInputMappingInput,
+  ExperimentsOverDatasetInput,
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
-  PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import {
+  getEvaluatorTaskAnnotation,
+  PlaygroundEvaluatorColumnHeader,
+  PlaygroundEvaluatorExampleCell,
+  PlaygroundExpectedOutputsProvider,
+  PlaygroundExpectedOutputsStatus,
+  usePlaygroundExpectedOutputs,
+} from "./evaluatorCells";
+import { getEvaluatorTaskName } from "./evaluators/evaluatorTaskSnapshot";
+import {
+  ANNOTATIONS_KEY,
+  getDisplayedMetadata,
+  getExampleColumnLabels,
+  getExampleColumnVisibility,
+  hasDisplayableMetadata,
+} from "./exampleColumns";
+import {
+  type PlaygroundExampleTableRow,
+  EditExampleCellButton,
+  getNewPlaygroundExampleTemplate,
+  PlaygroundExampleEditContent,
+  PlaygroundExampleRowActionsCell,
+  PlaygroundExamplesEditToolbar,
+  restoreHiddenMetadata,
+  toEditableMetadata,
+} from "./examplesEditing";
+import {
+  createExperimentsOverDatasetRouter,
+  type ExperimentsOverDatasetEvent,
+} from "./experimentsOverDatasetEvents";
+import {
+  getExperimentsOverDatasetInput,
+  type PlaygroundEvaluatorMappings,
+} from "./experimentsOverDatasetInput";
 import {
   InstanceVariablesProvider,
   useInstanceVariables,
@@ -107,21 +164,24 @@ import {
   type ExperimentRunAnnotation,
   type ExperimentRunCost,
   type ExampleRunData,
+  getExperimentRunCost,
   makeExpandedCellKey,
   type Span,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
+import { usePlaygroundDatasetExamplesTablePreferences } from "./PlaygroundDatasetExamplesTablePreferences";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
+import { PlaygroundExampleRowCell } from "./PlaygroundExampleRowCell";
+import { PlaygroundInstanceRunAggregates } from "./PlaygroundInstanceRunAggregates";
 import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 import { PlaygroundToolCall } from "./PlaygroundToolCall";
-import {
-  extractRootVariable,
-  getChatCompletionOverDatasetInput,
-} from "./playgroundUtils";
+import { extractRootVariable } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
+// Wide enough for a two-digit row number over a small play button.
+const ROW_COLUMN_WIDTH = 56;
 const AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS = 2000;
 
 /**
@@ -494,6 +554,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
+  exampleIndex,
   datasetExample,
   templateVariablesPath,
   onViewExperimentRunDetailsPress,
@@ -502,10 +563,12 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 }: {
   instanceId: number;
   exampleId: string;
+  /** The example's position in the table, for the details dialog. */
+  exampleIndex: number;
   isRunning: boolean;
   datasetExample: { input: unknown; output: unknown; metadata: unknown };
   templateVariablesPath: string | null;
-  onViewExperimentRunDetailsPress: () => void;
+  onViewExperimentRunDetailsPress: (exampleIndex: number) => void;
   onViewTracePress: (
     traceId: string,
     projectId: string,
@@ -546,6 +609,10 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   const exampleData = useMemo(() => {
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
+  const onViewDetails = useCallback(
+    () => onViewExperimentRunDetailsPress(exampleIndex),
+    [onViewExperimentRunDetailsPress, exampleIndex]
+  );
   return exampleData == null ? (
     <EmptyExampleOutput
       isRunning={isRunning}
@@ -562,7 +629,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
       repetitionNumber={repetitionNumber}
       totalRepetitions={totalRepetitions}
       setRepetitionNumber={setRepetitionNumber}
-      onViewExperimentRunDetailsPress={onViewExperimentRunDetailsPress}
+      onViewExperimentRunDetailsPress={onViewDetails}
       onViewTracePress={onViewTracePress}
       evaluatorOutputConfigs={evaluatorOutputConfigs}
       isRunning={isRunning}
@@ -572,15 +639,34 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   );
 });
 
+/** The editor's title: the column, and that the example is new when it is. */
+function getEditTitle(
+  column: string,
+  row: Pick<PlaygroundExampleTableRow, "isNew">
+): string {
+  return row.isNew ? `Edit ${column} · new example` : `Edit ${column}`;
+}
+
+/** Names a row for the edit trigger's accessible name. */
+function getEditRowLabel(row: {
+  index: number;
+  original: Pick<PlaygroundExampleTableRow, "isNew">;
+}): string {
+  return row.original.isNew ? "new example" : `example ${row.index + 1}`;
+}
+
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({
   table,
   tableContainerRef,
   estimatedRowHeight,
+  deletedRowIds,
 }: {
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
   estimatedRowHeight: number;
+  /** Rows an edit session has removed, struck through until saved. */
+  deletedRowIds?: ReadonlySet<string>;
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
@@ -604,6 +690,7 @@ function TableBody<T>({
         return (
           <tr
             key={row.id}
+            data-deleted={deletedRowIds?.has(row.id) || undefined}
             style={{
               height: `${virtualRow.size}px`,
               transform: `translateY(${
@@ -653,21 +740,6 @@ export const MemoizedTableBody = memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-function getExecutionState({
-  hasData,
-  isRunning,
-  experimentId,
-}: {
-  hasData: boolean;
-  isRunning: boolean;
-  experimentId: string | null | undefined;
-}): ExecutionState {
-  if (hasData) return "complete";
-  if (isRunning) return "running";
-  if (experimentId != null) return "complete";
-  return "idle";
-}
-
 function PlaygroundInstanceOutputColumnHeader({
   instanceId,
   index,
@@ -681,82 +753,56 @@ function PlaygroundInstanceOutputColumnHeader({
   isRunning: boolean;
   evaluatorOutputConfigs: readonly AnnotationConfig[];
 }) {
-  const annotationAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.runAnnotationAggregateMetrics[instanceId] ?? null
-  );
-  const costAggregateMetrics = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.runCostAggregateMetrics[instanceId] ?? null
-  );
-  const annotationSummaries = useMemo<AnnotationSummary[]>(() => {
-    if (annotationAggregateMetrics == null) {
-      return [];
-    }
-    return Object.entries(annotationAggregateMetrics).map(
-      ([annotationName, metric]) => ({
-        annotationName,
-        meanScore: metric.count > 0 ? metric.sum / metric.count : null,
-      })
-    );
-  }, [annotationAggregateMetrics]);
-  const costSummary =
-    useMemo<ExperimentCostAndLatencySummaryExperiment | null>(() => {
-      const resolvedExperimentId = experimentId ?? null;
-      if (
-        resolvedExperimentId == null ||
-        costAggregateMetrics == null ||
-        costAggregateMetrics.runCount === 0
-      ) {
-        return null;
-      }
-      return {
-        id: resolvedExperimentId,
-        averageRunLatencyMs:
-          costAggregateMetrics.latencyCount > 0
-            ? costAggregateMetrics.latencySum /
-              costAggregateMetrics.latencyCount
-            : null,
-        runCount: costAggregateMetrics.runCount,
-        costSummary: {
-          total: {
-            cost:
-              costAggregateMetrics.costCount > 0
-                ? costAggregateMetrics.costSum
-                : null,
-            tokens:
-              costAggregateMetrics.tokenCountCount > 0
-                ? costAggregateMetrics.tokenCountSum
-                : null,
-          },
-        },
-      };
-    }, [experimentId, costAggregateMetrics]);
-
-  const costExecutionState = getExecutionState({
-    hasData: costSummary != null,
-    isRunning,
-    experimentId,
-  });
-
-  const annotationExecutionState = getExecutionState({
-    hasData: annotationSummaries.length > 0,
-    isRunning,
-    experimentId,
-  });
-
   return (
     <Flex direction="column" gap="size-50" width="100%">
       <PlaygroundOutputHeader instanceId={instanceId} index={index} />
-      <ExperimentCostAndLatencySummary
-        executionState={costExecutionState}
-        experiment={costSummary}
-      />
-      <ExperimentAnnotationAggregates
-        executionState={annotationExecutionState}
+      <PlaygroundInstanceRunAggregates
+        instanceId={instanceId}
+        experimentId={experimentId}
+        isRunning={isRunning}
         annotationConfigs={evaluatorOutputConfigs}
-        annotationSummaries={annotationSummaries}
       />
     </Flex>
   );
+}
+
+/**
+ * Mounts `playground.expectedOutput.set` while the table shows a dataset.
+ * Only here are the rows' revision ids and the expected-output writer, and
+ * PXI's write goes out at once instead of waiting for the batching delay.
+ * Registered once per table mount; the rows are read fresh through a ref.
+ */
+function PlaygroundExpectedOutputAgentOperation({
+  examples,
+}: {
+  examples: ReadonlyArray<ExpectedOutputExampleRow>;
+}) {
+  const agentStore = useAgentStore();
+  const playgroundStore = usePlaygroundStore();
+  const { saveNow } = usePlaygroundExpectedOutputs();
+  const examplesRef = useRef(examples);
+  useEffect(() => {
+    examplesRef.current = examples;
+  });
+  useEffect(
+    () =>
+      registerUIOperations({
+        agentStore,
+        operations: [
+          {
+            descriptor: setExpectedOutputOperation,
+            handler: createSetExpectedOutputClientAction({
+              playgroundStore,
+              getExamples: () => examplesRef.current,
+              saveNow,
+            }),
+          },
+        ],
+      }),
+    [agentStore, playgroundStore, saveNow]
+  );
+
+  return null;
 }
 
 export function PlaygroundDatasetExamplesTable({
@@ -764,6 +810,8 @@ export function PlaygroundDatasetExamplesTable({
   splitIds,
   evaluatorMappings,
   evaluatorOutputConfigs,
+  onHasMetadataChange,
+  editStore,
 }: {
   datasetId: string;
   splitIds?: string[];
@@ -771,13 +819,25 @@ export function PlaygroundDatasetExamplesTable({
   /**
    * Record of evaluator id to name and input mappings
    */
-  evaluatorMappings: Record<
-    string,
-    { name: string; inputMapping: EvaluatorInputMappingInput }
-  >;
+  evaluatorMappings: PlaygroundEvaluatorMappings;
+  /**
+   * Called with whether a loaded example has metadata to show, for the
+   * toolbar's column selector, which has no rows of its own to look at.
+   */
+  onHasMetadataChange: (hasMetadata: boolean) => void;
+  /** The session that edits the examples in place; see the Edit button. */
+  editStore: EditableTableStore<PlaygroundExampleTableRow>;
 }) {
   const environment = useRelayEnvironment();
-  const instances = usePlaygroundContext((state) => state.instances);
+  // Everything below hangs off the instances' shape: which tasks there are,
+  // which are running, which experiment each produced. A run streams one
+  // store write per result into the progress counters, so those are ignored
+  // here or every result would rebuild the columns and re-render every cell.
+  const instances = usePlaygroundContext(
+    (state) => state.instances,
+    arePlaygroundInstancesEqualExceptProgress
+  );
+  const columnLabels = getExampleColumnLabels(getPlaygroundTaskKind(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experiment?.id);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
@@ -791,10 +851,22 @@ export function PlaygroundDatasetExamplesTable({
     projectId: string;
     evaluatorName?: string;
   } | null>(null);
-  const playgroundDatasetState = usePlaygroundContext((state) =>
-    datasetId ? state.stateByDatasetId[datasetId] : null
+  // Stable, so the memoized cells keep their memo when the columns rebuild.
+  const handleViewTracePress = useCallback(
+    (traceId: string, projectId: string, evaluatorName?: string) => {
+      setSelectedTraceInfo({ traceId, projectId, evaluatorName });
+    },
+    []
   );
-  const { templateVariablesPath } = playgroundDatasetState ?? {};
+  // Scopes the autocomplete paths and the prompt cells' variable checks to
+  // where the page's kind of task reads its variables from.
+  const templateVariablesPath = usePlaygroundContext((state) =>
+    getTemplateVariablesPath({
+      stateByDatasetId: state.stateByDatasetId,
+      datasetId,
+      taskKind: getPlaygroundTaskKind(state.instances),
+    })
+  );
   const setAvailablePaths = usePlaygroundContext(
     (state) => state.setAvailablePaths
   );
@@ -805,11 +877,20 @@ export function PlaygroundDatasetExamplesTable({
   const setInstanceExperiment = usePlaygroundContext(
     (state) => state.setInstanceExperiment
   );
+
+  const runPlaygroundInstances = usePlaygroundContext(
+    (state) => state.runPlaygroundInstances
+  );
+
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
-  const resetData = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.resetData
+
+  const resetInstanceData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.resetInstanceData
+  );
+  const resetExampleData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.resetExampleData
   );
   const appendExampleDataToolCallChunk =
     usePlaygroundDatasetExamplesTableContext(
@@ -909,6 +990,8 @@ export function PlaygroundDatasetExamplesTable({
         dataset: node(id: $datasetId) {
           ...PlaygroundDatasetExamplesTableFragment
             @arguments(splitIds: $splitIds)
+          ...PlaygroundDatasetExamplesTableExpectedOutputsFragment
+            @arguments(splitIds: $splitIds)
           ... on Dataset {
             exampleCount(splitIds: $splitIds)
             latestVersions: versions(
@@ -947,121 +1030,113 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.initExperimentRunProgress
   );
 
-  const onNext = useCallback(
-    (instanceId: number) =>
-      // oxlint-disable-next-line complexity -- Subscription events update several independent progress and result stores.
-      (response?: PlaygroundDatasetExamplesTableSubscription$data | null) => {
-        if (response == null) {
-          return;
-        }
-        const chatCompletion = response.chatCompletionOverDataset;
-        switch (chatCompletion.__typename) {
-          case "ChatCompletionSubscriptionExperiment":
-            setInstanceExperiment(instanceId, {
-              id: chatCompletion.experiment.id,
+  const applyEvent = useCallback(
+    (event: ExperimentsOverDatasetEvent) => {
+      switch (event.type) {
+        case "experimentStarted":
+          // A row run is a spot check beside the column's experiment, so the
+          // column keeps its link to the last full run.
+          if (playgroundStore.getState().runExampleIds == null) {
+            setInstanceExperiment(event.instanceId, {
+              id: event.experimentId,
               isEphemeral: !playgroundStore.getState().recordExperiments,
             });
-            break;
-          case "ChatCompletionSubscriptionResult":
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            updateExampleData({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              patch: {
-                span: chatCompletion.span,
-                experimentRunId: chatCompletion.experimentRun?.id,
-              },
-            });
-            handleExperimentRunCost({
-              instanceId,
-              latencyMs: chatCompletion.span?.latencyMs ?? null,
-              tokenCountTotal: chatCompletion.span?.tokenCountTotal ?? null,
-              cost: chatCompletion.span?.costSummary?.total?.cost ?? null,
-            });
-            incrementRunsCompleted(instanceId);
-            break;
-          case "ChatCompletionSubscriptionError":
-            if (chatCompletion.datasetExampleId == null) {
-              // Experiment-level error (e.g., circuit breaker trip)
-              setApiError(chatCompletion.message);
-              return;
-            }
-            updateExampleData({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              patch: {
-                errorMessage: chatCompletion.message,
-                span: chatCompletion.span,
-                experimentRunId: chatCompletion.experimentRun?.id,
-              },
-            });
-            if (chatCompletion.span) {
-              handleExperimentRunCost({
-                instanceId,
-                latencyMs: chatCompletion.span.latencyMs ?? null,
-                tokenCountTotal: chatCompletion.span.tokenCountTotal ?? null,
-                cost: chatCompletion.span.costSummary?.total?.cost ?? null,
-              });
-            }
-            incrementRunsFailed(instanceId);
-            break;
-          case "TextChunk":
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            appendExampleDataTextChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              textChunk: chatCompletion.content,
-            });
-            break;
-          case "ToolCallChunk": {
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            appendExampleDataToolCallChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              toolCallChunk: chatCompletion,
-            });
-            break;
           }
-          case "EvaluationChunk": {
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            appendExampleDataEvaluationChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              evaluationChunk: chatCompletion,
-            });
-            handleExperimentRunAnnotation({
-              instanceId,
-              annotationName: chatCompletion.evaluatorName,
-              score: chatCompletion.experimentRunEvaluation?.score ?? null,
-            });
-            if (chatCompletion.error != null) {
-              incrementEvalsFailed(instanceId);
-            } else {
-              incrementEvalsCompleted(instanceId);
-            }
-            break;
-          }
-          // This should never happen
-          // As relay puts it in generated files "This will never be '%other', but we need some value in case none of the concrete values match."
-          case "%other":
-            return;
-          default:
-            assertUnreachable(chatCompletion);
+
+          return;
+        case "experimentFailed":
+          setApiError(event.message);
+
+          return;
+        case "runCompleted": {
+          const { instanceId, exampleId, repetitionNumber, span } = event;
+          updateExampleData({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            patch: { span, experimentRunId: event.experimentRunId },
+          });
+          handleExperimentRunCost(getExperimentRunCost(instanceId, span));
+          incrementRunsCompleted(instanceId);
+
+          return;
         }
-      },
+
+        case "runFailed": {
+          const { instanceId, exampleId, repetitionNumber, span } = event;
+          updateExampleData({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            patch: {
+              errorMessage: event.message,
+              span,
+              experimentRunId: event.experimentRunId,
+            },
+          });
+
+          if (span) {
+            handleExperimentRunCost(getExperimentRunCost(instanceId, span));
+          }
+
+          incrementRunsFailed(instanceId);
+
+          return;
+        }
+
+        case "textChunk": {
+          const { instanceId, exampleId, repetitionNumber } = event;
+          appendExampleDataTextChunk({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            textChunk: event.content,
+          });
+
+          return;
+        }
+
+        case "toolCallChunk": {
+          const { instanceId, exampleId, repetitionNumber } = event;
+          appendExampleDataToolCallChunk({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            toolCallChunk: event.toolCallChunk,
+          });
+
+          return;
+        }
+
+        case "evaluation": {
+          const { instanceId, exampleId, repetitionNumber, evaluationChunk } =
+            event;
+
+          appendExampleDataEvaluationChunk({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            evaluationChunk,
+          });
+          handleExperimentRunAnnotation({
+            instanceId,
+            annotationName: evaluationChunk.evaluatorName,
+            score: evaluationChunk.experimentRunEvaluation?.score ?? null,
+          });
+
+          if (evaluationChunk.error != null) {
+            incrementEvalsFailed(instanceId);
+          } else {
+            incrementEvalsCompleted(instanceId);
+          }
+
+          return;
+        }
+
+        default:
+          assertUnreachable(event);
+      }
+    },
     [
       handleExperimentRunAnnotation,
       handleExperimentRunCost,
@@ -1082,76 +1157,120 @@ export function PlaygroundDatasetExamplesTable({
     if (!hasSomeRunIds) {
       return undefined;
     }
-    const { instances } = playgroundStore.getState();
+
+    const runningInstances = playgroundStore
+      .getState()
+      .instances.filter((instance) => instance.activeRunId != null);
+
+    const runningInstanceIds = runningInstances.map((instance) => instance.id);
+    // A row run covers one example: only that row's cells start over, and the
+    // column keeps its experiment link.
+    const runExampleIds = playgroundStore.getState().runExampleIds;
     setApiError(null);
     resetPendingExperimentMetrics();
-    resetData();
 
-    // Calculate total runs and evals for progress tracking
-    const totalRuns = exampleCount * repetitions;
-    const totalEvals = exampleCount * repetitions * evaluatorCount;
+    if (runExampleIds) {
+      resetExampleData({
+        instanceIds: runningInstanceIds,
+        exampleIds: runExampleIds,
+      });
+    } else {
+      resetInstanceData(runningInstanceIds);
+    }
 
-    const subscriptions: Disposable[] = [];
-    for (const instance of instances) {
-      const { activeRunId } = instance;
-      setInstanceExperiment(instance.id, null);
-      if (activeRunId === null) {
-        continue;
+    setRepetitions(repetitions);
+    const runExampleCount = runExampleIds?.length ?? exampleCount;
+
+    for (const instance of runningInstances) {
+      if (!runExampleIds) {
+        setInstanceExperiment(instance.id, null);
       }
 
-      // Initialize progress for this instance
       initExperimentRunProgress(instance.id, {
-        totalRuns,
+        totalRuns: runExampleCount * repetitions,
         runsCompleted: 0,
         runsFailed: 0,
-        totalEvals,
+        // An evaluator task's verdicts are its runs; only a prompt task has
+        // dataset evaluators scoring its outputs afterwards.
+        totalEvals:
+          instance.task.kind === "evaluator"
+            ? 0
+            : runExampleCount * repetitions * evaluatorCount,
         evalsCompleted: 0,
         evalsFailed: 0,
       });
+    }
 
-      const variables = {
-        input: getChatCompletionOverDatasetInput({
-          credentials,
-          instanceId: instance.id,
-          playgroundStore,
-          datasetId,
-          splitIds,
-          evaluatorMappings,
-        }),
-      };
-      const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
+    const finish = () => {
+      flushPendingExperimentMetrics.flush();
+
+      for (const instanceId of runningInstanceIds) {
+        markPlaygroundInstanceComplete(instanceId);
+      }
+    };
+
+    let input: ExperimentsOverDatasetInput;
+
+    try {
+      input = getExperimentsOverDatasetInput({
+        playgroundStore,
+        credentials,
+        datasetId,
+        splitIds,
+        evaluatorMappings,
+        instanceIds: runningInstanceIds,
+      });
+    } catch (error) {
+      // A task that cannot be sent (an incomplete judge prompt, say) ends the
+      // run before it starts, with the reason where run errors show.
+      setApiError(error instanceof Error ? error.message : String(error));
+      finish();
+
+      return undefined;
+    }
+
+    // One subscription carries every task's experiment; the router tells the
+    // payloads apart by the experiments the server opens the stream with.
+    const router = createExperimentsOverDatasetRouter(runningInstanceIds);
+
+    const subscription =
+      requestSubscription<PlaygroundDatasetExamplesTableSubscriptionType>(
+        environment,
         {
           subscription: PlaygroundDatasetExamplesTableSubscription,
-          variables,
-          onNext: onNext(instance.id),
-          onCompleted: () => {
-            flushPendingExperimentMetrics.flush();
-            markPlaygroundInstanceComplete(instance.id);
-          },
-          onError: (error) => {
-            flushPendingExperimentMetrics.flush();
-            markPlaygroundInstanceComplete(instance.id);
-            const errorMessages =
-              getErrorMessagesFromRelaySubscriptionError(error);
-            if (errorMessages != null && errorMessages.length > 0) {
-              setApiError(errorMessages.join("\n"));
-            } else {
-              setApiError(error.message);
+          variables: { input },
+          onNext: (response) => {
+            const event = response
+              ? router.route(response.experimentsOverDataset)
+              : null;
+
+            if (event) {
+              applyEvent(event);
             }
           },
-        };
-      setRepetitions(repetitions);
-      const subscription = requestSubscription(environment, config);
-      subscriptions.push(subscription);
-    }
+          onCompleted: finish,
+          onError: (error) => {
+            finish();
+
+            const errorMessages =
+              getErrorMessagesFromRelaySubscriptionError(error);
+
+            setApiError(
+              errorMessages != null && errorMessages.length > 0
+                ? errorMessages.join("\n")
+                : error.message
+            );
+          },
+        }
+      );
+
     playgroundStore.getState().consumeNextExperimentScaffold();
     return () => {
       resetPendingExperimentMetrics();
-      for (const subscription of subscriptions) {
-        subscription.dispose();
-      }
+      subscription.dispose();
     };
   }, [
+    applyEvent,
     credentials,
     datasetId,
     splitIds,
@@ -1162,12 +1281,12 @@ export function PlaygroundDatasetExamplesTable({
     hasSomeRunIds,
     initExperimentRunProgress,
     markPlaygroundInstanceComplete,
-    onNext,
     resetPendingExperimentMetrics,
     flushPendingExperimentMetrics,
     playgroundStore,
     repetitions,
-    resetData,
+    resetExampleData,
+    resetInstanceData,
     setInstanceExperiment,
     setRepetitions,
   ]);
@@ -1181,33 +1300,80 @@ export function PlaygroundDatasetExamplesTable({
     tableContainerRef.current = el;
     setTableContainerEl(el);
   }, []);
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    PlaygroundDatasetExamplesTableRefetchQuery,
-    PlaygroundDatasetExamplesTableFragment$key
+
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<
+      PlaygroundDatasetExamplesTableRefetchQuery,
+      PlaygroundDatasetExamplesTableFragment$key
+    >(
+      graphql`
+        fragment PlaygroundDatasetExamplesTableFragment on Dataset
+        @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
+        @argumentDefinitions(
+          datasetVersionId: { type: "ID" }
+          splitIds: { type: "[ID!]" }
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 20 }
+        ) {
+          examples(
+            datasetVersionId: $datasetVersionId
+            splitIds: $splitIds
+            first: $first
+            after: $after
+          ) @connection(key: "PlaygroundDatasetExamplesTable_examples") {
+            edges {
+              example: node {
+                id
+                externalId
+                revision {
+                  input
+                  output
+                  metadata
+                  revisionId
+                  expectedOutputs {
+                    annotationName
+                    label
+                    score
+                    explanation
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      dataset
+    );
+
+  // Every example's expected outputs, read apart from the paginated rows so
+  // the evaluator headers count the whole dataset, up to the first 1000
+  // examples. The items are the rows' own example records, so a save, which
+  // returns the examples it wrote, updates them in the store.
+  const [expectedOutputsData, refetchExpectedOutputs] = useRefetchableFragment<
+    PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery,
+    PlaygroundDatasetExamplesTableExpectedOutputsFragment$key
   >(
     graphql`
-      fragment PlaygroundDatasetExamplesTableFragment on Dataset
-      @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
-      @argumentDefinitions(
-        datasetVersionId: { type: "ID" }
-        splitIds: { type: "[ID!]" }
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 20 }
-      ) {
-        examples(
-          datasetVersionId: $datasetVersionId
-          splitIds: $splitIds
-          first: $first
-          after: $after
-        ) @connection(key: "PlaygroundDatasetExamplesTable_examples") {
+      fragment PlaygroundDatasetExamplesTableExpectedOutputsFragment on Dataset
+      @refetchable(
+        queryName: "PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery"
+      )
+      @argumentDefinitions(splitIds: { type: "[ID!]" }) {
+        exampleCount(splitIds: $splitIds)
+        allExamples: examples(splitIds: $splitIds, first: 1000) {
+          pageInfo {
+            hasNextPage
+          }
           edges {
             example: node {
               id
-              externalId
               revision {
-                input
-                output
-                metadata
+                expectedOutputs {
+                  annotationName
+                  label
+                  score
+                  explanation
+                }
               }
             }
           }
@@ -1217,9 +1383,21 @@ export function PlaygroundDatasetExamplesTable({
     dataset
   );
 
-  // Refetch the data when the dataset version changes
-  const tableData = useMemo(
+  const expectedOutputExamples = useMemo(
     () =>
+      expectedOutputsData.allExamples.edges.map(({ example }) => ({
+        id: example.id,
+        expectedOutputs: example.revision.expectedOutputs,
+      })),
+    [expectedOutputsData.allExamples.edges]
+  );
+
+  type TableRow = PlaygroundExampleTableRow;
+
+  // The examples as saved. While they are being edited the table shows a
+  // different list, built below.
+  const savedRows = useMemo(
+    (): TableRow[] =>
       data.examples.edges.map((edge) => {
         const example = edge.example;
         const revision = example.revision;
@@ -1229,11 +1407,125 @@ export function PlaygroundDatasetExamplesTable({
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
+          hiddenMetadata: null,
+          isNew: false,
+          revisionId: revision.revisionId,
+          expectedOutputs: revision.expectedOutputs,
         };
       }),
     [data]
   );
-  type TableRow = (typeof tableData)[number];
+
+  const revisionIdByExampleId = useMemo(
+    () => new Map(savedRows.map((row) => [row.id, row.revisionId])),
+    [savedRows]
+  );
+
+  // Whether the metadata cells leave the `annotations` key out; a per-browser
+  // setting behind the toolbar's gear.
+  const hideAnnotations = usePreferencesContext(
+    (state) => state.hideExpectedAnnotationsInMetadata
+  );
+
+  const editMode = useStore(editStore, (state) => state.mode);
+  const addedRows = useStore(editStore, (state) => state.addedRows);
+  const deletedRowIds = useStore(editStore, (state) => state.deletedRowIds);
+  const isEditingExamples = editMode !== "read";
+  const isSavingExamples = editMode === "saving";
+
+  // Whether the session's rows hide the annotations is fixed when the session
+  // starts. Pending edits are snapshots of what the cells showed, so the
+  // preference changing underneath them would mislay the hidden part on save.
+  // Outside a session it follows the preference, adjusted during render so
+  // the rows below never see a stale value.
+  const [hidesAnnotationsForEditing, setHidesAnnotationsForEditing] =
+    useState(hideAnnotations);
+  if (!isEditingExamples && hidesAnnotationsForEditing !== hideAnnotations) {
+    setHidesAnnotationsForEditing(hideAnnotations);
+  }
+
+  // In an edit session the new examples lead, and each saved example's
+  // metadata is the metadata as its column shows it, with anything hidden
+  // kept aside for the save. Removed examples stay, struck through.
+  const tableData = useMemo(
+    (): TableRow[] =>
+      isEditingExamples
+        ? [
+            ...addedRows,
+            ...savedRows.map((row) => ({
+              ...row,
+              ...toEditableMetadata(row.metadata, {
+                hideAnnotations: hidesAnnotationsForEditing,
+              }),
+            })),
+          ]
+        : savedRows,
+    [isEditingExamples, addedRows, savedRows, hidesAnnotationsForEditing]
+  );
+
+  const rowsById = useMemo(
+    () => new Map(tableData.map((row) => [row.id, row])),
+    [tableData]
+  );
+  const transformDiff = useCallback(
+    (diff: EditableTableDiff<TableRow>) =>
+      restoreHiddenMetadata(diff, rowsById),
+    [rowsById]
+  );
+  const newExampleTemplate = useMemo(
+    () => getNewPlaygroundExampleTemplate(savedRows),
+    [savedRows]
+  );
+
+  // The metadata column shows itself while a loaded example has metadata and
+  // no column choice is stored; the toolbar's selector shows the same state.
+  const hasMetadata = useMemo(
+    () =>
+      tableData.some((row) =>
+        hasDisplayableMetadata(row.metadata, { hideAnnotations })
+      ),
+    [tableData, hideAnnotations]
+  );
+
+  useEffect(() => {
+    onHasMetadataChange(hasMetadata);
+  }, [hasMetadata, onHasMetadataChange]);
+
+  const storedVisibility = usePlaygroundDatasetExamplesTablePreferences(
+    (state) => state.columnVisibility
+  );
+
+  const setColumnVisibility = usePlaygroundDatasetExamplesTablePreferences(
+    (state) => state.setColumnVisibility
+  );
+
+  const columnVisibility = useMemo(
+    () => getExampleColumnVisibility({ hasMetadata, storedVisibility }),
+    [hasMetadata, storedVisibility]
+  );
+
+  const reloadExamples = useCallback(() => {
+    refetch({}, { fetchPolicy: "network-only" });
+    refetchExpectedOutputs({}, { fetchPolicy: "network-only" });
+  }, [refetch, refetchExpectedOutputs]);
+
+  // After a save: the rows are re-read from the new version, then the edit
+  // session ends, so the pending edits never flicker away before their saved
+  // counterparts render.
+  const finishEditingWithReload = useCallback(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        refetchExpectedOutputs({}, { fetchPolicy: "network-only" });
+        refetch(
+          {},
+          {
+            fetchPolicy: "network-only",
+            onComplete: (error) => (error ? reject(error) : resolve()),
+          }
+        );
+      }).then(() => editStore.getState().finishSaving()),
+    [refetch, refetchExpectedOutputs, editStore]
+  );
 
   const exampleIds = useMemo(() => {
     return tableData.map((row) => row.id);
@@ -1271,6 +1563,59 @@ export function PlaygroundDatasetExamplesTable({
     return instances.map((instance, index) => {
       const isRunning = instance.activeRunId !== null;
       const experimentId = instance.experiment?.id ?? null;
+      const evaluator = getPlaygroundEvaluatorTask(instance);
+
+      if (evaluator) {
+        const label = getInstanceLabel(index);
+        const evaluatorName = getEvaluatorTaskName(evaluator, index);
+
+        const annotation = getEvaluatorTaskAnnotation({
+          evaluator,
+          position: index,
+        });
+
+        return {
+          id: `instance-${instance.id}`,
+          header: () => (
+            <PlaygroundEvaluatorColumnHeader
+              instanceId={instance.id}
+              index={index}
+              name={evaluatorName}
+              annotationName={annotation.name}
+              annotationConfig={annotation.config}
+              output={annotation.output}
+              experimentId={experimentId}
+              exampleCount={expectedOutputExamples.length}
+              examples={expectedOutputExamples}
+              truncatedExampleCount={
+                expectedOutputsData.allExamples.pageInfo.hasNextPage
+                  ? expectedOutputsData.exampleCount
+                  : null
+              }
+              isRunning={isRunning}
+              canRun={!hasSomeRunIds && !isEditingExamples}
+              onRun={() => runPlaygroundInstances([instance.id])}
+            />
+          ),
+          cell: ({ row }) => (
+            <PlaygroundEvaluatorExampleCell
+              instanceId={instance.id}
+              label={label}
+              evaluatorName={evaluatorName}
+              annotationName={annotation.name}
+              output={annotation.output}
+              exampleId={row.original.id}
+              position={row.index + 1}
+              expectedOutputs={row.original.expectedOutputs}
+              isRunning={isRunning}
+              canAnnotate={!isEditingExamples}
+              onViewTracePress={handleViewTracePress}
+            />
+          ),
+          size: 320,
+        };
+      }
+
       return {
         id: `instance-${instance.id}`,
         header: () => (
@@ -1288,20 +1633,13 @@ export function PlaygroundDatasetExamplesTable({
             <MemoizedExampleOutputCell
               instanceId={instance.id}
               exampleId={row.original.id}
-              isRunning={hasSomeRunIds}
-              datasetExample={{
-                input: row.original.input,
-                output: row.original.output,
-                metadata: row.original.metadata,
-              }}
-              templateVariablesPath={templateVariablesPath ?? null}
+              isRunning={isRunning}
+              datasetExample={row.original}
+              exampleIndex={row.index}
+              templateVariablesPath={templateVariablesPath}
               evaluatorOutputConfigs={evaluatorOutputConfigs}
-              onViewExperimentRunDetailsPress={() => {
-                setSelectedExampleIndex(row.index);
-              }}
-              onViewTracePress={(traceId, projectId, evaluatorName) => {
-                setSelectedTraceInfo({ traceId, projectId, evaluatorName });
-              }}
+              onViewExperimentRunDetailsPress={setSelectedExampleIndex}
+              onViewTracePress={handleViewTracePress}
             />
           );
         },
@@ -1310,37 +1648,106 @@ export function PlaygroundDatasetExamplesTable({
     });
   }, [
     hasSomeRunIds,
+    isEditingExamples,
     instances,
+    runPlaygroundInstances,
     templateVariablesPath,
-    setSelectedExampleIndex,
+    handleViewTracePress,
     evaluatorOutputConfigs,
+    expectedOutputExamples,
+    expectedOutputsData.allExamples.pageInfo.hasNextPage,
+    expectedOutputsData.exampleCount,
   ]);
+
+  const runningInstanceIds = useMemo(
+    () =>
+      instances
+        .filter((instance) => instance.activeRunId != null)
+        .map((instance) => instance.id),
+    [instances]
+  );
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
+      // The row's own column: its number, and the play button that runs
+      // every task on just this example.
       {
-        header: "input",
+        id: "row",
+        header: () => <VisuallyHidden>Example</VisuallyHidden>,
+        size: ROW_COLUMN_WIDTH,
+        minSize: ROW_COLUMN_WIDTH,
+        enableResizing: false,
+        cell: ({ row }) =>
+          isEditingExamples ? (
+            <PlaygroundExampleRowActionsCell
+              row={row.original}
+              position={row.index + 1}
+              editStore={editStore}
+            />
+          ) : (
+            <PlaygroundExampleRowCell
+              exampleId={row.original.id}
+              position={row.index + 1}
+              runningInstanceIds={runningInstanceIds}
+              canRun={!hasSomeRunIds}
+              onRun={() =>
+                runPlaygroundInstances(undefined, {
+                  exampleIds: [row.original.id],
+                })
+              }
+            />
+          ),
+      },
+      {
+        header: columnLabels.input,
         accessorKey: "input",
-        cell: ({ row }) => (
-          <ExperimentInputCell
-            exampleId={row.original.id}
-            externalId={row.original.externalId}
-            value={row.original.input}
-            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-            onExpand={() => {
-              setSearchParams((prev) => {
-                prev.set("exampleId", row.original.id);
-                return prev;
-              });
-            }}
-          />
-        ),
+        cell: (context) =>
+          isEditingExamples ? (
+            <EditableJSONCell
+              {...context}
+              columnId="input"
+              requireObject
+              title={getEditTitle("input", context.row.original)}
+              rowLabel={getEditRowLabel(context.row)}
+            >
+              {(value) => (
+                <PlaygroundExampleEditContent
+                  label={columnLabels.input}
+                  value={value}
+                  height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+                />
+              )}
+            </EditableJSONCell>
+          ) : (
+            <ExperimentInputCell
+              exampleId={context.row.original.id}
+              externalId={context.row.original.externalId}
+              value={context.row.original.input}
+              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+              onExpand={() => {
+                setSearchParams((prev) => {
+                  prev.set("exampleId", context.row.original.id);
+                  return prev;
+                });
+              }}
+              extra={
+                <EditExampleCellButton
+                  rowId={context.row.original.id}
+                  columnId="input"
+                  columnLabel={columnLabels.input}
+                  position={context.row.index + 1}
+                  editStore={editStore}
+                  isDisabled={hasSomeRunIds}
+                />
+              }
+            />
+          ),
         size: 200,
       },
       {
         header: () => (
           <Flex direction="column" gap="size-50">
-            <span>reference output</span>
+            <span>{columnLabels.output}</span>
             <ExperimentCostAndLatencySummary
               executionState="idle"
               isPlaceholder={true}
@@ -1353,26 +1760,119 @@ export function PlaygroundDatasetExamplesTable({
           </Flex>
         ),
         accessorKey: "output",
-        cell: ({ row }) => (
-          <ExperimentReferenceOutputCell
-            value={row.original.output}
-            height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
-          />
-        ),
+        cell: (context) =>
+          isEditingExamples ? (
+            <EditableJSONCell
+              {...context}
+              columnId="output"
+              requireObject
+              title={getEditTitle(columnLabels.output, context.row.original)}
+              rowLabel={getEditRowLabel(context.row)}
+            >
+              {(value) => (
+                <PlaygroundExampleEditContent
+                  label={columnLabels.output}
+                  value={value}
+                  height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+                />
+              )}
+            </EditableJSONCell>
+          ) : (
+            <ExperimentReferenceOutputCell
+              value={context.row.original.output}
+              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+              label={columnLabels.output}
+              extra={
+                <EditExampleCellButton
+                  rowId={context.row.original.id}
+                  columnId="output"
+                  columnLabel={columnLabels.output}
+                  position={context.row.index + 1}
+                  editStore={editStore}
+                  isDisabled={hasSomeRunIds}
+                />
+              }
+            />
+          ),
+        size: 200,
+      },
+      {
+        header: columnLabels.metadata,
+        accessorKey: "metadata",
+        cell: (context) => {
+          if (isEditingExamples) {
+            // The row's metadata is already the displayed metadata here; what
+            // was hidden rides along in `hiddenMetadata` and returns on save.
+            return (
+              <EditableJSONCell
+                {...context}
+                columnId="metadata"
+                requireObject
+                title={getEditTitle("metadata", context.row.original)}
+                rowLabel={getEditRowLabel(context.row)}
+              >
+                {(value) => (
+                  <PlaygroundExampleEditContent
+                    label={columnLabels.metadata}
+                    value={value}
+                    height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+                  />
+                )}
+              </EditableJSONCell>
+            );
+          }
+
+          const { value, isHidingAnnotations } = getDisplayedMetadata(
+            context.row.original.metadata,
+            { hideAnnotations }
+          );
+
+          return (
+            <ExperimentMetadataCell
+              value={value}
+              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+              extra={
+                <>
+                  {isHidingAnnotations ? <HiddenAnnotationsNotice /> : null}
+                  <EditExampleCellButton
+                    rowId={context.row.original.id}
+                    columnId="metadata"
+                    columnLabel={columnLabels.metadata}
+                    position={context.row.index + 1}
+                    editStore={editStore}
+                    isDisabled={hasSomeRunIds}
+                  />
+                </>
+              }
+            />
+          );
+        },
         size: 200,
       },
       ...playgroundInstanceOutputColumns,
     ],
     [
+      columnLabels,
       annotationListHeight,
+      editStore,
       evaluatorOutputConfigs,
+      hasSomeRunIds,
+      hideAnnotations,
+      isEditingExamples,
       playgroundInstanceOutputColumns,
+      runningInstanceIds,
+      runPlaygroundInstances,
       setSearchParams,
     ]
   );
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
+    // Edits are keyed by row id, so the rows must be too.
+    getRowId: (row) => row.id,
+    meta: { editing: { store: editStore } },
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onChange",
   });
@@ -1386,16 +1886,18 @@ export function PlaygroundDatasetExamplesTable({
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
         // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        // Not while a save is in flight: the rows are about to be re-read.
         if (
           scrollHeight - scrollTop - clientHeight < 300 &&
           !isLoadingNext &&
+          !isSavingExamples &&
           hasNext
         ) {
           loadNext(PAGE_SIZE);
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, isSavingExamples, loadNext]
   );
 
   /**
@@ -1421,189 +1923,243 @@ export function PlaygroundDatasetExamplesTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizing,
     columns.length,
+    columnVisibility,
   ]);
 
   return (
     <InstanceVariablesProvider>
-      {apiError && (
-        <Alert
-          variant="danger"
-          banner
-          dismissable
-          onDismissClick={() => setApiError(null)}
-        >
-          {apiError}
-        </Alert>
-      )}
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-          height: 100%;
-          scrollbar-gutter: stable;
-        `}
-        ref={tableContainerCallbackRef}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      <PlaygroundExpectedOutputsProvider
+        datasetId={datasetId}
+        getRevisionId={(exampleId) => revisionIdByExampleId.get(exampleId)}
       >
-        <table
-          css={css(tableCSS, borderedTableCSS)}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+        <PlaygroundExpectedOutputAgentOperation examples={tableData} />
+        {apiError && (
+          <Alert
+            variant="danger"
+            banner
+            dismissable
+            onDismissClick={() => setApiError(null)}
+          >
+            {apiError}
+          </Alert>
+        )}
+        <PlaygroundExpectedOutputsStatus onReloadExamples={reloadExamples} />
+        {isEditingExamples ? (
+          <PlaygroundExamplesEditToolbar
+            datasetId={datasetId}
+            editStore={editStore}
+            newExampleTemplate={newExampleTemplate}
+            onSaved={finishEditingWithReload}
+            transformDiff={transformDiff}
+          />
+        ) : null}
+        <div
+          css={css`
+            flex: 1 1 auto;
+            overflow: auto;
+            height: 100%;
+            scrollbar-gutter: stable;
+          `}
+          ref={tableContainerCallbackRef}
+          onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    style={{
-                      width: `calc(var(--header-${header?.id}-size) * 1px)`,
-                    }}
-                  >
-                    <div>
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </div>
-                    <div
-                      {...{
-                        onMouseDown: header.getResizeHandler(),
-                        onTouchStart: header.getResizeHandler(),
-                        className: `resizer ${
-                          header.column.getIsResizing() ? "isResizing" : ""
-                        }`,
+          <table
+            css={css(
+              isEditingExamples ? editableTableCSS : tableCSS,
+              borderedTableCSS
+            )}
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      style={{
+                        width: `calc(var(--header-${header?.id}-size) * 1px)`,
                       }}
-                    />
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <TableEmpty />
-          ) : table.getState().columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody
-              table={table}
-              tableContainerRef={tableContainerRef}
-              estimatedRowHeight={estimatedRowHeight}
-            />
-          ) : (
-            <TableBody
-              table={table}
-              tableContainerRef={tableContainerRef}
-              estimatedRowHeight={estimatedRowHeight}
-            />
-          )}
-        </table>
-        <ViewportModalOverlay
-          isOpen={selectedExampleIndex !== null}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setSelectedExampleIndex(null);
-            }
-          }}
-        >
-          <ViewportModal size="fullscreen">
-            {selectedExampleIndex !== null &&
-              exampleIds[selectedExampleIndex] &&
-              baseExperimentId != null &&
-              isStringArray(compareExperimentIds) && (
-                <ExperimentCompareDetailsDialog
-                  datasetId={datasetId}
-                  datasetVersionId={datasetVersionId}
-                  selectedExampleIndex={selectedExampleIndex}
-                  selectedExampleId={tableData[selectedExampleIndex].id}
-                  selectedExampleExternalId={
-                    tableData[selectedExampleIndex].externalId
-                  }
-                  baseExperimentId={baseExperimentId}
-                  compareExperimentIds={compareExperimentIds}
-                  exampleIds={exampleIds}
-                  onExampleChange={(exampleIndex) => {
-                    if (
-                      exampleIndex === exampleIds.length - 1 &&
-                      !isLoadingNext &&
-                      hasNext
-                    ) {
-                      loadNext(PAGE_SIZE);
-                    }
-                    if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
-                      setSelectedExampleIndex(exampleIndex);
-                    }
-                  }}
-                  openTraceDialog={(traceId, projectId) => {
-                    setSelectedTraceInfo({ traceId, projectId });
-                  }}
-                />
-              )}
-          </ViewportModal>
-        </ViewportModalOverlay>
-        <ViewportModalOverlay
-          isOpen={selectedTraceInfo !== null}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setSelectedTraceInfo(null);
-              setSearchParams(
-                (prev) => {
-                  const newParams = new URLSearchParams(prev);
-                  newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                  return newParams;
-                },
-                { replace: true }
-              );
-            }
-          }}
-        >
-          <ViewportModal size="fullscreen">
-            {selectedTraceInfo && (
-              <PlaygroundRunTraceDetailsDialog
-                traceId={selectedTraceInfo.traceId}
-                projectId={selectedTraceInfo.projectId}
-                title={
-                  selectedTraceInfo.evaluatorName
-                    ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
-                    : "Experiment Run Trace"
-                }
+                    >
+                      <div>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {isEmpty ? (
+              <TableEmpty />
+            ) : table.getState().columnSizingInfo.isResizingColumn ? (
+              <MemoizedTableBody
+                table={table}
+                tableContainerRef={tableContainerRef}
+                estimatedRowHeight={estimatedRowHeight}
+                deletedRowIds={deletedRowIds}
+              />
+            ) : (
+              <TableBody
+                table={table}
+                tableContainerRef={tableContainerRef}
+                estimatedRowHeight={estimatedRowHeight}
+                deletedRowIds={deletedRowIds}
               />
             )}
-          </ViewportModal>
-        </ViewportModalOverlay>
-      </div>
+          </table>
+          <ViewportModalOverlay
+            isOpen={selectedExampleIndex !== null}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setSelectedExampleIndex(null);
+              }
+            }}
+          >
+            <ViewportModal size="fullscreen">
+              {selectedExampleIndex !== null &&
+                exampleIds[selectedExampleIndex] &&
+                baseExperimentId != null &&
+                isStringArray(compareExperimentIds) && (
+                  <ExperimentCompareDetailsDialog
+                    datasetId={datasetId}
+                    datasetVersionId={datasetVersionId}
+                    selectedExampleIndex={selectedExampleIndex}
+                    selectedExampleId={tableData[selectedExampleIndex].id}
+                    selectedExampleExternalId={
+                      tableData[selectedExampleIndex].externalId
+                    }
+                    baseExperimentId={baseExperimentId}
+                    compareExperimentIds={compareExperimentIds}
+                    exampleIds={exampleIds}
+                    onExampleChange={(exampleIndex) => {
+                      if (
+                        exampleIndex === exampleIds.length - 1 &&
+                        !isLoadingNext &&
+                        hasNext
+                      ) {
+                        loadNext(PAGE_SIZE);
+                      }
+
+                      if (
+                        exampleIndex >= 0 &&
+                        exampleIndex < exampleIds.length
+                      ) {
+                        setSelectedExampleIndex(exampleIndex);
+                      }
+                    }}
+                    openTraceDialog={(traceId, projectId) => {
+                      setSelectedTraceInfo({ traceId, projectId });
+                    }}
+                  />
+                )}
+            </ViewportModal>
+          </ViewportModalOverlay>
+          <ViewportModalOverlay
+            isOpen={selectedTraceInfo !== null}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setSelectedTraceInfo(null);
+                setSearchParams(
+                  (prev) => {
+                    const newParams = new URLSearchParams(prev);
+                    newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+
+                    return newParams;
+                  },
+                  { replace: true }
+                );
+              }
+            }}
+          >
+            <ViewportModal size="fullscreen">
+              {selectedTraceInfo && (
+                <PlaygroundRunTraceDetailsDialog
+                  traceId={selectedTraceInfo.traceId}
+                  projectId={selectedTraceInfo.projectId}
+                  title={
+                    selectedTraceInfo.evaluatorName
+                      ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
+                      : "Experiment Run Trace"
+                  }
+                />
+              )}
+            </ViewportModal>
+          </ViewportModalOverlay>
+        </div>
+      </PlaygroundExpectedOutputsProvider>
     </InstanceVariablesProvider>
+  );
+}
+
+/**
+ * Says that the metadata cell leaves out the `annotations` key, why, and
+ * where to turn that off.
+ */
+function HiddenAnnotationsNotice() {
+  return (
+    <TooltipTrigger>
+      <IconButton
+        size="S"
+        aria-label={`The "${ANNOTATIONS_KEY}" key is hidden in this cell`}
+      >
+        <Icon svg={<Icons.Info />} />
+      </IconButton>
+      <Tooltip>
+        <TooltipArrow />
+        The &quot;{ANNOTATIONS_KEY}&quot; key is hidden. It holds the expected
+        outputs recorded for evaluators. Turn off &quot;Hide expected
+        annotations&quot; in the experiment settings to see it.
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 graphql`
   subscription PlaygroundDatasetExamplesTableSubscription(
-    $input: ChatCompletionOverDatasetInput!
+    $input: ExperimentsOverDatasetInput!
   ) {
-    chatCompletionOverDataset(input: $input) {
+    experimentsOverDataset(input: $input) {
       __typename
       ... on TextChunk {
-        content
+        experimentId
         datasetExampleId
         repetitionNumber
+        content
       }
       ... on ToolCallChunk {
-        id
+        experimentId
         datasetExampleId
         repetitionNumber
+        id
         function {
           name
           arguments
         }
       }
       ... on ChatCompletionSubscriptionExperiment {
+        experimentId
         experiment {
           id
         }
       }
       ... on ChatCompletionSubscriptionResult {
+        experimentId
         datasetExampleId
         repetitionNumber
         span {
@@ -1627,6 +2183,7 @@ graphql`
         }
       }
       ... on ChatCompletionSubscriptionError {
+        experimentId
         datasetExampleId
         repetitionNumber
         message
@@ -1651,6 +2208,7 @@ graphql`
         }
       }
       ... on EvaluationChunk {
+        experimentId
         datasetExampleId
         repetitionNumber
         evaluatorName

@@ -1,5 +1,7 @@
 import { css, Global } from "@emotion/react";
 
+import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
+
 import type { ThemeContextType } from "./contexts";
 import { useTheme } from "./contexts";
 
@@ -88,6 +90,9 @@ const staticCSS = css`
     --global-button-height-s: var(--global-input-height-s);
     --global-button-height-m: var(--global-input-height-m);
     --global-button-height-l: var(--global-input-height-l);
+
+    // layout sizing
+    --global-text-content-max-width: 800px;
   }
 `;
 
@@ -1628,6 +1633,9 @@ const chartCSS = css`
       0.84
     );
     --chart-panel-background-color: var(--global-color-gray-75);
+    /* Drawn around each segment of a stacked bar, so adjacent segments read as
+       separate; match the surface the chart sits on */
+    --chart-bar-separator-color: var(--chart-panel-background-color);
     --chart-panel-border-color: var(--global-border-color-default);
   }
   .theme--dark {
@@ -1674,6 +1682,7 @@ export function GlobalStyles() {
         mediumRootCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
+        typeaheadMenuCSS,
         chartCSS,
         fontFamilyCSS
       )}

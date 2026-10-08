@@ -10,6 +10,7 @@ from phoenix.server.types import DbSessionFactory
 
 from .agent_session_message_text import AgentSessionMessageTextDataLoader
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
+from .annotation_mean_score_time_series import AnnotationMeanScoreTimeSeriesDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_repeated_run_group_latency import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
@@ -37,6 +38,11 @@ from .document_evaluation_summaries import (
 )
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
+from .evaluation_queues import (
+    EvaluationQueueDataLoader,
+    EvaluationQueueProjectsDataLoader,
+    EvaluationQueueThroughputDataLoader,
+)
 from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_label_fractions import ExperimentAnnotationLabelFractionsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
@@ -64,8 +70,17 @@ from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMax
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
+from .project_evaluation_queues import (
+    ProjectEvaluationQueueDataLoader,
+    ProjectEvaluationQueueThroughputDataLoader,
+)
+from .project_evaluator_by_id import ProjectEvaluatorByIdDataLoader
+from .project_evaluator_evaluation_loads import ProjectEvaluatorEvaluationLoadsDataLoader
+from .project_evaluator_queues import ProjectEvaluatorQueuesDataLoader
+from .project_evaluator_run_counts import ProjectEvaluatorRunCountsDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
+from .projects_by_evaluator import ProjectsByEvaluatorDataLoader
 from .prompt_label_usage_counts import PromptLabelUsageCountsDataLoader
 from .prompt_labels_by_prompt import PromptLabelsByPromptDataLoader
 from .prompt_version_counts import PromptVersionCountDataLoader
@@ -160,6 +175,7 @@ class DataLoaders:
     agent_session_first_inputs: AgentSessionMessageTextDataLoader
     agent_session_latest_outputs: AgentSessionMessageTextDataLoader
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
+    annotation_mean_score_time_series: AnnotationMeanScoreTimeSeriesDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_repeated_run_group_latency: (
         AverageExperimentRepeatedRunGroupLatencyDataLoader
@@ -193,6 +209,9 @@ class DataLoaders:
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    evaluation_queue: EvaluationQueueDataLoader
+    evaluation_queue_projects: EvaluationQueueProjectsDataLoader
+    evaluation_queue_throughput: EvaluationQueueThroughputDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
@@ -226,7 +245,14 @@ class DataLoaders:
     project_by_name: ProjectByNameDataLoader
     project_has_traces: ProjectHasTracesDataLoader
     project_fields: TableFieldsDataLoader
+    project_evaluation_queue: ProjectEvaluationQueueDataLoader
+    project_evaluation_queue_throughput: ProjectEvaluationQueueThroughputDataLoader
+    project_evaluator_by_id: ProjectEvaluatorByIdDataLoader
+    project_evaluator_evaluation_loads: ProjectEvaluatorEvaluationLoadsDataLoader
+    project_evaluator_queues: ProjectEvaluatorQueuesDataLoader
+    project_evaluator_run_counts: ProjectEvaluatorRunCountsDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
+    projects_by_evaluator: ProjectsByEvaluatorDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_fields: TableFieldsDataLoader
     prompt_label_fields: TableFieldsDataLoader
@@ -314,6 +340,7 @@ def build_data_loaders(
         agent_session_first_inputs=AgentSessionMessageTextDataLoader(db, "first_input"),
         agent_session_latest_outputs=AgentSessionMessageTextDataLoader(db, "latest_output"),
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
+        annotation_mean_score_time_series=AnnotationMeanScoreTimeSeriesDataLoader(db),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
             db
         ),
@@ -357,6 +384,9 @@ def build_data_loaders(
         document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
         document_evaluations=DocumentEvaluationsDataLoader(db),
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+        evaluation_queue=EvaluationQueueDataLoader(db),
+        evaluation_queue_projects=EvaluationQueueProjectsDataLoader(db),
+        evaluation_queue_throughput=EvaluationQueueThroughputDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
         experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
         annotation_summaries=AnnotationSummaryDataLoader(
@@ -406,6 +436,13 @@ def build_data_loaders(
         num_child_spans=NumChildSpansDataLoader(db),
         num_spans_per_trace=NumSpansPerTraceDataLoader(db),
         project_fields=TableFieldsDataLoader(db, models.Project),
+        project_evaluation_queue=ProjectEvaluationQueueDataLoader(db),
+        project_evaluation_queue_throughput=ProjectEvaluationQueueThroughputDataLoader(db),
+        project_evaluator_by_id=ProjectEvaluatorByIdDataLoader(db),
+        project_evaluator_evaluation_loads=ProjectEvaluatorEvaluationLoadsDataLoader(db),
+        project_evaluator_queues=ProjectEvaluatorQueuesDataLoader(db),
+        project_evaluator_run_counts=ProjectEvaluatorRunCountsDataLoader(db),
+        projects_by_evaluator=ProjectsByEvaluatorDataLoader(db),
         projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
         prompt_fields=TableFieldsDataLoader(db, models.Prompt),
         prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),

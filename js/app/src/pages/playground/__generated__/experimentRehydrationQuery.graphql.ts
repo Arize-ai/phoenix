@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<325292f9d5af643f3c025f3f37bf3f2a>>
+ * @generated SignedSource<<5528a3917f65d2c2cee26ce9c025c0cd>>
  * @lightSyntaxTransform
  */
 
@@ -33,6 +33,7 @@ export type experimentRehydrationQuery$data = {
       };
       readonly maxConcurrency: number;
       readonly taskConfig: {
+        readonly __typename: "PromptTaskConfig";
         readonly connection: {
           readonly __typename: "AWSBedrockConnectionConfig";
           readonly endpointUrl: string | null;
@@ -140,6 +141,10 @@ export type experimentRehydrationQuery$data = {
           } | null;
         };
         readonly streamModelOutput: boolean;
+      } | {
+        // This will never be '%other', but we need some
+        // value in case none of the concrete values match.
+        readonly __typename: "%other";
       } | null;
     } | null;
   };
@@ -227,21 +232,21 @@ v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "templateType",
+  "name": "__typename",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "templateFormat",
+  "name": "templateType",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "templateFormat",
   "storageKey": null
 },
 v10 = {
@@ -266,7 +271,7 @@ v12 = {
   "name": "template",
   "plural": false,
   "selections": [
-    (v9/*:: as any*/),
+    (v7/*:: as any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -293,7 +298,7 @@ v12 = {
               "name": "content",
               "plural": true,
               "selections": [
-                (v9/*:: as any*/),
+                (v7/*:: as any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
@@ -426,7 +431,7 @@ v15 = {
       "name": "tools",
       "plural": true,
       "selections": [
-        (v9/*:: as any*/),
+        (v7/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -667,7 +672,7 @@ v24 = {
       "name": "thinking",
       "plural": false,
       "selections": [
-        (v9/*:: as any*/),
+        (v7/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -839,7 +844,7 @@ v32 = {
   "name": "connection",
   "plural": false,
   "selections": [
-    (v9/*:: as any*/),
+    (v7/*:: as any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -977,57 +982,65 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "PromptTaskConfig",
+                    "concreteType": null,
                     "kind": "LinkedField",
                     "name": "taskConfig",
                     "plural": false,
                     "selections": [
+                      (v7/*:: as any*/),
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptConfig",
-                        "kind": "LinkedField",
-                        "name": "prompt",
-                        "plural": false,
+                        "kind": "InlineFragment",
                         "selections": [
-                          (v7/*:: as any*/),
-                          (v8/*:: as any*/),
-                          (v12/*:: as any*/),
-                          (v15/*:: as any*/),
-                          (v16/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": null,
+                            "concreteType": "PromptConfig",
                             "kind": "LinkedField",
-                            "name": "invocationParameters",
+                            "name": "prompt",
                             "plural": false,
                             "selections": [
+                              (v8/*:: as any*/),
+                              (v9/*:: as any*/),
+                              (v12/*:: as any*/),
+                              (v15/*:: as any*/),
+                              (v16/*:: as any*/),
                               {
-                                "kind": "InlineDataFragmentSpread",
-                                "name": "PromptInvocationParametersReadableFragment",
-                                "selections": [
-                                  (v9/*:: as any*/),
-                                  (v22/*:: as any*/),
-                                  (v24/*:: as any*/),
-                                  (v25/*:: as any*/),
-                                  (v26/*:: as any*/)
-                                ],
+                                "alias": null,
                                 "args": null,
-                                "argumentDefinitions": []
-                              }
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "invocationParameters",
+                                "plural": false,
+                                "selections": [
+                                  {
+                                    "kind": "InlineDataFragmentSpread",
+                                    "name": "PromptInvocationParametersReadableFragment",
+                                    "selections": [
+                                      (v7/*:: as any*/),
+                                      (v22/*:: as any*/),
+                                      (v24/*:: as any*/),
+                                      (v25/*:: as any*/),
+                                      (v26/*:: as any*/)
+                                    ],
+                                    "args": null,
+                                    "argumentDefinitions": []
+                                  }
+                                ],
+                                "storageKey": null
+                              },
+                              (v27/*:: as any*/),
+                              (v28/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v27/*:: as any*/),
-                          (v28/*:: as any*/)
+                          (v32/*:: as any*/),
+                          (v33/*:: as any*/),
+                          (v34/*:: as any*/),
+                          (v35/*:: as any*/)
                         ],
-                        "storageKey": null
-                      },
-                      (v32/*:: as any*/),
-                      (v33/*:: as any*/),
-                      (v34/*:: as any*/),
-                      (v35/*:: as any*/)
+                        "type": "PromptTaskConfig",
+                        "abstractKey": null
+                      }
                     ],
                     "storageKey": null
                   }
@@ -1059,7 +1072,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v9/*:: as any*/),
+          (v7/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -1077,54 +1090,67 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "PromptTaskConfig",
+                    "concreteType": null,
                     "kind": "LinkedField",
                     "name": "taskConfig",
                     "plural": false,
                     "selections": [
+                      (v7/*:: as any*/),
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "PromptConfig",
-                        "kind": "LinkedField",
-                        "name": "prompt",
-                        "plural": false,
+                        "kind": "InlineFragment",
                         "selections": [
-                          (v7/*:: as any*/),
-                          (v8/*:: as any*/),
-                          (v12/*:: as any*/),
-                          (v15/*:: as any*/),
-                          (v16/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": null,
+                            "concreteType": "PromptConfig",
                             "kind": "LinkedField",
-                            "name": "invocationParameters",
+                            "name": "prompt",
                             "plural": false,
                             "selections": [
+                              (v8/*:: as any*/),
                               (v9/*:: as any*/),
+                              (v12/*:: as any*/),
+                              (v15/*:: as any*/),
+                              (v16/*:: as any*/),
                               {
-                                "kind": "TypeDiscriminator",
-                                "abstractKey": "__isPromptInvocationParameters"
+                                "alias": null,
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "invocationParameters",
+                                "plural": false,
+                                "selections": [
+                                  (v7/*:: as any*/),
+                                  {
+                                    "kind": "TypeDiscriminator",
+                                    "abstractKey": "__isPromptInvocationParameters"
+                                  },
+                                  (v22/*:: as any*/),
+                                  (v24/*:: as any*/),
+                                  (v25/*:: as any*/),
+                                  (v26/*:: as any*/)
+                                ],
+                                "storageKey": null
                               },
-                              (v22/*:: as any*/),
-                              (v24/*:: as any*/),
-                              (v25/*:: as any*/),
-                              (v26/*:: as any*/)
+                              (v27/*:: as any*/),
+                              (v28/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v27/*:: as any*/),
-                          (v28/*:: as any*/)
+                          (v32/*:: as any*/),
+                          (v33/*:: as any*/),
+                          (v34/*:: as any*/),
+                          (v35/*:: as any*/)
                         ],
-                        "storageKey": null
+                        "type": "PromptTaskConfig",
+                        "abstractKey": null
                       },
-                      (v32/*:: as any*/),
-                      (v33/*:: as any*/),
-                      (v34/*:: as any*/),
-                      (v35/*:: as any*/),
-                      (v2/*:: as any*/)
+                      {
+                        "kind": "InlineFragment",
+                        "selections": (v3/*:: as any*/),
+                        "type": "Node",
+                        "abstractKey": "__isNode"
+                      }
                     ],
                     "storageKey": null
                   },
@@ -1143,16 +1169,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cfc7be7fc4597ce57a4380a2e714f18a",
+    "cacheID": "997b716559709ef262108dc65b7bd842",
     "id": null,
     "metadata": {},
     "name": "experimentRehydrationQuery",
     "operationKind": "query",
-    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      job {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          prompt {\n            templateType\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              tools {\n                __typename\n                ... on PromptToolFunction {\n                  function {\n                    name\n                    description\n                    parameters\n                    strict\n                  }\n                }\n                ... on PromptToolRaw {\n                  raw\n                }\n              }\n              toolChoice {\n                type\n                functionName\n              }\n              disableParallelToolCalls\n            }\n            responseFormat {\n              jsonSchema {\n                name\n                description\n                schema\n                strict\n              }\n            }\n            invocationParameters {\n              __typename\n              ...PromptInvocationParametersReadableFragment\n            }\n            modelProvider\n            modelName\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              baseUrl\n            }\n          }\n          customProvider {\n            id\n            name\n          }\n          playgroundConfig {\n            templateVariablesPath\n            appendedMessagesPath\n          }\n          streamModelOutput\n          id\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n"
+    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      job {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          __typename\n          ... on PromptTaskConfig {\n            prompt {\n              templateType\n              templateFormat\n              template {\n                __typename\n                ... on PromptChatTemplate {\n                  messages {\n                    role\n                    content {\n                      __typename\n                      ... on TextContentPart {\n                        text {\n                          text\n                        }\n                      }\n                      ... on ToolCallContentPart {\n                        toolCall {\n                          toolCallId\n                          toolCall {\n                            name\n                            arguments\n                          }\n                        }\n                      }\n                      ... on ToolResultContentPart {\n                        toolResult {\n                          toolCallId\n                          result\n                        }\n                      }\n                    }\n                  }\n                }\n              }\n              tools {\n                tools {\n                  __typename\n                  ... on PromptToolFunction {\n                    function {\n                      name\n                      description\n                      parameters\n                      strict\n                    }\n                  }\n                  ... on PromptToolRaw {\n                    raw\n                  }\n                }\n                toolChoice {\n                  type\n                  functionName\n                }\n                disableParallelToolCalls\n              }\n              responseFormat {\n                jsonSchema {\n                  name\n                  description\n                  schema\n                  strict\n                }\n              }\n              invocationParameters {\n                __typename\n                ...PromptInvocationParametersReadableFragment\n              }\n              modelProvider\n              modelName\n            }\n            connection {\n              __typename\n              ... on OpenAIConnectionConfig {\n                baseUrl\n                openaiApiType\n              }\n              ... on AzureOpenAIConnectionConfig {\n                azureEndpoint\n                openaiApiType\n              }\n              ... on AnthropicConnectionConfig {\n                baseUrl\n              }\n              ... on AWSBedrockConnectionConfig {\n                regionName\n                endpointUrl\n              }\n              ... on GoogleGenAIConnectionConfig {\n                baseUrl\n              }\n            }\n            customProvider {\n              id\n              name\n            }\n            playgroundConfig {\n              templateVariablesPath\n              appendedMessagesPath\n            }\n            streamModelOutput\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "02e91c24f69014d6d00d56db1e490c5a";
+(node as any).hash = "2a40a7cddfd38f9d500c5d6761beefd6";
 
 export default node;

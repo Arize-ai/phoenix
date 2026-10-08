@@ -26,12 +26,12 @@ import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
+import { CodeEvaluatorVersions } from "@phoenix/components/evaluators/CodeEvaluatorVersions";
 import { TopNavActions } from "@phoenix/components/nav";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorDetails";
-import { CodeDatasetEvaluatorVersions } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorVersions";
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
@@ -89,8 +89,8 @@ function DatasetEvaluatorDetailsPageContent({
   const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
   const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
   const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
-  const versionsCount =
-    evaluator.__typename === "CodeEvaluator" ? evaluator.versionCount : 0;
+  const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
+  const versionsCount = isCodeEvaluator ? evaluator.versionCount : 0;
 
   return (
     <main css={mainCSS}>
@@ -117,9 +117,9 @@ function DatasetEvaluatorDetailsPageContent({
       <Tabs defaultSelectedKey="configuration">
         <TabList>
           <Tab id="configuration">Configuration</Tab>
-          {isCodeEvaluator && (
+          {codeEvaluatorId != null && (
             <Tab id="versions">
-              Versions <Counter>{versionsCount}</Counter>
+              Versions <Counter variant="quiet">{versionsCount}</Counter>
             </Tab>
           )}
           <Tab id="spans">Spans</Tab>
@@ -147,19 +147,16 @@ function DatasetEvaluatorDetailsPageContent({
                 {isCodeEvaluator && (
                   <CodeDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
-                    sandboxBackends={data.sandboxBackends}
                   />
                 )}
               </Flex>
             </View>
           </View>
         </LazyTabPanel>
-        {isCodeEvaluator && (
+        {codeEvaluatorId != null && (
           <LazyTabPanel id="versions">
             <Suspense fallback={<Loading />}>
-              <CodeDatasetEvaluatorVersions
-                datasetEvaluatorId={datasetEvaluator.id}
-              />
+              <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
             </Suspense>
           </LazyTabPanel>
         )}
