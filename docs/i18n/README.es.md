@@ -4,7 +4,7 @@
     </a>
     <br/>
     <br/>
-    <b>🇺🇸 English</b> • <a href="docs/i18n/README.zh.md">🇨🇳 中文</a> • <a href="docs/i18n/README.zh-TW.md">🇹🇼 繁體中文</a> • <a href="docs/i18n/README.ja.md">🇯🇵 日本語</a> • <a href="docs/i18n/README.pt-PT.md">🇵🇹 Português</a> • <a href="docs/i18n/README.pt-BR.md">🇧🇷 Português</a> • <a href="docs/i18n/README.ko.md">🇰🇷 한국어</a> • <a href="docs/i18n/README.es.md">🇪🇸 Español</a> • <a href="docs/i18n/README.de.md">🇩🇪 Deutsch</a> • <a href="docs/i18n/README.fr.md">🇫🇷 Français</a> • <a href="docs/i18n/README.he.md">🇮🇱 עברית</a> • <a href="docs/i18n/README.ar.md">🇸🇦 العربية</a> • <a href="docs/i18n/README.ru.md">🇷🇺 Русский</a> • <a href="docs/i18n/README.pl.md">🇵🇱 Polski</a> • <a href="docs/i18n/README.cs.md">🇨🇿 Čeština</a> • <a href="docs/i18n/README.nl.md">🇳🇱 Nederlands</a> • <a href="docs/i18n/README.tr.md">🇹🇷 Türkçe</a> • <a href="docs/i18n/README.uk.md">🇺🇦 Українська</a> • <a href="docs/i18n/README.vi.md">🇻🇳 Tiếng Việt</a> • <a href="docs/i18n/README.tl.md">🇵🇭 Tagalog</a> • <a href="docs/i18n/README.id.md">🇮🇩 Indonesia</a> • <a href="docs/i18n/README.th.md">🇹🇭 ไทย</a> • <a href="docs/i18n/README.hi.md">🇮🇳 हिन्दी</a> • <a href="docs/i18n/README.bn.md">🇧🇩 বাংলা</a> • <a href="docs/i18n/README.ur.md">🇵🇰 اردو</a> • <a href="docs/i18n/README.ro.md">🇷🇴 Română</a> • <a href="docs/i18n/README.sv.md">🇸🇪 Svenska</a> • <a href="docs/i18n/README.it.md">🇮🇹 Italiano</a> • <a href="docs/i18n/README.el.md">🇬🇷 Ελληνικά</a> • <a href="docs/i18n/README.hu.md">🇭🇺 Magyar</a> • <a href="docs/i18n/README.fi.md">🇫🇮 Suomi</a> • <a href="docs/i18n/README.da.md">🇩🇰 Dansk</a> • <a href="docs/i18n/README.no.md">🇳🇴 Norsk</a>
+    <a href="../../README.md">🇺🇸 English</a> • <a href="README.zh.md">🇨🇳 中文</a> • <a href="README.zh-TW.md">🇹🇼 繁體中文</a> • <a href="README.ja.md">🇯🇵 日本語</a> • <a href="README.pt-PT.md">🇵🇹 Português</a> • <a href="README.pt-BR.md">🇧🇷 Português</a> • <a href="README.ko.md">🇰🇷 한국어</a> • <b>🇪🇸 Español</b> • <a href="README.de.md">🇩🇪 Deutsch</a> • <a href="README.fr.md">🇫🇷 Français</a> • <a href="README.he.md">🇮🇱 עברית</a> • <a href="README.ar.md">🇸🇦 العربية</a> • <a href="README.ru.md">🇷🇺 Русский</a> • <a href="README.pl.md">🇵🇱 Polski</a> • <a href="README.cs.md">🇨🇿 Čeština</a> • <a href="README.nl.md">🇳🇱 Nederlands</a> • <a href="README.tr.md">🇹🇷 Türkçe</a> • <a href="README.uk.md">🇺🇦 Українська</a> • <a href="README.vi.md">🇻🇳 Tiếng Việt</a> • <a href="README.tl.md">🇵🇭 Tagalog</a> • <a href="README.id.md">🇮🇩 Indonesia</a> • <a href="README.th.md">🇹🇭 ไทย</a> • <a href="README.hi.md">🇮🇳 हिन्दी</a> • <a href="README.bn.md">🇧🇩 বাংলা</a> • <a href="README.ur.md">🇵🇰 اردو</a> • <a href="README.ro.md">🇷🇴 Română</a> • <a href="README.sv.md">🇸🇪 Svenska</a> • <a href="README.it.md">🇮🇹 Italiano</a> • <a href="README.el.md">🇬🇷 Ελληνικά</a> • <a href="README.hu.md">🇭🇺 Magyar</a> • <a href="README.fi.md">🇫🇮 Suomi</a> • <a href="README.da.md">🇩🇰 Dansk</a> • <a href="README.no.md">🇳🇴 Norsk</a>
     <br/>
     <br/>
     <a href="https://arize.com/docs/phoenix/">
@@ -41,74 +41,74 @@
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
-    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.md" />
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.es.md" />
 </p>
 
-Arize Phoenix is Arize's open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. For managed production workflows, Arize also offers [Arize AX](https://arize.com/products/ax/). Phoenix provides:
+Arize Phoenix es la plataforma de observabilidad de IA de código abierto de Arize, diseñada para la experimentación, la evaluación y la resolución de problemas. Para flujos de trabajo de producción gestionados, Arize también ofrece [Arize AX](https://arize.com/products/ax/). Phoenix proporciona:
 
-- [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
-- [**_Evaluation_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
-- [**_Datasets_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
-- [**_Experiments_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
-- [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimize prompts, compare models, adjust parameters, and replay traced LLM calls.
-- [**_Prompt Management_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
-- [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - An AI engineering agent built into Phoenix for debugging traces, iterating on prompts, and navigating the product.
-- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Connect Claude Code, Cursor, and other MCP clients directly to your Phoenix instance's `/mcp` endpoint to query traces, datasets, experiments, and more.
+- [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Rastree el comportamiento en tiempo de ejecución de su aplicación LLM mediante instrumentación basada en OpenTelemetry.
+- [**_Evaluación_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Aproveche los LLM para medir el rendimiento de su aplicación mediante evals de respuesta y de recuperación.
+- [**_Datasets_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) - Cree datasets versionados de ejemplos para experimentación, evaluación y fine-tuning.
+- [**_Experimentos_**](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets#experiments) - Registre y evalúe los cambios en prompts, LLM y recuperación.
+- [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimice prompts, compare modelos, ajuste parámetros y vuelva a ejecutar llamadas a LLM trazadas.
+- [**_Gestión de prompts_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Gestione y pruebe cambios en los prompts de forma sistemática mediante control de versiones, etiquetado y experimentación.
+- [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Un agente de ingeniería de IA integrado en Phoenix para depurar trazas, iterar sobre prompts y navegar por el producto.
+- [**_Servidor MCP remoto_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Conecte Claude Code, Cursor y otros clientes MCP directamente al endpoint `/mcp` de su instancia de Phoenix para consultar trazas, datasets, experimentos y mucho más.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
 </p>
 
-Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) and LLM providers ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix es independiente del proveedor y del lenguaje, con soporte inmediato para frameworks populares ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) y proveedores de LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) y más). Para obtener más información sobre la autoinstrumentación, consulte el proyecto [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix runs practically anywhere, including your local machine, a containerized deployment, or in the cloud. See [Environments](https://arize.com/docs/phoenix/environments) for a walkthrough of each option, or jump straight into the [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix se ejecuta prácticamente en cualquier lugar: en su máquina local, en un despliegue en contenedores o en la nube. Consulte [Entornos](https://arize.com/docs/phoenix/environments) para ver una guía de cada opción, o vaya directamente al [inicio rápido de tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix is open-source and self-hosted. For a managed platform, Arize offers [Arize AX](https://arize.com/products/ax/) — the same OpenTelemetry/OpenInference instrumentation works with both. See the [full comparison](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix es de código abierto y autoalojado. Para una plataforma gestionada, Arize ofrece [Arize AX](https://arize.com/products/ax/); la misma instrumentación de OpenTelemetry/OpenInference funciona con ambos. Consulte la [comparación completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
-## Table of Contents
+## Índice
 
-- [Run Locally](#run-locally)
-- [Trace Your Application](#trace-your-application)
-- [Deploy](#deploy)
-- [Packages](#packages)
-- [Tracing Integrations](#tracing-integrations)
+- [Ejecución local](#ejecución-local)
+- [Trace su aplicación](#trace-su-aplicación)
+- [Despliegue](#despliegue)
+- [Paquetes](#paquetes)
+- [Integraciones de tracing](#integraciones-de-tracing)
 - [Sandboxes](#sandboxes)
-- [For Humans and Coding Agents](#for-humans-and-coding-agents)
-- [Security & Privacy](#security--privacy)
-- [Community](#community)
+- [Para personas y agentes de programación](#para-personas-y-agentes-de-programación)
+- [Seguridad y privacidad](#seguridad-y-privacidad)
+- [Comunidad](#comunidad)
 
-## Run Locally
+## Ejecución local
 
-Install Phoenix via `pip` or `conda` and have a fully functional Phoenix. For all installation and hosting options, see the [install guide](https://arize.com/docs/phoenix).
+Instale Phoenix mediante `pip` o `conda` y dispondrá de un Phoenix totalmente funcional. Para conocer todas las opciones de instalación y alojamiento, consulte la [guía de instalación](https://arize.com/docs/phoenix).
 
 ```shell
 pip install arize-phoenix
 phoenix serve
 ```
 
-Or run it with no install using [`uvx`](https://docs.astral.sh/uv/):
+O ejecútelo sin instalar nada usando [`uvx`](https://docs.astral.sh/uv/):
 
 ```shell
 uvx arize-phoenix serve
 ```
 
-## Trace Your Application
+## Trace su aplicación
 
-The fastest way to send traces is to let your [coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Codex, Cursor, and others) instrument your app. From your project directory, run:
+La forma más rápida de enviar trazas es dejar que su [agente de programación](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) (Claude Code, Codex, Cursor y otros) instrumente su aplicación. Desde el directorio de su proyecto, ejecute:
 
 ```shell
 npx @arizeai/phoenix-cli setup
-# or, with Phoenix installed: px setup
+# o, con Phoenix instalado: px setup
 ```
 
-Setup detects your framework and LLM provider, installs the right [OpenInference](https://github.com/Arize-ai/openinference) instrumentation, and wires up trace export. Prefer to wire it up in code? See the [tracing documentation](https://arize.com/docs/phoenix/tracing/llm-traces).
+La configuración detecta su framework y su proveedor de LLM, instala la instrumentación de [OpenInference](https://github.com/Arize-ai/openinference) adecuada y configura la exportación de trazas. ¿Prefiere configurarlo en el código? Consulte la [documentación de tracing](https://arize.com/docs/phoenix/tracing/llm-traces).
 
-## Deploy
+## Despliegue
 
-Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes via the [Helm chart](https://github.com/Arize-ai/phoenix/tree/main/helm).
+Las imágenes de contenedor de Phoenix están disponibles en [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) y pueden desplegarse con Docker o con Kubernetes mediante el [chart de Helm](https://github.com/Arize-ai/phoenix/tree/main/helm).
 
-For Docker Compose, Kubernetes/Helm, and other deployment options, see the [self-hosting documentation](https://arize.com/docs/phoenix/self-hosting).
+Para Docker Compose, Kubernetes/Helm y otras opciones de despliegue, consulte la [documentación de autoalojamiento](https://arize.com/docs/phoenix/self-hosting).
 
 <p align="center">
   <a href="https://railway.app/template/PTHRoq?referralCode=Xe2txW"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="30"></a>
@@ -123,36 +123,36 @@ For Docker Compose, Kubernetes/Helm, and other deployment options, see the [self
 </p>
 
 > [!NOTE]
-> The Google Cloud button builds Phoenix from source in Cloud Shell rather than deploying the prebuilt Docker Hub image. The Azure template serves plain HTTP (Azure Container Instances does not terminate TLS) — front it with a TLS proxy such as an Application Gateway before production use.
+> El botón de Google Cloud compila Phoenix desde el código fuente en Cloud Shell en lugar de desplegar la imagen precompilada de Docker Hub. La plantilla de Azure sirve HTTP sin cifrar (Azure Container Instances no termina TLS); colóquela detrás de un proxy TLS, como un Application Gateway, antes de usarla en producción.
 
-## Packages
+## Paquetes
 
-The `arize-phoenix` package includes the entire Phoenix platform. However, if you have deployed the Phoenix platform, there are lightweight Python sub-packages and TypeScript packages that can be used in conjunction with the platform.
+El paquete `arize-phoenix` incluye toda la plataforma Phoenix. Sin embargo, si ya ha desplegado la plataforma Phoenix, existen subpaquetes ligeros de Python y paquetes de TypeScript que pueden utilizarse junto con la plataforma.
 
-### Python Subpackages
+### Subpaquetes de Python
 
-| Package                                                                                       | Version & Docs                                                                                                                                                                                                                                                                      | Description                                                                                |
+| Paquete | Versión y documentación | Descripción |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| [arize-phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel)     | [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-otel)](https://pypi.org/project/arize-phoenix-otel/) [![Docs](https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white)](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html)       | Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults |
-| [arize-phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client) | [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-client)](https://pypi.org/project/arize-phoenix-client/) [![Docs](https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white)](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html) | Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface  |
-| [arize-phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-evals)   | [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-evals)](https://pypi.org/project/arize-phoenix-evals/) [![Docs](https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white)](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/index.html)    | Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more   |
+| [arize-phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel)     | [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-otel)](https://pypi.org/project/arize-phoenix-otel/) [![Docs](https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white)](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html)       | Proporciona un wrapper ligero sobre las primitivas de OpenTelemetry con valores predeterminados adaptados a Phoenix |
+| [arize-phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client) | [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-client)](https://pypi.org/project/arize-phoenix-client/) [![Docs](https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white)](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html) | Cliente ligero para interactuar con el servidor de Phoenix a través de su interfaz REST OpenAPI |
+| [arize-phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-evals)   | [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-evals)](https://pypi.org/project/arize-phoenix-evals/) [![Docs](https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white)](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/index.html)    | Herramientas para evaluar aplicaciones LLM, incluida la relevancia de RAG, la relevancia de las respuestas y más |
 
-### TypeScript Subpackages
+### Subpaquetes de TypeScript
 
-| Package                                                                                             | Version & Docs                                                                                                                                                                                                                                                                                 | Description                                                                                                  |
+| Paquete | Versión y documentación | Descripción |
 | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults                   |
-| [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Client for the Arize Phoenix API                                                                             |
-| [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript evaluation library for LLM applications (alpha release)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](./js/packages/phoenix-mcp/README.md)                                               | Standalone stdio MCP server for older Phoenix versions (maintenance mode — superseded by the [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) built into Phoenix) |
-| [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI for fetching traces, datasets, and experiments for use with Claude Code, Cursor, and other coding agents |
+| [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Proporciona un wrapper ligero sobre las primitivas de OpenTelemetry con valores predeterminados adaptados a Phoenix |
+| [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Cliente para la API de Arize Phoenix |
+| [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Biblioteca de evaluación en TypeScript para aplicaciones LLM (versión alfa) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Servidor MCP stdio independiente para versiones antiguas de Phoenix (en modo de mantenimiento; sustituido por el [servidor MCP remoto](https://arize.com/docs/phoenix/integrations/remote-mcp) integrado en Phoenix) |
+| [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI para obtener trazas, datasets y experimentos para usarlos con Claude Code, Cursor y otros agentes de programación |
 
-## Tracing Integrations
+## Integraciones de tracing
 
-Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic. For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project and the [integrations documentation](https://arize.com/docs/phoenix/integrations).
+Phoenix está construido sobre OpenTelemetry y es independiente del proveedor, del lenguaje y del framework. Para obtener más información sobre las integraciones de tracing y aplicaciones de ejemplo, consulte el proyecto [OpenInference](https://github.com/Arize-ai/openinference) y la [documentación de integraciones](https://arize.com/docs/phoenix/integrations).
 
-**Python Integrations**
-| | Integration | Package | Version |
+**Integraciones de Python**
+| | Integración | Paquete | Versión |
 |:---:|---|---|---|
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/openai.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/openai.png"></picture> | [OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai) | `openinference-instrumentation-openai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openai) |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/openai.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/openai.png"></picture> | [OpenAI Agents](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk) | `openinference-instrumentation-openai-agents` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openai-agents.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openai-agents) |
@@ -191,18 +191,18 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/claude-color.png" height="14"> | [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk) | `openinference-instrumentation-claude-agent-sdk` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-claude-agent-sdk.svg)](https://pypi.python.org/pypi/openinference-instrumentation-claude-agent-sdk) |
 | | [TypeSafe AI](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python) | `openinference-instrumentation-typesafe` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-typesafe.svg)](https://pypi.python.org/pypi/openinference-instrumentation-typesafe) |
 
-## Span Processors
+## Procesadores de spans
 
-Normalize and convert data across other instrumentation libraries by adding span processors that unify data.
+Normalice y convierta datos de otras bibliotecas de instrumentación añadiendo procesadores de spans que unifiquen los datos.
 
-| Package                                                                                                           | Description                                                      | Version                                                                                                                                                                |
+| Paquete | Descripción | Versión |
 | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`openinference-instrumentation-openlit`](https://pypi.org/project/openinference-instrumentation-openlit/)         | OpenInference Span Processor for OpenLIT traces.                 | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openlit.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openlit)         |
-| [`openinference-instrumentation-openllmetry`](https://pypi.org/project/openinference-instrumentation-openllmetry/) | OpenInference Span Processor for OpenLLMetry (Traceloop) traces. | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openllmetry.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openllmetry) |
+| [`openinference-instrumentation-openlit`](https://pypi.org/project/openinference-instrumentation-openlit/)         | Procesador de spans de OpenInference para trazas de OpenLIT. | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openlit.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openlit)         |
+| [`openinference-instrumentation-openllmetry`](https://pypi.org/project/openinference-instrumentation-openllmetry/) | Procesador de spans de OpenInference para trazas de OpenLLMetry (Traceloop). | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openllmetry.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openllmetry) |
 
-### JavaScript Integrations
+### Integraciones de JavaScript
 
-|                                                                                                                                                                                                                                         | Integration                                                                                 | Package                                                   | Version                                                                                                                                                                                             |
+|                                                                                                                                                                                                                                         | Integración | Paquete | Versión |
 | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | ------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/openai.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/openai.png"></picture> | [OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-node-sdk)       | `@arizeai/openinference-instrumentation-openai`           | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-openai.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-openai)                       |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/openai.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/openai.png"></picture> | [OpenAI Agents](https://arize.com/docs/phoenix/integrations/typescript/openai-agents)       | `@arizeai/openinference-instrumentation-openai-agents`    | [![NPM Version](https://img.shields.io/npm/v/@arizeai%2Fopeninference-instrumentation-openai-agents.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-openai-agents)       |
@@ -215,102 +215,102 @@ Normalize and convert data across other instrumentation libraries by adding span
 |    <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/mcp.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/mcp.png"></picture>    | [MCP](https://arize.com/docs/phoenix/integrations/typescript/mcp)                           | `@arizeai/openinference-instrumentation-mcp`              | [![NPM Version](https://img.shields.io/npm/v/@arizeai%2Fopeninference-instrumentation-mcp.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-mcp)                           |
 |                                                                                                                                                                                                                                         | [TypeSafe AI](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript)              | `@arizeai/openinference-instrumentation-typesafe`         | [![NPM Version](https://img.shields.io/npm/v/@arizeai%2Fopeninference-instrumentation-typesafe.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-typesafe)                |
 
-### Java Integrations
+### Integraciones de Java
 
-|                                                                                                     | Integration                                                                                                                       | Package                                                 | Version                                                                                                                                                                                                                 |
+|                                                                                                     | Integración | Paquete | Versión |
 | :-------------------------------------------------------------------------------------------------: | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/langchain-color.png" height="14"> | [LangChain4j](https://github.com/Arize-ai/openinference/tree/main/java/instrumentation/openinference-instrumentation-langchain4j) | `openinference-instrumentation-langchain4j`             | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-langchain4j.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-langchain4j)           |
 |                                                                                                     | SpringAI                                                                                                                          | `openinference-instrumentation-springAI`                | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-springAI.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-springAI)                 |
-|              <img src="https://avatars.githubusercontent.com/u/151681568" height="16">              | [Arconia](https://docs.arconia.io/arconia/latest/observability/semantic-conventions/openinference/) for Spring AI                 | `io.arconia:arconia-openinference-semantic-conventions` | [![Maven Central](https://img.shields.io/maven-central/v/io.arconia/arconia-openinference-ai-semantic-conventions.svg)](https://central.sonatype.com/artifact/io.arconia/arconia-openinference-ai-semantic-conventions) |
+|              <img src="https://avatars.githubusercontent.com/u/151681568" height="16">              | [Arconia](https://docs.arconia.io/arconia/latest/observability/semantic-conventions/openinference/) para Spring AI | `io.arconia:arconia-openinference-semantic-conventions` | [![Maven Central](https://img.shields.io/maven-central/v/io.arconia/arconia-openinference-ai-semantic-conventions.svg)](https://central.sonatype.com/artifact/io.arconia/arconia-openinference-ai-semantic-conventions) |
 |  <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/google-color.png" height="14">   | [Google ADK](https://arize.com/docs/phoenix/integrations/java/google-adk/google-adk-tracing)                                     | `openinference-instrumentation-adk-java`                | [![Maven Central](https://img.shields.io/maven-central/v/com.arize/openinference-instrumentation-adk-java.svg)](https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-adk-java)                 |
 
-### Go Integrations
+### Integraciones de Go
 
-|                                                                                                                                                                                                                                               | Integration                                                                                                        | Package                                                                               | Version                                                                                                                                                                                                                                     |
+|                                                                                                                                                                                                                                               | Integración | Paquete | Versión |
 | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 |    <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/openai.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/openai.png"></picture>    | [OpenAI](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go)           | `github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go`        | [![Go Reference](https://pkg.go.dev/badge/github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go.svg)](https://pkg.go.dev/github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go)               |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://unpkg.com/@lobehub/icons-static-png@latest/dark/anthropic.png"><img height="14" src="https://unpkg.com/@lobehub/icons-static-png@latest/light/anthropic.png"></picture> | [Anthropic](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-anthropic-sdk-go) | `github.com/Arize-ai/openinference/go/openinference-instrumentation-anthropic-sdk-go` | [![Go Reference](https://pkg.go.dev/badge/github.com/Arize-ai/openinference/go/openinference-instrumentation-anthropic-sdk-go.svg)](https://pkg.go.dev/github.com/Arize-ai/openinference/go/openinference-instrumentation-anthropic-sdk-go) |
 
-### Platforms
+### Plataformas
 
-|                                                                                                  | Platform                                                                                                 | Description                                                    | Docs                                                                                                              |
+|                                                                                                  | Plataforma | Descripción | Documentación |
 | :----------------------------------------------------------------------------------------------: | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-|                                                                                                  | [BeeAI](https://docs.beeai.dev/observability/agents-traceability)                                        | AI agent framework with built-in observability                 | [Integration Guide](https://docs.beeai.dev/observability/agents-traceability)                                     |
-|  <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/dify-color.png" height="14">  | [Dify](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix)         | Open-source LLM app development platform                       | [Integration Guide](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix)     |
-|                                                                                                  | [Envoy AI Gateway](https://github.com/envoyproxy/ai-gateway)                                             | AI Gateway built on Envoy Proxy for AI workloads               | [Integration Guide](https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix) |
-|                                                                                                  | [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         | Visual framework for building multi-agent and RAG applications | [Integration Guide](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         |
-|                                                                                                  | [LiteLLM Proxy](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy) | Proxy server for LLMs                                          | [Integration Guide](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy)      |
-|                                                                                                  | [Flowise](https://arize.com/docs/phoenix/integrations/platforms/flowise)                                 | Visual framework for building LLM applications                 | [Integration Guide](https://arize.com/docs/phoenix/integrations/platforms/flowise)                                |
-|                                                                                                  | [Prompt Flow](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow)                         | Microsoft's prompt flow orchestration tool                     | [Integration Guide](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow)                            |
-| <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/nvidia-color.png" height="14"> | [NVIDIA NeMo](https://arize.com/docs/phoenix/integrations/python/nvidia)                                 | NVIDIA NeMo Agent Toolkit for enterprise agents                | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/nvidia)                                    |
-|                                                                                                  | [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite)                                  | Multi-agent LLM workflow framework with visual builder         | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/graphite)                                  |
+|                                                                                                  | [BeeAI](https://docs.beeai.dev/observability/agents-traceability)                                        | Framework de agentes de IA con observabilidad integrada | [Guía de integración](https://docs.beeai.dev/observability/agents-traceability)                                     |
+|  <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/dify-color.png" height="14">  | [Dify](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix)         | Plataforma de código abierto para desarrollar aplicaciones LLM | [Guía de integración](https://docs.dify.ai/en/guides/monitoring/integrate-external-ops-tools/integrate-phoenix)     |
+|                                                                                                  | [Envoy AI Gateway](https://github.com/envoyproxy/ai-gateway)                                             | Gateway de IA basado en Envoy Proxy para cargas de trabajo de IA | [Guía de integración](https://github.com/envoyproxy/ai-gateway/tree/main/cmd/aigw#opentelemetry-setup-with-phoenix) |
+|                                                                                                  | [LangFlow](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         | Framework visual para crear aplicaciones multiagente y RAG | [Guía de integración](https://arize.com/docs/phoenix/tracing/integrations-tracing/langflow)                         |
+|                                                                                                  | [LiteLLM Proxy](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy) | Servidor proxy para LLM | [Guía de integración](https://docs.litellm.ai/docs/observability/phoenix_integration#using-with-litellm-proxy)      |
+|                                                                                                  | [Flowise](https://arize.com/docs/phoenix/integrations/platforms/flowise)                                 | Framework visual para crear aplicaciones LLM | [Guía de integración](https://arize.com/docs/phoenix/integrations/platforms/flowise)                                |
+|                                                                                                  | [Prompt Flow](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow)                         | Herramienta de Microsoft para orquestar flujos de prompts | [Guía de integración](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow)                            |
+| <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/nvidia-color.png" height="14"> | [NVIDIA NeMo](https://arize.com/docs/phoenix/integrations/python/nvidia)                                 | NVIDIA NeMo Agent Toolkit para agentes empresariales | [Guía de integración](https://arize.com/docs/phoenix/integrations/python/nvidia)                                    |
+|                                                                                                  | [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite)                                  | Framework de flujos de trabajo LLM multiagente con editor visual | [Guía de integración](https://arize.com/docs/phoenix/integrations/python/graphite)                                  |
 
-### Vector Databases
+### Bases de datos vectoriales
 
-| Integration                                                                         | Description                                          | Docs                                                                                    |
+| Integración | Descripción | Documentación |
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [Qdrant](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant)       | Staged hybrid search tracing with dense, sparse, RRF | [Integration Guide](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant) |
+| [Qdrant](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant)       | Tracing de búsqueda híbrida por etapas con vectores densos, dispersos y RRF | [Guía de integración](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant) |
 
 ## Sandboxes
 
-Run Phoenix [code evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators) in hosted sandbox providers for kernel-level isolation and runtime dependency installation.
+Ejecute los [evaluadores de código](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators) de Phoenix en proveedores de sandboxes alojados para obtener aislamiento a nivel de kernel e instalación de dependencias en tiempo de ejecución.
 
-| Integration                                                                     | Description                                                    | Docs                                                                            |
+| Integración | Descripción | Documentación |
 | --------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [E2B](https://arize.com/docs/phoenix/integrations/sandboxes/e2b)                 | Hosted micro-VM sandboxes for AI-generated code                | [Integration Guide](https://arize.com/docs/phoenix/integrations/sandboxes/e2b)   |
-| [Daytona](https://arize.com/docs/phoenix/integrations/sandboxes/daytona)         | Managed development sandboxes with snapshot startup             | [Integration Guide](https://arize.com/docs/phoenix/integrations/sandboxes/daytona) |
-| [Vercel Sandbox](https://arize.com/docs/phoenix/integrations/sandboxes/vercel)   | Ephemeral compute on Vercel's infrastructure                    | [Integration Guide](https://arize.com/docs/phoenix/integrations/sandboxes/vercel) |
-| [Modal](https://arize.com/docs/phoenix/integrations/sandboxes/modal)             | Serverless, Python-first container platform                    | [Integration Guide](https://arize.com/docs/phoenix/integrations/sandboxes/modal)  |
-| [Docker Sandboxes](https://arize.com/docs/phoenix/integrations/sandboxes/docker) | Cloud sandboxes hosted by Docker                               | [Integration Guide](https://arize.com/docs/phoenix/integrations/sandboxes/docker) |
+| [E2B](https://arize.com/docs/phoenix/integrations/sandboxes/e2b)                 | Sandboxes alojados en micro-VM para código generado por IA | [Guía de integración](https://arize.com/docs/phoenix/integrations/sandboxes/e2b)   |
+| [Daytona](https://arize.com/docs/phoenix/integrations/sandboxes/daytona)         | Sandboxes de desarrollo gestionados con arranque desde snapshots | [Guía de integración](https://arize.com/docs/phoenix/integrations/sandboxes/daytona) |
+| [Vercel Sandbox](https://arize.com/docs/phoenix/integrations/sandboxes/vercel)   | Computación efímera en la infraestructura de Vercel | [Guía de integración](https://arize.com/docs/phoenix/integrations/sandboxes/vercel) |
+| [Modal](https://arize.com/docs/phoenix/integrations/sandboxes/modal)             | Plataforma de contenedores serverless, centrada en Python | [Guía de integración](https://arize.com/docs/phoenix/integrations/sandboxes/modal)  |
+| [Docker Sandboxes](https://arize.com/docs/phoenix/integrations/sandboxes/docker) | Sandboxes en la nube alojados por Docker | [Guía de integración](https://arize.com/docs/phoenix/integrations/sandboxes/docker) |
 
-## For Humans and Coding Agents
+## Para personas y agentes de programación
 
-Phoenix is built to be driven by people and by AI coding agents alike. Three surfaces let agents (Claude Code, Codex, Cursor, and others) work with your traces, datasets, and experiments:
+Phoenix está diseñado para que lo utilicen tanto personas como agentes de programación de IA. Tres interfaces permiten a los agentes (Claude Code, Codex, Cursor y otros) trabajar con sus trazas, datasets y experimentos:
 
-- **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` fetches traces, datasets, and experiments and instruments your app (`setup`), so an agent can pull context and act on it from the terminal.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](.agents/skills/) packages workflows that teach agents how to debug, evaluate, and trace with Phoenix.
-- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — connect any MCP client to your instance's `/mcp` endpoint to query Phoenix directly.
+- **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` obtiene trazas, datasets y experimentos e instrumenta su aplicación (`setup`), de modo que un agente puede obtener contexto y actuar en consecuencia desde el terminal.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) empaqueta flujos de trabajo que enseñan a los agentes a depurar, evaluar y trazar con Phoenix.
+- **[Servidor MCP remoto](https://arize.com/docs/phoenix/integrations/remote-mcp)** — conecte cualquier cliente MCP al endpoint `/mcp` de su instancia para consultar Phoenix directamente.
 
-See the [coding agents documentation](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for setup and usage.
+Consulte la [documentación sobre agentes de programación](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) para su configuración y uso.
 
-| Skill                                              | Description                                                                                                                |
+| Skill | Descripción |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](.agents/skills/phoenix-cli/)         | Debug LLM applications using the Phoenix CLI — fetch traces, analyze errors, review experiments, and query the GraphQL API |
-| [phoenix-evals](.agents/skills/phoenix-evals/)     | Build and run evaluators for AI/LLM applications using Phoenix                                                             |
-| [phoenix-tracing](.agents/skills/phoenix-tracing/) | OpenInference semantic conventions and instrumentation for tracing LLM applications                                        |
+| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Depure aplicaciones LLM con la CLI de Phoenix: obtenga trazas, analice errores, revise experimentos y consulte la API GraphQL |
+| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Cree y ejecute evaluadores para aplicaciones de IA/LLM con Phoenix |
+| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Convenciones semánticas e instrumentación de OpenInference para el tracing de aplicaciones LLM |
 
-## Security & Privacy
+## Seguridad y privacidad
 
-We take data security and privacy very seriously. For more details, see our [Security and Privacy documentation](https://arize.com/docs/phoenix/self-hosting/security/privacy).
+Nos tomamos muy en serio la seguridad y la privacidad de los datos. Para obtener más información, consulte nuestra [documentación de seguridad y privacidad](https://arize.com/docs/phoenix/self-hosting/security/privacy).
 
-### Telemetry
+### Telemetría
 
-By default, Phoenix collects basic web analytics (e.g., page views, UI interactions) to help us understand how Phoenix is used and improve the product. **None of your trace data, evaluation results, or any sensitive information is ever collected.**
+De forma predeterminada, Phoenix recopila analíticas web básicas (p. ej., páginas vistas, interacciones con la interfaz) para ayudarnos a entender cómo se usa Phoenix y mejorar el producto. **Nunca se recopilan sus datos de trazas, resultados de evaluaciones ni ninguna información sensible.**
 
-You can opt-out of telemetry by setting the environment variable: `PHOENIX_TELEMETRY_ENABLED=false`
+Puede desactivar la telemetría configurando la variable de entorno: `PHOENIX_TELEMETRY_ENABLED=false`
 
-## Community
+## Comunidad
 
-Join our community to connect with thousands of AI builders.
+Únase a nuestra comunidad para conectar con miles de desarrolladores de IA.
 
-- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
-- 📚 Read our [documentation](https://arize.com/docs/phoenix).
-- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
-- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
-- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
-- 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
-- 💼 Follow us on [LinkedIn](https://www.linkedin.com/showcase/113218220).
-- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
-- 🧑‍🏫 Deep dive into everything [Agents](http://arize.com/ai-agents/) and [LLM Evaluations](https://arize.com/llm-evaluation) on Arize's Learning Hubs.
+- 🌍 Únase a nuestra [comunidad de Slack](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
+- 📚 Lea nuestra [documentación](https://arize.com/docs/phoenix).
+- 💡 Haga preguntas y envíe sus comentarios en el canal _#phoenix-support_.
+- 🌟 Deje una estrella en nuestro [GitHub](https://github.com/Arize-ai/phoenix).
+- 🐞 Informe de errores en [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
+- 𝕏 Síganos en [𝕏](https://twitter.com/ArizePhoenix).
+- 💼 Síganos en [LinkedIn](https://www.linkedin.com/showcase/113218220).
+- 🗺️ Consulte nuestra [hoja de ruta](https://github.com/orgs/Arize-ai/projects/45) para ver hacia dónde nos dirigimos.
+- 🧑‍🏫 Profundice en todo lo relacionado con [agentes](http://arize.com/ai-agents/) y [evaluaciones de LLM](https://arize.com/llm-evaluation) en los Learning Hubs de Arize.
 
-## Breaking Changes
+## Cambios incompatibles
 
-See the [migration guide](./MIGRATION.md) for a list of breaking changes.
+Consulte la [guía de migración](../../MIGRATION.md) para ver una lista de los cambios incompatibles.
 
-## Copyright, Patent, and License
+## Copyright, patentes y licencia
 
-Copyright 2025 Arize AI, Inc. All Rights Reserved.
+Copyright 2025 Arize AI, Inc. Todos los derechos reservados.
 
-Portions of this code are patent protected by one or more U.S. Patents. See the [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
+Partes de este código están protegidas por una o más patentes de EE. UU. Consulte el [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
-This software is licensed under the terms of the Elastic License 2.0 (ELv2). See [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+Este software se distribuye bajo los términos de la Elastic License 2.0 (ELv2). Consulte [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).

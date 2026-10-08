@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       base:
-        description: "Commit to diff README.md from (default: the last commit that touched a README.<lang>.md)"
+        description: "Commit to diff README.md from (default: the last commit that touched a docs/i18n/README.<lang>.md)"
         required: false
         type: string
 
@@ -47,7 +47,7 @@ jobs:
         run: |
           # The translations were last synced by the most recent commit that
           # touched any of them; everything README.md gained since then is new.
-          BASE="${INPUT_BASE:-$(git log -1 --format=%H -- ':(top,glob)README.*.md')}"
+          BASE="${INPUT_BASE:-$(git log -1 --format=%H -- ':(top,glob)docs/i18n/README.*.md')}"
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}"; then
             echo "::error::Could not resolve a base commit to diff from."
             exit 1
@@ -91,7 +91,7 @@ jobs:
 
             `.scratch/readme.diff` holds every change made to README.md since commit
             ${{ steps.diff.outputs.base }}, when the translations were last updated.
-            Each `README.<lang>.md` at the repository root is a translation (the suffix
+            Each `docs/i18n/README.<lang>.md` is a translation (the suffix
             is the language, e.g. `README.pt-BR.md` is Brazilian Portuguese, `README.zh-TW.md`
             Traditional Chinese, `README.no.md` Norwegian Bokmål) that mirrors README.md
             line for line: line N of a translation corresponds to line N of README.md.
@@ -100,7 +100,9 @@ jobs:
             - Added or changed lines: translate them into that file's language, matching
               the terminology, tone, and formality already used in that file. Keep URLs,
               link targets, image and badge markup, inline code, HTML tags, commands, and
-              product/package names exactly as in README.md. Lines without prose (HTML,
+              product/package names exactly as in README.md, except that relative links
+              (e.g. `./MIGRATION.md`) are rewritten relative to `docs/i18n/` (e.g.
+              `../../MIGRATION.md`). Lines without prose (HTML,
               code, badge-only table rows) are copied verbatim.
             - Removed lines: remove the corresponding line.
             - Leave every other line untouched. Do not retranslate or polish unchanged text.
@@ -115,7 +117,7 @@ jobs:
             Then run `python3 scripts/check_readme_translations.py` and fix every problem
             it reports until it reports 0 problems.
 
-            Only edit `README.<lang>.md` files. Do not commit, push, or open a PR; the
+            Only edit `docs/i18n/README.<lang>.md` files. Do not commit, push, or open a PR; the
             workflow handles publishing. When done, write a short PR body to
             `.scratch/pr-body.md` summarizing which README.md changes were synced.
           claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git diff:*)","Bash(git log:*)","Bash(git show:*)","Bash(git status:*)","Bash(python3 scripts/check_readme_translations.py:*)","Bash(ls:*)","Bash(wc:*)"'
@@ -130,7 +132,7 @@ jobs:
         run: |
           # Publish only translation files, whatever else the run touched.
           git restore --source=HEAD --worktree --staged -- README.md
-          git add -- ':(top,glob)README.*.md'
+          git add -- ':(top,glob)docs/i18n/README.*.md'
           if git diff --cached --quiet; then
             echo "No translation changes — exiting cleanly."
             exit 0
