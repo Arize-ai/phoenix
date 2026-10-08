@@ -52,14 +52,15 @@ def _clear_login_providers(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "host, expected",
+    "host, expected, grpc_host",
     [
-        pytest.param("0.0.0.0", True, id="non_loopback"),
-        pytest.param("127.0.0.1", False, id="loopback"),
+        pytest.param("0.0.0.0", True, "0.0.0.0", id="non_loopback"),
+        pytest.param("127.0.0.1", False, "127.0.0.1", id="loopback"),
+        pytest.param("127.1", False, "127.0.0.1", id="abbreviated_loopback"),
     ],
 )
 def test_thread_session_auth_follows_host(
-    monkeypatch: pytest.MonkeyPatch, host: str, expected: bool
+    monkeypatch: pytest.MonkeyPatch, host: str, expected: bool, grpc_host: str
 ) -> None:
     monkeypatch.delenv(ENV_PHOENIX_ENABLE_AUTH, raising=False)
     monkeypatch.delenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, raising=False)
@@ -80,6 +81,7 @@ def test_thread_session_auth_follows_host(
     assert mock_create_app.call_args is not None
     kwargs = mock_create_app.call_args.kwargs
     assert kwargs["authentication_enabled"] is expected
+    assert kwargs["grpc_host"] == grpc_host
     assert kwargs["secret"] == get_env_phoenix_secret()
     assert kwargs["access_token_expiry"] == get_env_access_token_expiry()
     assert kwargs["refresh_token_expiry"] == get_env_refresh_token_expiry()
@@ -119,28 +121,6 @@ async def test_thread_session_login_with_auth(
     body = response.json()
     assert isinstance(body.get("password_reset_token"), str)
     assert body["password_reset_token"]
-
-
-def test_thread_session_binds_canonical_grpc_host(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    grpc_port = _free_port()
-    monkeypatch.setenv("PHOENIX_GRPC_PORT", str(grpc_port))
-    monkeypatch.delenv(ENV_PHOENIX_ENABLE_AUTH, raising=False)
-    monkeypatch.delenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, raising=False)
-    _clear_login_providers(monkeypatch)
-    session = ThreadSession(
-        database_url=f"sqlite:///{tmp_path / 'phoenix.db'}",
-        host="127.1",
-        port=_free_port(),
-    )
-    try:
-        assert session.host == "127.0.0.1"
-        assert session.active
-        with socket.create_connection(("127.0.0.1", grpc_port), timeout=5):
-            pass
-    finally:
-        session.end()
 
 
 def test_explicit_non_loopback_host_without_a_login_method_matches_the_environment(
