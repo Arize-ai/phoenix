@@ -12,7 +12,8 @@ Usage:
         [--endpoint http://localhost:6006] \
         [--experiment-name ...]
 
-The endpoint defaults to $PHOENIX_COLLECTOR_ENDPOINT, else http://localhost:6006.
+The endpoint defaults to $PHOENIX_ENDPOINT, then $PHOENIX_COLLECTOR_ENDPOINT,
+else http://localhost:6006.
 """
 
 from __future__ import annotations
@@ -93,10 +94,12 @@ def main() -> None:
     parser.add_argument("--experiment-name", default=None)
     args = parser.parse_args()
 
-    endpoint = args.endpoint or os.environ.get(
-        "PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006"
+    endpoint = (
+        args.endpoint
+        or os.environ.get("PHOENIX_ENDPOINT")
+        or os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+        or "http://localhost:6006"
     )
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = endpoint
 
     data = json.loads(args.results.read_text())
     cases = data.get("cases", [])
@@ -122,7 +125,7 @@ def main() -> None:
     from phoenix.client import Client
     from phoenix.client.experiments import run_experiment
 
-    client = Client()
+    client = Client(base_url=endpoint)
     dataset = client.datasets.create_dataset(name=args.dataset_name, examples=examples)
 
     def replay_task(expected: dict[str, Any]) -> dict[str, Any]:
@@ -137,6 +140,7 @@ def main() -> None:
         task=replay_task,
         evaluators=[score, delta, passed],
         experiment_name=experiment_name,
+        client=client,
     )
 
     print(f"recorded experiment '{experiment_name}' to {endpoint}")
