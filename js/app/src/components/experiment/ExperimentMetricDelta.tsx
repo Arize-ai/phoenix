@@ -160,21 +160,27 @@ const metricCellCSS = css`
   display: grid;
   align-items: center;
   justify-items: end;
-  column-gap: var(--global-dimension-size-100);
+  column-gap: var(--global-dimension-size-150);
   width: 100%;
   min-width: 0;
   font-variant-numeric: tabular-nums;
 
-  .metric-cell__value {
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-end;
-    min-width: 0;
-  }
   .metric-cell__slot {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
+  }
+  .metric-cell__figure {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--global-dimension-size-50);
+    min-width: 0;
+  }
+  .metric-cell__value {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
   }
 `;
 
@@ -183,35 +189,38 @@ const tooltipLineCSS = css`
 `;
 
 /**
- * A table cell of a numeric value and its delta in fixed slots, so values,
- * bars and deltas each share one right edge down the column. Each slot is
- * rendered only when given, except the delta slot, which `hasDeltaSlot` keeps
- * open on rows without a delta (such as the baseline row) so the rest of the
- * cell does not shift.
+ * A right-aligned table cell for a numeric value. The value is the figure a
+ * reader scans for, so it sits at the cell's end with its delta tucked right
+ * after it in a smaller, fixed-width token; a bar or leading indicator sits
+ * further left as supporting visuals. Each slot is rendered only when given,
+ * except the delta slot, which `hasDeltaSlot` keeps open on rows without a
+ * delta (such as the baseline row) so values stay on one right edge.
  */
 export function ExperimentMetricCell({
   leading,
-  value,
   bar,
+  value,
   delta,
   hasDeltaSlot = false,
+  deltaSize = "XS",
 }: {
-  /** Content before the value, such as a missing-data indicator */
+  /** An indicator before everything else, such as a missing-data marker */
   leading?: ReactNode;
-  value: ReactNode;
-  /** A bar or other visual after the value */
+  /** A bar or other visual that supports the value */
   bar?: ReactNode;
-  /** The delta token, when this row has one */
+  value: ReactNode;
+  /** The delta token, when this row has one; pass it at `deltaSize` */
   delta?: ReactNode;
   /** Keeps the delta slot open when `delta` is absent */
   hasDeltaSlot?: boolean;
+  /** The size the delta tokens render at, so the empty slot matches */
+  deltaSize?: DeltaSize;
 }) {
   const showsDeltaSlot = hasDeltaSlot || delta != null;
   const gridTemplateColumns = [
     leading != null ? "auto" : null,
-    "minmax(0, 1fr)",
     bar != null ? "auto" : null,
-    showsDeltaSlot ? "auto" : null,
+    "minmax(0, 1fr)",
   ]
     .filter((column) => column != null)
     .join(" ");
@@ -224,13 +233,13 @@ export function ExperimentMetricCell({
       {leading != null ? (
         <span className="metric-cell__slot">{leading}</span>
       ) : null}
-      <span className="metric-cell__value">{value}</span>
       {bar != null ? <span className="metric-cell__slot">{bar}</span> : null}
-      {showsDeltaSlot ? (
-        <span className="metric-cell__slot">
-          {delta ?? <ExperimentMetricDeltaPlaceholder />}
-        </span>
-      ) : null}
+      <span className="metric-cell__figure">
+        <span className="metric-cell__value">{value}</span>
+        {showsDeltaSlot
+          ? (delta ?? <ExperimentMetricDeltaPlaceholder size={deltaSize} />)
+          : null}
+      </span>
     </div>
   );
 }
@@ -239,11 +248,15 @@ export function ExperimentMetricCell({
  * An empty token the width of a tabular delta, for rows in a delta column
  * that have nothing to compare, such as the baseline row.
  */
-export function ExperimentMetricDeltaPlaceholder() {
+export function ExperimentMetricDeltaPlaceholder({
+  size = "S",
+}: {
+  size?: DeltaSize;
+}) {
   return (
     <span
       className="metric-delta metric-delta--tabular"
-      data-size="S"
+      data-size={size}
       css={metricDeltaCSS}
       aria-hidden="true"
     />

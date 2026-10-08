@@ -455,6 +455,7 @@ export function ExperimentsTable({
         experiment={row}
         baseExperiment={baseline}
         note={note}
+        size="XS"
         tooltipPlacement="top"
         variant="tabular"
       />
@@ -1270,6 +1271,7 @@ function AnnotationAggregationCell({
             meanScore={value}
             baseMeanScore={baselineMeanScore}
             config={config}
+            size="XS"
             tooltipPlacement="top"
             variant="tabular"
           />

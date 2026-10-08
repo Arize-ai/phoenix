@@ -353,9 +353,10 @@ const tabularRows: { label: string; experiment: ExperimentRunMetricsSource }[] =
   ];
 
 /**
- * A table column of values and deltas in fixed slots: values share a right
- * edge, every row holds the arrow slot, an unchanged delta reads as a muted
- * zero, and the baseline row keeps the slot empty so nothing shifts.
+ * A table column of values and deltas in fixed slots: the value is the
+ * figure, its delta follows in a smaller token, values share a right edge,
+ * an unchanged delta reads as a muted zero, and the baseline row keeps the
+ * slot empty so nothing shifts.
  */
 export const TabularColumn: Story = {
   name: "Tabular Column",
@@ -383,6 +384,7 @@ export const TabularColumn: Story = {
                   metric={metric}
                   experiment={row.experiment}
                   baseExperiment={baselineRunMetrics}
+                  size="XS"
                   variant="tabular"
                 />
               )
