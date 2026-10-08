@@ -146,6 +146,16 @@ const ANNOTATION_BAR_WIDTH = "40px";
 const ANNOTATION_BAR_MIN_COLUMN_WIDTH = 140;
 const ANNOTATION_BAR_WITH_DELTA_MIN_COLUMN_WIDTH = 200;
 
+/**
+ * The narrowest columns that fit a value and its delta. Below these the delta
+ * is dropped so the value, which is what the column is for, stays whole.
+ */
+const ANNOTATION_DELTA_MIN_COLUMN_WIDTH = 130;
+const RUN_METRIC_DELTA_MIN_COLUMN_WIDTH = 180;
+
+/** Room for a value with its icon, the delta, and the cell padding */
+const METRIC_COLUMN_SIZE = 200;
+
 const annotationBarSlotCSS = css`
   display: inline-block;
   width: ${ANNOTATION_BAR_WIDTH};
@@ -450,12 +460,15 @@ export function ExperimentsTable({
    */
   const renderRunMetricCell = ({
     row,
+    columnSize,
     metric,
     value,
     hasValue,
     note,
   }: {
     row: TableRow;
+    /** The column's current width, which decides whether the delta fits */
+    columnSize: number;
     metric: ExperimentRunMetric;
     /** The value as the cell shows it, or the missing-value placeholder */
     value: ReactNode;
@@ -464,7 +477,8 @@ export function ExperimentsTable({
     /** An extra tooltip line, such as how the per-run value was derived */
     note?: string;
   }) => {
-    const baseline = hasValue ? getRowDeltaBaseline(row) : null;
+    const isDeltaShown = columnSize >= RUN_METRIC_DELTA_MIN_COLUMN_WIDTH;
+    const baseline = hasValue && isDeltaShown ? getRowDeltaBaseline(row) : null;
     return (
       <ExperimentMetricCell
         value={value}
@@ -481,7 +495,7 @@ export function ExperimentsTable({
             />
           ) : undefined
         }
-        hasDeltaSlot={hasDeltaSlot}
+        hasDeltaSlot={hasDeltaSlot && isDeltaShown}
       />
     );
   };
@@ -612,11 +626,15 @@ export function ExperimentsTable({
           </Flex>
         ),
         id: `${ANNOTATION_COLUMN_PREFIX}${annotationName}`,
+        size: METRIC_COLUMN_SIZE,
         meta: { textAlign: "right" },
         cell: ({ row, column }) => {
+          const columnSize = column.getSize();
+          const isDeltaShown =
+            hasDeltaSlot && columnSize >= ANNOTATION_DELTA_MIN_COLUMN_WIDTH;
           const isBarShown =
-            column.getSize() >=
-            (hasDeltaSlot
+            columnSize >=
+            (isDeltaShown
               ? ANNOTATION_BAR_WITH_DELTA_MIN_COLUMN_WIDTH
               : ANNOTATION_BAR_MIN_COLUMN_WIDTH);
           const annotation = row.original.annotationSummaryMap[annotationName];
@@ -627,11 +645,13 @@ export function ExperimentsTable({
                 bar={
                   isBarShown ? <span css={annotationBarSlotCSS} /> : undefined
                 }
-                hasDeltaSlot={hasDeltaSlot}
+                hasDeltaSlot={isDeltaShown}
               />
             );
           }
-          const rowBaseline = getRowDeltaBaseline(row.original);
+          const rowBaseline = isDeltaShown
+            ? getRowDeltaBaseline(row.original)
+            : null;
           return (
             <AnnotationAggregationCell
               annotationName={annotationName}
@@ -647,7 +667,7 @@ export function ExperimentsTable({
                   : undefined
               }
               config={annotationConfigByName[annotationName]}
-              hasDeltaSlot={hasDeltaSlot}
+              hasDeltaSlot={isDeltaShown}
               isBarShown={isBarShown}
             />
           );
@@ -710,12 +730,14 @@ export function ExperimentsTable({
     {
       header: "avg latency",
       accessorKey: "averageRunLatencyMs",
+      size: METRIC_COLUMN_SIZE,
       meta: { textAlign: "right" },
-      cell: ({ getValue, row }) => {
+      cell: ({ getValue, row, column }) => {
         const value = getValue();
         const hasValue = typeof value === "number";
         return renderRunMetricCell({
           row: row.original,
+          columnSize: column.getSize(),
           metric: "latency",
           value: hasValue ? <LatencyText latencyMs={value} size="S" /> : "--",
           hasValue,
@@ -725,11 +747,13 @@ export function ExperimentsTable({
     {
       header: "total cost",
       accessorKey: "costSummary.total.cost",
+      size: METRIC_COLUMN_SIZE,
       meta: { textAlign: "right" },
-      cell: ({ getValue, row }) => {
+      cell: ({ getValue, row, column }) => {
         const value = getValue() as number | null;
         return renderRunMetricCell({
           row: row.original,
+          columnSize: column.getSize(),
           metric: "cost",
           value:
             value != null ? (
@@ -748,11 +772,13 @@ export function ExperimentsTable({
     {
       header: "total tokens",
       accessorKey: "costSummary.total.tokens",
+      size: METRIC_COLUMN_SIZE,
       meta: { textAlign: "right" },
-      cell: ({ getValue, row }) => {
+      cell: ({ getValue, row, column }) => {
         const value = getValue() as number | null;
         return renderRunMetricCell({
           row: row.original,
+          columnSize: column.getSize(),
           metric: "tokens",
           value: (
             <ExperimentTokenCount
@@ -769,11 +795,13 @@ export function ExperimentsTable({
     {
       header: "error rate",
       accessorKey: "errorRate",
+      size: METRIC_COLUMN_SIZE,
       meta: { textAlign: "right" },
-      cell: ({ row }) => {
+      cell: ({ row, column }) => {
         const { errorRate } = row.original;
         return renderRunMetricCell({
           row: row.original,
+          columnSize: column.getSize(),
           metric: "errorRate",
           value: <ErrorRateText errorRate={errorRate} />,
           hasValue: errorRate != null,
