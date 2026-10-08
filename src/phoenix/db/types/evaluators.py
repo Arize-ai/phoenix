@@ -168,6 +168,9 @@ _QUOTED_FIELD_PATTERN = re.compile(
     re.VERBOSE,
 )
 
+# jsonpath-ng reads any Unicode decimal digit as a number: `items[٣]` is `items[3]`.
+_NON_ASCII_DIGIT_PATTERN = re.compile(r"(?![0-9])\d")
+
 # Allowlist of AST node types for a restricted path syntax.
 # This limits the feature set to simple, well-understood path expressions,
 # avoiding complex features that could cause confusion or unexpected behavior.
@@ -226,6 +229,7 @@ def validate_jsonpath(value: str) -> str:
       - '..' recursive descent
       - Bare '@' (use ['@'] instead)
       - Invalid identifiers in dot notation (must start with letter or underscore)
+      - Digits other than 0-9 outside quoted keys
     """
     if not value:
         raise ValueError("JSONPath cannot be empty")
@@ -248,6 +252,9 @@ def validate_jsonpath(value: str) -> str:
             "Field names in dot notation must start with a letter or underscore. "
             "Use bracket notation like ['123'] for other field names"
         )
+
+    if _NON_ASCII_DIGIT_PATTERN.search(unquoted):
+        raise ValueError("Numbers in a path must use the digits 0-9")
 
     try:
         ast = parse_jsonpath(value)
