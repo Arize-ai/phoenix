@@ -1454,19 +1454,14 @@ class MetaClient(OpenAICompatibleClient):
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
         "anthropic.claude-sonnet-5",
+        "anthropic.claude-haiku-5-5",
         "anthropic.claude-opus-4-6-v1",
         "anthropic.claude-sonnet-4-6",
         "anthropic.claude-opus-4-5-20251101-v1:0",
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
-        "anthropic.claude-opus-4-1-20250805-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
         "anthropic.claude-sonnet-4-20250514-v1:0",
-        "anthropic.claude-3-7-sonnet-20250219-v1:0",
-        "anthropic.claude-3-5-sonnet-20241022-v2:0",
-        "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "anthropic.claude-3-5-haiku-20241022-v1:0",
-        "anthropic.claude-3-haiku-20240307-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -2154,6 +2149,7 @@ ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-sonnet-5",
+    "claude-haiku-5-5",
 ]
 
 # Older Anthropic models that still accept extended thinking
@@ -2166,10 +2162,8 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-opus-4-5",
     "claude-sonnet-4-5",
     "claude-haiku-4-5",
-    "claude-opus-4-1",
     "claude-sonnet-4-0",
     "claude-opus-4-0",
-    "claude-3-7-sonnet-latest",
 ]
 
 
