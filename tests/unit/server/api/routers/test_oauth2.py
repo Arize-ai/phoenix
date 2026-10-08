@@ -955,62 +955,46 @@ class TestOAuth2CallbackLoginContext:
         )
         assert _redirect_error(response) == "invalid_state"
 
-    async def test_missing_login_context_is_rejected(self) -> None:
-        response = await self._callback()
-        assert _redirect_error(response) == "invalid_state"
-
     @pytest.mark.parametrize(
         "login_context",
         [
-            "!!!!",
-            _b64(b"not-json"),
-            _b64(b"[]"),
-            _b64(b"{}"),
-            _b64(b'{"origin_url":1}'),
-            _b64(b'{"return_url":"/projects"}'),
-            _b64(b'{"origin_url":"http://testserver","return_url":"/projects","extra":1}'),
-        ],
-    )
-    async def test_malformed_login_context_is_rejected(self, login_context: str) -> None:
-        response = await self._callback(login_context=login_context)
-        assert _redirect_error(response) == "invalid_state"
-
-    @pytest.mark.parametrize(
-        "origin_url",
-        [
-            pytest.param("http://[", id="malformed"),
-            pytest.param("javascript:alert(1)", id="non_http_scheme"),
-        ],
-    )
-    async def test_invalid_origin_url_is_rejected(self, origin_url: str) -> None:
-        login_context = _encode_oauth2_login_context(origin_url=origin_url, return_url=None)
-        response = await self._callback(login_context=login_context)
-        assert _redirect_error(response) == "invalid_state"
-        _assert_oauth2_cookies_deleted(response)
-
-    async def test_oversized_login_context_is_rejected(self) -> None:
-        response = await self._callback(login_context="a" * 4097)
-        assert _redirect_error(response) == "invalid_state"
-        _assert_oauth2_cookies_deleted(response)
-
-    @pytest.mark.parametrize(
-        "payload",
-        [
-            pytest.param({"origin_url": "https://\ud800"}, id="origin"),
+            pytest.param(None, id="missing"),
+            pytest.param("!!!!", id="not_base64"),
+            pytest.param(_b64(b"not-json"), id="not_json"),
+            pytest.param(_b64(b"[]"), id="not_object"),
+            pytest.param(_b64(b"{}"), id="empty_object"),
+            pytest.param(_b64(b'{"origin_url":1}'), id="non_string_origin"),
+            pytest.param(_b64(b'{"return_url":"/projects"}'), id="missing_origin"),
             pytest.param(
-                {"origin_url": "https://example.com", "return_url": "/\ud800"},
-                id="return_url",
+                _b64(b'{"origin_url":"http://testserver","return_url":"/projects","extra":1}'),
+                id="extra_key",
             ),
+            pytest.param(
+                _encode_oauth2_login_context(origin_url="http://[", return_url=None),
+                id="malformed_origin",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(origin_url="javascript:alert(1)", return_url=None),
+                id="non_http_origin",
+            ),
+            pytest.param("a" * 4097, id="oversized"),
+            pytest.param(
+                _b64(json.dumps({"origin_url": "https://\ud800"}).encode()),
+                id="lone_surrogate_origin",
+            ),
+            pytest.param(
+                _b64(
+                    json.dumps(
+                        {"origin_url": "https://example.com", "return_url": "/\ud800"}
+                    ).encode()
+                ),
+                id="lone_surrogate_return_url",
+            ),
+            pytest.param(_b64(("[" * 1000 + "0" + "]" * 1000).encode()), id="deeply_nested"),
         ],
     )
-    async def test_lone_surrogate_login_context_is_rejected(self, payload: dict[str, str]) -> None:
-        response = await self._callback(login_context=_b64(json.dumps(payload).encode()))
-        assert _redirect_error(response) == "invalid_state"
-        _assert_oauth2_cookies_deleted(response)
-
-    async def test_deeply_nested_login_context_is_rejected(self) -> None:
-        raw = ("[" * 1000 + "0" + "]" * 1000).encode()
-        response = await self._callback(login_context=_b64(raw))
+    async def test_invalid_login_context_is_rejected(self, login_context: str | None) -> None:
+        response = await self._callback(login_context=login_context)
         assert _redirect_error(response) == "invalid_state"
         _assert_oauth2_cookies_deleted(response)
 
