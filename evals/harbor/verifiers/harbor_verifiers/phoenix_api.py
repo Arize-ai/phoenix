@@ -3,7 +3,7 @@
 Use the typed Phoenix client for spans and span annotations. The client cannot read
 trace annotations, so :func:`trace_annotation_scores` uses the REST API. Per-span cost
 requires GraphQL, so :func:`span_costs` uses the GraphQL API. Aggregates over many rows
-go through :func:`execute_sql`, the read-only analytics SQL tool on the MCP server.
+go through :func:`execute_sql_query`, the read-only analytics SQL tool on the MCP server.
 """
 
 from __future__ import annotations
@@ -29,6 +29,9 @@ from harbor_verifiers.graphql.__generated__ import (
     DatasetEvaluatorsNodeDataset,
     DatasetExperimentsNodeDataset,
     ExperimentFields,
+    ExperimentRunsNodeExperiment,
+    ExperimentRunsNodeExperimentRunsEdgesNode,
+    GenerativeModelsGenerativeModelsEdgesNode,
 )
 from phoenix.server.api.types.node import from_global_id
 
@@ -167,7 +170,7 @@ def span_costs(project: str) -> dict[SpanId, float]:
 Row = dict[str, Any]
 
 
-def execute_sql(sql: str) -> list[Row]:
+def execute_sql_query(sql: str) -> list[Row]:
     """Run one read-only statement through the MCP ``executeSql`` tool.
 
     The tool admits only allowlisted tables and functions and caps results at
@@ -196,9 +199,8 @@ def execute_sql(sql: str) -> list[Row]:
     return [dict(zip(columns, row)) for row in envelope["rows"]]
 
 
-def scalar(sql: str) -> Any:
-    """The single value of a one-row, one-column statement."""
-    rows = execute_sql(sql)
+def get_scalar_from_sql_query(sql: str) -> Any:
+    rows = execute_sql_query(sql)
     if len(rows) != 1 or len(rows[0]) != 1:
         raise SystemExit(f"expected one value, got {rows!r}\n{sql}")
     return next(iter(rows[0].values()))
@@ -234,79 +236,66 @@ def rest_pages(path: str, **params: Any) -> list[Any]:
             return items
 
 
-def dataset_id(name: str) -> str:
-    """The node id of the dataset with this exact name."""
+def get_dataset_id_from_name(name: str) -> str:
     for dataset in rest("/datasets", name=name)["data"]:
         if dataset["name"] == name:
             return str(dataset["id"])
     raise SystemExit(f"no dataset named {name!r}")
 
 
-def experiment_by_name(dataset: str, name: str) -> dict[str, Any]:
+def get_experiment_by_name(dataset: str, name: str) -> dict[str, Any]:
     """The REST experiment record with this name on the dataset."""
-    for experiment in rest_pages(f"/datasets/{dataset_id(dataset)}/experiments", limit=100):
+    for experiment in rest_pages(
+        f"/datasets/{get_dataset_id_from_name(dataset)}/experiments", limit=100
+    ):
         if experiment["name"] == name:
             return dict(experiment)
     raise SystemExit(f"no experiment named {name!r} on {dataset!r}")
 
 
-_EXPERIMENT_RUNS = """
-query($id: ID!, $after: String) { node(id: $id) { ... on Experiment {
-  runs(first: 50, after: $after) {
-    pageInfo { hasNextPage endCursor }
-    edges { node { id traceId error output
-      annotations { edges { node { name label score explanation } } }
-      example { id revision { input output metadata } } } } } } } }
-"""
+ExperimentRun = ExperimentRunsNodeExperimentRunsEdgesNode
+GenerativeModel = GenerativeModelsGenerativeModelsEdgesNode
 
 
-def experiment_runs(experiment_id: str) -> list[dict[str, Any]]:
-    """Every run of the experiment with its annotations flattened and its example."""
-    runs: list[dict[str, Any]] = []
+def get_experiment_runs(experiment_id: str) -> list[ExperimentRun]:
+    runs: list[ExperimentRun] = []
     cursor: str | None = None
     while True:
-        page = graphql(_EXPERIMENT_RUNS, {"id": experiment_id, "after": cursor})["node"]["runs"]
-        for edge in page["edges"]:
-            run = dict(edge["node"])
-            run["annotations"] = [a["node"] for a in run["annotations"]["edges"]]
-            runs.append(run)
-        if not page["pageInfo"]["hasNextPage"]:
+        node = graphql_client().experiment_runs(experiment_id, cursor, timeout=60.0).node
+        if not isinstance(node, ExperimentRunsNodeExperiment):
+            raise ValueError(f"{experiment_id} is not an experiment")
+        runs.extend(edge.node for edge in node.runs.edges)
+        if not node.runs.page_info.has_next_page:
             return runs
-        cursor = page["pageInfo"]["endCursor"]
+        cursor = node.runs.page_info.end_cursor
 
 
-_GENERATIVE_MODELS = """
-query($after: String) { generativeModels(first: 100, after: $after) {
-  pageInfo { hasNextPage endCursor }
-  edges { node { name namePattern kind provider
-    tokenPrices { tokenType kind costPerToken costPerMillionTokens } } } } }
-"""
-
-
-def generative_models() -> list[dict[str, Any]]:
-    """Every generative model with its token prices."""
-    models: list[dict[str, Any]] = []
+def get_generative_models() -> list[GenerativeModel]:
+    models: list[GenerativeModel] = []
     cursor: str | None = None
     while True:
-        page = graphql(_GENERATIVE_MODELS, {"after": cursor})["generativeModels"]
-        models.extend(edge["node"] for edge in page["edges"])
-        if not page["pageInfo"]["hasNextPage"]:
+        page = graphql_client().generative_models(cursor, timeout=60.0).generative_models
+        models.extend(edge.node for edge in page.edges)
+        if not page.page_info.has_next_page:
             return models
-        cursor = page["pageInfo"]["endCursor"]
+        cursor = page.page_info.end_cursor
 
 
-def attribute(attributes: str | dict[str, Any], path: str) -> Any:
-    """A dotted key such as ``llm.model_name`` from a span's nested attributes."""
+def get_nested_attribute(attributes: str | dict[str, Any], dotted_path: str) -> Any:
+    """``get_nested_attribute(span["attributes"], "llm.model_name")`` reads the nested
+    ``attributes["llm"]["model_name"]``; None when any level is missing. The
+    attributes may still be the JSON string the API returned."""
     value: Any = json.loads(attributes) if isinstance(attributes, str) else attributes
-    for part in path.split("."):
+    for part in dotted_path.split("."):
         if not isinstance(value, dict):
             return None
         value = value.get(part)
     return value
 
 
-def utc(timestamp: str) -> str:
-    """An ISO 8601 instant as ``YYYY-MM-DD HH:MM:SS UTC`` for the answer text."""
+def format_utc_timestamp(timestamp: str) -> str:
+    """An ISO 8601 UTC instant from the API as ``YYYY-MM-DD HH:MM:SS UTC`` for the answer
+    text."""
     return timestamp[:19].replace("T", " ") + " UTC"
 
 

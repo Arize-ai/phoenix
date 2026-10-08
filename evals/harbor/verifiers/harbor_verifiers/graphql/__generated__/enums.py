@@ -20,6 +20,11 @@ class EvaluatorKind(str, Enum):
     BUILTIN = "BUILTIN"
 
 
+class GenerativeModelKind(str, Enum):
+    CUSTOM = "CUSTOM"
+    BUILT_IN = "BUILT_IN"
+
+
 class GenerativeProviderKey(str, Enum):
     OPENAI = "OPENAI"
     ANTHROPIC = "ANTHROPIC"
@@ -78,3 +83,8 @@ class PromptTemplateFormat(str, Enum):
     MUSTACHE = "MUSTACHE"
     F_STRING = "F_STRING"
     NONE = "NONE"
+
+
+class TokenKind(str, Enum):
+    PROMPT = "PROMPT"
+    COMPLETION = "COMPLETION"

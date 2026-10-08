@@ -1,4 +1,4 @@
-"""Diagnostics from an ATIF trajectory: which Phoenix surfaces the agent reached.
+"""Which Phoenix surfaces the agent reached, read from an ATIF trajectory.
 
 Every value is numeric so it rides along in ``reward.json`` as its own evaluation
 beside ``reward``. None of them changes the pass or fail verdict. Tokens, cost, and
@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from typing import Any, Iterable
 
-from harbor_verifiers.verify import agent_steps
+from harbor_verifiers.verify import tool_calls
 
 SQL_TOOLS = frozenset({"executesql", "describesqlschema"})
 CODE_MODE_TOOLS = frozenset({"execute"})
@@ -115,13 +115,6 @@ def categories(call: dict[str, Any]) -> set[Category]:
     if _CAMEL_CASE.match(name):
         return {"rest"}
     return set()
-
-
-def tool_calls(trajectory: dict[str, Any] | None) -> Iterable[dict[str, Any]]:
-    for step in agent_steps(trajectory):
-        for call in step.get("tool_calls") or []:
-            if isinstance(call, dict):
-                yield call
 
 
 def surface_usage(trajectory: dict[str, Any] | None) -> dict[str, float]:

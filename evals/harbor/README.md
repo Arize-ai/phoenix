@@ -178,15 +178,12 @@ measurements.
 
 ### Add grading that only one dataset needs
 
-Put a helper in `harbor_verifiers` when a second dataset would use it unchanged. Put
-grading that names the dataset's own concepts in a `verifiers/` package inside the dataset
-directory instead, such as `tasks/api-selection-dev/verifiers/`, whose
-`api_selection_verifiers.verify` adds `api_selection_correct` to the shared grader's
-output. Staging builds that package into a wheel for the dataset's tasks only, and
-`test.sh` runs its module in place of `harbor_verifiers.verify`. Another dataset shares
-the package by naming its directory in `task.toml` with `[metadata] verifiers =
-"api-selection-dev"`. Add the package to the uv workspace and the tox install lines so
-its tests run with the others.
+Grading that only one dataset needs lives in a `verifiers/` package inside that dataset's
+directory, such as `tasks/api-selection-dev/verifiers/`. Staging installs it beside
+`harbor_verifiers` in that dataset's images only, and the dataset's `test.sh` runs its
+module. Another dataset can share it with `[metadata] verifiers = "<dataset>"` in
+`task.toml`. Add the package to the uv workspace and the tox install lines so its tests
+run with the others.
 
 ### Add a condition
 

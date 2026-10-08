@@ -1,0 +1,22 @@
+query GenerativeModels($after: String) {
+  generativeModels(first: 100, after: $after) {
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    edges {
+      node {
+        name
+        namePattern
+        kind
+        provider
+        tokenPrices {
+          tokenType
+          kind
+          costPerToken
+          costPerMillionTokens
+        }
+      }
+    }
+  }
+}

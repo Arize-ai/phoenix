@@ -5,10 +5,19 @@ from typing import Any
 import pytest
 
 from api_selection_verifiers import verify
+from harbor_verifiers import verify as shared
 
 
 def _call(name: str, **arguments: Any) -> dict[str, Any]:
     return {"tool_call_id": name, "function_name": name, "arguments": arguments}
+
+
+@pytest.fixture(autouse=True)
+def _judge_by_normalized_equality(monkeypatch: pytest.MonkeyPatch) -> None:
+    def check_reference(reply: str, reference: str, notes: str = "") -> tuple[float, str]:
+        return shared.check_exact(reply, reference), "stub judge"
+
+    monkeypatch.setattr(shared, "check_reference", check_reference)
 
 
 def _trajectory(*calls: dict[str, Any]) -> dict[str, Any]:
@@ -37,7 +46,7 @@ def test_api_selection_is_correct_when_sql_is_used_exactly_on_sql_tasks() -> Non
 
 def test_main_writes_the_reward_with_the_surface_diagnostics(tmp_path: Path) -> None:
     expected = tmp_path / "expected.json"
-    expected.write_text(json.dumps({"exact": "42", "expected_api": "http"}))
+    expected.write_text(json.dumps({"reference": "42", "expected_api": "http"}))
     trajectory = tmp_path / "trajectory.json"
     trajectory.write_text(
         json.dumps(_trajectory(_call("getProjects"), _call("executeSql", sql="select 1")))
@@ -62,7 +71,7 @@ def test_main_writes_the_reward_with_the_surface_diagnostics(tmp_path: Path) -> 
 
 def test_oracle_runs_without_a_trajectory_count_as_the_http_choice(tmp_path: Path) -> None:
     expected = tmp_path / "expected.json"
-    expected.write_text(json.dumps({"exact": "ok", "expected_api": "http"}))
+    expected.write_text(json.dumps({"reference": "ok", "expected_api": "http"}))
     answer = tmp_path / "answer.txt"
     answer.write_text("ok\n")
     reward_file = tmp_path / "reward.json"

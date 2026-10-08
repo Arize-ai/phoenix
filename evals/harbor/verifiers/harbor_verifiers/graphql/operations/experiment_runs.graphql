@@ -1,0 +1,39 @@
+query ExperimentRuns($experimentId: ID!, $after: String) {
+  node(id: $experimentId) {
+    __typename
+    ... on Experiment {
+      runs(first: 50, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          node {
+            id
+            traceId
+            error
+            output
+            annotations(first: 50) {
+              edges {
+                node {
+                  name
+                  label
+                  score
+                  explanation
+                }
+              }
+            }
+            example {
+              id
+              revision {
+                input
+                output
+                metadata
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

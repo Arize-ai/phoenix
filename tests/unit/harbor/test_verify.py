@@ -41,29 +41,31 @@ def test_measurements_count_agent_steps_only() -> None:
     assert verify.measurements(None) == {}
 
 
-def test_final_reply_is_the_last_agent_message() -> None:
-    assert verify.final_reply(TRAJECTORY) == "There are **117** traces."
+def test_get_final_reply_is_the_last_agent_message() -> None:
+    assert verify.get_final_reply(TRAJECTORY) == "There are **117** traces."
     parts = {"steps": [{"source": "agent", "message": [{"type": "text", "text": "ok"}]}]}
-    assert verify.final_reply(parts) == "ok"
-    assert verify.final_reply({"steps": [{"source": "agent", "message": "  "}]}) == ""
+    assert verify.get_final_reply(parts) == "ok"
+    assert verify.get_final_reply({"steps": [{"source": "agent", "message": "  "}]}) == ""
 
 
-def test_reply_comes_from_the_trajectory_then_the_answer_file(tmp_path: Path) -> None:
+def test_load_trajectory_is_none_when_missing_and_fails_when_malformed(tmp_path: Path) -> None:
     trajectory = tmp_path / "trajectory.json"
-    answer = tmp_path / "answer.txt"
-    answer.write_text("oracle\n")
-    assert verify.read_reply(trajectory, answer) == ("oracle\n", "answer_file")
+    assert verify.load_trajectory(trajectory) is None
     trajectory.write_text(json.dumps(TRAJECTORY))
-    assert verify.read_reply(trajectory, answer) == ("There are **117** traces.", "trajectory")
-    assert verify.read_reply(tmp_path / "none", tmp_path / "none") == ("", "answer_file")
+    assert verify.load_trajectory(trajectory) == TRAJECTORY
+    trajectory.write_text("[]")
+    with pytest.raises(ValueError, match="ATIF"):
+        verify.load_trajectory(trajectory)
+    trajectory.write_text("{not json")
+    with pytest.raises(ValueError):
+        verify.load_trajectory(trajectory)
 
 
 def test_exact_check_ignores_emphasis_case_and_end_punctuation() -> None:
-    expected = {"exact": "ok"}
-    assert verify.check("**OK**.", expected) == (1.0, "exact match against 'ok'")
-    assert verify.check("ok", expected)[0] == 1.0
-    assert verify.check("okay", expected)[0] == 0.0
-    assert verify.check("", expected)[0] == 0.0
+    assert verify.check_exact("**OK**.", "ok") == 1.0
+    assert verify.check_exact("ok", "ok") == 1.0
+    assert verify.check_exact("okay", "ok") == 0.0
+    assert verify.check_exact("", "ok") == 0.0
 
 
 def test_reference_check_grades_semantic_answers(
@@ -90,9 +92,36 @@ def test_reference_check_grades_semantic_answers(
     with custom_vcr.use_cassette(
         match_on=["method", "scheme", "host", "port", "path", "query", _json_bodies_match.__name__]
     ):
-        scores = [verify.check(reply, expected)[0] for reply, _ in cases]
+        scores = [
+            verify.check_reference(reply, expected["reference"], notes=expected["notes"])[0]
+            for reply, _ in cases
+        ]
 
     assert scores == [score for _, score in cases]
+
+
+def test_main_grades_the_answer_file_when_there_is_no_trajectory(tmp_path: Path) -> None:
+    expected = tmp_path / "expected.json"
+    expected.write_text(json.dumps({"exact": "ok"}))
+    answer = tmp_path / "answer.txt"
+    answer.write_text("OK\n")
+    reward_file = tmp_path / "reward.json"
+    args = ["--expected", str(expected), "--answer", str(answer), "--reward-file", str(reward_file)]
+    verify.main([*args, "--trajectory", str(tmp_path / "missing.json")])
+    assert json.loads(reward_file.read_text()) == {"reward": 1.0}
+    with pytest.raises(FileNotFoundError):
+        verify.main(
+            [
+                "--expected",
+                str(expected),
+                "--answer",
+                str(tmp_path / "none"),
+                "--reward-file",
+                str(reward_file),
+                "--trajectory",
+                str(tmp_path / "none"),
+            ]
+        )
 
 
 def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
