@@ -343,7 +343,7 @@ CREATE TABLE public.span_costs (
 
 CREATE INDEX ix_span_costs_model_id_span_start_time ON public.span_costs
     USING btree (model_id, span_start_time);
-CREATE INDEX ix_span_costs_span_rowid ON public.span_costs
+CREATE UNIQUE INDEX ix_span_costs_span_rowid ON public.span_costs
     USING btree (span_rowid);
 CREATE INDEX ix_span_costs_span_start_time ON public.span_costs
     USING btree (span_start_time);
