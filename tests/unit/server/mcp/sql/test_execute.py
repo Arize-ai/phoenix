@@ -11,7 +11,7 @@ from uuid import UUID
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlglot import exp, parse_one
 
 from phoenix.server.mcp.sql.allowlist import load_allowlist
@@ -25,6 +25,7 @@ from phoenix.server.mcp.sql.execute import (
     _postgres_execution_error_message,
     _rewrite_attribution,
     _serialized_envelope_bytes,
+    _set_temp_file_limit,
     _sqlite_read_uri,
     _success_envelope,
     execute_analytics_sql,
@@ -1207,3 +1208,51 @@ async def test_a_multibyte_statement_is_measured_in_bytes_not_characters(
     with pytest.raises(AnalyticsSqlError) as caught:
         await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
     assert "input limit" in caught.value.message
+
+
+class _FakeSavepoint:
+    def __init__(self, session: "_FakeSession") -> None:
+        self._session = session
+
+    async def __aenter__(self) -> None:
+        self._session.events.append("savepoint")
+
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> bool:
+        self._session.events.append("rollback to savepoint" if exc else "release savepoint")
+        # The savepoint rolls back and re-raises, like SQLAlchemy's begin_nested().
+        return False
+
+
+class _FakeSession:
+    def __init__(self, *, refuse: bool) -> None:
+        self.refuse = refuse
+        self.events: list[str] = []
+
+    def begin_nested(self) -> _FakeSavepoint:
+        return _FakeSavepoint(self)
+
+    async def execute(self, statement: object) -> None:
+        self.events.append(str(statement))
+        if self.refuse:
+            raise ProgrammingError(str(statement), {}, Exception("permission denied"))
+
+
+async def test_temp_file_limit_is_set_inside_a_savepoint() -> None:
+    session = _FakeSession(refuse=False)
+    await _set_temp_file_limit(session)  # type: ignore[arg-type]
+    assert session.events == [
+        "savepoint",
+        "SET LOCAL temp_file_limit = '512MB'",
+        "release savepoint",
+    ]
+
+
+async def test_refused_temp_file_limit_rolls_back_only_the_savepoint() -> None:
+    """A role that cannot set the limit must not abort the outer transaction."""
+    session = _FakeSession(refuse=True)
+    await _set_temp_file_limit(session)  # type: ignore[arg-type]
+    assert session.events == [
+        "savepoint",
+        "SET LOCAL temp_file_limit = '512MB'",
+        "rollback to savepoint",
+    ]
