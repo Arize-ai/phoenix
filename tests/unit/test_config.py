@@ -1190,11 +1190,17 @@ class TestLoopbackBindRule:
             pytest.param("  127.1  ", "127.0.0.1", id="abbreviation_whitespace"),
             pytest.param("localhost", "localhost", id="localhost"),
             pytest.param("::1", "::1", id="ipv6_loopback"),
+            pytest.param("[::1]", "::1", id="bracketed_ipv6_loopback"),
             pytest.param("0.0.0.0", "0.0.0.0", id="ipv4_unspecified"),
+            pytest.param("::", "::", id="ipv6_unspecified"),
+            pytest.param("[::]", "::", id="bracketed_ipv6_unspecified"),
+            pytest.param(" [::] ", "::", id="bracketed_ipv6_whitespace"),
+            pytest.param("0:0:0:0:0:0:0:0", "::", id="expanded_ipv6_unspecified"),
+            pytest.param("0:0:0:0:0:0:0:1", "::1", id="expanded_ipv6_loopback"),
             pytest.param("example.com", "example.com", id="hostname"),
         ],
     )
-    def test_get_env_host_canonicalizes_ipv4_abbreviations(
+    def test_get_env_host_canonicalizes(
         self, monkeypatch: MonkeyPatch, raw: str, expected: str
     ) -> None:
         monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, raw)

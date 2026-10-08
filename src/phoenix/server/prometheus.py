@@ -318,10 +318,10 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 def start_prometheus(host: Optional[str] = None) -> None:
     """Start the unauthenticated metrics endpoint on port 9090.
 
-    None binds all interfaces.
+    ``host`` comes from ``canonicalize_host``; None binds all interfaces.
     """
     Thread(target=gather_system_data, daemon=True).start()
-    start_http_server(9090, addr="::" if host is None else host.strip().strip("[]"))
+    start_http_server(9090, addr="::" if host is None else host)
 
 
 def gather_system_data() -> None:
