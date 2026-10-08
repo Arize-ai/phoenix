@@ -93,6 +93,7 @@ describe("datasetStore", () => {
       expect(persisted.state).toEqual({
         experimentsMetricChartKeys: ["error_rate"],
         areExperimentsMetricChartsVisible: true,
+        areExperimentsDeltasVisible: true,
       });
     });
 
@@ -110,6 +111,20 @@ describe("datasetStore", () => {
       seedPersistedState({ experimentsMetricChartKeys: ["latency"] });
       const store = createStore();
       expect(store.getState().areExperimentsMetricChartsVisible).toBe(true);
+    });
+
+    it("persists hiding the baseline deltas", () => {
+      const store = createStore();
+      store.getState().setAreExperimentsDeltasVisible(false);
+      const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+      expect(persisted.state.areExperimentsDeltasVisible).toBe(false);
+      expect(createStore().getState().areExperimentsDeltasVisible).toBe(false);
+    });
+
+    it("shows the baseline deltas when no visibility was persisted", () => {
+      seedPersistedState({ experimentsMetricChartKeys: ["latency"] });
+      const store = createStore();
+      expect(store.getState().areExperimentsDeltasVisible).toBe(true);
     });
   });
 });

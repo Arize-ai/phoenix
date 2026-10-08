@@ -15,16 +15,21 @@ import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type {
   DeltaDisplay,
+  ExperimentRunMetric,
+  ExperimentRunMetricsSource,
   LabelDelta,
   MetricDelta,
 } from "./experimentDeltaUtils";
 import {
+  computeOperationalMetricDelta,
   describeLabelDelta,
   describeMetricDelta,
+  EXPERIMENT_RUN_METRICS,
   formatLabelDelta,
   formatMetricDelta,
   formatSignedMetricDelta,
   getDeltaState,
+  getExperimentRunMetricValue,
 } from "./experimentDeltaUtils";
 
 export type DeltaSize = "S" | "XS";
@@ -37,6 +42,8 @@ const metricStatRowCSS = css`
 `;
 
 const metricStatCSS = css`
+  display: inline-flex;
+  align-items: center;
   gap: var(--global-dimension-size-50);
 `;
 
@@ -53,8 +60,8 @@ export function ExperimentMetricStatRow({ children }: { children: ReactNode }) {
 }
 
 /**
- * One metric value kept together with its delta inside an
- * `ExperimentMetricStatRow`.
+ * One metric value kept together with its delta, inside an
+ * `ExperimentMetricStatRow` or on its own in a table cell.
  */
 export function ExperimentMetricStat({ children }: { children: ReactNode }) {
   return (
@@ -247,6 +254,52 @@ export function ExperimentMetricDelta({
       valueText={formatMetricDelta({ delta, display, formatter })}
       description={description}
       tooltipLines={tooltipLines}
+      size={size}
+      tooltipPlacement={tooltipPlacement}
+    />
+  );
+}
+
+/**
+ * An experiment's change in a per-run metric (latency, tokens, cost or error
+ * rate) against the base experiment. Totals are compared per run so
+ * experiments with different run counts line up, lower is better, and changes
+ * inside the neutral band are neutral.
+ */
+export function ExperimentRunMetricDelta({
+  metric,
+  experiment,
+  baseExperiment,
+  note,
+  size = "S",
+  tooltipPlacement = "end",
+}: {
+  metric: ExperimentRunMetric;
+  /** The experiment whose change is shown */
+  experiment: ExperimentRunMetricsSource;
+  /** The experiment the change is measured against */
+  baseExperiment: ExperimentRunMetricsSource;
+  /** An extra tooltip line, such as how the per-run value was derived */
+  note?: string;
+  size?: DeltaSize;
+  tooltipPlacement?: DeltaTooltipPlacement;
+}) {
+  const { label, formatter, display } = EXPERIMENT_RUN_METRICS[metric];
+  const compare = getExperimentRunMetricValue({ experiment, metric });
+  const base = getExperimentRunMetricValue({
+    experiment: baseExperiment,
+    metric,
+  });
+  const hasBothValues = compare != null && base != null;
+  return (
+    <ExperimentMetricDelta
+      delta={computeOperationalMetricDelta({ base, compare })}
+      display={display}
+      metricLabel={label}
+      formatter={formatter}
+      compareValueText={hasBothValues ? formatter(compare) : undefined}
+      baseValueText={hasBothValues ? formatter(base) : undefined}
+      note={note}
       size={size}
       tooltipPlacement={tooltipPlacement}
     />

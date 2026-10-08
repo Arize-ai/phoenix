@@ -33,7 +33,11 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import type { OptimizationDirectionResult } from "@phoenix/components/annotation";
+import {
+  AnnotationColorSwatch,
+  getOptimizationBounds,
+} from "@phoenix/components/annotation";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
 import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
 import { ProgressCircle } from "@phoenix/components/core/progress";
@@ -50,6 +54,19 @@ import {
   SequenceNumberToken,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
+import type {
+  ExperimentRunMetric,
+  ExperimentRunMetricsSource,
+} from "@phoenix/components/experiment/experimentDeltaUtils";
+import {
+  computeMetricDelta,
+  indexSummariesByAnnotationName,
+} from "@phoenix/components/experiment/experimentDeltaUtils";
+import {
+  ExperimentMetricDelta,
+  ExperimentMetricStat,
+  ExperimentRunMetricDelta,
+} from "@phoenix/components/experiment/ExperimentMetricDelta";
 import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentTokenCosts";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
@@ -84,6 +101,7 @@ import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {
   floatFormatter,
   formatPercent,
@@ -98,8 +116,9 @@ import type {
 import type { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
-import { ErrorRateCell } from "./ErrorRateCell";
+import { ErrorRateText } from "./ErrorRateCell";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
+import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
 import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
@@ -114,6 +133,41 @@ const RUNNING_EXPERIMENTS_POLL_INTERVAL_MS = 3000;
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
+
+/**
+ * Explains, for a column that shows a total, that its delta compares per-run
+ * averages so experiments with different run counts line up.
+ */
+const PER_RUN_DELTA_NOTE = "Compared per run: total divided by run count";
+
+/**
+ * A row's delta in a per-run metric against the dataset's baseline; nothing
+ * when the row has no baseline to compare against.
+ */
+function ExperimentRunMetricBaselineDelta({
+  metric,
+  experiment,
+  baseline,
+  note,
+}: {
+  metric: ExperimentRunMetric;
+  experiment: ExperimentRunMetricsSource;
+  baseline: ExperimentRunMetricsSource | null;
+  note?: string;
+}) {
+  if (baseline == null) {
+    return null;
+  }
+  return (
+    <ExperimentRunMetricDelta
+      metric={metric}
+      experiment={experiment}
+      baseExperiment={baseline}
+      note={note}
+      tooltipPlacement="top"
+    />
+  );
+}
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -196,6 +250,7 @@ export function ExperimentsTable({
     tableProps: rowsExpandedTableProps,
   } = useTableRowsExpanded();
   const chartsViewSetting = useExperimentsMetricChartsViewSetting();
+  const deltasViewSetting = useExperimentsDeltasViewSetting();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -210,6 +265,53 @@ export function ExperimentsTable({
             annotationName
             minScore
             maxScore
+          }
+          baselineExperiment {
+            id
+            runCount
+            averageRunLatencyMs
+            errorRate
+            costSummary {
+              total {
+                tokens
+                cost
+              }
+            }
+            annotationSummaries {
+              annotationName
+              meanScore
+            }
+          }
+          datasetEvaluators(first: 100) {
+            edges {
+              node {
+                name
+                outputConfigs {
+                  __typename
+                  ... on CategoricalAnnotationConfig {
+                    name
+                    optimizationDirection
+                    values {
+                      label
+                      score
+                    }
+                  }
+                  ... on ContinuousAnnotationConfig {
+                    name
+                    optimizationDirection
+                    lowerBound
+                    upperBound
+                  }
+                  ... on FreeformAnnotationConfig {
+                    name
+                    optimizationDirection
+                    threshold
+                    lowerBound
+                    upperBound
+                  }
+                }
+              }
+            }
           }
           experiments(first: $first, after: $after)
             @connection(key: "ExperimentsTable_experiments") {
@@ -335,6 +437,29 @@ export function ExperimentsTable({
   );
 
   type TableRow = (typeof tableData)[number];
+  const baselineExperiment = data.baselineExperiment;
+  const deltaBaseline =
+    deltasViewSetting.isEnabled && baselineExperiment != null
+      ? baselineExperiment
+      : null;
+  const baselineMeanScoreByAnnotationName = indexSummariesByAnnotationName(
+    deltaBaseline?.annotationSummaries
+  );
+  const optimizationDirectionByAnnotationName = Object.fromEntries(
+    datasetEvaluatorsToAnnotationConfigs(
+      data.datasetEvaluators.edges.map((edge) => edge.node)
+    ).map((config) => [
+      config.name,
+      getOptimizationBounds(config).optimizationDirection,
+    ])
+  ) as Partial<Record<string, OptimizationDirectionResult>>;
+  /**
+   * The baseline to show a row's deltas against: none for the baseline row
+   * itself, when no baseline is set, or when deltas are hidden.
+   */
+  const getRowDeltaBaseline = (row: TableRow) =>
+    deltaBaseline != null && deltaBaseline.id !== row.id ? deltaBaseline : null;
+
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
@@ -469,6 +594,7 @@ export function ExperimentsTable({
               </span>
             );
           }
+          const rowBaseline = getRowDeltaBaseline(row.original);
           return (
             <AnnotationAggregationCell
               annotationName={annotationName}
@@ -477,6 +603,15 @@ export function ExperimentsTable({
               max={maxScore}
               annotatedCount={annotation.annotatedCount}
               totalRunCount={annotation.totalRunCount}
+              baselineMeanScore={
+                rowBaseline
+                  ? (baselineMeanScoreByAnnotationName[annotationName]
+                      ?.meanScore ?? null)
+                  : undefined
+              }
+              optimizationDirection={
+                optimizationDirectionByAnnotationName[annotationName]
+              }
             />
           );
         },
@@ -536,12 +671,21 @@ export function ExperimentsTable({
     {
       header: "avg latency",
       accessorKey: "averageRunLatencyMs",
-      cell: ({ getValue }) => {
+      cell: ({ getValue, row }) => {
         const value = getValue();
         if (value === null || typeof value !== "number") {
           return "--";
         }
-        return <LatencyText latencyMs={value} size="S" />;
+        return (
+          <ExperimentMetricStat>
+            <LatencyText latencyMs={value} size="S" />
+            <ExperimentRunMetricBaselineDelta
+              metric="latency"
+              experiment={row.original}
+              baseline={getRowDeltaBaseline(row.original)}
+            />
+          </ExperimentMetricStat>
+        );
       },
     },
     {
@@ -554,7 +698,18 @@ export function ExperimentsTable({
           return "--";
         }
         return (
-          <ExperimentTokenCosts totalCost={value} experimentId={experimentId} />
+          <ExperimentMetricStat>
+            <ExperimentTokenCosts
+              totalCost={value}
+              experimentId={experimentId}
+            />
+            <ExperimentRunMetricBaselineDelta
+              metric="cost"
+              experiment={row.original}
+              baseline={getRowDeltaBaseline(row.original)}
+              note={PER_RUN_DELTA_NOTE}
+            />
+          </ExperimentMetricStat>
         );
       },
     },
@@ -565,18 +720,37 @@ export function ExperimentsTable({
         const value = getValue() as number | null;
         const experimentId = row.original.id;
         return (
-          <ExperimentTokenCount
-            tokenCountTotal={value}
-            experimentId={experimentId}
-            size="S"
-          />
+          <ExperimentMetricStat>
+            <ExperimentTokenCount
+              tokenCountTotal={value}
+              experimentId={experimentId}
+              size="S"
+            />
+            {value != null && (
+              <ExperimentRunMetricBaselineDelta
+                metric="tokens"
+                experiment={row.original}
+                baseline={getRowDeltaBaseline(row.original)}
+                note={PER_RUN_DELTA_NOTE}
+              />
+            )}
+          </ExperimentMetricStat>
         );
       },
     },
     {
       header: "error rate",
       accessorKey: "errorRate",
-      cell: ErrorRateCell,
+      cell: ({ row }) => (
+        <ExperimentMetricStat>
+          <ErrorRateText errorRate={row.original.errorRate} />
+          <ExperimentRunMetricBaselineDelta
+            metric="errorRate"
+            experiment={row.original}
+            baseline={getRowDeltaBaseline(row.original)}
+          />
+        </ExperimentMetricStat>
+      ),
     },
     {
       header: "metadata",
@@ -755,7 +929,13 @@ export function ExperimentsTable({
             isExpanded={areRowsExpanded}
             onChange={setAreRowsExpanded}
           />
-          <TableViewSettingsButton settings={[chartsViewSetting]} />
+          <TableViewSettingsButton
+            settings={
+              baselineExperiment
+                ? [chartsViewSetting, deltasViewSetting]
+                : [chartsViewSetting]
+            }
+          />
         </Flex>
       </View>
       <div
@@ -967,6 +1147,8 @@ function AnnotationAggregationCell({
   max,
   annotatedCount,
   totalRunCount,
+  baselineMeanScore,
+  optimizationDirection,
 }: {
   annotationName: string;
   value: number;
@@ -974,6 +1156,13 @@ function AnnotationAggregationCell({
   max?: number | null;
   annotatedCount: number;
   totalRunCount: number;
+  /**
+   * The baseline experiment's mean score; `null` when the baseline has none
+   * and `undefined` when no delta is shown.
+   */
+  baselineMeanScore?: number | null;
+  /** Which way the annotation is better; undefined leaves the delta uncolored */
+  optimizationDirection?: OptimizationDirectionResult;
 }) {
   const color = useWordColor(annotationName);
   const percentile = useMemo(
@@ -1054,6 +1243,26 @@ function AnnotationAggregationCell({
           </View>
         </RichTooltip>
       </TooltipTrigger>
+      {baselineMeanScore !== undefined && (
+        <ExperimentMetricDelta
+          delta={computeMetricDelta({
+            base: baselineMeanScore,
+            compare: value,
+            optimizationDirection,
+          })}
+          display="absolute"
+          metricLabel={`${annotationName} average`}
+          formatter={floatFormatter}
+          compareValueText={floatFormatter(value)}
+          baseValueText={floatFormatter(baselineMeanScore)}
+          note={
+            optimizationDirection == null
+              ? "No optimization direction set"
+              : undefined
+          }
+          tooltipPlacement="top"
+        />
+      )}
     </div>
   );
 }

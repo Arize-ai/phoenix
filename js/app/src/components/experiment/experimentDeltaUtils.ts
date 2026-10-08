@@ -5,7 +5,10 @@ import type {
 import { getOptimizationBounds } from "@phoenix/components/annotation/optimizationUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
+  costFormatter,
+  formatPercent,
   formatPercentShort,
+  latencyMsFormatter,
   numberFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
@@ -59,6 +62,74 @@ export const MISSING_VALUE_TEXT = "--";
 export const UNCHANGED_DELTA_TEXT = "no change";
 
 type MaybeNumber = number | null | undefined;
+
+/**
+ * A metric aggregated over an experiment's runs that is compared against a
+ * base or baseline experiment.
+ */
+export type ExperimentRunMetric = "latency" | "tokens" | "cost" | "errorRate";
+
+/**
+ * The experiment fields the run metrics derive from. `errorRate` is optional
+ * since not every surface fetches it.
+ */
+export type ExperimentRunMetricsSource = {
+  readonly runCount: number;
+  readonly averageRunLatencyMs: number | null;
+  readonly errorRate?: number | null;
+  readonly costSummary: {
+    readonly total: {
+      readonly cost: number | null;
+      readonly tokens: number | null;
+    };
+  };
+};
+
+export type ExperimentRunMetricDefinition = {
+  /** What the number is, for tooltips and aria-labels */
+  label: string;
+  /** Formats values and absolute magnitudes */
+  formatter: (value: MaybeNumber) => string;
+  /** Which form a change shows */
+  display: DeltaDisplay;
+};
+
+/**
+ * Formats an error rate fraction as a percentage, e.g. `0.125` → `12.50%`.
+ */
+export function formatErrorRate(rate: MaybeNumber): string {
+  return rate == null ? MISSING_VALUE_TEXT : formatPercent(rate * 100);
+}
+
+/**
+ * How each run metric is labeled and formatted. Latency, tokens and cost show
+ * the relative change; the error rate shows the change in percentage points.
+ */
+export const EXPERIMENT_RUN_METRICS: Record<
+  ExperimentRunMetric,
+  ExperimentRunMetricDefinition
+> = {
+  latency: {
+    label: "Average latency",
+    formatter: latencyMsFormatter,
+    display: "relative",
+  },
+  tokens: {
+    label: "Average tokens per run",
+    formatter: numberFormatter,
+    display: "relative",
+  },
+  cost: {
+    label: "Average cost per run",
+    formatter: costFormatter,
+    display: "relative",
+  },
+  errorRate: {
+    label: "Error rate",
+    formatter: formatErrorRate,
+    display: "absolute",
+  },
+};
 
 /**
  * Relative tolerance under which two values count as equal, so floating-point
@@ -232,6 +303,61 @@ export function computeMeanPerRun({
     return null;
   }
   return total / runCount;
+}
+
+/**
+ * An experiment's per-run value of a metric. Token and cost totals are divided
+ * by the run count so experiments with different run counts compare.
+ * @param params.experiment - the experiment's aggregate fields
+ * @param params.metric - which run metric to read
+ */
+export function getExperimentRunMetricValue({
+  experiment,
+  metric,
+}: {
+  experiment: ExperimentRunMetricsSource;
+  metric: ExperimentRunMetric;
+}): number | null {
+  switch (metric) {
+    case "latency":
+      return experiment.averageRunLatencyMs;
+    case "tokens":
+      return computeMeanPerRun({
+        total: experiment.costSummary.total.tokens,
+        runCount: experiment.runCount,
+      });
+    case "cost":
+      return computeMeanPerRun({
+        total: experiment.costSummary.total.cost,
+        runCount: experiment.runCount,
+      });
+    case "errorRate":
+      return experiment.errorRate ?? null;
+    default:
+      return assertUnreachable(metric);
+  }
+}
+
+/**
+ * Compares an experiment's per-run metric against the base experiment's:
+ * lower is better, and changes inside the neutral band are neutral.
+ * @param params.base - the base experiment's aggregate fields
+ * @param params.compare - the compare experiment's aggregate fields
+ * @param params.metric - which run metric to compare
+ */
+export function computeExperimentRunMetricDelta({
+  base,
+  compare,
+  metric,
+}: {
+  base: ExperimentRunMetricsSource;
+  compare: ExperimentRunMetricsSource;
+  metric: ExperimentRunMetric;
+}): MetricDelta {
+  return computeOperationalMetricDelta({
+    base: getExperimentRunMetricValue({ experiment: base, metric }),
+    compare: getExperimentRunMetricValue({ experiment: compare, metric }),
+  });
 }
 
 /**
