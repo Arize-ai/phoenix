@@ -8,8 +8,10 @@ import type { EvaluatorPathCompletion } from "../evaluatorPathCompletions";
 import {
   appendPathSegment,
   applyEvaluatorPathCompletion,
+  CONTAINER_COMPLETION_TYPE,
   getEvaluatorPathCompletions,
   getEvaluatorPathCursor,
+  IDEA_COMPLETION_TYPE,
   MAX_BROWSE_MEMBERS,
   PATH_CONTINUATION_SECTION_RANK,
   PATH_MEMBER_SECTION_RANK,
@@ -96,11 +98,13 @@ const completionsFor = (
   textBeforeCursor: string,
   source = SPAN_SOURCE,
   ideasFor?: ProjectEvaluatorRecordKind,
-  rootCandidates: EvaluatorPathCompletion[] = ROOT_CANDIDATES
+  rootCandidates: EvaluatorPathCompletion[] = ROOT_CANDIDATES,
+  isExplicit = false
 ) =>
   getEvaluatorPathCompletions({
     source,
     rootCandidates,
+    isExplicit,
     ...(ideasFor === undefined
       ? {}
       : {
@@ -338,8 +342,81 @@ describe("getEvaluatorPathCompletions", () => {
     ]);
   });
 
-  it("waits for a dot after a closed subscript", () => {
-    expect(completionsFor("input.messages[-1]", CHAT_SOURCE)).toBeNull();
+  // A row that holds more reopens on what it holds, and that menu leads with
+  // the path itself, so accepting twice finishes it.
+  it("reopens on any row that holds more, led by the row itself", () => {
+    const ideas = completionsFor("input.messages[", CHAT_SOURCE, "span");
+    expect(ideas?.completions.map(({ key, drills }) => [key, drills])).toEqual([
+      ["[-1].content", false],
+      ["[0]", true],
+      ["[-1]", true],
+      ["[*]", true],
+      ["[:-1]", true],
+    ]);
+    expect(ideas?.completions[1]?.type).toBe(
+      `${IDEA_COMPLETION_TYPE} ${CONTAINER_COMPLETION_TYPE}`
+    );
+
+    const reopened = completionsFor("input.messages", CHAT_SOURCE, "span");
+    expect(
+      reopened?.completions
+        .slice(0, 3)
+        .map(({ key, drills, section }) => [key, drills, section.name])
+    ).toEqual([
+      ["messages", false, "input"],
+      ["messages[-1].content", false, "Suggestions"],
+      ["messages[0]", true, "Suggestions"],
+    ]);
+  });
+
+  it("offers the level below an evaluator input typed in full", () => {
+    const input: EvaluatorPathCompletion = {
+      key: "input",
+      path: "input",
+      detail: "object · 1",
+      section: { name: "Evaluator input", rank: 1 },
+      type: CONTAINER_COMPLETION_TYPE,
+      drills: true,
+    };
+    const result = completionsFor("input", CHAT_SOURCE, "span", [input]);
+
+    expect(
+      result?.completions.map(({ key, drills, type }) => [key, drills, type])
+    ).toEqual([
+      ["input", false, "variable"],
+      ["input.messages[-1].content", false, IDEA_COMPLETION_TYPE],
+      [
+        "input.messages",
+        true,
+        `${IDEA_COMPLETION_TYPE} ${CONTAINER_COMPLETION_TYPE}`,
+      ],
+      [
+        "input.messages[-1]",
+        true,
+        `${IDEA_COMPLETION_TYPE} ${CONTAINER_COMPLETION_TYPE}`,
+      ],
+      ["input.messages[*].content", false, IDEA_COMPLETION_TYPE],
+    ]);
+  });
+
+  it("opens the level below a closed subscript only when asked", () => {
+    expect(
+      completionsFor("input.messages[-1]", CHAT_SOURCE, "span")
+    ).toBeNull();
+
+    const asked = completionsFor(
+      "input.messages[-1]",
+      CHAT_SOURCE,
+      "span",
+      ROOT_CANDIDATES,
+      true
+    );
+    expect(asked?.from).toBe(14);
+    expect(asked?.completions.map(({ key, drills }) => [key, drills])).toEqual([
+      ["[-1]", false],
+      ["[-1].content", false],
+      ["[-1].role", false],
+    ]);
     expect(
       completionsFor("input.messages[-1].", CHAT_SOURCE)?.completions.map(
         ({ key }) => key

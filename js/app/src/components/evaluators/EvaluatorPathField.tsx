@@ -23,9 +23,10 @@ import type {
 } from "./evaluatorPathCompletions";
 import {
   applyEvaluatorPathCompletion,
+  CONTAINER_COMPLETION_TYPE,
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCompletions,
-  isEvaluatorPathContainer,
+  hasEvaluatorPathMembers,
   resolveEvaluatorPath,
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
@@ -115,19 +116,23 @@ export function EvaluatorPathField({
       evaluationContext === null
         ? []
         : buildEvaluatorContextCandidates(evaluationContext).map(
-            (candidate) => ({
-              key: candidate.label,
-              path: candidate.label,
-              detail: candidate.detail,
-              section: candidate.section,
-              boost: candidate.boost,
-              type: candidate.type,
-              ...(candidate.info ? { info: candidate.info } : {}),
-              // One of the evaluator's own inputs is a finished path; its
-              // members have rows of their own.
-              drills:
-                candidate.isNested && isEvaluatorPathContainer(candidate.value),
-            })
+            (candidate) => {
+              const drills = hasEvaluatorPathMembers(candidate.value);
+              return {
+                key: candidate.label,
+                path: candidate.label,
+                detail: candidate.detail,
+                section: candidate.section,
+                boost: candidate.boost,
+                type: drills
+                  ? CONTAINER_COMPLETION_TYPE
+                  : candidate.type === CONTAINER_COMPLETION_TYPE
+                    ? "variable"
+                    : candidate.type,
+                ...(candidate.info ? { info: candidate.info } : {}),
+                drills,
+              };
+            }
           ),
     [evaluationContext]
   );
@@ -246,6 +251,7 @@ function createEvaluatorPathCompletionSource({
       rootCandidates,
       getIdeas,
       textBeforeCursor: context.state.doc.sliceString(0, context.pos),
+      isExplicit: context.explicit,
     });
     if (result === null) {
       return null;
@@ -263,9 +269,11 @@ function createEvaluatorPathCompletionSource({
       })),
       ...(result.containerPath === ""
         ? {
+            // Only the tree's own paths keep the menu open past a dot; an
+            // idea's dot leads into a level of its own.
             validFor: toWholePathValidFor({
               pattern: EVALUATOR_ROOT_PATH_PATTERN,
-              labels: result.completions.map((completion) => completion.key),
+              labels: rootCandidates.map((candidate) => candidate.key),
             }),
           }
         : {}),
