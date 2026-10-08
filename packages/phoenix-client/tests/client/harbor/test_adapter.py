@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -303,6 +303,24 @@ class TestReferenceOutput:
         "path", ["../outside.json", "tests/../expected.json", "/tmp/expected.json"]
     )
     def test_rejects_traversal_and_absolute_paths(self, tmp_path: Path, path: str) -> None:
+        with pytest.raises(HarborPluginError, match="relative to the task root"):
+            _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": path}})
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/tmp/expected.json",
+            r"\tmp\expected.json",
+            r"C:\tmp\expected.json",
+            "C:expected.json",
+            r"\\server\share\expected.json",
+        ],
+    )
+    def test_rejects_windows_anchored_paths(
+        self, tmp_path: Path, path: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Exercise Windows path parsing even when the tests run on POSIX.
+        monkeypatch.setattr("phoenix.client.harbor._adapter.Path", PureWindowsPath)
         with pytest.raises(HarborPluginError, match="relative to the task root"):
             _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": path}})
 

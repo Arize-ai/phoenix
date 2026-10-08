@@ -248,7 +248,8 @@ def _read_reference_output(task_dir: Path, metadata: Mapping[str, Any]) -> dict[
     if not isinstance(configured_path, str) or not configured_path.strip():
         raise HarborPluginError(f"Task {task_dir}: {setting} must be a non-empty relative path.")
     relative_path = Path(configured_path)
-    if relative_path.is_absolute() or ".." in relative_path.parts:
+    # Windows rooted and drive-relative paths can have an anchor without being absolute.
+    if relative_path.anchor or ".." in relative_path.parts:
         raise HarborPluginError(
             f"Task {task_dir}: {setting}={configured_path!r} must be relative to the task root "
             "without '..' components."
