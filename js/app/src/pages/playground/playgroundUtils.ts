@@ -56,7 +56,6 @@ import {
   generateMessageId,
   generateToolId,
 } from "@phoenix/store/playground";
-import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   formatContentAsString,
@@ -1341,20 +1340,16 @@ export const getVariablesMapFromInstances = ({
   instances,
   templateFormat,
   input,
-  decisionRequest,
 }: {
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
-  /** The shared decision request; its text fields may reference variables too. */
-  decisionRequest?: DecisionRequestDraft | null;
 }) => {
   if (templateFormat === TemplateFormats.NONE) {
     return { variablesMap: {}, variableKeys: [] };
   }
-  const hasDecisionInstance = instances.some(
-    (instance) => instance.model.modelType === "DECISION"
-  );
+  // Decision instances carry their variables in the request's text fields
+  // rather than in chat messages.
   const variableKeys = Array.from(
     new Set([
       ...extractVariablesFromInstances({
@@ -1363,9 +1358,11 @@ export const getVariablesMapFromInstances = ({
         ),
         templateFormat,
       }),
-      ...(hasDecisionInstance
-        ? extractDecisionVariables(decisionRequest, templateFormat)
-        : []),
+      ...instances.flatMap((instance) =>
+        instance.model.modelType === "DECISION"
+          ? extractDecisionVariables(instance.decisionRequest, templateFormat)
+          : []
+      ),
     ])
   );
 

@@ -11,7 +11,10 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { PlaygroundDecisionOutputMutation } from "./__generated__/PlaygroundDecisionOutputMutation.graphql";
 import { buildDecisionInput } from "./decisionUtils";
-import { getVariablesMapFromInstances } from "./playgroundUtils";
+import {
+  denormalizePlaygroundInstance,
+  getVariablesMapFromInstances,
+} from "./playgroundUtils";
 
 const mutation = graphql`
   mutation PlaygroundDecisionOutputMutation($input: CreateDecisionInput!) {
@@ -45,7 +48,7 @@ function getDecisionNetworkErrorMessage(error: Error): string {
 }
 
 /**
- * Runs the shared decision request against one instance's model whenever
+ * Runs an instance's decision request against its model whenever
  * that instance gets a new active run. Repetitions are sequential and
  * non-streaming. Disposed or stale runs never overwrite a newer run.
  */
@@ -62,15 +65,16 @@ export function useDecisionRunner(instanceId: number) {
     if (runId == null) return undefined;
     const state = store.getState();
     const snapshot = state.instances.find((item) => item.id === instanceId);
-    const decision = state.decisionRequest;
+    const decision = snapshot?.decisionRequest;
     if (!snapshot || !decision) return undefined;
     // Resolve template variables once per run so every repetition sends the
     // same evidence.
     const { variablesMap } = getVariablesMapFromInstances({
-      instances: [],
+      instances: [
+        denormalizePlaygroundInstance(snapshot, state.allInstanceMessages),
+      ],
       templateFormat: state.templateFormat,
       input: state.input,
-      decisionRequest: decision,
     });
     let isDisposed = false;
     const disposables: Array<{ dispose(): void }> = [];

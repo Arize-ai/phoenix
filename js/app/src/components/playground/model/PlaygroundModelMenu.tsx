@@ -30,12 +30,6 @@ export function PlaygroundModelMenu({
   const updateProvider = usePlaygroundContext((state) => state.updateProvider);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const hasDecisionRequest = usePlaygroundContext(
-    (state) => state.decisionRequest != null
-  );
-  const setDecisionRequest = usePlaygroundContext(
-    (state) => state.setDecisionRequest
-  );
   const [searchParams, setSearchParams] = useSearchParams();
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
@@ -55,13 +49,12 @@ export function PlaygroundModelMenu({
       if (!instance) return;
 
       if (model.modelType === "DECISION") {
-        if (!hasDecisionRequest) {
-          setDecisionRequest(createDecisionDraft());
-        }
         updateInstance({
           instanceId: playgroundInstanceId,
           dirty: true,
           patch: {
+            // Keep a request the instance already had; start one otherwise.
+            decisionRequest: instance.decisionRequest ?? createDecisionDraft(),
             llmModel:
               instance.model.modelType === "DECISION"
                 ? instance.llmModel
@@ -140,8 +133,6 @@ export function PlaygroundModelMenu({
       updateModel,
       modelConfigByProvider,
       updateInstance,
-      hasDecisionRequest,
-      setDecisionRequest,
       searchParams,
       setSearchParams,
     ]

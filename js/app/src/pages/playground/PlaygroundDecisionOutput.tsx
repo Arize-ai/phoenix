@@ -20,8 +20,8 @@ import type { PlaygroundInstanceProps } from "./types";
 import { useDecisionRunner } from "./useDecisionRunner";
 
 /**
- * Output for one decision instance. Runs the shared request against this
- * instance's model and shows every answer as a distribution.
+ * Output for one decision instance. Runs its request against its model and
+ * shows every answer as a distribution.
  */
 export function PlaygroundDecisionOutput({
   playgroundInstanceId: instanceId,
@@ -31,8 +31,8 @@ export function PlaygroundDecisionOutput({
   const instance = usePlaygroundContext((state) =>
     state.instances.find((item) => item.id === instanceId)
   );
-  const request = usePlaygroundContext((state) => state.decisionRequest);
   if (!instance) return null;
+  const request = instance.decisionRequest ?? null;
   const runId = instance.activeRunId;
   const selected = instance.repetitions[instance.selectedRepetitionNumber];
   const totalRepetitions = Object.keys(instance.repetitions).length;

@@ -339,6 +339,12 @@ export interface PlaygroundInstance {
   /** Preserve chat configuration while the decision editor is active. */
   llmModel?: ModelConfig;
   /**
+   * The decision request this instance runs when its model is a decision
+   * model. Each instance owns its own, like a prompt, so instances can be
+   * compared and mixed with chat instances.
+   */
+  decisionRequest?: DecisionRequestDraft | null;
+  /**
    * An ID to uniquely identify the instance
    */
   id: number;
@@ -408,11 +414,6 @@ export interface PlaygroundProps {
    * @default "MUSTACHE"
    */
   templateFormat: TemplateFormat;
-  /**
-   * The decision request shared by all decision instances, or null until a
-   * decision model is first selected.
-   */
-  decisionRequest: DecisionRequestDraft | null;
   /**
    * Whether or not to use streaming
    * @default true
@@ -601,6 +602,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   deleteInstance: (instanceId: number) => void;
   /**
+   * Add a copy of one instance right after it, with fresh ids and no runs.
+   */
+  duplicateInstance: (instanceId: number) => void;
+  /**
    * Add a message to a playground instance
    */
   addMessage: (params: AddMessageParams) => void;
@@ -716,9 +721,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setVariableValue: (key: string, value: string) => void;
   /**
-   * Replace the shared decision request.
+   * Replace one instance's decision request.
    */
-  setDecisionRequest: (request: DecisionRequestDraft) => void;
+  updateDecisionRequest: (
+    instanceId: number,
+    request: DecisionRequestDraft
+  ) => void;
   /**
    * Set multiple variable values in the input
    */

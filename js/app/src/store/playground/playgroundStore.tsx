@@ -207,6 +207,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     // The page resolves the provider and model from the decision catalog;
     // the store does not know which providers offer decision models.
     instance.llmModel = instance.model;
+    instance.decisionRequest = createDecisionDraft();
     instance.model = {
       ...instance.model,
       modelType: "DECISION",
@@ -286,14 +287,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       variablesValueCache: {},
     },
     templateFormat: TemplateFormats.Mustache,
-    // The decision request is shared by every decision instance. It exists
-    // from the start when the playground opens in decision mode and is
-    // created on first use otherwise.
-    decisionRequest:
-      props.decisionRequest ??
-      (props.defaultModelType === "DECISION" ? createDecisionDraft() : null),
-    setDecisionRequest: (decisionRequest) => {
-      set({ decisionRequest }, false, { type: "setDecisionRequest" });
+    updateDecisionRequest: (instanceId, decisionRequest) => {
+      set(
+        {
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+          instances: get().instances.map((instance) =>
+            instance.id === instanceId
+              ? { ...instance, decisionRequest }
+              : instance
+          ),
+        },
+        false,
+        { type: "updateDecisionRequest" }
+      );
     },
     ...props,
     instances,
@@ -379,17 +385,26 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       set({ operationType }, false, { type: "setOperationType" });
     },
     addInstance: () => {
-      const instances = get().instances;
-      const instanceMessages = get().allInstanceMessages;
       const firstInstance = get().instances[0];
       if (!firstInstance) {
         return;
       }
+      get().duplicateInstance(firstInstance.id);
+    },
+    duplicateInstance: (instanceId) => {
+      const instances = get().instances;
+      const instanceMessages = get().allInstanceMessages;
+      const sourceIndex = instances.findIndex(
+        (instance) => instance.id === instanceId
+      );
+      const source = instances[sourceIndex];
+      if (!source) {
+        return;
+      }
       let newMessageIds: number[] = [];
       let newMessageMap: Record<number, ChatMessage> = {};
-      if (firstInstance.template.__type === "chat") {
-        const messageIdsToCopy = firstInstance.template.messageIds;
-        const copiedMessages = messageIdsToCopy
+      if (source.template.__type === "chat") {
+        const copiedMessages = source.template.messageIds
           .map((id) => instanceMessages[id])
           .map((message) => ({
             ...message,
@@ -404,6 +419,26 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           {}
         );
       }
+      const copy: PlaygroundNormalizedInstance = {
+        ...source,
+        ...(source.template.__type === "chat"
+          ? {
+              template: {
+                ...source.template,
+                messageIds: newMessageIds,
+              },
+            }
+          : {}),
+        // A deep copy so edits to one instance's questions never leak into
+        // the other; the ids inside are only React keys.
+        decisionRequest: source.decisionRequest
+          ? structuredClone(source.decisionRequest)
+          : source.decisionRequest,
+        id: generateInstanceId(),
+        activeRunId: null,
+        experiment: null,
+        repetitions: {},
+      };
       set(
         {
           allInstanceMessages: {
@@ -411,26 +446,13 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...newMessageMap,
           },
           instances: [
-            ...instances,
-            {
-              ...firstInstance,
-              ...(firstInstance.template.__type === "chat"
-                ? {
-                    template: {
-                      ...firstInstance.template,
-                      messageIds: newMessageIds,
-                    },
-                  }
-                : {}),
-              id: generateInstanceId(),
-              activeRunId: null,
-              experiment: null,
-              repetitions: {},
-            },
+            ...instances.slice(0, sourceIndex + 1),
+            copy,
+            ...instances.slice(sourceIndex + 1),
           ],
         },
         false,
-        { type: "addInstance" }
+        { type: "duplicateInstance" }
       );
     },
     syncInvocationParametersWithSpecs: ({

@@ -26,14 +26,11 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
-  const decisionRequest = usePlaygroundContext(
-    (state) => state.decisionRequest
-  );
   const hasInvalidDecision = instances.some(
     (instance) =>
       instance.model.modelType === "DECISION" &&
-      (!decisionRequest ||
-        !!getDecisionValidationError(decisionRequest) ||
+      (!instance.decisionRequest ||
+        !!getDecisionValidationError(instance.decisionRequest) ||
         !instance.model.modelName?.trim())
   );
 
