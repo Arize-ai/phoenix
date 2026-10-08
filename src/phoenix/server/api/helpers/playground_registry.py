@@ -75,6 +75,31 @@ class PlaygroundClientRegistry(metaclass=SingletonMeta):
 PLAYGROUND_CLIENT_REGISTRY: PlaygroundClientRegistry = PlaygroundClientRegistry()
 
 
+def provider_supports_chat_completions(provider_key: GenerativeProviderKey) -> bool:
+    """Whether any chat (LLM) client is registered for the provider.
+
+    Capability is derived from registration, not from the provider's identity: a
+    provider registered only as a decision client (see ``decision_clients``) has no
+    chat capability, while one registered in both places (OpenAI) has both.
+    """
+    # Registration happens when the client modules are imported; make sure they are.
+    import phoenix.server.api.helpers.playground_clients  # noqa: F401
+
+    return provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+
+
+def require_chat_provider(provider_key: GenerativeProviderKey) -> None:
+    """Reject providers with no chat models on chat-only paths (prompts, agents,
+    chat playground). Raises ``BadRequest`` with a provider-agnostic message."""
+    from phoenix.server.api.exceptions import BadRequest
+
+    if not provider_supports_chat_completions(provider_key):
+        raise BadRequest(
+            f"{provider_key.value} offers decision models only and cannot be used for "
+            "chat completions. Choose a chat model provider, or run it as a decision model."
+        )
+
+
 def register_llm_client(
     provider_key: GenerativeProviderKey,
     model_names: Sequence[ModelName],

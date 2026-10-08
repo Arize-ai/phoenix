@@ -940,6 +940,21 @@ input CreateDatasetSplitWithExamplesInput {
   exampleIds: [ID!]!
 }
 
+input CreateDecisionInput {
+  providerKey: GenerativeProviderKey!
+  modelName: String!
+  state: JSON!
+  questions: JSON!
+  baseUrl: String = null
+  credentials: [GenerativeCredentialInput!] = null
+}
+
+type CreateDecisionPayload {
+  result: JSON
+  span: Span
+  error: String
+}
+
 input CreateDocumentAnnotationInput {
   spanId: ID!
   documentPosition: Int!
@@ -2504,6 +2519,7 @@ enum GenerativeProviderKey {
   TOGETHER
   ZAI
   META
+  TYPESAFE
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2655,12 +2671,19 @@ enum ModelProvider {
   TOGETHER
   ZAI
   META
+  TYPESAFE
+}
+
+enum ModelType {
+  LLM
+  DECISION
 }
 
 input ModelsInput {
   providerKey: GenerativeProviderKey
   modelName: String = null
   openaiApiType: OpenAIApiType = null
+  modelType: ModelType! = LLM
 }
 
 input MontyConfigInput {
@@ -2703,6 +2726,7 @@ type Mutation {
   """
   setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+  createDecision(input: CreateDecisionInput!): CreateDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
@@ -3045,6 +3069,7 @@ input PlaygroundEvaluatorInput {
 type PlaygroundModel implements ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey!
+  modelType: ModelType!
 }
 
 type Project implements Node {

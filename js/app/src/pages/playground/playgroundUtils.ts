@@ -1463,6 +1463,8 @@ export const createToolCallForProvider = (
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
       return createOpenAIToolCall();
+    case "TYPESAFE":
+      throw new Error("Decision models do not support chat tool calls");
     default:
       return assertUnreachable(provider);
   }

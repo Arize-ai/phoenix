@@ -228,6 +228,7 @@ export const detectToolCallProvider = (
 };
 
 type ProviderToToolCallMap = {
+  TYPESAFE: never;
   OPENAI: OpenAIToolCall;
   AZURE_OPENAI: OpenAIToolCall;
   DEEPSEEK: OpenAIToolCall;
@@ -309,6 +310,8 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
       ) as ProviderToToolCallMap[T];
     case "GOOGLE":
       return toolCall as ProviderToToolCallMap[T];
+    case "TYPESAFE":
+      throw new Error("Decision models do not support chat tool calls");
     default:
       return assertUnreachable(targetProvider);
   }
