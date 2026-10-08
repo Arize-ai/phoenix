@@ -710,6 +710,21 @@
     },
     {
       "context": "edges",
+      "path": "metadata.messages[٣]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[０]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[-٣:]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
       "path": "metadata.messages.*",
       "outcome": "unresolved"
     },

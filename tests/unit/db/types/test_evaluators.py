@@ -50,6 +50,7 @@ class TestJSONPathValidation:
             "metadata['a.@.b']",  # Bare-@ shape inside a quoted key
             "metadata['a\\'.0']",  # Escaped quote inside a quoted key
             "metadata['*']",  # Quoted wildcard
+            "metadata['٣']",  # Non-ASCII digit inside a quoted key
             # Index access
             "items[0]",  # Index access
             "items[-1]",  # Negative index
@@ -201,6 +202,23 @@ class TestJSONPathValidation:
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": expr})
         assert "must start with a letter or underscore" in str(exc_info.value)
+
+    # --- Non-ASCII digit rejection ---
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "items[٣]",  # Arabic-Indic digit as an index
+            "items[０]",  # Fullwidth digit
+            "items[٣:]",  # In a slice
+            "metadata['a'][٣]",  # After a quoted key
+        ],
+    )
+    def test_non_ascii_digit_rejected(self, expr: str) -> None:
+        """Digits outside quoted keys must be 0-9."""
+        with pytest.raises(ValidationError) as exc_info:
+            InputMapping(literal_mapping={}, path_mapping={"x": expr})
+        assert "digits 0-9" in str(exc_info.value)
 
     # --- jsonpath-ng extensions rejection ---
 
