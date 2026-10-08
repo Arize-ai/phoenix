@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from typing import Any, Optional, cast
 
 import pytest
+from pydantic import SecretStr
 
 from phoenix.db.models import UserRoleName
 from phoenix.server.api.queries import Query
@@ -44,7 +45,7 @@ class _Context:
         user: Optional[PhoenixUser],
     ) -> None:
         self.auth_enabled = auth_enabled
-        self.database_encryption_key_is_public = key_is_public
+        self.secret = None if key_is_public else SecretStr("configured-secret")
         self.db = SimpleNamespace(should_not_insert_or_update=False)
         self._user = user
 

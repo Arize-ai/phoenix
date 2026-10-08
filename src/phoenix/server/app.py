@@ -880,17 +880,26 @@ def create_graphql_router(
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     secret: Optional[SecretStr] = None,
-    database_encryption_key_is_public: bool = False,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
-    """Create the router mounted at /graphql.
+    """Creates the GraphQL router.
 
     Args:
-        last_updated_at: Source of database update timestamps for streaming clients.
-        cache_for_dataloaders: Shared cache across requests.
-        read_only: Disable mutations when true.
-        database_encryption_key_is_public: Whether stored credentials use a publicly known key.
+        graphql_schema (strawberry.Schema): The GraphQL schema.
+        db (DbSessionFactory): The database session factory pointing to a SQL database.
+        last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
+        authentication_enabled (bool): Whether authentication is enabled.
+        span_cost_calculator (SpanCostCalculator): The span cost calculator for calculating costs.
+        event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
+        cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
+        read_only (bool, optional): Marks the app as read-only. Defaults to False.
+        secret (Optional[Secret], optional): The application secret for auth. Defaults to None.
+        token_store (Optional[TokenStore], optional): The token store for auth. Defaults to None.
+        email_sender (Optional[EmailSender], optional): The email sender. Defaults to None.
+
+    Returns:
+        GraphQLRouter: The router mounted at /graphql
     """
 
     allowed_provider_names = get_env_allowed_providers()
@@ -911,7 +920,6 @@ def create_graphql_router(
             allowed_provider_names=allowed_provider_names,
             read_only=read_only,
             auth_enabled=authentication_enabled,
-            database_encryption_key_is_public=database_encryption_key_is_public,
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,
@@ -1196,7 +1204,6 @@ def create_app(
         online_eval_session_sweeper = EvalSweeper(db, evaluation_target="SESSION")
         online_eval_trace_sweeper = EvalSweeper(db, evaluation_target="TRACE")
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
-    database_encryption_key_is_public = not secret
     graphql_router = create_graphql_router(
         db=db,
         system_settings=system_settings,
@@ -1207,7 +1214,6 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
         secret=secret,
-        database_encryption_key_is_public=database_encryption_key_is_public,
         token_store=token_store,
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
@@ -1513,7 +1519,6 @@ def create_app(
         read_only=read_only,
         authentication_enabled=authentication_enabled,
         secret=secret,
-        database_encryption_key_is_public=database_encryption_key_is_public,
         token_store=token_store,
         email_sender=email_sender,
     )
@@ -1604,7 +1609,6 @@ def _get_build_graphql_context_function(
     read_only: bool,
     authentication_enabled: bool,
     secret: Optional[SecretStr],
-    database_encryption_key_is_public: bool,
     token_store: Optional[TokenStore],
     email_sender: Optional[EmailSender],
 ) -> Callable[[Optional[PhoenixUser]], Context]:
@@ -1630,7 +1634,6 @@ def _get_build_graphql_context_function(
             allowed_provider_names=allowed_provider_names,
             read_only=read_only,
             auth_enabled=authentication_enabled,
-            database_encryption_key_is_public=database_encryption_key_is_public,
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,

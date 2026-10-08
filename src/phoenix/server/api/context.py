@@ -55,7 +55,6 @@ class Context(BaseContext):
     read_only: bool = False
     locked: bool = False
     auth_enabled: bool = False
-    database_encryption_key_is_public: bool = False
     secret: Optional[SecretStr] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
@@ -133,7 +132,6 @@ def build_context(
     allowed_provider_names: Optional[frozenset[str]] = None,
     read_only: bool = False,
     auth_enabled: bool = False,
-    database_encryption_key_is_public: bool = False,
     secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
@@ -157,7 +155,6 @@ def build_context(
         allowed_provider_names=allowed_provider_names,
         read_only=read_only,
         auth_enabled=auth_enabled,
-        database_encryption_key_is_public=database_encryption_key_is_public,
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,
