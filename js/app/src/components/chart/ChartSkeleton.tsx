@@ -21,7 +21,7 @@ const PLACEHOLDER_DATA = [
   15, 19, 23, 17, 88, 21, 85, 23, 96, 34, 42, 28, 64, 31, 55, 47,
 ].map((value) => ({ value }));
 
-const SKELETON_FILL = "var(--global-color-gray-200)";
+const SKELETON_FILL = "var(--global-skeleton-background-color)";
 
 /** Fixed y-axis gutter wide enough for a typical 2–3 character tick ("40k") */
 const Y_AXIS_WIDTH = 26;
@@ -143,6 +143,13 @@ const chartSkeletonCSS = css`
   /* Pulse only the painted shapes (bars, ticks, grid); the panel chrome
      around the skeleton stays steady */
   ${pulseAnimation}
+  /* Quiet only the placeholder shapes; the grid keeps a loaded chart's
+     contrast */
+  .recharts-bar-rectangles,
+  .recharts-cartesian-axis-tick,
+  .chart-skeleton__legend-item {
+    opacity: var(--global-skeleton-opacity);
+  }
 
   .chart-skeleton__plot {
     flex: 1 1 auto;

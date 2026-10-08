@@ -65,7 +65,8 @@ const waveKeyframes = keyframes`
  * is the same gray as a `Skeleton` beside it.
  */
 export const skeletonFillCSS = css`
-  background-color: var(--global-color-gray-200);
+  background-color: var(--global-skeleton-background-color);
+  opacity: var(--global-skeleton-opacity);
 `;
 
 const skeletonStyles = css`
@@ -91,10 +92,11 @@ const waveAnimation = css`
     background: linear-gradient(
       90deg,
       transparent,
-      var(--global-color-gray-300),
+      var(--global-skeleton-wave-highlight-color),
       transparent
     );
     content: "";
+    opacity: var(--global-skeleton-wave-highlight-opacity);
     position: absolute;
     transform: translateX(-100%);
     bottom: 0;
