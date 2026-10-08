@@ -3218,6 +3218,7 @@ PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
 HOST = "127.0.0.1"
+"""The host the server will run on after launch_app is called."""
 PORT = 6006
 """The port the server will run on after launch_app is called."""
 HOST_ROOT_PATH = ""

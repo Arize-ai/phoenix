@@ -233,13 +233,14 @@ def run(args: Namespace) -> None:
         scaffold_datasets = args.scaffold_datasets
 
     host = get_env_host()
-    auth_settings = get_env_auth_settings()
     local_host = local_url_host(host)
 
     port = args.port or get_env_port()
     grpc_port = _resolve_grpc_port(args)
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
+
+    auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
     fixture_annotation_precursors: list[AnnotationPrecursor] = []
