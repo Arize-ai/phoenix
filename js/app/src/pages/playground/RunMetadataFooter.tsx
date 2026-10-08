@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Pressable } from "react-aria";
 import { useLazyLoadQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 import { graphql } from "relay-runtime";
@@ -10,6 +11,9 @@ import {
   Icon,
   Icons,
   Loading,
+  RichTooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
   ViewportModal,
   ViewportModalOverlay,
@@ -18,12 +22,86 @@ import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnn
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { TokenDetailsBreakdown } from "@phoenix/components/trace/TokenDetailsBreakdown";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
 import type { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
-export function RunMetadataFooter({ spanId }: { spanId: string }) {
+type TokenSource = "span" | "decision";
+
+/** Input and output counts a decision span recorded under decision.token_count.* */
+function getDecisionTokenCounts(
+  attributesJSON: string | null | undefined
+): { input: number | null; output: number | null } | null {
+  if (!attributesJSON) return null;
+  try {
+    const attributes: unknown = JSON.parse(attributesJSON);
+    const tokenCount =
+      typeof attributes === "object" && attributes != null
+        ? (attributes as { decision?: { token_count?: unknown } }).decision
+            ?.token_count
+        : undefined;
+    if (typeof tokenCount !== "object" || tokenCount == null) return null;
+    const { input, output } = tokenCount as {
+      input?: unknown;
+      output?: unknown;
+    };
+    const asCount = (value: unknown) =>
+      typeof value === "number" && Number.isFinite(value) ? value : null;
+    const counts = { input: asCount(input), output: asCount(output) };
+    return counts.input == null && counts.output == null ? null : counts;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Tokens for a decision span, read from its usage attributes. Decision usage
+ * is not folded into the LLM token and cost columns yet, so there is no
+ * breakdown query to load and no cost to show.
+ */
+function DecisionTokenCount({
+  attributesJSON,
+}: {
+  attributesJSON: string | null | undefined;
+}) {
+  const counts = getDecisionTokenCounts(attributesJSON);
+  if (!counts) return null;
+  const total = (counts.input ?? 0) + (counts.output ?? 0);
+  return (
+    <TooltipTrigger>
+      <Pressable>
+        <TokenCount size="S" role="button" tabIndex={0}>
+          {total}
+        </TokenCount>
+      </Pressable>
+      <RichTooltip placement="end">
+        <TooltipArrow />
+        <TokenDetailsBreakdown
+          tokens={{
+            total,
+            prompt: counts.input,
+            completion: counts.output,
+          }}
+        />
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
+
+export function RunMetadataFooter({
+  spanId,
+  tokenSource = "span",
+}: {
+  spanId: string;
+  /**
+   * Where the token count comes from: the span's LLM token columns, or the
+   * usage attributes a decision span records.
+   */
+  tokenSource?: TokenSource;
+}) {
   const [, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
@@ -41,6 +119,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             }
             tokenCountTotal
             latencyMs
+            attributes
             costSummary {
               total {
                 cost
@@ -73,12 +152,16 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
       <Flex direction="row" gap="size-200" justifyContent="space-between">
         <Flex direction="row" gap="size-100" alignItems="center">
           <LatencyText size="S" latencyMs={data.span.latencyMs || 0} />
-          <SpanTokenCount
-            tokenCountTotal={data.span.tokenCountTotal || 0}
-            nodeId={data.span.id}
-            size="S"
-          />
-          {totalCost != null && (
+          {tokenSource === "decision" ? (
+            <DecisionTokenCount attributesJSON={data.span.attributes} />
+          ) : (
+            <SpanTokenCount
+              tokenCountTotal={data.span.tokenCountTotal || 0}
+              nodeId={data.span.id}
+              size="S"
+            />
+          )}
+          {tokenSource === "span" && totalCost != null && (
             <SpanTokenCosts
               totalCost={totalCost}
               spanNodeId={data.span.id}

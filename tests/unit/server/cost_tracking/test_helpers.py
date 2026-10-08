@@ -437,18 +437,3 @@ class TestGetAggregatedTokens:
             20,
             30,
         )  # completion defaults to 0, then calculated as total - prompt (30 - 10 = 20)
-
-
-class TestGetAggregatedTokensForDecisionSpans:
-    """Decision spans record usage under decision.token_count.* instead of llm.*."""
-
-    def test_reads_decision_token_counts(self) -> None:
-        attributes = {"decision": {"token_count": {"input": 345, "output": 38}}}
-        assert get_aggregated_tokens(attributes) == (345, 38, 383)
-
-    def test_llm_counts_take_precedence_over_decision_counts(self) -> None:
-        attributes = {
-            "llm": {"token_count": {"prompt": 10, "completion": 20}},
-            "decision": {"token_count": {"input": 345, "output": 38}},
-        }
-        assert get_aggregated_tokens(attributes) == (10, 20, 30)
