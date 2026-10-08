@@ -6,222 +6,94 @@ title: "Observe Your Agent"
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
 import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
 
-Send your first trace to Phoenix. New to tracing? Read [What are traces](/docs/phoenix/tracing/concepts-tracing/what-are-traces) and [How tracing works](/docs/phoenix/tracing/concepts-tracing/how-tracing-works) first.
+This page walks through instrumenting your agent and seeing its first trace in Phoenix. New to tracing? Read [What are traces](/docs/phoenix/tracing/concepts-tracing/what-are-traces) first.
 
-Phoenix is the open source product offered by Arize. Run it locally from your terminal, inside a notebook, or [self-hosted](/docs/phoenix/self-hosting) on your own infrastructure. The instrumentation stays the same whichever you pick, and only `PHOENIX_COLLECTOR_ENDPOINT` changes.
-
-<Note>
-**Shortcut:** `npx -y @arizeai/phoenix-cli setup` detects your coding agent, hands it the instrumentation below, and finishes when the first trace arrives. To connect an agent to Phoenix for other work, see [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents).
-</Note>
+Prefer to hand this to your coding agent? Run `npx -y @arizeai/phoenix-cli setup`: it detects your agent, hands it these steps, and finishes when the first trace arrives. See [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents) for everything else an agent can do with Phoenix.
 
 ## Set up tracing
 
 <Steps>
   <Step title={<span className="step-title">Start Phoenix</span>}>
-    Phoenix has to be running before anything can send traces to it. It ships as a Python package, so `uvx` is the quickest local option even if your agent is TypeScript.
+    Phoenix is a Python package, so `uvx` is the quickest way to run it locally, whatever language your agent is in. Only `PHOENIX_COLLECTOR_ENDPOINT` changes if you run it elsewhere.
 
     <StartPhoenix />
-  </Step>
 
-  <Step title={<span className="step-title">Get your keys</span>}>
-    The example below calls OpenAI, so you need an [OpenAI API key](https://platform.openai.com/api-keys).
+    The example below calls OpenAI, so set `OPENAI_API_KEY` too.
 
     <PhoenixAuthNote />
   </Step>
 
-  <Step title={<span className="step-title">Set up tracing</span>}>
+  <Step title={<span className="step-title">Instrument your agent</span>}>
+    Register Phoenix as the trace destination and turn on auto-instrumentation. Phoenix instruments every installed [OpenInference](/docs/phoenix/integrations) package it finds, OpenAI here.
+
     <Tabs>
       <Tab title="Python">
-    Install Phoenix's tracing helper, OpenAI, and the OpenInference OpenAI instrumentor. The tracing packages need Python 3.10 or later; on an older Python, `pip` installs outdated versions without warning.
-
     ```bash
     pip install -U arize-phoenix-otel openai openinference-instrumentation-openai
     ```
 
-    Create a file named `quickstart.py`. Set your OpenAI key and point tracing at your local Phoenix instance.
-
     ```python
-    import os
-
-    os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-    ```
-
-    Register a Phoenix tracer provider and instrument OpenAI.
-
-    ```python
-    from openai import OpenAI
-    from openinference.instrumentation.openai import OpenAIInstrumentor
     from phoenix.otel import register
 
-    tracer_provider = register(
-        project_name="tracing-quickstart",
-        protocol="http/protobuf",
-    )
-    tracer = tracer_provider.get_tracer(__name__)
-    OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
-
-    client = OpenAI()
+    register(project_name="tracing-quickstart", protocol="http/protobuf", auto_instrument=True)
     ```
-
-    After this registration, OpenAI calls are exported to Phoenix as traces.
       </Tab>
 
       <Tab title="TypeScript">
-    Install OpenAI, Phoenix's TypeScript tracing helper, and the OpenInference OpenAI instrumentor.
-
     ```bash
-    npm install openai @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai dotenv tsx
+    npm install openai @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai
     ```
 
-    Add these environment variables to `.env`.
-
-    ```bash
-    OPENAI_API_KEY=<ENTER YOUR OPENAI API KEY>
-
-    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
-    PHOENIX_PROJECT=tracing-quickstart
-    ```
-
-    Create an instrumentation file named `instrumentation.ts`, and import it before your agent makes OpenAI calls.
+    Put this in `instrumentation.ts` and import it before anything else:
 
     ```typescript
-    import "dotenv/config";
-
     import OpenAI from "openai";
     import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
     import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
 
-    export const provider = register({
-      projectName:
-        process.env.PHOENIX_PROJECT ??
-        process.env.PHOENIX_PROJECT_NAME ??
-        "tracing-quickstart",
-      url: process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006",
-      apiKey: process.env.PHOENIX_API_KEY,
-    });
+    export const provider = register({ projectName: "tracing-quickstart" });
 
     const instrumentation = new OpenAIInstrumentation();
     instrumentation.manuallyInstrument(OpenAI);
-
-    registerInstrumentations({
-      instrumentations: [instrumentation],
-    });
+    registerInstrumentations({ instrumentations: [instrumentation] });
     ```
-
-    After this registration, OpenAI calls are exported to Phoenix as traces.
       </Tab>
     </Tabs>
   </Step>
 
-  <Step title={<span className="step-title">Generate some traces</span>}>
+  <Step title={<span className="step-title">Make a call and look at the trace</span>}>
+    Any OpenAI call now produces a trace.
+
     <Tabs>
       <Tab title="Python">
-    Add a small support-assistant function, then send representative requests through it.
-
     ```python
-    @tracer.chain(name="support_reply")
-    def run_my_app(user_input: str) -> str:
-        response = client.chat.completions.create(
-            model="gpt-5-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a concise support assistant. Ask one clarifying question when needed.",
-                },
-                {"role": "user", "content": user_input},
-            ],
-        )
-        return response.choices[0].message.content or ""
+    from openai import OpenAI
 
-    inputs = [
-        "Draft a short reply about why an invoice changed.",
-        "A customer says an upload failed twice. Ask one question before troubleshooting.",
-        "Write a reply for a customer asking about a delayed refund.",
-        "Help a user who cannot reset their password.",
-        "Ask one question to debug a dashboard that suddenly became slow.",
-    ]
-
-    for user_input in inputs:
-        print(run_my_app(user_input))
-
-    tracer_provider.force_flush()
+    client = OpenAI()
+    client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Why did my invoice change?"}],
+    )
     ```
-
-    Run the file.
-
-    ```bash
-    python quickstart.py
-    ```
-
-    Replace the support assistant with your agent's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
       </Tab>
 
       <Tab title="TypeScript">
-    Create a file named `app.ts`, add a small support-assistant function, then send representative requests through it.
-
     ```typescript
+    import "./instrumentation";
     import OpenAI from "openai";
-    import { traceChain } from "@arizeai/phoenix-otel";
     import { provider } from "./instrumentation";
 
     const client = new OpenAI();
-
-    const runMyApp = traceChain(
-      async (userInput: string): Promise<string> => {
-        const response = await client.chat.completions.create({
-          model: "gpt-5-mini",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are a concise support assistant. Ask one clarifying question when needed.",
-            },
-            { role: "user", content: userInput },
-          ],
-        });
-        return response.choices[0]?.message?.content ?? "";
-      },
-      { name: "support_reply" }
-    );
-
-    const inputs = [
-      "Draft a short reply about why an invoice changed.",
-      "A customer says an upload failed twice. Ask one question before troubleshooting.",
-      "Write a reply for a customer asking about a delayed refund.",
-      "Help a user who cannot reset their password.",
-      "Ask one question to debug a dashboard that suddenly became slow.",
-    ];
-
-    async function main() {
-      for (const userInput of inputs) {
-        console.log(await runMyApp(userInput));
-      }
-
-      await provider.shutdown();
-    }
-
-    main().catch(async (error) => {
-      console.error(error);
-      await provider.shutdown();
-      process.exit(1);
+    await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: "Why did my invoice change?" }],
     });
+    await provider.shutdown();
     ```
-
-    Run the file.
-
-    ```bash
-    npx tsx app.ts
-    ```
-
-    Replace the support assistant with your agent's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
       </Tab>
     </Tabs>
-  </Step>
 
-  <Step title={<span className="step-title">Look at the trace in Phoenix</span>}>
-    Once the runs complete, head back to Phoenix, open your project, and select the **Traces** tab. You should see one trace per request. Click into a trace to inspect the spans, prompts, responses, timing, and errors.
-
+    Open the `tracing-quickstart` project in Phoenix and click the trace: the prompt, response, tokens, and latency are on the span. To trace your own code around the LLM call, wrap it with a [decorator](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#using-decorators) or [`traceChain`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel).
   </Step>
 </Steps>
 

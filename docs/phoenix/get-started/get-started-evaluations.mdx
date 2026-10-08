@@ -13,11 +13,9 @@ Phoenix runs these offline. Online evals, scoring live traffic, are in developme
 
 Everything below works on a fresh Phoenix with nothing instrumented yet. It needs an OpenAI key: the agent being tested and the judge both call a model.
 
-<Note>
-A coding agent or [PXI](/docs/phoenix/pxi) can run this whole flow for you. [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job) has the prompt.
-</Note>
+Prefer to hand this to your coding agent or [PXI](/docs/phoenix/pxi)? [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#hand-it-a-job) has the prompt.
 
-Every tab runs the same flow: a dataset of three questions about a fictional airline's Basic fare with the answer each should get, an LLM judge that compares each reply to that answer, and two experiments. The first prompt knows nothing about the airline and scores 0. The second includes the policy and scores 1.
+Both tabs run the same flow: a dataset of three questions about a fictional airline's Basic fare with the answer each should get, an LLM judge that compares each reply to that answer, and two experiments. The first prompt knows nothing about the airline and scores 0. The second includes the policy and scores 1.
 
 <Tabs>
   <Tab title="Python">
@@ -165,80 +163,6 @@ Every tab runs the same flow: a dataset of three questions about a fictional air
     await run(BASELINE, "baseline");
     await run(POLICY, "with-policy");
     ```
-  </Tab>
-  <Tab title="UI">
-    Add your OpenAI key first: **Settings → AI Providers**, edit the provider, **Server** tab.
-
-  <Steps>
-    <Step title={<span className="step-title">Start with a handful of examples</span>}>
-      A dataset is a fixed set of examples you test every change against.
-
-      1. Download [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv): three questions about a fictional airline's Basic fare, with the answer each should get.
-      2. Go to **Datasets**, click **New Dataset**, and drop the file on the upload area.
-      3. Map `question` to **input** and `expected_answer` to **output**, then create the dataset.
-
-      The answers deliberately differ from industry norms, so a model cannot guess them. The prompt has to supply the policy.
-
-      <Note>
-        Already have traces? Filter the spans table with an expression such as `status_code == 'ERROR'`, or ask [PXI](/docs/phoenix/pxi) to find problem traces, then select the spans and click **Add to Dataset**.
-      </Note>
-
-    </Step>
-
-    <Step title={<span className="step-title">Decide what good looks like</span>}>
-      An evaluator attached to the dataset scores every experiment you run on it.
-
-      1. Open the dataset, click the **Evaluators** tab, then **Add evaluator** and **Create new LLM evaluator**. Name it `correctness`.
-      2. Replace the system message with this rubric. Leave the user message alone: it hands the judge the expected answer as `{{reference}}` and the reply as `{{output}}`.
-
-         ```text
-         Compare the provided answer to the reference answer. Label true if it states the same policy: same time windows, fees, and quantities, in any wording. Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
-         ```
-
-      3. Under **Map Prompt Variables**, set `reference` to `$.reference.expected_answer`.
-      4. Click **Test** on one example, then **Create**.
-
-      The ready-made templates under **Use LLM evaluator template** never see the expected answer, which is why this guide writes its own. See [Server Evals](/docs/phoenix/evaluation/server-evals/overview) for templates and code evaluators.
-    </Step>
-
-    <Step title={<span className="step-title">Get a baseline score</span>}>
-      Running a prompt over a dataset creates an experiment. The `question` column is available as `{{question}}`.
-
-      1. Go to the **Prompt Playground**.
-      2. Paste this as the user prompt:
-
-         ```text
-         You are a travel support agent. Answer the customer's question.
-
-         Question: {{question}}
-         ```
-
-      3. Click **Test over a dataset** and choose `travel-support`.
-      4. Click **Run**.
-
-      That first run is your baseline. Every later edit is scored the same way, so the comparison isolates your change.
-
-    </Step>
-
-    <Step title={<span className="step-title">Prove the change helped</span>}>
-      The baseline prompt cannot know this airline's policy, so it gets all three wrong. Give it the policy.
-
-      1. Replace the user prompt with this version:
-
-         ```text
-         You are a travel support agent. Answer the customer's question using this policy.
-
-         Basic fare policy:
-         - Full refund if cancelled within 48 hours of booking.
-         - Can be changed once for a 40 dollar fee, plus any price difference.
-         - Includes one checked bag. A second bag is 45 dollars.
-
-         Question: {{question}}
-         ```
-
-      2. Run it over the same dataset.
-    </Step>
-  </Steps>
   </Tab>
 </Tabs>
 
