@@ -1,8 +1,7 @@
 import type { FocusManagerOptions } from "react-aria";
 import { useFocusManager } from "react-aria";
-import { useHotkeys } from "react-hotkeys-hook";
 
-import { useHotkeysEnabled } from "@phoenix/contexts/HotkeysEnabledContext";
+import { useScopedHotkeys } from "@phoenix/hooks/useScopedHotkeys";
 
 /**
  * Place this component inside of a FocusScope, give it a hotkey, and it will
@@ -16,16 +15,15 @@ export const FocusHotkey = ({
   accept?: FocusManagerOptions["accept"];
 }) => {
   const focus = useFocusManager();
-  const isEnabled = useHotkeysEnabled();
 
-  useHotkeys(
+  useScopedHotkeys(
     hotkey,
     () => {
       focus?.focusFirst({
         accept,
       });
     },
-    { preventDefault: true, enabled: isEnabled }
+    { preventDefault: true }
   );
 
   return null;

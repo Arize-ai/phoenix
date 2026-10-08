@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { Suspense, useContext, useEffect, useRef } from "react";
 import { TabListStateContext } from "react-aria-components";
-import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Group,
@@ -35,12 +34,8 @@ import {
   EDIT_ANNOTATION_HOTKEY,
   NOTE_HOTKEY,
 } from "@phoenix/constants/annotationConstants";
-import {
-  useHotkeysEnabled,
-  useNotifySuccess,
-  usePreferencesContext,
-} from "@phoenix/contexts";
-import { useDimensions } from "@phoenix/hooks";
+import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
+import { useDimensions, useScopedHotkeys } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
 import type {
@@ -97,7 +92,6 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
   );
   const openSpanAside = useOpenSpanAside();
   const openSpanNoteBar = useOpenSpanNoteBar();
-  const areHotkeysEnabled = useHotkeysEnabled();
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
   // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
@@ -198,13 +192,12 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     );
   }
 
-  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
+  // scoped so only the active trace of the compare view responds
+  useScopedHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
     preventDefault: true,
-    enabled: areHotkeysEnabled,
   });
-  useHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
+  useScopedHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
     preventDefault: true,
-    enabled: areHotkeysEnabled,
   });
 
   const hasExceptions = spanHasException(span);

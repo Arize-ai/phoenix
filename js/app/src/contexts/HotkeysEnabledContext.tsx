@@ -8,10 +8,8 @@ import { createContext, useContext } from "react";
 const HotkeysEnabledContext = createContext<boolean>(true);
 
 /**
- * Returns whether shortcuts registered in this subtree should respond. Views
- * that mount the same shortcuts several times at once (such as the compare
- * traces view) enable only the copy the user is working in, so one key press
- * does not act on every copy.
+ * Returns whether shortcuts registered in this subtree should respond.
+ * Register shortcuts with `useScopedHotkeys`, which applies this for you.
  */
 export function useHotkeysEnabled(): boolean {
   return useContext(HotkeysEnabledContext);
