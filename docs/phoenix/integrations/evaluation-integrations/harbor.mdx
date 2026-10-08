@@ -8,23 +8,9 @@ keywords: ["harbor", "agent evaluation", "agent benchmark", "atif", "experiments
 
 Harbor remains responsible for running agents and verifiers. Phoenix stores and displays the resulting tasks, runs, rewards, errors, and traces. The plugin does not rerun tasks or calculate a replacement reward.
 
-<Frame caption="The plugin sits between Harbor and Phoenix. It creates the dataset and experiments at job start, then adds a run, its annotations, and its trace as each trial ends. Click the diagram to enlarge it.">
-  <iframe
-    className="block dark:hidden"
-    src="https://storage.googleapis.com/arize-phoenix-assets/html/harbor-phoenix-plugin.html?theme=light"
-    title="How the Phoenix plugin maps Harbor to Phoenix"
-    loading="lazy"
-    allowFullScreen
-    style={{ width: "100%", aspectRatio: "1212 / 438", border: 0 }}
-  ></iframe>
-  <iframe
-    className="hidden dark:block"
-    src="https://storage.googleapis.com/arize-phoenix-assets/html/harbor-phoenix-plugin.html?theme=dark"
-    title="How the Phoenix plugin maps Harbor to Phoenix"
-    loading="lazy"
-    allowFullScreen
-    style={{ width: "100%", aspectRatio: "1212 / 438", border: 0 }}
-  ></iframe>
+<Frame caption="The plugin sits between Harbor and Phoenix. It creates the dataset and experiments at job start, then adds a run, its annotations, and its trace as each trial ends.">
+  <img className="block dark:hidden" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-phoenix-plugin-light.svg" alt="How the Phoenix plugin maps Harbor to Phoenix" />
+  <img className="hidden dark:block" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-phoenix-plugin-dark.svg" alt="How the Phoenix plugin maps Harbor to Phoenix" />
 </Frame>
 
 Recording a job in Phoenix gives you four things:
@@ -38,23 +24,9 @@ Recording a job in Phoenix gives you four things:
 
 A trial is one attempt by one agent at one task. Knowing its order of events explains what Phoenix receives.
 
-<Frame caption="One trial. The agent works in the sandbox first. Harbor copies tests/ in only after the agent stops, then the verifier inspects the sandbox and writes the rewards. Click the diagram to enlarge it.">
-  <iframe
-    className="block dark:hidden"
-    src="https://storage.googleapis.com/arize-phoenix-assets/html/harbor-trial.html?theme=light"
-    title="How a Harbor trial runs"
-    loading="lazy"
-    allowFullScreen
-    style={{ width: "100%", aspectRatio: "1152 / 460", border: 0 }}
-  ></iframe>
-  <iframe
-    className="hidden dark:block"
-    src="https://storage.googleapis.com/arize-phoenix-assets/html/harbor-trial.html?theme=dark"
-    title="How a Harbor trial runs"
-    loading="lazy"
-    allowFullScreen
-    style={{ width: "100%", aspectRatio: "1152 / 460", border: 0 }}
-  ></iframe>
+<Frame caption="One trial. The agent works in the sandbox first. Harbor copies tests/ in only after the agent stops, then the verifier inspects the sandbox and writes the rewards.">
+  <img className="block dark:hidden" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-trial-light.svg" alt="How a Harbor trial runs" />
+  <img className="hidden dark:block" src="/docs/phoenix/integrations/evaluation-integrations/images/harbor-trial-dark.svg" alt="How a Harbor trial runs" />
 </Frame>
 
 A task is a directory with an `environment/`, an `instruction.md`, and a `tests/` folder. For each trial, Harbor:
