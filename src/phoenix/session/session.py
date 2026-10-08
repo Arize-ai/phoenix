@@ -29,6 +29,8 @@ from phoenix.config import (
     get_env_log_sql,
     get_env_port,
     get_working_dir,
+    is_unspecified_host,
+    url_host,
 )
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import create_engine
@@ -474,10 +476,10 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment, root_path:
         return f"{_get_databricks_notebook_base_url(context)}/{port}/"
     if not root_path.startswith("/"):
         root_path = f"/{root_path}"
-    if host == "0.0.0.0" or host == "127.0.0.1":
+    if is_unspecified_host(host) or host == "127.0.0.1":
         # The app is running locally, so use localhost
         return f"http://localhost:{port}{root_path}"
-    return f"http://{host}:{port}{root_path}"
+    return f"http://{url_host(host)}:{port}{root_path}"
 
 
 def _is_colab() -> bool:
