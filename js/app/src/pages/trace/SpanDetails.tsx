@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { Suspense, useContext, useEffect, useRef } from "react";
 import { TabListStateContext } from "react-aria-components";
-import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Group,
@@ -36,7 +35,7 @@ import {
   NOTE_HOTKEY,
 } from "@phoenix/constants/annotationConstants";
 import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
-import { useDimensions } from "@phoenix/hooks";
+import { useDimensions, useScopedHotkeys } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
 import type {
@@ -193,17 +192,20 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
     );
   }
 
-  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
+  // scoped so only the active trace of the compare view responds
+  useScopedHotkeys(EDIT_ANNOTATION_HOTKEY, () => openSpanAside(), {
     preventDefault: true,
   });
-  useHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
+  useScopedHotkeys(NOTE_HOTKEY, () => openSpanNoteBar(), {
     preventDefault: true,
   });
 
   const hasExceptions = spanHasException(span);
 
   return (
-    <Group orientation="horizontal" id="span-details-layout">
+    // No fixed group id: the aside panel ref resolves its group by id, so two
+    // mounted span details (the compare view) must not share one
+    <Group orientation="horizontal">
       <Panel>
         <Flex
           direction="column"

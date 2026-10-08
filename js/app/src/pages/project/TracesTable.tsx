@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -117,6 +117,7 @@ import {
 import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
+import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -168,12 +169,15 @@ const TableBody = <
 }) => {
   "use no memo";
   const navigate = useNavigate();
-  const { traceId } = useParams();
   const [searchParams] = useSearchParams();
+  const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === traceId;
+        // every row of a viewed trace is highlighted, whichever span is shown
+        const isSelected = selectedTraceSlots.some(
+          (slot) => slot.traceId === row.original.trace.traceId
+        );
         return (
           <tr
             key={row.id}

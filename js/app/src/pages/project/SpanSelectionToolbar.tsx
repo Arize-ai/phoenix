@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   Alert,
@@ -20,6 +20,8 @@ import {
   PopoverArrow,
   Text,
   Toolbar,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import {
@@ -34,6 +36,10 @@ import { useNotifySuccess } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import {
+  getComparableTraceSlots,
+  getCompareTracesPath,
+} from "@phoenix/utils/traceSelectionUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
 import { SpanSelectionDownloadButton } from "./SpanSelectionDownloadButton";
@@ -70,6 +76,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const projectId = useTracingContext((state) => state.projectId);
   const { setFetchKey } = useStreamState();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
   const [isCreatingDataset, setIsCreatingDataset] = useState(false);
@@ -82,6 +89,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     () => [...new Set(selectedSpans.map((span) => span.trace.id))],
     [selectedSpans]
   );
+  // Two spans from two different traces can be viewed side by side
+  const comparableTraceSlots = getComparableTraceSlots(selectedSpans);
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
     mutation SpanSelectionToolbarAddSpansToDatasetMutation(
       $input: AddSpansToDatasetInput!
@@ -229,6 +238,27 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Suspense>
             </Popover>
           </DialogTrigger>
+          <TooltipTrigger delay={100}>
+            <Button
+              data-testid="compare-traces-button"
+              size="M"
+              leadingVisual={<Icon svg={<Icons.ArrowCompare />} />}
+              isDisabled={comparableTraceSlots === null}
+              onPress={() => {
+                if (comparableTraceSlots) {
+                  navigate(
+                    getCompareTracesPath({
+                      slots: comparableTraceSlots,
+                      searchParams,
+                    })
+                  );
+                }
+              }}
+            >
+              Compare
+            </Button>
+            <Tooltip offset={4}>Compare two traces side by side</Tooltip>
+          </TooltipTrigger>
           <TransferTracesButton
             traceIds={traceIds}
             currentProjectId={projectId}
