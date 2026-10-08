@@ -198,32 +198,43 @@ export function DecisionAnswerView({
 }
 
 /**
- * The short value to show beside a question name. Choice and score answers
- * already carry their value in the emphasized distribution row, so only
- * noul, refusal, and scores (a number the bars cannot show) get a headline.
+ * The arg-max as plain text, for tests and assistive tech. The bars already
+ * carry it visually, so callers render it hidden.
  */
-export function answerHeadline(
-  answer: NormalizedDecisionAnswer | undefined
-): string | null {
-  if (!answer) return null;
+export function answerValue(answer: NormalizedDecisionAnswer): string {
   switch (answer.kind) {
+    case "choice":
+      return answer.choice ?? "";
     case "score":
-      return answer.score == null ? null : answer.score.toFixed(2);
+      return answer.score == null ? "" : answer.score.toFixed(2);
     case "noul":
       return formatPercent(answer.probability);
     case "refusal":
       return "Refused";
     default:
-      return null;
+      return "";
   }
 }
 
-export function answerConfidence(
+/**
+ * The numbers the bars cannot show: a score's weighted position and the
+ * provider's confidence. One short line, or nothing.
+ */
+export function answerMeta(
   answer: NormalizedDecisionAnswer | undefined
-): number | null {
-  return answer && (answer.kind === "choice" || answer.kind === "score")
-    ? answer.confidence
-    : null;
+): string | null {
+  if (!answer) return null;
+  const parts: string[] = [];
+  if (answer.kind === "score" && answer.score != null) {
+    parts.push(`score ${answer.score.toFixed(2)}`);
+  }
+  if (
+    (answer.kind === "choice" || answer.kind === "score") &&
+    answer.confidence != null
+  ) {
+    parts.push(`confidence ${formatPercent(answer.confidence)}`);
+  }
+  return parts.length ? parts.join(" · ") : null;
 }
 
 export function formatUsage(
@@ -236,6 +247,28 @@ export function formatUsage(
     usage.output != null ? `${usage.output} out` : null,
   ].filter((part): part is string => part != null);
   return parts.length ? parts.join(" · ") : "usage unavailable";
+}
+
+/** Right-aligned meta line under a distribution; renders nothing when empty. */
+export function AnswerMeta({
+  answer,
+}: {
+  answer: NormalizedDecisionAnswer | undefined;
+}) {
+  const meta = answerMeta(answer);
+  if (meta == null) return null;
+  return (
+    <Text
+      size="XS"
+      color="text-700"
+      css={css`
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      `}
+    >
+      {meta}
+    </Text>
+  );
 }
 
 /** Full result for one instance: every answer, usage, and the raw body. */
@@ -266,46 +299,20 @@ export function DecisionResult({
         `}
         aria-label="Decision answers"
       >
-        {result.answers.map((answer) => {
-          const confidence = answerConfidence(answer);
-          const headline = answerHeadline(answer);
-          return (
-            <li key={answer.name}>
-              <Flex direction="column" gap="size-75">
-                <Flex
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="baseline"
-                  gap="size-100"
-                >
-                  <Text weight="heavy" css={wrapAnywhereCSS}>
-                    {answer.name}
-                  </Text>
-                  <Flex direction="row" gap="size-100" alignItems="baseline">
-                    {confidence != null ? (
-                      <Text size="XS" color="text-700">
-                        confidence {formatPercent(confidence)}
-                      </Text>
-                    ) : null}
-                    {headline != null ? (
-                      <Text
-                        weight="heavy"
-                        data-testid={`answer-${answer.name}`}
-                      >
-                        {headline}
-                      </Text>
-                    ) : (
-                      <span data-testid={`answer-${answer.name}`} hidden>
-                        {answer.kind === "choice" ? answer.choice : ""}
-                      </span>
-                    )}
-                  </Flex>
-                </Flex>
-                <DecisionAnswerView answer={answer} />
-              </Flex>
-            </li>
-          );
-        })}
+        {result.answers.map((answer) => (
+          <li key={answer.name}>
+            <Flex direction="column" gap="size-75">
+              <Text weight="heavy" css={wrapAnywhereCSS}>
+                {answer.name}
+              </Text>
+              <span data-testid={`answer-${answer.name}`} hidden>
+                {answerValue(answer)}
+              </span>
+              <DecisionAnswerView answer={answer} />
+              <AnswerMeta answer={answer} />
+            </Flex>
+          </li>
+        ))}
       </ul>
       <Text
         size="XS"

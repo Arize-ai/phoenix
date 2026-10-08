@@ -123,7 +123,10 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
-import { DecisionRequestEditor } from "./DecisionRequestEditor";
+import {
+  DecisionRequestActions,
+  DecisionRequestEditor,
+} from "./DecisionRequestEditor";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -847,7 +850,13 @@ function PlaygroundContent() {
               <AddPromptButton />
             </Flex>
           }
-          panelProps={{ id: "prompts", minSize: "15%" }}
+          panelProps={{
+            id: "prompts",
+            minSize: "15%",
+            // The request editor is the work surface in decision mode, so it
+            // opens taller the first time; a saved layout still wins.
+            defaultSize: hasDecisionInstance ? "55%" : undefined,
+          }}
           onCollapseChange={(collapsed) =>
             handleSectionCollapse(collapsed, "prompts")
           }
@@ -863,7 +872,13 @@ function PlaygroundContent() {
             >
               {instanceIds.map((instanceId) => (
                 <View
-                  flex="1 1 0px"
+                  // A decision column is only its model header, so it takes
+                  // the width of that header and sits beside the next one.
+                  flex={
+                    decisionInstanceIds.includes(instanceId)
+                      ? "none"
+                      : "1 1 0px"
+                  }
                   key={`${instanceId}-prompt`}
                   minWidth={
                     hasDecisionInstance
@@ -879,6 +894,11 @@ function PlaygroundContent() {
                   />
                 </View>
               ))}
+              {hasDecisionInstance ? (
+                <View flex="none" marginStart="auto">
+                  <DecisionRequestActions />
+                </View>
+              ) : null}
             </Flex>
             {hasDecisionInstance ? <DecisionRequestEditor /> : null}
           </div>
@@ -930,7 +950,11 @@ function PlaygroundContent() {
                 extra={
                   <PlaygroundDatasetSelect isDisabled={hasDecisionInstance} />
                 }
-                panelProps={{ id: "input", minSize: "10%" }}
+                panelProps={{
+                  id: "input",
+                  minSize: "10%",
+                  defaultSize: hasDecisionInstance ? "15%" : undefined,
+                }}
                 onCollapseChange={(collapsed) =>
                   handleSectionCollapse(collapsed, "inputs")
                 }
