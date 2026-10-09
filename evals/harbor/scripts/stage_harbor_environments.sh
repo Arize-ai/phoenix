@@ -2,9 +2,10 @@
 # Build Phoenix and the verifiers wheel, then stage the build context for every Harbor task.
 #
 # The script builds the shared files once under evals/harbor/.cache/environment and each
-# fixture once under evals/harbor/.cache/fixtures. Set RESEED=1 to rebuild fixtures. Exit
-# code 2 marks a fixture as unavailable, so the script skips its tasks. Each staged task
-# receives hard links to the shared files and its fixture at environment/data/phoenix.db.
+# fixture once under evals/harbor/.cache/fixtures, rebuilding it when its scripts change.
+# Set RESEED=1 to rebuild fixtures anyway. Exit code 2 marks a fixture as unavailable, so
+# the script skips its tasks. Each staged task receives hard links to the shared files and
+# its fixture at environment/data/phoenix.db.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 HERE="$ROOT/evals/harbor"
@@ -30,12 +31,31 @@ if [ "${RESEED:-0}" = 1 ]; then
 fi
 
 unavailable=""
+# Print a digest of the files that produce a fixture: its own directory, plus the repository
+# paths listed one per line in its optional `inputs` file. A cached fixture whose digest
+# differs was produced by an older script and is rebuilt.
+fixture_digest() {
+  local source="$ENVIRONMENTS/fixtures/$1" paths=()
+  if [ -f "$source/inputs" ]; then
+    while IFS= read -r path; do
+      [ -n "$path" ] && paths+=("$ROOT/$path")
+    done <"$source/inputs"
+  fi
+  find "$source" ${paths[@]+"${paths[@]}"} -type f ! -name '*.pyc' -print0 | LC_ALL=C sort -z \
+    | xargs -0 shasum -a 256 | sed "s|$ROOT/||" | shasum -a 256 | cut -d' ' -f1
+}
+
 # Return 0 for an available fixture and 1 when its script reports that it is unavailable.
 # Exit on any other fixture error.
 ensure_fixture() {
   local name=$1 dir="$FIXTURES/$1" script="$ENVIRONMENTS/fixtures/$1/fixture.sh"
   case " $unavailable " in *" $name "*) return 1 ;; esac
-  [ -f "$dir/phoenix.db" ] && return 0
+  local digest
+  digest=$(fixture_digest "$name")
+  if [ -f "$dir/phoenix.db" ]; then
+    [ "$(cat "$dir/digest" 2>/dev/null)" = "$digest" ] && return 0
+    echo "The $name fixture predates its current scripts; rebuilding it."
+  fi
   if [ ! -x "$script" ]; then
     echo "No fixture script at $script" >&2
     exit 1
@@ -44,8 +64,13 @@ ensure_fixture() {
   local status=0
   "$script" "$dir" || status=$?
   if [ "$status" = 0 ]; then
+    echo "$digest" >"$dir/digest"
     return 0
   elif [ "$status" = 2 ]; then
+    if [ -f "$dir/phoenix.db" ]; then
+      echo "WARNING: could not rebuild the $name fixture; staging the stale copy." >&2
+      return 0
+    fi
     unavailable="$unavailable $name"
     return 1
   fi

@@ -9,12 +9,27 @@ from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset
+from pydantic_core import to_json
 from typing_extensions import Self, override
 
 from phoenix.server.bearer_auth import PhoenixUser, bind_principal
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
+
+# Serialized characters one tool result may carry back to the model. Results in practice
+# stay under ~220k; an unfiltered span listing can run to millions and overflow the
+# context window, which ends the turn with no answer.
+MAX_TOOL_RESULT_CHARS = 400_000
+
+
+def _serialized_length(result: Any) -> int:
+    if isinstance(result, str):
+        return len(result)
+    try:
+        return len(to_json(result, fallback=str))
+    except Exception:
+        return 0
 
 
 def _current_binding_key() -> object:
@@ -65,6 +80,28 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
             raise
         self._principal_bindings.setdefault(_current_binding_key(), []).append(binding)
         return entered
+
+    @override
+    async def direct_call_tool(
+        self,
+        name: str,
+        args: dict[str, Any],
+        *,
+        metadata: dict[str, Any] | None = None,
+        use_task: bool = False,
+    ) -> Any:
+        result = await super().direct_call_tool(name, args, metadata=metadata, use_task=use_task)
+        size = _serialized_length(result)
+        if size <= MAX_TOOL_RESULT_CHARS:
+            return result
+        # Withheld rather than truncated: a cut-off listing reads as complete data.
+        return (
+            f"The {name} result was withheld: it is {size:,} characters, over the "
+            f"{MAX_TOOL_RESULT_CHARS:,}-character limit for one tool result. Nothing from "
+            "it reached you. Ask for less: aggregate in executeSql, add filters or a "
+            'smaller limit, or select specific spans (parent_id takes the string "null" '
+            "for root spans; a JSON null applies no filter)."
+        )
 
     @override
     async def __aexit__(self, *args: Any) -> bool | None:
