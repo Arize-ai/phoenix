@@ -310,6 +310,38 @@ describe("resumeEvaluation", () => {
     }
   });
 
+  it("should post evaluator metadata at top level of evaluation body", async () => {
+    const evaluator = asExperimentEvaluator({
+      name: "correctness",
+      kind: "CODE",
+      evaluate: async () => ({
+        score: 1,
+        label: "correct",
+        explanation: "all good",
+        metadata: { tokenCount: 42 },
+      }),
+    });
+
+    serveIncompleteEvaluationPages([[aliceIncompleteEvaluation]]);
+
+    await resumeEvaluation({
+      experimentId: "exp-1",
+      evaluators: [evaluator],
+      client,
+    });
+
+    expect(evaluationPosts.receivedBodies).toContainEqual(
+      expect.objectContaining({
+        metadata: { tokenCount: 42 },
+        result: {
+          score: 1,
+          label: "correct",
+          explanation: "all good",
+        },
+      })
+    );
+  });
+
   it("should handle pagination of incomplete evaluations", async () => {
     const evaluator = asExperimentEvaluator({
       name: "correctness",

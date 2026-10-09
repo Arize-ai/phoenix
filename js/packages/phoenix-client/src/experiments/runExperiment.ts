@@ -851,6 +851,7 @@ export async function evaluateExperiment({
             if (!isDryRun) {
               // Log the evaluation to the server
               // We log this without awaiting (e.g. best effort)
+              const { metadata, ...resultRest } = evalResult.result ?? {};
               client.POST("/v1/experiment_evaluations", {
                 body: {
                   experiment_run_id: evaluatorAndRun.run.id,
@@ -858,9 +859,8 @@ export async function evaluateExperiment({
                   annotator_kind: evaluatorAndRun.evaluator.kind,
                   start_time: evalResult.startTime.toISOString(),
                   end_time: evalResult.endTime.toISOString(),
-                  result: {
-                    ...evalResult.result,
-                  },
+                  result: evalResult.result ? resultRest : null,
+                  metadata: metadata ?? null,
                   error: evalResult.error,
                   trace_id: evalResult.traceId,
                 },

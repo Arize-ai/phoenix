@@ -681,17 +681,18 @@ async function recordEvaluationResults({
   if (results) {
     // Success case: record each evaluation result
     for (const singleResult of results) {
+      const { metadata, ...resultRest } = singleResult;
       await client.POST("/v1/experiment_evaluations", {
         body: {
           experiment_run_id: experimentRun.id,
           name: evaluator.name,
           annotator_kind: evaluator.kind,
           result: {
-            score: singleResult.score ?? null,
-            label: singleResult.label ?? null,
-            explanation: singleResult.explanation ?? null,
-            metadata: singleResult.metadata ?? {},
+            score: resultRest.score ?? null,
+            label: resultRest.label ?? null,
+            explanation: resultRest.explanation ?? null,
           },
+          metadata: metadata ?? null,
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
           error: null,
