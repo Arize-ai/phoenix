@@ -127,6 +127,66 @@ def test_write_reward_keeps_non_numeric_components_out_of_the_reward(tmp_path: P
     }
 
 
+CUMULATIVE = {
+    "schema_version": "ATIF-v1.7",
+    "steps": [
+        {"source": "user", "timestamp": "2026-10-02T14:20:22Z", "message": "Create an evaluator."},
+        {
+            "source": "agent",
+            "timestamp": "2026-10-02T14:20:25Z",
+            "tool_calls": [{"tool_call_id": "a"}],
+            "message": "Evaluator created.",
+        },
+        {
+            "source": "user",
+            "timestamp": "2026-10-02T14:27:06Z",
+            "message": "Now find a system\nprompt that passes.",
+        },
+        {
+            "source": "agent",
+            "timestamp": "2026-10-02T14:27:10Z",
+            "tool_calls": [{"tool_call_id": "b"}, {"tool_call_id": "c"}],
+        },
+        {
+            "source": "user",
+            "timestamp": "2026-10-02T14:28:05Z",
+            "message": "Base directory for this skill: /tmp/skills/phoenix-evals",
+        },
+        {"source": "agent", "timestamp": "2026-10-02T14:28:10Z", "message": "All 28 pass."},
+    ],
+}
+
+
+def test_the_instruction_locates_the_step_in_a_cumulative_trajectory() -> None:
+    instruction = "Now find a system prompt"
+    started = verify.started_at(CUMULATIVE, instruction)
+    assert started is not None and started.isoformat() == "2026-10-02T14:27:06+00:00"
+    assert verify.measurements(CUMULATIVE, instruction) == {
+        "tool_call_count": 2.0,
+        "agent_turn_count": 2.0,
+    }
+    assert verify.final_reply(CUMULATIVE, instruction) == "All 28 pass."
+
+
+def test_without_a_matching_instruction_the_step_starts_at_the_last_user_message() -> None:
+    for instruction in (None, "Compare your experiments"):
+        started = verify.started_at(CUMULATIVE, instruction)
+        assert started is not None and started.isoformat() == "2026-10-02T14:28:05+00:00"
+        assert verify.measurements(CUMULATIVE, instruction) == {
+            "tool_call_count": 0.0,
+            "agent_turn_count": 1.0,
+        }
+
+
+def test_started_at_falls_back_to_the_first_agent_timestamp() -> None:
+    steps = [
+        {"source": "user", "message": "question"},
+        {"source": "agent", "timestamp": "2026-10-01T19:59:32.163108Z", "message": "hi"},
+    ]
+    started = verify.started_at({"steps": steps}, "question")
+    assert started is not None and started.isoformat() == "2026-10-01T19:59:32.163108+00:00"
+
+
 def test_started_at_ignores_copied_context() -> None:
     steps = [
         {"source": "user", "timestamp": "2026-09-16T00:10:00Z", "is_copied_context": True},

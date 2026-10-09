@@ -48,16 +48,58 @@ def read_trajectory(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def agent_steps(trajectory: dict[str, Any] | None) -> list[dict[str, Any]]:
+def _steps(trajectory: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not isinstance(trajectory, dict) or not isinstance(trajectory.get("steps"), list):
         return []
     return [
         step
         for step in trajectory["steps"]
-        if isinstance(step, dict)
-        and step.get("source") == "agent"
-        and not step.get("is_copied_context")
+        if isinstance(step, dict) and not step.get("is_copied_context")
     ]
+
+
+def message_text(message: Any) -> str:
+    if isinstance(message, str):
+        return message
+    if isinstance(message, list):
+        return "\n".join(
+            str(part.get("text", ""))
+            for part in message
+            if isinstance(part, dict) and part.get("type") == "text"
+        )
+    return ""
+
+
+def _squash(text: str) -> str:
+    return " ".join(text.split())
+
+
+def step_steps(
+    trajectory: dict[str, Any] | None, instruction: str | None = None
+) -> list[dict[str, Any]]:
+    """The steps of the current task step.
+
+    Claude Code carries the whole session in one trajectory and marks none of it as copied
+    context, and skills arrive as user messages too, so the current step begins at the last
+    user message that opens with its instruction. Without an instruction, or when none
+    matches, it begins at the last user message.
+    """
+    steps = _steps(trajectory)
+    user_indices = [i for i, step in enumerate(steps) if step.get("source") == "user"]
+    wanted = _squash(instruction) if instruction else ""
+    matching = [
+        i
+        for i in user_indices
+        if wanted and _squash(message_text(steps[i].get("message"))).startswith(wanted)
+    ]
+    start = (matching or user_indices or [0])[-1]
+    return steps[start:]
+
+
+def agent_steps(
+    trajectory: dict[str, Any] | None, instruction: str | None = None
+) -> list[dict[str, Any]]:
+    return [step for step in step_steps(trajectory, instruction) if step.get("source") == "agent"]
 
 
 def parse_timestamp(text: str) -> datetime:
@@ -68,38 +110,31 @@ def parse_timestamp(text: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def started_at(trajectory: dict[str, Any] | None) -> datetime | None:
-    """When this step's agent run began: the earliest step timestamp that is not copied
-    context carried over from an earlier step."""
-    if not isinstance(trajectory, dict) or not isinstance(trajectory.get("steps"), list):
-        return None
+def started_at(
+    trajectory: dict[str, Any] | None, instruction: str | None = None
+) -> datetime | None:
+    """When the current step began: its earliest step timestamp."""
     timestamps = [
         parse_timestamp(str(step["timestamp"]))
-        for step in trajectory["steps"]
-        if isinstance(step, dict) and step.get("timestamp") and not step.get("is_copied_context")
+        for step in step_steps(trajectory, instruction)
+        if step.get("timestamp")
     ]
     return min(timestamps) if timestamps else None
 
 
-def final_reply(trajectory: dict[str, Any] | None) -> str:
-    for step in reversed(agent_steps(trajectory)):
-        message = step.get("message")
-        if isinstance(message, str) and message.strip():
-            return message
-        if isinstance(message, list):
-            text = "\n".join(
-                str(part.get("text", ""))
-                for part in message
-                if isinstance(part, dict) and part.get("type") == "text"
-            )
-            if text.strip():
-                return text
+def final_reply(trajectory: dict[str, Any] | None, instruction: str | None = None) -> str:
+    for step in reversed(agent_steps(trajectory, instruction)):
+        text = message_text(step.get("message"))
+        if text.strip():
+            return text
     return ""
 
 
-def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
-    """Count tool calls and agent turns, excluding copied context."""
-    steps = agent_steps(trajectory)
+def measurements(
+    trajectory: dict[str, Any] | None, instruction: str | None = None
+) -> dict[str, float]:
+    """Count the current step's tool calls and agent turns."""
+    steps = agent_steps(trajectory, instruction)
     if not steps:
         return {}
     tool_calls = sum(len(step.get("tool_calls") or []) for step in steps)
@@ -143,13 +178,15 @@ def write_reward(
     *,
     trajectory_path: Path = TRAJECTORY_PATH,
     reward_path: Path = REWARD_PATH,
+    instruction: str | None = None,
     **components: Any,
 ) -> dict[str, float]:
     """Harbor's reward file accepts numbers only, and it averages every key into its
     summary, so only 0-to-1 scores and the trajectory measurements go there. Other
-    components join ``details`` in ``details.json`` beside it."""
+    components join ``details`` in ``details.json`` beside it. ``instruction`` is the step's
+    instruction, which locates the step in a trajectory that carries earlier steps."""
     scores: dict[str, float] = {"reward": float(reward)}
-    scores.update(measurements(read_trajectory(trajectory_path)))
+    scores.update(measurements(read_trajectory(trajectory_path), instruction))
     details = dict(details or {})
     for key, value in components.items():
         if isinstance(value, (bool, int, float)):
