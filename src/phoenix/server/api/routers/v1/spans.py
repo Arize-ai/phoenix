@@ -41,6 +41,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
+from phoenix.trace.dsl.filter import SpanFilter, SpanFilterError
 from phoenix.trace.schemas import (
     Span as SpanForInsertion,
 )
@@ -984,10 +985,10 @@ def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
 @router.get(
     "/projects/{project_identifier}/spans",
     operation_id="getSpans",
-    summary="List spans with simple filters (no DSL)",
-    description="Return spans within a project filtered by time range. "
+    summary="List spans",
+    description="Return spans within a project filtered by time range and filters. "
     "Supports cursor-based pagination.",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([400, 404, 422]),
 )
 async def span_search(
     request: Request,
@@ -1043,6 +1044,14 @@ async def span_search(
         default=None,
         description=_ATTRIBUTE_PARAM_DESCRIPTION,
     ),
+    filter: Optional[str] = Query(
+        default=None,
+        description=(
+            "Span filter expression, as documented at "
+            "https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. "
+            "Combined with other filters using AND."
+        ),
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -1094,6 +1103,13 @@ async def span_search(
     if attribute:
         for af in attribute:
             stmt = stmt.where(_parse_attribute(af))
+    if filter:
+        try:
+            stmt = SpanFilter(condition=filter)(stmt)
+        except SpanFilterError as error:
+            raise HTTPException(
+                status_code=400, detail=f"invalid span filter expression: {error}"
+            ) from error
 
     if cursor:
         try:
