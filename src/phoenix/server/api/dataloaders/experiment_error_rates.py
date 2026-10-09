@@ -43,7 +43,7 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
         ).group_by(average_repetition_error_rates_subquery.c.experiment_id)
         async with self._db.read() as session:
             average_run_error_rates = {
-                experiment_id: error_rate
+                experiment_id: float(error_rate) if error_rate is not None else None
                 async for experiment_id, error_rate in await session.stream(
                     average_run_error_rates_query
                 )
