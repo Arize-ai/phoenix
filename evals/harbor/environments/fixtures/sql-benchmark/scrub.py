@@ -152,17 +152,38 @@ def scrub_table(db: sqlite3.Connection, table: str) -> int:
     return changed
 
 
+# Accounts at these domains are built in or already pseudonymous, so scrubbing twice
+# yields the same usernames.
+KEPT_ACCOUNT_DOMAINS = ("localhost", "example.com")
+
+
+def account_email(username: str, email: str | None) -> str:
+    """Pseudonymize every account that is not built in. An account without an email, which
+    LDAP allows, gets one derived from its username so that the identity-provider columns
+    can be cleared without leaving it unidentifiable."""
+    if email is None:
+        return pseudonym(username)
+    if email.lower() in PUBLIC_EMAILS or email.lower().endswith(
+        tuple("@" + domain for domain in KEPT_ACCOUNT_DOMAINS)
+    ):
+        return email
+    return pseudonym(email)
+
+
 def scrub_users(db: sqlite3.Connection) -> None:
     """Keep the accounts, since experiments and datasets point at them, but make the
-    stored credentials unusable and the emails pseudonymous."""
+    stored credentials unusable, the emails and usernames pseudonymous, and drop the
+    avatar and identity-provider ids that tie an account to a real person. Only LOCAL
+    accounts may carry a password, so only they receive a new random one."""
     for user_id, username, email in db.execute("select id, username, email from users").fetchall():
-        new_email = scrub_text(email) if email else email
-        new_username = username
-        if new_email != email:
-            new_username = new_email.split("@")[0]
+        new_email = account_email(username, email)
         db.execute(
-            "update users set username = ?, email = ?, password_hash = ?, password_salt = ? where id = ?",
-            (new_username, new_email, os.urandom(32), os.urandom(32), user_id),
+            "update users set username = ?, email = ?,"
+            " password_hash = case when auth_method = 'LOCAL' then ? end,"
+            " password_salt = case when auth_method = 'LOCAL' then ? end,"
+            " profile_picture_url = null, oauth2_client_id = null, oauth2_user_id = null,"
+            " ldap_unique_id = null where id = ?",
+            (new_email.split("@")[0], new_email, os.urandom(32), os.urandom(32), user_id),
         )
 
 
@@ -170,14 +191,18 @@ def main(path: Path) -> None:
     db = sqlite3.connect(path)
     db.execute("pragma foreign_keys = on")
     with db:
+        existing = {
+            name for (name,) in db.execute("select name from sqlite_master where type = 'table'")
+        }
         for table in CREDENTIAL_TABLES:
-            db.execute(f'delete from "{table}"')
+            if table in existing:
+                db.execute(f'delete from "{table}"')
         for project in EXCLUDED_PROJECTS:
             db.execute("delete from projects where name = ?", (project,))
         scrub_users(db)
         tables = [
             name
-            for (name,) in db.execute("select name from sqlite_master where type = 'table'")
+            for name in sorted(existing)
             if name not in CREDENTIAL_TABLES and name not in {"users", "alembic_version"}
         ]
         for table in tables:
