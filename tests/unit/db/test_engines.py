@@ -135,6 +135,29 @@ async def test_sqlite_fixture_rolls_back_released_savepoint(sqlite_engine: Async
         assert await connection.scalar(text("select count(*) from values_to_rollback")) == 0
 
 
+async def test_sqlite_immediate_transaction_locks_before_reads_and_does_not_leak(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "immediate.db"
+    engine = aio_sqlite_engine(get_async_db_url(f"sqlite:///{path}"), migrate=False)
+    competing_writer = sqlean.connect(str(path), timeout=0)
+    try:
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with sessions.begin() as session:
+            await session.connection(execution_options={"sqlite_begin_immediate": True})
+            with pytest.raises(sqlean.OperationalError, match="database is locked"):
+                competing_writer.execute("BEGIN IMMEDIATE")
+
+        # The pooled connection's next session must return to deferred BEGIN.
+        async with sessions.begin() as session:
+            await session.scalar(text("select 1"))
+            competing_writer.execute("BEGIN IMMEDIATE")
+            competing_writer.rollback()
+    finally:
+        competing_writer.close()
+        await engine.dispose()
+
+
 async def test_sqlite_savepoint_release_keeps_writes_private_until_outer_commit(
     tmp_path: Path,
 ) -> None:

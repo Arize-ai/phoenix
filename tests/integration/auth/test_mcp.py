@@ -10,15 +10,15 @@ indicator, and the minted token authorizes real MCP tool calls end to end. The
 resource indicator is also binding: a code or grant authorized for /mcp cannot be
 redeemed or refreshed for a different resource.
 
-These tests run against the package-scoped ``_app`` (which enables the MCP mount —
-see the package ``_env`` fixture), so they execute on the same database backend as
-the rest of the suite (SQLite or PostgreSQL per ``CI_TEST_DB_BACKEND``).
+These tests use the same database backend as the rest of the suite (SQLite or
+PostgreSQL per ``CI_TEST_DB_BACKEND``). Most use the package-scoped ``_app``;
+code-mode tests start a separate server with code mode enabled.
 """
 
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Any, Iterator, cast
+from typing import Any, Iterator, Mapping, cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -37,7 +37,7 @@ from tests.integration._helpers import (
     _server,
 )
 
-from .conftest import _oauth2_app_env, _OAuthPublicClient
+from .conftest import _OAuthPublicClient
 
 
 def _base_url(app: _AppInfo) -> str:
@@ -438,25 +438,24 @@ class TestMcpToolAuthorization:
 
 @pytest.fixture(scope="module")
 def _app_mcp_code_mode(
+    _env_database: Mapping[str, str],
+    _env_auth: Mapping[str, str],
     _ports: Iterator[int],
-    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """A server with auth, the /mcp mount, and PHOENIX_ENABLE_MCP_CODE_MODE all enabled.
 
     Code mode replaces the tool surface, so it cannot share the package app.
-    SQLite only: the code-mode surface is request plumbing over the same /v1
-    paths the package app already exercises on both backends.
     """
-    env = _oauth2_app_env(
-        port=next(_ports),
-        grpc_port=next(_ports),
-        database=str(tmp_path_factory.mktemp("oauth2_mcp_code_mode") / "phoenix.db"),
-        extra={
-            "PHOENIX_ENABLE_MCP_SERVER": "true",
-            "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
-            "PHOENIX_DISABLE_RATE_LIMIT": "true",
-        },
-    )
+    env = {
+        **_env_database,
+        **_env_auth,
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+        "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
+        "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,http://127.0.0.1,",
+        "PHOENIX_ENABLE_MCP_SERVER": "true",
+        "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
+    }
     with _server(_AppInfo(env)) as app:
         yield app
 
