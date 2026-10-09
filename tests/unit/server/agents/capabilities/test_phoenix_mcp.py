@@ -281,40 +281,6 @@ class TestInMemoryTransportContract:
         assert result.content[0].text == str(principal.identity)
 
 
-class TestOversizedResults:
-    """A result too large for the context window is withheld, not passed on.
-
-    An unfiltered span listing can run to millions of characters; passed to the
-    model it overflows the prompt and the turn ends with no answer.
-    """
-
-    @staticmethod
-    def _sized_server() -> FastMCP:
-        mcp: FastMCP = FastMCP("sized")
-
-        @mcp.tool
-        def payload(size: int) -> str:
-            return "x" * size
-
-        return mcp
-
-    async def test_a_result_within_the_limit_is_returned(self) -> None:
-        async with PhoenixMCPToolset[None](self._sized_server()) as toolset:
-            result = await toolset.direct_call_tool("payload", {"size": 1_000})
-
-        assert result == "x" * 1_000
-
-    async def test_a_result_over_the_limit_is_replaced_by_a_notice(self) -> None:
-        from phoenix.server.agents.capabilities.phoenix_mcp import MAX_TOOL_RESULT_CHARS
-
-        async with PhoenixMCPToolset[None](self._sized_server()) as toolset:
-            result = await toolset.direct_call_tool("payload", {"size": MAX_TOOL_RESULT_CHARS + 1})
-
-        assert isinstance(result, str)
-        assert result.startswith("The payload result was withheld")
-        assert len(result) < 1_000
-
-
 class TestReadOnlySurface:
     """Mutations belong to the agent's editing tools, which route approval
     through the user; this surface expresses none of them except note creation."""

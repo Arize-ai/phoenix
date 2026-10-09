@@ -32,8 +32,8 @@ compare the conditions in the Phoenix UI.
   the terms of
   [PatronusAI/TRAIL](https://huggingface.co/datasets/PatronusAI/TRAIL). TRAIL is gated
   and cannot be redistributed. Seed the database with your own token, and do not commit
-  or upload the dataset or generated fixture. Without a token, staging skips the TRAIL
-  tasks. CI does not set this token.
+  or upload the dataset or generated fixture. Without a token or previously downloaded
+  rows, staging skips the TRAIL tasks. CI does not set this token.
 
 ## Run a benchmark
 
@@ -54,8 +54,11 @@ The px archive requires Docker and takes a few minutes to build. If the job has 
 agent, set `HARBOR_CLI=0` to skip the archive. Use `HARBOR_CLI_PLATFORM` to change the
 target from `linux/amd64`. Restage after changing the server, `verifiers/`,
 `environments/`, or a fixture because the image contains copies of these files.
-`RESEED=1` also rebuilds the fixtures. `make harbor-run` refuses to start a job whose
-tasks are not staged.
+Staging rebuilds a cached fixture when the files that produce it change: its
+`environments/fixtures/<name>/` directory and any repository paths listed in that
+directory's `inputs` file. If a stale fixture cannot be rebuilt, staging skips its tasks
+rather than staging old data. `RESEED=1` rebuilds every fixture. `make harbor-run` refuses
+to start a job whose tasks are not staged.
 
 ### 2. Run a job
 

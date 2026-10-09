@@ -37,24 +37,34 @@ unavailable=""
 fixture_digest() {
   local source="$ENVIRONMENTS/fixtures/$1" paths=()
   if [ -f "$source/inputs" ]; then
-    while IFS= read -r path; do
-      [ -n "$path" ] && paths+=("$ROOT/$path")
+    # `|| [ -n "$path" ]` keeps a last line that has no trailing newline.
+    while IFS= read -r path || [ -n "$path" ]; do
+      [ -n "$path" ] || continue
+      if [ ! -e "$ROOT/$path" ]; then
+        echo "$source/inputs lists $path, which does not exist" >&2
+        exit 1
+      fi
+      paths+=("$ROOT/$path")
     done <"$source/inputs"
   fi
   find "$source" ${paths[@]+"${paths[@]}"} -type f ! -name '*.pyc' -print0 | LC_ALL=C sort -z \
     | xargs -0 shasum -a 256 | sed "s|$ROOT/||" | shasum -a 256 | cut -d' ' -f1
 }
 
-# Return 0 for an available fixture and 1 when its script reports that it is unavailable.
-# Exit on any other fixture error.
+# Return 0 for an available fixture and 1 when it is unavailable: its script exits 2, or a
+# cached copy is stale and cannot be rebuilt. A stale copy is never staged, because it grades
+# tasks against data the current scripts would not produce. Exit on any other error.
 ensure_fixture() {
   local name=$1 dir="$FIXTURES/$1" script="$ENVIRONMENTS/fixtures/$1/fixture.sh"
   case " $unavailable " in *" $name "*) return 1 ;; esac
-  local digest
-  digest=$(fixture_digest "$name")
+  local digest stale=0
+  # `|| exit`: the caller's `if` suspends `set -e` here, and the digest runs in a subshell.
+  digest=$(fixture_digest "$name") || exit 1
   if [ -f "$dir/phoenix.db" ]; then
     [ "$(cat "$dir/digest" 2>/dev/null)" = "$digest" ] && return 0
     echo "The $name fixture predates its current scripts; rebuilding it."
+    stale=1
+    rm -f "$dir/phoenix.db" "$dir/digest"
   fi
   if [ ! -x "$script" ]; then
     echo "No fixture script at $script" >&2
@@ -66,11 +76,12 @@ ensure_fixture() {
   if [ "$status" = 0 ]; then
     echo "$digest" >"$dir/digest"
     return 0
-  elif [ "$status" = 2 ]; then
-    if [ -f "$dir/phoenix.db" ]; then
-      echo "WARNING: could not rebuild the $name fixture; staging the stale copy." >&2
-      return 0
+  fi
+  if [ "$status" = 2 ] || [ "$stale" = 1 ]; then
+    if [ "$stale" = 1 ]; then
+      echo "WARNING: could not rebuild the stale $name fixture (exit $status); skipping its tasks." >&2
     fi
+    rm -f "$dir/phoenix.db"
     unavailable="$unavailable $name"
     return 1
   fi
@@ -89,6 +100,8 @@ for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
     exit 1
   fi
   if ! ensure_fixture "$fixture"; then
+    # Unstage any earlier copy, so the run check reports the task instead of using it.
+    rm -f "$task/environment/data/phoenix.db"
     skipped="$skipped ${task#"$TASKS_DIR/"}"
     continue
   fi

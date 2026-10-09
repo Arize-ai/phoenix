@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import shutil
 import socket
 import sqlite3
@@ -77,41 +76,22 @@ def wait_for(predicate: Callable[[], bool], *, timeout: float, what: str) -> Non
         time.sleep(1)
 
 
-def loads_labels(text: str) -> Any:
-    """Parse a TRAIL labels row, which may carry trailing commas, as the loader does."""
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return json.loads(re.sub(r",(\s*[\]}])", r"\1", text))
+def check_annotations(connection: sqlite3.Connection, posted: dict[str, list[str]]) -> None:
+    """Fail when the database lacks an annotation the loader posted.
 
-
-def check_annotations(connection: sqlite3.Connection, rows: list[dict[str, Any]]) -> None:
-    """Fail when the database is missing annotations that the TRAIL rows define.
-
-    The loader upserts one ``trail_error`` per (span, category) and one set of trace
-    scores per trace. A fixture that silently drops some of them grades every
-    annotation question against the wrong reference.
+    ``posted`` holds the identifiers the loader reports for its span and trace
+    annotations. A fixture that silently drops some of them grades every annotation
+    question against the wrong reference.
     """
-    errors: set[tuple[str, str]] = set()
-    scored_traces = 0
-    for row in rows:
-        labels = loads_labels(row["labels"])
-        for error in labels.get("errors") or []:
-            if location := error.get("location"):
-                category = str(error.get("category") or "unknown").replace("\x00", " ")
-                errors.add((str(location), category))
-        scored_traces += bool(labels.get("scores"))
-    (seeded_errors,) = connection.execute(
-        "SELECT COUNT(*) FROM span_annotations WHERE name = 'trail_error'"
-    ).fetchone()
-    (seeded_traces,) = connection.execute(
-        "SELECT COUNT(DISTINCT trace_rowid) FROM trace_annotations WHERE name LIKE 'trail_%'"
-    ).fetchone()
-    if (seeded_errors, seeded_traces) != (len(errors), scored_traces):
-        raise RuntimeError(
-            f"seeded {seeded_errors} of {len(errors)} trail_error span annotations and "
-            f"scores on {seeded_traces} of {scored_traces} traces"
-        )
+    for kind, table in (("span", "span_annotations"), ("trace", "trace_annotations")):
+        stored = {
+            identifier for (identifier,) in connection.execute(f"SELECT identifier FROM {table}")
+        }
+        if missing := set(posted[kind]) - stored:
+            raise RuntimeError(
+                f"{len(missing)} of {len(posted[kind])} posted {kind} annotations were not "
+                f"stored, for example {sorted(missing)[0]!r}"
+            )
 
 
 def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
@@ -132,6 +112,7 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
             "PHOENIX_ALLOWED_SANDBOX_PROVIDERS": "MONTY",
         }
         log_path = Path(scratch) / "phoenix.log"
+        posted_path = Path(scratch) / "posted.json"
         with open(log_path, "w") as log:
             server = subprocess.Popen(
                 ["phoenix", "serve", "--no-ui"], env=env, stdout=log, stderr=subprocess.STDOUT
@@ -153,6 +134,8 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
                         "--no-regenerate-ids",
                         "--no-shift-to-now",
                         "--scores-on-trace",
+                        "--posted-annotations",
+                        str(posted_path),
                     ],
                     check=True,
                     # Remove inherited Phoenix settings so the loader sends every row to
@@ -184,7 +167,7 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
                 server.kill()
         with sqlite3.connect(database) as connection:
             connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            check_annotations(connection, rows)
+            check_annotations(connection, json.loads(posted_path.read_text()))
         for sidecar in (database.with_suffix(".db-wal"), database.with_suffix(".db-shm")):
             sidecar.unlink(missing_ok=True)
         output.parent.mkdir(parents=True, exist_ok=True)
