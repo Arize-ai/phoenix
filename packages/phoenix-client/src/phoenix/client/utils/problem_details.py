@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any, Optional, cast
 
 import httpx
@@ -7,6 +8,21 @@ import httpx
 from phoenix.client.exceptions import PhoenixAPIError
 
 _DETAIL_LIMIT = 2000
+
+
+def _iter_field_errors(errors: Any) -> Iterator[tuple[str, str]]:
+    """Yield renderable field errors, ignoring malformed optional error details."""
+    if not isinstance(errors, list):
+        return
+    field_errors: list[Any] = errors
+    for candidate in field_errors:
+        if not isinstance(candidate, dict):
+            continue
+        error = cast(dict[str, Any], candidate)
+        field = error.get("field")
+        message = error.get("message")
+        if isinstance(field, str) and isinstance(message, str):
+            yield field, message
 
 
 def _is_problem_detail(body: Any) -> bool:
@@ -40,12 +56,14 @@ def raise_for_problem(response: httpx.Response) -> None:
     message = f"{response.status_code} {response.reason_phrase} for {request.method} {request.url}"
     if problem is not None:
         message += f": [{problem.get('code')}] {problem.get('detail')}"
-        for error in problem.get("errors") or ():
-            message += f"\n  {error.get('field')}: {error.get('message')}"
-        if problem.get("reason"):
-            message += f"\n  reason: {problem['reason']}"
-        if problem.get("existing_id"):
-            message += f"\n  existing_id: {problem['existing_id']}"
+        for field, error_message in _iter_field_errors(problem.get("errors")):
+            message += f"\n  {field}: {error_message}"
+        reason = problem.get("reason")
+        if isinstance(reason, str) and reason:
+            message += f"\n  reason: {reason}"
+        existing_id = problem.get("existing_id")
+        if isinstance(existing_id, str) and existing_id:
+            message += f"\n  existing_id: {existing_id}"
     elif response.text:
         message += f": {response.text[:_DETAIL_LIMIT]}"
     raise PhoenixAPIError(message, request=response.request, response=response, problem=problem)

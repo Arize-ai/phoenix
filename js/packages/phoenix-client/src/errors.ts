@@ -97,8 +97,41 @@ export async function readProblemDetail(
   }
   try {
     const body: unknown = await response.clone().json();
-    return isProblemDetail(body) ? body : undefined;
+    if (!isProblemDetail(body)) return undefined;
+
+    const candidate = body as Record<string, unknown>;
+    const errors = candidate.errors;
+    if (errors === undefined) return body;
+    if (!Array.isArray(errors)) return omitProblemDetailErrors(candidate);
+
+    const validErrors = errors.filter(isProblemDetailError);
+    if (validErrors.length === errors.length) return body;
+    if (validErrors.length === 0) return omitProblemDetailErrors(candidate);
+
+    // Keep useful field errors and the other problem fields when an optional
+    // validation payload contains malformed entries.
+    return { ...candidate, errors: validErrors } as ProblemDetail;
   } catch {
     return undefined;
   }
+}
+
+function omitProblemDetailErrors(
+  problem: Record<string, unknown>
+): ProblemDetail {
+  const problemWithoutErrors = { ...problem };
+  delete problemWithoutErrors.errors;
+  return problemWithoutErrors as ProblemDetail;
+}
+
+function isProblemDetailError(
+  value: unknown
+): value is { field: string; code: string; message: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.field === "string" &&
+    typeof candidate.code === "string" &&
+    typeof candidate.message === "string"
+  );
 }
