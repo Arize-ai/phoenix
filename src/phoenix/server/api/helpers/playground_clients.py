@@ -1269,8 +1269,6 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
         PROVIDER_DEFAULT,
-        "deepseek-chat",
-        "deepseek-reasoner",
     ],
 )
 class DeepSeekClient(OpenAICompatibleClient):
@@ -1318,6 +1316,7 @@ class OllamaClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.CEREBRAS,
     model_names=[
         PROVIDER_DEFAULT,
+        "qwen-3.8-27b",
         "llama3.1-8b",
         "gpt-oss-120b",
     ],
@@ -1340,14 +1339,9 @@ class FireworksClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.GROQ,
     model_names=[
         PROVIDER_DEFAULT,
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "qwen/qwen3.8-27b",
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
-        "qwen/qwen3-32b",
-        "groq/compound",
-        "groq/compound-mini",
     ],
 )
 class GroqClient(OpenAICompatibleClient):
@@ -1358,6 +1352,9 @@ class GroqClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k3",
+        "kimi-k2.7-code",
+        "kimi-k2.6",
         "kimi-k2-turbo-preview",
         "kimi-k2-thinking-turbo",
         "kimi-k2-thinking",
@@ -1401,12 +1398,11 @@ class PerplexityClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.TOGETHER,
     model_names=[
         PROVIDER_DEFAULT,
+        "moonshotai/Kimi-K3",
         "moonshotai/Kimi-K2.5",
-        "deepseek-ai/DeepSeek-V3.1",
+        "deepseek-ai/DeepSeek-V4.1-Flash",
         "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "zai-org/GLM-5",
-        "zai-org/GLM-4.5-Air-FP8",
+        "zai-org/GLM-5.3",
         "Qwen/Qwen3-235B-A22B-Thinking-2507",
         "deepseek-ai/DeepSeek-R1",
     ],
@@ -1419,6 +1415,12 @@ class TogetherClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.ZAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "glm-5.3",
+        "glm-5.3-flash",
+        "glm-5.2",
+        "glm-5.1",
+        "glm-5",
+        "glm-4.7",
         "glm-4.6",
         "glm-4.5",
         "glm-4.5-air",
@@ -1453,6 +1455,7 @@ class MetaClient(OpenAICompatibleClient):
         "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
+        "anthropic.claude-sonnet-5-5",
         "anthropic.claude-sonnet-5",
         "anthropic.claude-haiku-5-5",
         "anthropic.claude-opus-4-6-v1",
@@ -1951,10 +1954,8 @@ OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4.1-mini",
     "gpt-4.1-nano",
     "gpt-4o",
-    "chatgpt-4o-latest",
     "gpt-4o-mini",
     "gpt-4-turbo",
-    "gpt-4-turbo-preview",
     "gpt-4",
     "gpt-3.5-turbo",
 ]
@@ -1977,6 +1978,7 @@ class OpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 
 OPENAI_REASONING_MODELS = [
+    "gpt-6.1-sol",
     "gpt-6-astra",
     "gpt-6-sol",
     "gpt-6-luna",
@@ -1984,22 +1986,18 @@ OPENAI_REASONING_MODELS = [
     "gpt-5.6-terra",
     "gpt-5.6-luna",
     "gpt-5.5",
+    "gpt-5.5-pro",
     "gpt-5.4",
     "gpt-5.4-mini",
     "gpt-5.4-nano",
     "gpt-5.4-pro",
-    "gpt-5.3-chat-latest",
     "gpt-5.2",
-    "gpt-5.2-chat-latest",
     "gpt-5.2-pro",
     "gpt-5.1",
-    "gpt-5.1-chat-latest",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
     "gpt-5-pro",
-    "gpt-5-chat",
-    "gpt-5-chat-latest",
     "o1",
     "o1-pro",
     "o3",
@@ -2148,6 +2146,7 @@ ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
     "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
+    "claude-sonnet-5-5",
     "claude-sonnet-5",
     "claude-haiku-5-5",
 ]
@@ -2988,8 +2987,8 @@ GEMINI_3_MODELS = [
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
     "gemini-3.1-pro-preview",
-    "gemini-3-pro-preview",
     "gemini-3-flash-preview",
 ]
 
