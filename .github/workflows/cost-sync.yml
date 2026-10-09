@@ -400,6 +400,7 @@ jobs:
           git diff --stat
 
       - name: Create or update Pull Request
+        id: cpr
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
@@ -415,6 +416,15 @@ jobs:
           branch: automation/sync-model-catalog
           base: main
           delete-branch: true
+
+      - name: Enable auto-merge
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        # Lets a reviewer merge with a single approval; a failure here should
+        # not fail the run since the PR itself was opened successfully.
+        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"
 
   slack-notification:
     name: Slack Notification

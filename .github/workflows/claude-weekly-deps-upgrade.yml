@@ -208,6 +208,8 @@ jobs:
 
           All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
           fi
+          # Auto-merge once a reviewer approves and checks pass.
+          gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
 
       - name: Install subprocess isolation deps
         # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
@@ -393,6 +395,8 @@ jobs:
               --title "chore(deps): weekly dependency upgrade ${DATE}" \
               --body-file .scratch/pr-body-full.md
           fi
+          # Auto-merge once a reviewer approves and checks pass.
+          gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
 
   slack-notification:
     name: Slack Notification

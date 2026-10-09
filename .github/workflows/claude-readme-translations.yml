@@ -164,3 +164,5 @@ jobs:
               --title "docs: sync README translations" \
               --body-file "$BODY_FILE"
           fi
+          # Auto-merge once a reviewer approves and checks pass.
+          gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"
