@@ -151,6 +151,47 @@ async def test_output_config_overrides_hold_at_least_one_config(
     assert (await httpx_client.get(binding_route)).json()["data"] == binding
 
 
+async def test_llm_binding_defaults_to_inherited_settings(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    async with db() as session:
+        dataset = models.Dataset(name=f"llm-inherit-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        dataset_id = dataset.id
+    route = f"v1/datasets/{GlobalID('Dataset', str(dataset_id))}/evaluators"
+    created = await httpx_client.post(
+        route,
+        json={
+            "name": "llm-binding",
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+        },
+    )
+    assert created.status_code == 201, created.text
+    binding = created.json()["data"]
+    assert binding["description"] is None
+    assert binding["output_configs"] is None
+    async with db() as session:
+        db_binding = await session.get(
+            models.DatasetEvaluators, int(GlobalID.from_id(binding["id"]).node_id)
+        )
+        assert db_binding is not None
+        assert db_binding.description is None
+        assert db_binding.output_configs is None
+        assert (
+            await session.scalar(
+                select(models.DatasetEvaluators.id).where(
+                    models.DatasetEvaluators.id == db_binding.id,
+                    models.DatasetEvaluators.output_configs.is_(None),
+                )
+            )
+            == db_binding.id
+        )
+
+
 async def test_patch_rename_to_taken_name_is_already_exists(
     httpx_client: httpx.AsyncClient, db: DbSessionFactory, sandbox_config: models.SandboxConfig
 ) -> None:

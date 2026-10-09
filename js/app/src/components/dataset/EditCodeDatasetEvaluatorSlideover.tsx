@@ -435,9 +435,8 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   input: {
                     datasetEvaluatorId,
                     name: normalizedName,
-                    // Clears any override so the dataset inherits the evaluator.
-                    description: null,
-                    outputConfigs: null,
+                    description: normalizedDescription,
+                    outputConfigs: buildOutputConfigsInput(outputConfigs),
                     inputMapping: normalizedInputMapping,
                   },
                   connectionIds: updateConnectionIds ?? [],

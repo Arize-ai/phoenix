@@ -103,6 +103,8 @@ class UpdateDatasetLLMEvaluatorInput:
     prompt_source: CreatePromptSource
     output_configs: list[OutputConfigType]
     input_mapping: Optional[InputMapping] = None
+    binding_description: Optional[str] = UNSET
+    binding_output_configs: Optional[list[OutputConfigType]] = UNSET
 
 
 @dataclass(kw_only=True)
@@ -202,8 +204,9 @@ async def create_dataset_llm_evaluator(
                     prompt_versions=[prompt_version],
                 )
 
-            # Only an explicit override is stored; a None binding value inherits the
-            # evaluator's description and outputs.
+            # Only explicit overrides are stored; a None binding value inherits the
+            # evaluator's description and outputs. The GraphQL adapter supplies the submitted
+            # settings here to preserve the dataset UI's established behavior.
             binding_description = input.binding_description
             binding_configs: Optional[list[OutputConfigType]] = input.binding_output_configs
             validate_llm_binding_overrides(
@@ -390,15 +393,15 @@ async def update_dataset_llm_evaluator(
         ):
             llm_evaluator.name = await generate_unique_evaluator_name(session, evaluator_name)
             shared_evaluator_changed = True
-        # The input describes the evaluator itself, so the binding stores no
-        # override and inherits the evaluator's description and outputs.
         binding_values: dict[str, Any] = dict(
             name=evaluator_name,
-            description=None,
-            output_configs=None,
             input_mapping=input.input_mapping,
             user_id=user_id,
         )
+        if input.binding_description is not UNSET:
+            binding_values["description"] = input.binding_description
+        if input.binding_output_configs is not UNSET:
+            binding_values["output_configs"] = input.binding_output_configs
 
         if input.description is not UNSET and llm_evaluator.description != input.description:
             llm_evaluator.description = input.description

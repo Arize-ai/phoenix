@@ -208,15 +208,15 @@ class TestDatasetLLMEvaluatorMutations:
             assert db_dataset_evaluator.input_mapping == InputMapping(
                 literal_mapping={}, path_mapping={}
             )
-            # The binding stores no override; it inherits the evaluator's settings.
-            assert db_dataset_evaluator.description is None
-            assert db_dataset_evaluator.output_configs is None
-            # An inheriting binding stores SQL NULL, not the JSON value null.
+            # GraphQL creation stores the submitted settings on both rows.
+            assert db_dataset_evaluator.description == llm_evaluator.description
+            assert db_dataset_evaluator.output_configs == llm_evaluator.output_configs
+            # The copied output configs are stored as JSON, not SQL NULL.
             assert (
                 await session.scalar(
                     select(models.DatasetEvaluators.id).where(
                         models.DatasetEvaluators.id == dataset_evaluator_id,
-                        models.DatasetEvaluators.output_configs.is_(None),
+                        models.DatasetEvaluators.output_configs.is_not(None),
                     )
                 )
                 == dataset_evaluator_id
@@ -1326,9 +1326,9 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
-            # Editing the evaluator leaves the binding inheriting its settings.
-            assert db_dataset_evaluator.output_configs is None
-            assert db_dataset_evaluator.description is None
+            # The dataset UI saves the submitted settings to both definition and binding.
+            assert db_dataset_evaluator.output_configs == db_evaluator.output_configs
+            assert db_dataset_evaluator.description == "updated description"
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
             assert db_evaluator.output_configs[0].name == "result"
@@ -2300,18 +2300,17 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
-            # Saving the evaluator clears the binding's description override.
-            assert db_dataset_evaluator.description is None
+            # Omitting description preserves the binding's existing stored value.
+            assert db_dataset_evaluator.description == "seeded description"
 
-    async def test_update_clears_output_config_override(
+    async def test_update_replaces_output_config_override_with_submitted_configs(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
         llm_evaluator: models.LLMEvaluator,
     ) -> None:
-        """Saving the evaluator clears the binding's overrides, so the dataset reads the
-        evaluator's description and output configs."""
+        """Saving the evaluator also stores the submitted description and output configs."""
         async with db() as session:
             dataset_evaluator = await session.scalar(
                 select(models.DatasetEvaluators).where(
@@ -2392,16 +2391,13 @@ class TestUpdateDatasetLLMEvaluatorMutation:
         assert result.data and not result.errors
 
         async with db() as session:
-            assert (
-                await session.scalar(
-                    select(models.DatasetEvaluators.id).where(
-                        models.DatasetEvaluators.id == dataset_evaluator_rowid,
-                        models.DatasetEvaluators.output_configs.is_(None),
-                        models.DatasetEvaluators.description.is_(None),
-                    )
-                )
-                == dataset_evaluator_rowid
+            db_dataset_evaluator = await session.get(
+                models.DatasetEvaluators, dataset_evaluator_rowid
             )
+            db_llm_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
+            assert db_dataset_evaluator is not None and db_llm_evaluator is not None
+            assert db_dataset_evaluator.description == "saved description"
+            assert db_dataset_evaluator.output_configs == db_llm_evaluator.output_configs
 
         output_configs_fields = """
             outputConfigs {

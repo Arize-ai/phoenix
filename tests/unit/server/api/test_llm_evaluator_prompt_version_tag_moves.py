@@ -982,7 +982,7 @@ async def test_llm_edit_keeps_shared_name_when_another_binding_exists(
         assert edited_binding_name.root == f"edited-{update_input['name']}"
 
 
-async def test_dataset_llm_edit_clears_its_overrides_before_checking_compatibility(
+async def test_dataset_llm_edit_replaces_its_overrides_before_checking_compatibility(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
@@ -992,7 +992,8 @@ async def test_dataset_llm_edit_clears_its_overrides_before_checking_compatibili
         edited_binding = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
         assert edited_binding is not None
         # This override is valid for the current definition, then becomes incompatible with
-        # the edit below. Dataset edits replace their own overrides with inherited values.
+        # the edit below. The edit saves the submitted settings to the binding before checking
+        # compatibility, so its new values are checked against the new prompt.
         edited_binding.description = "correctness"
         edited_binding.output_configs = [_output_config(_EVALUATOR_LABELS)]
 
@@ -1007,8 +1008,8 @@ async def test_dataset_llm_edit_clears_its_overrides_before_checking_compatibili
         edited_binding = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
         assert evaluator is not None and evaluator.description == "updated correctness"
         assert edited_binding is not None
-        assert edited_binding.description is None
-        assert edited_binding.output_configs is None
+        assert edited_binding.description == "updated correctness"
+        assert edited_binding.output_configs == [_output_config(("yes", "no"))]
 
 
 async def _add_grading_version(db: DbSessionFactory, evaluator_id: int) -> tuple[int, int, int]:

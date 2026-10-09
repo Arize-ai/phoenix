@@ -9,8 +9,6 @@ from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 
-from phoenix.db.types.annotation_configs import OutputConfig
-
 from . import _down, _get_table_schema_info, _run_async, _TableSchemaInfo, _up
 
 _DOWN = "a7f1c3e9d2b4"
@@ -413,25 +411,25 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
             schema_before["nullable_column_names"] | {"output_configs"}
         )
         after = _bindings(conn, _db_backend)
-        # LLM bindings inherit, including one whose copy had gone stale.
+        # Existing LLM settings stay as stored, including a copy that had gone stale.
         for binding_id in (seed.llm, seed.stale_llm):
-            assert after[binding_id].is_sql_null
-            assert after[binding_id].description is None
+            assert after[binding_id] == before[binding_id]
         # A binding that already inherited stores SQL NULL instead of JSON null.
         assert after[seed.builtin_inherits].is_sql_null
         # An empty override list inherits, keeping the binding's description.
         for binding_id in (seed.code_empty, seed.builtin_empty):
             assert after[binding_id].is_sql_null
             assert after[binding_id].description == before[binding_id].description
-        # A code binding inherits each setting it holds as a copy of its evaluator's.
-        assert after[seed.code_copy].is_sql_null
-        assert after[seed.code_copy].description is None
-        assert after[seed.code_description_copy].description is None
-        assert after[seed.code_description_copy].output_configs == _CODE_CONFIGS_OVERRIDE
-        assert after[seed.code_configs_copy].is_sql_null
-        assert after[seed.code_configs_copy].description == "dataset note"
-        # Overrides that differ from their evaluator's settings are untouched.
-        for binding_id in (seed.code, seed.code_override, seed.builtin_override):
+        # Existing code and built-in settings stay as stored even when equal to the
+        # evaluator's values; the migration cannot identify whether equal values were copied.
+        for binding_id in (
+            seed.code,
+            seed.code_copy,
+            seed.code_description_copy,
+            seed.code_configs_copy,
+            seed.code_override,
+            seed.builtin_override,
+        ):
             assert after[binding_id] == before[binding_id]
         assert _child_row_counts(conn) == (1, 1)
         # The tag foreign key refuses deletes; the rest of llm_evaluators, its rows included,
@@ -481,32 +479,23 @@ async def test_dataset_evaluators_inherit_evaluator_settings(
         # Overrides written after the upgrade survive the downgrade.
         assert after[seed.llm].output_configs == _NEW_OVERRIDE
         assert after[seed.stale_llm].description == "dataset specific"
-        # Inheriting LLM bindings get their evaluator's current settings back.
-        assert after[seed.llm].description == "shared description"
-        assert after[seed.stale_llm].output_configs == _STALE_LLM_CONFIGS
-        # The copied-back LLM configs parse the way the binding's column type reads them.
-        restored = [
-            OutputConfig.model_validate(config).root
-            for config in after[seed.stale_llm].output_configs
-        ]
-        assert [config.name for config in restored] == ["hallucination"]
-        # Other inheriting bindings store JSON null again, which the resolvers and the
-        # experiment runner before this revision also read as inherit.
-        for binding_id in (
-            seed.builtin_inherits,
-            seed.code_empty,
-            seed.builtin_empty,
-            seed.code_copy,
-            seed.code_configs_copy,
-        ):
+        # SQL NULL configs introduced after upgrade become JSON null in the old NOT NULL
+        # schema. Stored descriptions and all non-null output configs stay unchanged.
+        for binding_id in (seed.builtin_inherits, seed.code_empty, seed.builtin_empty):
             assert after[binding_id].is_json_null
-        # Code bindings keep inheriting the description; NULL has always meant inherit.
-        for binding_id in (seed.code_copy, seed.code_description_copy):
-            assert after[binding_id].description is None
-        assert after[seed.code_description_copy].output_configs == _CODE_CONFIGS_OVERRIDE
-        assert after[seed.code_configs_copy].description == "dataset note"
-        for binding_id in (seed.code, seed.code_override, seed.builtin_override):
+        for binding_id in (
+            seed.code,
+            seed.code_copy,
+            seed.code_description_copy,
+            seed.code_configs_copy,
+            seed.code_override,
+            seed.builtin_override,
+        ):
             assert after[binding_id] == before[binding_id]
+        assert after[seed.llm].description == before[seed.llm].description
+        assert after[seed.llm].output_configs == _NEW_OVERRIDE
+        assert after[seed.stale_llm].description == "dataset specific"
+        assert after[seed.stale_llm].output_configs == before[seed.stale_llm].output_configs
         assert _child_row_counts(conn) == (1, 1)
         if _db_backend == "sqlite":
             assert conn.execute(text("PRAGMA foreign_key_check")).all() == []

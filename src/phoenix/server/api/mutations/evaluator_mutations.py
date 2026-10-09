@@ -647,14 +647,19 @@ class EvaluatorMutationMixin:
     async def create_dataset_llm_evaluator(
         self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
+        output_configs = (
+            convert_output_config_inputs_to_pydantic(input.output_configs)
+            if input.output_configs is not None and input.output_configs is not UNSET
+            else input.output_configs
+        )
         command = dataset_evaluator_service.CreateDatasetLLMEvaluatorInput(
             dataset_id=input.dataset_id,
             name=input.name,
             description=input.description,
             prompt_source=_prompt_source_from_input(input.prompt_version_id, input.prompt_version),
-            output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
-            if input.output_configs is not None and input.output_configs is not UNSET
-            else input.output_configs,
+            output_configs=output_configs,
+            binding_description=input.description if input.description is not UNSET else None,
+            binding_output_configs=output_configs,
             input_mapping=input.input_mapping.to_orm()
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
@@ -670,15 +675,20 @@ class EvaluatorMutationMixin:
     async def update_dataset_llm_evaluator(
         self, info: Info[Context, None], input: UpdateDatasetLLMEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
+        output_configs = (
+            convert_output_config_inputs_to_pydantic(input.output_configs)
+            if input.output_configs is not None and input.output_configs is not UNSET
+            else input.output_configs
+        )
         command = dataset_evaluator_service.UpdateDatasetLLMEvaluatorInput(
             dataset_evaluator_id=input.dataset_evaluator_id,
             dataset_id=input.dataset_id,
             name=input.name,
             description=input.description,
             prompt_source=_prompt_source_from_input(input.prompt_version_id, input.prompt_version),
-            output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
-            if input.output_configs is not None and input.output_configs is not UNSET
-            else input.output_configs,
+            output_configs=output_configs,
+            binding_description=input.description,
+            binding_output_configs=output_configs,
             input_mapping=input.input_mapping.to_orm()
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
