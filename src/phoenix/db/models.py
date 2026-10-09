@@ -35,6 +35,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
+from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -49,7 +50,7 @@ from sqlalchemy.sql import Values, column, compiler, expression, literal, roles,
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.elements import Case
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self, TypeAlias, TypeAliasType
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -192,7 +193,7 @@ EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
 SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
-LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
+LanguageName = TypeAliasType("LanguageName", Literal["PYTHON", "TYPESCRIPT"])
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -216,7 +217,12 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "FILTERED_OUT",
     "SAMPLED_OUT",
 ]
-EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
+EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
+
+# Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
+# and store 0; the check constraint on project_evaluators enforces both rules.
+DEFAULT_EVALUATION_DELAY_SECONDS = 300
+MINIMUM_EVALUATION_DELAY_SECONDS = 10
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -251,6 +257,19 @@ JSON_ = (
     )
     .with_variant(
         JSONB(),
+        "sqlite",
+    )
+)
+
+# Stores Python None as SQL NULL instead of the JSON value null.
+_NullableJSON = (
+    JSON(none_as_null=True)
+    .with_variant(
+        postgresql.JSONB(none_as_null=True),
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(none_as_null=True),
         "sqlite",
     )
 )
@@ -559,6 +578,12 @@ class _OutputConfigList(TypeDecorator[list[OutputConfigType]]):
         if value is None:
             return None
         return [OutputConfigModel.model_validate(config).root for config in value]
+
+
+class _OutputConfigOverrideList(_OutputConfigList):
+    # SQL NULL marks a dataset evaluator that inherits its evaluator's output configs.
+    cache_ok = True
+    impl = _NullableJSON
 
 
 class _CategoricalOutputConfigList(TypeDecorator[list[CategoricalOutputConfig]]):
@@ -3032,10 +3057,12 @@ class PromptVersionTag(HasId):
         "PromptVersion", back_populates="prompt_version_tags"
     )
 
+    # Deleting a tag an evaluator runs through is refused by the database, not nulled by the ORM.
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt_version_tag",
         uselist=True,
+        passive_deletes="all",
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
@@ -3245,7 +3272,7 @@ class LLMEvaluator(Evaluator):
         index=True,
     )
     prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
+        ForeignKey("prompt_version_tags.id", ondelete="RESTRICT"),
         index=True,
     )
     output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(
@@ -3470,7 +3497,7 @@ class DatasetEvaluators(HasId):
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
-        _OutputConfigList, nullable=True
+        _OutputConfigOverrideList, nullable=True
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
@@ -3732,6 +3759,12 @@ class AgentSessionSnapshot(HasId):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+def _default_evaluation_delay_seconds(context: DefaultExecutionContext) -> int:
+    """Spans have no quiet period; every other target starts at the default delay."""
+    target = context.get_current_parameters()["evaluation_target"]  # type: ignore[no-untyped-call]
+    return 0 if target == "SPAN" else DEFAULT_EVALUATION_DELAY_SECONDS
+
+
 class ProjectEvaluator(HasId):
     """Attaches an evaluator to a project for online evaluation: which spans, traces or
     sessions to match, how they are sampled, and the annotation name results are
@@ -3767,11 +3800,13 @@ class ProjectEvaluator(HasId):
     evaluation_delay_seconds: Mapped[int] = mapped_column(
         Integer,
         CheckConstraint(
-            "evaluation_delay_seconds >= 10",
+            "(evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0) OR "
+            "(evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS})",
             name="valid_evaluation_delay_seconds",
         ),
         nullable=False,
-        server_default="300",
+        default=_default_evaluation_delay_seconds,
     )
     input_mapping: Mapped[Optional[InputMapping]] = mapped_column(
         _OptionalInputMapping, nullable=True

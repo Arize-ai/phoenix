@@ -13,17 +13,17 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import is_sdk_compatible_with_model_provider
 from phoenix.db.types.prompts import normalize_invocation_parameters_for_write
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.prompt_version_tags import upsert_prompt_version_tag
+from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
 )
 from phoenix.server.api.mutations.prompt_version_tag_mutations import (
     CreatePromptVersionTagInput,
-    upsert_prompt_version_tag,
 )
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -94,6 +94,7 @@ class PromptMutationMixin:
             prompt_versions=[prompt_version],
         )
         async with info.context.db() as session:
+            await validate_custom_provider(session, prompt_version)
             session.add(prompt)
             try:
                 await session.flush()
@@ -126,22 +127,7 @@ class PromptMutationMixin:
         )
         prompt_version.prompt_id = prompt_id
         async with info.context.db() as session:
-            if prompt_version.custom_provider_id is not None:
-                custom_provider = await session.get(
-                    models.GenerativeModelCustomProvider, prompt_version.custom_provider_id
-                )
-                if custom_provider is None:
-                    raise NotFound(
-                        f"Custom provider with ID '{prompt_version.custom_provider_id}' not found"
-                    )
-                if not is_sdk_compatible_with_model_provider(
-                    custom_provider.sdk,
-                    prompt_version.model_provider,
-                ):
-                    raise BadRequest(
-                        f"Custom provider with ID '{prompt_version.custom_provider_id}' is not "
-                        f"compatible with model provider '{prompt_version.model_provider}'"
-                    )
+            await validate_custom_provider(session, prompt_version)
             session.add(prompt_version)
             try:
                 await session.flush()
