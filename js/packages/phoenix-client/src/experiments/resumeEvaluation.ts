@@ -30,6 +30,7 @@ import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
+import { toExperimentEvaluationRequestBody } from "./helpers/toExperimentEvaluationRequestBody";
 import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
 import {
   cleanupOwnedTracerProvider,
@@ -681,38 +682,32 @@ async function recordEvaluationResults({
   if (results) {
     // Success case: record each evaluation result
     for (const singleResult of results) {
-      const { metadata, ...resultRest } = singleResult;
       await client.POST("/v1/experiment_evaluations", {
-        body: {
-          experiment_run_id: experimentRun.id,
+        body: toExperimentEvaluationRequestBody({
+          experimentRunId: experimentRun.id,
           name: evaluator.name,
-          annotator_kind: evaluator.kind,
-          result: {
-            score: resultRest.score ?? null,
-            label: resultRest.label ?? null,
-            explanation: resultRest.explanation ?? null,
-          },
-          metadata: metadata ?? null,
-          start_time: startTime.toISOString(),
-          end_time: endTime.toISOString(),
+          annotatorKind: evaluator.kind,
+          startTime,
+          endTime,
+          result: singleResult,
           error: null,
-          trace_id: traceId,
-        },
+          traceId,
+        }),
       });
     }
   } else if (error) {
     // Error case: record failed evaluation with evaluator name
     await client.POST("/v1/experiment_evaluations", {
-      body: {
-        experiment_run_id: experimentRun.id,
+      body: toExperimentEvaluationRequestBody({
+        experimentRunId: experimentRun.id,
         name: evaluator.name,
-        annotator_kind: evaluator.kind,
+        annotatorKind: evaluator.kind,
+        startTime,
+        endTime,
         result: null,
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
         error,
-        trace_id: traceId,
-      },
+        traceId,
+      }),
     });
   }
 }

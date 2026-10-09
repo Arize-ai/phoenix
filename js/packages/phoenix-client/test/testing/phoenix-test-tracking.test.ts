@@ -161,3 +161,46 @@ describe("upload guards honor the flag", () => {
     expect(post).not.toHaveBeenCalled();
   });
 });
+
+describe("postAnnotation request body", () => {
+  beforeEach(() => {
+    setFlag(undefined);
+  });
+
+  it("sends annotation metadata at the top level, not under result", async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValue({ data: { data: { id: "eval-1" } } });
+    const suite = {
+      name: "suite",
+      config: {},
+      registeredExamples: new Map(),
+      exampleIdsByTest: new Map(),
+      trackingDisabled: false,
+      results: [],
+      links: [],
+      experimentId: "exp-1",
+      client: { POST: post } as unknown as SuiteState["client"],
+    } as SuiteState;
+
+    await postAnnotation(suite, "run-1", {
+      name: "correctness",
+      score: true,
+      label: "correct",
+      metadata: { judge: "v1" },
+      traceId: "trace-1",
+    });
+
+    expect(post).toHaveBeenCalledWith("/v1/experiment_evaluations", {
+      body: expect.objectContaining({
+        experiment_run_id: "run-1",
+        name: "correctness",
+        annotator_kind: "CODE",
+        result: { score: 1, label: "correct", explanation: null },
+        metadata: { judge: "v1" },
+        error: null,
+        trace_id: "trace-1",
+      }),
+    });
+  });
+});

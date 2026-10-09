@@ -94,6 +94,13 @@ async def upsert_experiment_evaluation(
     explanation = result.explanation if result else None
     error = request_body.error
     metadata = request_body.metadata or {}
+    # Older clients nested `metadata` under `result`, which the model above
+    # silently drops. Recover it from the raw payload; top-level keys win.
+    raw_result = payload.get("result")
+    if isinstance(raw_result, dict) and isinstance(
+        legacy_metadata := raw_result.get("metadata"), dict
+    ):
+        metadata = {**legacy_metadata, **metadata}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
