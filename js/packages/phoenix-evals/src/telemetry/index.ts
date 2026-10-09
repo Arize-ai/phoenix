@@ -55,6 +55,8 @@ export function getTelemetryIntegrations(
       usage: true,
       providerMetadata: true,
       schema: true,
+      // Record the state, questions and answers of decision model calls.
+      experimental_decision: true,
     }),
   ];
 }

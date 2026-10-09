@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai";
 
-import type { EvaluationModel } from "../utils/isEvaluationModel";
+import type { DecisionModel } from "../utils/isDecisionModel";
 import type { ObjectMapping } from "./data";
 import type { WithTelemetry } from "./otel";
 import type { PromptTemplate } from "./templating";
@@ -18,10 +18,12 @@ export interface ExampleRecord<OutputType, InputType> {
 export interface WithLLM {
   /**
    * Either a regular AI SDK {@link LanguageModel}, or an AI SDK
-   * {@link EvaluationModel} (e.g. TypeSafe's Jev) which classifies without
-   * generating text and therefore cannot produce an explanation.
+   * {@link DecisionModel} (e.g. `openai.decisionModel("gpt-6-luna")`) which
+   * classifies without generating text and therefore cannot produce an
+   * explanation. With a decision model, label probabilities are returned in
+   * the result's `metadata.probabilities`.
    */
-  model: LanguageModel | EvaluationModel;
+  model: LanguageModel | DecisionModel;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -82,7 +84,7 @@ export interface CreateClassifierArgs extends WithTelemetry {
   /*
    * The model to use for classification / evaluation
    */
-  model: LanguageModel | EvaluationModel;
+  model: LanguageModel | DecisionModel;
   /**
    * The choices to classify the example into.
    * e.g. { "correct": 1, "incorrect": 0 }
