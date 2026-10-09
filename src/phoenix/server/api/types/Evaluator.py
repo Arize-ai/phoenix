@@ -13,6 +13,7 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.models import DEFAULT_EVALUATION_DELAY_SECONDS, MINIMUM_EVALUATION_DELAY_SECONDS
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
@@ -31,6 +32,10 @@ from phoenix.server.api.evaluators import (
     infer_input_schema_from_prompt_template,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.code_evaluator_schema import (
+    infer_python_evaluate_input_schema,
+    infer_typescript_evaluate_input_schema,
+)
 from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
 from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
 from phoenix.server.api.helpers.evaluators import result_annotation_names
@@ -56,10 +61,6 @@ from phoenix.server.online_eval.queue_health import (
     EVALUATION_LOAD_WINDOW,
     QueuedWork,
     project_evaluator_run_status,
-)
-from phoenix.server.online_eval.session_policy import (
-    DEFAULT_EVALUATION_DELAY_SECONDS,
-    MINIMUM_EVALUATION_DELAY_SECONDS,
 )
 
 if TYPE_CHECKING:
@@ -426,19 +427,14 @@ async def _infer_code_evaluator_input_schema(
     code_evaluator_id: int,
     source_code: str,
 ) -> JSON:
-    from phoenix.server.api.evaluators import (
-        _infer_python_evaluate_input_schema,
-        _infer_typescript_evaluate_input_schema,
-    )
-
     language_value = await info.context.data_loaders.code_evaluator_fields.load(
         (code_evaluator_id, models.CodeEvaluator.language)
     )
     language = Language(language_value)
     if language is Language.PYTHON:
-        schema, _ = _infer_python_evaluate_input_schema(source_code)
+        schema, _ = infer_python_evaluate_input_schema(source_code)
     elif language is Language.TYPESCRIPT:
-        schema, _ = _infer_typescript_evaluate_input_schema(source_code)
+        schema, _ = infer_typescript_evaluate_input_schema(source_code)
     else:
         assert_never(language)
     return JSON(schema)
@@ -1574,11 +1570,13 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Seconds a trace or session must stay quiet before evaluation is scheduled. Values "
-            f"must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project "
-            f"evaluators store the default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds when "
-            "no value is provided. A trace or session is evaluated only once, and later "
+            f"must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. When no value is "
+            "provided, TRACE and SESSION evaluators store the default of "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated only "
+            "once, and later "
             "activity does not schedule another evaluation. The delay applies to TRACE and "
-            "SESSION targets and is rejected for SPAN."
+            "SESSION targets; SPAN evaluators store 0 because spans are evaluated as they "
+            "arrive, and an explicit delay is rejected for them."
         )
     )
     async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:
