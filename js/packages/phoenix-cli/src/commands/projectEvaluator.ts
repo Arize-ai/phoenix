@@ -586,7 +586,7 @@ async function projectEvaluatorDeleteHandler(
       yes: options.yes,
     });
 
-    if (projectEvaluatorIds.length === 1) {
+    if (projectEvaluatorIds.length === 1 && !options.project) {
       await deleteProjectEvaluator({
         client,
         projectEvaluatorId: projectEvaluatorIds[0]!,

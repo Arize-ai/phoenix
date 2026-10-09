@@ -434,6 +434,105 @@ describe("dataset evaluator delete", () => {
     expect(receivedQuery).toBe("");
   });
 
+  it("DELETEs a singleton through the requested dataset's collection", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
+    mock.server.use(
+      http.delete(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        ({ params, request, response }) => {
+          receivedIdentifier = params.dataset_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "dataset_evaluator_id"
+          );
+          return response(204).empty();
+        }
+      )
+    );
+    captureCliOutput();
+
+    await createDatasetEvaluatorCommand().parseAsync(
+      [
+        "delete",
+        BINDING_ID,
+        "--dataset",
+        "golden-questions",
+        "--yes",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(receivedIdentifier).toBe("golden-questions");
+    expect(receivedIds).toEqual([BINDING_ID]);
+  });
+
+  it("preserves server membership validation for a singleton parent mismatch", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
+    let usedGlobalDelete = false;
+    mock.server.use(
+      http.delete(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        ({ params, request }) => {
+          receivedIdentifier = params.dataset_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "dataset_evaluator_id"
+          );
+          return new Response(
+            JSON.stringify({
+              type: "urn:phoenix:problem:not_found",
+              title: "Not found",
+              status: 404,
+              detail: "The binding does not belong to this dataset",
+              code: "not_found",
+            }),
+            {
+              status: 404,
+              headers: { "content-type": "application/problem+json" },
+            }
+          );
+        }
+      ),
+      http.delete("/v1/dataset_evaluators/{dataset_evaluator_id}", () => {
+        usedGlobalDelete = true;
+        return new Response(null, { status: 204 });
+      })
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "delete",
+          BINDING_ID,
+          "--dataset",
+          "other-dataset",
+          "--yes",
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(receivedIdentifier).toBe("other-dataset");
+    expect(receivedIds).toEqual([BINDING_ID]);
+    expect(usedGlobalDelete).toBe(false);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(envelope).toMatchObject({
+      code: "FAILURE",
+      status: 404,
+      problem_code: "not_found",
+      problem: {
+        detail: "The binding does not belong to this dataset",
+      },
+    });
+  });
+
   it("DELETEs several ids from the dataset's collection", async () => {
     let receivedIdentifier: string | undefined;
     let receivedIds: string[] = [];

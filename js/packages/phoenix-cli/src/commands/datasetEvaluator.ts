@@ -465,7 +465,7 @@ async function datasetEvaluatorDeleteHandler(
       yes: options.yes,
     });
 
-    if (datasetEvaluatorIds.length === 1) {
+    if (datasetEvaluatorIds.length === 1 && !options.dataset) {
       await deleteDatasetEvaluator({
         client,
         datasetEvaluatorId: datasetEvaluatorIds[0]!,

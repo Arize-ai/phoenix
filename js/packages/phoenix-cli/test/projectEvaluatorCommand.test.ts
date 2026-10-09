@@ -456,6 +456,98 @@ describe("project evaluator delete", () => {
     expect(receivedQuery).toBe("");
   });
 
+  it("DELETEs a singleton through the requested project's collection", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
+    mock.server.use(
+      http.delete(
+        "/v1/projects/{project_identifier}/evaluators",
+        ({ params, request, response }) => {
+          receivedIdentifier = params.project_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "project_evaluator_id"
+          );
+          return response(204).empty();
+        }
+      )
+    );
+    captureCliOutput();
+
+    await createProjectEvaluatorCommand().parseAsync(
+      ["delete", BINDING_ID, "--project", "support-bot", "--yes", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(receivedIdentifier).toBe("support-bot");
+    expect(receivedIds).toEqual([BINDING_ID]);
+  });
+
+  it("preserves server membership validation for a singleton parent mismatch", async () => {
+    let receivedIdentifier: string | undefined;
+    let receivedIds: string[] = [];
+    let usedGlobalDelete = false;
+    mock.server.use(
+      http.delete(
+        "/v1/projects/{project_identifier}/evaluators",
+        ({ params, request }) => {
+          receivedIdentifier = params.project_identifier;
+          receivedIds = new URL(request.url).searchParams.getAll(
+            "project_evaluator_id"
+          );
+          return new Response(
+            JSON.stringify({
+              type: "urn:phoenix:problem:not_found",
+              title: "Not found",
+              status: 404,
+              detail: "The binding does not belong to this project",
+              code: "not_found",
+            }),
+            {
+              status: 404,
+              headers: { "content-type": "application/problem+json" },
+            }
+          );
+        }
+      ),
+      http.delete("/v1/project_evaluators/{project_evaluator_id}", () => {
+        usedGlobalDelete = true;
+        return new Response(null, { status: 204 });
+      })
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createProjectEvaluatorCommand().parseAsync(
+        [
+          "delete",
+          BINDING_ID,
+          "--project",
+          "other-project",
+          "--yes",
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(receivedIdentifier).toBe("other-project");
+    expect(receivedIds).toEqual([BINDING_ID]);
+    expect(usedGlobalDelete).toBe(false);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    const envelope = JSON.parse(String(io.stderr.mock.calls[0]?.[0]));
+    expect(envelope).toMatchObject({
+      code: "FAILURE",
+      status: 404,
+      problem_code: "not_found",
+      problem: {
+        detail: "The binding does not belong to this project",
+      },
+    });
+  });
+
   it("DELETEs several ids from the project's collection", async () => {
     let receivedIdentifier: string | undefined;
     let receivedIds: string[] = [];
