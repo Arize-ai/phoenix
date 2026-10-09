@@ -22,6 +22,7 @@ from phoenix.server.app import _db
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span, SpanContext, SpanEvent, SpanKind, SpanStatusCode
+from tests.unit._helpers import _peek_first_row, _selects_from
 
 _START = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -1257,6 +1258,38 @@ async def test_injected_driver_errors_preserve_same_batch_neighbors(
         assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 2
 
 
+async def test_failed_span_does_not_hide_trace_updates_from_batch_siblings(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        await insert_span(session, _span("root"), "project")
+    failure = replace(
+        _span("failure"),
+        start_time=_START - timedelta(hours=2),
+        end_time=_START + timedelta(hours=2),
+        attributes={"session": {"id": "session"}, "unserializable": object()},
+    )
+    sibling = replace(
+        _span("sibling"),
+        start_time=_START - timedelta(hours=1),
+        end_time=_START + timedelta(hours=1),
+        attributes={"session": {"id": "session"}},
+    )
+    inserter = _inserter(db, failure, sibling)
+    await inserter._insert_spans(2)
+    assert not inserter._span_batch
+    async with db() as session:
+        trace = (await session.scalars(select(models.Trace))).one()
+        project_session = (await session.scalars(select(models.ProjectSession))).one()
+        assert (trace.start_time, trace.end_time) == (sibling.start_time, sibling.end_time)
+        assert trace.project_session_rowid == project_session.id
+        assert (project_session.start_time, project_session.end_time) == (
+            sibling.start_time,
+            sibling.end_time,
+        )
+        assert set(await session.scalars(select(models.Span.span_id))) == {"root", "sibling"}
+
+
 @pytest.mark.postgres_only
 async def test_concurrent_session_deletion_fails_one_span_without_stalling_ingestion(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -1277,20 +1310,24 @@ async def test_concurrent_session_deletion_fails_one_span_without_stalling_inges
         await session.flush()
         orphan_id = orphan.id
     deleted = False
-    original_scalar = AsyncSession.scalar
+    original_execute = AsyncSession.execute
 
-    async def scalar(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
+    async def execute(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
         nonlocal deleted
-        record = await original_scalar(session, statement, *args, **kwargs)
-        if isinstance(record, models.ProjectSession) and record.id == orphan_id and not deleted:
+        result = await original_execute(session, statement, *args, **kwargs)
+        if deleted or not _selects_from(statement, models.ProjectSession):
+            return result
+        result, row = _peek_first_row(result)
+        if row is not None and row.id == orphan_id:
             deleted = True
             async with db() as deleter:
-                await deleter.execute(
-                    delete(models.ProjectSession).where(models.ProjectSession.id == orphan_id)
+                await original_execute(
+                    deleter,
+                    delete(models.ProjectSession).where(models.ProjectSession.id == orphan_id),
                 )
-        return record
+        return result
 
-    monkeypatch.setattr(AsyncSession, "scalar", scalar)
+    monkeypatch.setattr(AsyncSession, "execute", execute)
     failure = replace(
         _span("failure", trace_id="failed-trace"),
         attributes={"session": {"id": "deleted-session"}},
@@ -1398,18 +1435,25 @@ async def test_real_database_rollback_is_retried_without_span_or_count_loss(
             await session.execute(text("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
             yield session
 
-    original_scalar = AsyncSession.scalar
+    original_execute = AsyncSession.execute
 
-    async def scalar(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
-        result = await original_scalar(session, statement, *args, **kwargs)
-        if sqlstate == "40001" and isinstance(result, models.Trace) and session not in first_writes:
+    async def execute(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
+        result = await original_execute(session, statement, *args, **kwargs)
+        if (
+            sqlstate != "40001"
+            or session in first_writes
+            or not _selects_from(statement, models.Trace)
+        ):
+            return result
+        result, row = _peek_first_row(result)
+        if row is not None:
             first_writes.add(session)
             if len(first_writes) == 2:
                 both_locked.set()
             await asyncio.wait_for(both_locked.wait(), timeout=10)
         return result
 
-    monkeypatch.setattr(AsyncSession, "scalar", scalar)
+    monkeypatch.setattr(AsyncSession, "execute", execute)
 
     async def insert(
         session: AsyncSession, span: Span, project_name: str

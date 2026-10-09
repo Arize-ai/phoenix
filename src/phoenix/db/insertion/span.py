@@ -1,9 +1,9 @@
 from dataclasses import asdict
 from datetime import datetime
-from typing import Any, NamedTuple, Optional, TypeVar
+from typing import Any, NamedTuple, Optional, TypeVar, Union
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, case, func, literal, select, update
+from sqlalchemy import Executable, and_, case, func, literal, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -23,20 +23,53 @@ class ClearProjectSpansEvent(NamedTuple):
     project_rowid: int
 
 
-_Record = TypeVar("_Record", bound=models.Base)
-_TimedRecord = TypeVar("_TimedRecord", models.Trace, models.ProjectSession)
+# Plain rows rather than ORM instances: these records change through Core statements,
+# and a savepoint rollback only expires instances the ORM saw change. A cached instance
+# would keep rolled-back values for later spans in the same session.
+class _ProjectRow(NamedTuple):
+    id: int
+
+
+class _TraceRow(NamedTuple):
+    id: int
+    project_rowid: int
+    project_session_rowid: Optional[int]
+    start_time: datetime
+    end_time: datetime
+
+
+class _ProjectSessionRow(NamedTuple):
+    id: int
+    start_time: datetime
+    end_time: datetime
+
+
+_RowT = TypeVar("_RowT", _ProjectRow, _TraceRow, _ProjectSessionRow)
+_TimedRowT = TypeVar("_TimedRowT", _TraceRow, _ProjectSessionRow)
+
+
+def _columns(table: type[models.Base], row_type: type[_RowT]) -> list[Any]:
+    return [getattr(table, name) for name in row_type._fields]
+
+
+async def _fetch_row(
+    session: AsyncSession, statement: Executable, row_type: type[_RowT]
+) -> Optional[_RowT]:
+    row = (await session.execute(statement)).first()
+    return None if row is None else row_type(*row)
 
 
 async def _extend_time_range(
     session: AsyncSession,
-    record: _TimedRecord,
+    table: Union[type[models.Trace], type[models.ProjectSession]],
+    record: _TimedRowT,
     start_time: datetime,
     end_time: datetime,
-) -> _TimedRecord:
+) -> _TimedRowT:
     if record.start_time <= start_time and end_time <= record.end_time:
         return record
-    table = type(record)
-    result = await session.scalar(
+    result = await _fetch_row(
+        session,
         update(table)
         .where(table.id == record.id)
         .values(
@@ -49,8 +82,9 @@ async def _extend_time_range(
                 else_=table.end_time,
             ),
         )
-        .returning(table)
-        .execution_options(populate_existing=True, synchronize_session=False)
+        .returning(*_columns(table, type(record)))
+        .execution_options(synchronize_session=False),
+        type(record),
     )
     if result is None:
         raise RuntimeError(f"{table.__tablename__} record disappeared during range update")
@@ -59,17 +93,18 @@ async def _extend_time_range(
 
 async def _get_or_create(
     session: AsyncSession,
-    table: type[_Record],
+    table: type[models.Base],
+    row_type: type[_RowT],
     key: dict[str, Any],
     values: dict[str, Any],
     *,
     skip_initial_lookup: bool = False,
-) -> _Record:
-    query = select(table).filter_by(**key).execution_options(populate_existing=True)
+) -> _RowT:
+    query = select(*_columns(table, row_type)).filter_by(**key)
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     for attempt in range(2):
         if (not skip_initial_lookup or attempt > 0) and (
-            record := await session.scalar(query)
+            record := await _fetch_row(session, query, row_type)
         ) is not None:
             return record
         await session.execute(
@@ -82,7 +117,7 @@ async def _get_or_create(
             )
         )
         # A separate statement can see a competing insert's committed row on PostgreSQL.
-        if (record := await session.scalar(query)) is not None:
+        if (record := await _fetch_row(session, query, row_type)) is not None:
             return record
     raise RuntimeError(f"{table.__tablename__} record disappeared during creation: {key}")
 
@@ -98,14 +133,19 @@ async def insert_span(
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
 
     trace_id = span.context.trace_id
-    trace = await session.scalar(select(models.Trace).filter_by(trace_id=trace_id))
+    trace = await _fetch_row(
+        session,
+        select(*_columns(models.Trace, _TraceRow)).filter_by(trace_id=trace_id),
+        _TraceRow,
+    )
     if trace is None:
         project = await _get_or_create(
-            session, models.Project, {"name": project_name}, random_project_gradient()
+            session, models.Project, _ProjectRow, {"name": project_name}, random_project_gradient()
         )
         trace = await _get_or_create(
             session,
             models.Trace,
+            _TraceRow,
             {"trace_id": trace_id},
             dict(
                 project_rowid=project.id,
@@ -116,26 +156,31 @@ async def insert_span(
         )
 
     # The existing trace's memberships win, including after a project transfer.
-    trace = await _extend_time_range(session, trace, span.start_time, span.end_time)
+    trace = await _extend_time_range(session, models.Trace, trace, span.start_time, span.end_time)
 
     session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
     session_id = str(session_id).strip() if session_id is not None else ""
     assert isinstance(session_id, str)
 
-    project_session: Optional[models.ProjectSession] = None
+    project_session: Optional[_ProjectSessionRow] = None
     if trace.project_session_rowid is not None:
         # ProjectSession record already exists in database for this Trace record, so we fetch
         # it because it may need to be updated. However, the session_id on the span, if exists,
         # will be ignored at this point. Otherwise, if session_id is different, we will need
         # to create a new ProjectSession record, as well as to determine whether the old record
         # needs to be deleted if this is the last Trace associated with it.
-        project_session = await session.scalar(
-            select(models.ProjectSession).filter_by(id=trace.project_session_rowid)
+        project_session = await _fetch_row(
+            session,
+            select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
+                id=trace.project_session_rowid
+            ),
+            _ProjectSessionRow,
         )
     elif session_id:
         project_session = await _get_or_create(
             session,
             models.ProjectSession,
+            _ProjectSessionRow,
             {"session_id": session_id},
             dict(
                 project_id=trace.project_rowid,
@@ -145,7 +190,8 @@ async def insert_span(
         )
         # Coalesce is evaluated against the locked row, so a concurrent attachment
         # wins over our earlier read of a sessionless trace.
-        attached_trace = await session.scalar(
+        attached_trace = await _fetch_row(
+            session,
             update(models.Trace)
             .where(models.Trace.id == trace.id)
             .values(
@@ -153,25 +199,26 @@ async def insert_span(
                     models.Trace.project_session_rowid, project_session.id
                 )
             )
-            .returning(models.Trace)
-            .execution_options(populate_existing=True, synchronize_session=False)
+            .returning(*_columns(models.Trace, _TraceRow))
+            .execution_options(synchronize_session=False),
+            _TraceRow,
         )
         if attached_trace is None:
             raise RuntimeError("Trace record disappeared during session attachment")
         trace = attached_trace
         if trace.project_session_rowid != project_session.id:
-            project_session = await session.scalar(
-                select(models.ProjectSession).filter_by(id=trace.project_session_rowid)
+            project_session = await _fetch_row(
+                session,
+                select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
+                    id=trace.project_session_rowid
+                ),
+                _ProjectSessionRow,
             )
 
     if project_session is not None:
-        await _extend_time_range(session, project_session, trace.start_time, trace.end_time)
-
-    await session.flush()
-    assert trace.id is not None
-    assert project_session is None or (
-        project_session.id is not None and project_session.id == trace.project_session_rowid
-    )
+        await _extend_time_range(
+            session, models.ProjectSession, project_session, trace.start_time, trace.end_time
+        )
 
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     llm_token_count_prompt: Optional[int] = None

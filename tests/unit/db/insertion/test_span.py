@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
-from sqlalchemy import Select, event, select
+from sqlalchemy import Select, delete, event, select
 from sqlalchemy.engine import Connection, ExecutionContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Update
@@ -14,6 +14,7 @@ from phoenix.db.helpers import PROJECT_GRADIENTS
 from phoenix.db.insertion.span import insert_span
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
+from tests.unit._helpers import _peek_first_row, _selects_from
 
 _START_TIME = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -270,24 +271,21 @@ async def test_concurrent_creation_preserves_both_spans(
 
     both_missing = asyncio.Event()
     readers: set[AsyncSession] = set()
-    original_scalar = AsyncSession.scalar
+    original_execute = AsyncSession.execute
 
-    async def scalar(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
-        result = await original_scalar(session, statement, *args, **kwargs)
-        descriptions = getattr(statement, "column_descriptions", [])
-        if (
-            descriptions
-            and descriptions[0].get("entity") is record_type
-            and result is None
-            and session not in readers
-        ):
+    async def execute(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
+        result = await original_execute(session, statement, *args, **kwargs)
+        if not _selects_from(statement, record_type) or session in readers:
+            return result
+        result, row = _peek_first_row(result)
+        if row is None:
             readers.add(session)
             if len(readers) == 2:
                 both_missing.set()
             await asyncio.wait_for(both_missing.wait(), timeout=10)
         return result
 
-    monkeypatch.setattr(AsyncSession, "scalar", scalar)
+    monkeypatch.setattr(AsyncSession, "execute", execute)
     spans = [
         replace(
             _span(
@@ -448,6 +446,45 @@ async def test_late_session_attachment_covers_existing_trace_range(db: DbSession
         )
 
 
+async def test_rolled_back_span_does_not_leave_stale_trace_or_session_for_siblings(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        await insert_span(session, _span("root", "trace", "root"), "project")
+    # The failure widens the trace and attaches a session before its own INSERT fails,
+    # and the sibling's range falls inside the failure's, so stale values would hide it.
+    failure = replace(
+        _span("failure", "trace", "failure"),
+        start_time=_START_TIME - timedelta(hours=2),
+        end_time=_START_TIME + timedelta(hours=2),
+        attributes={"session": {"id": "session"}, "unserializable": object()},
+    )
+    sibling = replace(
+        _span("sibling", "trace", "sibling"),
+        start_time=_START_TIME - timedelta(hours=1),
+        end_time=_START_TIME + timedelta(hours=1),
+        attributes={"session": {"id": "session"}},
+    )
+    async with db() as session:
+        savepoint = await session.begin_nested()
+        with pytest.raises(Exception):
+            await insert_span(session, failure, "project")
+        await savepoint.rollback()
+        async with session.begin_nested():
+            assert await insert_span(session, sibling, "project") is not None
+    async with db() as session:
+        trace = (await session.scalars(select(models.Trace))).one()
+        project_session = (await session.scalars(select(models.ProjectSession))).one()
+        assert (trace.start_time, trace.end_time) == (sibling.start_time, sibling.end_time)
+        assert trace.project_session_rowid == project_session.id
+        assert project_session.session_id == "session"
+        assert (project_session.start_time, project_session.end_time) == (
+            sibling.start_time,
+            sibling.end_time,
+        )
+        assert set(await session.scalars(select(models.Span.span_id))) == {"root", "sibling"}
+
+
 @pytest.mark.postgres_only
 @pytest.mark.parametrize("record_type", [models.Trace, models.ProjectSession])
 async def test_concurrent_range_extensions_never_shrink_existing_bounds(
@@ -472,16 +509,18 @@ async def test_concurrent_range_extensions_never_shrink_existing_bounds(
     larger_committed = asyncio.Event()
     writers: dict[AsyncSession, int] = {}
     readers: set[AsyncSession] = set()
-    original_scalar = AsyncSession.scalar
+    original_execute = AsyncSession.execute
 
-    async def scalar(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
-        result = await original_scalar(session, statement, *args, **kwargs)
+    async def execute(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
+        result = await original_execute(session, statement, *args, **kwargs)
         if (
-            isinstance(statement, Select)
-            and isinstance(result, record_type)
-            and session in writers
-            and session not in readers
+            not _selects_from(statement, record_type)
+            or session not in writers
+            or session in readers
         ):
+            return result
+        result, row = _peek_first_row(result)
+        if row is not None:
             readers.add(session)
             if len(readers) == 2:
                 both_read.set()
@@ -490,7 +529,7 @@ async def test_concurrent_range_extensions_never_shrink_existing_bounds(
                 await asyncio.wait_for(larger_committed.wait(), timeout=10)
         return result
 
-    monkeypatch.setattr(AsyncSession, "scalar", scalar)
+    monkeypatch.setattr(AsyncSession, "execute", execute)
     spans = [
         replace(
             _span(f"child-{index}", trace_ids[index], f"child-{index}"),
@@ -566,17 +605,19 @@ async def test_concurrent_late_session_attachment_preserves_first_winner(
     winner_committed = asyncio.Event()
     writers: dict[AsyncSession, int] = {}
     readers: set[AsyncSession] = set()
-    original_scalar = AsyncSession.scalar
+    original_execute = AsyncSession.execute
 
-    async def scalar(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
-        result = await original_scalar(session, statement, *args, **kwargs)
+    async def execute(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
+        result = await original_execute(session, statement, *args, **kwargs)
         if (
-            isinstance(statement, Select)
-            and isinstance(result, models.Trace)
-            and session in writers
-            and session not in readers
+            not _selects_from(statement, models.Trace)
+            or session not in writers
+            or session in readers
         ):
-            assert result.project_session_rowid is None
+            return result
+        result, row = _peek_first_row(result)
+        if row is not None:
+            assert row.project_session_rowid is None
             readers.add(session)
             if len(readers) == 2:
                 both_read.set()
@@ -585,7 +626,7 @@ async def test_concurrent_late_session_attachment_preserves_first_winner(
                 await asyncio.wait_for(winner_committed.wait(), timeout=10)
         return result
 
-    monkeypatch.setattr(AsyncSession, "scalar", scalar)
+    monkeypatch.setattr(AsyncSession, "execute", execute)
 
     async def write(index: int) -> None:
         async with db() as session:
@@ -631,20 +672,23 @@ async def test_creation_retries_are_bounded_when_lookup_loses_winner(
     monkeypatch: pytest.MonkeyPatch,
     disappearances: int,
 ) -> None:
-    original_scalar = AsyncSession.scalar
+    original_execute = AsyncSession.execute
     deleted = 0
 
-    async def scalar(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
+    async def execute(session: AsyncSession, statement: Any, *args: Any, **kwargs: Any) -> Any:
         nonlocal deleted
-        result = await original_scalar(session, statement, *args, **kwargs)
-        if isinstance(result, models.Project) and deleted < disappearances:
-            await session.delete(result)
-            await session.flush()
-            deleted += 1
-            return None
-        return result
+        result = await original_execute(session, statement, *args, **kwargs)
+        if not _selects_from(statement, models.Project) or deleted >= disappearances:
+            return result
+        result, row = _peek_first_row(result)
+        if row is None:
+            return result
+        await original_execute(session, delete(models.Project).where(models.Project.id == row.id))
+        deleted += 1
+        # Rerun the lookup so the caller sees the winner disappear.
+        return await original_execute(session, statement, *args, **kwargs)
 
-    monkeypatch.setattr(AsyncSession, "scalar", scalar)
+    monkeypatch.setattr(AsyncSession, "execute", execute)
     if disappearances == 1:
         async with db() as session:
             assert (
