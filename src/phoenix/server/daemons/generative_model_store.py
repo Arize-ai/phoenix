@@ -28,7 +28,7 @@ class GenerativeModelStore(DaemonTask):
 
     Rationale: Database egress is expensive in cloud environments (especially managed
     databases), and generative models change infrequently (mostly static reference data).
-    The cost calculation daemon queries this store frequently (once per span), so trading
+    The span cost calculator queries this store frequently (once per span), so trading
     memory for reduced database egress provides significant cost savings.
 
     Note:
