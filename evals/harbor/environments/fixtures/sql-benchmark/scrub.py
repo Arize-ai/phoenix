@@ -157,12 +157,12 @@ def scrub_table(db: sqlite3.Connection, table: str) -> int:
 KEPT_ACCOUNT_DOMAINS = ("localhost", "example.com")
 
 
-def account_email(username: str, email: str | None) -> str:
+def account_email(user_id: int, email: str | None) -> str:
     """Pseudonymize every account that is not built in. An account without an email, which
-    LDAP allows, gets one derived from its username so that the identity-provider columns
+    LDAP allows, gets one derived from its row id so that the identity-provider columns
     can be cleared without leaving it unidentifiable."""
     if email is None:
-        return pseudonym(username)
+        return f"user-{user_id}@example.com"
     if email.lower() in PUBLIC_EMAILS or email.lower().endswith(
         tuple("@" + domain for domain in KEPT_ACCOUNT_DOMAINS)
     ):
@@ -175,8 +175,8 @@ def scrub_users(db: sqlite3.Connection) -> None:
     stored credentials unusable, the emails and usernames pseudonymous, and drop the
     avatar and identity-provider ids that tie an account to a real person. Only LOCAL
     accounts may carry a password, so only they receive a new random one."""
-    for user_id, username, email in db.execute("select id, username, email from users").fetchall():
-        new_email = account_email(username, email)
+    for user_id, email in db.execute("select id, email from users").fetchall():
+        new_email = account_email(user_id, email)
         db.execute(
             "update users set username = ?, email = ?,"
             " password_hash = case when auth_method = 'LOCAL' then ? end,"
