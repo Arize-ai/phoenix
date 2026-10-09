@@ -79,6 +79,7 @@ class PromptVersion:
             "TOGETHER",
             "ZAI",
             "META",
+            "TYPESAFE",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -120,6 +121,7 @@ class PromptVersion:
             "TOGETHER",
             "ZAI",
             "META",
+            "TYPESAFE",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -229,6 +231,9 @@ class PromptVersion:
                 type="meta",
                 meta=v1.PromptMetaInvocationParametersContent(),
             )
+        elif model_provider == "TYPESAFE":
+            # Decision models have no chat prompt; the server rejects them too.
+            raise ValueError("TYPESAFE offers decision models only and cannot back a prompt")
         else:
             assert_never(model_provider)
         self._tools: Optional[v1.PromptTools] = None
@@ -575,6 +580,7 @@ def _to_sdk(
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -611,4 +617,7 @@ def _to_sdk(
         return "openai"
     if model_provider == "META":
         return "openai"
+    if model_provider == "TYPESAFE":
+        # Decision models answer typed questions; there is no chat SDK to format for.
+        raise ValueError("TYPESAFE offers decision models only and has no prompt SDK")
     assert_never(model_provider)
