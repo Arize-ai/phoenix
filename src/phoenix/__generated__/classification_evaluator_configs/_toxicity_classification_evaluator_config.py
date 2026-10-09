@@ -30,4 +30,5 @@ TOXICITY_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
             description="The text to be evaluated for toxicty. This could be either an input (user message) or an output (LLM message)."
         )
     },
+    default_path_mapping={"text": "input"},
 )

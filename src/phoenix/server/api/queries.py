@@ -226,6 +226,10 @@ def _to_gql_classification_evaluator_config(
         category=EvaluatorCategory(config.category.value) if config.category else None,
         details=config.details,
         inputs=inputs,
+        default_filter_condition=config.default_filter_condition,
+        default_path_mapping=(
+            JSON(config.default_path_mapping) if config.default_path_mapping is not None else None
+        ),
     )
 
 
