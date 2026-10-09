@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4d9994bb1fa1b354ab7ca13470f19d0c>>
+ * @generated SignedSource<<f78f5eb54b050983f887d8658e933b5b>>
  * @lightSyntaxTransform
  */
 
@@ -19,6 +19,7 @@ export type ProjectPageQuery$variables = {
 };
 export type ProjectPageQuery$data = {
   readonly project: {
+    readonly hasTraces?: boolean;
     readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project" | "ProjectTimeRangeControls_data">;
   };
 };
@@ -48,14 +49,21 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "hasTraces",
+  "storageKey": null
+},
+v3 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v3 = [
-  (v2/*:: as any*/)
-],
 v4 = [
+  (v3/*:: as any*/)
+],
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -82,6 +90,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v2/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -134,16 +143,17 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v2/*:: as any*/),
               {
                 "alias": "timeRangeTraceCount",
-                "args": (v3/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "kind": "ScalarField",
                 "name": "traceCount",
                 "storageKey": null
               },
               {
                 "alias": null,
-                "args": (v3/*:: as any*/),
+                "args": (v4/*:: as any*/),
                 "concreteType": "SpanCostSummary",
                 "kind": "LinkedField",
                 "name": "costSummary",
@@ -156,7 +166,7 @@ return {
                     "kind": "LinkedField",
                     "name": "total",
                     "plural": false,
-                    "selections": (v4/*:: as any*/),
+                    "selections": (v5/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -166,7 +176,7 @@ return {
                     "kind": "LinkedField",
                     "name": "prompt",
                     "plural": false,
-                    "selections": (v4/*:: as any*/),
+                    "selections": (v5/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -176,7 +186,7 @@ return {
                     "kind": "LinkedField",
                     "name": "completion",
                     "plural": false,
-                    "selections": (v4/*:: as any*/),
+                    "selections": (v5/*:: as any*/),
                     "storageKey": null
                   }
                 ],
@@ -190,7 +200,7 @@ return {
                     "name": "probability",
                     "value": 0.5
                   },
-                  (v2/*:: as any*/)
+                  (v3/*:: as any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",
@@ -204,7 +214,7 @@ return {
                     "name": "probability",
                     "value": 0.99
                   },
-                  (v2/*:: as any*/)
+                  (v3/*:: as any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",
@@ -241,16 +251,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1bf378cde90c188de27f484c754e0bab",
+    "cacheID": "9d27b241e9ebb9bbf7152ea37cbf7546",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectStats_project\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      hasTraces\n      ...ProjectStats_project\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2e3a897c38827a7d1840f89802bf05b9";
+(node as any).hash = "cc11eb8c04b28277ed8092172d6abe0f";
 
 export default node;

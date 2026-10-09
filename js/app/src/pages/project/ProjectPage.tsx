@@ -54,6 +54,7 @@ import {
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
+import { useReloadUntilTracesArrive } from "./useReloadUntilTracesArrive";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -192,6 +193,33 @@ function settledConditionFromUrl(param: string): string | null {
   return condition === "" ? "" : null;
 }
 
+/** The spans preload's variables for a settled seed. */
+function spansQueryVariables(
+  projectId: string,
+  timeRange: TimeRangeISOStrings,
+  seed: SettledSpanFilterSeed
+): ProjectPageSpansQueryType["variables"] {
+  return {
+    id: projectId,
+    timeRange,
+    filterCondition: seed.condition || null,
+    rootSpansOnly: seed.rootSpansOnly,
+  };
+}
+
+/** The traces preload's variables for a validated condition. */
+function tracesQueryVariables(
+  projectId: string,
+  timeRange: TimeRangeISOStrings,
+  condition: string
+): ProjectPageTracesQueryType["variables"] {
+  return {
+    id: projectId,
+    timeRange,
+    traceFilterCondition: condition || null,
+  };
+}
+
 export function LegacyTraceFilterParamNotice({
   isActive,
 }: {
@@ -232,6 +260,7 @@ function ProjectPageContentBody({
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
+            hasTraces
             ...ProjectStats_project
             ...ProjectTimeRangeControls_data
           }
@@ -291,6 +320,31 @@ function ProjectPageContentBody({
     timeRangeRef.current = timeRangeISOStrings;
   }, [timeRangeISOStrings]);
 
+  // Selected here so the tab-return path below can tell a cached "no traces"
+  // answer from a real one. The spans and traces preloads select the same
+  // field, and Relay normalizes all three queries into one Project record, so
+  // this turns true as soon as either preload sees the project's first traces.
+  const hasTraces = data.project.hasTraces ?? false;
+
+  // A table preload fetched while the project was empty holds an empty
+  // connection. When the first traces land through the active tab's preload,
+  // the other tab's preload is stale, and returning to it must reload rather
+  // than render the empty rows: the table skips its first-render refetch by
+  // design. Captured in an effect event so the flip effect depends on
+  // `hasTraces` alone.
+  const staleEmptyPreloadsRef = useRef({ spans: false, traces: false });
+  const markInactivePreloadsStale = useEffectEvent(() => {
+    staleEmptyPreloadsRef.current = {
+      spans: tabIndex !== TAB_INDEX_MAP.spans && spansQueryReference != null,
+      traces: tabIndex !== TAB_INDEX_MAP.traces && tracesQueryReference != null,
+    };
+  });
+  useEffect(() => {
+    if (hasTraces) {
+      markInactivePreloadsStale();
+    }
+  }, [hasTraces]);
+
   /**
    * Load the spans table from a condition whose validity and root scope are
    * both settled. Called for the conditions this app classifies itself, and by
@@ -322,12 +376,13 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadSpansQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          filterCondition: seed.condition || null,
-          rootSpansOnly: seed.rootSpansOnly,
-        });
+        // Always from the network: a cached `hasTraces: false` would keep
+        // onboarding up. Costs nothing on a populated project, since the tab
+        // change effect below never re-resolves an unchanged seed.
+        loadSpansQuery(
+          spansQueryVariables(projectId, timeRangeRef.current, seed),
+          { fetchPolicy: "network-only" }
+        );
       });
     },
     [projectId, loadSpansQuery]
@@ -355,15 +410,45 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadTracesQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          traceFilterCondition: condition || null,
-        });
+        // See `resolveSpansSeed` for why this bypasses the store.
+        loadTracesQuery(
+          tracesQueryVariables(projectId, timeRangeRef.current, condition),
+          { fetchPolicy: "network-only" }
+        );
       });
     },
     [projectId, loadTracesQuery]
   );
+
+  /**
+   * Reload the spans query with its current seed, skipping the store. A
+   * project's first traces only reach the page through this query's
+   * `hasTraces`, and a cached `false` would keep onboarding up indefinitely.
+   */
+  const reloadSpansQuery = useCallback(() => {
+    if (spansFilterSeed === null) {
+      return;
+    }
+    startTransition(() => {
+      loadSpansQuery(
+        spansQueryVariables(projectId, timeRangeRef.current, spansFilterSeed),
+        { fetchPolicy: "network-only" }
+      );
+    });
+  }, [projectId, loadSpansQuery, spansFilterSeed]);
+
+  /** The traces counterpart of `reloadSpansQuery`. */
+  const reloadTracesQuery = useCallback(() => {
+    if (tracesFilterSeed === null) {
+      return;
+    }
+    startTransition(() => {
+      loadTracesQuery(
+        tracesQueryVariables(projectId, timeRangeRef.current, tracesFilterSeed),
+        { fetchPolicy: "network-only" }
+      );
+    });
+  }, [projectId, loadTracesQuery, tracesFilterSeed]);
 
   /** The sessions counterpart of `resolveTracesSeed`. */
   const resolveSessionsSeed = useCallback(
@@ -415,11 +500,17 @@ function ProjectPageContentBody({
         const seed = spanFilterSeed(fromUrl ?? DEFAULT_SPAN_FILTER_CONDITION);
         // Returning to a tab whose rows already answer this condition is not a
         // reason to reload it. Re-resolving would tear the table down and
-        // rebuild it for the same result.
+        // rebuild it for the same result. Two exceptions: a project still
+        // showing onboarding, whose traces may have arrived while away, and a
+        // preload fetched while the project was empty.
         if (
           spansQueryReference &&
           spansFilterSeed?.condition === seed.condition
         ) {
+          if (!hasTraces || staleEmptyPreloadsRef.current.spans) {
+            staleEmptyPreloadsRef.current.spans = false;
+            reloadSpansQuery();
+          }
           return;
         }
         if (seed.requiresServerValidation) {
@@ -437,6 +528,10 @@ function ProjectPageContentBody({
           TRACE_FILTER_CONDITION_PARAM
         );
         if (tracesQueryReference && tracesFilterSeed === condition) {
+          if (!hasTraces || staleEmptyPreloadsRef.current.traces) {
+            staleEmptyPreloadsRef.current.traces = false;
+            reloadTracesQuery();
+          }
           return;
         }
         if (condition === "") {
@@ -469,6 +564,17 @@ function ProjectPageContentBody({
       loadTableQueryForTab(tabIndex, projectId as string);
     });
   }, [tabIndex, projectId]);
+
+  // While onboarding shows, new streamed data may be the project's first
+  // traces, and only the active tab's preload can say so.
+  const reloadActiveTableQuery = useCallback(() => {
+    if (tabIndex === TAB_INDEX_MAP.spans) {
+      reloadSpansQuery();
+    } else if (tabIndex === TAB_INDEX_MAP.traces) {
+      reloadTracesQuery();
+    }
+  }, [tabIndex, reloadSpansQuery, reloadTracesQuery]);
+  useReloadUntilTracesArrive({ hasTraces, reload: reloadActiveTableQuery });
 
   const onTabChange = useCallback(
     (index: number) => {
