@@ -189,6 +189,13 @@ async def test_list_cursor_accepts_item_ids(
     )
     assert foreign.status_code == 422, foreign.text
 
+    malformed_row_id = await httpx_client.get(
+        "v1/evaluators", params={"cursor": str(GlobalID("CodeEvaluator", "not-an-int"))}
+    )
+    assert malformed_row_id.status_code == 422, malformed_row_id.text
+    assert malformed_row_id.headers["content-type"] == "application/problem+json"
+    assert malformed_row_id.json()["code"] == "invalid_argument"
+
 
 async def test_list_by_name_that_cannot_exist_matches_nothing(
     httpx_client: httpx.AsyncClient,

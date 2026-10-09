@@ -73,7 +73,7 @@ def _decode_evaluator_cursor(cursor: str) -> int:
     global_id = parse_global_id(cursor)
     if global_id.type_name not in _TYPENAME_BY_KIND.values():
         raise BadRequest(f"Invalid evaluator cursor: {cursor}")
-    return int(global_id.node_id)
+    return decode_global_id(cursor, global_id.type_name)
 
 
 class CreateLLMEvaluatorRequest(EvaluatorRequest):
