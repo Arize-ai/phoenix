@@ -37,7 +37,9 @@ dataset = phoenix.datasets.create_dataset(
 judge = create_classifier(
     name="correctness",
     llm=LLM(provider="openai", model="gpt-5-mini"),
-    prompt_template="""Compare the provided answer to the reference answer. Label true if it states the same policy: same time windows, fees, and quantities, in any wording. Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
+    prompt_template="""Compare the provided answer to the reference answer.
+Label true if it states the same policy: same time windows, fees, and quantities, in any wording.
+Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
 
 Reference answer: {{reference}}
 Provided answer: {{output}}""",

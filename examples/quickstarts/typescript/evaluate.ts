@@ -35,7 +35,9 @@ const judge = createClassificationEvaluator({
   name: "correctness",
   model,
   choices: { true: 1, false: 0 },
-  promptTemplate: `Compare the provided answer to the reference answer. Label true if it states the same policy: same time windows, fees, and quantities, in any wording. Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
+  promptTemplate: `Compare the provided answer to the reference answer.
+Label true if it states the same policy: same time windows, fees, and quantities, in any wording.
+Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
 
 Reference answer: {{reference}}
 Provided answer: {{output}}`,
@@ -59,13 +61,17 @@ async function run(prompt: string, experimentName: string) {
     evaluators: [correctness],
     task: async (example) => {
       const { question } = example.input as { question: string };
-      const { text } = await generateText({ model, prompt: prompt.replace("{question}", question) });
+      const { text } = await generateText({
+        model,
+        prompt: prompt.replace("{question}", question),
+      });
       return text;
     },
   });
 }
 
-const BASELINE = "You are a travel support agent. Answer the customer's question.\n\nQuestion: {question}";
+const BASELINE =
+  "You are a travel support agent. Answer the customer's question.\n\nQuestion: {question}";
 const POLICY = `You are a travel support agent. Answer the customer's question using this policy.
 
 Basic fare policy:

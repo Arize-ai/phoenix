@@ -3,7 +3,11 @@
 # docs:start register
 from phoenix.otel import register
 
-register(project_name="tracing-quickstart", protocol="http/protobuf", auto_instrument=True)
+register(
+    project_name="tracing-quickstart",
+    protocol="http/protobuf",
+    auto_instrument=True,
+)
 # docs:end register
 
 # docs:start call
