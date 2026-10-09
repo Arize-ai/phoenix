@@ -75,4 +75,7 @@ jobs:
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         # Lets a reviewer merge with a single approval; a failure here should
         # not fail the run since the PR itself was opened successfully.
-        run: gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"
+        # Block scalar: in a plain YAML scalar, " #" would start a comment and
+        # truncate the command mid-string.
+        run: |
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"
