@@ -4,7 +4,7 @@ The runnable code behind the Get Started guides in the Phoenix docs:
 
 | Guide | Python | TypeScript |
 | --- | --- | --- |
-| [Observe Your Agent](https://arize.com/docs/phoenix/get-started/get-started-tracing) | `python/observe.py` | `typescript/instrumentation.ts`, `typescript/app.ts` |
+| [Observe](https://arize.com/docs/phoenix/get-started/get-started-tracing) | `python/observe.py` | `typescript/instrumentation.ts`, `typescript/app.ts` |
 | [Evaluate](https://arize.com/docs/phoenix/get-started/get-started-evaluations) | `python/evaluate.py` | `typescript/evaluate.ts` |
 | [Evaluate a Prompt Change in Code](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change) | `python/experiment.py` | `typescript/experiment.ts` |
 

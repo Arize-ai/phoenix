@@ -1,14 +1,13 @@
 ---
-sidebarTitle: "Observe"
-title: "Observe Your Agent"
-description: Instrument an AI agent and send its first trace to Phoenix, in Python or TypeScript.
+title: "Observe"
+description: Trace a model call and send it to Phoenix, in Python or TypeScript.
 ---
 
-Instrument your agent and send traces to Arize Phoenix. Background: [What are traces](/docs/phoenix/tracing/concepts-tracing/what-are-traces).
+Trace an OpenAI call and send it to Arize Phoenix. Background: [What are traces](/docs/phoenix/tracing/concepts-tracing/what-are-traces).
 
-You need a running Phoenix; see [Start Phoenix](/docs/phoenix/get-started). The example calls OpenAI, so set `OPENAI_API_KEY` too. To have a coding agent do this instead, run `npx -y @arizeai/phoenix-cli setup`.
+You need a running Phoenix; see [Start Phoenix](/docs/phoenix/get-started). The example calls OpenAI, so set `OPENAI_API_KEY` too. Have an existing app? [Let your coding agent set it up](/docs/phoenix/get-started#have-an-existing-app).
 
-## Instrument your agent
+## Instrument OpenAI
 
 Register Phoenix as the trace destination and turn on auto-instrumentation. Phoenix instruments every installed [OpenInference](/docs/phoenix/integrations) package it finds, OpenAI here.
 
@@ -60,7 +59,7 @@ Any OpenAI call now produces a trace.
 
     client = OpenAI()
     client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5-mini",
         messages=[{"role": "user", "content": "Why did my invoice change?"}],
     )
     ```
@@ -75,7 +74,7 @@ Any OpenAI call now produces a trace.
 
     const client = new OpenAI();
     await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-mini",
       messages: [{ role: "user", content: "Why did my invoice change?" }],
     });
     await provider.shutdown();

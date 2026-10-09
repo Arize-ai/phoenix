@@ -14,7 +14,7 @@
 ## Quick Start
 
 - [Start Phoenix](https://arize.com/docs/phoenix/get-started): Run Phoenix locally, in a container, or self-hosted, or run px setup on an existing app
-- [Observe Your Agent](https://arize.com/docs/phoenix/get-started/get-started-tracing): Send a first trace to Phoenix, with a coding agent through px setup or by hand
+- [Observe](https://arize.com/docs/phoenix/get-started/get-started-tracing): Trace a model call and send it to Phoenix, in Python or TypeScript
 - [Evaluate](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Build a dataset, write an LLM judge, and compare two prompt runs as experiments, in Python or TypeScript
 
 ## Tracing

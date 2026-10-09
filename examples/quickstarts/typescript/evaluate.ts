@@ -9,7 +9,7 @@ import { asExperimentEvaluator, runExperiment } from "@arizeai/phoenix-client/ex
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals/llm/createClassificationEvaluator";
 
 const client = createClient(); // reads PHOENIX_ENDPOINT, default http://localhost:6006
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-5-mini");
 
 const dataset = await createDataset({
   client,

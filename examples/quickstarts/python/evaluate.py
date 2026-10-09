@@ -36,7 +36,7 @@ dataset = phoenix.datasets.create_dataset(
 
 judge = create_classifier(
     name="correctness",
-    llm=LLM(provider="openai", model="gpt-4o-mini"),
+    llm=LLM(provider="openai", model="gpt-5-mini"),
     prompt_template="""Compare the provided answer to the reference answer. Label true if it states the same policy: same time windows, fees, and quantities, in any wording. Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
 
 Reference answer: {{reference}}
@@ -53,7 +53,7 @@ correctness = bind_evaluator(
 def run(prompt, name):
     def task(input):
         response = openai.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5-mini",
             messages=[{"role": "user", "content": prompt.format(**input)}],
         )
         return response.choices[0].message.content

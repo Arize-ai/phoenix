@@ -11,7 +11,7 @@ from openai import OpenAI
 
 client = OpenAI()
 client.chat.completions.create(
-    model="gpt-4o-mini",
+    model="gpt-5-mini",
     messages=[{"role": "user", "content": "Why did my invoice change?"}],
 )
 # docs:end call
