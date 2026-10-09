@@ -157,8 +157,8 @@ const MAX_IDEAS = 5;
 /**
  * The ideas offered one level below `containerPath`, empty for the root:
  * curated ideas whose path goes through it, then ideas built from the shape of
- * what it holds. Only ideas that resolve on `source` and that the surface can
- * write are kept.
+ * what it holds, then the curated ideas this record does not have. Only ideas
+ * the surface can write are kept.
  */
 export function getEvaluatorPathIdeas({
   recordKind,
@@ -172,35 +172,61 @@ export function getEvaluatorPathIdeas({
   /** The subscript syntax the surface can write. */
   syntax: ReadonlySet<EvaluatorPathSyntax>;
 }): EvaluatorPathIdea[] {
-  const candidates = [
-    ...getCuratedIdeas({ recordKind, containerPath }),
-    ...getGenericIdeas({ source, containerPath }),
-  ];
-  const ideas: EvaluatorPathIdea[] = [];
-  for (const { relativePath, description } of candidates) {
-    const path = joinRelativePath(containerPath, relativePath);
-    if (
-      ideas.some((idea) => idea.path === path) ||
-      !canWrite({ path, containerPath, syntax })
-    ) {
-      continue;
-    }
-    const resolution = resolveEvaluatorPath({ source, path });
-    if (resolution.status !== "resolved") {
-      continue;
-    }
-    ideas.push({
-      path,
-      relativePath,
-      description,
-      value: resolution.value,
-      matches: resolution.matches,
+  const resolveIdeas = (candidates: readonly IdeaCandidate[]) =>
+    candidates.flatMap(({ relativePath, description }) => {
+      const path = joinRelativePath(containerPath, relativePath);
+      return canWrite({ path, containerPath, syntax })
+        ? resolveIdea({ source, path, relativePath, description })
+        : [];
     });
-    if (ideas.length === MAX_IDEAS) {
-      break;
-    }
+  const curated = resolveIdeas(getCuratedIdeas({ recordKind, containerPath }));
+  const generic = resolveIdeas(getGenericIdeas({ source, containerPath }));
+  const ordered = [
+    ...curated.filter((idea) => idea.status === "resolved"),
+    ...generic.filter((idea) => idea.status === "resolved"),
+    ...curated.filter((idea) => idea.status === "unresolved"),
+  ];
+  return ordered
+    .filter(
+      (idea, index) =>
+        ordered.findIndex((other) => other.path === idea.path) === index
+    )
+    .slice(0, MAX_IDEAS);
+}
+
+function resolveIdea({
+  source,
+  path,
+  relativePath,
+  description,
+}: {
+  source: Record<string, unknown>;
+  path: string;
+  relativePath: string;
+  description: string;
+}): EvaluatorPathIdea[] {
+  const resolution = resolveEvaluatorPath({ source, path });
+  switch (resolution.status) {
+    case "resolved":
+      return [
+        {
+          path,
+          relativePath,
+          description,
+          status: "resolved",
+          value: resolution.value,
+          matches: resolution.matches,
+        },
+      ];
+    case "unresolved":
+      return [{ path, relativePath, description, status: "unresolved" }];
+    // With no record to read, an idea's absence has not been checked.
+    case "unverifiable":
+    case "invalid":
+      return [];
+    default:
+      return assertUnreachable(resolution);
   }
-  return ideas;
 }
 
 type IdeaCandidate = { relativePath: string; description: string };

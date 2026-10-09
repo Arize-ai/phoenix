@@ -218,6 +218,11 @@ export function isEvaluatorPathContainer(value: unknown): boolean {
 /** A row that describes what it reaches rather than spelling the path. */
 export const IDEA_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}idea`;
 
+/** A row for a name the selected record does not supply; dimmed, not dropped. */
+export const UNSET_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}unset`;
+
+const UNRESOLVED_IDEA_INFO = "Not here";
+
 export function toMemberCompletionType(value: unknown): string {
   return isEvaluatorPathContainer(value)
     ? CONTAINER_COMPLETION_TYPE
@@ -388,9 +393,11 @@ export type EvaluatorPathIdea = {
   /** The path from its level on: `[-1].content` below `input.messages`. */
   relativePath: string;
   description: string;
-  value: unknown;
-  matches: unknown[];
-};
+} & (
+  | { status: "resolved"; value: unknown; matches: unknown[] }
+  /** Worth reaching on records of this kind, but absent from this one. */
+  | { status: "unresolved" }
+);
 
 export type EvaluatorPathCompletionResult = {
   /** Document offset the typeahead matches and replaces from. */
@@ -736,6 +743,8 @@ type EvaluatorPathLevelRow = {
   holdsMore: boolean;
   /** For an idea: what it reaches. */
   idea?: string;
+  /** For an idea: the record does not have what it reaches. */
+  isUnresolved?: boolean;
   boost?: number;
 };
 
@@ -805,10 +814,11 @@ function toIdeaRows(
 ): EvaluatorPathLevelRow[] {
   return ideas.map((idea, index) => ({
     path: idea.path,
-    value: idea.value,
-    holdsMore: holdsMore(idea),
     idea: idea.description,
     boost: ideas.length - index,
+    ...(idea.status === "resolved"
+      ? { value: idea.value, holdsMore: holdsMore(idea) }
+      : { value: undefined, holdsMore: false, isUnresolved: true }),
   }));
 }
 
@@ -872,9 +882,12 @@ function toLevelCompletion({
   key: string;
   section: CompletionSection;
 }): EvaluatorPathCompletion {
-  const preview = toMemberPreview(row.value);
+  const preview = row.isUnresolved
+    ? UNRESOLVED_IDEA_INFO
+    : toMemberPreview(row.value);
   const type = [
     ...(row.idea !== undefined ? [IDEA_COMPLETION_TYPE] : []),
+    ...(row.isUnresolved ? [UNSET_COMPLETION_TYPE] : []),
     ...(row.holdsMore ? [CONTAINER_COMPLETION_TYPE] : []),
   ].join(" ");
   return {
