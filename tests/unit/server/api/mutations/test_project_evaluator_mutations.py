@@ -10,6 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.helpers import project_evaluator_service
 from phoenix.server.online_eval import db_coordinator as db_coordinator_module
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project_session, _add_span, _add_trace
@@ -18,6 +19,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 _PROJECT_EVALUATOR_FIELDS = """
 id
 name
+updatedAt
 filterCondition
 samplingRate
 evaluationTarget
@@ -56,6 +58,12 @@ mutation($input: UpdateProjectCodeEvaluatorInput!) {{
     evaluator {{ {_PROJECT_EVALUATOR_FIELDS} }}
   }}
 }}
+"""
+
+_CREATE_DATASET_CODE = """
+mutation($input: CreateDatasetCodeEvaluatorInput!) {
+  createDatasetCodeEvaluator(input: $input) { evaluator { id } }
+}
 """
 
 _CREATE_LLM = f"""
@@ -240,6 +248,7 @@ def _code_create_input(
         "language": "PYTHON",
         "sandboxConfigId": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
         "evaluatorInputMapping": _mapping(output="value"),
+        "outputConfigs": [{"continuous": {"name": "score", "optimizationDirection": "MAXIMIZE"}}],
         "samplingRate": 0.5,
         "evaluationTarget": "SPAN",
         "inputMapping": None,
@@ -338,7 +347,7 @@ async def test_project_code_evaluator_crud_and_connection(
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "SPAN"
-    assert created["evaluationDelaySeconds"] == 300
+    assert created["evaluationDelaySeconds"] == 0  # SPAN evaluators store no quiet period
     assert created["inputMapping"] == _mapping(output="value")
     assert created["evaluator"]["kind"] == "CODE"
 
@@ -448,12 +457,12 @@ async def test_project_code_evaluator_crud_and_connection(
     assert inherited_result.data and not inherited_result.errors
     inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert inherited["inputMapping"] == _mapping(output="inherited")
-    assert inherited["evaluationDelaySeconds"] == 300
+    assert inherited["evaluationDelaySeconds"] == 0
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
         assert project_evaluator.input_mapping is None
-        assert project_evaluator.evaluation_delay_seconds == 300
+        assert project_evaluator.evaluation_delay_seconds == 0
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -470,6 +479,75 @@ async def test_project_code_evaluator_crud_and_connection(
     )
     assert emptied_result.data and not emptied_result.errors
     assert emptied_result.data["node"]["evaluatorCount"] == 0
+
+
+@pytest.mark.parametrize("other_binding_type", ["project", "dataset"])
+async def test_project_code_binding_rename_keeps_shared_definition_name(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    other_binding_type: str,
+) -> None:
+    source_project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(source_project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
+    evaluator_id = int(GlobalID.from_id(created["evaluator"]["id"]).node_id)
+    original_definition_name = created["evaluator"]["name"]
+
+    if other_binding_type == "dataset":
+        async with db() as session:
+            dataset = models.Dataset(name=f"shared-code-{token_hex(4)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            dataset_id = dataset.id
+        attach_result = await gql_client.execute(
+            _CREATE_DATASET_CODE,
+            {
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                    "evaluatorId": created["evaluator"]["id"],
+                    "name": "dataset-code-binding",
+                    "inputMapping": _mapping(output="value"),
+                }
+            },
+        )
+    else:
+        other_project = await _add_project(db)
+        attach_result = await gql_client.execute(
+            _ADD_CODE,
+            {"input": _code_add_input(other_project, created["evaluator"]["id"])},
+        )
+    assert attach_result.data and not attach_result.errors
+
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": "renamed-project-binding",
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+            }
+        },
+    )
+
+    assert result.data and not result.errors
+    updated = result.data["updateProjectCodeEvaluator"]["evaluator"]
+    assert updated["name"] == "renamed-project-binding"
+    assert updated["evaluator"]["name"] == original_definition_name
+    async with db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        assert project_evaluator is not None and project_evaluator.name.root == (
+            "renamed-project-binding"
+        )
+        assert evaluator is not None and evaluator.name.root == original_definition_name
 
 
 async def test_add_project_code_evaluator_binds_existing_core(
@@ -573,7 +651,8 @@ async def test_add_project_code_evaluator_rejects_missing_evaluator(
     )
 
     assert result.errors
-    assert result.errors[0].message == "CODE evaluator not found"
+    assert result.errors[0].message.startswith("Code evaluator with id ")
+    assert result.errors[0].message.endswith(" not found")
     assert await _project_evaluator_count(db) == project_evaluator_count_before
 
 
@@ -614,6 +693,136 @@ async def test_delete_project_binding_preserves_core_attached_to_another_project
         assert attached_criteria is not None
         assert attached_criteria.evaluator_id == core_rowid
         assert await session.get(models.CodeEvaluator, core_rowid) is not None
+
+
+async def _has_evaluator_label(db: DbSessionFactory, prompt_id: int) -> bool:
+    async with db() as session:
+        return (
+            await session.scalar(
+                select(models.PromptPromptLabel.id)
+                .join(
+                    models.PromptLabel,
+                    models.PromptPromptLabel.prompt_label_id == models.PromptLabel.id,
+                )
+                .where(
+                    models.PromptPromptLabel.prompt_id == prompt_id,
+                    models.PromptLabel.name == "evaluator",
+                )
+            )
+        ) is not None
+
+
+async def test_delete_last_binding_removes_the_tag_and_label_when_prompt_is_kept(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting an LLM evaluator's last binding, with its prompt kept, deletes the tag the
+    evaluator owned and drops the prompt's "evaluator" label since nothing else uses it."""
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="solo-llm", text="Evaluate {{input}}")},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    async with db() as session:
+        evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(created["evaluator"]["id"]).node_id)
+        )
+        assert evaluator is not None
+        prompt_id = evaluator.prompt_id
+        tag_id = evaluator.prompt_version_tag_id
+        assert tag_id is not None
+    assert await _has_evaluator_label(db, prompt_id)
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": False}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        assert await session.get(models.PromptVersionTag, tag_id) is None
+        assert await session.get(models.Prompt, prompt_id) is not None
+    assert not await _has_evaluator_label(db, prompt_id)
+
+
+async def test_delete_binding_keeps_the_label_when_another_evaluator_shares_the_prompt(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting one LLM evaluator's binding removes its own tag but leaves the prompt's
+    "evaluator" label in place as long as another LLM evaluator still runs that prompt."""
+    project = await _add_project(db)
+    first_result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="first-llm", text="Evaluate {{input}}")},
+    )
+    assert first_result.data and not first_result.errors
+    first = first_result.data["createProjectLlmEvaluator"]["evaluator"]
+    prompt_version_id = first["evaluator"]["promptVersion"]["id"]
+
+    second_input = _llm_input(project, name="second-llm", text="Evaluate {{input}}")
+    second_input["promptVersionId"] = prompt_version_id
+    second_result = await gql_client.execute(_CREATE_LLM, {"input": second_input})
+    assert second_result.data and not second_result.errors
+    second = second_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    async with db() as session:
+        first_evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(first["evaluator"]["id"]).node_id)
+        )
+        second_evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(second["evaluator"]["id"]).node_id)
+        )
+        assert first_evaluator is not None and second_evaluator is not None
+        assert first_evaluator.prompt_id == second_evaluator.prompt_id
+        prompt_id = first_evaluator.prompt_id
+        first_tag_id = first_evaluator.prompt_version_tag_id
+        assert first_tag_id is not None
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [first["id"]], "deleteAssociatedPrompt": False}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        assert await session.get(models.PromptVersionTag, first_tag_id) is None
+        assert await session.get(models.Prompt, prompt_id) is not None
+    assert await _has_evaluator_label(db, prompt_id)
+
+
+async def test_delete_last_binding_with_associated_prompt_deletes_it_without_error(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """delete_associated_prompt=true removes the prompt too; the tag and label cleanup that
+    runs afterward is a no-op on the now-missing prompt rather than an error."""
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="deleted-prompt-llm", text="Evaluate {{input}}")},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    async with db() as session:
+        evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(created["evaluator"]["id"]).node_id)
+        )
+        assert evaluator is not None
+        prompt_id = evaluator.prompt_id
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        assert await session.get(models.Prompt, prompt_id) is None
 
 
 async def test_project_llm_evaluator_create_update_delete(
@@ -1044,7 +1253,7 @@ async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
-    error_message = "samplingRate must be between 0.0 and 1.0"
+    error_message = "The sampling rate must be between 0 and 1"
 
     create_code_input = _code_create_input(project, sandbox_config)
     create_code_input["samplingRate"] = 1.5
@@ -1103,7 +1312,7 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
-    error_message = "evaluationDelaySeconds must be at least 10 seconds"
+    error_message = "The evaluation delay must be at least 10 seconds"
 
     create_code_input = _code_create_input(project, sandbox_config)
     create_code_input["evaluationTarget"] = "SESSION"
@@ -1163,7 +1372,7 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
         code_criteria = await session.get(models.ProjectEvaluator, code_criteria_id)
         llm_criteria = await session.get(models.ProjectEvaluator, llm_criteria_id)
         assert code_criteria is not None and llm_criteria is not None
-        assert code_criteria.evaluation_delay_seconds == 300
+        assert code_criteria.evaluation_delay_seconds == 0
         assert llm_criteria.evaluation_delay_seconds == 300
 
 
@@ -1174,7 +1383,7 @@ async def test_evaluation_delay_rejected_for_span_project_evaluators(
 ) -> None:
     project = await _add_project(db)
     error_message = (
-        "evaluationDelaySeconds is not accepted for SPAN evaluators: span scheduling "
+        "An evaluation delay is not accepted for SPAN evaluators: span scheduling "
         "does not honor an evaluation delay"
     )
 
@@ -1214,7 +1423,7 @@ async def test_evaluation_delay_rejected_for_span_project_evaluators(
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
-        assert project_evaluator.evaluation_delay_seconds == 300
+        assert project_evaluator.evaluation_delay_seconds == 0
 
 
 async def test_evaluation_target_change_rejected_from_creation(
@@ -1246,7 +1455,7 @@ async def test_evaluation_target_change_rejected_from_creation(
 
     assert update_result.errors
     assert update_result.errors[0].message == (
-        "evaluationTarget is fixed at project evaluator creation"
+        "The evaluation target is fixed when the project evaluator is created"
     )
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
@@ -1286,6 +1495,62 @@ async def test_update_code_evaluator_rejects_explicit_null_source_code(
     assert result.errors[0].message == "source_code cannot be set to null"
 
 
+@pytest.mark.parametrize("output_configs", [[], None], ids=["empty", "omitted"])
+async def test_create_code_evaluator_requires_output_configs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    output_configs: Optional[list[Any]],
+) -> None:
+    project = await _add_project(db)
+    before = await _row_counts(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_input["outputConfigs"] = output_configs
+
+    result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+
+    assert result.errors
+    assert result.errors[0].message == "At least one output config is required."
+    assert await _row_counts(db) == before
+
+
+async def test_update_code_evaluator_rejects_empty_output_configs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    evaluator = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": evaluator["id"],
+                "name": evaluator["name"],
+                "outputConfigs": [],
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+            }
+        },
+    )
+
+    assert result.errors
+    assert result.errors[0].message == "At least one output config is required."
+    async with db() as session:
+        code_evaluator = await session.get(
+            models.CodeEvaluator, int(GlobalID.from_id(evaluator["evaluator"]["id"]).node_id)
+        )
+    assert code_evaluator is not None
+    assert [config.name for config in code_evaluator.output_configs] == ["score"]
+
+
 async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
@@ -1304,9 +1569,141 @@ async def test_create_rolls_back_all_llm_resources_on_late_name_conflict(
 
     assert result.errors
     assert result.errors[0].message == (
-        "A project evaluator with this name already exists for this project"
+        "A project evaluator named 'duplicate-project-evaluator' already exists for this project"
     )
     assert await _row_counts(db) == before
+
+
+async def test_create_rejects_invalid_llm_output_config_as_client_error(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    create_input = _llm_input(project, name="empty-label", text="Evaluate {{input}}")
+    create_input["outputConfigs"][0]["categorical"]["values"][0]["label"] = ""
+    before = await _row_counts(db)
+    result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+
+    assert result.errors
+    assert "Label must be non-empty" in result.errors[0].message
+    assert await _row_counts(db) == before
+
+
+async def test_update_source_only_edit_validates_against_current_sandbox(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    """A source-only edit (sandboxConfigId omitted) is checked against the evaluator's
+    current sandbox, the same as a create or an explicit sandbox change."""
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+
+    async with db() as session:
+        monty_provider = await session.get(models.SandboxProvider, "MONTY")
+        assert monty_provider is not None
+        monty_config = models.SandboxConfig(
+            backend_type="MONTY",
+            language="PYTHON",
+            name=Identifier(f"monty-{token_hex(4)}"),
+            description=None,
+            config={"backend_type": "MONTY", "language": "PYTHON"},
+            timeout=45,
+        )
+        session.add(monty_config)
+        await session.flush()
+        project_evaluator = await session.get(
+            models.ProjectEvaluator, int(GlobalID.from_id(created["id"]).node_id)
+        )
+        assert project_evaluator is not None
+        evaluator_id = project_evaluator.evaluator_id
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        assert evaluator is not None
+        evaluator.sandbox_config_id = monty_config.id
+
+    update_result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": "updated-code",
+                "sourceCode": (
+                    "import definitely_missing\ndef evaluate(output):\n    return {'score': 1.0}"
+                ),
+                "evaluatorInputMapping": _mapping(output="value"),
+                "samplingRate": 0.5,
+                "evaluationTarget": "SPAN",
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+    assert update_result.errors
+    assert "not supported by the Monty runtime" in str(update_result.errors)
+    async with db() as session:
+        version_count = await session.scalar(
+            select(func.count(models.CodeEvaluatorVersion.id)).where(
+                models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id
+            )
+        )
+    assert version_count == 1
+
+
+async def test_update_refuses_sandbox_validated_against_superseded_source(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = await _add_project(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    async with db() as session:
+        project_evaluator = await session.get(
+            models.ProjectEvaluator, int(GlobalID.from_id(created["id"]).node_id)
+        )
+        assert project_evaluator is not None
+        evaluator_id = project_evaluator.evaluator_id
+
+    async def deploy_while_validating(*args: Any, **kwargs: Any) -> int:
+        # Another request deploys a version while this one waits on the sandbox.
+        async with db() as session:
+            session.add(
+                models.CodeEvaluatorVersion(
+                    code_evaluator_id=evaluator_id,
+                    source_code="def evaluate(output):\n    return {'score': 0.5}",
+                )
+            )
+        return sandbox_config.id
+
+    monkeypatch.setattr(
+        project_evaluator_service, "validate_code_evaluator_sandbox_config", deploy_while_validating
+    )
+    result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": create_input["name"],
+                "samplingRate": create_input["samplingRate"],
+                "evaluationTarget": create_input["evaluationTarget"],
+                "filterCondition": create_input["filterCondition"],
+                "sandboxConfigId": create_input["sandboxConfigId"],
+            }
+        },
+    )
+
+    assert result.errors
+    assert result.errors[0].message == (
+        "The evaluator version changed during sandbox validation; retry."
+    )
 
 
 async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
@@ -1372,7 +1769,7 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
     )
     assert result.errors
     assert result.errors[0].message == (
-        "A project evaluator with this name already exists for this project"
+        "A project evaluator named 'second-project-evaluator' already exists for this project"
     )
     assert await _row_counts(db) == counts_before
 
