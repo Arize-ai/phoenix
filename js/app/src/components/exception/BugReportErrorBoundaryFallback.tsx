@@ -1,18 +1,39 @@
 import { css } from "@emotion/react";
 
-import { Button } from "../core/button";
 import { ExternalLink } from "../core/ExternalLink";
 import { Flex } from "../core/layout";
 import { View } from "../core/view";
-import { isConnectionTimeoutError } from "./isConnectionTimeoutError";
+import { classifyServerConnectionError } from "./serverConnectionError";
+import { ServerConnectionErrorContent } from "./ServerConnectionErrorContent";
 import type { ErrorBoundaryFallbackProps } from "./types";
+
+const errorDetailsCSS = css`
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  overflow-y: auto;
+  max-height: 500px;
+`;
 
 export function BugReportErrorBoundaryFallback({
   error,
+  thrown,
 }: ErrorBoundaryFallbackProps) {
-  // Check if this is a connection timeout error
-  if (isConnectionTimeoutError(error)) {
-    return <ConnectionTimeoutFallback error={error} />;
+  const connectionErrorKind = classifyServerConnectionError(thrown);
+  if (connectionErrorKind != null) {
+    return (
+      <View padding="size-200">
+        <Flex direction="column">
+          <ServerConnectionErrorContent kind={connectionErrorKind} />
+          {error && (
+            <details>
+              <summary>error details</summary>
+              <pre css={errorDetailsCSS}>{error}</pre>
+            </details>
+          )}
+        </Flex>
+      </View>
+    );
   }
 
   return (
@@ -35,77 +56,8 @@ export function BugReportErrorBoundaryFallback({
         </Flex>
         <details open>
           <summary>error details</summary>
-          <pre
-            css={css`
-              white-space: pre-wrap;
-              overflow-wrap: break-word;
-              overflow: hidden;
-              overflow-y: auto;
-              max-height: 500px;
-            `}
-          >
-            {error}
-          </pre>
+          <pre css={errorDetailsCSS}>{error}</pre>
         </details>
-      </Flex>
-    </View>
-  );
-}
-
-function ConnectionTimeoutFallback({
-  error,
-}: {
-  error: string | null | undefined;
-}) {
-  return (
-    <View padding="size-200">
-      <Flex direction="column">
-        <Flex direction="column" width="100%" alignItems="center">
-          <h1>Connection timed out</h1>
-        </Flex>
-        <p>
-          The connection to the Phoenix server timed out before a response was
-          received. This typically happens when a load balancer or proxy closes
-          the connection before the server can respond.
-        </p>
-        <p>Possible solutions:</p>
-        <ul
-          css={css`
-            margin: var(--global-dimension-size-100) 0;
-            padding-left: var(--global-dimension-size-300);
-          `}
-        >
-          <li>Increase your load balancer or proxy timeout settings</li>
-          <li>Check if the Phoenix server is overloaded or slow to respond</li>
-          <li>Verify network connectivity between components</li>
-        </ul>
-        <Flex direction="row" width="100%" justifyContent="end">
-          <Button
-            variant="primary"
-            size="S"
-            onPress={() => {
-              window.location.reload();
-            }}
-          >
-            Retry
-          </Button>
-        </Flex>
-        {error && (
-          <details>
-            <summary>error details</summary>
-            <pre
-              css={css`
-                white-space: pre-wrap;
-                overflow-wrap: break-word;
-                overflow: hidden;
-                overflow-y: auto;
-                max-height: 500px;
-              `}
-            >
-              {error}
-            </pre>
-          </details>
-        )}
       </Flex>
     </View>
   );
