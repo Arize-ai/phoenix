@@ -12,21 +12,21 @@ Phoenix serves its UI and OTLP HTTP on port **6006**, and OTLP gRPC on port **43
 
 ## Run Phoenix
 
-### Local
+<Tabs>
+  <Tab title="Local">
+    Phoenix is a Python package, so `uvx` is the quickest way to run it, whatever language your agent is in.
 
-Phoenix is a Python package, so `uvx` is the quickest way to run it, whatever language your agent is in.
+    <LaunchPhoenixTerminal />
 
-<LaunchPhoenixTerminal />
-
-Open [http://localhost:6006](http://localhost:6006) to see the UI.
-
-### Container
-
-<LaunchPhoenixDocker />
-
-### Self-host
-
-<LaunchPhoenixSelfHost />
+    Open [http://localhost:6006](http://localhost:6006) to see the UI.
+  </Tab>
+  <Tab title="Container">
+    <LaunchPhoenixDocker />
+  </Tab>
+  <Tab title="Self-host">
+    <LaunchPhoenixSelfHost />
+  </Tab>
+</Tabs>
 
 ## Connect to a remote Phoenix
 
