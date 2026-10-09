@@ -5,8 +5,8 @@ import hill_climb_checks as hc
 from harbor_verifiers import phoenix_api, verify
 from harbor_verifiers.graphql.__generated__ import ExperimentFields
 
-trajectory = verify.read_trajectory(verify.TRAJECTORY_PATH)
-reply = verify.final_reply(trajectory)
+trajectory = verify.load_trajectory(verify.TRAJECTORY_PATH)
+reply = verify.get_final_reply(trajectory)
 started = verify.started_at(trajectory)
 dataset_id, examples = phoenix_api.dataset_examples(hc.DATASET_NAME)
 evaluators = phoenix_api.dataset_evaluators(dataset_id)

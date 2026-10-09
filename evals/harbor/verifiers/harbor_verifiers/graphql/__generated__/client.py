@@ -1,9 +1,12 @@
-from typing import Any
+from typing import Any, Optional, Union
 
 from .base_client import BaseClient
+from .base_model import UNSET, UnsetType
 from .dataset_evaluators import DatasetEvaluators
 from .dataset_experiments import DatasetExperiments
 from .evaluator_previews import EvaluatorPreviews
+from .experiment_runs import ExperimentRuns
+from .generative_models import GenerativeModels
 from .input_types import EvaluatorPreviewsInput
 
 
@@ -183,3 +186,94 @@ class Client(BaseClient):
         )
         data = self.get_data(response)
         return EvaluatorPreviews.model_validate(data)
+
+    def experiment_runs(
+        self,
+        experiment_id: str,
+        after: Union[Optional[str], UnsetType] = UNSET,
+        **kwargs: Any,
+    ) -> ExperimentRuns:
+        query = gql("""
+            query ExperimentRuns($experimentId: ID!, $after: String) {
+              node(id: $experimentId) {
+                __typename
+                ... on Experiment {
+                  runs(first: 50, after: $after) {
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
+                    edges {
+                      node {
+                        id
+                        traceId
+                        error
+                        output
+                        annotations(first: 50) {
+                          edges {
+                            node {
+                              name
+                              label
+                              score
+                              explanation
+                            }
+                          }
+                        }
+                        example {
+                          id
+                          revision {
+                            input
+                            output
+                            metadata
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """)
+        variables: dict[str, object] = {"experimentId": experiment_id, "after": after}
+        response = self.execute(
+            query=query, operation_name="ExperimentRuns", variables=variables, **kwargs
+        )
+        data = self.get_data(response)
+        return ExperimentRuns.model_validate(data)
+
+    def generative_models(
+        self, after: Union[Optional[str], UnsetType] = UNSET, **kwargs: Any
+    ) -> GenerativeModels:
+        query = gql("""
+            query GenerativeModels($after: String) {
+              generativeModels(first: 100, after: $after) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                edges {
+                  node {
+                    name
+                    namePattern
+                    kind
+                    provider
+                    tokenPrices {
+                      tokenType
+                      kind
+                      costPerToken
+                      costPerMillionTokens
+                    }
+                  }
+                }
+              }
+            }
+            """)
+        variables: dict[str, object] = {"after": after}
+        response = self.execute(
+            query=query,
+            operation_name="GenerativeModels",
+            variables=variables,
+            **kwargs,
+        )
+        data = self.get_data(response)
+        return GenerativeModels.model_validate(data)

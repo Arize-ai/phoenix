@@ -5,12 +5,15 @@
 # fixture once under evals/harbor/.cache/fixtures. Set RESEED=1 to rebuild fixtures. Exit
 # code 2 marks a fixture as unavailable, so the script skips its tasks. Each staged task
 # receives hard links to the shared files and its fixture at environment/data/phoenix.db.
+# A dataset directory with its own verifiers/ package adds that wheel to its tasks only;
+# a task names another dataset's package with [metadata] verifiers = "<dataset>".
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 HERE="$ROOT/evals/harbor"
 ENVIRONMENTS="$HERE/environments"
 CONTEXT="$HERE/.cache/environment"
 FIXTURES="$HERE/.cache/fixtures"
+DATASET_WHEELS="$HERE/.cache/dataset-wheels"
 TASKS_DIR="$HERE/tasks"
 
 # Clear stale wheels first: `uv pip install /wheels/*.whl` in the Dockerfile would
@@ -24,6 +27,7 @@ cp "$ENVIRONMENTS/Dockerfile" "$CONTEXT/Dockerfile"
 cp "$ROOT"/dist/arize_phoenix-*.whl "$CONTEXT/wheels/"
 (cd "$ROOT" && uv build --wheel --out-dir "$CONTEXT/wheels" "$HERE/verifiers")
 rsync -a --exclude __pycache__ "$ENVIRONMENTS/container_assets/" "$CONTEXT/container_assets/"
+rm -rf "$DATASET_WHEELS"
 
 if [ "${RESEED:-0}" = 1 ]; then
   rm -f "$FIXTURES"/*/phoenix.db
@@ -53,6 +57,14 @@ ensure_fixture() {
   exit "$status"
 }
 
+dataset_wheel() {
+  local dataset=$1 out="$DATASET_WHEELS/$1"
+  if [ ! -d "$out" ]; then
+    (cd "$ROOT" && uv build --wheel --out-dir "$out" "$TASKS_DIR/$dataset/verifiers" >&2)
+  fi
+  echo "$out"/*.whl
+}
+
 staged=0
 skipped=""
 for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
@@ -73,6 +85,12 @@ for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
   mkdir -p "$task/environment/data"
   ln -f "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db" 2>/dev/null \
     || cp "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db"
+  dataset=$(sed -n 's/^verifiers = "\(.*\)"$/\1/p' "$config")
+  dataset=${dataset:-$(basename "$(dirname "$task")")}
+  if [ -f "$TASKS_DIR/$dataset/verifiers/pyproject.toml" ]; then
+    wheel=$(dataset_wheel "$dataset")
+    ln -f "$wheel" "$task/environment/wheels/" 2>/dev/null || cp "$wheel" "$task/environment/wheels/"
+  fi
   staged=$((staged + 1))
 done
 echo "Staged $staged task(s)."

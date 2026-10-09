@@ -338,6 +338,7 @@ mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/src",
   "$MYPY_CONFIG_FILE_DIR/evals/harbor/verifiers",
+  "$MYPY_CONFIG_FILE_DIR/evals/harbor/tasks/api-selection-dev/verifiers",
 ]
 files = [
   "evals/",
@@ -457,7 +458,7 @@ select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
-known-first-party = ["harbor_verifiers"]
+known-first-party = ["harbor_verifiers", "api_selection_verifiers"]
 
 [tool.ruff.format]
 line-ending = "native"
@@ -489,7 +490,7 @@ override-dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["packages/*", "evals/harbor/verifiers"]
+members = ["packages/*", "evals/harbor/verifiers", "evals/harbor/tasks/api-selection-dev/verifiers"]
 # phoenix-sqlean is a vendored setup.py-based C extension (fork of
 # nalgeon/sqlean.py), not a uv-managed project.
 exclude = ["packages/phoenix-sqlean"]

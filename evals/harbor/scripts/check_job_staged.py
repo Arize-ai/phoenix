@@ -16,6 +16,7 @@ the job file, so the run does not require the px archive used by its CLI agents.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from fnmatch import fnmatch
 from pathlib import Path
@@ -32,6 +33,20 @@ STAGED = (
     "data/phoenix.db",
 )
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
+_VERIFIERS = re.compile(r'^verifiers = "(.*)"$', re.MULTILINE)
+_PROJECT_NAME = re.compile(r'^name = "(.*)"$', re.MULTILINE)
+
+
+def dataset_wheel_glob(task: Path) -> str | None:
+    match = _VERIFIERS.search((task / "task.toml").read_text())
+    dataset = task.parent.parent / match.group(1) if match else task.parent
+    pyproject = dataset / "verifiers" / "pyproject.toml"
+    if not pyproject.is_file():
+        return None
+    name = _PROJECT_NAME.search(pyproject.read_text())
+    if name is None:
+        raise SystemExit(f"{pyproject} names no project")
+    return f"wheels/{name.group(1).replace('-', '_')}-*.whl"
 
 
 def job_tasks(job: dict[str, Any]) -> list[Path]:
@@ -58,7 +73,8 @@ def main() -> int:
     failures = []
     for task in job_tasks(job):
         environment = task / "environment"
-        missing = [part for part in STAGED if not any(environment.glob(part))]
+        parts = STAGED + tuple(filter(None, [dataset_wheel_glob(task)]))
+        missing = [part for part in parts if not any(environment.glob(part))]
         if missing:
             failures.append(f"{task}/environment/ is missing {', '.join(missing)}")
     agents = job.get("agents") or []

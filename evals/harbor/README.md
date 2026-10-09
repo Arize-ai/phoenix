@@ -18,6 +18,7 @@ compare the conditions in the Phoenix UI.
 | `jobs/` | One configuration file for each benchmark |
 | `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
 | `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
+| `tasks/<dataset>/verifiers/` | A package of grading that only that dataset needs, installed beside `harbor_verifiers` in that dataset's images |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
 ## Prerequisites
@@ -143,7 +144,7 @@ or an answer to a different question fails. `notes` provides extra guidance to t
 such as "page_down is the same tool." `source` records how the reference value was
 derived.
 
-The judge uses a `phoenix.evals` classifier with `gpt-5-nano`. Set
+The judge uses a `phoenix.evals` classifier with `gpt-5.5`. Set
 `PHOENIX_EVAL_JUDGE_MODEL` and `PHOENIX_EVAL_JUDGE_PROVIDER` to use another model. Add
 the provider host to the task's `[verifier]` table.
 
@@ -174,6 +175,15 @@ For a task that changes Phoenix state instead of answering a question, write a c
 verifier runs as root. Calculate the reward, and call
 `harbor_verifiers.verify.write_reward(reward, **extra)` to include the trajectory
 measurements.
+
+### Add grading that only one dataset needs
+
+Grading that only one dataset needs lives in a `verifiers/` package inside that dataset's
+directory, such as `tasks/api-selection-dev/verifiers/`. Staging installs it beside
+`harbor_verifiers` in that dataset's images only, and the dataset's `test.sh` runs its
+module. Another dataset can share it with `[metadata] verifiers = "<dataset>"` in
+`task.toml`. Add the package to the uv workspace and the tox install lines so its tests
+run with the others.
 
 ### Add a condition
 

@@ -11,7 +11,7 @@ import os
 from phoenix.evals import LLM, ClassificationEvaluator, Score
 
 JUDGE_PROVIDER = os.environ.get("PHOENIX_EVAL_JUDGE_PROVIDER", "openai")
-JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "gpt-5-nano")
+JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "gpt-5.5")
 
 _REFERENCE_TEMPLATE = """You are grading the final reply of an AI agent that was asked a question about data in an observability tool. You are given the reference answer.
 

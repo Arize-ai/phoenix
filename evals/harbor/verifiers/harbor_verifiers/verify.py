@@ -14,7 +14,9 @@ normalization removes emphasis, extra whitespace, and final punctuation and igno
 letter case. Use ``{"reference": "117 traces", "notes": "..."}`` to ask the LLM judge
 in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer.
 State verifiers can call :func:`write_reward` to record their own reward and include the
-trajectory measurements.
+trajectory measurements. A dataset with its own grading composes the same helpers in its
+own ``main``: :func:`load_trajectory`, :func:`get_final_reply`, :func:`check_exact` or
+:func:`check_reference`, and :func:`write_reward`.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Iterable
 
 from phoenix.evals.metrics import exact_match
 
@@ -37,15 +39,16 @@ REWARD_PATH = Path(os.environ.get("PHOENIX_EVAL_REWARD_PATH", "/logs/verifier/re
 
 _MARKUP = re.compile(r"[*`_]")
 
-ReplySource = Literal["trajectory", "answer_file"]
 
-
-def read_trajectory(path: Path) -> dict[str, Any] | None:
-    try:
-        value = json.loads(path.read_text())
-    except (OSError, ValueError):
+def load_trajectory(path: Path) -> dict[str, Any] | None:
+    """None when there is no trajectory, as in an oracle run; a file that is not an
+    ATIF object is an error rather than a missing trajectory."""
+    if not path.exists():
         return None
-    return value if isinstance(value, dict) else None
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} does not hold an ATIF trajectory object")
+    return value
 
 
 def agent_steps(trajectory: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -58,6 +61,13 @@ def agent_steps(trajectory: dict[str, Any] | None) -> list[dict[str, Any]]:
         and step.get("source") == "agent"
         and not step.get("is_copied_context")
     ]
+
+
+def tool_calls(trajectory: dict[str, Any] | None) -> Iterable[dict[str, Any]]:
+    for step in agent_steps(trajectory):
+        for call in step.get("tool_calls") or []:
+            if isinstance(call, dict):
+                yield call
 
 
 def parse_timestamp(text: str) -> datetime:
@@ -81,7 +91,7 @@ def started_at(trajectory: dict[str, Any] | None) -> datetime | None:
     return min(timestamps) if timestamps else None
 
 
-def final_reply(trajectory: dict[str, Any] | None) -> str:
+def get_final_reply(trajectory: dict[str, Any] | None) -> str:
     for step in reversed(agent_steps(trajectory)):
         message = step.get("message")
         if isinstance(message, str) and message.strip():
@@ -102,39 +112,27 @@ def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
     steps = agent_steps(trajectory)
     if not steps:
         return {}
-    tool_calls = sum(len(step.get("tool_calls") or []) for step in steps)
-    return {"tool_count": float(tool_calls), "turn_count": float(len(steps))}
-
-
-def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, ReplySource]:
-    trajectory = read_trajectory(trajectory_path)
-    if trajectory is not None:
-        return final_reply(trajectory), "trajectory"
-    try:
-        return answer_path.read_text(), "answer_file"
-    except OSError:
-        return "", "answer_file"
+    return {"tool_count": float(len(list(tool_calls(trajectory)))), "turn_count": float(len(steps))}
 
 
 def normalize(text: str) -> str:
     return " ".join(_MARKUP.sub("", text).split()).rstrip(".!").casefold()
 
 
-def check(reply: str, expected: dict[str, Any]) -> tuple[float, str]:
-    """Return the reward and explanation for a reply."""
-    if "exact" in expected:
-        scores = exact_match.evaluate(
-            {"output": normalize(reply), "expected": normalize(str(expected["exact"]))}
-        )
-        return float(scores[0].score or 0.0), f"exact match against {expected['exact']!r}"
-    if "reference" in expected:
-        from harbor_verifiers import llm_judge
+def check_exact(reply: str, expected_answer: str) -> float:
+    scores = exact_match.evaluate(
+        {"output": normalize(reply), "expected": normalize(expected_answer)}
+    )
+    return float(scores[0].score or 0.0)
 
-        verdict = llm_judge.matches_reference(
-            reply, str(expected["reference"]), notes=str(expected.get("notes", ""))
-        )
-        return float(verdict.score or 0.0), str(verdict.explanation or verdict.label)
-    raise ValueError("expected.json needs an 'exact' or a 'reference' key")
+
+def check_reference(reply: str, reference: str, notes: str = "") -> tuple[float, str]:
+    """Ask the LLM judge whether the reply gives the reference answer; returns the score
+    and the judge's explanation."""
+    from harbor_verifiers import llm_judge
+
+    verdict = llm_judge.matches_reference(reply, reference, notes=notes)
+    return float(verdict.score or 0.0), str(verdict.explanation or verdict.label)
 
 
 def write_reward(
@@ -145,11 +143,13 @@ def write_reward(
     reward_path: Path = REWARD_PATH,
     **components: Any,
 ) -> dict[str, float]:
-    """Harbor's reward file accepts numbers only, and it averages every key into its
-    summary, so only 0-to-1 scores and the trajectory measurements go there. Other
+    """Harbor's reward file accepts numbers only. Harbor reports ``reward`` as the
+    trial's score and tallies every other key on its own, and the Phoenix plugin
+    records each key as a separate evaluation, so the trajectory measurements and
+    any numeric diagnostics go there without affecting pass or fail. Other
     components join ``details`` in ``details.json`` beside it."""
     scores: dict[str, float] = {"reward": float(reward)}
-    scores.update(measurements(read_trajectory(trajectory_path)))
+    scores.update(measurements(load_trajectory(trajectory_path)))
     details = dict(details or {})
     for key, value in components.items():
         if isinstance(value, (bool, int, float)):
@@ -163,7 +163,7 @@ def write_reward(
     return scores
 
 
-def main(argv: list[str] | None = None) -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -171,21 +171,26 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--answer", type=Path, default=ANSWER_PATH)
     parser.add_argument("--trajectory", type=Path, default=TRAJECTORY_PATH)
     parser.add_argument("--reward-file", type=Path, default=REWARD_PATH)
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
     expected = json.loads(args.expected.read_text())
-    reply, source = read_reply(args.trajectory, args.answer)
-    reward, reason = check(reply, expected)
+    trajectory = load_trajectory(args.trajectory)
+    reply = get_final_reply(trajectory) if trajectory is not None else args.answer.read_text()
+    if "exact" in expected:
+        reward = check_exact(reply, str(expected["exact"]))
+        reason = f"exact match against {expected['exact']!r}"
+    elif "reference" in expected:
+        reward, reason = check_reference(
+            reply, str(expected["reference"]), notes=str(expected.get("notes", ""))
+        )
+    else:
+        raise SystemExit("expected.json needs an 'exact' or a 'reference' key")
     scores = write_reward(reward, trajectory_path=args.trajectory, reward_path=args.reward_file)
     print(
-        json.dumps(
-            {
-                "reply": reply[:500],
-                "reply_source": source,
-                "expected": expected,
-                "reason": reason,
-                "scores": scores,
-            }
-        )
+        json.dumps({"reply": reply[:500], "expected": expected, "reason": reason, "scores": scores})
     )
 
 
