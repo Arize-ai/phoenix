@@ -266,6 +266,77 @@ async def test_experiment_json_and_csv_export_with_errored_run(
     assert df.iloc[0]["error"] == "Missing template variable(s): text"
 
 
+async def test_replacing_an_errored_run_removes_evaluations_of_the_failed_output(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    """
+    ``resume_experiment`` re-runs errored runs by upserting them in place. An evaluation scored on
+    the failed output must not survive as the score of the new output, or ``resume_evaluation``
+    treats the run as already evaluated and the stale score stays.
+    """
+    dataset_gid = GlobalID("Dataset", "0")
+    experiment_gid = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]["id"]
+    now = datetime.now(timezone.utc).isoformat()
+    run = {
+        "dataset_example_id": str(GlobalID("DatasetExample", "0")),
+        "output": None,
+        "repetition_number": 1,
+        "start_time": now,
+        "end_time": now,
+        "error": "boom",
+    }
+    response = await httpx_client.post(f"v1/experiments/{experiment_gid}/runs", json=run)
+    assert response.status_code == 200
+    run_gid = response.json()["data"]["id"]
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_gid,
+            "name": "exact",
+            "annotator_kind": "CODE",
+            "start_time": now,
+            "end_time": now,
+            "result": {"score": 0.0},
+        },
+    )
+    assert response.status_code == 200
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_gid,
+            "name": "reviewer note",
+            "annotator_kind": "HUMAN",
+            "start_time": now,
+            "end_time": now,
+            "result": {"label": "flaky"},
+        },
+    )
+    assert response.status_code == 200
+
+    response = await httpx_client.post(
+        f"v1/experiments/{experiment_gid}/runs", json={**run, "output": "B", "error": None}
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == run_gid
+    async with db() as session:
+        annotations = (
+            await session.scalars(
+                select(models.ExperimentRunAnnotation).where(
+                    models.ExperimentRunAnnotation.experiment_run_id
+                    == int(GlobalID.from_id(run_gid).node_id)
+                )
+            )
+        ).all()
+    assert [(a.name, a.annotator_kind) for a in annotations] == [("reviewer note", "HUMAN")]
+
+
 async def test_experiment_404s_with_missing_dataset(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
