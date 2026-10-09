@@ -143,6 +143,11 @@ export function PlaygroundDecisionOutput({
       </View>
       {selected?.spanId ? (
         <Suspense>
+          {/* Tokens come straight from the span's decision.token_count.*
+              attributes, and no cost is shown. Once decision usage and cost
+              are persisted alongside LLM costs (the span token columns and
+              span_costs), fetch both from there like the chat footer does
+              and drop the attribute path. */}
           <RunMetadataFooter spanId={selected.spanId} tokenSource="decision" />
         </Suspense>
       ) : null}
