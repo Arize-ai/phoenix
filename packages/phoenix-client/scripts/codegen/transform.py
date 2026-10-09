@@ -524,11 +524,26 @@ def rewrite_file(
 # =============================================================================
 # Main entry point.
 # =============================================================================
+def keep_generated_deprecations_quiet(path: Path) -> None:
+    """Silence deprecation reports inside datamodel-codegen output.
+
+    A schema marked deprecated still appears in generated unions. Those
+    references are the generator doing its job, not a type error in this file.
+    The directive has to be reapplied here because codegen overwrites the file.
+    """
+    directive = "# pyright: reportDeprecated=false\n"
+    text = path.read_text()
+    if text.startswith(directive):
+        return
+    path.write_text(directive + text)
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python transform.py <directory>")
         sys.exit(1)
     directory: Path = Path(sys.argv[1])
+    keep_generated_deprecations_quiet(directory / ".dataclass.py")
     rewrite_file(
         directory,
         ".dataclass.py",

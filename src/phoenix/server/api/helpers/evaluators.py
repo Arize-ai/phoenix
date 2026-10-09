@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Literal, Optional, Sequence
+"""Validate evaluator output configurations and their prompt contracts."""
+
+from typing import Literal, NamedTuple, Optional, Sequence
 
 from pydantic import (
     BaseModel,
@@ -7,12 +9,16 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.prompts import (
     PromptResponseFormat,
@@ -21,13 +27,6 @@ from phoenix.db.types.prompts import (
     PromptToolFunction,
     PromptTools,
 )
-
-if TYPE_CHECKING:
-    from phoenix.server.api.evaluators import BaseEvaluator
-    from phoenix.server.api.input_types.AnnotationConfigInput import (
-        AnnotationConfigInput,
-    )
-    from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 
 
 def validate_evaluator_prompt_and_configs(
@@ -100,8 +99,11 @@ def _validate_tool_and_config(
         else None
     )
     if (
-        # if the evaluator description is not None, it must match the function description
-        # the function may have an empty string as its description, as required by the Anthropic API
+        # The judge model reads the tool function's description as its instruction, while the
+        # UI shows the evaluator's description as what the evaluator does, so the two must be
+        # the same string or the UI describes an instruction the judge isn't running.
+        # If the evaluator description is not None, it must match the function description.
+        # The function may have an empty string as its description, as required by the Anthropic API
         evaluator_description is not None
         and evaluator_description != prompt_tool_function_definition_description
     ):
@@ -165,6 +167,79 @@ def validate_consistent_llm_evaluator_and_prompt_version(
         evaluator_output_configs=categorical_configs,
         evaluator_description=llm_evaluator.description,
     )
+
+
+class IncompatibleDatasetOverride(NamedTuple):
+    """Dataset override that cannot be served by an evaluator prompt version."""
+
+    dataset_evaluator_id: str
+    binding_name: str
+    dataset_name: str
+
+
+def format_incompatible_dataset_overrides(
+    overrides: Sequence[IncompatibleDatasetOverride],
+) -> str:
+    """Format incompatible overrides with binding and dataset names for conflict errors."""
+    return ", ".join(
+        f"binding '{override.binding_name}' on dataset '{override.dataset_name}' "
+        f"({override.dataset_evaluator_id})"
+        for override in overrides
+    )
+
+
+async def incompatible_dataset_overrides(
+    session: AsyncSession,
+    llm_evaluator: models.LLMEvaluator,
+    prompt_version: models.PromptVersion,
+) -> list[IncompatibleDatasetOverride]:
+    """Return dataset binding overrides this version cannot serve.
+
+    Bindings without overrides follow the evaluator's own outputs and need no separate check.
+    Each result includes the GlobalID and display names used in compatibility errors.
+    """
+    bindings = (
+        await session.execute(
+            select(models.DatasetEvaluators, models.Dataset.name)
+            .join(models.Dataset, models.Dataset.id == models.DatasetEvaluators.dataset_id)
+            .where(
+                models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                or_(
+                    models.DatasetEvaluators.output_configs.is_not(None),
+                    models.DatasetEvaluators.description.is_not(None),
+                ),
+            )
+        )
+    ).all()
+    incompatible: list[IncompatibleDatasetOverride] = []
+    for binding, dataset_name in bindings:
+        configs = (
+            as_output_configs(binding.output_configs)
+            if binding.output_configs is not None
+            else list(llm_evaluator.output_configs)
+        )
+        try:
+            validate_evaluator_prompt_and_configs(
+                prompt_tools=prompt_version.tools,
+                prompt_response_format=prompt_version.response_format,
+                evaluator_output_configs=LLMEvaluatorOutputConfigs.model_validate(
+                    {"configs": configs}
+                ).configs,
+                evaluator_description=(
+                    binding.description
+                    if binding.description is not None
+                    else llm_evaluator.description
+                ),
+            )
+        except (ValueError, ValidationError):
+            incompatible.append(
+                IncompatibleDatasetOverride(
+                    dataset_evaluator_id=str(GlobalID("DatasetEvaluator", str(binding.id))),
+                    binding_name=binding.name.root,
+                    dataset_name=dataset_name,
+                )
+            )
+    return incompatible
 
 
 class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
@@ -242,7 +317,8 @@ class _LLMEvaluatorPromptErrorMessage:
         "Evaluator tool choice specific function name must match defined function name"
     )
     EVALUATOR_DESCRIPTION_MUST_MATCH_FUNCTION_DESCRIPTION = (
-        "Evaluator description must match the function description"
+        "Evaluator description must match the function description; create a prompt version "
+        "whose tool description matches, then PATCH prompt and description together"
     )
     REQUIRED_VALUES_MUST_BE_UNIQUE = "Required values must be unique"
     MISSING_REQUIRED_PROPERTIES = "The following properties must be required: {properties}"
@@ -256,11 +332,6 @@ class _LLMEvaluatorPromptErrorMessage:
     EXPLANATION_PROPERTIES_MUST_BE_STRING_OR_OMITTED = (
         "The 'explanation' property must be omitted or set to a string."
     )
-
-
-# ============================================================================
-# Multi-output evaluator validation helpers
-# ============================================================================
 
 
 def result_annotation_names(
@@ -280,51 +351,6 @@ def result_annotation_names(
     return [evaluator_name]
 
 
-def get_config_name(
-    config: "AnnotationConfigInput",
-) -> str:
-    """
-    Extract the name from an AnnotationConfigInput.
-
-    Args:
-        config: The annotation config input to extract the name from.
-
-    Returns:
-        The name of the config.
-
-    Raises:
-        ValueError: If no annotation config variant is provided.
-    """
-    import strawberry
-
-    if config.categorical is not None and config.categorical is not strawberry.UNSET:
-        return str(config.categorical.name)
-    elif config.continuous is not None and config.continuous is not strawberry.UNSET:
-        return str(config.continuous.name)
-    elif config.freeform is not None and config.freeform is not strawberry.UNSET:
-        return str(config.freeform.name)
-    else:
-        raise ValueError("No annotation config provided")
-
-
-def validate_unique_config_names(
-    configs: "list[AnnotationConfigInput]",
-) -> None:
-    """
-    Validate that all config names in the list are unique.
-
-    Args:
-        configs: List of annotation config inputs to validate.
-
-    Raises:
-        ValueError: If duplicate config names are found.
-    """
-    config_names = [get_config_name(c) for c in configs]
-    if len(config_names) != len(set(config_names)):
-        duplicates = [name for name in config_names if config_names.count(name) > 1]
-        raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
-
-
 class LLMEvaluatorOutputConfigs(BaseModel):
     """Validated output configs for LLM evaluators (categorical only)."""
 
@@ -341,55 +367,10 @@ class LLMEvaluatorOutputConfigs(BaseModel):
             raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
         return configs
 
-    @classmethod
-    def from_inputs(cls, inputs: "list[AnnotationConfigInput]") -> "LLMEvaluatorOutputConfigs":
-        """Convert Strawberry AnnotationConfigInput list to validated LLM evaluator configs."""
-        import strawberry
 
-        from phoenix.db.types.annotation_configs import (
-            AnnotationType,
-            CategoricalAnnotationValue,
+def require_categorical_output_configs(configs: Sequence[OutputConfigType]) -> None:
+    """LLM evaluators answer through a label-choosing tool, so every output must be categorical."""
+    if any(not isinstance(config, CategoricalOutputConfig) for config in configs):
+        raise ValueError(
+            "LLM evaluators only support categorical output configs. Non-categorical config found."
         )
-
-        configs: list[CategoricalOutputConfig] = []
-        for input_ in inputs:
-            if input_.categorical is not None and input_.categorical is not strawberry.UNSET:
-                cat = input_.categorical
-                configs.append(
-                    CategoricalOutputConfig(
-                        type=AnnotationType.CATEGORICAL.value,
-                        name=cat.name,
-                        description=cat.description,
-                        optimization_direction=cat.optimization_direction,
-                        values=[
-                            CategoricalAnnotationValue(label=v.label, score=v.score)
-                            for v in cat.values
-                        ],
-                    )
-                )
-            else:
-                raise ValueError(
-                    "LLM evaluators only support categorical output configs. "
-                    "Non-categorical config found."
-                )
-        return cls(configs=configs)
-
-
-def get_evaluator_output_configs(
-    evaluator_input: "PlaygroundEvaluatorInput",
-    evaluator: "BaseEvaluator",
-) -> list[OutputConfigType]:
-    """
-    Get the output configs for an evaluator run. Uses configs from the evaluator input
-    if provided, otherwise falls back to the base evaluator's stored output configs.
-
-    Returns only categorical or continuous configs (the types supported by evaluators).
-    """
-
-    configs: list[OutputConfigType]
-    if evaluator_input.output_configs:
-        configs = [config.to_output_config() for config in evaluator_input.output_configs]
-    else:
-        configs = list(evaluator.output_configs)
-
-    return configs

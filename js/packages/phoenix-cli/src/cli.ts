@@ -11,11 +11,13 @@ import {
   createDatasetLabelsCommand,
   createDatasetVersionsCommand,
   createDocsCommand,
+  createEvaluatorCommand,
   createExperimentCommand,
   createProfileCommand,
   createProjectCommand,
   createPromptCommand,
   createPromptVersionsCommand,
+  createSandboxConfigCommand,
   createSessionAnnotationsCommand,
   createSessionCommand,
   createSelfCommand,
@@ -57,6 +59,8 @@ export function createProgram(): Command {
   program.addCommand(createSessionAnnotationsCommand());
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptCommand());
+  program.addCommand(createEvaluatorCommand());
+  program.addCommand(createSandboxConfigCommand());
   program.addCommand(createPromptVersionsCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());

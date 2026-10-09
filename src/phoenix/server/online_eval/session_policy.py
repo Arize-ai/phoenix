@@ -7,9 +7,6 @@ from __future__ import annotations
 import hashlib
 import json
 
-DEFAULT_EVALUATION_DELAY_SECONDS = 300
-MINIMUM_EVALUATION_DELAY_SECONDS = 10
-
 # What to do about an over-limit sandbox payload. Shared with the preview
 # mutation so a preview run under the online limits reports the rejection in the
 # same words the scheduled evaluation would.
