@@ -395,7 +395,8 @@
                   "docs/phoenix/settings/sandboxes/e2b",
                   "docs/phoenix/settings/sandboxes/daytona",
                   "docs/phoenix/settings/sandboxes/vercel",
-                  "docs/phoenix/settings/sandboxes/modal"
+                  "docs/phoenix/settings/sandboxes/modal",
+                  "docs/phoenix/settings/sandboxes/tenki"
                 ]
               }
             ]
@@ -926,7 +927,8 @@
               "docs/phoenix/integrations/sandboxes/daytona",
               "docs/phoenix/integrations/sandboxes/vercel",
               "docs/phoenix/integrations/sandboxes/modal",
-              "docs/phoenix/integrations/sandboxes/docker"
+              "docs/phoenix/integrations/sandboxes/docker",
+              "docs/phoenix/integrations/sandboxes/tenki"
             ]
           },
           {

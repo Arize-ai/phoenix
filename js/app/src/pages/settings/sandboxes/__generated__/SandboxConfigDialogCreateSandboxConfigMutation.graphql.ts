@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4d8443a8a7cab4bd885dcf30ff2ea69>>
+ * @generated SignedSource<<cce51c1eafacb994f250585277c72672>>
  * @lightSyntaxTransform
  */
 
@@ -25,6 +25,7 @@ export type SandboxConfigVariantInput = {
   e2b: E2BConfigInput;
   modal?: never;
   monty?: never;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -34,6 +35,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -43,6 +45,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -52,6 +55,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  tenki?: never;
   vercel: VercelConfigInput;
   wasm?: never;
 } | {
@@ -61,6 +65,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  tenki?: never;
   vercel?: never;
   wasm: WASMConfigInput;
 } | {
@@ -70,6 +75,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal: ModalConfigInput;
   monty?: never;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -79,6 +85,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty: MontyConfigInput;
+  tenki?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -88,6 +95,17 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  tenki?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  docker?: never;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
+  tenki: TenkiConfigInput;
   vercel?: never;
   wasm?: never;
 };
@@ -139,6 +157,12 @@ export type DockerConfigInput = {
   envVars?: ReadonlyArray<EnvVarInput>;
   internetAccess?: InternetAccessInput | null;
   language: Language;
+};
+export type TenkiConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language?: Language;
 };
 export type SandboxConfigDialogCreateSandboxConfigMutation$variables = {
   input: CreateSandboxConfigInput;

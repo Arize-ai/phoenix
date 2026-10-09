@@ -189,6 +189,7 @@ const BACKEND_TYPE_LABELS: Record<SandboxBackendType, string> = {
   MODAL: "Modal",
   MONTY: "Monty",
   DOCKER: "Docker Sandboxes",
+  TENKI: "Tenki",
 };
 
 const backendTypeLabel = (backendType: SandboxBackendType): string =>

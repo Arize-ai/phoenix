@@ -154,7 +154,8 @@ export type SandboxBackendType =
   | "DENO"
   | "MODAL"
   | "MONTY"
-  | "DOCKER";
+  | "DOCKER"
+  | "TENKI";
 
 /**
  * The source data for evaluator input mappings.
