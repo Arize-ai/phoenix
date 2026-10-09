@@ -8071,6 +8071,9 @@ class TestEvaluatorComparison:
                 evaluator = await session.get(models.ProjectEvaluator, ids[name])
                 assert evaluator is not None
                 evaluator.evaluation_target = target
+                evaluator.evaluation_delay_seconds = (
+                    0 if target == "SPAN" else models.DEFAULT_EVALUATION_DELAY_SECONDS
+                )
             results_by_target: list[list[tuple[str, Optional[float]]]] = [
                 [("toxicity", 0.1), ("harm", None)],
                 [("toxicity", 0.2)],
