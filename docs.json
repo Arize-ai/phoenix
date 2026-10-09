@@ -52,35 +52,33 @@
       {
         "tab": "Documentation",
         "pages": [
+          "docs/phoenix",
           {
-            "group": "What is Phoenix?",
-            "root": "docs/phoenix",
+            "group": "Quickstart",
+            "root": "docs/phoenix/get-started",
             "pages": [
-              {
-                "group": "Quickstart",
-                "pages": [
-                  "docs/phoenix/get-started",
-                  "docs/phoenix/get-started/get-started-tracing",
-                  "docs/phoenix/get-started/get-started-evaluations"
-                ]
-              },
-              {
-                "group": "Coding Agents",
-                "pages": [
-                  "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/integrations/developer-tools/cli",
-                  "docs/phoenix/integrations/mcp",
-                  "docs/phoenix/integrations/developer-tools/skills"
-                ]
-              },
-              {
-                "group": "PXI Agent",
-                "tag": "BETA",
-                "pages": [
-                  "docs/phoenix/pxi",
-                  "docs/phoenix/pxi-advanced"
-                ]
-              }
+              "docs/phoenix/get-started",
+              "docs/phoenix/get-started/get-started-tracing",
+              "docs/phoenix/get-started/get-started-evaluations"
+            ]
+          },
+          {
+            "group": "Coding Agents",
+            "root": "docs/phoenix/integrations/developer-tools/coding-agents",
+            "pages": [
+              "docs/phoenix/integrations/developer-tools/coding-agents",
+              "docs/phoenix/integrations/developer-tools/cli",
+              "docs/phoenix/integrations/mcp",
+              "docs/phoenix/integrations/developer-tools/skills"
+            ]
+          },
+          {
+            "group": "PXI Agent",
+            "tag": "BETA",
+            "root": "docs/phoenix/pxi",
+            "pages": [
+              "docs/phoenix/pxi",
+              "docs/phoenix/pxi-advanced"
             ]
           },
           {
