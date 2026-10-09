@@ -239,7 +239,11 @@ const chatCSS = css`
 
   .chat__messages {
     box-sizing: border-box;
-    max-width: 780px;
+    /* Keep transcript text the same width as .chat__input: the input's max
+       content width plus the horizontal inset applied as padding here. */
+    max-width: calc(
+      var(--global-dimension-size-8500) + (2 * var(--chat-sidebar-inset))
+    );
     margin: 0 auto;
     position: relative;
     z-index: 2;
