@@ -65,6 +65,14 @@ async def test_create_dataset_uses_optional_field_defaults(
     assert data["example_count"] == 0
 
 
+async def test_create_dataset_rejects_empty_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post("/v1/datasets", json={"name": ""})
+
+    assert response.status_code == 422
+
+
 async def test_create_dataset_rejects_duplicate_name(
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,

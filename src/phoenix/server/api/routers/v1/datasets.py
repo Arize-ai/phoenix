@@ -103,7 +103,7 @@ class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
 
 
 class CreateDatasetRequestBody(V1RoutesBaseModel):
-    name: str
+    name: str = Field(min_length=1)
     description: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
