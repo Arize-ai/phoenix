@@ -1,6 +1,5 @@
 ---
-sidebarTitle: "Evaluate"
-title: "Evaluate Your Agent"
+title: "Evaluate"
 description: Build a dataset, write an LLM judge, and compare two prompts as experiments, in Python or TypeScript.
 ---
 
@@ -11,6 +10,8 @@ An evaluation scores your agent's output so you can compare prompts or models an
 - **Evaluator**: code or an LLM judge that scores each output.
 
 The example below runs two experiments over three airline-policy questions. The first prompt scores 0; the second adds the policy and scores 1. You need an OpenAI API key. To have a coding agent or [PXI](/docs/phoenix/pxi) do this instead, see [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents#example-prompts).
+
+## Run two experiments
 
 <Tabs>
   <Tab title="Python">
@@ -190,6 +191,8 @@ The example below runs two experiments over three airline-policy questions. The 
     ```
   </Tab>
 </Tabs>
+
+## Compare the runs
 
 Open the dataset's **Experiments** tab to compare the two runs side by side. A higher score on the same dataset and judge means the change helped; a run that still scores 0 has the judge's explanation attached.
 

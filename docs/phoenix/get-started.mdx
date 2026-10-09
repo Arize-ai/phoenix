@@ -1,44 +1,45 @@
 ---
-title: "Overview"
+title: "Start Phoenix"
+description: Run Phoenix locally, in a container, or on your own infrastructure, then send it your first trace.
 ---
 
-import AgentAssistedOnboarding from "../snippets/agent-assisted-onboarding.mdx";
+import LaunchPhoenixTerminal from "../snippets/launch-phoenix-terminal.mdx";
+import LaunchPhoenixDocker from "../snippets/launch-phoenix-docker.mdx";
+import LaunchPhoenixSelfHost from "../snippets/launch-phoenix-self-host.mdx";
+import PhoenixAuthNote from "../snippets/phoenix-auth-note.mdx";
 
-Use this series to instrument an AI agent, turn traces into a dataset, run experiments, and score outputs in Phoenix.
+Phoenix serves its UI and OTLP HTTP on port **6006**, and OTLP gRPC on port **4317**. Start it one of these ways and leave it running while you work through [Observe](/docs/phoenix/get-started/get-started-tracing) and [Evaluate](/docs/phoenix/get-started/get-started-evaluations).
 
-You will start with request-level traces, then reuse selected traces as test examples for prompt and agent changes.
+## Run Phoenix
 
-## **What you'll build**
+### Local
 
-By the end of this series, you will have:
+Phoenix is a Python package, so `uvx` is the quickest way to run it, whatever language your agent is in.
 
-- Traces that show how agent requests execute
-- A dataset built from traced inputs, outputs, and metadata
-- Experiments that run agent or prompt variants over the same examples
-- Evaluator scores for comparing variants per example
+<LaunchPhoenixTerminal />
 
-That gives you a repeatable loop: inspect traces, select examples, run variants, and compare evaluator results.
+Open [http://localhost:6006](http://localhost:6006) to see the UI.
 
-## **How the guides fit together**
+### Container
 
-### **Observe your agent**
+<LaunchPhoenixDocker />
 
-Tracing shows how one agent request executed.
+### Self-host
 
-A trace is a record of a single agent request, broken down into spans that show how LLM calls, data lookups, tool calls, and other steps executed. In this guide, you instrument an agent and send trace data to Phoenix.
+<LaunchPhoenixSelfHost />
 
-Selected traces become dataset examples for the evaluation guide.
+## Connect to a remote Phoenix
 
-### **Evaluate your agent**
+The quickstarts assume a local Phoenix at `http://localhost:6006`. Anywhere else, only `PHOENIX_COLLECTOR_ENDPOINT` changes.
 
-After traces are flowing, evaluate whether outputs satisfy your criteria.
+<PhoenixAuthNote />
 
-In the evaluation guide, you turn traces into a dataset, run an experiment, and score outputs with evaluators. You can use the Prompt Playground to test prompt edits in the UI, or run your agent over the dataset in code.
+## Have an existing app?
 
-## **Where to start**
+Run the Phoenix CLI setup from your app's root directory. It detects your coding agent, hands it the instrumentation, and finishes when the first trace arrives:
 
-<AgentAssistedOnboarding />
+```bash
+npx -y @arizeai/phoenix-cli setup
+```
 
-For manual setup, start with [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), pick the Python or TypeScript tab, and follow the guides in order. Each step assumes the previous one is in place.
-
-The flow is: trace requests, create a dataset, run experiments, attach evaluators, and compare variants.
+See [Connect a project with px setup](/docs/phoenix/integrations/developer-tools/cli#connect-a-project-with-px-setup) for the full flow, CI usage, and unsupported agents.

@@ -28,7 +28,7 @@ Instrument an app:
 Use the Phoenix tracing skill to instrument this application. First inspect the codebase and identify the LLM providers, frameworks, package manager, and existing OpenTelemetry setup. Then propose the Phoenix instrumentation plan before changing code.
 ```
 
-Run the [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations) flow end to end:
+Run the [Evaluate](/docs/phoenix/get-started/get-started-evaluations) flow end to end:
 
 ```text
 Download https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv and create a Phoenix dataset called "travel-support" from it, mapping the question column to input and expected_answer to output. Then write an LLM-as-a-judge evaluator that scores whether a reply answers the question and matches the expected answer. Run an experiment over the dataset with a travel support prompt, and tell me which examples scored lowest and why.
