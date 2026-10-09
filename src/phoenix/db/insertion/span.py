@@ -6,7 +6,7 @@ from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, random_project_gradient
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
@@ -53,7 +53,9 @@ async def insert_span(
             )
         ) is None:
             project_rowid = await session.scalar(
-                insert(models.Project).values(name=project_name).returning(models.Project.id)
+                insert(models.Project)
+                .values(name=project_name, **random_project_gradient())
+                .returning(models.Project.id)
             )
             assert project_rowid is not None
         trace.project_rowid = project_rowid

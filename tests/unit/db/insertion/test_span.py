@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from phoenix.db import models
+from phoenix.db.helpers import PROJECT_GRADIENTS
 from phoenix.db.insertion.span import insert_span
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
@@ -79,3 +80,13 @@ async def test_cumulative_rollups_only_follow_edges_within_the_trace(
 
         assert spans["target-parent"].cumulative_error_count == 0
         assert spans["foreign-parent"].cumulative_error_count == 0
+
+
+async def test_new_project_from_ingestion_gets_a_preset_gradient(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        await insert_span(session, _span("span", "trace", "span"), "new-project")
+        project = await session.scalar(select(models.Project).filter_by(name="new-project"))
+    assert project is not None
+    assert (project.gradient_start_color, project.gradient_end_color) in PROJECT_GRADIENTS

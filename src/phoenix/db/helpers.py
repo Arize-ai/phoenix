@@ -1,3 +1,4 @@
+import random
 from collections.abc import Callable, Collection, Hashable, Iterable
 from datetime import datetime
 from enum import Enum
@@ -559,6 +560,32 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[int]:
         )
     )
     return select(ancestors.c.id)
+
+
+# (start color, end color) pairs that mirror GRADIENT_PRESETS in
+# js/app/src/pages/projects/ProjectForm.tsx so that the project form recognizes them.
+PROJECT_GRADIENTS: tuple[tuple[str, str], ...] = (
+    ("#3B82F6", "#6366F1"),  # blue-purple
+    ("#10B981", "#06B6D4"),  # green-cyan
+    ("#8B5CF6", "#EC4899"),  # purple-pink
+    ("#F97316", "#FCD34D"),  # orange-yellow
+    ("#EC4899", "#EF4444"),  # pink-red
+    ("#06B6D4", "#3B82F6"),  # cyan-blue
+    ("#10B981", "#14B8A6"),  # emerald-teal
+    ("#8B5CF6", "#6366F1"),  # violet-indigo
+    ("#F43F5E", "#EC4899"),  # rose-pink
+    ("#F59E0B", "#F97316"),  # amber-orange
+    ("#84CC16", "#10B981"),  # lime-green
+    ("#0EA5E9", "#06B6D4"),  # sky-cyan
+)
+
+
+def random_project_gradient() -> dict[str, str]:
+    """
+    Picks a random gradient for a newly created project so that projects are easy to tell apart.
+    """
+    start_color, end_color = random.choice(PROJECT_GRADIENTS)
+    return {"gradient_start_color": start_color, "gradient_end_color": end_color}
 
 
 def truncate_name(name: str, max_len: int = 63) -> str:
