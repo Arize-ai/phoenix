@@ -20,10 +20,11 @@ without it, so the headline number is Δ (with-plugin minus without-plugin), not
 | `02-json-schema-code-eval`    | yes   | Python     | Code-first: a deterministic `@create_evaluator(kind="code")`, no LLM for a deterministic check |
 | `03-run-evaluator-experiment` | yes   | Python     | Runnable `run_experiment` over a dataset with a task and evaluators                            |
 | `04-validate-judge-labels`    | yes   | Python     | Measures judge/human agreement (confusion matrix, TPR/TNR) against a bar                       |
-| `05-faithfulness-ci-gate`     | yes   | Python     | pytest `@pytest.mark.phoenix` gate: hard invariants asserted, LLM signal gated on an aggregate |
+| `05-faithfulness-ci-gate`     | yes   | Python     | pytest `@pytest.mark.phoenix` gate: hard invariants asserted, LLM faithfulness logged per case and gated separately |
 | `06-ts-relevance-judge`       | yes   | TypeScript | `createClassificationEvaluator` from `@arizeai/phoenix-evals`, discrete choices                |
 | `07-neg-elixir-phoenix`       | no    | —          | Name collision: Elixir Phoenix + ExUnit "evaluate" — the evals skill must not fire             |
 | `08-neg-generic-metric-q`     | no    | —          | A one-off BLEU question needing no Phoenix evaluator guidance                                  |
+| `09-fix-legacy-llm-classify`  | yes   | Python     | Migrates pasted legacy `llm_classify`/`OpenAIModel` code to the 2.0 `ClassificationEvaluator` + `evaluate_dataframe` API |
 
 
 
@@ -66,7 +67,7 @@ claude plugin eval . --tag phoenix-evals --ablation with-without \
 uv run python evals/record_to_phoenix.py /tmp/pe.json   # or: ../../../.venv/bin/python …
 ```
 
-`--endpoint` defaults to `$PHOENIX_COLLECTOR_ENDPOINT`, else `http://localhost:6006`.
+`--endpoint` defaults to `$PHOENIX_ENDPOINT`, then `$PHOENIX_COLLECTOR_ENDPOINT`, else `http://localhost:6006`.
 
 Re-running upserts the dataset (stable example ids = case names) and adds a new experiment, so
 runs accumulate for comparison over time. The script is generic; pass `--dataset-name` to record
