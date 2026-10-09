@@ -15,6 +15,7 @@ from typing import (
     Optional,
     Sequence,
     TypeVar,
+    cast,
 )
 from urllib.parse import quote_plus
 
@@ -49,10 +50,19 @@ from phoenix.db.types.prompts import (
     PromptTools,
     TextContentPart,
 )
+from phoenix.server.api.helpers.dataset_evaluator_service import (
+    DeleteDatasetEvaluatorsInput,
+    delete_dataset_evaluators,
+)
+from phoenix.server.api.helpers.evaluator_service import (
+    EvaluatorServiceContext,
+    delete_llm_evaluator,
+)
 from phoenix.server.api.helpers.evaluators import (
     validate_consistent_llm_evaluator_and_prompt_version,
 )
 from phoenix.server.api.helpers.prompt_version_tags import validate_prompt_version_tag_move
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -564,6 +574,78 @@ async def test_the_database_refuses_an_orm_delete_of_the_tag(
             await session.delete(tag)
     assert await _tag_exists(db, pinned.tag.id)
     assert (await _state(db, pinned.evaluator.id)).tag_id == pinned.tag.id
+
+
+async def _add_evaluator_sharing_tag(db: DbSessionFactory, pinned: _Fixture) -> int:
+    async with db() as session:
+        evaluator = models.LLMEvaluator(
+            name=Identifier.model_validate(f"shared-tag-evaluator-{token_hex(4)}"),
+            description=pinned.evaluator.description,
+            kind="LLM",
+            output_configs=pinned.evaluator.output_configs,
+            prompt_id=pinned.evaluator.prompt_id,
+            prompt_version_tag_id=pinned.tag.id,
+        )
+        session.add(evaluator)
+        await session.flush()
+        return evaluator.id
+
+
+def _evaluator_service_context(db: DbSessionFactory) -> EvaluatorServiceContext:
+    return EvaluatorServiceContext(
+        db=db,
+        sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None)),
+    )
+
+
+async def test_deleting_definition_preserves_a_tag_used_by_another_evaluator(
+    db: DbSessionFactory, pinned: _Fixture
+) -> None:
+    sibling_id = await _add_evaluator_sharing_tag(db, pinned)
+    context = _evaluator_service_context(db)
+    await delete_llm_evaluator(context, GlobalID("LLMEvaluator", str(pinned.evaluator.id)))
+
+    async with db() as session:
+        assert await session.get(models.LLMEvaluator, pinned.evaluator.id) is None
+        assert await session.get(models.LLMEvaluator, sibling_id) is not None
+        assert await session.get(models.PromptVersionTag, pinned.tag.id) is not None
+
+    await delete_llm_evaluator(context, GlobalID("LLMEvaluator", str(sibling_id)))
+
+
+async def test_last_binding_gc_preserves_a_tag_used_by_another_evaluator(
+    db: DbSessionFactory, pinned: _Fixture
+) -> None:
+    sibling_id = await _add_evaluator_sharing_tag(db, pinned)
+    async with db() as session:
+        dataset = models.Dataset(name=f"shared-tag-{token_hex(4)}", metadata_={})
+        binding = models.DatasetEvaluators(
+            dataset=dataset,
+            evaluator_id=pinned.evaluator.id,
+            name=Identifier.model_validate(f"shared-tag-binding-{token_hex(4)}"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            project=models.Project(name=f"shared-tag-trace-{token_hex(4)}"),
+        )
+        session.add(binding)
+        await session.flush()
+        binding_id = binding.id
+
+    await delete_dataset_evaluators(
+        _evaluator_service_context(db),
+        DeleteDatasetEvaluatorsInput(
+            dataset_evaluator_ids=[GlobalID("DatasetEvaluator", str(binding_id))],
+            delete_associated_prompt=False,
+        ),
+    )
+
+    async with db() as session:
+        assert await session.get(models.LLMEvaluator, pinned.evaluator.id) is None
+        assert await session.get(models.LLMEvaluator, sibling_id) is not None
+        assert await session.get(models.PromptVersionTag, pinned.tag.id) is not None
+
+    await delete_llm_evaluator(
+        _evaluator_service_context(db), GlobalID("LLMEvaluator", str(sibling_id))
+    )
 
 
 async def _behind(

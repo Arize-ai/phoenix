@@ -285,7 +285,10 @@ async def release_llm_evaluator_prompt(
     if prompt_version_tag_id is not None:
         await session.execute(
             delete(models.PromptVersionTag).where(
-                models.PromptVersionTag.id == prompt_version_tag_id
+                models.PromptVersionTag.id == prompt_version_tag_id,
+                ~select(models.LLMEvaluator.id)
+                .where(models.LLMEvaluator.prompt_version_tag_id == models.PromptVersionTag.id)
+                .exists(),
             )
         )
     if await session.get(models.Prompt, prompt_id) is not None:
