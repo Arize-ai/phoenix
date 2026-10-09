@@ -72,6 +72,27 @@ const RETRIEVER_SPAN: Record<string, unknown> = {
   },
 };
 
+/** The root of a chat turn: a CHAIN span whose input and output are text. */
+const CHAIN_ROOT_SPAN: Record<string, unknown> = {
+  input: { input: "I was charged twice for my order." },
+  output: { output: "Sorry about that. Which order number?" },
+  metadata: {
+    span_id: "c41d7a0b9e2f3851",
+    parent_id: null,
+    name: "chat_turn",
+    span_kind: "CHAIN",
+    latency_ms: 1204.7,
+    attributes: {
+      openinference: { span: { kind: "CHAIN" } },
+      session: { id: "session-refund" },
+      input: { value: "I was charged twice for my order." },
+      output: { value: "Sorry about that. Which order number?" },
+    },
+    events: [],
+    annotations: {},
+  },
+};
+
 const TWO_TURN_SESSION = getSampleSessionEvaluationContext().context as Record<
   string,
   unknown
@@ -105,6 +126,7 @@ const RECORDS: {
 }[] = [
   { name: "LLM span with tools", recordKind: "span", source: LLM_TOOL_SPAN },
   { name: "retriever span", recordKind: "span", source: RETRIEVER_SPAN },
+  { name: "CHAIN root span", recordKind: "span", source: CHAIN_ROOT_SPAN },
   {
     name: "trace",
     recordKind: "trace",
@@ -164,8 +186,8 @@ describe("getEvaluatorPathIdeas", () => {
         return [
           `  ${level || "(root)"} →`,
           ...ideas.map(
-            ({ relativePath, description }) =>
-              `    ${relativePath} | ${description}`
+            ({ relativePath, description, status }) =>
+              `    ${relativePath} | ${description}${status === "unresolved" ? " (dim)" : ""}`
           ),
         ];
       }),
@@ -220,17 +242,45 @@ describe("getEvaluatorPathIdeas", () => {
         (root) →
           output.documents[*].content | Document text
           output.documents[0].content | First document
+          input.messages[-1].content | Last message (dim)
+          input.messages | Input messages (dim)
+          input.tools | Available tools (dim)
         input. →
+          messages[-1].content | Last message (dim)
+          messages | Input messages (dim)
+          tools | Available tools (dim)
+          tools[*].function.name | Tool names (dim)
         output. →
           documents[*].content | Document text
           documents[0].content | First document
           documents[-1] | Last document
+          messages[-1].tool_calls | Tool calls (dim)
+          messages[-1].content | Reply (dim)
         output.documents[ →
           [*].content | Document text
           [0].content | First document
           [0] | First document
           [-1] | Last document
           [*] | All documents
+        metadata. →
+      CHAIN root span
+        (root) →
+          input.messages[-1].content | Last message (dim)
+          input.messages | Input messages (dim)
+          input.tools | Available tools (dim)
+          output.messages[-1].tool_calls | Tool calls (dim)
+          output.messages[-1].content | Reply (dim)
+        input. →
+          messages[-1].content | Last message (dim)
+          messages | Input messages (dim)
+          tools | Available tools (dim)
+          tools[*].function.name | Tool names (dim)
+        output. →
+          messages[-1].tool_calls | Tool calls (dim)
+          messages[-1].content | Reply (dim)
+          documents[*].content | Document text (dim)
+          documents[0].content | First document (dim)
+          messages[-1].tool_calls[*].function.name | Tools called (dim)
         metadata. →
       trace
         (root) →

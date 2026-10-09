@@ -517,10 +517,10 @@ function toIndexResult({
     source,
     containerPath: toMappingPath(listName),
     syntax: F_STRING_PATH_SYNTAX,
-  }).flatMap(({ relativePath, description, value }) => {
-    const name = `${listName}${relativePath}`;
-    return F_STRING_NAME_PATTERN.test(name)
-      ? [{ name, description, value }]
+  }).flatMap((idea) => {
+    const name = `${listName}${idea.relativePath}`;
+    return idea.status === "resolved" && F_STRING_NAME_PATTERN.test(name)
+      ? [{ name, description: idea.description, value: idea.value }]
       : [];
   });
   const typedName = `${listName}[${Number(typedIndex)}]`;
