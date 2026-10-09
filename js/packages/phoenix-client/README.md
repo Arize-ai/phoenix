@@ -100,7 +100,7 @@ The `createPrompt` function can be used to create a prompt in Phoenix for versio
 ```ts
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 
-const version = createPrompt({
+const version = await createPrompt({
   name: "my-prompt",
   description: "test-description",
   version: promptVersion({
@@ -122,6 +122,26 @@ const version = createPrompt({
 
 Prompts that are pushed to Phoenix are versioned and can be tagged.
 
+### Targeting a Custom Provider
+
+Pass `customProviderId` to send a version to a custom model provider configured in Phoenix. `modelProvider` still selects the invocation parameter format, so the provider's SDK must be able to serve it; Phoenix refuses an incompatible provider with 422 and an unknown one with 404.
+
+```ts
+import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
+
+await createPrompt({
+  name: "my-prompt",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-4o-mini",
+    customProviderId: "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+    template: [{ role: "user", content: "{{ question }}" }],
+  }),
+});
+```
+
+Creating a version with `customProviderId` requires Phoenix server `21.0.0` or newer. `createPrompt` checks the server version first and throws against an older server, which would ignore the field and silently store the version with the built-in provider. Versions without it are not checked.
+
 ### Pulling a Prompt from Phoenix
 
 The `getPrompt` function can be used to pull a prompt from Phoenix based on some Prompt Identifier and returns it in the Phoenix SDK Prompt type.
@@ -129,14 +149,16 @@ The `getPrompt` function can be used to pull a prompt from Phoenix based on some
 ```ts
 import { getPrompt } from "@arizeai/phoenix-client/prompts";
 
-const prompt = await getPrompt({ name: "my-prompt" });
+const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 // ^ you now have a strongly-typed prompt object, in the Phoenix SDK Prompt type
 
-const promptByTag = await getPrompt({ tag: "production", name: "my-prompt" });
+const promptByTag = await getPrompt({
+  prompt: { tag: "production", name: "my-prompt" },
+});
 // ^ you can optionally specify a tag to filter by
 
 const promptByVersionId = await getPrompt({
-  versionId: "1234567890",
+  prompt: { versionId: "1234567890" },
 });
 // ^ you can optionally specify a prompt version Id to filter by
 ```
@@ -161,7 +183,7 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
 
-const prompt = await getPrompt({ name: "my-prompt" });
+const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
 const promptAsAI = toSDK({
   sdk: "ai",
   // ^ the SDK you want to convert the prompt to, supported SDKs are listed above
@@ -208,6 +230,10 @@ const prompt = await phoenix.GET("/v1/prompts/{prompt_identifier}/latest", {
 ```
 
 A comprehensive overview of the available endpoints and their parameters is available in the OpenAPI viewer within Phoenix, or in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
+
+### Errors
+
+A failed request throws `HttpError`. Routes that return [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details — including the evaluator, dataset-binding, project-binding, and sandbox-config routes — put the full parsed body on `error.problem`: a stable `code` (published as `urn:phoenix:problem:<code>`; treat one you don't recognize by `error.status`), an optional `reason` for a finer condition under it (e.g. `still_bound` on a delete something still binds — detach first; treat an unrecognized `reason` by `code`), and recovery fields such as `existing_id` or `binding_counts`. `error.problem` is `undefined` for a response that isn't shaped like this — a 401's plain-text challenge, an unhandled 500, a proxy's own error page — and `error.status`/`error.statusText` still carry the real HTTP status either way.
 
 ## Datasets
 
@@ -869,6 +895,175 @@ console.log(result.deletedKeys);
 
 Managing secrets requires an administrator when Phoenix authentication is
 enabled. Avoid logging the request batch or otherwise retaining its values.
+
+## Evaluators
+
+The `@arizeai/phoenix-client` package provides an `evaluators` export for working with shared evaluator definitions. A definition is shared by every project and dataset that binds it, so an update applies everywhere it is used. These helpers require Phoenix server `21.0.0` or newer.
+
+Creating an LLM evaluator against an existing hub prompt version (`createEvaluator({ evaluator: { type: "llm", prompt: { selector: { type: "version", prompt_version_id } } } })`) adds the `evaluator` label to that prompt and creates a tag that pins the version; the prompt is otherwise unchanged.
+
+### Listing, Reading, Creating, and Deleting Definitions
+
+```ts
+import { readFile } from "node:fs/promises";
+
+import {
+  createEvaluator,
+  deleteEvaluator,
+  getEvaluator,
+  getEvaluators,
+} from "@arizeai/phoenix-client/evaluators";
+
+// `type` is "llm", "code", or "builtin"; `name` and `limit` keep the list small
+for (const evaluator of await getEvaluators({ type: "code", limit: 20 })) {
+  console.log(evaluator.id, evaluator.name);
+}
+
+const evaluator = await getEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
+console.log(evaluator.type, evaluator.name);
+
+// Create a code evaluator that nothing binds yet, then delete it again
+const created = await createEvaluator({
+  evaluator: {
+    type: "code",
+    name: "exact-match",
+    source_code: await readFile("evaluator.py", "utf8"),
+    language: "PYTHON",
+    sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+    input_mapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+    output_configs: [
+      { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
+    ],
+  },
+});
+await deleteEvaluator({ evaluatorId: created.id });
+```
+
+### Updating a Definition
+
+```ts
+import { updateEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+await updateEvaluator({
+  evaluatorId: "TExNRXZhbHVhdG9yOjE=",
+  patch: {
+    type: "llm",
+    prompt: {
+      selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+    },
+  },
+});
+```
+
+The `patch` is discriminated by `type` (`"llm"` or `"code"`) and must match the evaluator. Omitted fields keep their current values. Prompt content is edited through the prompts API: create a version with `createPrompt` and select it with `prompt: { selector: { type: "version", prompt_version_id } }`. An LLM evaluator's `description` must equal the description of its prompt's tool function.
+
+### Code Versions
+
+Code is immutable per version. `createCodeEvaluatorVersion` appends new source and can apply the sandbox, input mapping, outputs, or description the new code needs in the same transaction; pass `expectedCurrentVersionId` to refuse deploying over a version somebody else pushed in the meantime. If the source matches the current version, `was_created` is `false`. `getCodeEvaluatorVersions` lists every version, newest first.
+
+```ts
+import { readFile } from "node:fs/promises";
+import {
+  createCodeEvaluatorVersion,
+  getCodeEvaluatorVersions,
+} from "@arizeai/phoenix-client/evaluators";
+
+const [current] = await getCodeEvaluatorVersions({
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  limit: 1,
+});
+const version = await createCodeEvaluatorVersion({
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  sourceCode: await readFile("evaluator.py", "utf8"),
+  expectedCurrentVersionId: current?.id,
+  configuration: { output_configs: [{ type: "FREEFORM", name: "notes" }] },
+});
+console.log(version.id, version.was_created);
+```
+
+### Binding Evaluators to Datasets
+
+A dataset binding registers an existing evaluator definition to run against the dataset's experiments. It carries its own name and input mapping and may override the definition's description and output configurations. Creating a binding does not run an experiment. Create LLM and code definitions with `createEvaluator` first, or bind a built-in evaluator by ID; one definition can back many bindings.
+
+```ts
+import {
+  createDatasetEvaluator,
+  deleteDatasetEvaluator,
+  deleteDatasetEvaluators,
+  getDatasetEvaluators,
+  updateDatasetEvaluator,
+} from "@arizeai/phoenix-client/evaluators";
+
+// The dataset can be selected by name or ID
+const binding = await createDatasetEvaluator({
+  dataset: { datasetName: "golden-questions" },
+  name: "exact-match",
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+});
+
+const bindings = await getDatasetEvaluators({
+  dataset: { datasetName: "golden-questions" },
+});
+
+await updateDatasetEvaluator({
+  datasetEvaluatorId: binding.id,
+  patch: { name: "nightly-exact-match" },
+});
+
+// Deleting a binding removes its dedicated evaluator trace project and
+// recorded evaluator traces; the shared definition, prompt, and dataset remain.
+await deleteDatasetEvaluator({ datasetEvaluatorId: binding.id });
+await deleteDatasetEvaluators({
+  dataset: { datasetName: "golden-questions" },
+  datasetEvaluatorIds: bindings.map((item) => item.id),
+});
+```
+
+### Running Evaluators on a Project
+
+A project binding runs an evaluator on incoming traces. It controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the delay. A binding references an existing LLM or code definition by `evaluatorId`; create one first with `createEvaluator`.
+
+```ts
+import {
+  createProjectEvaluator,
+  deleteProjectEvaluator,
+  getProjectEvaluators,
+  updateProjectEvaluator,
+} from "@arizeai/phoenix-client/evaluators";
+
+// Evaluate a quarter of matching LLM spans as they arrive
+const binding = await createProjectEvaluator({
+  project: { projectName: "support-bot" },
+  name: "toxicity",
+  evaluationTarget: "SPAN",
+  samplingRate: 0.25,
+  evaluatorId: "Q29kZUV2YWx1YXRvcjox",
+  filterCondition: "span_kind == 'LLM'",
+});
+
+const bindings = await getProjectEvaluators({
+  project: { projectName: "support-bot" },
+});
+
+// Pause the binding without deleting it
+await updateProjectEvaluator({
+  projectEvaluatorId: binding.id,
+  patch: { enabled: false },
+});
+
+// filter_condition is cleared with "", not null; only input_mapping and
+// evaluation_delay_seconds are reset with null.
+await updateProjectEvaluator({
+  projectEvaluatorId: binding.id,
+  patch: { filter_condition: "" },
+});
+
+// Deleting a binding removes its dedicated evaluator trace project and
+// recorded evaluator traces; the shared definition, prompt, source project,
+// and its original traces remain.
+await deleteProjectEvaluator({ projectEvaluatorId: binding.id });
+```
 
 ## Examples
 

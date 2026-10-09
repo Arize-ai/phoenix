@@ -31,6 +31,31 @@ await createPrompt({
 });
 ```
 
+## Target A Custom Provider
+
+Pass `customProviderId` to send a version to a custom model provider configured in Phoenix.
+
+```ts
+import {
+  createPrompt,
+  promptVersion,
+} from "@arizeai/phoenix-client/prompts";
+
+await createPrompt({
+  name: "support-response",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-4o-mini",
+    customProviderId: "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+    template: [{ role: "user", content: "Reply to {{question}}" }],
+  }),
+});
+```
+
+`modelProvider` still selects the invocation parameter format, so the provider's SDK must be able to serve it, for example an OpenAI-compatible provider for an `OPENAI` version. Phoenix refuses an incompatible provider with `422` and an unknown one with `404`. Versions read back carry the value as `custom_provider_id`.
+
+Creating a version with `customProviderId` requires a Phoenix server on 21.0.0 or later. `createPrompt` checks the server version first and throws against an older server, which would ignore the field and silently store the version with the built-in provider. Versions without `customProviderId` are not checked.
+
 ## Fetch By Selector
 
 ```ts
