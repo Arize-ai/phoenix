@@ -362,6 +362,7 @@ def update_manifest(
             num_updated += 1
         else:
             escaped_name_pattern = re.escape(entry.name_pattern).replace("\\-", "-")
+            escaped_name_pattern += r"(?!-\d{1,2}(?!\d))(?!-[a-zA-Z]+)"
             new_model = ModelConfig(
                 name=entry.name,
                 name_pattern=escaped_name_pattern,

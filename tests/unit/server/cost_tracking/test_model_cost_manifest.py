@@ -220,3 +220,62 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     )
     assert model is not None, f"no built-in model priced {span_model_name}"
     assert model.name == expected_entry
+
+
+def test_every_manifest_entry_resolves_to_itself(
+    manifest: dict[str, Any], built_in_lookup: CostModelLookup
+) -> None:
+    mismatched = {}
+    for entry in manifest["models"]:
+        model = built_in_lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": entry["name"]}},
+        )
+        # The same model ID listed under several providers shares one pattern, and
+        # without a provider attribute any of those entries is a correct match.
+        if model is None or model.name_pattern.pattern != entry["name_pattern"]:
+            mismatched[entry["name"]] = model.name if model else None
+    assert not mismatched
+
+
+@pytest.mark.parametrize(
+    "span_model_name, expected_entry",
+    [
+        # Dated snapshots and alternation groups still resolve to the base entry.
+        ("claude-opus-5-20261001", "claude-opus-5"),
+        ("gpt-35-turbo", "gpt-3.5-turbo"),
+        ("gpt-35-turbo-16k", "gpt-3.5-turbo-16k"),
+    ],
+)
+def test_version_boundary_keeps_snapshot_and_alias_matches(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    expected_entry: str,
+) -> None:
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes={"llm": {"model_name": span_model_name}},
+    )
+    assert model is not None, f"no built-in model priced {span_model_name}"
+    assert model.name == expected_entry
+
+
+@pytest.mark.parametrize(
+    "span_model_name, unexpected_entry",
+    [
+        # A not-yet-priced model whose ID extends an existing one must not
+        # silently bill at the older model's rates (#16405).
+        ("claude-opus-5-7", "claude-opus-5"),
+        ("gpt-6-luna-2", "gpt-6-luna"),
+    ],
+)
+def test_unpriced_model_extending_existing_id_does_not_bill_as_prefix(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    unexpected_entry: str,
+) -> None:
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes={"llm": {"model_name": span_model_name}},
+    )
+    assert model is None or model.name != unexpected_entry
