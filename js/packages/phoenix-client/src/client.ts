@@ -13,7 +13,7 @@ import {
   defaultGetEnvironmentOptions,
   makeDefaultClientOptions,
 } from "./config";
-import { HttpError } from "./errors";
+import { HttpError, readProblemDetail } from "./errors";
 import type { SemanticVersion } from "./types/semver";
 import { parseSemanticVersion } from "./utils/semverUtils";
 
@@ -81,9 +81,9 @@ export const getMergedOptions = ({
  * Middleware to take non-successful API calls throw instead of being swallowed
  */
 const middleware: Middleware = {
-  onResponse({ response }) {
+  async onResponse({ response }) {
     if (!response.ok) {
-      throw new HttpError(response);
+      throw new HttpError(response, await readProblemDetail(response));
     }
   },
 };

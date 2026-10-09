@@ -8,6 +8,7 @@ import pytest
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_CUSTOM_PROVIDER,
     CREATE_PROMPT_VERSION_METADATA,
     DELETE_PROMPT,
     PATCH_PROMPT,
@@ -69,6 +70,35 @@ class _AsyncGuard:
 
     async def require(self, requirement: object) -> None:
         if requirement is CREATE_PROMPT_VERSION_METADATA:
+            raise _GuardSentinel
+
+
+def _created_version(*, custom_provider_id: str | None = None) -> dict[str, object]:
+    version: dict[str, object] = {
+        "id": "pv-1",
+        "model_provider": "OPENAI",
+        "model_name": "my-model",
+        "template_type": "CHAT",
+        "template_format": "MUSTACHE",
+        "template": {"type": "chat", "messages": [{"role": "user", "content": "hi"}]},
+        "invocation_parameters": {"type": "openai", "openai": {}},
+    }
+    if custom_provider_id is not None:
+        version["custom_provider_id"] = custom_provider_id
+    return {"data": version}
+
+
+class _CustomProviderGuard:
+    """Refuses only the custom-provider requirement; every other check passes."""
+
+    def require(self, requirement: object) -> None:
+        if requirement is CREATE_PROMPT_CUSTOM_PROVIDER:
+            raise _GuardSentinel
+
+
+class _AsyncCustomProviderGuard:
+    async def require(self, requirement: object) -> None:
+        if requirement is CREATE_PROMPT_CUSTOM_PROVIDER:
             raise _GuardSentinel
 
 
@@ -139,6 +169,53 @@ class TestPromptsCreate:
         )
 
 
+class TestPromptsCreateCustomProviderGuard:
+    def test_create_with_custom_provider_checks_server_before_request(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        with pytest.raises(_GuardSentinel):
+            Prompts(client, _guard=_CustomProviderGuard()).create(  # type: ignore[arg-type]
+                name="my-prompt",
+                version=PromptVersion(
+                    [{"role": "user", "content": "hi"}],
+                    model_name="my-model",
+                    custom_provider_id="R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+                ),
+            )
+
+    def test_create_without_custom_provider_skips_the_check(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "custom_provider_id" not in json.loads(request.content)["version"]
+            return httpx.Response(200, json=_created_version())
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        created = Prompts(client, _guard=_CustomProviderGuard()).create(  # type: ignore[arg-type]
+            name="my-prompt",
+            version=PromptVersion([{"role": "user", "content": "hi"}], model_name="my-model"),
+        )
+        assert created.custom_provider_id is None
+
+    def test_create_sends_custom_provider_and_reads_it_back(self) -> None:
+        provider_id = "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ=="
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert json.loads(request.content)["version"]["custom_provider_id"] == provider_id
+            return httpx.Response(200, json=_created_version(custom_provider_id=provider_id))
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        created = Prompts(client).create(
+            name="my-prompt",
+            version=PromptVersion(
+                [{"role": "user", "content": "hi"}],
+                model_name="my-model",
+                custom_provider_id=provider_id,
+            ),
+        )
+        assert created.custom_provider_id == provider_id
+
+
 class TestAsyncPromptsCreate:
     @pytest.mark.asyncio
     async def test_create_sends_and_returns_version_metadata(self) -> None:
@@ -181,6 +258,36 @@ class TestAsyncPromptsCreate:
                 version=version,
                 name="my-prompt",
             )
+
+
+class TestAsyncPromptsCreateCustomProviderGuard:
+    @pytest.mark.asyncio
+    async def test_create_with_custom_provider_checks_server_before_request(self) -> None:
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        with pytest.raises(_GuardSentinel):
+            await AsyncPrompts(client, _guard=_AsyncCustomProviderGuard()).create(  # type: ignore[arg-type]
+                name="my-prompt",
+                version=PromptVersion(
+                    [{"role": "user", "content": "hi"}],
+                    model_name="my-model",
+                    custom_provider_id="R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+                ),
+            )
+
+    @pytest.mark.asyncio
+    async def test_create_without_custom_provider_skips_the_check(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=_created_version())
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        created = await AsyncPrompts(client, _guard=_AsyncCustomProviderGuard()).create(  # type: ignore[arg-type]
+            name="my-prompt",
+            version=PromptVersion([{"role": "user", "content": "hi"}], model_name="my-model"),
+        )
+        assert created.custom_provider_id is None
 
 
 class TestPromptsUpdate:

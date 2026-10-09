@@ -54,6 +54,24 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px evaluator list
+px evaluator get <evaluator-id>
+px evaluator create
+px evaluator update <evaluator-id>
+px evaluator delete <evaluator-id>
+px evaluator version list <evaluator-id>
+px evaluator version create <evaluator-id>
+px dataset evaluator list <dataset-identifier>
+px dataset evaluator get <dataset-evaluator-id>
+px dataset evaluator create <dataset-identifier>
+px dataset evaluator update <dataset-evaluator-id>
+px dataset evaluator delete <dataset-evaluator-id...>
+px project evaluator list <project-identifier>
+px project evaluator get <project-evaluator-id>
+px project evaluator create <project-identifier>
+px project evaluator update <project-evaluator-id>
+px project evaluator delete <project-evaluator-id...>
+px sandbox-config list
 px auth login
 px auth logout
 px auth status
@@ -412,6 +430,82 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 ```
 
 Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Invalid input (bad flags, type mismatches, malformed values) exits `3` (`INVALID_ARGUMENT`) with a `{error, code, hint?}` JSON envelope on stderr in `raw`/`json` mode. `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
+
+## Evaluators
+
+Shared evaluator definitions (LLM, code, built-in) that projects and datasets bind. Requires Phoenix server >= 21.0.0; older servers fail fast with exit `1` and a message naming the required version. Ids are typed GlobalIDs (`CodeEvaluator:…`, `LLMEvaluator:…`, `BuiltInEvaluator:…`). Create a definition here, then bind it to projects and datasets by its id; deleting a binding never deletes the definition.
+
+```bash
+px evaluator list --format raw --no-progress | jq '.[] | {id, type, name}'
+px evaluator list --type code --name exact-match --format raw --no-progress | jq -r '.[0].id'   # --type llm|code|builtin
+px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress                                 # one definition; inspect .type
+
+# create an LLM evaluator that runs an existing prompt version (create the prompt through the prompts API first)
+px evaluator create --type llm --name correctness --prompt-version-id <prompt-version-id> --description correctness \
+  --output-configs '[{"type":"CATEGORICAL","name":"correctness","optimization_direction":"MAXIMIZE","values":[{"label":"correct","score":1},{"label":"incorrect","score":0}]}]'
+
+# create a code evaluator from a file; find a sandbox first, and --if-not-exists reuses an evaluator that already has the name
+px sandbox-config list --language PYTHON --format raw --no-progress | jq -r 'map(select(.is_usable))[0].id'
+px evaluator create --type code --name exact-match --language PYTHON --sandbox-config-id <id> --file evaluator.py --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' \
+  --output-configs '[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]' --if-not-exists --format raw --no-progress | jq -r '.id'
+
+# update fields; --type llm|code picks the patch shape
+px evaluator update Q29kZUV2YWx1YXRvcjoy --type code --description "Exact string match"
+
+# deploy new source as a new immutable version; unchanged source returns the existing version
+px evaluator version list Q29kZUV2YWx1YXRvcjoy --format raw --no-progress | jq '.[0].id'
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py --expected-current-version <version-id>
+
+# delete an unbound LLM or code evaluator (an LLM evaluator's prompt is kept) — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; refused with 409 while bound
+px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
+```
+
+Errors carry the server's explanation and exit `1` for any of these — not found, a name clash, a validation error, and so on; only invalid flags (`3`) and rejected credentials (`4`) get their own codes. In `raw`/`json` mode they are a `{error, code, status, problem_code, problem_reason, existing_id, problem}` JSON envelope on stderr: `problem_code` is the server's stable code (`already_exists`, `validation_error`, `conflict`, `not_found`, `invalid_argument`), `problem_reason` is a finer condition under it when the server sends one (e.g. `still_bound`), `existing_id` names the resource holding a taken name, and `problem` is the full parsed body, every field included. `--if-not-exists` on `create` sidesteps the name-clash case rather than requiring a stderr parse.
+
+### Dataset bindings
+
+Attach evaluators to a dataset so experiments on it are scored. Ids are `DatasetEvaluator:…` GlobalIDs; the dataset is a name or GlobalID. A binding references an existing definition by `--evaluator-id`; create LLM and code definitions with `px evaluator create` first. A taken name fails with `already_exists` and the envelope's `existing_id`.
+
+```bash
+px dataset evaluator list golden-questions --format raw --no-progress | jq '.[] | {id, name, evaluator_id}'
+px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format raw --no-progress
+
+# attach an existing LLM, code, or built-in evaluator
+px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
+
+# change binding overrides only; --inherit-* flags send null to fall back to the definition
+px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Exact match on answer" --inherit-output-configs
+
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true.
+# Removes the dedicated evaluator trace project and recorded evaluator traces;
+# the definition, prompt, and dataset remain.
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes
+```
+
+### Project bindings (online evaluators)
+
+Attach evaluators to a project so incoming spans, traces, or sessions are scored as they arrive. Ids are `ProjectEvaluator:…` GlobalIDs. A binding references an existing LLM or code definition by `--evaluator-id` (create one with `px evaluator create`). `--evaluation-target span|trace|session` is fixed at creation; `--sampling-rate` is a fraction in 0..1; `--filter-condition` is written in the target's filter language; `--evaluation-delay-seconds` (trace and session only, at least 10) is how long the record must be quiet first. Invalid numbers exit `3` before any request.
+
+```bash
+px project evaluator list support-bot --format raw --no-progress | jq '.[] | {id, name, evaluation_target, enabled}'
+px project evaluator get UHJvamVjdEV2YWx1YXRvcjox --format raw --no-progress
+
+# attach an existing evaluator to score LLM spans, sampling a quarter of them
+px project evaluator create support-bot --name toxicity --evaluation-target span --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition "span_kind == 'LLM'"
+
+# pause, resume, or retune a binding; --default-evaluation-delay sends null to restore the server default
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --enabled --sampling-rate 1
+# the quiet period applies to trace and session bindings; a span binding rejects it
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjoy --evaluation-delay-seconds 120
+
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true.
+# Removes the dedicated evaluator trace project and recorded evaluator traces;
+# the definition, prompt, source project, and its original traces remain.
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes
+```
 
 ## GraphQL
 
