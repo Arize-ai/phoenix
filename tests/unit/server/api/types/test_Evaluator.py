@@ -1462,3 +1462,69 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
         looked_up = ce["version"]
         assert looked_up["id"] == v1_gid
         assert looked_up["sequenceNumber"] == 1
+
+
+class TestCodeEvaluatorOutputConfigs:
+    async def test_output_configs_round_trip(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        async with db() as session:
+            evaluator_row = models.CodeEvaluator(
+                name=Identifier(root=f"output-configs-{token_hex(4)}"),
+                metadata_={},
+                language="PYTHON",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="verdict",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="pass", score=1.0),
+                            CategoricalAnnotationValue(label="fail", score=0.0),
+                        ],
+                    )
+                ],
+            )
+            session.add(evaluator_row)
+            await session.flush()
+            evaluator_id = evaluator_row.id
+
+        async with db() as session:
+            reloaded = await session.get(models.CodeEvaluator, evaluator_id)
+            assert reloaded is not None
+            assert len(reloaded.output_configs) == 1
+            assert isinstance(reloaded.output_configs[0], CategoricalOutputConfig)
+            assert reloaded.output_configs[0].name == "verdict"
+
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on CodeEvaluator {
+                        outputConfigs {
+                            __typename
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID("CodeEvaluator", str(evaluator_id)))},
+        )
+        assert not resp.errors and resp.data
+        output_configs = resp.data["node"]["outputConfigs"]
+        assert output_configs == [
+            {
+                "__typename": "CategoricalAnnotationConfig",
+                "name": "verdict",
+                "optimizationDirection": "MAXIMIZE",
+                "values": [
+                    {"label": "pass", "score": 1.0},
+                    {"label": "fail", "score": 0.0},
+                ],
+            }
+        ]
