@@ -38,7 +38,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
+	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -102,6 +102,8 @@ help: ## Show this help message
 	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
 	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
 	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
+	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
+	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -467,6 +469,17 @@ check-skill-graphql-examples: ## Ensure fenced GraphQL examples in shipped skill
 check-skill-filter-examples: ## Ensure span/trace/session filter conditions in shipped skills compile under the Python filters
 	@echo -e "$(CYAN)Checking skill filter conditions against the Python filters...$(NC)"
 	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_filter_dsl_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+# These two call python3 directly: the script is stdlib-only and its CI job has no uv.
+sync-docs-snippets: ## Copy examples/quickstarts code into the docs' fenced code blocks
+	@echo -e "$(CYAN)Syncing docs code blocks from examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-docs-snippets: ## Ensure docs' fenced code blocks match examples/quickstarts
+	@echo -e "$(CYAN)Checking docs code blocks against examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py --check
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py

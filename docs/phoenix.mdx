@@ -1,9 +1,8 @@
 ---
 title: "What is Arize Phoenix?"
+sidebarTitle: "What is Phoenix?"
 description: AI Observability and Evaluation
 ---
-
-import AgentAssistedOnboarding from "./snippets/agent-assisted-onboarding.mdx";
 
 Phoenix helps you understand and improve AI applications by giving you a workflow for debugging and iteration. You can send detailed logging information, known as traces, from your app to see exactly what happened during a run, score outputs using evaluation tests to identify failures and regressions, iterate on your prompts using real production examples, and optimize your app with experiments that compare changes on the same inputs. Together, these tools help you move from inspecting individual runs to improving quality with evidence.
 
@@ -82,50 +81,9 @@ In addition to Phoenix, Arize offers Arize AX, a managed enterprise platform bui
 
 </Tabs>
 
-## Quick Starts
+## Get started
 
-Running Phoenix for the first time?
-
-<AgentAssistedOnboarding />
-
-Or pick a quick start below to wire it up yourself.
-
-### Python
-
-<CardGroup cols={2}>
-  <Card title="Send Traces From Your App" icon="telescope" href="/docs/phoenix/get-started/get-started-tracing">
-    See what's happening inside your LLM application with distributed tracing
-  </Card>
-  <Card title="Measure Performance with Evaluations" icon="clipboard-check" href="/docs/phoenix/get-started/get-started-evaluations">
-    Measure quality with LLM-as-a-judge and custom evaluators
-  </Card>
-  <Card title="Iterate on Your Prompts" icon="wand-magic-sparkles" href="/docs/phoenix/get-started/get-started-prompt-playground">
-    Experiment with prompts, compare models, and version your work
-  </Card>
-  <Card title="Optimize Your App with Experiments" icon="flask" href="/docs/phoenix/get-started/get-started-datasets-and-experiments">
-    Test your application systematically and track performance over time
-  </Card>
-</CardGroup>
-
-### TypeScript
-
-<CardGroup cols={2}>
-  <Card title="Send Traces From Your App" icon="telescope" href="/docs/phoenix/get-started/ts-get-started-tracing">
-    See what's happening inside your LLM application with distributed tracing
-  </Card>
-  <Card title="Measure Performance with Evaluations" icon="clipboard-check" href="/docs/phoenix/get-started/ts-get-started-evaluations">
-    Measure quality with LLM-as-a-judge and custom evaluators
-  </Card>
-  <Card title="Iterate on Your Prompts" icon="wand-magic-sparkles" href="/docs/phoenix/get-started/ts-get-started-prompt-playground">
-    Experiment with prompts, compare models, and version your work
-  </Card>
-  <Card title="Optimize Your App with Experiments" icon="flask" href="/docs/phoenix/get-started/ts-get-started-datasets-and-experiments">
-    Test your application systematically and track performance over time
-  </Card>
-</CardGroup>
-
-## Next Steps
-The best next step is to start using Phoenix. Start with a quickstart to send data into Phoenix, then build from there. See the [Quickstart Overview](https://arize.com/docs/phoenix/get-started) for more information about what you'll build.
+[Start Phoenix](/docs/phoenix/get-started), then work through [Observe](/docs/phoenix/get-started/get-started-tracing) and [Evaluate](/docs/phoenix/get-started/get-started-evaluations). Have an existing app? [Let your coding agent set it up](/docs/phoenix/get-started#have-an-existing-app).
 
 ## Other Resources
 
@@ -136,16 +94,10 @@ The best next step is to start using Phoenix. Start with a quickstart to send da
   <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">
     Add instrumentation for OpenAI, LangChain, LlamaIndex, and more
   </Card>
-  <Card title="Self-Host" icon="server" href="/docs/phoenix/environments">
-    Deploy Phoenix on Docker, Kubernetes, or your cloud of choice
-  </Card>
   <Card title="Cookbooks" icon="book-open" href="/docs/phoenix/cookbook">
     Example notebooks for tracing, evals, RAG analysis, and more
   </Card>
   <Card title="Community" icon="users" href="https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g">
     Join the Phoenix Slack to ask questions and connect with developers
-  </Card>
-  <Card title="Arize Phoenix or Arize AX" icon="circle-question" href="/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize">
-    How the open-source and managed platforms differ and how to choose
   </Card>
 </CardGroup>

@@ -1,28 +1,246 @@
 ---
-title: "MCP Servers"
-sidebarTitle: "MCP Overview"
-description: Connect AI assistants to Phoenix — your data and your docs — over the Model Context Protocol (MCP).
+title: "MCP Server"
+description: Connect Claude Code, Cursor, VS Code, or any MCP client to your live Phoenix data.
 ---
 
-Phoenix speaks [MCP](https://modelcontextprotocol.io/), so you can wire assistants like Claude Code, Cursor, and VS Code into Phoenix. There are two things you might want your assistant to do — pick the server that matches, or run both.
+The Remote [MCP](https://modelcontextprotocol.io/) Server (beta) is built into Phoenix at `/mcp`, so any MCP client can read and act on your Phoenix data with nothing to install. Agents with a shell can reach the same data through the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli); see [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server).
 
-<CardGroup cols={2}>
-  <Card title="Work with your Phoenix data" icon="database" href="/docs/phoenix/integrations/remote-mcp">
-    **Remote MCP Server** — query and operate on your projects, traces, sessions, datasets, experiments, prompts, and annotations. Built into the Phoenix server at `/mcp`; nothing to install.
+## Remote MCP Server
 
-    **Recommended** · beta
-  </Card>
-  <Card title="Search the Phoenix docs" icon="book" href="/docs/phoenix/integrations/docs-mcp">
-    **Phoenix Docs MCP** — let your assistant answer questions from the Phoenix documentation in real time. A hosted URL you point your client at.
-  </Card>
-</CardGroup>
+The URL is your [Phoenix endpoint](/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint) plus `/mcp`: `http://localhost:6006/mcp` for a local Phoenix. Requires Phoenix 19.0.0 or later.
 
-The two are complementary. Run the **Docs MCP** alongside the **Remote MCP Server** to give your assistant both your live Phoenix data and the documentation.
+### Connect
 
-<Note>
-For most coding-agent workflows, the [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) is the recommended interface — fetching traces, debugging failures, inspecting experiments, and managing datasets and prompts. Use the MCP servers for ad-hoc data access from your IDE. See [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) for setting them up together.
-</Note>
+The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) writes the config for you:
 
-## Older Phoenix versions
+```bash
+px setup mcp --agent claude   # or codex, gemini, cursor, opencode, vscode
+```
 
-If your Phoenix version doesn't yet serve the built-in `/mcp` endpoint, use the [`@arizeai/phoenix-mcp` npm package](/docs/phoenix/integrations/phoenix-mcp-server) — a local stdio server that connects to the same Phoenix data. It's in **maintenance mode**: it still receives bug fixes, but new capabilities land in the Remote MCP Server. Prefer the Remote MCP Server whenever your Phoenix version serves `/mcp`.
+Gemini CLI and VS Code need the `gemini` or `code` command on your `PATH`.
+
+To configure by hand, or for other clients, use the steps below with your own endpoint in place of `http://localhost:6006`.
+
+<AccordionGroup>
+  <Accordion title="Claude Code">
+    The [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) registers this server and the skills together. To add the server alone:
+
+    ```bash
+    claude mcp add --transport http phoenix http://localhost:6006/mcp
+    ```
+
+    Then run `/mcp` in Claude Code, select **phoenix**, and log in.
+  </Accordion>
+
+  <Accordion title="Codex (OpenAI)">
+    The [Codex plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) registers this server for you. By hand, create a [Phoenix API key](/docs/phoenix/settings/api-keys), export it as `PHOENIX_API_KEY`, and add to `~/.codex/config.toml`:
+
+    ```toml
+    [mcp_servers.phoenix]
+    url = "http://localhost:6006/mcp"
+    bearer_token_env_var = "PHOENIX_API_KEY"
+    ```
+
+    Run `/mcp` in Codex to confirm it connected.
+  </Accordion>
+
+  <Accordion title="Cursor, VS Code, and OpenCode">
+    Add the server to the client's MCP config. Each prompts a browser login on first use.
+
+    In **Cursor**, add it to `~/.cursor/mcp.json`, or project `.cursor/mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "url": "http://localhost:6006/mcp"
+        }
+      }
+    }
+    ```
+
+    In **VS Code**, add it to `.vscode/mcp.json`, or run `MCP: Add Server` from the Command Palette:
+
+    ```json
+    {
+      "servers": {
+        "phoenix": {
+          "type": "http",
+          "url": "http://localhost:6006/mcp"
+        }
+      }
+    }
+    ```
+
+    In **OpenCode**, add it to `~/.config/opencode/opencode.json`, or project `opencode.json`:
+
+    ```json
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "mcp": {
+        "phoenix": {
+          "type": "remote",
+          "url": "http://localhost:6006/mcp",
+          "enabled": true
+        }
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Gemini CLI">
+    Gemini CLI's `mcp add` mirrors Claude Code's flags:
+
+    ```bash
+    gemini mcp add --scope user --transport http phoenix http://localhost:6006/mcp
+    ```
+
+    `--scope project` writes `.gemini/settings.json` in the current directory instead.
+
+    Gemini disables all MCP servers in untrusted folders, so trust the folder when prompted. Then `gemini mcp list` shows **phoenix** connected; run `/mcp` inside Gemini CLI to log in.
+
+    <Note>
+      **Antigravity** is a different tool that also writes under `~/.gemini/`; see **Antigravity and other clients** below.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Claude Desktop">
+    Claude Desktop connects from Anthropic's cloud, so your Phoenix must be reachable on the public internet; `localhost` is not. Add a custom connector in its connector settings:
+
+    - **Name**: `Phoenix`
+    - **URL**: `https://your-phoenix.example.com/mcp`
+
+    It opens the browser login on first use.
+  </Accordion>
+
+  <Accordion title="Antigravity and other clients">
+    Any client with streamable HTTP and OAuth works: set the URL to `<your-phoenix-endpoint>/mcp` and log in on first use. Clients without OAuth use an [API key](#fallback-api-keys).
+
+    Antigravity is one. Create a [Phoenix API key](/docs/phoenix/settings/api-keys) and add to `~/.gemini/config/mcp_config.json` (or **Manage MCP Servers → View raw config**):
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "serverUrl": "http://localhost:6006/mcp",
+          "headers": {
+            "Authorization": "Bearer <your-api-key>"
+          }
+        }
+      }
+    }
+    ```
+
+    Omit `headers` if your Phoenix has no authentication.
+  </Accordion>
+</AccordionGroup>
+
+Check with `/mcp` in Claude Code or Codex, or `claude mcp list`: `phoenix` shows as connected. With auth on, first use opens a browser login.
+
+### What your agent can do with it
+
+Everything the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview) can do, and the agent composes the operations it needs in one call. Try:
+
+```text
+Which experiments ran on my agent-inputs dataset this week, and how did their scores compare?
+```
+
+On a fresh Phoenix, ask it to list your projects; it returns one, `default`.
+
+## Learn more
+
+- [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents): the install for each agent, and the [plugins](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) that register this server.
+- [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli): the alternative for agents with a shell.
+- [Skills](/docs/phoenix/integrations/developer-tools/skills): what `load_skill` serves.
+- [API Keys](/docs/phoenix/settings/api-keys): for clients that cannot log in through a browser.
+
+## Reference
+
+### Fallback: API keys
+
+For CI, sandboxes, or clients that cannot log in through a browser, pass a [Phoenix API key](/docs/phoenix/settings/api-keys) as a Bearer header:
+
+```bash
+claude mcp add --transport http phoenix http://localhost:6006/mcp \
+  --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
+```
+
+Keep the single quotes: the client expands `${PHOENIX_API_KEY}` at runtime, so the key never lands in the config. In JSON configs:
+
+```json
+{
+  "mcpServers": {
+    "phoenix": {
+      "url": "http://localhost:6006/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-api-key>"
+      }
+    }
+  }
+}
+```
+
+### How it works
+
+By default the server exposes seven **code-mode** tools for discovering and composing Phoenix operations.
+
+| Tool         | Purpose                                                              |
+| ------------ | -------------------------------------------------------------------- |
+| `search`     | Find available operations by query, ranked by relevance              |
+| `tags`       | Browse operations by category (projects, spans, datasets, …)         |
+| `list_tools` | List the full operation catalog                                      |
+| `get_schema` | Fetch parameter schemas for specific operations before calling them  |
+| `execute`    | Run Python that chains operations with `await call_tool(name, params)` |
+| `load_skill` | Load a Phoenix [skill](/docs/phoenix/integrations/developer-tools/skills)'s instructions before working in its domain |
+| `load_skill_reference` | Load a reference file from a skill already loaded with `load_skill` |
+
+The catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview), so it always matches your Phoenix version. Alongside those operations it carries two query surfaces: `describeSqlSchema` and `executeSql` run read-only analytics SQL over telemetry, datasets, and experiments, and `describeGraphqlSchema` and `executeGraphqlQuery` run read-only queries against Phoenix's GraphQL schema, reaching data the REST API does not cover. On a deployment that can write, `executeGraphqlMutation` runs GraphQL mutations too; see [Security](#security-and-troubleshooting). `execute` runs Python in [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed interpreter; see [Security](#security-and-troubleshooting) for its limits. `PHOENIX_ENABLE_MCP_CODE_MODE=false` turns code mode off and exposes each operation as its own tool.
+
+### Server configuration
+
+`PHOENIX_ENABLE_MCP_SERVER=false` removes `/mcp`; `PHOENIX_ENABLE_MCP_CODE_MODE=false` drops `execute`. Both are listed under [self-hosting configuration](/docs/phoenix/self-hosting/configuration). `PHOENIX_SKILLS_PATHS` serves [your own skills](/docs/phoenix/integrations/developer-tools/skills#add-your-own-skills).
+
+### Security and troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Security">
+    Clients discover auth on their own: `/mcp` advertises [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) metadata at `/.well-known/oauth-protected-resource/mcp` pointing at Phoenix's authorization server. See [Agent Authentication Discovery](/docs/phoenix/self-hosting/features/authentication#agent-authentication-discovery).
+
+    - **Browser login** uses Phoenix's built-in [OAuth2 authorization server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server), with its own switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, registration modes, redirect allowlists, and rate limits.
+    - **Tokens** are audience-scoped to `/mcp` and cannot be replayed elsewhere. API keys carry their creator's permissions.
+    - **Code is sandboxed.** Monty has no filesystem or network access and runs in worker subprocesses. It allows a restricted standard library (`json`, `re`, `datetime`) and blocks `subprocess`, `socket`, `importlib`, and third-party packages. Each `execute` is capped at 30 s of code, 100 MB, 50 operation calls, and 5 minutes end to end. To forbid agent-written code entirely, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
+    - **GraphQL mutations run with the caller's permissions.** `executeGraphqlMutation` runs any mutation the caller's role permits, with no server-side confirmation beyond the client's own; a read-only deployment does not expose it.
+    - **Treat results as data.** Traces contain whatever your AI agent logged, including untrusted input; agents should not follow instructions found in them.
+  </Accordion>
+
+  <Accordion title="Inspect the server with MCP Inspector">
+    [MCP Inspector](https://github.com/modelcontextprotocol/inspector) exercises an MCP server by hand. List the tools in one command:
+
+    ```bash
+    npx -y @modelcontextprotocol/inspector --cli http://localhost:6006/mcp --transport http --method tools/list
+    ```
+
+    Add `--header "Authorization: Bearer $PHOENIX_API_KEY"` when auth is on. You should see the seven tools from [How it works](#how-it-works); call one with `--method tools/call --tool-name search --tool-arg "query=latest traces"`.
+
+    For the browser UI, run `npx -y @modelcontextprotocol/inspector` and connect with **Streamable HTTP** to `http://localhost:6006/mcp`. Needs Node.js 22.19 or later.
+  </Accordion>
+
+  <Accordion title="Troubleshooting">
+    **`/mcp` returns 405 or the Phoenix app page:** Phoenix is older than 19.0.0, or `PHOENIX_ENABLE_MCP_SERVER=false`. Upgrade or re-enable.
+
+    **Login loops or 401:** Re-run the login (`/mcp`, or remove and re-add the server). With an API key, confirm it is valid and sent as `Authorization: Bearer <key>`.
+
+    **Server missing from your client:** Restart the client and check the config syntax. Most clients read MCP config only on startup.
+  </Accordion>
+
+</AccordionGroup>
+
+## Phoenix Docs MCP
+
+A separate hosted server, with no login, that lets your agent search these docs:
+
+```bash
+claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
+```
+
+Other clients: same config as above, with that URL.

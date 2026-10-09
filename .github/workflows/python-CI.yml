@@ -37,6 +37,7 @@ jobs:
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
+      docs_snippets: ${{ steps.filter.outputs.docs_snippets }}
       mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
@@ -81,6 +82,10 @@ jobs:
             uv_lock:
               - "**/pyproject.toml"
               - "uv.lock"
+            docs_snippets:
+              - "docs/**/*.mdx"
+              - "examples/quickstarts/**"
+              - "scripts/sync_docs_snippets.py"
             filter_dsl:
               - "js/app/src/pages/project/traceFilterDSL.ts"
               - "js/app/src/pages/project/sessionFilterDSL.ts"
@@ -373,6 +378,24 @@ jobs:
           resolution-strategy: "lowest"
       - name: Check UI filter DSL snippets against the Python filters
         run: make check-filter-dsl-snippets
+
+  check-docs-snippets:
+    name: Check Docs Code Snippets
+    needs: changes
+    if: ${{ needs.changes.outputs.docs_snippets == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/sync_docs_snippets.py
+            docs/
+            examples/quickstarts/
+      - name: Check docs code blocks against examples/quickstarts
+        run: make check-docs-snippets
 
   check-skill-graphql-examples:
     name: Check Skill Examples
@@ -869,6 +892,7 @@ jobs:
       - build-graphql-schema
       - codegen-harbor-graphql
       - check-filter-dsl-snippets
+      - check-docs-snippets
       - check-skill-graphql-examples
       - build-openapi-schema
       - build-ddl-schema

@@ -1,0 +1,22 @@
+{
+  "name": "phoenix-quickstarts",
+  "private": true,
+  "type": "module",
+  "description": "Runnable code behind the Phoenix Get Started guides.",
+  "scripts": {
+    "observe": "tsx app.ts",
+    "evaluate": "tsx evaluate.ts",
+    "experiment": "tsx experiment.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.91",
+    "@arizeai/openinference-instrumentation-openai": "^4.4.0",
+    "@arizeai/phoenix-client": "^7.16.0",
+    "@arizeai/phoenix-evals": "^2.6.0",
+    "@arizeai/phoenix-otel": "^2.2.0",
+    "ai": "^7.0.135",
+    "dotenv": "^18.0.6",
+    "openai": "^7.30.1",
+    "tsx": "^4.23.15"
+  }
+}
