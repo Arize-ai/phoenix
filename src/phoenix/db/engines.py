@@ -211,8 +211,13 @@ def _begin_sqlite_transaction(connection: SAConnection) -> None:
 
     Deferred BEGIN also works on read-only connections. Readers retain their
     WAL snapshot, and releasing a savepoint cannot commit the outer transaction.
+    A session can request a write lock before its first read by setting the
+    sqlite_begin_immediate connection execution option before the transaction starts.
     """
-    connection.exec_driver_sql("BEGIN")
+    if connection.get_execution_options().get("sqlite_begin_immediate"):
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
+    else:
+        connection.exec_driver_sql("BEGIN")
 
 
 def configure_sqlite_transactions(engine: AsyncEngine) -> None:
