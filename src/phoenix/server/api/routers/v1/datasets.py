@@ -102,6 +102,67 @@ class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
     pass
 
 
+class CreateDatasetRequestBody(V1RoutesBaseModel):
+    name: str
+    description: Optional[str] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateDatasetResponseBody(ResponseBody[Dataset]):
+    pass
+
+
+@router.post(
+    "/datasets",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createDataset",
+    summary="Create a dataset",
+    status_code=201,
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 409, "description": "A dataset with the same name already exists"},
+            {"status_code": 422, "description": "Invalid request body"},
+        ]
+    ),
+)
+async def create_dataset(
+    request: Request,
+    request_body: CreateDatasetRequestBody,
+) -> CreateDatasetResponseBody:
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled:
+        assert isinstance(user := request.user, PhoenixUser)
+        user_id = int(user.identity)
+
+    async with request.app.state.db() as session:
+        dataset = models.Dataset(
+            name=request_body.name,
+            description=request_body.description,
+            metadata_=request_body.metadata,
+            user_id=user_id,
+        )
+        session.add(dataset)
+        try:
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A dataset named {request_body.name!r} already exists",
+            )
+        data = Dataset(
+            id=str(GlobalID(DATASET_NODE_NAME, str(dataset.id))),
+            name=dataset.name,
+            description=dataset.description,
+            metadata=dataset.metadata_,
+            created_at=dataset.created_at,
+            updated_at=dataset.updated_at,
+            example_count=0,
+        )
+
+    request.state.event_queue.put(DatasetInsertEvent((dataset.id,)))
+    return CreateDatasetResponseBody(data=data)
+
+
 @router.get(
     "/datasets",
     operation_id="listDatasets",

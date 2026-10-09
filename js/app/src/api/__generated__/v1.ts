@@ -347,7 +347,8 @@ export interface paths {
         /** List datasets */
         get: operations["listDatasets"];
         put?: never;
-        post?: never;
+        /** Create a dataset */
+        post: operations["createDataset"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2652,6 +2653,21 @@ export interface components {
         /** CreateDatasetLabelResponseBody */
         CreateDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
+        };
+        /** CreateDatasetRequestBody */
+        CreateDatasetRequestBody: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** CreateDatasetResponseBody */
+        CreateDatasetResponseBody: {
+            data: components["schemas"]["Dataset"];
         };
         /** CreateDatasetSplitRequestBody */
         CreateDatasetSplitRequestBody: {
@@ -8669,6 +8685,57 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset with the same name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request body */
             422: {
                 headers: {
                     [name: string]: unknown;
