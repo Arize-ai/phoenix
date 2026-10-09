@@ -570,18 +570,15 @@ function getRootCompletions({
       ],
     };
   }
-  const ideas = toIdeaRows(getIdeas(""));
   const completions = [
-    ...ideas.map((row) =>
+    ...toIdeaRows(getIdeas("")).map((row) =>
       toLevelCompletion({
         row,
         key: row.path,
         section: SUGGESTED_PATH_SECTION,
       })
     ),
-    ...rootCandidates.filter(
-      (candidate) => !ideas.some((idea) => idea.path === candidate.path)
-    ),
+    ...rootCandidates,
   ];
   return completions.length === 0
     ? null

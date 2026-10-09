@@ -284,7 +284,11 @@ describe("getEvaluatorPathIdeas", () => {
         metadata. →
       trace
         (root) →
+          input | Root input
+          output | Root output
+          metadata.attributes | Root attributes
         metadata. →
+          attributes | Root attributes
       two-turn session
         (root) →
           metadata.turns[-1].input | Last user message

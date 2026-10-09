@@ -104,6 +104,24 @@ export const CURATED_EVALUATOR_PATH_IDEAS: readonly CuratedEvaluatorPathIdea[] =
       atRoot: false,
     },
     {
+      path: "input",
+      description: "Root input",
+      recordKinds: ["trace"],
+      atRoot: true,
+    },
+    {
+      path: "output",
+      description: "Root output",
+      recordKinds: ["trace"],
+      atRoot: true,
+    },
+    {
+      path: "metadata.attributes",
+      description: "Root attributes",
+      recordKinds: ["trace"],
+      atRoot: true,
+    },
+    {
       path: "metadata.turns[-1].input",
       description: "Last user message",
       recordKinds: ["session"],
