@@ -18,6 +18,7 @@ import {
   resolveEvaluatorPath,
   SUGGESTED_PATH_SECTION,
   toMemberSection,
+  UNSET_COMPLETION_TYPE,
 } from "../evaluatorPathCompletions";
 import {
   getEvaluatorPathIdeas,
@@ -364,8 +365,8 @@ describe("getEvaluatorPathCompletions", () => {
         .map(({ key, drills, section }) => [key, drills, section.name])
     ).toEqual([
       ["messages", false, "input"],
+      ["tools", false, "input"],
       ["messages[-1].content", false, "Suggestions"],
-      ["messages[0]", true, "Suggestions"],
     ]);
   });
 
@@ -396,6 +397,11 @@ describe("getEvaluatorPathCompletions", () => {
         `${IDEA_COMPLETION_TYPE} ${CONTAINER_COMPLETION_TYPE}`,
       ],
       ["input.messages[*].content", false, IDEA_COMPLETION_TYPE],
+      [
+        "input.tools",
+        false,
+        `${IDEA_COMPLETION_TYPE} ${UNSET_COMPLETION_TYPE}`,
+      ],
     ]);
   });
 
@@ -434,6 +440,7 @@ describe("getEvaluatorPathCompletions", () => {
       ["input.messages", "Suggestions"],
       ["output.documents[*].content", "Suggestions"],
       ["output.documents[0].content", "Suggestions"],
+      ["input.tools", "Suggestions"],
       ["input", "Evaluator input"],
       ["metadata.latency_ms", "From the span"],
       ["metadata.attributes", "From the span"],
@@ -488,6 +495,25 @@ describe("getEvaluatorPathCompletions", () => {
 
   it("offers nothing for a level the record does not have", () => {
     expect(completionsFor("metadata.nope.")).toBeNull();
+  });
+
+  // An idea the record lacks stays on offer, dimmed, so what a record of its
+  // kind usually holds is still discoverable.
+  it("dims an idea the record does not have", () => {
+    const result = completionsFor("input.", CHAT_SOURCE, "span");
+
+    expect(
+      result?.completions.find(({ path }) => path === "input.tools")
+    ).toEqual({
+      key: "tools",
+      path: "input.tools",
+      detail: "Available tools",
+      info: "Not here",
+      type: `${IDEA_COMPLETION_TYPE} ${UNSET_COMPLETION_TYPE}`,
+      section: SUGGESTED_PATH_SECTION,
+      drills: false,
+      boost: 1,
+    });
   });
 
   it("offers nothing when the surface has no tree to offer", () => {
