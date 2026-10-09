@@ -5947,6 +5947,16 @@
             },
             "description": "Bad Request"
           },
+          "503": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Span ingestion queue is at capacity"
+          },
           "422": {
             "description": "Validation Error",
             "content": {

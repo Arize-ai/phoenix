@@ -55,6 +55,7 @@ from phoenix.db.engines import (
 from phoenix.db.engines import (
     aio_postgresql_engine,
     aio_sqlite_engine,
+    configure_sqlite_transactions,
     set_sqlite_pragma,
 )
 from phoenix.db.facilitator import Facilitator
@@ -802,6 +803,7 @@ def _named_memory_sqlite_engine(uri: str) -> AsyncEngine:
         json_serializer=_json_serializer,
     )
     sqlalchemy.event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    configure_sqlite_transactions(engine)
     return engine
 
 

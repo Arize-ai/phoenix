@@ -1,10 +1,11 @@
+import asyncio
 from pathlib import Path
 from unittest import mock
 
 import pytest
 import sqlean
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from phoenix.db.engines import (
     aio_sqlite_engine,
@@ -120,3 +121,56 @@ async def test_sqlite_read_session_holds_one_snapshot(tmp_path: Path) -> None:
         assert after == 1
     finally:
         await engine.dispose()
+
+
+async def test_sqlite_fixture_rolls_back_released_savepoint(sqlite_engine: AsyncEngine) -> None:
+    async with sqlite_engine.begin() as connection:
+        await connection.execute(text("create temp table values_to_rollback (value int)"))
+    with pytest.raises(RuntimeError, match="abort outer transaction"):
+        async with sqlite_engine.begin() as connection:
+            async with connection.begin_nested():
+                await connection.execute(text("insert into values_to_rollback values (1)"))
+            raise RuntimeError("abort outer transaction")
+    async with sqlite_engine.connect() as connection:
+        assert await connection.scalar(text("select count(*) from values_to_rollback")) == 0
+
+
+async def test_sqlite_savepoint_release_keeps_writes_private_until_outer_commit(
+    tmp_path: Path,
+) -> None:
+    url = get_async_db_url(f"sqlite:///{tmp_path / 'transaction.db'}")
+    writer = aio_sqlite_engine(url, migrate=False)
+    reader = aio_sqlite_read_engine(url)
+    assert reader is not None
+    waiting_writer: asyncio.Task[None] | None = None
+    try:
+        async with writer.begin() as connection:
+            await connection.execute(text("create table values_to_commit (value int)"))
+        sessions = async_sessionmaker(writer, expire_on_commit=False)
+        attempted = asyncio.Event()
+
+        async def write_after_batch() -> None:
+            attempted.set()
+            async with sessions.begin() as session:
+                await session.execute(text("insert into values_to_commit values (2)"))
+
+        async with sessions.begin() as session:
+            async with session.begin_nested():
+                await session.execute(text("insert into values_to_commit values (1)"))
+            waiting_writer = asyncio.create_task(write_after_batch())
+            await asyncio.wait_for(attempted.wait(), timeout=10)
+            async with reader.connect() as connection:
+                assert await connection.scalar(text("select count(*) from values_to_commit")) == 0
+            assert not waiting_writer.done()
+        await asyncio.wait_for(waiting_writer, timeout=10)
+        async with reader.connect() as connection:
+            assert set(await connection.scalars(text("select value from values_to_commit"))) == {
+                1,
+                2,
+            }
+    finally:
+        if waiting_writer is not None and not waiting_writer.done():
+            waiting_writer.cancel()
+            await asyncio.gather(waiting_writer, return_exceptions=True)
+        await reader.dispose()
+        await writer.dispose()
