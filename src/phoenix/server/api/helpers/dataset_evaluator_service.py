@@ -37,6 +37,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     generate_unique_evaluator_name,
     get_project_for_dataset_evaluator,
     is_sole_evaluator_binding,
+    lock_evaluators,
     parse_evaluator_id,
     release_evaluator_prompt_label,
 )
@@ -470,6 +471,29 @@ async def delete_dataset_evaluators(
 
     async with context.db() as session:
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+
+        # Updates lock their shared evaluator before writing a binding. Lock definitions
+        # removed directly or through trace-project cascades before deleting any bindings.
+        lock_rows = (
+            await session.execute(
+                select(
+                    models.DatasetEvaluators.evaluator_id, models.DatasetEvaluators.project_id
+                ).where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
+            )
+        ).all()
+        lock_evaluator_ids = {
+            evaluator_id for evaluator_id, _ in lock_rows if evaluator_id is not None
+        }
+        lock_project_ids = {project_id for _, project_id in lock_rows if project_id is not None}
+        if lock_project_ids:
+            lock_evaluator_ids.update(
+                await session.scalars(
+                    select(models.ProjectEvaluator.evaluator_id).where(
+                        models.ProjectEvaluator.project_id.in_(lock_project_ids)
+                    )
+                )
+            )
+        await lock_evaluators(session, lock_evaluator_ids)
 
         # Flat aliasing prevents SQLAlchemy from rewriting the base kind discriminator.
         llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)

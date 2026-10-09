@@ -29,6 +29,7 @@ from phoenix.server.api.helpers.evaluator_management import (
     generate_unique_evaluator_name,
     get_trace_project_for_project_evaluator,
     is_sole_evaluator_binding,
+    lock_evaluators,
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     raise_on_uninferable_evaluate_signature,
@@ -946,6 +947,14 @@ async def delete_project_evaluators(
 
     deleted_ids: list[GlobalID] = []
     async with context.db() as session:
+        evaluator_ids_to_lock = set(
+            await session.scalars(
+                select(models.ProjectEvaluator.evaluator_id).where(
+                    models.ProjectEvaluator.id.in_(project_evaluator_ids)
+                )
+            )
+        )
+        await lock_evaluators(session, evaluator_ids_to_lock)
         llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
         rows = (
             await session.execute(

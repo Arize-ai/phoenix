@@ -1,7 +1,7 @@
 """Shared evaluator validation, naming, and cleanup helpers."""
 
 from secrets import token_hex
-from typing import Callable, Optional
+from typing import Callable, Iterable, Optional
 
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,6 +58,21 @@ async def is_sole_evaluator_binding(
     )
     binding_count = await session.scalar(select(dataset_binding_count + project_binding_count))
     return binding_count == 1
+
+
+async def lock_evaluators(session: AsyncSession, evaluator_ids: Iterable[int]) -> None:
+    """Lock mutable definitions before bindings in sorted order to match evaluator edits."""
+    ids = sorted(set(evaluator_ids))
+    if ids:
+        await session.execute(
+            select(models.Evaluator.id)
+            .where(
+                models.Evaluator.id.in_(ids),
+                models.Evaluator.kind != "BUILTIN",
+            )
+            .order_by(models.Evaluator.id)
+            .with_for_update()
+        )
 
 
 def raise_on_uninferable_evaluate_signature(
