@@ -85,6 +85,8 @@ async def _seed_criteria(
 async def _seed_code_criteria(
     db: DbSessionFactory,
     project_id: int,
+    *,
+    evaluator_input_mapping: InputMapping = InputMapping(literal_mapping={}, path_mapping={}),
 ) -> tuple[int, int, int]:
     async with db() as session:
         if await session.get(models.Language, "PYTHON") is None:
@@ -106,7 +108,7 @@ async def _seed_code_criteria(
             kind="CODE",
             language="PYTHON",
             sandbox_config=sandbox_config,
-            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            input_mapping=evaluator_input_mapping,
             output_configs=[],
             versions=[models.CodeEvaluatorVersion(source_code="def evaluate(): return 1")],
         )
@@ -411,6 +413,31 @@ async def test_unregistered_builtin_cannot_resolve_criteria(
         await session.flush()
 
         assert await resolve_project_evaluator(session, project_evaluator, evaluator) is None
+
+
+async def test_code_criteria_input_mapping_falls_back_to_the_evaluators(
+    db: DbSessionFactory,
+) -> None:
+    """A binding with no input_mapping override inherits the evaluator's own mapping,
+    not an empty one, so deleting the fallback in resolve_project_evaluator fails here."""
+    evaluator_mapping = InputMapping(
+        literal_mapping={"key": "value"}, path_mapping={"output": "$.output"}
+    )
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, project_evaluator_id, _ = await _seed_code_criteria(
+        db, project.id, evaluator_input_mapping=evaluator_mapping
+    )
+
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert evaluator is not None
+        assert project_evaluator is not None
+        assert project_evaluator.input_mapping is None
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        assert resolved is not None
+        assert resolved.input_mapping == evaluator_mapping.model_dump()
 
 
 async def test_sandbox_runtime_changes_code_criteria_fingerprint(
