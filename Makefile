@@ -38,7 +38,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	mcp-skills codegen-prompts sync-models test-sync-models check-unit-test-paths schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -104,10 +104,12 @@ help: ## Show this help message
 	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
 	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
 	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
+	@echo -e "  check-unit-test-paths  - Ensure unit tests only read paths the Unit Tests CI checkout includes"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
+	@echo -e "  test-sync-models       - Test the model cost manifest sync script"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
@@ -422,7 +424,17 @@ codegen-prompts: ## Generate prompts code from YAML files
 
 sync-models: ## Sync model cost manifest from remote sources
 	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
-	@$(UV) run python .github/.scripts/sync_models.py
+	@$(UV) run python scripts/cost_tracking/sync_models.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+test-sync-models: ## Test the model cost manifest sync script
+	@echo -e "$(CYAN)Testing the model cost manifest sync...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/cost_tracking
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-unit-test-paths: ## Ensure unit tests only read paths the Unit Tests CI checkout includes
+	@echo -e "$(CYAN)Checking unit test paths against the Unit Tests sparse checkout...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_unit_test_paths.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 # ARGS=--external points the PostgreSQL extractor at a foreign database, which

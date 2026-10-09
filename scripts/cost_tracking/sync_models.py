@@ -1,3 +1,13 @@
+"""
+Sync token prices in ``src/phoenix/server/cost_tracking/model_cost_manifest.json`` from
+LiteLLM's model catalog. Run it with ``make sync-models``; the ``Sync Model Pricing Data``
+workflow (``.github/workflows/cost-sync.yml``) runs it every weekday.
+
+This is repository tooling, not part of the ``arize-phoenix`` package: the server only reads
+the JSON manifest this script writes. Its tests live beside it and run with
+``make test-sync-models``.
+"""
+
 import json
 import re
 from dataclasses import dataclass
@@ -9,6 +19,15 @@ from urllib.request import urlopen
 from pydantic import AfterValidator, BaseModel
 
 PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
+
+MANIFEST_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "src"
+    / "phoenix"
+    / "server"
+    / "cost_tracking"
+    / "model_cost_manifest.json"
+)
 
 
 class ThresholdBasedTokenPriceCustomization(BaseModel):
@@ -378,9 +397,6 @@ def update_manifest(
 
 
 def main() -> int:
-    local_file_path = (
-        Path(__file__).parent / "../../src/phoenix/server/cost_tracking/model_cost_manifest.json"
-    )
     url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
     try:
@@ -389,7 +405,7 @@ def main() -> int:
         print(f"Error fetching model data from LiteLLM: {error}")
         return 1
 
-    with open(local_file_path, "r") as file:
+    with open(MANIFEST_PATH, "r") as file:
         manifest_json = json.load(file)
     manifest = ModelCostManifest.model_validate(manifest_json)
 
@@ -399,7 +415,7 @@ def main() -> int:
     updated_manifest = update_manifest(manifest, litellm_entries)
 
     if manifest_json != updated_manifest:
-        with open(local_file_path, "w") as file:
+        with open(MANIFEST_PATH, "w") as file:
             file.write(updated_manifest.model_dump_json(indent=2, exclude_none=True))
         print("Model data updated successfully")
     else:

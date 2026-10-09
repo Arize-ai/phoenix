@@ -1,36 +1,26 @@
 """
-Regression tests for Mistral AI pricing sync in ``.github/.scripts/sync_models.py``.
+Regression tests for ``scripts/cost_tracking/sync_models.py``.
 
 Guards that first-party LiteLLM ``mistral/*`` IDs pass the provider-prefix filter, map to
 the OpenInference provider ``mistralai``, and stay distinct from Together-hosted
-``together_ai/mistralai/*`` entries. See Arize-ai/phoenix#16878.
+``together_ai/mistralai/*`` entries (see Arize-ai/phoenix#16878), and that the checked-in
+manifest still parses under the schema the sync writes.
+
+These run with ``make test-sync-models`` rather than in the Unit Tests job: the script is
+repository tooling, not part of the ``arize-phoenix`` package.
 """
 
-from __future__ import annotations
-
-import importlib.util
-import sys
-from pathlib import Path
-from types import ModuleType
+import json
 
 import pytest
-
-from phoenix.db import models
-from phoenix.server.cost_tracking.cost_details_calculator import SpanCostDetailsCalculator
+import sync_models
 
 
-def _load_sync_models() -> ModuleType:
-    script_path = Path(__file__).resolve().parents[4] / ".github" / ".scripts" / "sync_models.py"
-    spec = importlib.util.spec_from_file_location("sync_models", script_path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    # Register before exec so dataclasses can resolve ``list[TokenPrice]`` annotations.
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-sync_models = _load_sync_models()
+class TestCheckedInManifest:
+    def test_manifest_validates_against_sync_schema(self) -> None:
+        with sync_models.MANIFEST_PATH.open() as source:
+            manifest = sync_models.ModelCostManifest.model_validate(json.load(source))
+        assert manifest.models
 
 
 class TestMistralProviderPrefix:
@@ -143,43 +133,3 @@ class TestMistralExtractAndUpdate:
             by_name["together_ai/mistralai/Mistral-Small-24B-Instruct-2501"].name_pattern
             == "mistralai/Mistral-Small-24B-Instruct-2501"
         )
-
-
-class TestMistralCostCalculation:
-    def test_input_and_output_token_costs(self) -> None:
-        calculator = SpanCostDetailsCalculator(
-            [
-                models.TokenPrice(token_type="input", is_prompt=True, base_rate=5e-7),
-                models.TokenPrice(token_type="output", is_prompt=False, base_rate=1.5e-6),
-            ]
-        )
-        details = calculator.calculate_details(
-            {"llm": {"token_count": {"prompt": 1000, "completion": 500}}}
-        )
-        prompt = {detail.token_type: detail for detail in details if detail.is_prompt}
-        completion = {detail.token_type: detail for detail in details if not detail.is_prompt}
-        assert prompt["input"].cost == pytest.approx(1000 * 5e-7)
-        assert completion["output"].cost == pytest.approx(500 * 1.5e-6)
-
-    def test_missing_completion_usage_bills_prompt_only(self) -> None:
-        calculator = SpanCostDetailsCalculator(
-            [
-                models.TokenPrice(token_type="input", is_prompt=True, base_rate=5e-7),
-                models.TokenPrice(token_type="output", is_prompt=False, base_rate=1.5e-6),
-            ]
-        )
-        details = calculator.calculate_details({"llm": {"token_count": {"prompt": 1000}}})
-        prompt = {detail.token_type: detail for detail in details if detail.is_prompt}
-        completion = {detail.token_type: detail for detail in details if not detail.is_prompt}
-        assert prompt["input"].cost == pytest.approx(1000 * 5e-7)
-        assert "output" not in completion
-
-    def test_missing_usage_metadata_yields_no_cost_details(self) -> None:
-        calculator = SpanCostDetailsCalculator(
-            [
-                models.TokenPrice(token_type="input", is_prompt=True, base_rate=5e-7),
-                models.TokenPrice(token_type="output", is_prompt=False, base_rate=1.5e-6),
-            ]
-        )
-        assert calculator.calculate_details({}) == []
-        assert calculator.calculate_details({"llm": {}}) == []

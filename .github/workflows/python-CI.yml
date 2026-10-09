@@ -41,6 +41,8 @@ jobs:
       mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
+      sync_models: ${{ steps.filter.outputs.sync_models }}
+      unit_test_paths: ${{ steps.filter.outputs.unit_test_paths }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -109,6 +111,16 @@ jobs:
               - "evals/harbor/verifiers/harbor_verifiers/graphql/**"
               - "js/app/schema.graphql"
               - "pyproject.toml"
+            sync_models:
+              - "scripts/cost_tracking/**"
+              - "src/phoenix/server/cost_tracking/model_cost_manifest.json"
+              - "uv.lock"
+            unit_test_paths:
+              - "tests/unit/**"
+              - "tox.ini"
+              - ".github/workflows/python-CI.yml"
+              - ".github/workflows/python-all-platforms.yml"
+              - "scripts/ci/test_unit_test_paths.py"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -126,6 +138,8 @@ jobs:
           MCP_SKILLS: ${{ steps.filter.outputs.mcp_skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
           HARBOR_GRAPHQL: ${{ steps.filter.outputs.harbor_graphql }}
+          SYNC_MODELS: ${{ steps.filter.outputs.sync_models }}
+          UNIT_TEST_PATHS: ${{ steps.filter.outputs.unit_test_paths }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -142,6 +156,8 @@ jobs:
           echo "mcp_skills: $MCP_SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
           echo "harbor_graphql: $HARBOR_GRAPHQL"
+          echo "sync_models: $SYNC_MODELS"
+          echo "unit_test_paths: $UNIT_TEST_PATHS"
 
   phoenix-client:
     name: Phoenix Client
@@ -425,6 +441,52 @@ jobs:
       - name: Check skill filter conditions against the Python filters
         run: make check-skill-filter-examples
 
+  test-sync-models:
+    name: Test Model Cost Sync Script
+    needs: changes
+    if: ${{ needs.changes.outputs.sync_models == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+      - name: Test the model cost manifest sync script
+        run: make test-sync-models
+
+  check-unit-test-paths:
+    name: Check Unit Test Paths
+    needs: changes
+    if: ${{ needs.changes.outputs.unit_test_paths == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      # Full checkout: this job reads the workflows and tests/unit/ to verify the Unit
+      # Tests jobs' sparse checkout covers every path the unit tests read.
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+      - name: Check unit tests only read paths the Unit Tests checkout includes
+        run: make check-unit-test-paths
+
   doctests:
     name: Doctests
     needs: changes
@@ -667,6 +729,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          # Keep in sync with the other Unit Tests job; `make check-unit-test-paths`
+          # fails when a unit test reads a path outside this list.
           sparse-checkout: |
             requirements/
             src/phoenix/
@@ -676,7 +740,6 @@ jobs:
             tests/conftest.py
             tests/__generated__/
             tests/__init__.py
-            .github/.scripts/sync_models.py
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -895,6 +958,8 @@ jobs:
       - check-filter-dsl-snippets
       - check-docs-snippets
       - check-skill-graphql-examples
+      - test-sync-models
+      - check-unit-test-paths
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
