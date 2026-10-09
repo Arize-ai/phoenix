@@ -70,8 +70,8 @@ from phoenix.server.api.helpers.evaluators import (
 )
 from phoenix.server.api.helpers.playground_clients import OpenAIChatCompletionsClient
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
@@ -2351,10 +2351,9 @@ class TestLLMEvaluator:
     @pytest.fixture
     def span_cost_calculator(
         self,
-        db: DbSessionFactory,
         generative_model_store: GenerativeModelStore,
     ) -> SpanCostCalculator:
-        return SpanCostCalculator(db=db, model_store=generative_model_store)
+        return SpanCostCalculator(model_store=generative_model_store)
 
     @pytest.fixture
     def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:

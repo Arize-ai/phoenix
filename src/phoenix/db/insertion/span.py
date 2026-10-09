@@ -1,8 +1,9 @@
 from dataclasses import asdict
-from typing import NamedTuple, Optional
+from datetime import datetime
+from typing import Any, NamedTuple, Optional, TypeVar
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, func, insert, select, update
+from sqlalchemy import and_, case, func, literal, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -22,6 +23,73 @@ class ClearProjectSpansEvent(NamedTuple):
     project_rowid: int
 
 
+_Record = TypeVar("_Record", bound=models.Base)
+_TimedRecord = TypeVar("_TimedRecord", models.Trace, models.ProjectSession)
+
+
+async def _extend_time_range(
+    session: AsyncSession,
+    record: _TimedRecord,
+    start_time: datetime,
+    end_time: datetime,
+) -> _TimedRecord:
+    if record.start_time <= start_time and end_time <= record.end_time:
+        return record
+    table = type(record)
+    result = await session.scalar(
+        update(table)
+        .where(table.id == record.id)
+        .values(
+            start_time=case(
+                (table.start_time > start_time, literal(start_time, type_=table.start_time.type)),
+                else_=table.start_time,
+            ),
+            end_time=case(
+                (table.end_time < end_time, literal(end_time, type_=table.end_time.type)),
+                else_=table.end_time,
+            ),
+        )
+        .returning(table)
+        .execution_options(populate_existing=True, synchronize_session=False)
+    )
+    if result is None:
+        raise RuntimeError(f"{table.__tablename__} record disappeared during range update")
+    return result
+
+
+async def _get_or_create(
+    session: AsyncSession,
+    table: type[_Record],
+    key: dict[str, Any],
+    values: dict[str, Any],
+    *,
+    skip_initial_lookup: bool = False,
+) -> _Record:
+    query = select(table).filter_by(**key).execution_options(populate_existing=True)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+    for attempt in range(2):
+        if (not skip_initial_lookup or attempt > 0) and (
+            record := await session.scalar(query)
+        ) is not None:
+            return record
+        await session.execute(
+            insert_on_conflict(
+                {**key, **values},
+                table=table,
+                dialect=dialect,
+                unique_by=tuple(key),
+                on_conflict=OnConflict.DO_NOTHING,
+            )
+        )
+        # A separate statement can see a competing insert's committed row on PostgreSQL.
+        if (record := await session.scalar(query)) is not None:
+            return record
+    raise RuntimeError(f"{table.__tablename__} record disappeared during creation: {key}")
+
+
+# TODO: Preserve spans by replacing NUL with U+FFFD in descriptive values, rejecting
+# affected identifiers and JSON keys. Share repaired inputs with costs and direct tracer
+# writers without mutating caller-owned attributes or events.
 async def insert_span(
     session: AsyncSession,
     span: Span,
@@ -30,36 +98,25 @@ async def insert_span(
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
 
     trace_id = span.context.trace_id
-    trace: models.Trace = await session.scalar(
-        select(models.Trace).filter_by(trace_id=trace_id)
-    ) or models.Trace(trace_id=trace_id)
+    trace = await session.scalar(select(models.Trace).filter_by(trace_id=trace_id))
+    if trace is None:
+        project = await _get_or_create(
+            session, models.Project, {"name": project_name}, random_project_gradient()
+        )
+        trace = await _get_or_create(
+            session,
+            models.Trace,
+            {"trace_id": trace_id},
+            dict(
+                project_rowid=project.id,
+                start_time=span.start_time,
+                end_time=span.end_time,
+            ),
+            skip_initial_lookup=True,
+        )
 
-    if trace.id is not None:
-        # We use the existing project_rowid on the trace because we allow users to transfer traces
-        # between projects, so the project_name parameter is ignored for existing traces.
-        project_rowid = trace.project_rowid
-        # Trace record may need to be updated.
-        if trace.end_time < span.end_time:
-            trace.end_time = span.end_time
-        if span.start_time < trace.start_time:
-            trace.start_time = span.start_time
-    else:
-        # Trace record needs to be persisted for the first time.
-        trace.start_time = span.start_time
-        trace.end_time = span.end_time
-        if (
-            project_rowid := await session.scalar(
-                select(models.Project.id).filter_by(name=project_name)
-            )
-        ) is None:
-            project_rowid = await session.scalar(
-                insert(models.Project)
-                .values(name=project_name, **random_project_gradient())
-                .returning(models.Project.id)
-            )
-            assert project_rowid is not None
-        trace.project_rowid = project_rowid
-        session.add(trace)
+    # The existing trace's memberships win, including after a project transfer.
+    trace = await _extend_time_range(session, trace, span.start_time, span.end_time)
 
     session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
     session_id = str(session_id).strip() if session_id is not None else ""
@@ -76,28 +133,39 @@ async def insert_span(
             select(models.ProjectSession).filter_by(id=trace.project_session_rowid)
         )
     elif session_id:
-        project_session = await session.scalar(
-            select(models.ProjectSession).filter_by(session_id=session_id)
-        ) or models.ProjectSession(session_id=session_id)
+        project_session = await _get_or_create(
+            session,
+            models.ProjectSession,
+            {"session_id": session_id},
+            dict(
+                project_id=trace.project_rowid,
+                start_time=trace.start_time,
+                end_time=trace.end_time,
+            ),
+        )
+        # Coalesce is evaluated against the locked row, so a concurrent attachment
+        # wins over our earlier read of a sessionless trace.
+        attached_trace = await session.scalar(
+            update(models.Trace)
+            .where(models.Trace.id == trace.id)
+            .values(
+                project_session_rowid=func.coalesce(
+                    models.Trace.project_session_rowid, project_session.id
+                )
+            )
+            .returning(models.Trace)
+            .execution_options(populate_existing=True, synchronize_session=False)
+        )
+        if attached_trace is None:
+            raise RuntimeError("Trace record disappeared during session attachment")
+        trace = attached_trace
+        if trace.project_session_rowid != project_session.id:
+            project_session = await session.scalar(
+                select(models.ProjectSession).filter_by(id=trace.project_session_rowid)
+            )
 
     if project_session is not None:
-        if project_session.id is None:
-            # ProjectSession record needs to be persisted for the first time.
-            project_session.start_time = trace.start_time
-            project_session.end_time = trace.end_time
-            project_session.project_id = project_rowid
-            session.add(project_session)
-            await session.flush()
-            assert project_session.id is not None
-            trace.project_session_rowid = project_session.id
-        else:
-            # ProjectSession record may need to be updated.
-            if trace.project_session_rowid is None:
-                trace.project_session_rowid = project_session.id
-            if trace.start_time < project_session.start_time:
-                project_session.start_time = trace.start_time
-            if project_session.end_time < trace.end_time:
-                project_session.end_time = trace.end_time
+        await _extend_time_range(session, project_session, trace.start_time, trace.end_time)
 
     await session.flush()
     assert trace.id is not None
@@ -138,34 +206,39 @@ async def insert_span(
         cumulative_error_count += accumulation[0] or 0
         cumulative_llm_token_count_prompt += accumulation[1] or 0
         cumulative_llm_token_count_completion += accumulation[2] or 0
-    span_rowid = await session.scalar(
-        insert_on_conflict(
-            dict(
-                span_id=span.context.span_id,
-                trace_rowid=trace.id,
-                parent_id=span.parent_id,
-                span_kind=span.span_kind.value,
-                name=span.name,
-                start_time=span.start_time,
-                end_time=span.end_time,
-                attributes=span.attributes,
-                events=[asdict(event) for event in span.events],
-                status_code=span.status_code.value,
-                status_message=span.status_message,
-                cumulative_error_count=cumulative_error_count,
-                cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
-                cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
-                llm_token_count_prompt=llm_token_count_prompt,
-                llm_token_count_completion=llm_token_count_completion,
-            ),
-            dialect=dialect,
-            table=models.Span,
-            unique_by=("span_id",),
-            on_conflict=OnConflict.DO_NOTHING,
-        ).returning(models.Span.id)
-    )
+    statement = insert_on_conflict(
+        dict(
+            span_id=span.context.span_id,
+            trace_rowid=trace.id,
+            parent_id=span.parent_id,
+            span_kind=span.span_kind.value,
+            name=span.name,
+            start_time=span.start_time,
+            end_time=span.end_time,
+            attributes=span.attributes,
+            events=[asdict(event) for event in span.events],
+            status_code=span.status_code.value,
+            status_message=span.status_message,
+            cumulative_error_count=cumulative_error_count,
+            cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
+            cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+            llm_token_count_prompt=llm_token_count_prompt,
+            llm_token_count_completion=llm_token_count_completion,
+        ),
+        dialect=dialect,
+        table=models.Span,
+        unique_by=("span_id",),
+        on_conflict=OnConflict.DO_NOTHING,
+    ).returning(models.Span.id)
+    span_rowid = await session.scalar(statement)
     if span_rowid is None:
         return None
+    if span.parent_id is None or not (
+        cumulative_error_count
+        or cumulative_llm_token_count_prompt
+        or cumulative_llm_token_count_completion
+    ):
+        return SpanInsertionEvent(trace.project_rowid, span_rowid, trace.id)
     # Propagate cumulative values to ancestors. This is usually a no-op, since
     # the parent usually arrives after the child. But in the event that a
     # child arrives after its parent, we need to make sure that all the
@@ -199,4 +272,4 @@ async def insert_span(
             + cumulative_llm_token_count_completion,
         )
     )
-    return SpanInsertionEvent(project_rowid, span_rowid, trace.id)
+    return SpanInsertionEvent(trace.project_rowid, span_rowid, trace.id)

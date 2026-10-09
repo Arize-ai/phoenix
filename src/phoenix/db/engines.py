@@ -206,17 +206,24 @@ def _disable_implicit_transactions(connection: Connection, _: Any) -> None:
     connection.isolation_level = None
 
 
-def _begin_read_transaction(connection: SAConnection) -> None:
-    """Open the transaction a read session already reads as having.
+def _begin_sqlite_transaction(connection: SAConnection) -> None:
+    """Keep reads and savepoints in a real outer transaction.
 
-    The WAL read mark is taken at the first statement and held until the
-    session closes, so every statement in it sees one snapshot rather than
-    re-snapshotting and reporting states that were never true together.
-
-    Deferred rather than `IMMEDIATE`, which takes a write lock a `mode=ro`
-    connection cannot acquire.
+    Deferred BEGIN also works on read-only connections. Readers retain their
+    WAL snapshot, and releasing a savepoint cannot commit the outer transaction.
+    A session can request a write lock before its first read by setting the
+    sqlite_begin_immediate connection execution option before the transaction starts.
     """
-    connection.exec_driver_sql("BEGIN")
+    if connection.get_execution_options().get("sqlite_begin_immediate"):
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
+    else:
+        connection.exec_driver_sql("BEGIN")
+
+
+def configure_sqlite_transactions(engine: AsyncEngine) -> None:
+    """Make SQLAlchemy start SQLite transactions explicitly."""
+    event.listen(engine.sync_engine, "connect", _disable_implicit_transactions)
+    event.listen(engine.sync_engine, "begin", _begin_sqlite_transaction)
 
 
 def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[AsyncEngine]:
@@ -256,8 +263,7 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
         pool_pre_ping=False,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_read_pragma)
-    event.listen(engine.sync_engine, "connect", _disable_implicit_transactions)
-    event.listen(engine.sync_engine, "begin", _begin_read_transaction)
+    configure_sqlite_transactions(engine)
     return engine
 
 
@@ -328,6 +334,7 @@ def aio_sqlite_engine(
         pool_timeout=None,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    configure_sqlite_transactions(engine)
     if not migrate:
         return engine
     if database.startswith(":memory:"):
