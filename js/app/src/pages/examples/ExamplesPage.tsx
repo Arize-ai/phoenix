@@ -4,6 +4,7 @@ import invariant from "tiny-invariant";
 import { useStore } from "zustand";
 
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
+import { ExamplesTableProvider } from "@phoenix/contexts/ExamplesTableContext";
 import {
   useOwnedPreloadedQuery,
   useUnsavedChangesBlocker,
@@ -44,7 +45,9 @@ export function ExamplesPage() {
   return (
     <ExamplesFilterProvider>
       <ExamplesFilterBar editStore={editStore} />
-      <ExamplesTable dataset={data.dataset} editStore={editStore} />
+      <ExamplesTableProvider>
+        <ExamplesTable dataset={data.dataset} editStore={editStore} />
+      </ExamplesTableProvider>
       <ConfirmNavigationDialog
         blocker={blocker}
         message={`Leaving this page will discard ${describeUnsavedExampleChanges(

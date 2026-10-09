@@ -58,6 +58,7 @@ import {
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useExperimentCompareGridTableContext } from "@phoenix/contexts/ExperimentCompareTableContext";
 import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -148,6 +149,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const deltasViewSetting = useExperimentCompareDeltasViewSetting(datasetId);
   const areDeltasVisible = deltasViewSetting.isEnabled;
   const [filterCondition, setFilterCondition] = useState("");
+  const columnSizing = useExperimentCompareGridTableContext(
+    (state) => state.columnSizing
+  );
+  const setColumnSizing = useExperimentCompareGridTableContext(
+    (state) => state.setColumnSizing
+  );
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [, setSearchParams] = useSearchParams();
@@ -573,6 +580,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     // on when a refetch re-orders the list.
     getRowId: (row) => row.id,
     columnResizeMode: "onChange",
+    state: {
+      columnSizing,
+    },
+    onColumnSizingChange: setColumnSizing,
   });
 
   /**

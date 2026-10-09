@@ -23,6 +23,7 @@ export const DRAWER_SIZE_STORAGE_KEY_PREFIX = "arize-phoenix-drawer-";
 // Tables and views
 export const PROMPTS_TABLE_STORAGE_KEY = "arize-phoenix-prompts-table";
 export const DATASETS_TABLE_STORAGE_KEY = "arize-phoenix-datasets-table";
+export const EXAMPLES_TABLE_STORAGE_KEY = "arize-phoenix-examples-table";
 export const PROJECT_STORAGE_KEY_PREFIX = "arize-phoenix-project-";
 export const TRACING_TABLE_STORAGE_KEY_PREFIX = "arize-phoenix-tracing-";
 export const DATASET_STORAGE_KEY_PREFIX = "arize-phoenix-dataset-";
@@ -35,6 +36,10 @@ export const EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX =
   "phoenix-experiments-column-";
 export const EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY =
   "arize-phoenix-experiment-compare-charts";
+export const EXPERIMENT_COMPARE_LIST_TABLE_STORAGE_KEY =
+  "arize-phoenix-experiment-compare-list-table";
+export const EXPERIMENT_COMPARE_GRID_TABLE_STORAGE_KEY =
+  "arize-phoenix-experiment-compare-grid-table";
 
 // Playground
 export const PLAYGROUND_STORAGE_KEY = "arize-phoenix-playground";

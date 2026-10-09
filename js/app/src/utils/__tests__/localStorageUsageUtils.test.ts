@@ -5,6 +5,9 @@ import {
   CREDENTIALS_STORAGE_KEY,
   DATASET_STORAGE_KEY_PREFIX,
   DRAWER_SIZE_STORAGE_KEY_PREFIX,
+  EXAMPLES_TABLE_STORAGE_KEY,
+  EXPERIMENT_COMPARE_GRID_TABLE_STORAGE_KEY,
+  EXPERIMENT_COMPARE_LIST_TABLE_STORAGE_KEY,
   EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX,
   FEATURE_FLAGS_STORAGE_KEY,
   FILTER_HISTORY_STORAGE_KEY_PREFIX,
@@ -66,6 +69,15 @@ describe("getLocalStorageStoreIdForKey", () => {
     ).toBe("tables");
     expect(
       getLocalStorageStoreIdForKey(`${DATASET_STORAGE_KEY_PREFIX}RGF0YXNldDox`)
+    ).toBe("tables");
+    expect(getLocalStorageStoreIdForKey(EXAMPLES_TABLE_STORAGE_KEY)).toBe(
+      "tables"
+    );
+    expect(
+      getLocalStorageStoreIdForKey(EXPERIMENT_COMPARE_LIST_TABLE_STORAGE_KEY)
+    ).toBe("tables");
+    expect(
+      getLocalStorageStoreIdForKey(EXPERIMENT_COMPARE_GRID_TABLE_STORAGE_KEY)
     ).toBe("tables");
     // Predates the arize-phoenix- convention but is still Phoenix's
     expect(

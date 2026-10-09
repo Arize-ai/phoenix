@@ -63,6 +63,7 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useExperimentCompareListTableContext } from "@phoenix/contexts/ExperimentCompareTableContext";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -161,6 +162,12 @@ export function ExperimentCompareListPage({
   } | null>(null);
 
   const [sorting, setSorting] = useState<SortingState>([]);
+  const columnSizing = useExperimentCompareListTableContext(
+    (state) => state.columnSizing
+  );
+  const setColumnSizing = useExperimentCompareListTableContext(
+    (state) => state.setColumnSizing
+  );
   const isFirstRender = useRef<boolean>(true);
   const { getExperimentColor, baseExperimentColor } = useExperimentColors();
 
@@ -534,7 +541,7 @@ export function ExperimentCompareListPage({
     const exampleColumn: AccessorKeyColumnDef<TableRow, TableRow["example"]> = {
       header: "example",
       accessorKey: "example",
-      size: 110,
+      size: 200,
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -1162,11 +1169,13 @@ export function ExperimentCompareListPage({
     data: tableData,
     columns,
     onSortingChange: setSorting,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     columnResizeMode: "onChange",
     state: {
       sorting,
+      columnSizing,
       columnVisibility: {
         repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
       },

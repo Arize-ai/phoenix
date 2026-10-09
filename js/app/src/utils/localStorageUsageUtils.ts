@@ -8,7 +8,10 @@ import {
   DATASETS_TABLE_STORAGE_KEY,
   DISMISSED_UPDATE_VERSION_STORAGE_KEY,
   DRAWER_SIZE_STORAGE_KEY_PREFIX,
+  EXAMPLES_TABLE_STORAGE_KEY,
   EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY,
+  EXPERIMENT_COMPARE_GRID_TABLE_STORAGE_KEY,
+  EXPERIMENT_COMPARE_LIST_TABLE_STORAGE_KEY,
   EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX,
   FEATURE_FLAGS_STORAGE_KEY,
   FILTER_HISTORY_STORAGE_KEY_PREFIX,
@@ -110,11 +113,14 @@ export const LOCAL_STORAGE_STORES: readonly LocalStorageStoreDefinition[] = [
     id: "tables",
     label: "Tables and views",
     description:
-      "Column visibility, sorting, and chart selections for projects, traces, spans, prompts, datasets, and experiments.",
+      "Column visibility, widths, sorting, and chart selections for projects, traces, spans, prompts, datasets, and experiments.",
     resolveKeys: () => [
       PROMPTS_TABLE_STORAGE_KEY,
       DATASETS_TABLE_STORAGE_KEY,
+      EXAMPLES_TABLE_STORAGE_KEY,
       EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY,
+      EXPERIMENT_COMPARE_LIST_TABLE_STORAGE_KEY,
+      EXPERIMENT_COMPARE_GRID_TABLE_STORAGE_KEY,
     ],
     prefixes: [
       PROJECT_STORAGE_KEY_PREFIX,

@@ -27,6 +27,10 @@ import {
   ExperimentCompareViewModeToggle,
   isExperimentCompareViewMode,
 } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
+import {
+  ExperimentCompareGridTableProvider,
+  ExperimentCompareListTableProvider,
+} from "@phoenix/contexts/ExperimentCompareTableContext";
 import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import type { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
@@ -268,9 +272,11 @@ function ExperimentComparePageContent({
   const viewMode = searchParams.get("view") ?? "grid";
   if (viewMode === "grid") {
     return compareGridQueryReference ? (
-      <Suspense fallback={<Loading />}>
-        <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
-      </Suspense>
+      <ExperimentCompareGridTableProvider>
+        <Suspense fallback={<Loading />}>
+          <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
+        </Suspense>
+      </ExperimentCompareGridTableProvider>
     ) : (
       <Loading />
     );
@@ -284,9 +290,11 @@ function ExperimentComparePageContent({
     );
   } else if (viewMode === "list") {
     return compareListQueryReference ? (
-      <Suspense fallback={<Loading />}>
-        <ExperimentCompareListPage queryRef={compareListQueryReference} />
-      </Suspense>
+      <ExperimentCompareListTableProvider>
+        <Suspense fallback={<Loading />}>
+          <ExperimentCompareListPage queryRef={compareListQueryReference} />
+        </Suspense>
+      </ExperimentCompareListTableProvider>
     ) : (
       <Loading />
     );

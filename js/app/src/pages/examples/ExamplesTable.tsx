@@ -56,6 +56,7 @@ import {
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { useExamplesTableContext } from "@phoenix/contexts/ExamplesTableContext";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
 import {
@@ -316,7 +317,10 @@ export function ExamplesTable({
     },
     []
   );
-  const [columnSizing, setColumnSizing] = useState({});
+  const columnSizing = useExamplesTableContext((state) => state.columnSizing);
+  const setColumnSizing = useExamplesTableContext(
+    (state) => state.setColumnSizing
+  );
   const mode = useStore(editStore, (state) => state.mode);
   const addedRows = useStore(editStore, (state) => state.addedRows);
   const deletedRowIds = useStore(editStore, (state) => state.deletedRowIds);
@@ -524,7 +528,7 @@ export function ExamplesTable({
       {
         header: "id",
         accessorKey: "id",
-        maxSize: 180,
+        maxSize: 400,
         size: 120,
         minSize: 60,
         cell: ({ row }) => {
