@@ -1,10 +1,24 @@
 import { css, keyframes } from "@emotion/react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useInterval } from "@phoenix/hooks/useInterval";
+
 import type { ProjectOnboardingOverlay_project$key } from "./__generated__/ProjectOnboardingOverlay_project.graphql";
-import { useRefetchOnStreamAdvance } from "./AnnotationSummary";
 import { ProjectOnboarding } from "./ProjectOnboarding";
+
+/**
+ * How often the guide asks whether the project has traces yet. Independent of
+ * live streaming: a user who paused streaming still needs the guide to leave.
+ */
+const POLL_INTERVAL_MS = 2000;
 
 /** Matches the exit keyframes below so the overlay unmounts as they finish. */
 const EXIT_ANIMATION_DURATION_MS = 400;
@@ -35,8 +49,9 @@ const contentCSS = css`
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  outline: none;
   /* Own stacking context, so z-indexed chart overlays and selection
-     indicators inside the tabs cannot paint above the guide. */
+     indicators inside the panel cannot paint above the guide. */
   isolation: isolate;
 `;
 
@@ -62,24 +77,20 @@ const overlayCSS = css`
 /**
  * Blocks a tab panel with the onboarding guide until the project has traces,
  * then animates away. Renders `children` (the panel content) underneath the
- * whole time, so the table is already mounted and listening to the stream
- * when the first traces land and fills itself in on the same tick.
+ * whole time, so the table is already mounted when the first traces land.
  *
  * Mounted inside a tab panel rather than around the tabs: React Aria builds
  * the tab collection from everything under `Tabs` except panel content, so
  * the guide's own language tabs would otherwise join the project tab strip.
  * The strip stays usable, and tabs that do not wrap their panel (Config,
- * Metrics) show their content: Config is useful before the first trace, and
- * neither runs the stream poll that would dismiss the guide. Traces that land
- * while the user is on one of those tabs are not in the store yet, so the
- * guide shows again briefly on return until the poll resumes and the first
- * advance dismisses it.
+ * Metrics) show their content, since Config is useful before the first trace.
  *
- * Whether to show is decided once, on mount: a project that already has traces
- * never renders the overlay, and one whose traces arrive while it is open exits
- * instead of vanishing. The overlay owns the only query that drives it, a
- * refetch of `hasTraces` on each stream advance, so nothing above it needs to
- * reload or re-key.
+ * Whether to show is decided once, on mount, from `hasTraces` in the store.
+ * The project route loader fetches that field on every visit, so the store is
+ * fresh here and a project that already has traces never renders the guide.
+ * While shown, the guide polls `hasTraces` itself, so it leaves even when live
+ * streaming is paused, and it advances the stream fetch key as it goes so the
+ * tables underneath refetch on the same beat.
  */
 export function ProjectOnboardingOverlay({
   project,
@@ -103,26 +114,58 @@ export function ProjectOnboardingOverlay({
   const isShowing = wasEmptyOnMount && !isDismissed;
   const isExiting = isShowing && data.hasTraces;
 
-  useRefetchOnStreamAdvance(() => {
-    if (isShowing && !data.hasTraces) {
-      refetch({}, { fetchPolicy: "store-and-network" });
-    }
-  });
+  useInterval(
+    () => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "network-only" });
+      });
+    },
+    isShowing && !data.hasTraces ? POLL_INTERVAL_MS : null
+  );
 
-  // Take focus so keyboard users land in the guide, not on inert tabs.
+  // The tables refetch when the stream fetch key changes. Streaming advances it
+  // on its own when it is on; when it is paused, the guide's own poll is the
+  // only thing that knows the first traces have landed.
+  const { isStreaming, setFetchKey } = useStreamState();
+  useEffect(() => {
+    if (isExiting && !isStreaming) {
+      setFetchKey(`onboarding-traces-${Date.now()}`);
+    }
+  }, [isExiting, isStreaming, setFetchKey]);
+
+  // Take focus only when nothing has it. The overlay remounts on every tab
+  // switch of an empty project, and stealing focus from the tab strip would
+  // break arrow-key navigation between tabs.
   const overlayRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (isShowing) {
+    if (
+      isShowing &&
+      (document.activeElement === null ||
+        document.activeElement === document.body)
+    ) {
       overlayRef.current?.focus();
     }
   }, [isShowing]);
 
+  // When the guide unmounts with focus inside it, hand focus to the panel it
+  // was covering rather than letting it fall to the document body.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const focusContentOnDismissRef = useRef(false);
+  useEffect(() => {
+    if (isDismissed && focusContentOnDismissRef.current) {
+      focusContentOnDismissRef.current = false;
+      contentRef.current?.focus();
+    }
+  }, [isDismissed]);
+
   return (
     <div css={rootCSS} className="project-onboarding-overlay">
       <div
+        ref={contentRef}
         css={contentCSS}
         className="project-onboarding-overlay__content"
         inert={isShowing || undefined}
+        tabIndex={-1}
       >
         {children}
       </div>
@@ -139,6 +182,9 @@ export function ProjectOnboardingOverlay({
           className="project-onboarding-overlay__guide"
           onAnimationEnd={(event) => {
             if (isExiting && event.target === event.currentTarget) {
+              focusContentOnDismissRef.current = event.currentTarget.contains(
+                document.activeElement
+              );
               setIsDismissed(true);
             }
           }}

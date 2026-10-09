@@ -38,6 +38,7 @@ import {
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
+import type { ProjectOnboardingOverlay_project$key } from "./__generated__/ProjectOnboardingOverlay_project.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
@@ -196,6 +197,26 @@ function settledConditionFromUrl(param: string): string | null {
   return condition === "" ? "" : null;
 }
 
+/**
+ * A streaming tab's panel: its route content under the onboarding guide. See
+ * `ProjectOnboardingOverlay` for why the guide lives inside the panel.
+ */
+function StreamingTabPanel({
+  id,
+  project,
+}: {
+  id: "spans" | "traces" | "sessions";
+  project: ProjectOnboardingOverlay_project$key;
+}) {
+  return (
+    <LazyTabPanel padded={false} id={id}>
+      <ProjectOnboardingOverlay project={project}>
+        <Outlet />
+      </ProjectOnboardingOverlay>
+    </LazyTabPanel>
+  );
+}
+
 export function LegacyTraceFilterParamNotice({
   isActive,
 }: {
@@ -252,9 +273,9 @@ function ProjectPageContentBody({
       fetchKey: `${projectId}-${timeRangeISOStrings.start}-${timeRangeISOStrings.end}`,
     }
   );
-  const [tracesQueryReference, loadTracesQuery, disposeTracesQuery] =
+  const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
-  const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
+  const [spansQueryReference, loadSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
   // Classified during the first render, not in the effect that follows it.
   // A condition needing no server answer must never leave the page in the
@@ -267,7 +288,7 @@ function ProjectPageContentBody({
   const [tracesFilterSeed, setTracesFilterSeed] = useState<string | null>(() =>
     settledConditionFromUrl(TRACE_FILTER_CONDITION_PARAM)
   );
-  const [sessionsQueryReference, loadSessionsQuery, disposeSessionsQuery] =
+  const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
@@ -295,6 +316,53 @@ function ProjectPageContentBody({
   useEffect(() => {
     timeRangeRef.current = timeRangeISOStrings;
   }, [timeRangeISOStrings]);
+  const spansQueryVariables = (
+    id: string,
+    seed: SettledSpanFilterSeed
+  ): ProjectPageSpansQueryType["variables"] => ({
+    id,
+    timeRange: timeRangeRef.current,
+    filterCondition: seed.condition || null,
+    rootSpansOnly: seed.rootSpansOnly,
+  });
+  const tracesQueryVariables = (
+    id: string,
+    condition: string
+  ): ProjectPageTracesQueryType["variables"] => ({
+    id,
+    timeRange: timeRangeRef.current,
+    traceFilterCondition: condition || null,
+  });
+  const sessionsQueryVariables = (
+    id: string,
+    condition: string
+  ): ProjectPageSessionsQueryType["variables"] => ({
+    id,
+    timeRange: timeRangeRef.current,
+    sessionFilterCondition: condition || null,
+  });
+
+  // A preload answers for the data that existed when it was loaded. The active
+  // tab's table refetches itself when the stream advances; an inactive tab's
+  // preload cannot, so it is marked stale and refreshed in the background on
+  // return. The retained rows render at once and the fresh ones replace them,
+  // with no loading fallback and no re-validation of the filter.
+  const stalePreloadsRef = useRef({
+    spans: false,
+    traces: false,
+    sessions: false,
+  });
+  const { fetchKey } = useStreamState();
+  const markInactivePreloadsStale = useEffectEvent(() => {
+    stalePreloadsRef.current = {
+      spans: tabIndex !== TAB_INDEX_MAP.spans,
+      traces: tabIndex !== TAB_INDEX_MAP.traces,
+      sessions: tabIndex !== TAB_INDEX_MAP.sessions,
+    };
+  });
+  useEffect(() => {
+    markInactivePreloadsStale();
+  }, [fetchKey]);
 
   /**
    * Load the spans table from a condition whose validity and root scope are
@@ -327,20 +395,8 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        // Always from the network. A preload dropped when the stream advanced
-        // (see `disposeInactivePreloads`) is reloaded with the same variables,
-        // and the store would answer with the rows it was dropped for. Free on
-        // every other path: an unchanged seed is never re-resolved, and a new
-        // condition misses the store anyway.
-        loadSpansQuery(
-          {
-            id: projectId,
-            timeRange: timeRangeRef.current,
-            filterCondition: seed.condition || null,
-            rootSpansOnly: seed.rootSpansOnly,
-          },
-          { fetchPolicy: "network-only" }
-        );
+        stalePreloadsRef.current.spans = false;
+        loadSpansQuery(spansQueryVariables(projectId, seed));
       });
     },
     [projectId, loadSpansQuery]
@@ -368,15 +424,8 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        // See `resolveSpansSeed` for why this bypasses the store.
-        loadTracesQuery(
-          {
-            id: projectId,
-            timeRange: timeRangeRef.current,
-            traceFilterCondition: condition || null,
-          },
-          { fetchPolicy: "network-only" }
-        );
+        stalePreloadsRef.current.traces = false;
+        loadTracesQuery(tracesQueryVariables(projectId, condition));
       });
     },
     [projectId, loadTracesQuery]
@@ -404,15 +453,8 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        // See `resolveSpansSeed` for why this bypasses the store.
-        loadSessionsQuery(
-          {
-            id: projectId,
-            timeRange: timeRangeRef.current,
-            sessionFilterCondition: condition || null,
-          },
-          { fetchPolicy: "network-only" }
-        );
+        stalePreloadsRef.current.sessions = false;
+        loadSessionsQuery(sessionsQueryVariables(projectId, condition));
       });
     },
     [projectId, loadSessionsQuery]
@@ -439,8 +481,18 @@ function ProjectPageContentBody({
         // rebuild it for the same result.
         if (
           spansQueryReference &&
-          spansFilterSeed?.condition === seed.condition
+          spansFilterSeed &&
+          spansFilterSeed.condition === seed.condition
         ) {
+          if (stalePreloadsRef.current.spans) {
+            stalePreloadsRef.current.spans = false;
+            loadSpansQuery(
+              spansQueryVariables(currentProjectId, spansFilterSeed),
+              {
+                fetchPolicy: "store-and-network",
+              }
+            );
+          }
           return;
         }
         if (seed.requiresServerValidation) {
@@ -458,6 +510,12 @@ function ProjectPageContentBody({
           TRACE_FILTER_CONDITION_PARAM
         );
         if (tracesQueryReference && tracesFilterSeed === condition) {
+          if (stalePreloadsRef.current.traces) {
+            stalePreloadsRef.current.traces = false;
+            loadTracesQuery(tracesQueryVariables(currentProjectId, condition), {
+              fetchPolicy: "store-and-network",
+            });
+          }
           return;
         }
         if (condition === "") {
@@ -471,6 +529,13 @@ function ProjectPageContentBody({
           SESSION_FILTER_CONDITION_PARAM
         );
         if (sessionsQueryReference && sessionsFilterSeed === condition) {
+          if (stalePreloadsRef.current.sessions) {
+            stalePreloadsRef.current.sessions = false;
+            loadSessionsQuery(
+              sessionsQueryVariables(currentProjectId, condition),
+              { fetchPolicy: "store-and-network" }
+            );
+          }
           return;
         }
         if (condition === "") {
@@ -490,26 +555,6 @@ function ProjectPageContentBody({
       loadTableQueryForTab(tabIndex, projectId as string);
     });
   }, [tabIndex, projectId]);
-
-  // A preload answers for the data that existed when it was loaded. The active
-  // tab's table refetches itself when the stream advances, but an inactive
-  // tab's preload cannot, and reusing it on return would show rows as of the
-  // last visit until the next advance. Dropping it makes the return load fresh.
-  const { fetchKey } = useStreamState();
-  const disposeInactivePreloads = useEffectEvent(() => {
-    if (tabIndex !== TAB_INDEX_MAP.spans) {
-      disposeSpansQuery();
-    }
-    if (tabIndex !== TAB_INDEX_MAP.traces) {
-      disposeTracesQuery();
-    }
-    if (tabIndex !== TAB_INDEX_MAP.sessions) {
-      disposeSessionsQuery();
-    }
-  });
-  useEffect(() => {
-    disposeInactivePreloads();
-  }, [fetchKey]);
 
   const onTabChange = useCallback(
     (index: number) => {
@@ -563,23 +608,9 @@ function ProjectPageContentBody({
             <Tab id="metrics">Metrics</Tab>
             <Tab id="config">Config</Tab>
           </TabList>
-          {/* The onboarding guide wraps the streaming tabs' panels only. See
-              `ProjectOnboardingOverlay` for why it lives inside the panels. */}
-          <LazyTabPanel padded={false} id="spans">
-            <ProjectOnboardingOverlay project={data.project}>
-              <Outlet />
-            </ProjectOnboardingOverlay>
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="traces">
-            <ProjectOnboardingOverlay project={data.project}>
-              <Outlet />
-            </ProjectOnboardingOverlay>
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="sessions">
-            <ProjectOnboardingOverlay project={data.project}>
-              <Outlet />
-            </ProjectOnboardingOverlay>
-          </LazyTabPanel>
+          <StreamingTabPanel id="spans" project={data.project} />
+          <StreamingTabPanel id="traces" project={data.project} />
+          <StreamingTabPanel id="sessions" project={data.project} />
           <LazyTabPanel padded={false} id="metrics">
             <Outlet />
           </LazyTabPanel>
