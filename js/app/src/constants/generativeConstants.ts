@@ -19,6 +19,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   TOGETHER: "Together",
   ZAI: "Z.ai",
   META: "Meta",
+  TYPESAFE: "TypeSafe AI",
 };
 
 /**
@@ -76,6 +77,7 @@ export const ProviderToCredentialsConfigMap: Record<
   TOGETHER: [{ envVarName: "TOGETHER_API_KEY", isRequired: true }],
   ZAI: [{ envVarName: "ZAI_API_KEY", isRequired: true }],
   META: [{ envVarName: "META_API_KEY", isRequired: true }],
+  TYPESAFE: [{ envVarName: "TYPESAFE_API_KEY", isRequired: true }],
   AWS: [
     { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
     { envVarName: "AWS_SECRET_ACCESS_KEY", isRequired: true },
@@ -158,6 +160,8 @@ export const STRING_TO_PROVIDER_MAP: Readonly<Record<string, ModelProvider>> = {
   together: "TOGETHER",
   zai: "ZAI",
   meta: "META",
+  typesafe: "TYPESAFE",
+  typesafeai: "TYPESAFE",
 } as const;
 
 /**

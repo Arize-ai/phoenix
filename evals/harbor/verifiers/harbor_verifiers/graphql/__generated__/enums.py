@@ -38,6 +38,7 @@ class GenerativeProviderKey(str, Enum):
     TOGETHER = "TOGETHER"
     ZAI = "ZAI"
     META = "META"
+    TYPESAFE = "TYPESAFE"
 
 
 class GoogleThinkingLevel(str, Enum):

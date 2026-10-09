@@ -203,6 +203,7 @@ function convertAttributeToolCall({
         input: argumentsValue,
       } satisfies AnthropicToolCall;
     case "GOOGLE":
+    case "TYPESAFE":
       return {
         id: toolCall.id ?? "",
         function: {
@@ -1462,6 +1463,7 @@ export const createToolCallForProvider = (
       return createAnthropicToolCall();
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
+    case "TYPESAFE":
       return createOpenAIToolCall();
     default:
       return assertUnreachable(provider);

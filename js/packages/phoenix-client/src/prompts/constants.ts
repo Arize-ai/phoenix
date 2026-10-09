@@ -20,4 +20,5 @@ export const PromptModelProviders: Record<PromptModelProvider, string> = {
   PERPLEXITY: "Perplexity",
   ZAI: "Z.ai",
   META: "Meta",
+  TYPESAFE: "TypeSafe AI",
 };

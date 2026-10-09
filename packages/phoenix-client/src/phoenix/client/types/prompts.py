@@ -79,6 +79,7 @@ class PromptVersion:
             "TOGETHER",
             "ZAI",
             "META",
+            "TYPESAFE",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -120,6 +121,7 @@ class PromptVersion:
             "TOGETHER",
             "ZAI",
             "META",
+            "TYPESAFE",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -228,6 +230,13 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptMetaInvocationParameters(
                 type="meta",
                 meta=v1.PromptMetaInvocationParametersContent(),
+            )
+        elif model_provider == "TYPESAFE":
+            # TypeSafe AI has no invocation parameters of its own; the server
+            # validates its prompt versions against the openai family.
+            self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=v1.PromptOpenAIInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -575,6 +584,7 @@ def _to_sdk(
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -610,5 +620,7 @@ def _to_sdk(
     if model_provider == "ZAI":
         return "openai"
     if model_provider == "META":
+        return "openai"
+    if model_provider == "TYPESAFE":
         return "openai"
     assert_never(model_provider)

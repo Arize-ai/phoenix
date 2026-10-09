@@ -246,6 +246,7 @@ type ProviderToToolCallMap = {
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
   GOOGLE: JSONLiteral;
+  TYPESAFE: JSONLiteral;
 };
 
 /**
@@ -308,6 +309,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
         toolCall
       ) as ProviderToToolCallMap[T];
     case "GOOGLE":
+    case "TYPESAFE":
       return toolCall as ProviderToToolCallMap[T];
     default:
       return assertUnreachable(targetProvider);
