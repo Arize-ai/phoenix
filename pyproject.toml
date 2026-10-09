@@ -449,6 +449,9 @@ target-version = "py311"
 # makes them unreadable, so let those lines run long.
 "src/phoenix/server/agents/capabilities/tools/**/*.py" = ["E501"]
 "examples/**/*.py" = ["E501"]
+# The quickstarts are split into docs:start/docs:end regions that the docs embed as
+# separate steps, so each region keeps its own imports.
+"examples/quickstarts/**/*.py" = ["E402"]
 "evals/**/*.py" = ["E501"]
 "tests/**/*.py" = ["E501"]
 

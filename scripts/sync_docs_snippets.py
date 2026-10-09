@@ -66,7 +66,9 @@ def regions(path: str) -> dict[str | None, list[str]]:
 def load_region(path: str, region: str | None) -> list[str]:
     body = regions(path).get(region)
     if body is None:
-        raise SnippetError(f"{path}: region '{region}' needs matching docs:start and docs:end lines")
+        raise SnippetError(
+            f"{path}: region '{region}' needs matching docs:start and docs:end lines"
+        )
     return textwrap.dedent("\n".join(body)).strip("\n").splitlines()
 
 
@@ -119,7 +121,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--check", action="store_true", help="report drift instead of rewriting the docs")
+    parser.add_argument(
+        "--check", action="store_true", help="report drift instead of rewriting the docs"
+    )
     args = parser.parse_args()
 
     total = 0
@@ -132,7 +136,10 @@ def main() -> int:
     if problems:
         print("\n".join(problems), file=sys.stderr)
         if args.check:
-            print(f"\n{len(problems)} snippet block(s) out of sync. Run `make sync-docs-snippets`.", file=sys.stderr)
+            print(
+                f"\n{len(problems)} snippet block(s) out of sync. Run `make sync-docs-snippets`.",
+                file=sys.stderr,
+            )
         return 1
     print(f"{'checked' if args.check else 'synced'} {total} snippet block(s)")
     return 0
