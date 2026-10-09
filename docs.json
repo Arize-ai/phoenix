@@ -76,8 +76,7 @@
                   "docs/phoenix/pxi",
                   "docs/phoenix/pxi-advanced"
                 ]
-              },
-              "docs/phoenix/phoenix-demo"
+              }
             ]
           },
           {
@@ -1681,6 +1680,10 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/phoenix-demo",
+      "destination": "/docs/phoenix/get-started"
+    },
     {
       "source": "/docs/phoenix/cookbook/evaluation/cookbooks",
       "destination": "/docs/phoenix/cookbook"
