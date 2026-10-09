@@ -1099,14 +1099,7 @@ async def patch_dataset_evaluator(
                 llm = await session.get(models.LLMEvaluator, row.evaluator_id, with_for_update=True)
                 if llm is not None:
                     await session.refresh(row)
-                    prompt = await session.scalar(
-                        select(models.PromptVersion)
-                        .join(
-                            models.PromptVersionTag,
-                            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
-                        )
-                        .where(models.PromptVersionTag.id == llm.prompt_version_tag_id)
-                    )
+                    prompt = await resolve_evaluator_prompt_version(session, llm)
                     if prompt is None:
                         raise NotFound("The evaluator's pinned prompt version was not found")
                     output_configs = values.get("output_configs", row.output_configs)

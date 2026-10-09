@@ -4,6 +4,7 @@ from secrets import token_hex
 from typing import Any
 
 import httpx
+import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -190,6 +191,66 @@ async def test_llm_binding_defaults_to_inherited_settings(
             )
             == db_binding.id
         )
+
+
+@pytest.mark.parametrize("tagged", [True, False])
+async def test_patch_llm_binding_overrides_with_tagged_and_untagged_prompt(
+    tagged: bool,
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    if not tagged:
+        async with db() as session:
+            evaluator = await session.get(models.LLMEvaluator, correctness_llm_evaluator.id)
+            assert evaluator is not None
+            evaluator.prompt_version_tag_id = None
+
+    async with db() as session:
+        dataset = models.Dataset(name=f"llm-patch-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        dataset_id = dataset.id
+    route = f"v1/datasets/{GlobalID('Dataset', str(dataset_id))}/evaluators"
+    created = await httpx_client.post(
+        route,
+        json={
+            "name": f"llm-binding-{token_hex(4)}",
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+        },
+    )
+    assert created.status_code == 201, created.text
+    binding_id = created.json()["data"]["id"]
+    binding_route = f"v1/dataset_evaluators/{binding_id}"
+    output_configs = [
+        config.model_dump(mode="json") for config in correctness_llm_evaluator.output_configs
+    ]
+
+    updated = await httpx_client.patch(
+        binding_route,
+        json={
+            "description": "evaluates the correctness of the output",
+            "output_configs": output_configs,
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["data"]["description"] == "evaluates the correctness of the output"
+    assert updated.json()["data"]["output_configs"] is not None
+
+    inherited = await httpx_client.patch(
+        binding_route, json={"description": None, "output_configs": None}
+    )
+    assert inherited.status_code == 200, inherited.text
+    assert inherited.json()["data"]["description"] is None
+    assert inherited.json()["data"]["output_configs"] is None
+    async with db() as session:
+        binding = await session.get(
+            models.DatasetEvaluators, int(GlobalID.from_id(binding_id).node_id)
+        )
+        assert binding is not None
+        assert binding.description is None
+        assert binding.output_configs is None
 
 
 async def test_patch_rename_to_taken_name_is_already_exists(
