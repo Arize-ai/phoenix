@@ -12,7 +12,8 @@ from phoenix.db.helpers import llm_evaluators_pinned_by_prompt_version_tag
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
-    incompatible_dataset_override_ids,
+    format_incompatible_dataset_overrides,
+    incompatible_dataset_overrides,
     validate_consistent_llm_evaluator_and_prompt_version,
 )
 
@@ -64,14 +65,12 @@ async def validate_prompt_version_tag_move(
                 f"'{evaluator.name.root}' ({evaluator_id}), which cannot run the target "
                 f"version: {error}"
             ) from error
-        if incompatible := await incompatible_dataset_override_ids(
-            session, evaluator, prompt_version
-        ):
+        if incompatible := await incompatible_dataset_overrides(session, evaluator, prompt_version):
             raise Conflict(
                 f"Tag '{tag.name.root}' records the prompt version of evaluator "
                 f"'{evaluator.name.root}' ({evaluator_id}); dataset evaluator bindings "
                 f"override outputs that the target version does not support: "
-                f"{', '.join(incompatible)}"
+                f"{format_incompatible_dataset_overrides(incompatible)}"
             )
         evaluator.updated_at = now
 

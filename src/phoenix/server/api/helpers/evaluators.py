@@ -1,6 +1,6 @@
 """Validate evaluator output configurations and their prompt contracts."""
 
-from typing import Literal, Optional, Sequence
+from typing import Literal, NamedTuple, Optional, Sequence
 
 from pydantic import (
     BaseModel,
@@ -169,19 +169,40 @@ def validate_consistent_llm_evaluator_and_prompt_version(
     )
 
 
-async def incompatible_dataset_override_ids(
+class IncompatibleDatasetOverride(NamedTuple):
+    """Dataset override that cannot be served by an evaluator prompt version."""
+
+    dataset_evaluator_id: str
+    binding_name: str
+    dataset_name: str
+
+
+def format_incompatible_dataset_overrides(
+    overrides: Sequence[IncompatibleDatasetOverride],
+) -> str:
+    """Format incompatible overrides with binding and dataset names for conflict errors."""
+    return ", ".join(
+        f"binding '{override.binding_name}' on dataset '{override.dataset_name}' "
+        f"({override.dataset_evaluator_id})"
+        for override in overrides
+    )
+
+
+async def incompatible_dataset_overrides(
     session: AsyncSession,
     llm_evaluator: models.LLMEvaluator,
     prompt_version: models.PromptVersion,
-) -> list[str]:
-    """Return the dataset bindings whose output or description overrides this version cannot serve.
+) -> list[IncompatibleDatasetOverride]:
+    """Return dataset binding overrides this version cannot serve.
 
     Bindings without overrides follow the evaluator's own outputs and need no separate check.
-    Ids are returned as DatasetEvaluator global ids, ready for an error message.
+    Each result includes the GlobalID and display names used in compatibility errors.
     """
     bindings = (
-        await session.scalars(
-            select(models.DatasetEvaluators).where(
+        await session.execute(
+            select(models.DatasetEvaluators, models.Dataset.name)
+            .join(models.Dataset, models.Dataset.id == models.DatasetEvaluators.dataset_id)
+            .where(
                 models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
                 or_(
                     models.DatasetEvaluators.output_configs.is_not(None),
@@ -190,8 +211,8 @@ async def incompatible_dataset_override_ids(
             )
         )
     ).all()
-    incompatible: list[str] = []
-    for binding in bindings:
+    incompatible: list[IncompatibleDatasetOverride] = []
+    for binding, dataset_name in bindings:
         configs = (
             as_output_configs(binding.output_configs)
             if binding.output_configs is not None
@@ -211,7 +232,13 @@ async def incompatible_dataset_override_ids(
                 ),
             )
         except (ValueError, ValidationError):
-            incompatible.append(str(GlobalID("DatasetEvaluator", str(binding.id))))
+            incompatible.append(
+                IncompatibleDatasetOverride(
+                    dataset_evaluator_id=str(GlobalID("DatasetEvaluator", str(binding.id))),
+                    binding_name=binding.name.root,
+                    dataset_name=dataset_name,
+                )
+            )
     return incompatible
 
 

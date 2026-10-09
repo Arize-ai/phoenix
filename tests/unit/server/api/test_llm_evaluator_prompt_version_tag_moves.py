@@ -5,7 +5,17 @@ import asyncio
 from copy import deepcopy
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, AsyncIterator, Awaitable, Callable, Coroutine, Optional, Sequence, TypeVar
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Coroutine,
+    NamedTuple,
+    Optional,
+    Sequence,
+    TypeVar,
+)
 from urllib.parse import quote_plus
 
 import httpx
@@ -127,6 +137,12 @@ class _Fixture:
         self.updated_at = evaluator.updated_at
 
 
+class _DatasetOverride(NamedTuple):
+    global_id: str
+    binding_name: str
+    dataset_name: str
+
+
 @pytest.fixture
 async def pinned(db: DbSessionFactory) -> AsyncIterator[_Fixture]:
     """An evaluator whose tag pins the first of three versions.
@@ -170,19 +186,29 @@ async def pinned(db: DbSessionFactory) -> AsyncIterator[_Fixture]:
 
 
 @pytest.fixture
-async def dataset_override(db: DbSessionFactory, pinned: _Fixture) -> AsyncIterator[str]:
+async def dataset_override(
+    db: DbSessionFactory, pinned: _Fixture
+) -> AsyncIterator[_DatasetOverride]:
     """A dataset binding whose output override adds a label the evaluator's versions lack."""
+    dataset_name = f"tag-move-dataset-{token_hex(4)}"
+    binding_name = "shared-override"
     binding = models.DatasetEvaluators(
-        dataset=models.Dataset(name=f"tag-move-dataset-{token_hex(4)}", metadata_={}),
+        dataset=models.Dataset(name=dataset_name, metadata_={}),
         evaluator_id=pinned.evaluator.id,
-        name=pinned.evaluator.name,
+        name=Identifier.model_validate(binding_name),
         input_mapping=InputMapping(literal_mapping={}, path_mapping={"output": "$.output"}),
         output_configs=[_output_config(("correct", "incorrect", "unsure"))],
         project=models.Project(name=f"tag-move-project-{token_hex(4)}"),
     )
     async with db() as session:
         session.add(binding)
-    yield str(GlobalID("DatasetEvaluator", str(binding.id)))
+        await session.flush()
+        dataset_override = _DatasetOverride(
+            global_id=str(GlobalID("DatasetEvaluator", str(binding.id))),
+            binding_name=binding_name,
+            dataset_name=dataset_name,
+        )
+    yield dataset_override
     async with db() as session:
         await session.execute(
             sa.delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id == binding.id)
@@ -303,14 +329,16 @@ class TestRestRoutes:
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
         pinned: _Fixture,
-        dataset_override: str,
+        dataset_override: _DatasetOverride,
     ) -> None:
         response = await httpx_client.post(
             f"v1/prompt_versions/{_path(pinned.compatible_version)}/tags",
             json={"name": pinned.tag_name},
         )
         assert response.status_code == 409, response.text
-        assert dataset_override in response.text
+        assert dataset_override.global_id in response.text
+        assert dataset_override.binding_name in response.text
+        assert dataset_override.dataset_name in response.text
         assert pinned.evaluator_name in response.text
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.pinned_version.id
 
@@ -727,13 +755,19 @@ async def _undescribed_evaluator(
 
 
 async def _add_compatible_dataset_override(
-    db: DbSessionFactory, evaluator_id: int, *, description: str, labels: Sequence[str]
+    db: DbSessionFactory,
+    evaluator_id: int,
+    *,
+    description: str,
+    labels: Sequence[str],
+    dataset_name: str | None = None,
+    binding_name: str | None = None,
 ) -> int:
     """Add a binding override that is valid against the evaluator's current prompt."""
     binding = models.DatasetEvaluators(
-        dataset=models.Dataset(name=f"binding-edit-{token_hex(4)}", metadata_={}),
+        dataset=models.Dataset(name=dataset_name or f"binding-edit-{token_hex(4)}", metadata_={}),
         evaluator_id=evaluator_id,
-        name=Identifier.model_validate(f"binding-edit-{token_hex(4)}"),
+        name=Identifier.model_validate(binding_name or f"binding-edit-{token_hex(4)}"),
         description=description,
         output_configs=[_output_config(labels)],
         input_mapping=InputMapping(literal_mapping={}, path_mapping={"output": "$.output"}),
@@ -891,9 +925,19 @@ async def test_graphql_llm_binding_edit_rejects_incompatible_dataset_override_at
     evaluator_id, mutation, update_input = await _undescribed_evaluator(
         gql_client, db, binding_type
     )
-    binding_id = await _add_compatible_dataset_override(
-        db, evaluator_id, description="correctness", labels=_EVALUATOR_LABELS
-    )
+    binding_name = "shared-override"
+    dataset_names = ("first-dataset", "second-dataset")
+    binding_ids = [
+        await _add_compatible_dataset_override(
+            db,
+            evaluator_id,
+            description="correctness",
+            labels=_EVALUATOR_LABELS,
+            dataset_name=dataset_name,
+            binding_name=binding_name,
+        )
+        for dataset_name in dataset_names
+    ]
     before = await _llm_edit_state(db, evaluator_id)
 
     result = await gql_client.execute(
@@ -909,8 +953,12 @@ async def test_graphql_llm_binding_edit_rejects_incompatible_dataset_override_at
     )
 
     assert result.errors
-    assert "Dataset evaluator bindings override outputs" in result.errors[0].message
-    assert str(GlobalID("DatasetEvaluator", str(binding_id))) in result.errors[0].message
+    message = result.errors[0].message
+    assert "Dataset evaluator bindings override outputs" in message
+    for binding_id in binding_ids:
+        assert str(GlobalID("DatasetEvaluator", str(binding_id))) in message
+    for dataset_name in dataset_names:
+        assert f"binding '{binding_name}' on dataset '{dataset_name}'" in message
     assert await _llm_edit_state(db, evaluator_id) == before
 
 

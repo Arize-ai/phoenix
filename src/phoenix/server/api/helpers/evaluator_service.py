@@ -40,7 +40,8 @@ from phoenix.server.api.helpers.evaluator_prompt_source import (
 )
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
-    incompatible_dataset_override_ids,
+    format_incompatible_dataset_overrides,
+    incompatible_dataset_overrides,
     require_categorical_output_configs,
     validate_consistent_llm_evaluator_and_prompt_version,
 )
@@ -680,10 +681,10 @@ async def reject_incompatible_dataset_overrides(
     prompt_version: models.PromptVersion,
 ) -> None:
     """Every dataset binding override must stay valid against the prompt the evaluator runs."""
-    if incompatible := await incompatible_dataset_override_ids(session, evaluator, prompt_version):
+    if incompatible := await incompatible_dataset_overrides(session, evaluator, prompt_version):
         raise Conflict(
             "Dataset evaluator bindings override outputs that the updated prompt no longer "
-            f"supports: {', '.join(incompatible)}",
+            f"supports: {format_incompatible_dataset_overrides(incompatible)}",
             reason="incompatible_override",
-            dataset_evaluator_ids=incompatible,
+            dataset_evaluator_ids=[override.dataset_evaluator_id for override in incompatible],
         )

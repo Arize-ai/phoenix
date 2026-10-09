@@ -180,6 +180,11 @@ def test_builtin_binding_and_read_only_definition(
 def test_llm_binding_overrides_across_shared_bindings(
     client: httpx.Client, dataset_id: str, _app: _AppInfo
 ) -> None:
+    dataset_name = _graphql(
+        _app,
+        "query($id: ID!) { node(id: $id) { ... on Dataset { name } } }",
+        {"id": dataset_id},
+    )["node"]["name"]
     definition = _llm_definition(client)
     definition_route = f"v1/evaluators/{definition['id']}"
     binding = _create_dataset_evaluator(client, dataset_id, _binding_body(definition["id"]))
@@ -212,7 +217,10 @@ def test_llm_binding_overrides_across_shared_bindings(
     }
     response = client.patch(definition_route, json=relabel_patch)
     assert response.status_code == 409, response.text
-    assert binding["id"] in response.json()["detail"]
+    problem = response.json()
+    assert problem["reason"] == "incompatible_override"
+    assert problem["dataset_evaluator_ids"] == [binding["id"]]
+    assert f"binding '{binding['name']}' on dataset '{dataset_name}'" in problem["detail"]
     assert client.get(definition_route).json()["data"] == definition
     response = client.patch(route, json={"output_configs": None})
     assert response.status_code == 200, response.text
