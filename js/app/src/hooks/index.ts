@@ -8,6 +8,7 @@ export * from "./useDeferredVisibility";
 export * from "./useFrozenWhileHidden";
 export * from "./useDebouncedJSONSync";
 export * from "./useInterval";
+export * from "./useRefetchOnStreamAdvance";
 export * from "./useSettled";
 export * from "./useWordColor";
 export * from "./useLocalTimeFormatPattern";

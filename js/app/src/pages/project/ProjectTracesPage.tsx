@@ -13,7 +13,6 @@ import { TracingRoot } from "@phoenix/pages/TracingRoot";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import { DSLFilterErrorFallback } from "./DSLFilterErrorFallback";
 import { PendingDSLFilter } from "./PendingDSLFilter";
-import { ProjectOnboarding } from "./ProjectOnboarding";
 import {
   ProjectPageQueriesTracesQuery,
   useProjectPageQueryReferenceContext,
@@ -50,12 +49,6 @@ function TracesTabContent({
     ProjectPageQueriesTracesQuery,
     tracesQueryReference
   );
-
-  if (!data.project.hasTraces) {
-    return (
-      <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
-    );
-  }
 
   return <TracesTable project={data.project} seed={seed} />;
 }

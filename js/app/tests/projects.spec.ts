@@ -18,6 +18,42 @@ async function createProject(
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+/**
+ * Give a project its first span through the REST API. A brand-new project is
+ * covered by the onboarding guide until it has a trace, so tests that work
+ * with the tabs of a fresh project seed one first.
+ */
+async function sendSpan(page: Page, projectName: string) {
+  const now = new Date();
+  const response = await page.request.post(
+    `/v1/projects/${encodeURIComponent(projectName)}/spans`,
+    {
+      data: {
+        data: [
+          {
+            name: "seed-span",
+            context: {
+              trace_id: randomUUID().replace(/-/g, ""),
+              span_id: randomUUID().replace(/-/g, "").slice(0, 16),
+            },
+            span_kind: "CHAIN",
+            parent_id: null,
+            start_time: new Date(now.getTime() - 50).toISOString(),
+            end_time: now.toISOString(),
+            status_code: "OK",
+            attributes: { "input.value": "hello" },
+          },
+        ],
+      },
+    }
+  );
+  expect(response.ok()).toBeTruthy();
+}
+
+function onboardingGuide(page: Page) {
+  return page.getByRole("region", { name: "Set up tracing for this project" });
+}
+
 async function clickSortableHeaderAndExpect(
   header: Locator,
   direction: "ascending" | "descending"
@@ -128,13 +164,48 @@ test.describe.serial("Projects", () => {
     ).not.toBeVisible();
   });
 
+  test("blocks a new project's tabs with onboarding until its first trace arrives", async ({
+    page,
+  }) => {
+    const newProjectName = `test-onboarding-${randomUUID().slice(0, 8)}`;
+    await createProject(page, newProjectName, "Awaiting traces");
+
+    // The guide covers the tab panel and takes focus; the panel behind it is
+    // inert while the tab strip stays usable.
+    const guide = onboardingGuide(page);
+    await expect(guide).toBeVisible();
+    await expect(guide).toContainText("Waiting for traces to arrive");
+    const panels = page.locator(".project-onboarding-overlay__content");
+    await expect(panels).toHaveAttribute("inert", "");
+
+    // Config is usable before the first trace: its panel is not wrapped by
+    // the guide at all.
+    await page.getByRole("tab", { name: "Config" }).click();
+    await expect(guide).not.toBeVisible();
+    await expect(page.locator(".project-onboarding-overlay")).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Project Settings" })
+    ).toBeVisible();
+
+    // Back on a streaming tab the guide returns.
+    await page.getByRole("tab", { name: "Spans" }).click();
+    await expect(guide).toBeVisible();
+
+    // The first span dismisses the guide without a reload, and the table
+    // underneath already shows it.
+    await sendSpan(page, newProjectName);
+    await expect(guide).not.toBeVisible({ timeout: 20_000 });
+    await expect(panels).not.toHaveAttribute("inert", "");
+    await expect(page.getByText("seed-span").first()).toBeVisible();
+  });
+
   test("can edit project description and gradient from config tab", async ({
     page,
   }) => {
     const editProjectName = `test-edit-project-${randomUUID().slice(0, 8)}`;
     await createProject(page, editProjectName, "Original description");
 
-    // Navigate to the Config tab
+    // Navigate to the Config tab. It stays usable on a project with no traces.
     await page.getByRole("tab", { name: "Config" }).click();
 
     // Locate the Project Settings card
