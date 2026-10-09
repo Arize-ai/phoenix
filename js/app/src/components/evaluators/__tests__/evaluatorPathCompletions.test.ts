@@ -2,6 +2,7 @@ import { EditorState, type TransactionSpec } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
 import { parsePathSegments } from "@phoenix/utils/objectUtils";
 
 import type { EvaluatorPathCompletion } from "../evaluatorPathCompletions";
@@ -446,6 +447,41 @@ describe("getEvaluatorPathCompletions", () => {
       ["metadata.attributes", "From the span"],
     ]);
     expect(rooted?.completions[0]?.section).toBe(SUGGESTED_PATH_SECTION);
+  });
+
+  it("keeps the top-level rows an idea repeats", () => {
+    const trace = getSampleTraceEvaluationContext().context as Record<
+      string,
+      unknown
+    >;
+    const rootCandidates: EvaluatorPathCompletion[] = [
+      ...["input", "output", "metadata"].map((path) => ({
+        key: path,
+        path,
+        detail: "",
+        section: { name: "Evaluator input", rank: 1 },
+      })),
+      {
+        key: "metadata.attributes",
+        path: "metadata.attributes",
+        detail: "object · 4",
+        section: { name: "From the trace", rank: 2 },
+      },
+    ];
+
+    expect(
+      completionsFor("", trace, "trace", rootCandidates)?.completions.map(
+        ({ key, section }) => [key, section.name]
+      )
+    ).toEqual([
+      ["input", "Suggestions"],
+      ["output", "Suggestions"],
+      ["metadata.attributes", "Suggestions"],
+      ["input", "Evaluator input"],
+      ["output", "Evaluator input"],
+      ["metadata", "Evaluator input"],
+      ["metadata.attributes", "From the trace"],
+    ]);
   });
 
   // A record name is offered by its whole path, so drilling one has to read
