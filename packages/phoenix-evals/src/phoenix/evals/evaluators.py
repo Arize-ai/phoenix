@@ -973,21 +973,28 @@ def create_evaluator(
                 direction=direction,
             )
 
-        # Handle tuples by processing each element
+        # Handle tuples like (score, label, explanation). Strings are assigned by
+        # position: the first is the label and the second the explanation. Only a
+        # lone string falls back to the word-count heuristic.
         if isinstance(result, tuple):
             tuple_score_data: Dict[str, Any] = {}
-            for item in result:
-                if isinstance(item, (int, float, bool)):
-                    tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
-                    if "label" not in tuple_score_data and isinstance(item, bool):
-                        tuple_score_data["label"] = str(item)  # may get overwritten
-                elif isinstance(item, str):
-                    if item.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
-                        tuple_score_data["label"] = item
-                    else:  # longer strings = explanations
-                        tuple_score_data["explanation"] = item
-                else:
-                    raise ValueError(ERROR_MESSAGE)
+            numbers = [item for item in result if isinstance(item, (int, float, bool))]
+            strings = [item for item in result if isinstance(item, str)]
+            if len(numbers) + len(strings) != len(result) or len(numbers) > 1 or len(strings) > 2:
+                raise ValueError(ERROR_MESSAGE)
+            if numbers:
+                item = numbers[0]
+                tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
+                if isinstance(item, bool):
+                    tuple_score_data["label"] = str(item)
+            if len(strings) == 2:
+                tuple_score_data["label"], tuple_score_data["explanation"] = strings
+            elif strings:
+                item = strings[0]
+                if item.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
+                    tuple_score_data["label"] = item
+                else:  # longer strings = explanations
+                    tuple_score_data["explanation"] = item
             return Score(name=name, kind=kind, direction=direction, **tuple_score_data)
 
         # Handle dictionaries
