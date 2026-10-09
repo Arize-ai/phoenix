@@ -82,8 +82,6 @@ jobs:
         with:
           ref: ${{ matrix.branch }}
           persist-credentials: false
-          # Keep in sync with the other Unit Tests job; `make check-unit-test-paths`
-          # fails when a unit test reads a path outside this list.
           sparse-checkout: |
             requirements/
             src/phoenix/

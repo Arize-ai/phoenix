@@ -62,6 +62,9 @@ jobs:
           resolution-strategy: "lowest"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Test the sync script
+        run: make test-sync-models
+
       - name: Sync model cost manifest with LiteLLM
         run: make sync-models
 
