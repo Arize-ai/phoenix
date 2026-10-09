@@ -1011,7 +1011,8 @@ await updateDatasetEvaluator({
   patch: { name: "nightly-exact-match" },
 });
 
-// Deleting a binding keeps its definition, prompt, and trace project
+// Deleting a binding removes its dedicated evaluator trace project and
+// recorded evaluator traces; the shared definition, prompt, and dataset remain.
 await deleteDatasetEvaluator({ datasetEvaluatorId: binding.id });
 await deleteDatasetEvaluators({
   dataset: { datasetName: "golden-questions" },
@@ -1058,7 +1059,9 @@ await updateProjectEvaluator({
   patch: { filter_condition: "" },
 });
 
-// Deleting a binding keeps its definition, prompt, and trace project
+// Deleting a binding removes its dedicated evaluator trace project and
+// recorded evaluator traces; the shared definition, prompt, source project,
+// and its original traces remain.
 await deleteProjectEvaluator({ projectEvaluatorId: binding.id });
 ```
 

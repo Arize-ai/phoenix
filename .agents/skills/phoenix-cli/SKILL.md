@@ -476,7 +476,9 @@ px dataset evaluator create golden-questions --name exact-match --evaluator-id Q
 # change binding overrides only; --inherit-* flags send null to fall back to the definition
 px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Exact match on answer" --inherit-output-configs
 
-# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; the definition, prompt, and trace project are kept
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true.
+# Removes the dedicated evaluator trace project and recorded evaluator traces;
+# the definition, prompt, and dataset remain.
 px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
 px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --dataset golden-questions --yes
 ```
@@ -498,7 +500,9 @@ px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --enabled --sampling-rate 1
 # the quiet period applies to trace and session bindings; a span binding rejects it
 px project evaluator update UHJvamVjdEV2YWx1YXRvcjoy --evaluation-delay-seconds 120
 
-# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; the definition, prompt, and trace project are kept
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true.
+# Removes the dedicated evaluator trace project and recorded evaluator traces;
+# the definition, prompt, source project, and its original traces remain.
 px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
 px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox UHJvamVjdEV2YWx1YXRvcjoy --project support-bot --yes
 ```
