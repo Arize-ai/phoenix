@@ -64,6 +64,16 @@ minimumReleaseAgeExclude:
   - "scheduler@0.28.0"
   - "@types/react@19.3.0"
   - "@types/react-dom@19.3.0"
+  # The AI SDK release that switched experimental decision state to parts
+  # (needed by phoenix-evals decision models) was published together on
+  # October 8, 2026, along with the exact versions its packages pin.
+  - ai@7.0.133
+  - "@ai-sdk/otel@1.0.133"
+  - "@ai-sdk/openai@4.0.89"
+  - "@ai-sdk/typesafe-ai@3.0.16"
+  - "@ai-sdk/gateway@4.0.108"
+  - "@ai-sdk/provider@4.0.25"
+  - "@ai-sdk/provider-utils@5.0.57"
 minimumReleaseAgeExcludePrune: true
 
 # @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,

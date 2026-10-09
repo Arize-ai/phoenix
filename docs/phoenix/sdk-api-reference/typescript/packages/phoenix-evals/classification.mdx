@@ -25,9 +25,49 @@ const result = await classify({
 });
 ```
 
+## Decision Models
+
+Any classification evaluator, including every built-in, can run on an AI SDK decision model such as OpenAI's `gpt-6-luna` ([Decisions API](https://developers.openai.com/api/docs/guides/decisions)). Decision models pick one of the labels directly and return a probability for each, instead of generating text. They are much faster and cheaper than a chat model judge. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later.
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+
+const correctness = createCorrectnessEvaluator({
+  model: openai.decisionModel("gpt-6-luna"),
+});
+
+const result = await correctness.evaluate({
+  input: "What is the capital of Australia?",
+  output: "Sydney.",
+});
+// {
+//   label: "incorrect",
+//   score: 0,
+//   metadata: {
+//     probabilities: { correct: 0.02, incorrect: 0.98 },
+//     confidence: 0.96,
+//     modelId: "gpt-6-luna",
+//   },
+// }
+```
+
+How it differs from a language model:
+
+- **No explanation.** Decision models don't generate text, so `explanation` is always undefined.
+- **Probabilities in metadata.** `metadata.probabilities` maps each label to its probability. `metadata.confidence` is included when the provider reports one (OpenAI does).
+- **Prompt shape.** If the prompt template has exactly one `<data>…</data>` block, as every built-in template does, the text around the block is sent as the question's instructions and the rendered block as the state being judged. Other templates are rendered and sent as one plain-text state. Message roles are dropped and only text content is sent.
+- **Choices.** A decision model needs between 2 and 255 choices.
+- **Refusals.** A decision model may refuse to classify. This happens when there's nothing to judge (such as an empty input), when the question asks it to infer sensitive attributes such as religion or sexual orientation, or when the content shows intent to cause harm or evade oversight. Short but non-empty inputs are usually still answered. On a refusal, the evaluator throws a `ClassificationRefusalError`. In `runExperiment`, it's recorded as that evaluation's error.
+- **Plain model IDs.** A string model ID is always treated as a language model. Use the provider's `decisionModel()` to get a decision model.
+
+<Warning>
+Decision models can't work through a problem step by step. They do well on judgments you can read off the text, such as relevance, faithfulness, tool selection, and toxicity. They're unreliable for checking answers that need a calculation, such as unit conversions or arithmetic, and their probabilities can be confidently wrong on those. Use a language model for those evaluations.
+</Warning>
+
 ## Lower-Level API
 
-Use `generateClassification` directly when you already have a rendered prompt and only need structured label generation.
+Use `generateClassification` directly when you already have a rendered prompt and only need structured label generation. It also accepts a decision model, in which case the rendered prompt is sent as one plain-text state.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
@@ -35,6 +75,8 @@ Use `generateClassification` directly when you already have a rendered prompt an
     <li><code>src/llm/createClassifierFn.ts</code></li>
     <li><code>src/llm/createClassificationEvaluator.ts</code></li>
     <li><code>src/llm/generateClassification.ts</code></li>
+    <li><code>src/decision/decideClassification.ts</code></li>
+    <li><code>src/decision/decisionPrompt.ts</code></li>
     <li><code>src/types/evals.ts</code></li>
   </ul>
 </section>
