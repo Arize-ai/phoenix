@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { graphql, useFragment } from "react-relay";
-import { Link } from "react-router";
+import { Link, useResolvedPath } from "react-router";
 
 import { Flex, View } from "@phoenix/components";
 
@@ -35,16 +35,17 @@ const promptVersionItemCSS = css`
 
 /**
  * A single prompt version item, displaying the version number,
- * the date it was created, and tag. Clicking the item will
- * add /:versionId to the current path
+ * the date it was created, and tag. Clicking the item navigates to
+ * /:versionId under the route that renders the list.
  */
 export const PromptVersionItem = ({
   version,
   active,
 }: PromptVersionItemProps) => {
+  const basePath = useResolvedPath(".").pathname;
   return (
     <div css={promptVersionItemCSS} data-active={active}>
-      <Link to={`${version.id}`}>
+      <Link to={`${basePath}/${version.id}`}>
         <View width="100%" paddingY="size-100" paddingX="size-200">
           <PromptVersionSummary promptVersion={version} />
         </View>

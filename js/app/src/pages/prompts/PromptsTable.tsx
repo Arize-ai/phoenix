@@ -14,7 +14,7 @@ import {
   useRef,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useResolvedPath } from "react-router";
 
 import {
   CopyToClipboardButton,
@@ -108,6 +108,7 @@ export function PromptsTable(props: PromptsTableProps) {
     (state) => state.setColumnOrder
   );
   const navigate = useNavigate();
+  const basePath = useResolvedPath(".").pathname;
 
   const toggleLabelFilter = useCallback(
     (labelId: string) => {
@@ -254,7 +255,7 @@ export function PromptsTable(props: PromptsTableProps) {
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={row.original.name} />}
             >
-              <Link to={`${row.original.id}`}>
+              <Link to={`${basePath}/${row.original.id}`}>
                 <Truncate maxWidth="100%">{row.original.name}</Truncate>
               </Link>
             </CellWithControlsWrap>
@@ -318,7 +319,7 @@ export function PromptsTable(props: PromptsTableProps) {
         },
         cell: ({ row }) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/versions`}>
+            <Link to={`${basePath}/${row.original.id}/versions`}>
               {row.original.versionCount}
             </Link>
           </StopPropagation>
@@ -336,7 +337,7 @@ export function PromptsTable(props: PromptsTableProps) {
               }
             >
               <Link
-                to={`${row.original.id}/versions/${row.original.latestVersionId}`}
+                to={`${basePath}/${row.original.id}/versions/${row.original.latestVersionId}`}
               >
                 <Truncate maxWidth={200} title={row.original.latestVersionId}>
                   {row.original.latestVersionId}
@@ -356,7 +357,7 @@ export function PromptsTable(props: PromptsTableProps) {
               {row.original.versionTags.map((tag) => (
                 <li key={tag.id}>
                   <Link
-                    to={`${row.original.id}/versions/${tag.promptVersionId}`}
+                    to={`${basePath}/${row.original.id}/versions/${tag.promptVersionId}`}
                   >
                     <TagVersionLabel maxWidth={200}>{tag.name}</TagVersionLabel>
                   </Link>
@@ -421,7 +422,7 @@ export function PromptsTable(props: PromptsTableProps) {
       });
     }
     return cols;
-  }, [refetch, queryArgs, canModify, toggleLabelFilter]);
+  }, [basePath, refetch, queryArgs, canModify, toggleLabelFilter]);
 
   const {
     leafColumnOrder,
@@ -595,7 +596,7 @@ export function PromptsTable(props: PromptsTableProps) {
                     <tr
                       key={row.id}
                       onClick={() => {
-                        navigate(`${row.original.id}`);
+                        navigate(`${basePath}/${row.original.id}`);
                       }}
                     >
                       {row.getVisibleCells().map((cell) => (
