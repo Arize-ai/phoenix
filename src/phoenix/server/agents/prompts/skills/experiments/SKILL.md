@@ -16,7 +16,8 @@ Reading, comparing, recording, and evaluating are run-path agnostic: they apply 
 experiments created through the SDK or REST API and to experiments culled from traces. Only the run
 step binds to playground capabilities — the `playground` skill owns prompt authoring and the
 mechanics of starting a recorded run. The `evaluators` skill owns how the scores you read here are
-designed. Route dataset evolution and hardening to `datasets`.
+designed. Route dataset evolution and hardening to `datasets`. External MCP clients (no playground)
+load `phoenix-experiment-analyzer` for the read/compare half of this loop.
 
 ## Before You Start: Read What Already Ran
 
