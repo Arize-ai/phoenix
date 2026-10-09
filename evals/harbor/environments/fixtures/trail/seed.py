@@ -76,6 +76,24 @@ def wait_for(predicate: Callable[[], bool], *, timeout: float, what: str) -> Non
         time.sleep(1)
 
 
+def check_annotations(connection: sqlite3.Connection, posted: dict[str, list[str]]) -> None:
+    """Fail when the database lacks an annotation the loader posted.
+
+    ``posted`` holds the identifiers the loader reports for its span and trace
+    annotations. A fixture that silently drops some of them grades every annotation
+    question against the wrong reference.
+    """
+    for kind, table in (("span", "span_annotations"), ("trace", "trace_annotations")):
+        stored = {
+            identifier for (identifier,) in connection.execute(f"SELECT identifier FROM {table}")
+        }
+        if missing := set(posted[kind]) - stored:
+            raise RuntimeError(
+                f"{len(missing)} of {len(posted[kind])} posted {kind} annotations were not "
+                f"stored, for example {sorted(missing)[0]!r}"
+            )
+
+
 def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
     rows = json.loads(rows_path.read_text())
     expected_traces = len({json.loads(row["trace"])["trace_id"] for row in rows})
@@ -94,6 +112,7 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
             "PHOENIX_ALLOWED_SANDBOX_PROVIDERS": "MONTY",
         }
         log_path = Path(scratch) / "phoenix.log"
+        posted_path = Path(scratch) / "posted.json"
         with open(log_path, "w") as log:
             server = subprocess.Popen(
                 ["phoenix", "serve", "--no-ui"], env=env, stdout=log, stderr=subprocess.STDOUT
@@ -115,6 +134,8 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
                         "--no-regenerate-ids",
                         "--no-shift-to-now",
                         "--scores-on-trace",
+                        "--posted-annotations",
+                        str(posted_path),
                     ],
                     check=True,
                     # Remove inherited Phoenix settings so the loader sends every row to
@@ -146,6 +167,7 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
                 server.kill()
         with sqlite3.connect(database) as connection:
             connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            check_annotations(connection, json.loads(posted_path.read_text()))
         for sidecar in (database.with_suffix(".db-wal"), database.with_suffix(".db-shm")):
             sidecar.unlink(missing_ok=True)
         output.parent.mkdir(parents=True, exist_ok=True)
