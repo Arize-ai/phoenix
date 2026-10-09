@@ -2179,6 +2179,59 @@ class TestResumeOperations:
         )
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_run_experiment_warns_when_a_task_fails(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """The server returns errored runs too; they must not count as completed."""
+        client, helper = _setup_experiment_test(is_async)
+        dataset_id, _ = helper.create_dataset(
+            inputs=[{"idx": 0}, {"idx": 1}], outputs=[{"result": 0}, {"result": 1}]
+        )
+        dataset = await _await_or_return(client.datasets.get_dataset(dataset=dataset_id))
+
+        def task(input: dict[str, Any]) -> int:
+            if input["idx"] == 1:
+                raise ValueError("boom")
+            return cast(int, input["idx"])
+
+        await _await_or_return(
+            client.experiments.run_experiment(dataset=dataset, task=task, print_summary=False)
+        )
+        assert "Only 1 out of 2 expected runs" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_resume_evaluation_warns_only_about_what_still_failed(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _setup_experiment_test: _SetupExperimentTest,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        client, helper = _setup_experiment_test(is_async)
+        dataset_id, examples = helper.create_dataset(
+            inputs=[{"idx": 0}, {"idx": 1}], outputs=[{"result": 0}, {"result": 1}]
+        )
+        exp = helper.create_experiment(dataset_id, repetitions=1)
+        helper.create_runs(
+            exp["id"], [(examples[i]["id"], 1, f"output_{i}", None) for i in range(2)]
+        )
+        # "a" is complete on both runs; "b" is missing on both
+        helper.create_evaluations(exp["id"], ["a"], [])
+        capsys.readouterr()
+        await _await_or_return(
+            client.experiments.resume_evaluation(
+                experiment_id=exp["id"],
+                evaluators={"a": lambda output: 1.0, "b": lambda output: 1.0},  # pyright: ignore[reportUnknownLambdaType,reportUnknownArgumentType]
+                print_summary=False,
+            )
+        )
+        assert "Warning: Only" not in capsys.readouterr().out
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_early_exit_when_complete(
         self, is_async: bool, _app: _AppInfo, _setup_experiment_test: _SetupExperimentTest
     ) -> None:
