@@ -3,8 +3,9 @@ max_turns: 8
 timeout_seconds: 300
 allowed_tools: [Skill, Read]
 runs: 3
+tags: [phoenix-cli]
 ---
-A user asked our analytics assistant (Phoenix project `analytics-assistant`) to export a report as a PDF and email it. We have a `pdf-export` skill that does exactly that, plus `get_report` and `send_email` tools. Instead the bot gave generic "use your browser's print dialog" advice. Here's `px trace get 5e5e1d1d2c2c3b3b4a4a595968687777 --format raw`. You can't reach my Phoenix from here. What happened, and how do I find out how often we're missing the skill like this?
+A user asked our analytics assistant (Phoenix project `analytics-assistant`) to export a report as a PDF and email it. We have a `pdf-export` skill that does exactly that, plus `get_report` and `send_email` tools. Instead the bot gave generic "use your browser's print dialog" advice. Here's the full trace. You can't reach my Phoenix from here. What happened, and how do I find out how often we're missing the skill like this?
 
 ```json
 {
