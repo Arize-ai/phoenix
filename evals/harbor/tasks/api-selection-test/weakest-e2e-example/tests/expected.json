@@ -1,0 +1,6 @@
+{
+  "reference": "example 109: 7 of 12 passed, 0.583",
+  "notes": "Accept the example identified by its Phoenix node id. Accept 58%.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

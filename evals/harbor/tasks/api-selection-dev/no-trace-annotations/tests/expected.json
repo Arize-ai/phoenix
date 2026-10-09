@@ -1,0 +1,6 @@
+{
+  "reference": "none; its feedback is recorded as session and span annotations, not trace annotations",
+  "notes": "The reply must say there are no trace annotations.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

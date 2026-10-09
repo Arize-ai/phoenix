@@ -1,0 +1,69 @@
+# Run the two coding agents and the Phoenix chat agent, each with two Anthropic and two
+# OpenAI models, on the api-selection-test tasks.
+#   make harbor-run HARBOR_JOB=evals/harbor/jobs/api-selection-test.yaml
+# Use HARBOR_ARGS to pass options such as `-e docker`, `-k 3`, `--job-name`, or
+# `-a oracle`. To select conditions or tasks, use scripts/subset_job.py.
+#
+# Each task asks one question about a full Phoenix development database. The SQL-answered
+# tasks aggregate over it and the HTTP-answered tasks look up one entity or field; each
+# expected.json names the route the question was written for in `expected_api`, and the
+# verifier scores `api_selection_correct` beside `reward`. The test split is the
+# held-out half; tune on api-selection-dev and run this one to confirm.
+# The plugin records all results in the api-selection-test Phoenix dataset.
+datasets:
+  - path: evals/harbor/tasks/api-selection-test
+agents:
+  - name: claude-code-mcp
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent
+    model_name: anthropic/claude-fable-5-1
+    extra_allowed_hosts: [api.anthropic.com]
+    kwargs:
+      reasoning_effort: high
+      disallowed_tools: "WebSearch,WebFetch"
+  - name: claude-code-mcp
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+    kwargs:
+      reasoning_effort: high
+      disallowed_tools: "WebSearch,WebFetch"
+  - name: codex-mcp
+    import_path: evals.harbor.agents.coding_agents:CodexMcpAgent
+    model_name: openai/gpt-6-astra
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      reasoning_effort: high
+      web_search: disabled
+  - name: codex-mcp
+    import_path: evals.harbor.agents.coding_agents:CodexMcpAgent
+    model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      reasoning_effort: high
+      web_search: disabled
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: anthropic/claude-fable-5-1
+    extra_allowed_hosts: [api.anthropic.com]
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: openai/gpt-6-astra
+    extra_allowed_hosts: [api.openai.com]
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
+environment:
+  type: daytona
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
+  # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+# Retry infrastructure errors, but do not retry trials that produce a reward.
+retry:
+  max_retries: 1

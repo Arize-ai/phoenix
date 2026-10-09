@@ -1,0 +1,6 @@
+{
+  "reference": "slowest initial_response_alignment at 1.91 s; fastest safe_sql_exact_match at 0.05 s",
+  "notes": "Accept values within 10%.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

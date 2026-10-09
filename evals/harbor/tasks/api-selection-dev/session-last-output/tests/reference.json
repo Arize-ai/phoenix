@@ -1,0 +1,1 @@
+"That usually means the role lacks USAGE on the warehouse. Run: GRANT USAGE ON WAREHOUSE compute_wh TO ROLE readonly_role"

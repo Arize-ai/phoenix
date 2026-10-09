@@ -1,0 +1,6 @@
+{
+  "reference": "improved: example 126 0 -> 1; example 144 0 -> 1. regressed: none.",
+  "notes": "Accept the examples identified by Phoenix node ids. The reply must name both improved examples and say none regressed.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

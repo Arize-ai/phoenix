@@ -1,0 +1,6 @@
+{
+  "reference": "MUSTACHE, a chat template; it begins 'You are a chatbot that translates natural language queries in postgres sql queries for a single user of banking application.'",
+  "notes": "The format and the opening sentence are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

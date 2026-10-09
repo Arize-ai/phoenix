@@ -1,0 +1,6 @@
+{
+  "reference": "rag-quarterly-report-3 with a score of 42; chaotic-eval-run-51 also has an out-of-range 9.0",
+  "notes": "rag-quarterly-report-3 with 42 is required; chaotic-eval-run-51 with 9.0 is also correct and may be included.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

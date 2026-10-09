@@ -1,0 +1,6 @@
+{
+  "reference": "response_quality 9.0 and response_quality 4.0 (two separate annotations), user_feedback = positive (1.0), resolution_outcome = resolved (1.0)",
+  "notes": "The three annotation names are required; mentioning both response_quality scores is a bonus.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

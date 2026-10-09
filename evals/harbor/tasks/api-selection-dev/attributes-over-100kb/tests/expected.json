@@ -1,0 +1,6 @@
+{
+  "reference": "1898",
+  "notes": "Accept answers within 2% to allow a 100,000-byte threshold.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

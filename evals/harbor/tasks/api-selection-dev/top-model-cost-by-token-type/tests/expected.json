@@ -1,0 +1,6 @@
+{
+  "reference": "cache_write $47.79 (50.2%); input $24.65 (25.9%); cache_read $15.26 (16.0%); output $7.28 (7.7%); reasoning $0.15 (0.2%)",
+  "notes": "Accept dollar amounts or percentages within a point. The dominant component must be identified correctly.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

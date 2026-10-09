@@ -1,0 +1,6 @@
+{
+  "reference": "pass (1.0): 'The answer correctly identifies PHOENIX_PROJECT_NAME as the environment variable for setting the Phoenix tracing project name'",
+  "notes": "The pass label and the PHOENIX_PROJECT_NAME gist are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

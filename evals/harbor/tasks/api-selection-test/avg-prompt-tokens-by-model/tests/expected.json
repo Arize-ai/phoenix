@@ -1,0 +1,6 @@
+{
+  "reference": "gpt-5.6-sol 56,489 tokens per call; claude-opus-4-8 33,042 tokens per call; gpt-5.5 25,738 tokens per call",
+  "notes": "Accept rounding to the nearest thousand. Order matters.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

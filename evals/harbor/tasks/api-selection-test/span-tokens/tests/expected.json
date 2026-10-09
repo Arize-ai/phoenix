@@ -1,0 +1,6 @@
+{
+  "reference": "26,179 prompt tokens, 312 completion tokens, model gpt-5.4-2026-03-05",
+  "notes": "All three values are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

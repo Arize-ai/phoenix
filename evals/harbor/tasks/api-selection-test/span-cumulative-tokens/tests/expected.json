@@ -1,0 +1,6 @@
+{
+  "reference": "104,529 tokens (103,788 prompt and 741 completion)",
+  "notes": "The total is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

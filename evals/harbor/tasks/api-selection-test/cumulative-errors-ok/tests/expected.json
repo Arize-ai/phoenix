@@ -1,0 +1,5 @@
+{
+  "reference": "25",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

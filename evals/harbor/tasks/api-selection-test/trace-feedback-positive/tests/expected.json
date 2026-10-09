@@ -1,0 +1,6 @@
+{
+  "reference": "9128cef0af42a378c2123858a6a1ce26, c1aa1d2d47fd1f75747e4ad49806cb18, 932f37bdd82dc95707c82a361910d6fc",
+  "notes": "Three traces. Accept prefixes of the trace ids. The fourth pxi_dev feedback annotation, on f5c12f6c..., is negative and must not be listed.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

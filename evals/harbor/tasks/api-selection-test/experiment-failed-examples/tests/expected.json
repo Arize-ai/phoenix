@@ -1,0 +1,6 @@
+{
+  "reference": "duplicate_search_visual_regression, apply_reviewed_docs_triage, apply_confirmed_duplicate (3 of 12)",
+  "notes": "All three scenario names are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

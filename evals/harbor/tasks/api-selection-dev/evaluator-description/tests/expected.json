@@ -1,0 +1,6 @@
+{
+  "reference": "structured or programmatic refusal patterns such as 'REFUSED:', 'unauthorized', and 'permission denied', in addition to conversational refusal phrases",
+  "notes": "The reply must mention the structured patterns (REFUSED:, unauthorized, or permission denied).",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

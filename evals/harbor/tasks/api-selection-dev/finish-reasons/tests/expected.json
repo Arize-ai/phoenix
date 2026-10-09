@@ -1,0 +1,6 @@
+{
+  "reference": "stop 22; tool_calls 8; tool-calls 1",
+  "notes": "Only a few dozen LLM spans record a finish reason. The reply must give stop with its count; the tail may be summarized.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

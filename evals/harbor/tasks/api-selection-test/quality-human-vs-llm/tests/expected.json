@@ -1,0 +1,6 @@
+{
+  "reference": "HUMAN mean 0.771 over 14; LLM mean 0.929 over 7",
+  "notes": "Accept rounding to two decimals.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

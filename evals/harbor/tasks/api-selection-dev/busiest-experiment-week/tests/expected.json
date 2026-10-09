@@ -1,0 +1,6 @@
+{
+  "reference": "the week starting 2026-05-04 (ISO week 2026-18), PXI E2E Agent Tests, 70 experiments",
+  "notes": "Accept any identification of the first week of May 2026.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

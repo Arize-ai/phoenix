@@ -1,0 +1,6 @@
+{
+  "reference": "a 400: invalid schema for the function search_github_issues, 'required' must be supplied (all 5 runs)",
+  "notes": "The invalid-schema message for search_github_issues is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

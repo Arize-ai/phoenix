@@ -111,7 +111,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, PHOENIX_SQL_BENCHMARK_SOURCE_DB=... for the sql-benchmark fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -513,7 +513,9 @@ gh-comment-watch: ## Start the GitHub comment watcher
 HARBOR_JOB ?= evals/harbor/jobs/regression.yaml
 HARBOR_ARGS ?=
 # harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
-# HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
+# HF_TOKEN is set, builds the sql-benchmark fixture from a local dump when
+# PHOENIX_SQL_BENCHMARK_SOURCE_DB is set, and builds the px archive. Set HARBOR_CLI=0 to
+# skip the archive.
 HARBOR_CLI ?= 1
 # The arize-phoenix plugin records tasks, trials, scores, and traces under a dataset
 # named after the job's task directory. HARBOR_DATASET overrides the name. Set
@@ -536,7 +538,7 @@ define check-harbor-staged
 	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
 endef
 
-harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
+harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., PHOENIX_SQL_BENCHMARK_SOURCE_DB=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_environments.sh
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\

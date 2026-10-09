@@ -1,0 +1,6 @@
+{
+  "reference": "expected_tool apply_github_triage (scenario apply_confirmed_duplicate)",
+  "notes": "apply_github_triage is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

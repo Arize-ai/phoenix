@@ -1,0 +1,6 @@
+{
+  "reference": "'Hand-authored golden routing cases for the first tool selected by the GitHub support-ticket triage agent.'; id RGF0YXNldDoyMA==",
+  "notes": "Both the description and the id are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

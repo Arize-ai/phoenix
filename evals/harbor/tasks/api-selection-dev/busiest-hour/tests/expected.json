@@ -1,0 +1,6 @@
+{
+  "reference": "13:00 UTC, 1,091 traces",
+  "notes": "Accept 13, 13:00, or 1 PM.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

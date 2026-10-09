@@ -1,0 +1,6 @@
+{
+  "reference": "pydantic_ai.exceptions.ModelHTTPError: status 400, the requested model gpt-5.4-fast does not exist",
+  "notes": "The exception type or the gpt-5.4-fast message is enough; it is on span b3a8817291c015dc (pxiCompletion Turn).",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

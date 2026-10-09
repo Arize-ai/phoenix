@@ -1,0 +1,6 @@
+{
+  "reference": "playground-experiment prompt:phoenix-issue-reproduction-and-triage-agent-your-job-is-to-turn-an-unstr_4 (id 102), 29.5 s per run",
+  "notes": "Accept the experiment identified by id or name. Accept rounding to 30 s.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

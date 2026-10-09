@@ -1,0 +1,6 @@
+{
+  "reference": "bash 2,608; refusal_detection 468; refusal_detection_fixed 455",
+  "notes": "Order matters.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

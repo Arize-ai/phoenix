@@ -1,0 +1,6 @@
+{
+  "reference": "both: the root span 328b89964b1a9bd4 (handle_user_message) and its child 769e6730ffc47aa6 (chat_completion) are both ERROR with 'model timeout'",
+  "notes": "The reply must say the root span itself is marked ERROR, not only the child.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

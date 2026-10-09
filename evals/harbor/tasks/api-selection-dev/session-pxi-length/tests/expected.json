@@ -1,0 +1,6 @@
+{
+  "reference": "20 traces, from 2026-04-17 19:53:21 UTC to 2026-04-20 19:06:26 UTC",
+  "notes": "The trace count and both dates (to the minute) are required; the final turn's input was 'summarize'.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

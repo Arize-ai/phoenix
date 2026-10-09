@@ -1,0 +1,6 @@
+{
+  "reference": "playground-experiment prompt:banking (id 82) 42,375; playground-experiment prompt:banking (id 83) 42,375; playground-experiment prompt:banking (id 84) 42,375",
+  "notes": "Accept any one of the three tied experiments as the top answer if the tie is mentioned.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

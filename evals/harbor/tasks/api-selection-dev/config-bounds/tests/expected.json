@@ -1,0 +1,6 @@
+{
+  "reference": "continuous, from 1.0 to 5.0, MAXIMIZE",
+  "notes": "The bounds and direction are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

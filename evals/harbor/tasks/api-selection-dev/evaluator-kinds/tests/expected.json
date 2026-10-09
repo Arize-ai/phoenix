@@ -1,0 +1,6 @@
+{
+  "reference": "11 in total: 5 built-in, 5 code, 1 LLM",
+  "notes": "The custom list has 6 (5 code and 1 LLM); the 5 built-ins are listed separately. The total of 11 with the breakdown is required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

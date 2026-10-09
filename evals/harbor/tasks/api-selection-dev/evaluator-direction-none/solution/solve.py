@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""Dataset evaluators without an optimisation direction"""
+
+import json  # noqa: F401
+from collections import Counter  # noqa: F401
+
+from harbor_verifiers.phoenix_api import (  # noqa: F401
+    format_utc_timestamp,
+    get_dataset_id_from_name,
+    get_experiment_by_name,
+    get_experiment_runs,
+    get_generative_models,
+    get_nested_attribute,
+    graphql,
+    rest,
+    rest_pages,
+    rowid,
+    write_answer,
+)
+
+dataset = graphql(
+    "query($id: ID!) { node(id: $id) { ... on Dataset { datasetEvaluators(first: 50) { edges { node { name outputConfigs { ... on CategoricalAnnotationConfig { optimizationDirection } ... on ContinuousAnnotationConfig { optimizationDirection } } } } } } } }",
+    {"id": get_dataset_id_from_name("banking_saas_dataset")},
+)["node"]
+none = sorted(
+    e["node"]["name"]
+    for e in dataset["datasetEvaluators"]["edges"]
+    if all(c.get("optimizationDirection") == "NONE" for c in e["node"]["outputConfigs"])
+)
+write_answer(", ".join(none) or "none")

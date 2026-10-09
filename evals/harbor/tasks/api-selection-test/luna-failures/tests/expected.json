@@ -1,0 +1,6 @@
+{
+  "reference": "examples 256, 257, 258 failed; 9 of 12 passed",
+  "notes": "Accept the examples identified by Phoenix node ids.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

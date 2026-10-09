@@ -1,0 +1,6 @@
+{
+  "reference": "gpt-4o (OpenAI); 'Improved version: added Tool Call Efficiency Rules section, consolidated sandbox docs, removed redundant prose'",
+  "notes": "Both the model and the note are required.",
+  "expected_api": "http",
+  "source": "solution/solve.py against the sql-benchmark fixture through the Phoenix REST and GraphQL APIs; cross-checked with sqlite3 on the scrubbed dump on 2026-10-05"
+}

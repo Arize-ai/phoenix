@@ -1,0 +1,6 @@
+{
+  "reference": "pxi_dev 1,137; evaluators 536; dataset-evaluator-bf9a15956ceb82a3a9eb7abc 468",
+  "notes": "Order matters. Accept a truncated spelling of the third project such as dataset-evaluator-bf9a\u2026.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the sql-benchmark fixture through the MCP executeSql tool; cross-checked with sqlite3 on the source dump on 2026-10-01"
+}

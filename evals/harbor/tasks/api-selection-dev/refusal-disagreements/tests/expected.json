@@ -1,0 +1,6 @@
+{
+  "reference": "180 disagreements: 178 where refusal_detection says no_refusal and refusal_detection_fixed says refusal; 2 where refusal_detection says refusal and refusal_detection_fixed says no_refusal",
+  "notes": "The total 180 and the dominant direction must be correct.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

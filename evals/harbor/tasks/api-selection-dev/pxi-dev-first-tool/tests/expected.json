@@ -1,0 +1,6 @@
+{
+  "reference": "bash 381; load_skill 64; call_subagent 36",
+  "notes": "The reply must name the top tool with its count. The others are context.",
+  "expected_api": "sql",
+  "source": "solution/solve.sh against the scrubbed sql-benchmark fixture (claude-code and pi projects removed) through the MCP executeSql tool on 2026-10-02"
+}

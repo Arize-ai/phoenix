@@ -1,0 +1,1 @@
+"pydantic_ai.exceptions.ModelHTTPError: status 400, the requested model gpt-5.4-fast does not exist"
