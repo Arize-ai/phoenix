@@ -138,6 +138,12 @@ annotations_df = to_annotation_dataframe(results_df)
 client.spans.log_span_annotations_dataframe(dataframe=annotations_df)
 ```
 
+Blank cells are dropped per row rather than uploaded: a `None`, `NaN`, `NA`, or
+`NaT` in `label`, `score`, `explanation`, `metadata`, or `identifier` is left
+out of that row's annotation. This is what makes a ragged frame work — an
+evaluator that explains only its failures, or one that scores some rows and
+labels others, can be uploaded as-is without splitting it up first.
+
 ### TypeScript
 
 ```typescript
