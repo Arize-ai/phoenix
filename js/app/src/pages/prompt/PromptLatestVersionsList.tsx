@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
+import { useResolvedPath } from "react-router";
 
 import { Flex, Link } from "@phoenix/components";
 
@@ -17,6 +18,7 @@ export function PromptLatestVersionsList(props: {
   prompt: PromptLatestVersionsListFragment$key;
 }) {
   const { prompt } = props;
+  const basePath = useResolvedPath(".").pathname;
   const data = useFragment<PromptLatestVersionsListFragment$key>(
     graphql`
       fragment PromptLatestVersionsListFragment on Prompt {
@@ -61,7 +63,7 @@ export function PromptLatestVersionsList(props: {
         })}
       </ul>
       <Flex direction="row" justifyContent="end">
-        <Link to="versions">View all versions</Link>
+        <Link to={`${basePath}/versions`}>View all versions</Link>
       </Flex>
     </div>
   );

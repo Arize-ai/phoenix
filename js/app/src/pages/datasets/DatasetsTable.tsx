@@ -20,7 +20,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useResolvedPath } from "react-router";
 
 import {
   CopyToClipboardButton,
@@ -112,6 +112,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const basePath = useResolvedPath(".").pathname;
   const notifySuccess = useNotifySuccess();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
@@ -205,8 +206,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           const hasExperiments = row.original.experimentCount > 0;
           const to = hasExperiments
-            ? `${row.original.id}/experiments`
-            : `${row.original.id}/examples`;
+            ? `${basePath}/${row.original.id}/experiments`
+            : `${basePath}/${row.original.id}/examples`;
           return (
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={row.original.name} />}
@@ -306,7 +307,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/examples`}>
+            <Link to={`${basePath}/${row.original.id}/examples`}>
               {row.original.exampleCount}
             </Link>
           </StopPropagation>
@@ -321,7 +322,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/experiments`}>
+            <Link to={`${basePath}/${row.original.id}/experiments`}>
               {row.original.experimentCount}
             </Link>
           </StopPropagation>
@@ -336,7 +337,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/evaluators`}>
+            <Link to={`${basePath}/${row.original.id}/evaluators`}>
               {row.original.evaluatorCount}
             </Link>
           </StopPropagation>
@@ -423,6 +424,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     }
     return cols;
   }, [
+    basePath,
     filter,
     labelFilter,
     notifySuccess,
@@ -634,8 +636,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
                     onClick={() => {
                       const hasExperiments = row.original.experimentCount > 0;
                       const to = hasExperiments
-                        ? `${row.original.id}/experiments`
-                        : `${row.original.id}/examples`;
+                        ? `${basePath}/${row.original.id}/experiments`
+                        : `${basePath}/${row.original.id}/examples`;
                       navigate(to);
                     }}
                   >
