@@ -40,8 +40,8 @@ compare the conditions in the Phoenix UI.
 ### 1. Stage the tasks
 
 From the repository root, stage the tasks before you run a benchmark. Staging builds the
-Phoenix wheel, creates the fixture databases and task build contexts, and builds the px
-archive for the CLI agents:
+Phoenix wheel, creates the fixture databases and task build contexts, builds the px
+archive for the CLI agents, and builds the client wheel that provides the Harbor plugin:
 
 ```bash
 # Stage the regression tasks only.
@@ -222,16 +222,19 @@ the two experiments named, the examples that moved, the compare link, and a meta
 that preserves what was there. Its fixture lives at
 `gs://arize-phoenix-assets/evals/harbor/prompt-hill-climb/phoenix.db`.
 
-## Test an unreleased client plugin
+## Choose the client plugin version
 
-Build the client wheel and use it in the Harbor environment instead of the pinned release:
+The `arize-phoenix` Harbor plugin ships in `arize-phoenix-client`. By default, `make
+harbor-stage` builds that package from this checkout into `dist/phoenix-client`, and `make
+harbor-run` loads the plugin from that wheel. A job therefore records with the plugin in
+the tree, including changes that are not released yet. Restage after changing
+`packages/phoenix-client`.
+
+To record with a released plugin, set `HARBOR_CLIENT_VERSION` on both targets:
 
 ```bash
-uv build --wheel packages/phoenix-client
-CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
-PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -c evals/harbor/jobs/regression.yaml -e docker -k 1 \
-  --plugin arize-phoenix --yes
+make harbor-stage HARBOR_CLIENT_VERSION=3.5.0
+make harbor-run HARBOR_CLIENT_VERSION=3.5.0
 ```
 
 ## Name experiments
