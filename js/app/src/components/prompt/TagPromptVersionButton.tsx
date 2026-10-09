@@ -16,8 +16,9 @@ import {
 } from "@phoenix/components";
 import type { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type TagPromptVersionButtonProps = {
   promptId: string;
@@ -119,6 +120,7 @@ function TagList({
   fetchKey: number;
   onTagSet: (tagName: string) => void;
 }) {
+  const notifyError = useNotifyError();
   const data = useLazyLoadQuery<TagPromptVersionButtonTagsQuery>(
     graphql`
       query TagPromptVersionButtonTagsQuery($promptId: ID!, $versionId: ID!) {
@@ -217,6 +219,15 @@ function TagList({
                       },
                       onCompleted: () => {
                         onTagSet(tagName);
+                      },
+                      onError: (error) => {
+                        notifyError({
+                          title: "Failed to set tag",
+                          message:
+                            getErrorMessagesFromRelayMutationError(
+                              error
+                            )?.[0] ?? error.message,
+                        });
                       },
                     });
                   }

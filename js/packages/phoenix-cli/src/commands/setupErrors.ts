@@ -6,7 +6,7 @@
  * every other px command gives it, instead of a bare line on stderr.
  */
 
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import { ExitCode, exitCodeName, getExitCodeForError } from "../exitCodes";
 import * as COPY from "../setup/copy";
 import {
   HeadlessInputError,
@@ -15,20 +15,6 @@ import {
 } from "../setup/errors";
 import { writeStructuredError } from "../structuredError";
 import type { OutputFormat } from "./formatSetup";
-
-/** The envelope `code` is the ExitCode constant *name* the number maps to. */
-function exitCodeName(code: ExitCode): string {
-  switch (code) {
-    case ExitCode.INVALID_ARGUMENT:
-      return "INVALID_ARGUMENT";
-    case ExitCode.AUTH_REQUIRED:
-      return "AUTH_REQUIRED";
-    case ExitCode.NETWORK_ERROR:
-      return "NETWORK_ERROR";
-    default:
-      return "FAILURE";
-  }
-}
 
 export function exitWithError(error: unknown, format: OutputFormat): never {
   if (error instanceof SetupCancelledError) {

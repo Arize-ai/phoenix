@@ -143,7 +143,7 @@ in a few concise bullet points that are easy for beginners to understand.
 prompt = client.prompts.create(
     name="article-bullet-summarizer",
     version=PromptVersion(
-        messages=[{"role": "user", "content": content}],
+        [{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points",
@@ -166,6 +166,23 @@ oai_client = OpenAI()
 resp = oai_client.chat.completions.create(**formatted_prompt)
 print(resp.choices[0].message.content)
 ```
+
+Pass `custom_provider_id` to send a version to a custom model provider configured in Phoenix. `model_provider` still selects the invocation parameter format, so the provider's SDK must be able to serve it; Phoenix refuses an incompatible provider with 422 and an unknown one with 404:
+
+```python
+prompt = client.prompts.create(
+    name="article-bullet-summarizer",
+    version=PromptVersion(
+        [{"role": "user", "content": content}],
+        model_name="gpt-4o-mini",
+        model_provider="OPENAI",
+        custom_provider_id="R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+    ),
+)
+print(prompt.custom_provider_id)
+```
+
+Creating a version with `custom_provider_id` requires Phoenix server >= 21.0.0. The client checks the server version first and raises against an older server, which would ignore the field and silently store the version with the built-in provider. Versions without it are not checked.
 
 ### Datasets
 
@@ -511,6 +528,134 @@ new_project = client.projects.create(
     description="Traces and evaluations for our customer support chatbot",
 )
 print(f"Created project with ID: {new_project['id']}")
+```
+
+### Evaluators
+
+Read and edit shared evaluator definitions. A definition is shared by every project and dataset that binds it, so an update applies everywhere it is used. Requires Phoenix server >= 21.0.0:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# List definitions; `type` is "llm", "code", or "builtin"
+for definition in client.evaluators.list(type="code", limit=20):
+    print(definition["id"], definition["name"])
+
+# Create a code evaluator that nothing binds yet
+definition = client.evaluators.create_code(
+    name="exact-match",
+    source_code=open("evaluator.py").read(),
+    language="PYTHON",
+    sandbox_config_id="U2FuZGJveENvbmZpZzox",
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+    output_configs=[{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}],
+)
+
+# Deploy new code together with the outputs it produces; refuse to deploy over a
+# version somebody else pushed in the meantime
+[current] = client.evaluators.list_code_versions(evaluator_id=definition["id"], limit=1)
+version = client.evaluators.create_code_version(
+    evaluator_id=definition["id"],
+    source_code=open("evaluator.py").read(),
+    expected_current_version_id=current["id"],
+    output_configs=[{"type": "FREEFORM", "name": "notes"}],
+)
+print(version["id"], version["was_created"])
+
+# Point an LLM evaluator at another version of its prompt. Prompt content is
+# edited through the prompts API; the evaluator only records which version runs.
+client.evaluators.update_llm(
+    evaluator_id="TExNRXZhbHVhdG9yOjE=",
+    prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+)
+
+# Find a sandbox for code evaluators
+sandbox = next(
+    c for c in client.evaluators.list_sandbox_configs(language="PYTHON") if c["is_usable"]
+)
+
+# Create an LLM evaluator that runs an existing prompt version. This adds the
+# "evaluator" label to the prompt and creates a tag that pins the version;
+# the prompt is otherwise unchanged.
+judge = client.evaluators.create_llm(
+    name="correctness",
+    prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+    description="correctness",
+    output_configs=[
+        {
+            "type": "CATEGORICAL",
+            "name": "correctness",
+            "optimization_direction": "MAXIMIZE",
+            "values": [{"label": "correct", "score": 1}, {"label": "incorrect", "score": 0}],
+        }
+    ],
+)
+
+# Delete a definition once nothing binds it; an LLM evaluator's prompt is kept
+client.evaluators.delete(evaluator_id=definition["id"])
+```
+
+Errors from these methods raise `phoenix.client.exceptions.PhoenixAPIError`, an `httpx.HTTPStatusError`. `problem` is the full parsed error body when the server sent one (`None` for a plain-text 401 challenge, an unhandled 500, or a proxy's own error page); `code` and `reason` are shortcuts to its fields. A taken name has `code == "already_exists"` and `existing_id` naming the evaluator that holds it; a still-bound delete has `code == "conflict"`, `reason == "still_bound"`, and `problem["binding_counts"]`. Treat a `code` or `reason` you don't recognize by `response.status_code`.
+
+Bind evaluators to datasets. A binding registers an existing definition to run against the dataset's experiments and carries its own name and input mapping; it does not run an experiment by itself. Create LLM and code definitions with `create_llm` and `create_code` first, then bind them, or bind a built-in evaluator by ID:
+
+```python
+# Bind a definition to a dataset by name or ID; one definition can back many bindings
+binding = client.evaluators.dataset_evaluators.create(
+    dataset="golden-questions",
+    name="exact-match",
+    evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+)
+
+for item in client.evaluators.dataset_evaluators.list(dataset="golden-questions"):
+    print(item["id"], item["name"], item["evaluator_type"])
+
+client.evaluators.dataset_evaluators.update(
+    dataset_evaluator_id=binding["id"],
+    name="nightly-exact-match",
+)
+
+# Deleting a binding removes its dedicated evaluator trace project and
+# recorded evaluator traces; the shared definition, prompt, and dataset remain.
+client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
+client.evaluators.dataset_evaluators.delete_many(
+    dataset="golden-questions", dataset_evaluator_ids=["RGF0YXNldEV2YWx1YXRvcjoy"]
+)
+```
+
+Bind existing evaluator definitions to projects to run them on incoming traces. A project binding controls scheduling: the target (`SPAN`, `TRACE`, or `SESSION`), a sampling rate, an optional filter in the language of the target, and for `TRACE` and `SESSION` targets a quiet-period delay. `SPAN` evaluators run on matching sampled spans as they arrive; `TRACE` and `SESSION` evaluators run once per trace or session after it has been quiet for the delay:
+
+```python
+# Evaluate a quarter of matching LLM spans as they arrive
+binding = client.evaluators.project_evaluators.create(
+    project="support-bot",
+    name="toxicity",
+    evaluation_target="SPAN",
+    sampling_rate=0.25,
+    evaluator_id="Q29kZUV2YWx1YXRvcjox",
+    filter_condition="span_kind == 'LLM'",
+)
+
+for item in client.evaluators.project_evaluators.list(project="support-bot"):
+    print(item["id"], item["name"], item["evaluation_target"], item["enabled"])
+
+# Pause the binding without deleting it
+client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], enabled=False)
+
+# filter_condition is cleared with "", not None; only input_mapping and
+# evaluation_delay_seconds are reset with None.
+client.evaluators.project_evaluators.update(project_evaluator_id=binding["id"], filter_condition="")
+
+# Deleting a binding removes its dedicated evaluator trace project and
+# recorded evaluator traces; the shared definition, prompt, source project,
+# and its original traces remain.
+client.evaluators.project_evaluators.delete(project_evaluator_id=binding["id"])
+client.evaluators.project_evaluators.delete_many(
+    project="support-bot", project_evaluator_ids=["UHJvamVjdEV2YWx1YXRvcjoy"]
+)
 ```
 
 ## Documentation

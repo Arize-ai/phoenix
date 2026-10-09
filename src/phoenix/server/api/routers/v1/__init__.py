@@ -12,16 +12,20 @@ from .annotations import router as annotations_router
 from .api_keys import router as api_keys_router
 from .chat_completions import router as chat_completions_router
 from .custom_model_providers import router as custom_model_providers_router
+from .dataset_evaluators import router as dataset_evaluators_router
 from .dataset_labels import router as dataset_labels_router
 from .datasets import router as datasets_router
 from .documents import router as documents_router
+from .evaluators import router as evaluators_router
 from .experiment_evaluations import router as experiment_evaluations_router
 from .experiment_runs import router as experiment_runs_router
 from .experiment_tags import router as experiment_tags_router
 from .experiments import router as experiments_router
 from .model_providers import router as model_providers_router
+from .project_evaluators import router as project_evaluators_router
 from .projects import router as projects_router
 from .prompts import router as prompts_router
+from .sandbox_configs import router as sandbox_configs_router
 from .secrets import router as secrets_router
 from .sessions import router as sessions_router
 from .spans import router as spans_router
@@ -66,6 +70,10 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     viewer_restricted_router.include_router(annotations_router)
     viewer_restricted_router.include_router(dataset_labels_router)
     viewer_restricted_router.include_router(datasets_router)
+    viewer_restricted_router.include_router(evaluators_router)
+    viewer_restricted_router.include_router(project_evaluators_router)
+    viewer_restricted_router.include_router(dataset_evaluators_router)
+    viewer_restricted_router.include_router(sandbox_configs_router)
     viewer_restricted_router.include_router(experiments_router)
     viewer_restricted_router.include_router(experiment_tags_router)
     viewer_restricted_router.include_router(experiment_runs_router)

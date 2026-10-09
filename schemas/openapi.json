@@ -3551,6 +3551,1619 @@
         }
       }
     },
+    "/v1/evaluators": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Evaluators",
+        "description": "List evaluator definitions, newest first, whether or not anything binds them.\n\nItems are identified by their own typed ids, and the cursor is a separate value:\npass `next_cursor` back as is.",
+        "operationId": "getEvaluators",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "llm",
+                    "code",
+                    "builtin"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return one kind only.",
+              "title": "Type"
+            },
+            "description": "Return one kind only."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return the evaluator with this name.",
+              "title": "Name"
+            },
+            "description": "Return the evaluator with this name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Evaluator",
+        "description": "Create an evaluator definition that nothing binds yet.\n\nAn LLM evaluator runs an existing prompt version; a code evaluator is created with its\nfirst version. The name must be unique among evaluators: a clash is refused with 409\n`already_exists`, whose `existing_id` names the evaluator holding it.",
+        "operationId": "createEvaluator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateLLMEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateCodeEvaluatorRequest"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "llm": "#/components/schemas/CreateLLMEvaluatorRequest",
+                    "code": "#/components/schemas/CreateCodeEvaluatorRequest"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evaluators/{evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Evaluator",
+        "description": "Read a definition, including its current code or the prompt version it runs.\n\nBuilt-in definitions are read-only.",
+        "operationId": "getEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Evaluator",
+        "description": "Edit a definition; the change applies to every binding that references it.\n\nOmitted fields keep their values. Code is appended through the versions endpoint and\nprompt content through the prompts API; this route only moves pointers to them. An LLM\nchange that would invalidate a dataset binding's overrides is refused with 409.",
+        "operationId": "patchEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PatchLLMEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "llm": "#/components/schemas/PatchLLMEvaluatorRequest",
+                    "code": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Evaluator",
+        "description": "Delete a definition that nothing binds; a missing evaluator is ignored.\n\nA definition still bound by a project or dataset is refused with 409; delete those\nbindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps\nthe prompt. Built-in evaluators cannot be deleted.",
+        "operationId": "deleteEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evaluators/{evaluator_id}/versions": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "List Code Evaluator Versions",
+        "description": "List a code evaluator's versions, newest first. Only code evaluators have versions.",
+        "operationId": "listCodeEvaluatorVersions",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeEvaluatorVersionsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Code Evaluator Version",
+        "description": "Append immutable code, returning 200 when it matches the current version.\n\nConfiguration sent alongside (sandbox, input mapping, outputs, description) is applied in\nthe same transaction, so bindings never see new code with the old configuration. Pass\n`expected_current_version_id` to be refused with 409 if another deployment landed first.\nDeduplication compares against the current version only, so restoring older source\ncreates another version.",
+        "operationId": "createCodeEvaluatorVersion",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeEvaluatorVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCodeEvaluatorVersionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Source matches the current version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCodeEvaluatorVersionResponseBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/evaluators": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Project Evaluator",
+        "description": "Bind an existing LLM or code evaluator definition to a project.\n\nThe project identifier is decoded as a GlobalID first and otherwise treated as a name.\nSPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per\ntrace or session, after the first quiet period following the evaluation delay. A name the\nproject already uses is refused with 409 `already_exists` and that binding's\n`existing_id`.",
+        "operationId": "createProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Project Evaluators",
+        "description": "List evaluator bindings in a project. The identifier is decoded as a GlobalID first and\notherwise treated as a name.",
+        "operationId": "getProjectEvaluators",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Identifier"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Project Evaluators",
+        "description": "Delete up to 1000 of a project's bindings in one transaction.\n\nMissing bindings are ignored; a binding of another project is refused with 422 before\nany change. Each deleted binding's trace project and recorded traces are removed; evaluator\ndefinitions and prompts are kept.",
+        "operationId": "deleteProjectEvaluators",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Identifier"
+            }
+          },
+          {
+            "name": "project_evaluator_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 1000,
+              "description": "GlobalIDs of this project's bindings to delete; repeat for each.",
+              "title": "Project Evaluator Id"
+            },
+            "description": "GlobalIDs of this project's bindings to delete; repeat for each."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/project_evaluators/{project_evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Project Evaluator",
+        "description": "Fetch binding settings. Use evaluator_id to retrieve the shared definition.",
+        "operationId": "getProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Project Evaluator",
+        "description": "Update only binding settings. Evaluation target and evaluator kind are immutable.",
+        "operationId": "patchProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchProjectEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Project Evaluator",
+        "description": "Delete a binding; a missing binding is ignored.\n\nThe binding's trace project and recorded traces are deleted. Its evaluator definition and\nprompt are kept. Delete a definition that nothing binds with\nDELETE /v1/evaluators/{evaluator_id}.",
+        "operationId": "deleteProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/evaluators": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Dataset Evaluator",
+        "description": "Bind an existing evaluator definition to a dataset.\n\nThe dataset identifier is decoded as a GlobalID first and otherwise treated as a name.\nBinding descriptions and output configurations override the shared definition; null\ninherits it. Input mappings are always dataset-specific. A name the dataset already uses\nis refused with 409 `already_exists` and that binding's `existing_id`. This registers an\nevaluator and does not run an experiment.",
+        "operationId": "createDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Dataset Evaluators",
+        "description": "List dataset bindings with their stored overrides and an opaque pagination cursor.",
+        "operationId": "getDatasetEvaluators",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Identifier"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Dataset Evaluators",
+        "description": "Delete up to 1000 of a dataset's bindings in one transaction.\n\nMissing bindings are ignored; a binding of another dataset is refused with 422 before\nany change. Each deleted binding's trace project and recorded traces are removed; evaluator\ndefinitions and prompts are kept.",
+        "operationId": "deleteDatasetEvaluators",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Identifier"
+            }
+          },
+          {
+            "name": "dataset_evaluator_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 1000,
+              "description": "GlobalIDs of this dataset's bindings to delete; repeat for each.",
+              "title": "Dataset Evaluator Id"
+            },
+            "description": "GlobalIDs of this dataset's bindings to delete; repeat for each."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dataset_evaluators/{dataset_evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Dataset Evaluator",
+        "description": "Fetch binding settings. Null description/output configs inherit the shared definition.",
+        "operationId": "getDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Dataset Evaluator",
+        "description": "Update only the binding. Dataset and evaluator references are immutable.\n\nLLM output overrides must remain consistent with the prompt the evaluator runs, and a\nlater change to that prompt is refused while it would invalidate them. Use\n/evaluators/{evaluator_id} to modify a shared definition instead.",
+        "operationId": "patchDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchDatasetEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Dataset Evaluator",
+        "description": "Delete a binding; a missing binding is ignored.\n\nThe binding's trace project and recorded traces are deleted. Its evaluator definition and\nprompt are kept. Delete a definition that nothing binds with\nDELETE /v1/evaluators/{evaluator_id}.",
+        "operationId": "deleteDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandbox_configs": {
+      "get": {
+        "tags": [
+          "sandbox_configs"
+        ],
+        "summary": "Get Sandbox Configs",
+        "description": "List sandbox configurations, newest first. Provider credentials are not returned.",
+        "operationId": "getSandboxConfigs",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LanguageName"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return configurations for this language only.",
+              "title": "Language"
+            },
+            "description": "Return configurations for this language only."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxConfigsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/datasets/{dataset_id}/experiments": {
       "post": {
         "tags": [
@@ -6267,6 +7880,16 @@
             },
             "description": "Forbidden"
           },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -6435,6 +8058,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -6755,7 +8388,7 @@
           "prompts"
         ],
         "summary": "Add tag to prompt version",
-        "description": "Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.",
+        "description": "Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt. A tag through which an LLM evaluator records its prompt version can only move to a version that evaluator can run.",
         "operationId": "createPromptVersionTag",
         "parameters": [
           {
@@ -6804,6 +8437,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -6823,7 +8466,7 @@
           "prompts"
         ],
         "summary": "Delete a tag from a prompt version",
-        "description": "Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.",
+        "description": "Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version. A tag through which an LLM evaluator records its prompt version cannot be deleted.",
         "operationId": "deletePromptVersionTag",
         "parameters": [
           {
@@ -6872,6 +8515,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -10910,6 +12563,78 @@
         ],
         "title": "AssistantMessageMetadataUsageTokens"
       },
+      "BuiltInEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "builtin",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "key",
+          "input_schema",
+          "output_configs"
+        ],
+        "title": "BuiltInEvaluatorDefinition"
+      },
       "BuiltInModelProvider": {
         "properties": {
           "provider": {
@@ -11531,6 +13256,118 @@
         "title": "ChatRequestCredential",
         "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
       },
+      "CodeEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageName"
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "source_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "language",
+          "sandbox_config_id",
+          "input_mapping",
+          "output_configs",
+          "current_version_id",
+          "source_code"
+        ],
+        "title": "CodeEvaluatorDefinition"
+      },
       "CodeEvaluatorUIContext": {
         "properties": {
           "type": {
@@ -11556,6 +13393,144 @@
           "type"
         ],
         "title": "CodeEvaluatorUIContext"
+      },
+      "CodeEvaluatorVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "evaluator_id",
+          "source_code",
+          "created_at"
+        ],
+        "title": "CodeEvaluatorVersion"
+      },
+      "CodeEvaluatorVersionRequest": {
+        "properties": {
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "expected_current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Current Version Id",
+            "description": "GlobalID of the version the caller believes is current. When another version has been appended since, the request is refused with 409 instead of deploying over it."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Configuration applied together with the new code. Omit to keep."
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id",
+            "description": "Sandbox to run the new code in. Omit to keep; null clears it."
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping",
+            "description": "Default input mapping for the new code's arguments. Omit to keep."
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs",
+            "description": "Outputs the new code produces. Omit to keep."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_code"
+        ],
+        "title": "CodeEvaluatorVersionRequest"
+      },
+      "CodeEvaluatorVersionsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CodeEvaluatorVersion"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "CodeEvaluatorVersionsResponseBody"
       },
       "CompactAgentSessionRequestBody": {
         "properties": {
@@ -12007,6 +13982,154 @@
           }
         ]
       },
+      "CreateCodeEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "Unique among evaluators."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageName"
+          },
+          "sandbox_config_id": {
+            "type": "string",
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping",
+            "description": "Default mapping from record fields to the function's arguments."
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs",
+            "description": "Outputs the code produces."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "source_code",
+          "language",
+          "sandbox_config_id",
+          "input_mapping",
+          "output_configs"
+        ],
+        "title": "CreateCodeEvaluatorRequest"
+      },
+      "CreateDatasetEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "Unique among this dataset's evaluators."
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id",
+            "description": "GlobalID of the LLM, code, or built-in evaluator definition to run. Create a definition through POST /v1/evaluators first."
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Binding override. Null inherits the shared description."
+          },
+          "output_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Configs",
+            "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "evaluator_id",
+          "input_mapping"
+        ],
+        "title": "CreateDatasetEvaluatorRequest"
+      },
       "CreateDatasetLabelRequestBody": {
         "properties": {
           "name": {
@@ -12295,6 +14418,118 @@
           "id"
         ],
         "title": "CreateExperimentRunResponseBodyData"
+      },
+      "CreateLLMEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "Unique among evaluators."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries."
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/LLMEvaluatorPromptInput",
+            "description": "The prompt version to run. Create the prompt and its version through the prompts API first."
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "prompt",
+          "output_configs"
+        ],
+        "title": "CreateLLMEvaluatorRequest"
+      },
+      "CreateProjectEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "Unique among this project's evaluators."
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id",
+            "description": "GlobalID of the LLM or code evaluator definition to run. Create a definition through POST /v1/evaluators first."
+          },
+          "evaluation_target": {
+            "$ref": "#/components/schemas/EvaluationTarget"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null uses the evaluator's mapping. LLM evaluators have none, so only variables rooted at input, output, or metadata bind (for example {{metadata.turns}}); anything else needs input_mapping."
+          },
+          "evaluation_delay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Delay Seconds",
+            "description": "Quiet period in seconds before a TRACE or SESSION evaluator runs. Null stores the server default. SPAN evaluators reject a non-null delay and store 0."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "evaluator_id",
+          "evaluation_target",
+          "sampling_rate"
+        ],
+        "title": "CreateProjectEvaluatorRequest"
       },
       "CreateProjectRequestBody": {
         "properties": {
@@ -12641,6 +14876,53 @@
         ],
         "title": "CreatedApiKey"
       },
+      "CreatedCodeEvaluatorVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "was_created": {
+            "type": "boolean",
+            "title": "Was Created",
+            "description": "False when the source matched the current version, which is returned instead."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "evaluator_id",
+          "source_code",
+          "created_at",
+          "was_created"
+        ],
+        "title": "CreatedCodeEvaluatorVersion"
+      },
+      "CreatedCodeEvaluatorVersionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatedCodeEvaluatorVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatedCodeEvaluatorVersionResponseBody"
+      },
       "CustomModelProvider": {
         "properties": {
           "id": {
@@ -12814,6 +15096,140 @@
           "example_count"
         ],
         "title": "Dataset"
+      },
+      "DatasetEvaluator": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "evaluator_type": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "code",
+              "builtin"
+            ],
+            "title": "Evaluator Type"
+          },
+          "trace_project_id": {
+            "type": "string",
+            "title": "Trace Project Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "This binding's description override; null means it inherits the evaluator's description."
+          },
+          "output_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Configs",
+            "description": "This binding's output config override; null means it inherits the evaluator's output configs."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_id",
+          "evaluator_id",
+          "evaluator_type",
+          "trace_project_id",
+          "name",
+          "input_mapping",
+          "description",
+          "output_configs"
+        ],
+        "title": "DatasetEvaluator"
+      },
+      "DatasetEvaluatorResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetEvaluator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "DatasetEvaluatorResponseBody"
+      },
+      "DatasetEvaluatorsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetEvaluator"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "DatasetEvaluatorsResponseBody"
       },
       "DatasetExample": {
         "properties": {
@@ -13586,6 +16002,91 @@
         ],
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
+      },
+      "EvaluationTarget": {
+        "type": "string",
+        "enum": [
+          "SPAN",
+          "TRACE",
+          "SESSION"
+        ]
+      },
+      "EvaluatorDefinitionResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CodeEvaluatorDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/LLMEvaluatorDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
+                "code": "#/components/schemas/CodeEvaluatorDefinition",
+                "llm": "#/components/schemas/LLMEvaluatorDefinition"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "EvaluatorDefinitionResponseBody"
+      },
+      "EvaluatorDefinitionsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CodeEvaluatorDefinition"
+                },
+                {
+                  "$ref": "#/components/schemas/LLMEvaluatorDefinition"
+                },
+                {
+                  "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
+                  "code": "#/components/schemas/CodeEvaluatorDefinition",
+                  "llm": "#/components/schemas/LLMEvaluatorDefinition"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "EvaluatorDefinitionsResponseBody"
       },
       "Experiment": {
         "properties": {
@@ -14770,6 +17271,29 @@
         "title": "IncompleteExperimentRun",
         "description": "Information about incomplete runs for a dataset example"
       },
+      "InputMapping": {
+        "properties": {
+          "literal_mapping": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Literal Mapping"
+          },
+          "path_mapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Path Mapping"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "literal_mapping",
+          "path_mapping"
+        ],
+        "title": "InputMapping"
+      },
       "InsertedSessionAnnotation": {
         "properties": {
           "id": {
@@ -14912,6 +17436,136 @@
           "auth_method"
         ],
         "title": "LDAPUserData"
+      },
+      "LLMEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Equals the description of the prompt's tool function."
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/LLMEvaluatorPrompt"
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "prompt",
+          "output_configs"
+        ],
+        "title": "LLMEvaluatorDefinition"
+      },
+      "LLMEvaluatorPrompt": {
+        "properties": {
+          "prompt_id": {
+            "type": "string",
+            "title": "Prompt Id",
+            "description": "GlobalID of the prompt whose version the evaluator runs."
+          },
+          "selector": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionSelector"
+              },
+              {
+                "$ref": "#/components/schemas/LatestPromptVersionSelector"
+              }
+            ],
+            "title": "Selector",
+            "description": "How the version is chosen. version: pinned to one version. latest: the prompt's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "latest": "#/components/schemas/LatestPromptVersionSelector",
+                "version": "#/components/schemas/PromptVersionSelector"
+              }
+            }
+          },
+          "resolved_prompt_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Prompt Version Id",
+            "description": "GlobalID of the version the evaluator runs now; null if the prompt has none."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_id",
+          "selector",
+          "resolved_prompt_version_id"
+        ],
+        "title": "LLMEvaluatorPrompt"
+      },
+      "LLMEvaluatorPromptInput": {
+        "properties": {
+          "selector": {
+            "$ref": "#/components/schemas/PromptVersionSelector",
+            "description": "Which prompt version to run."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selector"
+        ],
+        "title": "LLMEvaluatorPromptInput"
+      },
+      "LanguageName": {
+        "type": "string",
+        "enum": [
+          "PYTHON",
+          "TYPESCRIPT"
+        ]
+      },
+      "LatestPromptVersionSelector": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "latest",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "LatestPromptVersionSelector"
       },
       "LegacyAssistantMessageMetadata": {
         "properties": {
@@ -16365,6 +19019,229 @@
         ],
         "title": "PatchAgentSessionResponseBody"
       },
+      "PatchCodeEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 2,
+        "required": [
+          "type"
+        ],
+        "title": "PatchCodeEvaluatorRequest"
+      },
+      "PatchDatasetEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Omit to preserve; null restores inheritance."
+          },
+          "output_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Configs",
+            "description": "Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 1,
+        "title": "PatchDatasetEvaluatorRequest"
+      },
+      "PatchLLMEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries."
+          },
+          "prompt": {
+            "$ref": "#/components/schemas/LLMEvaluatorPromptInput",
+            "description": "Move the evaluator to another prompt version. Omit to keep it."
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 2,
+        "required": [
+          "type"
+        ],
+        "title": "PatchLLMEvaluatorRequest"
+      },
+      "PatchProjectEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit to preserve. Null clears the binding's mapping, so the evaluator's applies."
+          },
+          "evaluation_delay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Delay Seconds",
+            "description": "Omit to preserve. Null resets a TRACE or SESSION delay to the server default. SPAN evaluators reject a non-null delay."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 1,
+        "title": "PatchProjectEvaluatorRequest"
+      },
       "PatchPromptRequestBody": {
         "properties": {
           "description": {
@@ -16949,6 +19826,126 @@
           "id"
         ],
         "title": "Project"
+      },
+      "ProjectEvaluator": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "evaluator_type": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "code",
+              "builtin"
+            ],
+            "title": "Evaluator Type"
+          },
+          "trace_project_id": {
+            "type": "string",
+            "title": "Trace Project Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "evaluation_target": {
+            "$ref": "#/components/schemas/EvaluationTarget"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition",
+            "description": "Written in the filter language of the target: span, trace, or session."
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The binding's own input mapping; null means the evaluator's mapping applies (LLM evaluators have none)."
+          },
+          "evaluation_delay_seconds": {
+            "type": "integer",
+            "title": "Evaluation Delay Seconds",
+            "description": "Quiet period for TRACE and SESSION evaluators; 0 for SPAN, which evaluates spans as they arrive."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "evaluator_id",
+          "evaluator_type",
+          "trace_project_id",
+          "name",
+          "evaluation_target",
+          "sampling_rate",
+          "filter_condition",
+          "enabled",
+          "input_mapping",
+          "evaluation_delay_seconds"
+        ],
+        "title": "ProjectEvaluator"
+      },
+      "ProjectEvaluatorResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectEvaluator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ProjectEvaluatorResponseBody"
+      },
+      "ProjectEvaluatorsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectEvaluator"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ProjectEvaluatorsResponseBody"
       },
       "ProjectRetentionPolicyData": {
         "properties": {
@@ -18793,6 +21790,18 @@
             ],
             "title": "Response Format"
           },
+          "custom_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Provider Id",
+            "description": "GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider."
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -18964,6 +21973,18 @@
               }
             ],
             "title": "Response Format"
+          },
+          "custom_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Provider Id",
+            "description": "GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider."
           }
         },
         "type": "object",
@@ -18975,7 +21996,28 @@
           "template_format",
           "invocation_parameters"
         ],
-        "title": "PromptVersionData"
+        "title": "PromptVersionData",
+        "description": "Prompt content shared by prompt and evaluator APIs."
+      },
+      "PromptVersionSelector": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "version",
+            "title": "Type"
+          },
+          "prompt_version_id": {
+            "type": "string",
+            "title": "Prompt Version Id",
+            "description": "GlobalID of the prompt version the evaluator runs. Prompt content is created through the prompts API; a version of another prompt moves the evaluator to it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "prompt_version_id"
+        ],
+        "title": "PromptVersionSelector"
       },
       "PromptVersionTag": {
         "properties": {
@@ -19302,6 +22344,79 @@
           "data"
         ],
         "title": "ResponseBody[UpsertOrDeleteSecretsResult]"
+      },
+      "SandboxConfig": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "GlobalID to pass as a code evaluator's sandbox_config_id."
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageName"
+          },
+          "backend_type": {
+            "type": "string",
+            "title": "Backend Type"
+          },
+          "is_usable": {
+            "type": "boolean",
+            "title": "Is Usable",
+            "description": "Whether code evaluators can be created or deployed in it now: the configuration and its provider are both enabled."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "language",
+          "backend_type",
+          "is_usable"
+        ],
+        "title": "SandboxConfig"
+      },
+      "SandboxConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SandboxConfig"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SandboxConfigsResponseBody"
       },
       "SecretKeyValue": {
         "properties": {
@@ -23319,6 +26434,24 @@
         "title": "AgentErrorData",
         "type": "object"
       },
+      "BindingCounts": {
+        "properties": {
+          "project": {
+            "title": "Project",
+            "type": "integer"
+          },
+          "dataset": {
+            "title": "Dataset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project",
+          "dataset"
+        ],
+        "title": "BindingCounts",
+        "type": "object"
+      },
       "PhoenixToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
@@ -23416,6 +26549,151 @@
           "toolExecutionEnvironment"
         ],
         "title": "PhoenixToolCallProviderMetadata",
+        "type": "object"
+      },
+      "ProblemDetail": {
+        "properties": {
+          "type": {
+            "description": "urn:phoenix:problem:<code>, e.g. urn:phoenix:problem:conflict.",
+            "title": "Type",
+            "type": "string"
+          },
+          "title": {
+            "description": "A fixed title for `code`, e.g. 'Already exists'.",
+            "title": "Title",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "detail": {
+            "description": "What went wrong and, where possible, how to fix it.",
+            "title": "Detail",
+            "type": "string"
+          },
+          "code": {
+            "description": "Stable machine-readable code: validation_error, invalid_argument, not_found, already_exists, conflict, forbidden, insufficient_storage, or error. A future code is additive; treat one you don't recognize by `status`.",
+            "title": "Code",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A finer condition under `code`, e.g. still_bound or version_mismatch. New reasons may appear; treat one you don't recognize by `code`.",
+            "title": "Reason"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProblemFieldError"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Every invalid input, for validation_error.",
+            "title": "Errors"
+          },
+          "existing_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For already_exists: the GlobalID of the resource that holds the name.",
+            "title": "Existing Id"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For version_mismatch: the GlobalID of the version actually current, or null when the evaluator has none yet. Re-read the evaluator and reconcile before retrying; don't replace the expected version blindly.",
+            "title": "Current Version Id"
+          },
+          "binding_counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BindingCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For still_bound: how many project and dataset bindings still refuse the delete."
+          },
+          "dataset_evaluator_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "For incompatible_override: GlobalIDs of the dataset bindings whose output overrides no longer fit the evaluator's prompt.",
+            "title": "Dataset Evaluator Ids"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "code"
+        ],
+        "title": "ProblemDetail",
+        "type": "object"
+      },
+      "ProblemFieldError": {
+        "properties": {
+          "field": {
+            "description": "Normalized dotted path of the offending input: body, query, or path, followed by the field's own path (array indices are numeric segments). Discriminated-union tags and validator wrapper names are stripped, e.g. body.name rather than body.code.name.",
+            "title": "Field",
+            "type": "string"
+          },
+          "code": {
+            "description": "One of missing, unknown_field, wrong_type, pattern, too_short, too_long, out_of_range, invalid_choice, or invalid.",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "code",
+          "message"
+        ],
+        "title": "ProblemFieldError",
         "type": "object"
       },
       "SessionSummaryChunk": {
