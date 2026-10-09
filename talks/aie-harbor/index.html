@@ -134,12 +134,6 @@ p{margin:0}
 .in-step{height:260px;border-radius:var(--radius-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--surface)}
 .in-k{font-size:36px;font-weight:500;letter-spacing:-.025em;line-height:1.05;white-space:nowrap}
 .in-d{font-size:20px;line-height:1.35;color:var(--muted);text-wrap:balance}
-.in-step.task,.in-step.verify{background:var(--amber-tint)}
-.in-step.task .in-k,.in-step.verify .in-k{color:var(--amber)}
-.in-step.agent{background:var(--blue-tint)}
-.in-step.agent .in-k{color:var(--blue)}
-.in-step.reward{background:var(--teal-tint)}
-.in-step.reward .in-k{color:var(--teal)}
 .in-arrow{position:relative;height:2px;margin:0 16px 0 8px;background:var(--text)}
 .in-arrow::after{content:"";position:absolute;right:-10px;top:-7px;border-left:12px solid var(--text);border-top:8px solid transparent;border-bottom:8px solid transparent}
 .in-foot{font-size:26px;line-height:1.35;color:var(--text)}
@@ -252,9 +246,9 @@ p{margin:0}
   <div class="in-flow" role="img" aria-label="One trial has four parts. A task, made of an instruction, an image, and a test. The agent works in a fresh sandbox. The verifier checks what the agent left behind. The result is a reward from 0 to 1, plus the agent's trajectory.">
     <div class="in-step task"><span class="in-k">Task</span><span class="in-d">an instruction, an image, a test</span></div>
     <i class="in-arrow" aria-hidden="true"></i>
-    <div class="in-step agent"><span class="in-k">Agent works</span><span class="in-d">in a fresh sandbox</span></div>
+    <div class="in-step agent"><span class="in-k">Agent</span><span class="in-d">in a fresh sandbox</span></div>
     <i class="in-arrow" aria-hidden="true"></i>
-    <div class="in-step verify"><span class="in-k">Verifier checks</span><span class="in-d">what the agent left behind</span></div>
+    <div class="in-step verify"><span class="in-k">Verifier</span><span class="in-d">what the agent left behind</span></div>
     <i class="in-arrow" aria-hidden="true"></i>
     <div class="in-step reward"><span class="in-k">Reward</span><span class="in-d">0 to 1, plus a trajectory</span></div>
   </div>
