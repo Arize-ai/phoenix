@@ -422,7 +422,7 @@ codegen-prompts: ## Generate prompts code from YAML files
 
 sync-models: ## Sync model cost manifest from remote sources
 	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
-	@$(UV) run python .github/.scripts/sync_models.py
+	@$(UV) run python scripts/cost_tracking/sync_models.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 # ARGS=--external points the PostgreSQL extractor at a foreign database, which
