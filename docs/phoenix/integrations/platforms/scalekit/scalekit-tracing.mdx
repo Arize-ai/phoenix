@@ -1,0 +1,88 @@
+---
+title: "Scalekit Tracing"
+sidebarTitle: "Scalekit Tracing"
+description: "Instrument Scalekit tool calls and send their traces to Phoenix."
+---
+
+import StartPhoenix from "../../../../../snippets/start-phoenix.mdx";
+
+Scalekit runs tools for an agent. Add the setup below to an existing Scalekit app to send those tool calls to Phoenix.
+
+## Install
+
+```bash
+npm install @opentelemetry/api @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto @arizeai/openinference-semantic-conventions
+```
+
+## Configure Environment
+
+First, start Phoenix:
+
+<StartPhoenix />
+
+Then create a `.env` file that points your app at it:
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
+PHOENIX_PROJECT_NAME=scalekit
+```
+
+`PHOENIX_COLLECTOR_ENDPOINT` is the URL traces are sent to. Include the `/v1/traces` path.
+
+The tool call also needs the Scalekit credentials from Dashboard → Developers → API credentials:
+
+```bash
+SCALEKIT_ENV_URL=https://your-env.scalekit.com
+SCALEKIT_CLIENT_ID=your-client-id
+SCALEKIT_CLIENT_SECRET=your-client-secret
+```
+
+## Setup
+
+Register the tracer before creating the model client, and point it at `PHOENIX_COLLECTOR_ENDPOINT`. Build the Scalekit client from those credentials:
+
+```typescript
+const client = new ScalekitClient(
+  process.env.SCALEKIT_ENV_URL,
+  process.env.SCALEKIT_CLIENT_ID,
+  process.env.SCALEKIT_CLIENT_SECRET
+);
+```
+
+The model span shows that the model asked for a tool. Call `tracedTools(client)` instead of `client.tools.executeTool` so the tool result is on the trace. `identifier` is the connected account the tool runs as.
+
+```typescript
+const tools = tracedTools(client);
+
+await tools.executeTool({ toolName, identifier, params }, toolCallId);
+```
+
+A tool can fail and still return normally. That result has to be marked ERROR, or the trace looks successful.
+
+```typescript
+const result = await client.tools.executeTool(params);
+const failed = result?.data?.ok === false || !!result?.data?.error;
+
+span.setStatus(
+  failed
+    ? { code: SpanStatusCode.ERROR, message: "Tool returned an error result" }
+    : { code: SpanStatusCode.OK }
+);
+```
+
+## Running Your Application
+
+Run your app and send a request that calls a tool.
+
+## Observe
+
+Phoenix lists the turn under `PHOENIX_PROJECT_NAME`. The tool span sits under the model span. A tool that returns an error payload shows status ERROR.
+
+## Resources
+
+<Card horizontal icon="github" href="https://github.com/scalekit-developers/arize-agentkit-tracing-demo" title="Scalekit tracing demo" description="Next.js app with this setup wired up"/>
+
+The tracer setup is in [`instrumentation.ts`](https://github.com/scalekit-developers/arize-agentkit-tracing-demo/blob/main/instrumentation.ts). The full wrapper is in [`lib/traced-tools.ts`](https://github.com/scalekit-developers/arize-agentkit-tracing-demo/blob/main/lib/traced-tools.ts).
+
+Scalekit connectors: [https://docs.scalekit.com/agentkit/connectors/](https://docs.scalekit.com/agentkit/connectors/).

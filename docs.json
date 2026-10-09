@@ -908,6 +908,13 @@
                   "docs/phoenix/integrations/platforms/prompt-flow",
                   "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing"
                 ]
+              },
+              {
+                "group": "Scalekit",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/scalekit",
+                  "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing"
+                ]
               }
             ]
           },
