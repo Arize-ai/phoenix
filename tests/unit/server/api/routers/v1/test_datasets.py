@@ -23,6 +23,66 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVer
 from phoenix.server.types import DbSessionFactory
 
 
+async def test_create_dataset(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    response = await httpx_client.post(
+        "/v1/datasets",
+        json={
+            "name": "rest dataset",
+            "description": "created without an upload",
+            "metadata": {"source": "api"},
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["name"] == "rest dataset"
+    assert data["description"] == "created without an upload"
+    assert data["metadata"] == {"source": "api"}
+    assert data["example_count"] == 0
+    assert data["created_at"]
+    assert data["updated_at"]
+
+    async with db() as session:
+        dataset = await session.scalar(
+            select(models.Dataset).where(models.Dataset.name == "rest dataset")
+        )
+    assert dataset is not None
+    assert data["id"] == str(GlobalID("Dataset", str(dataset.id)))
+
+
+async def test_create_dataset_uses_optional_field_defaults(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post("/v1/datasets", json={"name": "minimal dataset"})
+
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["description"] is None
+    assert data["metadata"] == {}
+    assert data["example_count"] == 0
+
+
+async def test_create_dataset_rejects_empty_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post("/v1/datasets", json={"name": ""})
+
+    assert response.status_code == 422
+
+
+async def test_create_dataset_rejects_duplicate_name(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
+    response = await httpx_client.post("/v1/datasets", json={"name": "empty dataset"})
+
+    assert response.status_code == 409
+    assert response.text == "A dataset named 'empty dataset' already exists"
+
+
 async def test_get_simple_dataset(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,

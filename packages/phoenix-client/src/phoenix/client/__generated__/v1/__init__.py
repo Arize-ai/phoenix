@@ -128,6 +128,12 @@ class CreateDatasetLabelRequestBody(TypedDict):
     description: NotRequired[str]
 
 
+class CreateDatasetRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+
+
 class CreateDatasetSplitRequestBody(TypedDict):
     name: str
     description: NotRequired[str]
@@ -1520,6 +1526,10 @@ class CreateChatCompletionRequestBody(TypedDict):
 
 class CreateDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
+
+
+class CreateDatasetResponseBody(TypedDict):
+    data: Dataset
 
 
 class CreateDatasetSplitResponseBody(TypedDict):
