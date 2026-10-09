@@ -48,8 +48,11 @@ import {
 import {
   AnnotationColorSwatch,
   type AnnotationConfig,
-  getPositiveOptimizationFromConfig,
+  AnnotationScoreText,
+  getAnnotationScoreColorProps,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   RichTooltip,
@@ -1070,18 +1073,6 @@ export function ExperimentCompareListPage({
               } = getValue();
               const annotationConfig =
                 annotationConfigsByName[annotationSummary.annotationName];
-              const baseExperimentRunAnnotationValue = getAnnotationValue(
-                baseExperimentRunAnnotation
-              );
-              const baseExperimentRunAnnotationValueFormatted =
-                typeof baseExperimentRunAnnotationValue === "number"
-                  ? numberFormatter(baseExperimentRunAnnotationValue)
-                  : baseExperimentRunAnnotationValue;
-              const basePositiveOptimization =
-                getPositiveOptimizationFromConfig({
-                  config: annotationConfig,
-                  score: baseExperimentRunAnnotation?.score,
-                });
 
               return (
                 <ul
@@ -1092,9 +1083,8 @@ export function ExperimentCompareListPage({
                   `}
                 >
                   <AnnotationValueItem
-                    value={baseExperimentRunAnnotationValueFormatted}
-                    numericValue={baseExperimentRunAnnotationValue}
-                    positiveOptimization={basePositiveOptimization}
+                    annotation={baseExperimentRunAnnotation}
+                    annotationConfig={annotationConfig}
                     barColor={baseExperimentColor}
                     minScore={annotationSummary.minScore}
                     maxScore={annotationSummary.maxScore}
@@ -1105,25 +1095,12 @@ export function ExperimentCompareListPage({
                       annotation: CompareExperimentRunAnnotation | undefined,
                       index: number
                     ) => {
-                      const compareAnnotationValue =
-                        getAnnotationValue(annotation);
-                      const compareAnnotationValueFormatted =
-                        typeof compareAnnotationValue === "number"
-                          ? numberFormatter(compareAnnotationValue)
-                          : compareAnnotationValue;
-                      const color = getExperimentColor(index);
-                      const positiveOptimization =
-                        getPositiveOptimizationFromConfig({
-                          config: annotationConfig,
-                          score: annotation?.score,
-                        });
                       return (
                         <AnnotationValueItem
                           key={index}
-                          value={compareAnnotationValueFormatted}
-                          numericValue={compareAnnotationValue}
-                          positiveOptimization={positiveOptimization}
-                          barColor={color}
+                          annotation={annotation}
+                          annotationConfig={annotationConfig}
+                          barColor={getExperimentColor(index)}
                           minScore={annotationSummary.minScore}
                           maxScore={annotationSummary.maxScore}
                           annotationName={annotationSummary.annotationName}
@@ -1392,59 +1369,65 @@ export function ExperimentCompareListPage({
 }
 
 /**
- * A single annotation value item with optimization direction coloring
+ * One experiment's annotation value in a compare list cell: the score (or
+ * label) colored by the annotation config's optimization direction, on a
+ * full-width tint, over a bar in the score's color. Without a direction the
+ * bar takes the experiment's color.
  */
-function AnnotationValueItem({
-  value,
-  numericValue,
-  positiveOptimization,
+export function AnnotationValueItem({
+  annotation,
+  annotationConfig,
   barColor,
   minScore,
   maxScore,
   annotationName,
 }: {
-  value: string | number;
-  numericValue: string | number;
-  positiveOptimization: boolean | null;
+  annotation: Annotation | undefined;
+  annotationConfig: AnnotationOptimizationConfig | undefined;
   barColor: string;
   minScore: number | null;
   maxScore: number | null;
   annotationName: string;
 }) {
-  const bgColor =
-    positiveOptimization === true
-      ? "var(--global-color-success-100)"
-      : positiveOptimization === false
-        ? "var(--global-color-danger-100)"
-        : undefined;
-  const textColor =
-    positiveOptimization === true
-      ? "success"
-      : positiveOptimization === false
-        ? "danger"
-        : undefined;
-  const optimizedBarColor =
-    positiveOptimization === true
-      ? "var(--global-color-success-500)"
-      : positiveOptimization === false
-        ? "var(--global-color-danger-500)"
-        : barColor;
-
+  const numericValue = getAnnotationValue(annotation);
+  const value =
+    typeof numericValue === "number"
+      ? numberFormatter(numericValue)
+      : numericValue;
+  const optimizationValue = getOptimizationValueFromConfig({
+    config: annotationConfig,
+    score: annotation?.score,
+  });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
   return (
     <li
-      css={css`
-        --mod-barloader-fill-color: ${optimizedBarColor};
-        ${bgColor ? `background-color: ${bgColor};` : ""}
-        padding: var(--global-dimension-size-25) var(--global-dimension-size-50);
-        border-radius: var(--global-rounding-small);
-        margin: calc(-1 * var(--global-dimension-size-25))
-          calc(-1 * var(--global-dimension-size-50));
-      `}
+      data-direction={direction}
+      css={css(
+        scoreColorCSS,
+        css`
+          --mod-barloader-fill-color: var(
+            --annotation-score-color,
+            ${barColor}
+          );
+          background-color: var(--annotation-score-background-color);
+          padding: var(--global-dimension-size-25)
+            var(--global-dimension-size-50);
+          border-radius: var(--global-rounding-small);
+          margin: calc(-1 * var(--global-dimension-size-25))
+            calc(-1 * var(--global-dimension-size-50));
+        `
+      )}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
-        <Text size="S" fontFamily="mono" color={textColor}>
+        <AnnotationScoreText
+          size="S"
+          fontFamily="mono"
+          optimizationValue={optimizationValue}
+          hasBackground={false}
+        >
           {value}
-        </Text>
+        </AnnotationScoreText>
       </Flex>
       {typeof numericValue === "number" ? (
         <ProgressBar

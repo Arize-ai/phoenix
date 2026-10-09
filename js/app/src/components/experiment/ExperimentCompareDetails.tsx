@@ -38,7 +38,8 @@ import {
   AnnotationColorSwatch,
   type AnnotationConfig,
   AnnotationScoreText,
-  getPositiveOptimizationFromConfig,
+  getAnnotationScoreColorProps,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
 import { JSONBlock } from "@phoenix/components/code";
@@ -192,6 +193,8 @@ export function ExperimentCompareDetails({
                       name
                       optimizationDirection
                       threshold
+                      lowerBound
+                      upperBound
                     }
                   }
                 }
@@ -1207,10 +1210,12 @@ function ExperimentRunAnnotationButton({
       ? formatFloat(annotation?.score)
       : annotation?.label || "--";
 
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: annotation?.score,
   });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
 
   const WrapperElement = annotation
     ? AriaButton // using AriaButton to ensure the popover works
@@ -1270,16 +1275,23 @@ function ExperimentRunAnnotationButton({
         fontFamily="mono"
         justifySelf="start"
         maxWidth="100%"
-        positiveOptimization={positiveOptimization}
+        optimizationValue={optimizationValue}
       >
         <Truncate maxWidth="100%">{labelValue}</Truncate>
       </AnnotationScoreText>
 
       <ProgressBar
-        css={css`
-          align-self: center;
-          --mod-barloader-fill-color: ${annotationColor};
-        `}
+        data-direction={direction}
+        css={css(
+          scoreColorCSS,
+          css`
+            align-self: center;
+            --mod-barloader-fill-color: var(
+              --annotation-score-color,
+              ${annotationColor}
+            );
+          `
+        )}
         value={calculateAnnotationScorePercentile(
           annotation?.score ?? 0,
           annotationSummary.minScore,

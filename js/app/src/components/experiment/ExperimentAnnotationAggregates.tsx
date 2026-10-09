@@ -5,8 +5,9 @@ import {
   AnnotationColorSwatch,
   type AnnotationConfig,
   AnnotationScoreText,
+  getAnnotationScoreColorProps,
   getOptimizationBounds,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { Skeleton } from "@phoenix/components/core/loading";
 import type { ExecutionState } from "@phoenix/components/core/types";
@@ -146,10 +147,12 @@ function ExperimentAnnotationAggregateItem({
   const min = lowerBound ?? 0;
   const max = upperBound ?? 1;
 
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config,
     score: meanScore,
   });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
 
   const scorePercentile = calculateAnnotationScorePercentile(
     meanScore ?? 0,
@@ -205,7 +208,7 @@ function ExperimentAnnotationAggregateItem({
           <AnnotationScoreText
             size="S"
             fontFamily="mono"
-            positiveOptimization={positiveOptimization}
+            optimizationValue={optimizationValue}
           >
             <Truncate maxWidth="100%">{floatFormatter(meanScore)}</Truncate>
           </AnnotationScoreText>
@@ -243,10 +246,17 @@ function ExperimentAnnotationAggregateItem({
         />
       ) : (
         <ProgressBar
-          css={css`
-            align-self: center;
-            --mod-barloader-fill-color: ${annotationColor};
-          `}
+          data-direction={direction}
+          css={css(
+            scoreColorCSS,
+            css`
+              align-self: center;
+              --mod-barloader-fill-color: var(
+                --annotation-score-color,
+                ${annotationColor}
+              );
+            `
+          )}
           value={meanScore != null ? scorePercentile : 0}
           height="var(--global-dimension-size-50)"
           width="100%"

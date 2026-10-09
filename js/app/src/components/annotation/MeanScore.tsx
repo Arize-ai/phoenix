@@ -9,12 +9,12 @@ import { AnnotationScoreText } from "./AnnotationScoreText";
 export const MeanScore = ({
   value,
   fallback = "--",
-  positiveOptimization,
+  optimizationValue,
   ...props
 }: {
   value?: number | null;
   fallback?: React.ReactNode;
-  positiveOptimization?: boolean | null;
+  optimizationValue?: number | null;
 } & Omit<TextProps, "children">) => {
   if (value == null || typeof value !== "number" || isNaN(value)) {
     return (
@@ -28,7 +28,7 @@ export const MeanScore = ({
       <AnnotationScoreText
         elementType="span"
         fontFamily="mono"
-        positiveOptimization={positiveOptimization}
+        optimizationValue={optimizationValue}
         size={props.size}
       >
         <span aria-label="mean score">μ</span>&nbsp;

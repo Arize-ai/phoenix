@@ -13,15 +13,14 @@ import { AnnotationNameAndValue } from "@phoenix/components/annotation";
 export function ExperimentAnnotationButton({
   annotation,
   extra,
-  positiveOptimization,
+  optimizationValue,
 }: {
   annotation: Annotation;
   /**
-   * Whether the annotation is a positive or negative optimization
-   *
-   * If not provided, the component will not display the optimization information.
+   * Signed optimization value from -1 (worst) to 1 (best) that colors the
+   * value. If not provided, the value is not colored.
    */
-  positiveOptimization?: boolean;
+  optimizationValue?: number | null;
   /**
    * Additional content like controls that will be placed on the right
    */
@@ -52,7 +51,7 @@ export function ExperimentAnnotationButton({
           justifyContent="space-between"
         >
           <AnnotationNameAndValue
-            positiveOptimization={positiveOptimization}
+            optimizationValue={optimizationValue}
             annotation={annotation}
             displayPreference="score-and-label"
             maxWidth="unset"
