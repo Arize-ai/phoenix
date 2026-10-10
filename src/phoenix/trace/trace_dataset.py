@@ -141,6 +141,11 @@ class TraceDataset:
                 evaluations for the spans in the dataset. If provided, the evaluations
                 can be materialized into a unified dataframe as annotations.
         """
+        # An empty dataframe is valid — e.g. a fixture download that found no
+        # traces, or from_spans([]). Reindex it to the required columns so it
+        # passes validation and flows through normalization like a populated one.
+        if dataframe.empty:
+            dataframe = dataframe.reindex(columns=REQUIRED_COLUMNS)
         # Validate that the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
             raise ValueError(
