@@ -1,17 +1,17 @@
 ---
 title: "Scalekit Tracing"
 sidebarTitle: "Scalekit Tracing"
-description: "Instrument Scalekit tool calls and send their traces to Phoenix."
+description: "Trace Scalekit AgentKit tool calls in Phoenix."
 ---
 
-import StartPhoenix from "../../../../../snippets/start-phoenix.mdx";
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
 
-Scalekit runs tools for an agent. Add the setup below to an existing Scalekit app to send those tool calls to Phoenix.
+Scalekit runs tools for an agent. See the [Scalekit docs](https://docs.scalekit.com/agentkit/connectors/). Add the setup below to an existing Scalekit app to send those tool calls to Phoenix.
 
 ## Install
 
 ```bash
-npm install @opentelemetry/api @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto @arizeai/openinference-semantic-conventions
+npm install @scalekit-sdk/node @arizeai/phoenix-otel @arizeai/openinference-core
 ```
 
 ## Configure Environment
@@ -23,66 +23,100 @@ First, start Phoenix:
 Then create a `.env` file that points your app at it:
 
 ```bash
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_API_KEY=your-api-key # Optional, only if auth is enabled
-PHOENIX_PROJECT_NAME=scalekit
+PHOENIX_PROJECT_NAME=scalekit-agentkit
 ```
 
-`PHOENIX_COLLECTOR_ENDPOINT` is the URL traces are sent to. Include the `/v1/traces` path.
+`PHOENIX_COLLECTOR_ENDPOINT` is the Phoenix server URL. `register()` appends `/v1/traces` when that path is missing.
 
 The tool call also needs the Scalekit credentials from Dashboard → Developers → API credentials:
 
 ```bash
-SCALEKIT_ENV_URL=https://your-env.scalekit.com
+SCALEKIT_ENVIRONMENT_URL=https://your-env.scalekit.com
 SCALEKIT_CLIENT_ID=your-client-id
 SCALEKIT_CLIENT_SECRET=your-client-secret
 ```
 
 ## Setup
 
-Register the tracer before creating the model client, and point it at `PHOENIX_COLLECTOR_ENDPOINT`. Build the Scalekit client from those credentials:
+Register the tracer before creating any clients. `register()` from `@arizeai/phoenix-otel` reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from the environment. Build the Scalekit client in the same file so it is created after tracing is active:
 
 ```typescript
-const client = new ScalekitClient(
-  process.env.SCALEKIT_ENV_URL,
-  process.env.SCALEKIT_CLIENT_ID,
-  process.env.SCALEKIT_CLIENT_SECRET
+// instrumentation.ts
+import { register } from "@arizeai/phoenix-otel";
+import { ScalekitClient } from "@scalekit-sdk/node";
+
+export const provider = register({
+  projectName: process.env.PHOENIX_PROJECT_NAME ?? "scalekit-agentkit",
+});
+
+export const scalekit = new ScalekitClient(
+  process.env.SCALEKIT_ENVIRONMENT_URL!,
+  process.env.SCALEKIT_CLIENT_ID!,
+  process.env.SCALEKIT_CLIENT_SECRET!,
 );
 ```
 
-The model span shows that the model asked for a tool. Call `tracedTools(client)` instead of `client.tools.executeTool` so the tool result is on the trace. `identifier` is the connected account the tool runs as.
+Wrap `client.actions.executeTool` with OpenInference's `traceTool` helper. It creates a `TOOL` span named after the tool and records the call arguments and result:
 
 ```typescript
-const tools = tracedTools(client);
+// traced-tools.ts
+import { traceTool } from "@arizeai/openinference-core";
+import type { ScalekitClient } from "@scalekit-sdk/node";
 
-await tools.executeTool({ toolName, identifier, params }, toolCallId);
+type ExecuteToolParams = Parameters<ScalekitClient["actions"]["executeTool"]>[0];
+
+export function createTracedToolExecutor(
+  actions: Pick<ScalekitClient["actions"], "executeTool">
+) {
+  return (params: ExecuteToolParams) =>
+    traceTool((p: ExecuteToolParams) => actions.executeTool(p), {
+      name: params.toolName,
+    })(params);
+}
 ```
 
-A tool can fail and still return normally. That result has to be marked ERROR, or the trace looks successful.
+Then call a tool through it. `identifier` is the connected account the tool runs as:
 
 ```typescript
-const result = await client.tools.executeTool(params);
-const failed = result?.data?.ok === false || !!result?.data?.error;
+// example.ts
+import { provider, scalekit } from "./instrumentation.js";
+import { createTracedToolExecutor } from "./traced-tools.js";
 
-span.setStatus(
-  failed
-    ? { code: SpanStatusCode.ERROR, message: "Tool returned an error result" }
-    : { code: SpanStatusCode.OK }
-);
+const executeTool = createTracedToolExecutor(scalekit.actions);
+
+const result = await executeTool({
+  toolName: "github_issue_get",
+  connector: "github-connect",
+  identifier: "test-user",
+  toolInput: { owner: "octocat", repo: "Hello-World", issue_number: 1 },
+});
+console.log(result.data);
+
+await provider.shutdown(); // flush batched spans before the script exits
 ```
+
+<Note>
+Errors thrown by the SDK, such as an upstream 404 or an inactive connected account, are recorded automatically: `traceTool` marks the span `ERROR` and attaches the exception. Some connectors instead report failures inside `result.data` while resolving normally. If yours does, inspect the result and set the span status yourself. The [demo repo's `lib/traced-tools.ts`](https://github.com/scalekit-developers/arize-agentkit-tracing-demo/blob/main/lib/traced-tools.ts) shows a wrapper that does this.
+</Note>
 
 ## Running Your Application
 
-Run your app and send a request that calls a tool.
+Run the example and it will call the tool once:
+
+```bash
+npx tsx example.ts
+```
 
 ## Observe
 
-Phoenix lists the turn under `PHOENIX_PROJECT_NAME`. The tool span sits under the model span. A tool that returns an error payload shows status ERROR.
+Phoenix lists the turn under `PHOENIX_PROJECT_NAME`. When a model instrumentor is registered, the tool span appears beneath the active model span. A tool call that throws shows status ERROR with the exception recorded.
 
 ## Resources
 
-<Card horizontal icon="github" href="https://github.com/scalekit-developers/arize-agentkit-tracing-demo" title="Scalekit tracing demo" description="Next.js app with this setup wired up"/>
+<Card horizontal icon="github" href="https://github.com/scalekit-developers/arize-agentkit-tracing-demo" title="Scalekit tracing demo" description="Next.js app that traces Scalekit tool calls in Phoenix."/>
 
-The tracer setup is in [`instrumentation.ts`](https://github.com/scalekit-developers/arize-agentkit-tracing-demo/blob/main/instrumentation.ts). The full wrapper is in [`lib/traced-tools.ts`](https://github.com/scalekit-developers/arize-agentkit-tracing-demo/blob/main/lib/traced-tools.ts).
+The tracer setup is in [`lib/arize.ts`](https://github.com/scalekit-developers/arize-agentkit-tracing-demo/blob/main/lib/arize.ts). A wrapper that also classifies error results is in [`lib/traced-tools.ts`](https://github.com/scalekit-developers/arize-agentkit-tracing-demo/blob/main/lib/traced-tools.ts).
 
 Scalekit connectors: [https://docs.scalekit.com/agentkit/connectors/](https://docs.scalekit.com/agentkit/connectors/).
