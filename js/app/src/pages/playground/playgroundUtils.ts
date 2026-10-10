@@ -84,7 +84,11 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
-import { extractDecisionVariables } from "./decisionUtils";
+import {
+  decisionInstanceFromSpanAttributes,
+  extractDecisionVariables,
+  isDecisionSpanAttributes,
+} from "./decisionUtils";
 import {
   getVisibleInvocationParameterSpecs,
   getDefaultInvocationConfig,
@@ -1135,6 +1139,16 @@ export function transformSpanAttributesToPlaygroundInstance(
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
+  }
+
+  // A decision span replays as a decision instance: the request body on the
+  // span becomes the editable request and the response its first output.
+  if (isDecisionSpanAttributes(parsedAttributes)) {
+    return decisionInstanceFromSpanAttributes({
+      base: basePlaygroundInstance,
+      spanId: span.id,
+      attributes: parsedAttributes,
+    });
   }
 
   const baseModelConfigResult =

@@ -9,8 +9,10 @@ import type {
   DecisionQuestionType,
   DecisionRequestDraft,
   DecisionScoreLevelDraft,
+  PlaygroundInstance,
 } from "@phoenix/store/playground/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 /*
  * The playground edits a provider-independent draft and converts at the
@@ -859,5 +861,134 @@ export function normalizeDecisionResult(
     answers,
     usage: { input: num(usage.input_tokens), output: num(usage.output_tokens) },
     raw: result,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Span replay
+// ---------------------------------------------------------------------------
+
+/** Whether parsed span attributes describe an OpenInference DECISION span. */
+export function isDecisionSpanAttributes(attributes: unknown): boolean {
+  if (!isStringKeyedObject(attributes)) return false;
+  const openinference = attributes.openinference;
+  const kind =
+    isStringKeyedObject(openinference) &&
+    isStringKeyedObject(openinference.span)
+      ? openinference.span.kind
+      : undefined;
+  return kind === "DECISION" || isStringKeyedObject(attributes.decision);
+}
+
+function stringAttribute(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** A span attribute value as text: strings as-is, anything else re-serialized. */
+function attributeValueText(container: unknown): string | null {
+  const value = isStringKeyedObject(container) ? container.value : undefined;
+  if (typeof value === "string") return value;
+  return value == null ? null : JSON.stringify(value);
+}
+
+/** The provider key and model a decision span was asked to run. */
+function readDecisionTarget(decisionAttrs: Record<string, unknown>): {
+  provider: ModelProvider | null;
+  modelName: string | null;
+} {
+  const providerName = stringAttribute(decisionAttrs.provider)?.toUpperCase();
+  const request = isStringKeyedObject(decisionAttrs.request)
+    ? decisionAttrs.request
+    : {};
+  return {
+    provider:
+      providerName && isModelProvider(providerName) ? providerName : null,
+    modelName:
+      stringAttribute(request.model_name) ??
+      stringAttribute(decisionAttrs.model_name),
+  };
+}
+
+/** The editable request from a span's input body, with a reason when it fails. */
+function readDecisionDraft(inputText: string | null): {
+  draft: DecisionRequestDraft;
+  error: string | null;
+} {
+  if (inputText == null) {
+    return {
+      draft: createDecisionDraft(),
+      error: "The span has no input body; starting from an example request.",
+    };
+  }
+  try {
+    return { draft: parseDecisionImport(inputText).draft, error: null };
+  } catch (error) {
+    return {
+      draft: createDecisionDraft(),
+      error: `Could not read the decision request from the span: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+}
+
+/**
+ * Rebuild a decision instance from a DECISION span so the playground opens
+ * on the request that produced it. The span's `input.value` is the exact
+ * provider body, so the import parser handles both wire formats; the model
+ * comes from `decision.request.model_name` and the provider from
+ * `decision.provider`, which the server writes as the provider's system name.
+ */
+export function decisionInstanceFromSpanAttributes({
+  base,
+  spanId,
+  attributes,
+}: {
+  base: PlaygroundInstance;
+  spanId: string;
+  attributes: unknown;
+}): { playgroundInstance: PlaygroundInstance; parsingErrors: string[] } {
+  const attrs = isStringKeyedObject(attributes) ? attributes : {};
+  const decisionAttrs = isStringKeyedObject(attrs.decision)
+    ? attrs.decision
+    : {};
+  const parsingErrors: string[] = [];
+
+  const { provider, modelName } = readDecisionTarget(decisionAttrs);
+  if (!provider) {
+    parsingErrors.push(
+      "Could not determine the decision provider from the span; pick one from the model menu."
+    );
+  }
+  if (!modelName) {
+    parsingErrors.push("Could not determine the decision model from the span.");
+  }
+  const { draft, error } = readDecisionDraft(attributeValueText(attrs.input));
+  if (error) parsingErrors.push(error);
+
+  return {
+    playgroundInstance: {
+      ...base,
+      // Keep the chat defaults so switching the instance back to an LLM works.
+      llmModel: base.model,
+      model: {
+        provider: provider ?? base.model.provider,
+        modelName,
+        modelType: "DECISION",
+        invocationParameters: base.model.invocationParameters,
+        baseUrl: null,
+      },
+      decisionRequest: draft,
+      repetitions: {
+        1: {
+          output: attributeValueText(attrs.output),
+          spanId,
+          error: null,
+          toolCalls: {},
+          status: "finished",
+        },
+      },
+    },
+    parsingErrors,
   };
 }
