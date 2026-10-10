@@ -631,7 +631,7 @@ fi</pre>
       cells.push({el:c,v:c.querySelector('.v'),r:c.querySelector('.r'),res:R[i][j][k],i,j,start:((i*7+j*5+k*3)%11)*.3,run:1.8+((i*3+j*7+k*5)%7)*.4})}});
     m.append(el(''));const pr=el('hi-pr','<span class="bar"><i></i></span><b>—</b><em></em>');m.append(pr);rows.push({pr,lab,i})});
   m.append(el(''));const means=agents.map((a,j)=>{if(j)m.append(el(''));const e=el('hi-mean','<b>—</b>pass@1<em></em>');m.append(e);return e});
-  const ST={build:['',''],run:['',''],pass:['1',''],fail:['0','tests failed'],err:['!','timeout']};
+  const ST={build:['',''],run:['',''],pass:['1',''],fail:['0','failed'],err:['!','timeout']};
   const set=(c,st)=>{if(c.st===st)return;c.st=st;c.el.className='hi-sb'+(st?' '+st:'');const s=ST[st]||['',''];c.v.textContent=s[0];c.r.textContent=s[1]};
   const done=c=>c.st==='pass'||c.st==='fail'||c.st==='err';
   function paint(t){
