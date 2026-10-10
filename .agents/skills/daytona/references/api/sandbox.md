@@ -5,7 +5,6 @@
 
 - GET `/sandbox`
 - POST `/sandbox`
-- GET `/sandbox/paginated`
 - GET `/sandbox/for-runner`
 - GET `/sandbox/{sandboxIdOrName}`}
 - DELETE `/sandbox/{sandboxIdOrName}`}
@@ -63,7 +62,7 @@ Advanced filtering and ordering. Eventually consistent.
 |------|-----|------|----------|-------------|
 | `X-Daytona-Organization-ID` | header | string | No | Use with JWT to specify the organization ID |
 | `cursor` | query | string | No | Pagination cursor from a previous response |
-| `limit` | query | number | No | Number of results per page |
+| `limit` | query | integer | No | Number of results per page |
 | `id` | query | string | No | Filter by ID prefix (case-insensitive) |
 | `name` | query | string | No | Filter by name prefix (case-insensitive) |
 | `labels` | query | string | No | JSON encoded labels to filter by |
@@ -79,6 +78,8 @@ Advanced filtering and ordering. Eventually consistent.
 | `maxMemoryGiB` | query | number | No | Maximum memory in GiB |
 | `minDiskGiB` | query | number | No | Minimum disk space in GiB |
 | `maxDiskGiB` | query | number | No | Maximum disk space in GiB |
+| `minGpu` | query | number | No | Minimum GPU |
+| `maxGpu` | query | number | No | Maximum GPU |
 | `isPublic` | query | boolean | No | Filter by public status |
 | `isRecoverable` | query | boolean | No | Filter by recoverable status |
 | `createdAtAfter` | query | string (date-time) | No | Include items created after this timestamp |
@@ -141,49 +142,13 @@ Schema: **CreateSandbox**
 | `buildInfo` | object | No | Build information for the sandbox |
 | `linkedSandbox` | string | No | ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox. |
 | `secrets` | array of object | No | Secrets to mount in this sandbox. Each entry maps an env var name to a vault secret name. |
+| `kvm` | boolean | No | Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization. |
 
 ### Responses
 
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | The sandbox has been successfully created. | Sandbox |
-
----
-
-## GET `/sandbox/paginated` {#daytona/tag/sandbox/GET/sandbox/paginated}
-
-**[DEPRECATED] List all sandboxes paginated**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `X-Daytona-Organization-ID` | header | string | No | Use with JWT to specify the organization ID |
-| `page` | query | number | No | Page number of the results |
-| `limit` | query | number | No | Number of results per page |
-| `id` | query | string | No | Filter by partial ID match |
-| `name` | query | string | No | Filter by partial name match |
-| `labels` | query | string | No | JSON encoded labels to filter by |
-| `includeErroredDeleted` | query | boolean | No | Include results with errored state and deleted desired state |
-| `states` | query | array | No | List of states to filter by |
-| `snapshots` | query | array | No | List of snapshot names to filter by |
-| `regions` | query | array | No | List of regions to filter by |
-| `minCpu` | query | number | No | Minimum CPU |
-| `maxCpu` | query | number | No | Maximum CPU |
-| `minMemoryGiB` | query | number | No | Minimum memory in GiB |
-| `maxMemoryGiB` | query | number | No | Maximum memory in GiB |
-| `minDiskGiB` | query | number | No | Minimum disk space in GiB |
-| `maxDiskGiB` | query | number | No | Maximum disk space in GiB |
-| `lastEventAfter` | query | string (date-time) | No | Include items with last event after this timestamp |
-| `lastEventBefore` | query | string (date-time) | No | Include items with last event before this timestamp |
-| `sort` | query | string | No | Field to sort by |
-| `order` | query | string | No | Direction to sort by |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 200 | Paginated list of all sandboxes | PaginatedSandboxes_deprecated |
 
 ---
 
@@ -1063,8 +1028,8 @@ Retrieve OTEL logs for a sandbox within a time range
 | `sandboxId` | path | string | Yes | ID of the sandbox |
 | `from` | query | string (date-time) | Yes | Start of time range (ISO 8601) |
 | `to` | query | string (date-time) | Yes | End of time range (ISO 8601) |
-| `page` | query | number | No | Page number (1-indexed) |
-| `limit` | query | number | No | Number of items per page |
+| `page` | query | integer | No | Page number (1-indexed) |
+| `limit` | query | integer | No | Number of items per page |
 | `severities` | query | array | No | Filter by severity levels (DEBUG, INFO, WARN, ERROR) |
 | `search` | query | string | No | Search in log body |
 
@@ -1090,8 +1055,8 @@ Retrieve OTEL traces for a sandbox within a time range
 | `sandboxId` | path | string | Yes | ID of the sandbox |
 | `from` | query | string (date-time) | Yes | Start of time range (ISO 8601) |
 | `to` | query | string (date-time) | Yes | End of time range (ISO 8601) |
-| `page` | query | number | No | Page number (1-indexed) |
-| `limit` | query | number | No | Number of items per page |
+| `page` | query | integer | No | Page number (1-indexed) |
+| `limit` | query | integer | No | Number of items per page |
 
 ### Responses
 

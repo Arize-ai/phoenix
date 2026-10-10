@@ -305,7 +305,7 @@ Before submitting:
 
 ### Migrations
 
-If a user asks about migrating to Mintlify, ask if they are using ReadMe or Docusaurus. If they are, use the [@mintlify/scraping](https://www.npmjs.com/package/@mintlify/scraping) CLI to migrate content. If they are using a different platform to host their documentation, help them manually convert their content to MDX pages using Mintlify components.
+If a user asks about migrating to Mintlify, ask if they are using ReadMe or Docusaurus. If they are, use the [@mintlify/scraping](https://www.npmjs.com/package/@mintlify/scraping) CLI to migrate content. Run it with Puppeteer installed (`npx -p @mintlify/scraping@latest -p puppeteer mintlify-scrape section <url>`) so the scraper can render the site navigation. If they are using a different platform to host their documentation, help them manually convert their content to MDX pages using Mintlify components.
 
 ### Hidden pages
 

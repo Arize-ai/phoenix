@@ -184,6 +184,7 @@ Daytona provides **VM sandboxes** for workloads that require a full virtual mach
 - [Fork sandboxes](#fork-sandboxes)
 - [Pause and resume sandboxes](#pause--resume-sandboxes)
 - [Create snapshot from sandbox](./snapshots.md#create-snapshot-from-sandbox)
+- [Nested virtualization](#nested-virtualization) (Linux VM only)
 > **Note: Limitations**
 > VM sandboxes can currently only be created from existing VM snapshots. Dynamic builds through the declarative builder are supported for container sandboxes only.
 
@@ -263,6 +264,22 @@ sandbox = daytona.create(
 )
 ```
 
+#### Nested virtualization
+
+Daytona provides nested virtualization for Linux VM sandboxes. Nested virtualization exposes KVM (`/dev/kvm`) inside the guest, so the sandbox can run its own virtual machines with hardware acceleration.
+
+```python
+from daytona import Daytona, CreateSandboxFromSnapshotParams
+
+daytona = Daytona()
+sandbox = daytona.create(
+    CreateSandboxFromSnapshotParams(
+        snapshot="daytona-vm-small",
+        kvm=True,
+    )
+)
+```
+
 ### macOS sandboxes
 
 Daytona provides macOS sandboxes through the [use.computer](https://use.computer) platform.
@@ -288,14 +305,15 @@ Daytona provides **GPU sandboxes** for workloads that require GPU acceleration, 
 
 - **NVIDIA H100**
 - **NVIDIA H200**
+- **NVIDIA B300**
 - **NVIDIA RTX Pro 6000**
 - **NVIDIA RTX 4090**
 - **NVIDIA RTX 5090**
 - **AMD Instinct MI355X**
 
-GPU sandboxes are on-demand. See [spot GPU sandboxes](#spot-gpu-sandboxes) for preemptible GPU capacity.
+GPU sandboxes are on-demand. See [spot GPU sandboxes](#spot-gpu-sandboxes) for preemptible GPU capacity. Use the [GPU capacity](#gpu-capacity) endpoint to check available GPU units before creating a sandbox. When no GPU capacity is available, a GPU sandbox waits until capacity frees up.
 
-> Due to possible events of temporary GPU scarcity, the target/region requested for GPU sandboxes is ignored by default. If you need access to a specific geographical location, contact us at support@daytona.io.
+GPU sandboxes on shared regions run in the [Earth region](./regions.md#earth-region). Daytona selects the shared region, ignores the requested target, and reports `earth` as the sandbox `target`. GPU sandboxes on [dedicated](./regions.md#dedicated-regions) and [custom](./regions.md#custom-regions) regions keep their real region ID. To run GPU sandboxes in a specific geographic location, contact [support@daytona.io](mailto:support@daytona.io).
 
 **Custom:**
 
@@ -304,8 +322,8 @@ Create a GPU sandbox with custom GPU resources: units and types.
 1. Go to [Daytona Sandboxes ↗](https://app.daytona.io/dashboard/sandboxes)
 2. Click <Button>Create Sandbox</Button>
 3. Enter an <Button>Image</Button> (e.g. **`pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime`**)
-5. Set <Button>GPU</Button> to the number of GPU units (e.g. **`1`**)
-6. Select <Button>GPU Type</Button>: **`H100`**, **`H200`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, **`MI355X`**
+4. Set <Button>GPU</Button> to the number of GPU units (e.g. **`1`**)
+5. Select <Button>GPU Type</Button>: **`H100`**, **`H200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, **`MI355X`**
 
     The GPU type field accepts a single value or an ordered list of preferred types.
 
@@ -392,6 +410,38 @@ sandbox = daytona.create(
     ),
 )
 ```
+
+### GPU capacity
+
+Get the available GPU capacity. The response lists available GPU units by GPU type, split into on-demand and spot. Capacity is aggregated across all shared regions in the [Earth region](./regions.md#earth-region) and changes as sandboxes are created and deleted. The response does not reserve capacity and does not apply the organization's GPU quota. On-demand GPU sandboxes remain subject to the quota. Spot GPU sandboxes are limited only by available capacity.
+
+**API:**
+
+```bash
+curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/gpu-capacity' \
+  --header 'Authorization: Bearer YOUR_API_KEY'
+```
+
+Response example:
+
+```json
+{
+  "observedAt": "2026-09-14T17:31:05.412Z",
+  "capacity": [
+    { "gpuType": "H100", "availableOnDemand": 12, "availableSpot": 4 },
+    { "gpuType": "H200", "availableOnDemand": 0, "availableSpot": 0 },
+    { "gpuType": "RTX-PRO-6000", "availableOnDemand": 6, "availableSpot": 6 }
+  ]
+}
+```
+
+| **Field**               | **Description**                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **`observedAt`**        | Time the capacity was calculated. Responses are cached for up to five seconds.                                      |
+| **`capacity`**          | One entry per GPU type.                                                                                             |
+| **`gpuType`**           | **`H100`**, **`H200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, or **`MI355X`**.            |
+| **`availableOnDemand`** | GPU units available to on-demand GPU sandboxes. Includes units held by spot GPU sandboxes that Daytona can reclaim. |
+| **`availableSpot`**     | GPU units currently free for spot GPU sandboxes.                                                                    |
 
 ### Ephemeral sandboxes
 
@@ -537,7 +587,7 @@ Every sandbox moves through a lifecycle. A sandbox can have several different st
 | Creating          | The sandbox is provisioning and will be ready to use.                                       |
 | Pulling Snapshot  | The sandbox is pulling a [**snapshot**](./snapshots.md) to provide a base environment.  |
 | Building Snapshot | The sandbox is building a [**snapshot**](./snapshots.md) to provide a base environment. |
-| Pending Build     | The sandbox build is pending and will start shortly.                                        |
+| Pending Build     | The sandbox build is pending and will start shortly. GPU sandboxes wait in this state until [GPU capacity](#gpu-capacity) is available. |
 | Build Failed      | The sandbox build failed and needs to be retried.                                           |
 | Starting          | The sandbox is starting and will be ready to use.                                           |
 | Started           | The sandbox has started and is ready to use.                                                |
@@ -763,6 +813,8 @@ Forking is not supported for container sandboxes. Use <u>[**create snapshot from
 Forking creates a duplicate of a Linux VM sandbox's filesystem and memory state in a new sandbox. The forked sandbox is fully independent: it can be started, stopped, and deleted without affecting the original.
 
 Daytona tracks the parent-child relationship in a fork tree, so you can trace a fork's lineage back to the sandbox it was created from. You can fork a fork to build branches. The parent sandbox cannot be deleted while it has active fork children.
+
+A fork of a [KVM sandbox](#nested-virtualization) inherits the `kvm` setting. Forking a KVM sandbox returns a `403` error if KVM sandboxes are not enabled for your organization.
 
 1. Go to [Daytona Sandboxes ↗](https://app.daytona.io/dashboard/sandboxes)
 2. Click the three-dot menu (**⋮**) next to the started Linux VM sandbox you want to fork
