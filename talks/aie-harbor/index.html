@@ -185,7 +185,7 @@ p{margin:0}
 .hi-pr em.ok{color:var(--teal)}
 .hi-mean{grid-column:span 3;text-align:center;border-top:1px solid var(--line-strong);padding-top:12px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
 .hi-mean b{display:block;font-family:var(--sans);font-size:34px;font-weight:500;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums}
-.hi-mean em{display:block;min-height:16px;line-height:16px;font-style:normal;margin-top:4px;color:var(--muted)}
+.hi-mean em{display:block;min-height:16px;line-height:16px;font-style:normal;color:var(--muted)}
 
 /* at: ATIF mapping */
 .diagram .tr-k{font-family:var(--mono);font-size:10px;letter-spacing:.06em;font-weight:500}
@@ -623,14 +623,14 @@ fi</pre>
   // 1 pass · 0 fail (tests) · 'e' error (timeout)
   const R=[[[1,1,1],[1,0,1]],[[1,1,0],[0,'e',1]],[[1,1,1],[1,1,1]],[[0,1,1],[0,0,'e']]];
   const el=(c,h)=>{const e=document.createElement('div');if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
-  m.append(el(''));agents.forEach((a,j)=>{if(j)m.append(el(''));m.append(el('hi-ag',a))});m.append(el(''),el('hi-hd','pass@1 · pass@3'));
+  m.append(el(''));agents.forEach((a,j)=>{if(j)m.append(el(''));m.append(el('hi-ag',a))});m.append(el(''),el('hi-hd','pass@3'));
   const cells=[],rows=[];
   tasks.forEach((t,i)=>{const lab=el('hi-t',t);m.append(lab);
     agents.forEach((a,j)=>{if(j)m.append(el(''));for(let k=0;k<3;k++){
       const c=el('hi-sb','<span class="k">k'+(k+1)+'</span><span class="mt hi-mt"><i class="a"><svg viewBox="0 0 24 24"><rect x="5" y="9" width="14" height="10" rx="3"/><path d="M12 5v4M9 14h.01M15 14h.01"/></svg></i><i class="e"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg></i></span><span class="cur"><i></i><i></i><i></i></span><span class="v"></span><span class="r"></span>');m.append(c);
       cells.push({el:c,v:c.querySelector('.v'),r:c.querySelector('.r'),res:R[i][j][k],i,j,start:((i*7+j*5+k*3)%11)*.3,run:1.8+((i*3+j*7+k*5)%7)*.4})}});
     m.append(el(''));const pr=el('hi-pr','<span class="bar"><i></i></span><b>—</b><em></em>');m.append(pr);rows.push({pr,lab,i})});
-  m.append(el(''));const means=agents.map((a,j)=>{if(j)m.append(el(''));const e=el('hi-mean','<b>—</b>pass@1<em></em>');m.append(e);return e});
+  m.append(el(''));const means=agents.map((a,j)=>{if(j)m.append(el(''));const e=el('hi-mean','<em></em>');m.append(e);return e});
   const ST={build:['',''],run:['',''],pass:['1',''],fail:['0','failed'],err:['!','timeout']};
   const set=(c,st)=>{if(c.st===st)return;c.st=st;c.el.className='hi-sb'+(st?' '+st:'');const s=ST[st]||['',''];c.v.textContent=s[0];c.r.textContent=s[1]};
   const done=c=>c.st==='pass'||c.st==='fail'||c.st==='err';
@@ -640,7 +640,7 @@ fi</pre>
     rows.forEach(r=>{const cs=cells.filter(c=>c.i===r.i),all=cs.every(done),p=cs.filter(c=>c.st==='pass').length;
       r.pr.querySelector('b').textContent=all?p+'/6':'—';r.pr.querySelector('i').style.width=all?(p/6*100)+'%':'0%';
       r.pr.classList.toggle('low',all&&p<=2);const k3=agents.filter((a,j)=>cs.some(c=>c.j===j&&c.st==='pass')).length;const em=r.pr.querySelector('em');em.textContent=all?'pass@3 · '+k3+'/'+agents.length+' agents':'';em.classList.toggle('ok',all&&k3===agents.length);r.lab.style.color=all&&p<=2?'var(--bad)':''});
-    means.forEach((e,j)=>{const cs=cells.filter(c=>c.j===j),d=cs.every(done);e.firstChild.textContent=d?(cs.filter(c=>c.res===1).length/cs.length).toFixed(2):'—';const k3=tasks.filter((t,i)=>cs.some(c=>c.i===i&&c.res===1)).length;e.querySelector('em').textContent=d?'pass@3 · '+k3+'/'+tasks.length+' tasks':''});
+    means.forEach((e,j)=>{const cs=cells.filter(c=>c.j===j),d=cs.every(done);const k3=tasks.filter((t,i)=>cs.some(c=>c.i===i&&c.res===1)).length;e.querySelector('em').textContent=d?'pass@3 · '+k3+'/'+tasks.length+' tasks':''});
     root.classList.toggle('spot',cells.every(done));
   }
   paint(99);
