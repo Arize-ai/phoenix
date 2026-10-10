@@ -3,6 +3,7 @@
 from secrets import token_hex
 from typing import Callable, Iterable, Optional
 
+from pydantic import ValidationError
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -138,13 +139,17 @@ async def validate_code_evaluator_sandbox_config(
         adapter = SANDBOX_ADAPTERS.get(target_cfg.backend_type)
         if adapter is None:
             return sandbox_config_id
-        validated_config = adapter.config_model.model_validate(
-            {
-                "backend_type": target_cfg.backend_type,
-                "language": target_cfg.language,
-                **(target_cfg.config or {}),
-            }
-        )
+        try:
+            validated_config = adapter.config_model.model_validate(
+                {
+                    "backend_type": target_cfg.backend_type,
+                    "language": target_cfg.language,
+                    **(target_cfg.config or {}),
+                }
+            )
+        except ValidationError as error:
+            reasons = "; ".join(detail["msg"] for detail in error.errors())
+            raise BadRequest(f"Invalid sandbox config '{target_cfg.name}': {reasons}")
 
     # Release SQLite's database lock before waiting for sandbox worker capacity.
     try:
