@@ -1,0 +1,743 @@
+{
+  "contexts": {
+    "probe": {
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "a"
+          },
+          {
+            "role": "assistant",
+            "content": "b"
+          },
+          {
+            "role": "user",
+            "content": "c"
+          }
+        ]
+      },
+      "output": {
+        "documents": [
+          {
+            "content": "d1"
+          }
+        ]
+      },
+      "metadata": {
+        "turns": [
+          {
+            "input": "t1"
+          },
+          {
+            "input": "t2"
+          }
+        ],
+        "one": [
+          {
+            "x": 1
+          }
+        ],
+        "obj": {
+          "k": 1,
+          "j": 2
+        },
+        "s": "str",
+        "mixed": [
+          {
+            "b": 1
+          },
+          {
+            "c": 2
+          },
+          {
+            "b": 3
+          }
+        ]
+      }
+    },
+    "edges": {
+      "metadata": {
+        "messages": [
+          {
+            "role": "user"
+          },
+          {
+            "role": "assistant"
+          }
+        ],
+        "obj": {
+          "k": 1,
+          "j": 2
+        },
+        "where": 1,
+        "a.0": 2,
+        "nothing": null,
+        "num": 5,
+        "yes": true,
+        "no": false,
+        "zero": 0,
+        "empty": [],
+        "empty_obj": {},
+        "empty_str": "",
+        "nested": [[1, 2], [3]],
+        "mixed": [
+          {
+            "b": 1
+          },
+          {
+            "c": 2
+          }
+        ],
+        "emoji": "a😀b",
+        "s": "str",
+        "star": {
+          "*": 9
+        },
+        "v1.0 correctness": {
+          "label": "ok"
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "context": "probe",
+      "path": "input.messages[-1].content",
+      "outcome": "value",
+      "value": "c"
+    },
+    {
+      "context": "probe",
+      "path": "input.messages[-2]",
+      "outcome": "value",
+      "value": {
+        "role": "assistant",
+        "content": "b"
+      }
+    },
+    {
+      "context": "probe",
+      "path": "input.messages[-9]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "probe",
+      "path": "input.messages[:-1]",
+      "outcome": "value",
+      "value": [
+        {
+          "role": "user",
+          "content": "a"
+        },
+        {
+          "role": "assistant",
+          "content": "b"
+        }
+      ]
+    },
+    {
+      "context": "probe",
+      "path": "input.messages[*].content",
+      "outcome": "value",
+      "value": ["a", "b", "c"]
+    },
+    {
+      "context": "probe",
+      "path": "input.messages[1:]",
+      "outcome": "value",
+      "value": [
+        {
+          "role": "assistant",
+          "content": "b"
+        },
+        {
+          "role": "user",
+          "content": "c"
+        }
+      ]
+    },
+    {
+      "context": "probe",
+      "path": "input.messages[0,2].content",
+      "outcome": "value",
+      "value": ["a", "c"]
+    },
+    {
+      "context": "probe",
+      "path": "input.messages[::2].role",
+      "outcome": "value",
+      "value": ["user", "user"]
+    },
+    {
+      "context": "probe",
+      "path": "metadata.turns[:-1]",
+      "outcome": "value",
+      "value": {
+        "input": "t1"
+      }
+    },
+    {
+      "context": "probe",
+      "path": "metadata.one[*]",
+      "outcome": "value",
+      "value": {
+        "x": 1
+      }
+    },
+    {
+      "context": "probe",
+      "path": "metadata.one[*].x",
+      "outcome": "value",
+      "value": 1
+    },
+    {
+      "context": "probe",
+      "path": "output.documents[*].content",
+      "outcome": "value",
+      "value": "d1"
+    },
+    {
+      "context": "probe",
+      "path": "metadata.obj[*]",
+      "outcome": "value",
+      "value": {
+        "k": 1,
+        "j": 2
+      }
+    },
+    {
+      "context": "probe",
+      "path": "metadata.s[*]",
+      "outcome": "value",
+      "value": "str"
+    },
+    {
+      "context": "probe",
+      "path": "metadata.s[0]",
+      "outcome": "value",
+      "value": "s"
+    },
+    {
+      "context": "probe",
+      "path": "metadata.obj[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "probe",
+      "path": "metadata.turns.input",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "probe",
+      "path": "metadata.mixed[*].b",
+      "outcome": "value",
+      "value": [1, 3]
+    },
+    {
+      "context": "probe",
+      "path": "$.input.messages[0].role",
+      "outcome": "value",
+      "value": "user"
+    },
+    {
+      "context": "probe",
+      "path": "metadata['obj'].k",
+      "outcome": "value",
+      "value": 1
+    },
+    {
+      "context": "probe",
+      "path": "metadata.turns[5:]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.nothing",
+      "outcome": "value",
+      "value": null
+    },
+    {
+      "context": "edges",
+      "path": "metadata.nothing[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.nothing[*]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.num[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.yes[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.no[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.zero[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.empty[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.empty[*]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.empty_obj[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.empty_str[0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.obj[5]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.obj[-1]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.num[*]",
+      "outcome": "value",
+      "value": 5
+    },
+    {
+      "context": "edges",
+      "path": "metadata.s[1:]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.s[-9]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.emoji[1]",
+      "outcome": "value",
+      "value": "😀"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.nested[*][0]",
+      "outcome": "value",
+      "value": [1, 3]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.nested[*][1]",
+      "outcome": "value",
+      "value": 2
+    },
+    {
+      "context": "edges",
+      "path": "metadata.mixed[*][0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[::-1].role",
+      "outcome": "value",
+      "value": ["assistant", "user"]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[::0]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[0,0].role",
+      "outcome": "value",
+      "value": ["user", "user"]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[0,-9]",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[5,0].role",
+      "outcome": "value",
+      "value": "user"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[01].role",
+      "outcome": "value",
+      "value": "assistant"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[:]",
+      "outcome": "value",
+      "value": [
+        {
+          "role": "user"
+        },
+        {
+          "role": "assistant"
+        }
+      ]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[::]",
+      "outcome": "value",
+      "value": [
+        {
+          "role": "user"
+        },
+        {
+          "role": "assistant"
+        }
+      ]
+    },
+    {
+      "context": "edges",
+      "path": "$['metadata'].messages[0].role",
+      "outcome": "value",
+      "value": "user"
+    },
+    {
+      "context": "edges",
+      "path": "['metadata'].messages[0].role",
+      "outcome": "value",
+      "value": "user"
+    },
+    {
+      "context": "edges",
+      "path": "metadata['where']",
+      "outcome": "value",
+      "value": 1
+    },
+    {
+      "context": "edges",
+      "path": "metadata.toString",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.where",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata['a.0']",
+      "outcome": "value",
+      "value": 2
+    },
+    {
+      "context": "edges",
+      "path": "metadata['*']",
+      "outcome": "value",
+      "value": [
+        [
+          {
+            "role": "user"
+          },
+          {
+            "role": "assistant"
+          }
+        ],
+        {
+          "k": 1,
+          "j": 2
+        },
+        1,
+        2,
+        null,
+        5,
+        true,
+        false,
+        0,
+        [],
+        {},
+        "",
+        [[1, 2], [3]],
+        [
+          {
+            "b": 1
+          },
+          {
+            "c": 2
+          }
+        ],
+        "a😀b",
+        "str",
+        {
+          "*": 9
+        },
+        {
+          "label": "ok"
+        }
+      ]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.star['*']",
+      "outcome": "value",
+      "value": 9
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[ 0 ].role",
+      "outcome": "value",
+      "value": "user"
+    },
+    {
+      "context": "edges",
+      "path": "metadata[\"obj\"].k",
+      "outcome": "value",
+      "value": 1
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages.[0]",
+      "outcome": "value",
+      "value": {
+        "role": "user"
+      }
+    },
+    {
+      "context": "edges",
+      "path": "metadata['obj','s']",
+      "outcome": "value",
+      "value": [
+        {
+          "k": 1,
+          "j": 2
+        },
+        "str"
+      ]
+    },
+    {
+      "context": "edges",
+      "path": "metadata['v1.0 correctness'].label",
+      "outcome": "value",
+      "value": "ok"
+    },
+    {
+      "context": "edges",
+      "path": "metadata[\"a.0\"]",
+      "outcome": "value",
+      "value": 2
+    },
+    {
+      "context": "edges",
+      "path": "metadata.obj.*",
+      "outcome": "value",
+      "value": [1, 2]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[*].*",
+      "outcome": "value",
+      "value": ["user", "assistant"]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.s.*",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "$.metadata.obj.*",
+      "outcome": "value",
+      "value": [1, 2]
+    },
+    {
+      "context": "edges",
+      "path": "metadata[obj].k",
+      "outcome": "value",
+      "value": 1
+    },
+    {
+      "context": "edges",
+      "path": "metadata .s",
+      "outcome": "value",
+      "value": "str"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.$.metadata.s",
+      "outcome": "value",
+      "value": "str"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[0]['role']",
+      "outcome": "value",
+      "value": "user"
+    },
+    {
+      "context": "edges",
+      "path": "metadata['obj','nope']",
+      "outcome": "value",
+      "value": {
+        "k": 1,
+        "j": 2
+      }
+    },
+    {
+      "context": "edges",
+      "path": "metadata['*','s']",
+      "outcome": "value",
+      "value": [
+        [
+          {
+            "role": "user"
+          },
+          {
+            "role": "assistant"
+          }
+        ],
+        {
+          "k": 1,
+          "j": 2
+        },
+        1,
+        2,
+        null,
+        5,
+        true,
+        false,
+        0,
+        [],
+        {},
+        "",
+        [[1, 2], [3]],
+        [
+          {
+            "b": 1
+          },
+          {
+            "c": 2
+          }
+        ],
+        "a😀b",
+        "str",
+        {
+          "*": 9
+        },
+        {
+          "label": "ok"
+        }
+      ]
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages.0",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata..s",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata. s",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.@",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata[?(@.s)]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata | metadata",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata[0,'a']",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "(metadata).s",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata['ab",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[٣]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[０]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[-٣:]",
+      "outcome": "invalid"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages.*",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages['0']",
+      "outcome": "unresolved"
+    },
+    {
+      "context": "edges",
+      "path": "[*].$[0].metadata.s",
+      "outcome": "value",
+      "value": "str"
+    }
+  ]
+}

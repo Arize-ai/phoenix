@@ -15,7 +15,7 @@ class TestJSONPathValidation:
       - Dot notation: field.nested
       - Bracket notation: ['field'], ["field"], ['field-name'], ['123']
       - Index access: field[0], field[-1]
-      - Wildcard: field[*]
+      - Wildcard: field[*], field.*
       - Slices: field[0:5], field[::2]
 
     NOT supported (rejected):
@@ -44,6 +44,13 @@ class TestJSONPathValidation:
             '["@"]',  # @ with double quotes (allowed)
             "data['special-key'].value",  # Bracket in chain
             "['123']",  # Numeric string as field name
+            "metadata['v1.0 correctness'].label",  # Dot and digit inside a quoted key
+            "metadata['a.0']",  # Quoted key that looks like a dotted index
+            'metadata["a.0"]',  # Same, double-quoted
+            "metadata['a.@.b']",  # Bare-@ shape inside a quoted key
+            "metadata['a\\'.0']",  # Escaped quote inside a quoted key
+            "metadata['*']",  # Quoted wildcard
+            "metadata['٣']",  # Non-ASCII digit inside a quoted key
             # Index access
             "items[0]",  # Index access
             "items[-1]",  # Negative index
@@ -51,6 +58,8 @@ class TestJSONPathValidation:
             # Wildcard
             "items[*]",  # Wildcard
             "items[*].name",  # Wildcard with field access
+            "metadata.*",  # Member wildcard
+            "metadata.*.label",  # Member wildcard with field access
             # Slices
             "items[0:5]",  # Slice with end
             "items[:5]",  # Slice with end only
@@ -71,6 +80,7 @@ class TestJSONPathValidation:
             "$['field']",  # Bracket notation with $
             "$.items[*].name",  # Wildcard with $
             "$['@']",  # @ in bracket with root
+            "$.*",  # Member wildcard with root
         ],
     )
     def test_valid_expressions(self, expr: str) -> None:
@@ -124,6 +134,7 @@ class TestJSONPathValidation:
             "items..name",  # Recursive descent
             "data..value",  # Another recursive descent
             "$..field",  # With root marker
+            "metadata['a.b']..x",  # After a quoted key
         ],
     )
     def test_recursive_descent_rejected(self, expr: str) -> None:
@@ -139,6 +150,10 @@ class TestJSONPathValidation:
         [
             ("field[", "unclosed bracket"),
             ("field['name", "unclosed quote"),
+            ("metadata.where", "reserved word"),
+            ("metadata.wherenot", "reserved word"),
+            ("metadata[?(@.score > 1)]", "filter"),
+            ("metadata.*x", "member wildcard followed by a name"),
         ],
     )
     def test_invalid_syntax_rejected(self, expr: str, description: str) -> None:
@@ -155,6 +170,7 @@ class TestJSONPathValidation:
             "foo.@.bar",  # @ in middle of path
             "$.@",  # @ after root
             "@.field",  # @ at start with field
+            "metadata['a.b'].@",  # @ after a quoted key
         ],
     )
     def test_bare_at_rejected(self, expr: str) -> None:
@@ -177,6 +193,8 @@ class TestJSONPathValidation:
             "items.0.bar",  # Numeric field in chain
             "$.items.0",  # With root marker
             "data.0",  # Simple numeric
+            "metadata['a.b'].0",  # Numeric after a quoted key
+            "metadata.'a.0'",  # Quoted key in dot notation
         ],
     )
     def test_invalid_identifier_rejected(self, expr: str) -> None:
@@ -184,6 +202,23 @@ class TestJSONPathValidation:
         with pytest.raises(ValidationError) as exc_info:
             InputMapping(literal_mapping={}, path_mapping={"x": expr})
         assert "must start with a letter or underscore" in str(exc_info.value)
+
+    # --- Non-ASCII digit rejection ---
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "items[٣]",  # Arabic-Indic digit as an index
+            "items[０]",  # Fullwidth digit
+            "items[٣:]",  # In a slice
+            "metadata['a'][٣]",  # After a quoted key
+        ],
+    )
+    def test_non_ascii_digit_rejected(self, expr: str) -> None:
+        """Digits outside quoted keys must be 0-9."""
+        with pytest.raises(ValidationError) as exc_info:
+            InputMapping(literal_mapping={}, path_mapping={"x": expr})
+        assert "digits 0-9" in str(exc_info.value)
 
     # --- jsonpath-ng extensions rejection ---
 

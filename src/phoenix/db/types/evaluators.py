@@ -39,6 +39,7 @@ Index access:
 
 Wildcard:
     [*]                     All elements of an array
+    .*                      All values of an object
 
 Slices:
     [start:end]             Elements from start to end (exclusive)
@@ -142,7 +143,7 @@ _BARE_AT_PATTERN = re.compile(
 #   member-name-shorthand = name-first *name-char
 #   name-first = ALPHA / "_"
 # Examples that should match (reject):  .123, field.0, items.0.bar, 123, 123.foo
-# Examples that should NOT match (allow): ['123'], field[0], a1.b2, _foo, $, ..name
+# Examples that should NOT match (allow): ['123'], field[0], a1.b2, _foo, $, ..name, field.*
 _INVALID_IDENTIFIER_PATTERN = re.compile(
     r"""
     (?:^|\.)       # Start of string or after a dot
@@ -151,10 +152,24 @@ _INVALID_IDENTIFIER_PATTERN = re.compile(
     (?!\$)         # NOT the root marker $
     (?!\[)         # NOT a bracket (which starts bracket notation)
     (?!`)          # NOT a backtick (let AST catch `this`)
+    (?!\*)         # NOT the member wildcard *
     .              # Match the invalid character
     """,
     re.VERBOSE,
 )
+
+# A quoted field name, as jsonpath-ng's lexer reads one. Its contents are a
+# literal key, so the dot-notation checks above must not look inside it.
+_QUOTED_FIELD_PATTERN = re.compile(
+    r"""
+    '(?:[^'\\]|\\.)*'    # Single-quoted, with backslash escapes
+    | "(?:[^"\\]|\\.)*"  # Double-quoted, with backslash escapes
+    """,
+    re.VERBOSE,
+)
+
+# jsonpath-ng reads any Unicode decimal digit as a number: `items[٣]` is `items[3]`.
+_NON_ASCII_DIGIT_PATTERN = re.compile(r"(?![0-9])\d")
 
 # Allowlist of AST node types for a restricted path syntax.
 # This limits the feature set to simple, well-understood path expressions,
@@ -207,33 +222,39 @@ def validate_jsonpath(value: str) -> str:
       - Dot notation: field.nested or $.field.nested
       - Bracket notation: ['field'], ['123'], ['@']
       - Index access: field[0], field[-1]
-      - Wildcard: field[*]
+      - Wildcard: field[*], field.*
       - Slices: field[0:5], field[::2]
 
     Not allowed:
       - '..' recursive descent
       - Bare '@' (use ['@'] instead)
       - Invalid identifiers in dot notation (must start with letter or underscore)
+      - Digits other than 0-9 outside quoted keys
     """
     if not value:
         raise ValueError("JSONPath cannot be empty")
     if len(value) > 1000:
         raise ValueError("JSONPath exceeds maximum length of 1000 characters")
 
+    unquoted = _QUOTED_FIELD_PATTERN.sub("''", value)
+
     # Reject bare @ usage (jsonpath-ng parses this as a field name, but it's
     # not RFC 9535 compliant). Bracket notation like ['@'] is still allowed.
-    if _BARE_AT_PATTERN.search(value):
+    if _BARE_AT_PATTERN.search(unquoted):
         raise ValueError(
             "Bare '@' is not supported. Use bracket notation ['@'] for fields named '@'"
         )
 
     # Reject invalid identifiers in dot notation (not RFC 9535 compliant).
     # RFC 9535 requires identifiers to start with a letter or underscore.
-    if _INVALID_IDENTIFIER_PATTERN.search(value):
+    if _INVALID_IDENTIFIER_PATTERN.search(unquoted):
         raise ValueError(
             "Field names in dot notation must start with a letter or underscore. "
             "Use bracket notation like ['123'] for other field names"
         )
+
+    if _NON_ASCII_DIGIT_PATTERN.search(unquoted):
+        raise ValueError("Numbers in a path must use the digits 0-9")
 
     try:
         ast = parse_jsonpath(value)
