@@ -49,6 +49,18 @@ import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__gene
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
 import {
+  type CustomEvaluator,
+  type GalleryItem,
+  type GallerySelection,
+  getCustomEvaluatorItemKey,
+  getGalleryItemKey,
+  getGalleryItemSelection,
+  getGallerySelectionFromKeys,
+  getTemplateItemKey,
+  NO_GALLERY_SELECTION,
+  resolveGallerySelection,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorGallerySelection";
+import {
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
   type CodeProjectEvaluatorDetails,
@@ -121,27 +133,6 @@ const CUSTOM_EVALUATOR_APPEARANCE = {
   icon: "SquarePen",
   color: "var(--global-color-gray-700)",
 } satisfies EvaluatorCategoryAppearance;
-
-type CustomEvaluator = {
-  readonly __typename: "LLMEvaluator" | "CodeEvaluator";
-  readonly id: string;
-  readonly name: string;
-  readonly description: string | null;
-};
-
-type GalleryItem =
-  | { kind: "custom"; evaluator: CustomEvaluator }
-  | { kind: "template"; template: ProjectEvaluatorTemplate };
-
-/**
- * The card the gallery shows. Resolved against the loaded gallery, so an
- * unavailable category, template, or evaluator falls back to the first card.
- */
-type GallerySelection =
-  | { kind: "default" }
-  | { kind: "category"; category: EvaluatorCategory }
-  | { kind: "template"; templateName: string }
-  | { kind: "evaluator"; evaluatorId: string };
 
 const projectEvaluatorGalleryModalQuery = graphql`
   query projectEvaluatorGalleryModalQuery($projectId: ID!) {
@@ -238,16 +229,8 @@ function getSectionHeadingId(section: GallerySection): string {
   return `project-evaluator-gallery-section-${section.toLowerCase()}`;
 }
 
-const getCustomEvaluatorItemKey = (id: string) => `custom:${id}`;
-const getTemplateItemKey = (name: string) => `template:${name}`;
 const getCustomEvaluatorKind = (evaluator: CustomEvaluator) =>
   evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE";
-
-function getGalleryItemKey(item: GalleryItem): string {
-  return item.kind === "custom"
-    ? getCustomEvaluatorItemKey(item.evaluator.id)
-    : getTemplateItemKey(item.template.name);
-}
 
 function getGalleryItemSection(item: GalleryItem): GallerySection {
   return item.kind === "custom"
@@ -384,55 +367,18 @@ function EvaluatorGallery({
     ),
     count: templatesByCategory.get(category)?.length ?? 0,
   }));
-  const [selection, setSelection] = useState<GallerySelection>(() =>
-    initialCategory
-      ? { kind: "category", category: initialCategory }
-      : { kind: "default" }
-  );
-  const requestedTemplateName =
-    selection.kind === "template" ? selection.templateName : undefined;
-  const requestedEvaluatorId =
-    selection.kind === "evaluator" ? selection.evaluatorId : undefined;
-  const requestedCategoryParam =
-    selection.kind === "category" ? selection.category : undefined;
-  const requestedCategory =
-    requestedCategoryParam && categories.includes(requestedCategoryParam)
-      ? requestedCategoryParam
+  const initialSection =
+    initialCategory && categories.includes(initialCategory)
+      ? initialCategory
       : undefined;
-
-  // Resolve the requested selection through the same item index that backs
-  // card selection so an invalid or stale value is harmless.
-  let requestedItem: GalleryItem | undefined;
-  if (requestedEvaluatorId) {
-    requestedItem = galleryItemsByKey.get(
-      getCustomEvaluatorItemKey(requestedEvaluatorId)
-    );
-  }
-  if (!requestedItem && requestedTemplateName) {
-    requestedItem = galleryItemsByKey.get(
-      getTemplateItemKey(requestedTemplateName)
-    );
-  }
-
-  const requestedItemKeyToScroll = requestedItem
-    ? getGalleryItemKey(requestedItem)
-    : undefined;
-  const requestedSectionToScroll = requestedItem
-    ? getGalleryItemSection(requestedItem)
-    : requestedCategory;
-  const requestedCategoryTemplate = requestedCategory
-    ? templatesByCategory.get(requestedCategory)?.[0]
-    : undefined;
-  const requestedCategoryItem: GalleryItem | undefined =
-    requestedCategoryTemplate
-      ? { kind: "template", template: requestedCategoryTemplate }
-      : undefined;
-
-  // Prefer requested content, then fall back to the first available card.
-  const selectedItem =
-    requestedItem ?? requestedCategoryItem ?? galleryItems[0];
+  const [selection, setSelection] =
+    useState<GallerySelection>(NO_GALLERY_SELECTION);
+  const selectedItem = resolveGallerySelection(selection, galleryItemsByKey);
   const selectedItemKey = selectedItem
     ? getGalleryItemKey(selectedItem)
+    : undefined;
+  const selectedItemSection = selectedItem
+    ? getGalleryItemSection(selectedItem)
     : undefined;
 
   // Section headings double as scroll-spy targets, so the sidebar can track
@@ -442,7 +388,7 @@ function EvaluatorGallery({
   const galleryScrollRegionRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState<
     GallerySection | undefined
-  >(() => requestedSectionToScroll ?? sections[0]);
+  >(() => initialSection ?? sections[0]);
   const selectedSection =
     activeSection && sections.includes(activeSection)
       ? activeSection
@@ -453,28 +399,29 @@ function EvaluatorGallery({
     setActiveSection(section);
   };
 
-  // Keep the scroll position synchronized with the requested card. Prefer the
-  // card and fall back to its section when no card is available.
+  // Wait for React Aria to finish laying out its collection before moving the
+  // scroll port.
   useEffect(() => {
-    // Wait for React Aria to finish laying out its collection before moving
-    // the scroll port.
     const animationFrameId = requestAnimationFrame(() => {
-      const requestedCard = requestedItemKeyToScroll
-        ? cardRefs.current.get(requestedItemKeyToScroll)
-        : undefined;
-      const requestedSectionHeading = requestedSectionToScroll
-        ? headingRefs.current.get(requestedSectionToScroll)
-        : undefined;
-      const scrollTarget = requestedCard ?? requestedSectionHeading;
-      scrollTarget?.scrollIntoView({
-        block: requestedCard ? "nearest" : "start",
-      });
-      if (requestedSectionToScroll) {
-        setActiveSection(requestedSectionToScroll);
-      }
+      if (!initialSection) return;
+      headingRefs.current
+        .get(initialSection)
+        ?.scrollIntoView({ block: "start" });
+      setActiveSection(initialSection);
     });
     return () => cancelAnimationFrame(animationFrameId);
-  }, [requestedItemKeyToScroll, requestedSectionToScroll]);
+  }, [initialSection]);
+
+  useEffect(() => {
+    const animationFrameId = requestAnimationFrame(() => {
+      if (!selectedItemKey || !selectedItemSection) return;
+      cardRefs.current
+        .get(selectedItemKey)
+        ?.scrollIntoView({ block: "nearest" });
+      setActiveSection(selectedItemSection);
+    });
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [selectedItemKey, selectedItemSection]);
 
   useEffect(() => {
     let observer: IntersectionObserver | undefined;
@@ -532,16 +479,6 @@ function EvaluatorGallery({
     };
   }, [sections]);
 
-  const setSelectedItem = (item: GalleryItem) => {
-    setSelection(
-      item.kind === "custom"
-        ? { kind: "evaluator", evaluatorId: item.evaluator.id }
-        : {
-            kind: "template",
-            templateName: item.template.name,
-          }
-    );
-  };
   const renderSectionItem = ({
     id,
     name,
@@ -667,20 +604,16 @@ function EvaluatorGallery({
           selectionMode="single"
           selectionBehavior="replace"
           selectedKeys={selectedItemKey ? [selectedItemKey] : []}
-          onSelectionChange={(selection) => {
-            if (selection === "all") return;
-            const itemKey = selection.keys().next().value;
-            if (typeof itemKey === "string") {
-              const item = galleryItemsByKey.get(itemKey);
-              if (item) {
-                setSelectedItem(item);
-              }
-            }
-          }}
+          onSelectionChange={(keys) =>
+            setSelection(getGallerySelectionFromKeys(keys, galleryItemsByKey))
+          }
           onAction={(key) => {
             if (typeof key !== "string") return;
             const item = galleryItemsByKey.get(key);
-            if (item?.kind === "custom") {
+            if (!item) return;
+            // The second press of a double-click deselects the card first.
+            setSelection(getGalleryItemSelection(item));
+            if (item.kind === "custom") {
               navigate(
                 getCustomEvaluatorKind(item.evaluator) === "LLM"
                   ? creationPaths.copyLlm(item.evaluator.id)
@@ -688,9 +621,7 @@ function EvaluatorGallery({
               );
               return;
             }
-            if (item?.kind === "template") {
-              navigate(creationPaths.newLlmFromTemplate(item.template.name));
-            }
+            navigate(creationPaths.newLlmFromTemplate(item.template.name));
           }}
         >
           {hasCustomEvaluators ? (
@@ -858,7 +789,9 @@ function EvaluatorGallery({
           />
         ) : (
           <Text size="S" color="text-500">
-            No evaluators or templates are available in the gallery.
+            {galleryItems.length === 0
+              ? "No evaluators or templates are available in the gallery."
+              : "Select an evaluator or template to see details."}
           </Text>
         )}
       </aside>
