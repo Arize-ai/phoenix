@@ -320,7 +320,7 @@ image = Image.debian_slim("3.12").cmd(["/bin/bash"])
 #### dockerfile_commands()
 
 ```ruby
-def dockerfile_commands(dockerfile_commands, context_dir: nil)
+def dockerfile_commands(dockerfile_commands, context_dir: nil, strict_context: false)
 
 ```
 
@@ -330,6 +330,10 @@ Adds arbitrary Dockerfile-like commands to the image
 
 - `dockerfile_commands` _Array\<String\>_ - The commands to add to the Dockerfile
 - `context_dir` _String, nil_ - The path to the context directory
+- `strict_context` _Boolean_ - When true, a COPY source that resolves outside context_dir is
+rejected instead of read. Requires context_dir, so that the boundary is explicit rather than
+taken from the working directory. Sources that legitimately live elsewhere belong in
+add_local_file or add_local_dir
 
 **Returns**:
 

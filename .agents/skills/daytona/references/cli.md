@@ -171,6 +171,7 @@ __Flags__
 | `--dockerfile` | `-f` | Path to Dockerfile for Sandbox snapshot |
 | `--env` | `-e` | Environment variables (format: KEY=VALUE) |
 | `--gpu` |  | GPU units allocated to the sandbox |
+| `--kvm` |  | Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization. |
 | `--label` | `-l` | Labels (format: KEY=VALUE) |
 | `--memory` |  | Memory allocated to the sandbox in MB |
 | `--name` |  | Name of the sandbox |
