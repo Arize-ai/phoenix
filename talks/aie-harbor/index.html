@@ -134,8 +134,12 @@ p{margin:0}
 .in-loop{opacity:0;transition:opacity .4s ease;grid-column:1/-1;position:relative;align-self:start;height:56px;margin:12px calc((100% - 156px)/8) 0;border:2px solid var(--text);border-top:none;border-radius:0 0 16px 16px}
 .in-loop::before{content:"";position:absolute;left:-9px;top:0;border-bottom:12px solid var(--text);border-left:8px solid transparent;border-right:8px solid transparent}
 .slide.looped .in-loop{opacity:1}
+.in-step.task::before,.in-step.task::after,.in-step.verify::before,.in-step.verify::after,.in-step.reward::before,.in-step.reward::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--ground);border:1.5px solid var(--line-strong);opacity:0;transition:opacity .4s ease}
+.in-step::before{transform:translate(8px,-8px)}
+.in-step::after{transform:translate(16px,-16px)}
+.slide.looped .in-step::before,.slide.looped .in-step::after{opacity:1}
 .in-loop span{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:12px;font-size:20px;color:var(--muted);white-space:nowrap}
-.in-step{box-sizing:border-box;height:260px;border-radius:var(--radius-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--blue-tint)}
+.in-step{position:relative;box-sizing:border-box;height:260px;border-radius:var(--radius-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--blue-tint)}
 .in-k{font-size:36px;font-weight:500;letter-spacing:-.025em;line-height:1.05;white-space:nowrap}
 .in-d{font-size:20px;line-height:1.35;height:54px;color:var(--muted);text-wrap:balance}
 .in-arrow{position:relative;height:2px;margin:0 16px 0 8px;background:var(--text)}
@@ -235,7 +239,7 @@ p{margin:0}
     <div class="eyebrow"><b>01 · Overview</b></div>
     <h2>What is Harbor?</h2>
   </div>
-  <div class="in-flow" role="img" aria-label="One trial has four parts. A task, made of an instruction, an image, and a test. The agent works in a fresh sandbox. The verifier checks what the agent left behind. The result is a reward from 0 to 1, plus the agent's trajectory. The reward feeds back to the task: iterate.">
+  <div class="in-flow" role="img" aria-label="One trial has four parts. A task, made of an instruction, an image, and a test. The agent works in a fresh sandbox. The verifier checks what the agent left behind. The result is a reward from 0 to 1, plus the agent's trajectory. The reward feeds back to the task: iterate. Many tasks run, so the task, verifier, and reward are stacks.">
     <div class="in-step task"><span class="in-k">Task</span><span class="in-d">an instruction<br>to complete</span></div>
     <i class="in-arrow" aria-hidden="true"></i>
     <div class="in-step agent"><span class="in-k">Agent</span><span class="in-d">runs in a fresh sandbox<br>on real data</span></div>
