@@ -4,6 +4,7 @@ import {
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { getEvaluatorCopyName } from "@phoenix/components/evaluators/evaluatorCopyName";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type {
@@ -227,14 +228,18 @@ export function getEvaluatorInputSummaries(
 }
 
 export type BuildCopyLlmCreationModeResult =
-  | { ok: true; mode: ProjectEvaluatorCreationMode }
+  | {
+      ok: true;
+      mode: Extract<ProjectEvaluatorCreationMode, { kind: "copyLlm" }>;
+    }
   | { ok: false; reason: "unsupported-prompt-template" };
 
 export const UNSUPPORTED_PROMPT_TEMPLATE_ERROR =
   "This evaluator uses an unsupported prompt template. Edit it to use a chat or string template, then try again.";
 
 export function buildCopyLlmCreationMode(
-  evaluator: LlmProjectEvaluatorDetails
+  evaluator: LlmProjectEvaluatorDetails,
+  takenNames: Iterable<string>
 ): BuildCopyLlmCreationModeResult {
   const template = evaluator.promptVersion?.template;
   if (!template) {
@@ -263,6 +268,7 @@ export function buildCopyLlmCreationMode(
       kind: "copyLlm",
       initialState: {
         name: evaluator.name,
+        copyName: getEvaluatorCopyName(evaluator.name, takenNames),
         description: evaluator.description ?? "",
         outputConfigs: convertProjectEvaluatorOutputConfigs(
           evaluator.outputConfigs
@@ -306,13 +312,14 @@ export function buildAttachCodeCreationMode(
 }
 
 export function buildCopyCodeCreationMode(
-  evaluator: CodeProjectEvaluatorDetails
+  evaluator: CodeProjectEvaluatorDetails,
+  takenNames: Iterable<string>
 ): Extract<ProjectEvaluatorCreationMode, { kind: "copyCode" }> {
   return {
     kind: "copyCode",
     initialState: {
       name: evaluator.name,
-      copyName: `${evaluator.name}-copy`,
+      copyName: getEvaluatorCopyName(evaluator.name, takenNames),
       description: evaluator.description ?? "",
       outputConfigs: convertProjectEvaluatorOutputConfigs(
         evaluator.outputConfigs

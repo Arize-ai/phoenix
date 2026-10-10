@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { useLazyLoadQuery } from "react-relay";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLocation, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
+import type { ProjectEvaluatorSlideoverRoutesCopyNamesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorSlideoverRoutesCopyNamesQuery.graphql";
 import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import {
   CreateProjectEvaluatorSlideover,
@@ -17,6 +18,8 @@ import {
   buildAttachCodeCreationMode,
   buildCopyCodeCreationMode,
   buildCopyLlmCreationMode,
+  type CodeProjectEvaluatorDetails,
+  type LlmProjectEvaluatorDetails,
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
   UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
@@ -95,6 +98,36 @@ function useSourceEvaluator() {
   return readProjectEvaluatorDetails(data.evaluator);
 }
 
+const copyNamesQuery = graphql`
+  query ProjectEvaluatorSlideoverRoutesCopyNamesQuery(
+    $projectId: ID!
+    $filter: ProjectEvaluatorFilter!
+  ) {
+    project: node(id: $projectId) {
+      ... on Project {
+        evaluators(first: 100, filter: $filter) {
+          edges {
+            node {
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+function useTakenCopyNames(baseName: string): readonly string[] {
+  const projectId = useRouteProjectId();
+  const data = useLazyLoadQuery<ProjectEvaluatorSlideoverRoutesCopyNamesQuery>(
+    copyNamesQuery,
+    { projectId, filter: { col: "name", value: `${baseName.trim()}_copy` } },
+    { fetchPolicy: "network-only" }
+  );
+  const edges = data.project.evaluators?.edges;
+  return useMemo(() => edges?.map(({ node }) => node.name) ?? [], [edges]);
+}
+
 export function NewLlmProjectEvaluatorPage() {
   return <CreateProjectEvaluatorRoute creationMode={{ kind: "scratch" }} />;
 }
@@ -131,33 +164,41 @@ export function NewLlmFromTemplateProjectEvaluatorPage() {
   );
 }
 
+const COPY_LLM_ERROR_TITLE = "Cannot copy evaluator";
+
 export function CopyLlmProjectEvaluatorPage() {
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
-  // Memoized: this walks every prompt message and mints fresh message ids, and
-  // the page re-renders under the open slideover (e.g. as the toolbar filter
-  // changes). A new object each time would rebuild the evaluator store too.
-  const built = useMemo(
-    () =>
-      evaluator?.__typename === "LLMEvaluator"
-        ? buildCopyLlmCreationMode(evaluator)
-        : null,
-    [evaluator]
-  );
-  const title = "Cannot copy evaluator";
-  if (!built) {
+  if (evaluator?.__typename !== "LLMEvaluator") {
     return (
       <ProjectEvaluatorSlideoverError
-        title={title}
+        title={COPY_LLM_ERROR_TITLE}
         message="This link does not name an LLM evaluator."
         onOpenChange={onOpenChange}
       />
     );
   }
+  return <CopyLlmProjectEvaluatorRoute evaluator={evaluator} />;
+}
+
+function CopyLlmProjectEvaluatorRoute({
+  evaluator,
+}: {
+  evaluator: LlmProjectEvaluatorDetails;
+}) {
+  const onOpenChange = useCloseSlideover();
+  const takenNames = useTakenCopyNames(evaluator.name);
+  // Memoized: this walks every prompt message and mints fresh message ids, and
+  // the page re-renders under the open slideover (e.g. as the toolbar filter
+  // changes). A new object each time would rebuild the evaluator store too.
+  const built = useMemo(
+    () => buildCopyLlmCreationMode(evaluator, takenNames),
+    [evaluator, takenNames]
+  );
   if (!built.ok) {
     return (
       <ProjectEvaluatorSlideoverError
-        title={title}
+        title={COPY_LLM_ERROR_TITLE}
         message={UNSUPPORTED_PROMPT_TEMPLATE_ERROR}
         onOpenChange={onOpenChange}
       />
@@ -193,11 +234,7 @@ export function AttachCodeProjectEvaluatorPage() {
 export function CopyCodeProjectEvaluatorPage() {
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
-  const creationMode =
-    evaluator?.__typename === "CodeEvaluator"
-      ? buildCopyCodeCreationMode(evaluator)
-      : null;
-  if (!creationMode) {
+  if (evaluator?.__typename !== "CodeEvaluator") {
     return (
       <ProjectEvaluatorSlideoverError
         title="Cannot duplicate evaluator"
@@ -206,7 +243,20 @@ export function CopyCodeProjectEvaluatorPage() {
       />
     );
   }
-  return <CreateProjectEvaluatorRoute creationMode={creationMode} />;
+  return <CopyCodeProjectEvaluatorRoute evaluator={evaluator} />;
+}
+
+function CopyCodeProjectEvaluatorRoute({
+  evaluator,
+}: {
+  evaluator: CodeProjectEvaluatorDetails;
+}) {
+  const takenNames = useTakenCopyNames(evaluator.name);
+  return (
+    <CreateProjectEvaluatorRoute
+      creationMode={buildCopyCodeCreationMode(evaluator, takenNames)}
+    />
+  );
 }
 
 export function EditProjectEvaluatorPage() {
