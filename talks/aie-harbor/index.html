@@ -154,17 +154,6 @@ p{margin:0}
 .hb-file.opt .hb-role{color:var(--faint);background:var(--well)}
 .hb-file.opt .hb-fic{stroke:var(--faint)}
 .hb-role{align-self:flex-start;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);background:var(--amber-tint);border-radius:var(--radius-sm);padding:4px 10px}
-.hb-arrow{height:44px;flex:none;display:grid;place-items:center}
-.hb-arrow i{width:2px;height:100%;background:var(--line-strong);position:relative}
-.hb-arrow i::after{content:"";position:absolute;left:-6px;bottom:-2px;border-top:9px solid var(--line-strong);border-left:7px solid transparent;border-right:7px solid transparent}
-.hb-job{display:flex;align-items:flex-start;gap:28px;padding:22px 28px;border-radius:var(--radius);background:var(--surface)}
-.hb-job>.eyebrow{padding-top:8px}
-.hb-cmd{display:flex;flex-wrap:nowrap;gap:6px 12px;align-items:flex-start}
-.hb-seg{display:flex;flex-direction:column;gap:8px}
-.hb-seg code{font-family:var(--mono);font-size:19px;color:var(--text);white-space:nowrap}
-.hb-seg small{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);border-top:1px solid var(--line-strong);padding-top:6px}
-.hb-seg.ph code{color:var(--blue);font-weight:500}
-.hb-seg.ph small{color:var(--blue);border-color:var(--blue)}
 
 /* hi: isolation matrix, shown resolved */
 .hi{flex:1;min-height:0;margin-top:28px;display:flex;flex-direction:column;justify-content:center;gap:28px}
@@ -318,19 +307,6 @@ then echo 1 &gt; <b>reward.txt</b>
 else echo 0 &gt; <b>reward.txt</b>
 fi</pre>
       <span class="hb-role">VERIFIER</span>
-    </div>
-  </div>
-  <div class="hb-arrow"><i></i></div>
-  <div class="hb-job">
-    <div class="eyebrow">Job</div>
-    <div class="hb-cmd">
-      <span class="hb-seg"><code>harbor run</code><small>&nbsp;</small></span>
-      <span class="hb-seg"><code>-d tasks/</code><small>task set</small></span>
-      <span class="hb-seg"><code>-a claude-code</code><small>agent</small></span>
-      <span class="hb-seg"><code>-m claude-opus-5</code><small>model</small></span>
-      <span class="hb-seg"><code>-k 3</code><small>attempts</small></span>
-      <span class="hb-seg"><code>-e daytona</code><small>sandbox</small></span>
-      <span class="hb-seg ph"><code>--plugin arize-phoenix</code><small>record to phoenix</small></span>
     </div>
   </div>
 </section>
