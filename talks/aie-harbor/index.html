@@ -130,7 +130,10 @@ p{margin:0}
 
 /* in: harbor intro, one trial in four parts */
 .in-lede{max-width:40ch}
-.in-flow{flex:1;min-height:0;display:grid;grid-template-columns:1fr 52px 1fr 52px 1fr 52px 1fr;align-items:center}
+.in-flow{flex:1;min-height:0;display:grid;grid-template-columns:1fr 52px 1fr 52px 1fr 52px 1fr;grid-template-rows:260px 72px;align-content:center;align-items:center}
+.in-loop{grid-column:1/-1;position:relative;align-self:start;height:60px;margin:0 calc((100% - 156px)/8);border:2px solid var(--text);border-top:none;border-radius:0 0 16px 16px}
+.in-loop::before{content:"";position:absolute;left:-9px;top:-2px;border-bottom:12px solid var(--text);border-left:8px solid transparent;border-right:8px solid transparent}
+.in-loop span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:0 16px;background:var(--ground);font-size:20px;color:var(--muted);white-space:nowrap}
 .in-step{height:260px;border-radius:var(--radius-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--blue-tint)}
 .in-k{font-size:36px;font-weight:500;letter-spacing:-.025em;line-height:1.05;white-space:nowrap}
 .in-d{font-size:20px;line-height:1.35;height:54px;color:var(--muted);text-wrap:balance}
@@ -231,7 +234,7 @@ p{margin:0}
     <div class="eyebrow"><b>01 · Overview</b></div>
     <h2>What is Harbor?</h2>
   </div>
-  <div class="in-flow" role="img" aria-label="One trial has four parts. A task, made of an instruction, an image, and a test. The agent works in a fresh sandbox. The verifier checks what the agent left behind. The result is a reward from 0 to 1, plus the agent's trajectory.">
+  <div class="in-flow" role="img" aria-label="One trial has four parts. A task, made of an instruction, an image, and a test. The agent works in a fresh sandbox. The verifier checks what the agent left behind. The result is a reward from 0 to 1, plus the agent's trajectory. The reward feeds back to the task to update the agent.">
     <div class="in-step task"><span class="in-k">Task</span><span class="in-d">an instruction<br>to complete</span></div>
     <i class="in-arrow" aria-hidden="true"></i>
     <div class="in-step agent"><span class="in-k">Agent</span><span class="in-d">runs in a fresh sandbox<br>on real data</span></div>
@@ -239,6 +242,7 @@ p{margin:0}
     <div class="in-step verify"><span class="in-k">Verifier</span><span class="in-d">checks what the agent left behind</span></div>
     <i class="in-arrow" aria-hidden="true"></i>
     <div class="in-step reward"><span class="in-k">Reward</span><span class="in-d">0 / 1<br>pass / fail</span></div>
+    <div class="in-loop" aria-hidden="true"><span>update the agent</span></div>
   </div>
 </section>
 
