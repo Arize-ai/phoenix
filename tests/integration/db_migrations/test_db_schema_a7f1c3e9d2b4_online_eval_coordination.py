@@ -153,6 +153,8 @@ class TestEvalSpanCursors(_OnlineEvalSchemaTest):
             "produced_through_id",
             "observed_high_water_id",
             "observed_at",
+            "overflowed_through_id",
+            "overflowed_counts",
             "created_at",
             "updated_at",
         }
@@ -171,7 +173,9 @@ class TestEvalSpanCursors(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["observed_high_water_id", "observed_at"]),
+            nullable_column_names=frozenset(
+                ["observed_high_water_id", "observed_at", "overflowed_through_id"]
+            ),
         )
 
 
@@ -456,10 +460,16 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
 
 
 @pytest.mark.parametrize(
-    "table_name", ["eval_work_units", "eval_session_work_units", "eval_trace_work_units"]
+    ("table_name", "admits_overflowed"),
+    [
+        ("eval_work_units", False),
+        ("eval_session_work_units", True),
+        ("eval_trace_work_units", True),
+    ],
 )
-async def test_every_work_unit_table_admits_dropped_status(
+async def test_work_unit_tables_admit_dropped_and_only_traces_and_sessions_overflowed(
     table_name: str,
+    admits_overflowed: bool,
     _engine: AsyncEngine,
     _alembic_config: Config,
     _schema: str,
@@ -474,6 +484,7 @@ async def test_every_work_unit_table_admits_dropped_status(
     status_checks = await _run_async(_engine, _get_status_checks)
     assert len(status_checks) == 1
     assert "'DROPPED'" in status_checks[0]
+    assert ("'OVERFLOWED'" in status_checks[0]) is admits_overflowed
 
 
 @pytest.mark.parametrize("spec", _LIVENESS_TABLES.values(), ids=_LIVENESS_TABLES)

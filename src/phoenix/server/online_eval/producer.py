@@ -5,11 +5,14 @@ The producer runs on every replica. The ``span-producer`` lease is advisory: it 
 one replica scanning at a time so scans aren't repeated, but no write is fenced on it.
 The unique (span, project evaluator) work-unit key absorbs duplicate
 inserts. Each tick takes the lease and deletes aged terminal work rows. When a frontier
-is due and the queue has room, it also scans the lag-gated span id window per project
-evaluator, until the scans have found as much work as the queue has room for, and inserts
-surviving work units, as many as the room left under the admission lock allows. A
-slow-cadence backstop sweep re-covers a bounded id window behind the watermark to catch
-spans that became visible after their window was scanned.
+is due, it also scans the lag-gated span id window per project evaluator and offers the
+window's work as one batch: queued if it fits the room the queue has left, otherwise
+dropped whole, and the cursor advances either way. A dropped batch leaves no work rows;
+the cursor records the newest span ever dropped, ``overflowed_through_id``, and the
+recent drop counts. A slow-cadence backstop sweep re-covers a bounded id window behind
+the watermark, starting above that newest dropped span, to catch spans that became visible
+after their window was scanned. It scans until it has found as much work as the queue has
+room for, and fills only that room. Both read the room under the admission lock.
 
 Every cursor write is compare-and-set on the position it read, and a scan (frontier or
 backstop) commits only if the cursor still holds the position it scanned against. The
@@ -23,10 +26,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Optional
+from typing import Any, Mapping, Optional, Sequence
 
 from sqlalchemy import Select, delete, exists, func, select, text, update
 from sqlalchemy.exc import DBAPIError
@@ -48,10 +52,12 @@ from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
+from phoenix.server.online_eval.queue_health import span_overflow_window
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
     ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
+    ONLINE_EVAL_OVERFLOWED_WORK_UNITS,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
@@ -95,6 +101,48 @@ class _ActiveProjectEvaluator:
         return [sid for sid in span_ids if sample_key(sid) < self.sampling_rate]
 
 
+def _whole_span_batches(
+    evaluator_indexes_by_span: Mapping[int, Sequence[int]],
+    max_batch_size: int,
+) -> list[list[int]]:
+    """Group span ids, in arrival order, into batches of at most ``max_batch_size``
+    evaluations without splitting a span. A span with more evaluations than that forms a
+    batch alone."""
+    batches: list[list[int]] = []
+    batch: list[int] = []
+    batch_size = 0
+    for span_id in sorted(evaluator_indexes_by_span):
+        span_size = len(evaluator_indexes_by_span[span_id])
+        if batch and batch_size + span_size > max_batch_size:
+            batches.append(batch)
+            batch, batch_size = [], 0
+        batch.append(span_id)
+        batch_size += span_size
+    if batch:
+        batches.append(batch)
+    return batches
+
+
+def _overflowed_counts_with(
+    overflowed_counts: Mapping[str, Any],
+    dropped: Mapping[int, int],
+    now: datetime,
+) -> dict[str, dict[str, int]]:
+    """The cursor's drop counts with ``dropped`` added to the current minute, keeping only
+    the minutes queue health still reads."""
+    window = span_overflow_window(overflowed_counts, now)
+    if dropped:
+        bucket = window.setdefault(now.replace(second=0, microsecond=0), {})
+        for project_evaluator_id, count in dropped.items():
+            bucket[project_evaluator_id] = bucket.get(project_evaluator_id, 0) + count
+    return {
+        minute.isoformat(): {
+            str(project_evaluator_id): count for project_evaluator_id, count in counts.items()
+        }
+        for minute, counts in sorted(window.items())
+    }
+
+
 class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
@@ -125,6 +173,7 @@ class OnlineEvalProducer(DaemonTask):
         self._last_backstop_at = time.monotonic()
         self._publish_metrics = get_env_enable_prometheus()
         ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(evaluation_target="SPAN")
+        ONLINE_EVAL_OVERFLOWED_WORK_UNITS.labels(evaluation_target="SPAN")
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
@@ -177,16 +226,17 @@ class OnlineEvalProducer(DaemonTask):
             )
 
         budget = await self._admission_budget()
-        active = await self._load_active_project_evaluators() if budget > 0 else []
+        active = await self._load_active_project_evaluators()
 
         advanced = False
-        if budget > 0 and frontier is not None:
+        if frontier is not None:
             if not await self._lease.renew():
                 return
             advanced, budget = await self._materialize_and_advance(
                 active,
-                produced_through_id,
+                cursor,
                 frontier,
+                now,
             )
             if advanced:
                 produced_through_id = frontier
@@ -264,16 +314,10 @@ class OnlineEvalProducer(DaemonTask):
             )
 
     async def _admission_budget(self) -> int:
-        """The room the queue has left, read without the admission lock: a full queue skips
-        this tick's scans, and admission reads the room again under the lock."""
+        """The room the queue has left, read without the admission lock, so the backstop
+        runs only while there is room to fill; admission reads the room again under it."""
         async with self._db() as session:
-            budget = await admission.room(session)
-        if budget == 0:
-            logger.warning(
-                f"Online-eval producer admission gate closed: the queue holds "
-                f"{admission.max_queued()} evaluations"
-            )
-        return budget
+            return await admission.room(session)
 
     async def _load_active_project_evaluators(self) -> list[_ActiveProjectEvaluator]:
         """Load and resolve enabled project evaluators into scan-ready form.
@@ -352,41 +396,85 @@ class OnlineEvalProducer(DaemonTask):
     async def _materialize_and_advance(
         self,
         active: list[_ActiveProjectEvaluator],
-        low_exclusive: int,
+        cursor: models.EvalSpanCursor,
         frontier: int,
+        now: datetime,
     ) -> tuple[bool, int]:
-        """Queue the window's work, as much as the queue has room for, and advance past the
-        window only if all of it was queued. Returns whether the cursor advanced and the room
-        left in the queue."""
+        """Offer the window to every project evaluator and advance past it, returning whether
+        the cursor advanced and the room left in the queue. The window is one batch, or, when
+        it holds more evaluations than the queue does, consecutive batches of whole spans no
+        larger than the queue. A batch that does not fit is dropped whole: any rule for which
+        part to keep would break the nested sampling every evaluator shares.
+
+        A dropped batch leaves no work rows. The compare-and-set that advances the cursor
+        also raises ``overflowed_through_id`` to the newest dropped span and adds the drops to
+        ``overflowed_counts``, so all three commit together or not at all.
+
+        The room is read under the admission lock, which holds until the session's
+        transaction ends, so the scans run first and outside it."""
+        low_exclusive = cursor.produced_through_id
+        dropped: Counter[int] = Counter()
+        newest_dropped_span_id: Optional[int] = None
+        queued_count = 0
         async with self._db() as session:
-            budget, queued_count, truncated = await self._admit(
-                session, active, low_exclusive, frontier
-            )
-            if truncated:
-                logger.warning(
-                    f"Online-eval producer frontier truncated at insertion budget; "
-                    f"{budget} budget remaining"
+            evaluator_indexes_by_span: dict[int, list[int]] = {}
+            for index, project_evaluator in enumerate(active):
+                span_ids = await self._scan(session, project_evaluator, low_exclusive, frontier)
+                for span_id in project_evaluator.sampled(span_ids):
+                    evaluator_indexes_by_span.setdefault(span_id, []).append(index)
+            budget = await admission.lock_room(session, self._db.dialect)
+            for batch in _whole_span_batches(evaluator_indexes_by_span, admission.max_queued()):
+                batch_size = sum(len(evaluator_indexes_by_span[span_id]) for span_id in batch)
+                if batch_size > budget:
+                    for span_id in batch:
+                        for index in evaluator_indexes_by_span[span_id]:
+                            dropped[active[index].project_evaluator_id] += 1
+                    newest_dropped_span_id = batch[-1]
+                    continue
+                span_ids_by_evaluator: dict[int, list[int]] = {}
+                for span_id in batch:
+                    for index in evaluator_indexes_by_span[span_id]:
+                        span_ids_by_evaluator.setdefault(index, []).append(span_id)
+                for index, span_ids in span_ids_by_evaluator.items():
+                    queued_count += await self._insert_work_units(session, active[index], span_ids)
+                budget -= batch_size
+            advance: dict[str, Any] = {
+                "produced_through_id": frontier,
+                "overflowed_counts": _overflowed_counts_with(
+                    cursor.overflowed_counts, dropped, now
+                ),
+            }
+            if newest_dropped_span_id is not None:
+                advance["overflowed_through_id"] = max(
+                    newest_dropped_span_id, cursor.overflowed_through_id or 0
                 )
-                position_current = await self._cursor_is_at(session, low_exclusive)
-            else:
-                position_current = (
-                    await session.scalar(
-                        update(models.EvalSpanCursor)
-                        .where(
-                            models.EvalSpanCursor.id == _CURSOR_ID,
-                            models.EvalSpanCursor.produced_through_id == low_exclusive,
-                        )
-                        .values(produced_through_id=frontier)
-                        .returning(models.EvalSpanCursor.id)
+            advanced = (
+                await session.scalar(
+                    update(models.EvalSpanCursor)
+                    .where(
+                        models.EvalSpanCursor.id == _CURSOR_ID,
+                        models.EvalSpanCursor.produced_through_id == low_exclusive,
                     )
-                    is not None
+                    .values(**advance)
+                    .returning(models.EvalSpanCursor.id)
                 )
-            if not position_current:
+                is not None
+            )
+            if not advanced:
                 await session.rollback()
                 logger.warning("Online-eval producer frontier rolled back: the cursor moved")
                 return False, budget
         self._count_queued(queued_count)
-        return not truncated, budget
+        if dropped_count := sum(dropped.values()):
+            logger.warning(
+                f"Online-eval queue full: dropped {dropped_count} span evaluations "
+                f"with room for {budget}"
+            )
+            if self._publish_metrics:
+                ONLINE_EVAL_OVERFLOWED_WORK_UNITS.labels(evaluation_target="SPAN").inc(
+                    dropped_count
+                )
+        return True, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
@@ -419,7 +507,7 @@ class OnlineEvalProducer(DaemonTask):
 
     async def _refresh_gauges(self, produced_through_id: int) -> None:
         """Publish the frontier gap and ingest rate on a tick that leaves its pending
-        observation unconsumed, e.g. while the admission gate is closed."""
+        observation unconsumed, e.g. while the frontier stops short of it."""
         if not self._publish_metrics:
             return
         async with self._db() as session:
@@ -459,10 +547,20 @@ class OnlineEvalProducer(DaemonTask):
         for, returning the room left in the queue."""
         if watermark <= 0:
             return 0
-        # Window is [watermark - lookback, watermark], matching the reaper's floor
-        # exactly so every retained terminal row is inside the swept range.
-        low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
+            # Window is [watermark - lookback, watermark], matching the reaper's floor
+            # exactly so every retained terminal row is inside the swept range, and starts
+            # above the newest dropped span, which left no row to block re-offering it.
+            overflowed_through_id = await session.scalar(
+                select(models.EvalSpanCursor.overflowed_through_id).where(
+                    models.EvalSpanCursor.id == _CURSOR_ID
+                )
+            )
+            low_exclusive = max(
+                watermark - self._backstop_lookback_span_ids - 1,
+                overflowed_through_id or 0,
+                0,
+            )
             budget, queued_count, truncated = await self._admit(
                 session, active, low_exclusive, watermark
             )

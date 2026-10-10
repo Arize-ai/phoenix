@@ -102,7 +102,7 @@ The following environment variables will control how your phoenix server runs.
 | `PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS` | `100000` | Sets the number of span IDs covered by each recovery scan. For gap-free coverage, this must be at least the instance-wide span ingest rate multiplied by the backstop interval. |
 | `PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK` | `10000` | Limits the span-ID range processed in one producer transaction. |
 | `PHOENIX_ONLINE_EVAL_RETENTION_SECONDS` | `604800` | Retains terminal work rows for this many seconds before cleanup. |
-| `PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING` | `30000` | Limits the evaluations queued at once, pending, running, or retrying, counting span, trace, and session evaluations together. |
+| `PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING` | `30000` | Limits the evaluations queued at once, pending, running, or retrying, counting span, trace, and session evaluations together. Evaluations that don't fit under the limit are dropped, not queued. New spans reach the queue about once a minute, so size this to hold about a minute of new evaluations of all kinds. |
 | `PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE` | `10` | Sets the most work units each consumer claims at once. A consumer claims only as many as it can start under `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY`. Under steady load, claims follow completions and often take one unit. |
 | `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `10` | Limits the work units a replica evaluates at once, across all consumers. |
 | `PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY` | `5` | Limits aggregate database phases across all consumers per replica. |

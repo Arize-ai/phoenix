@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c68f2d25bef751bb51d0ce39681bf579>>
+ * @generated SignedSource<<d6840a91ca30862245a8c46095832c42>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "OVERLOADED" | "QUEUED" | "RUNNING";
 export type SetProjectEvaluatorEnabledInput = {
   enabled: boolean;
   projectEvaluatorId: string;
