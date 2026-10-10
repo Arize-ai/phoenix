@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { graphql, useMutation } from "react-relay";
+import { graphql, useMutation, useRelayEnvironment } from "react-relay";
+import { fetchQuery, type RecordSourceSelectorProxy } from "relay-runtime";
 
-import { Alert, Flex, Switch, Text } from "@phoenix/components";
+import { Switch, Text } from "@phoenix/components";
+import { useNotifyError } from "@phoenix/contexts";
+import type { ProjectEvaluatorEnabledSwitchClearMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchClearMutation.graphql";
 import type { ProjectEvaluatorEnabledSwitchMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchMutation.graphql";
+import type { ProjectEvaluatorEnabledSwitchRunSummaryQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchRunSummaryQuery.graphql";
 import { ClearQueueConfirmDialog } from "@phoenix/pages/project/evaluators/ClearQueueConfirmDialog";
 import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -20,9 +24,10 @@ export function ProjectEvaluatorEnabledSwitch({
   /** The evaluator's queued evaluations that turning it off clears: not the running ones. */
   clearableCount: number;
 }) {
-  const [error, setError] = useState<string | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const refreshQueueStats = useRefreshQueueStats();
+  const notifyError = useNotifyError();
+  const environment = useRelayEnvironment();
   const [commit, isInFlight] =
     useMutation<ProjectEvaluatorEnabledSwitchMutation>(graphql`
       mutation ProjectEvaluatorEnabledSwitchMutation(
@@ -44,39 +49,123 @@ export function ProjectEvaluatorEnabledSwitch({
       }
     `);
 
+  const [commitClear, isClearInFlight] =
+    useMutation<ProjectEvaluatorEnabledSwitchClearMutation>(graphql`
+      mutation ProjectEvaluatorEnabledSwitchClearMutation(
+        $input: ClearProjectEvaluatorQueuedEvaluationsInput!
+      ) {
+        clearProjectEvaluatorQueuedEvaluations(input: $input) {
+          evaluator {
+            id
+            runSummary {
+              status
+              queuedCount
+              runningCount
+              droppedCount
+              oldestQueuedAt
+            }
+          }
+        }
+      }
+    `);
+
   const label = `${enabled ? "Disable" : "Enable"} ${name}`;
 
-  const setEnabled = (nextEnabled: boolean) => {
-    setError(null);
-    commit({
-      variables: {
-        input: { projectEvaluatorId, enabled: nextEnabled },
-      },
-      // Only the server knows which status a re-enabled evaluator returns to,
-      // and how many queued evaluations the disable dropped.
-      optimisticUpdater: nextEnabled
-        ? undefined
-        : (store) => {
-            const evaluator = store.get(projectEvaluatorId);
-            evaluator?.setValue(false, "enabled");
-            const runSummary = evaluator?.getLinkedRecord("runSummary");
-            runSummary?.setValue("DISABLED", "status");
-            // Running evaluations finish; only the rest are cleared.
-            runSummary?.setValue(
-              runSummary.getValue("runningCount") ?? 0,
-              "queuedCount"
-            );
-            runSummary?.setValue(null, "oldestQueuedAt");
-          },
+  const markDisabled = (store: RecordSourceSelectorProxy) => {
+    const evaluator = store.get(projectEvaluatorId);
+    evaluator?.setValue(false, "enabled");
+    const runSummary = evaluator?.getLinkedRecord("runSummary");
+    runSummary?.setValue("DISABLED", "status");
+    // Running evaluations finish; only the rest are cleared.
+    runSummary?.setValue(
+      runSummary.getValue("runningCount") ?? 0,
+      "queuedCount"
+    );
+    runSummary?.setValue(null, "oldestQueuedAt");
+  };
+
+  // The row showed the evaluator as cleared; read back what is still queued.
+  const refetchRunSummary = () => {
+    fetchQuery<ProjectEvaluatorEnabledSwitchRunSummaryQuery>(
+      environment,
+      graphql`
+        query ProjectEvaluatorEnabledSwitchRunSummaryQuery($id: ID!) {
+          node(id: $id) {
+            ... on ProjectEvaluator {
+              id
+              runSummary {
+                status
+                queuedCount
+                runningCount
+                droppedCount
+                oldestQueuedAt
+              }
+            }
+          }
+        }
+      `,
+      { id: projectEvaluatorId },
+      { fetchPolicy: "network-only" }
+    ).subscribe({});
+  };
+
+  const onClearFailed = (message: string) => {
+    refetchRunSummary();
+    refreshQueueStats();
+    notifyError({
+      title: `Disabled ${name}, but couldn't clear its queue`,
+      message,
+      expireMs: null,
+      action: { text: "Retry", onClick: () => clearQueue() },
+    });
+  };
+
+  const clearQueue = () => {
+    commitClear({
+      variables: { input: { projectEvaluatorId } },
       onCompleted: (_response, errors) => {
         if (errors?.length) {
-          setError(errors.map(({ message }) => message).join("\n"));
+          onClearFailed(errors.map(({ message }) => message).join("\n"));
           return;
         }
         refreshQueueStats();
       },
       onError: (error) => {
-        setError(
+        onClearFailed(
+          getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+            error.message
+        );
+      },
+    });
+  };
+
+  const onUpdateFailed = (message: string) => {
+    notifyError({ title: `Failed to update ${name}`, message });
+  };
+
+  const setEnabled = (nextEnabled: boolean) => {
+    commit({
+      variables: {
+        input: { projectEvaluatorId, enabled: nextEnabled },
+      },
+      // Only the server knows which status a re-enabled evaluator returns to.
+      // A disabled one shows as cleared until the clear that follows reports
+      // the real counts.
+      optimisticUpdater: nextEnabled ? undefined : markDisabled,
+      updater: nextEnabled ? undefined : markDisabled,
+      onCompleted: (_response, errors) => {
+        if (errors?.length) {
+          onUpdateFailed(errors.map(({ message }) => message).join("\n"));
+          return;
+        }
+        if (nextEnabled) {
+          refreshQueueStats();
+        } else {
+          clearQueue();
+        }
+      },
+      onError: (error) => {
+        onUpdateFailed(
           getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
             error.message
         );
@@ -93,21 +182,16 @@ export function ProjectEvaluatorEnabledSwitch({
   };
 
   return (
-    <Flex direction="column" gap="size-50" alignItems="start">
+    <>
       <Switch
         aria-label={label}
         isSelected={enabled}
-        isDisabled={isInFlight}
+        isDisabled={isInFlight || isClearInFlight}
         onChange={onChange}
       >
         {/* Switch requires children; aria-label supplies the accessible name. */}
         {null}
       </Switch>
-      {error ? (
-        <Alert variant="danger" title={`Failed to update ${name}`}>
-          {error}
-        </Alert>
-      ) : null}
       <ClearQueueConfirmDialog
         isOpen={isConfirmOpen}
         onOpenChange={setIsConfirmOpen}
@@ -117,7 +201,7 @@ export function ProjectEvaluatorEnabledSwitch({
           setIsConfirmOpen(false);
           setEnabled(false);
         }}
-        isPending={isInFlight}
+        isPending={isInFlight || isClearInFlight}
       >
         <Text>
           {clearableCount === 1
@@ -125,6 +209,6 @@ export function ProjectEvaluatorEnabledSwitch({
             : `Disabling “${name}” clears its ${intFormatter(clearableCount)} queued evaluations.`}
         </Text>
       </ClearQueueConfirmDialog>
-    </Flex>
+    </>
   );
 }

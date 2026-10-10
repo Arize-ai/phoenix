@@ -47,7 +47,6 @@ class ProjectEvaluatorRunCounts:
     evaluated: int = 0
     failed: int = 0
     dropped: int = 0
-    last_evaluated_at: Optional[datetime] = None
     last_failed_at: Optional[datetime] = None
     last_error: Optional[str] = None
 
@@ -61,7 +60,7 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
     evaluation counts by when it finished or was given up on.
 
     Every range in a batch is counted in one pass over the evaluators' work: each is a
-    conditional aggregate over the same rows, so the all-time status and the in-range
+    conditional aggregate over the same rows, so the all-time counts and the in-range
     failure rate the evaluators table shows side by side cost a single scan.
     """
 
@@ -111,7 +110,7 @@ async def _load_run_counts(
     for (key, outcome), (count, latest) in totals.items():
         counts = result.get(key, ProjectEvaluatorRunCounts())
         if outcome == _EVALUATED:
-            counts = replace(counts, evaluated=count, last_evaluated_at=latest)
+            counts = replace(counts, evaluated=count)
         elif outcome == _FAILED:
             counts = replace(counts, failed=count, last_failed_at=latest)
         else:

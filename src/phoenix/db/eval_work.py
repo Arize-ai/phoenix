@@ -76,3 +76,8 @@ def terminal_eval_session_work_index_predicate() -> str:
 def failed_eval_work_index_predicate() -> str:
     """SQL text selecting work that was given up on, for every evaluation target."""
     return _status_in(FAILED_EVAL_WORK_STATUSES)
+
+
+def done_eval_work_index_predicate() -> str:
+    """SQL text selecting work that was evaluated, for every evaluation target."""
+    return "status = 'DONE'"

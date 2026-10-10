@@ -287,6 +287,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         }
         index_names = {
             "ix_eval_work_units_claimable",
+            "ix_eval_work_units_project_evaluator_done",
             "ix_eval_work_units_project_evaluator_failed",
             "ix_eval_work_units_project_evaluator_id",
             "ix_eval_work_units_terminal",
@@ -328,6 +329,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_eval_session_work_units_claimable",
+            "ix_eval_session_work_units_project_evaluator_done",
             "ix_eval_session_work_units_project_evaluator_failed",
             "ix_eval_session_work_units_project_evaluator_id",
             "ix_eval_session_work_units_terminal",
@@ -394,6 +396,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_eval_trace_work_units_claimable",
+            "ix_eval_trace_work_units_project_evaluator_done",
             "ix_eval_trace_work_units_project_evaluator_failed",
             "ix_eval_trace_work_units_project_evaluator_id",
             "ix_eval_trace_work_units_terminal",

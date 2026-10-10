@@ -388,7 +388,7 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 """
 The most online evaluations queued at once, span, trace, and session evaluations together:
 PENDING + RUNNING + retryable ERROR (non-terminal work). New evaluations wait to be queued
-while the queue is full. Defaults to 10000.
+while the queue is full. Defaults to 30000.
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """
@@ -3624,7 +3624,7 @@ def get_env_online_eval_max_outstanding() -> int:
 
     Counts PENDING + RUNNING + retryable ERROR (non-terminal work) of every evaluation target.
     """
-    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 10_000)
+    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 30_000)
     if max_outstanding <= 0:
         raise ValueError(
             f"Invalid value for environment variable {ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING}: "
