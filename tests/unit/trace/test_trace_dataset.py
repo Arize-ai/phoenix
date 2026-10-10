@@ -25,7 +25,21 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.span_evaluations import SpanEvaluations
-from phoenix.trace.trace_dataset import TraceDataset, _parse_schema_metadata
+from phoenix.trace.trace_dataset import REQUIRED_COLUMNS, TraceDataset, _parse_schema_metadata
+
+
+def test_trace_dataset_accepts_empty_dataframe() -> None:
+    """An empty dataframe is valid: the fixture-download fallback constructs one."""
+    dataset = TraceDataset(pd.DataFrame())
+    assert dataset.dataframe.empty
+    assert list(dataset.dataframe.columns) == REQUIRED_COLUMNS
+    assert list(dataset.to_spans()) == []
+
+
+def test_trace_dataset_from_spans_empty() -> None:
+    dataset = TraceDataset.from_spans([])
+    assert dataset.dataframe.empty
+    assert list(dataset.to_spans()) == []
 
 
 def test_trace_dataset_construction() -> None:
