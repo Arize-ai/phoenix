@@ -16,16 +16,17 @@ from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from email.message import Message
-from functools import cached_property
+from functools import cached_property, lru_cache
 from io import BytesIO
 from itertools import chain
 from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
-from time import sleep, time
+from time import monotonic, sleep, time
 from types import MappingProxyType, TracebackType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -61,8 +62,8 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, Sp
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
-from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, text
+from psutil import STATUS_ZOMBIE, NoSuchProcess, Popen
+from sqlalchemy import URL, make_url, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
@@ -74,9 +75,9 @@ from typing_extensions import Self, TypeAlias, assert_never, override
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
-    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
@@ -272,17 +273,27 @@ class _User:
         )
 
 
+class _DefaultAdminMarker:
+    pass
+
+
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
-_DEFAULT_ADMIN = _User(
-    _GqlId(GlobalID("User", "2")),
-    _ADMIN,
-    _Profile(
-        email=DEFAULT_ADMIN_EMAIL,
-        password=DEFAULT_ADMIN_PASSWORD,
-        username=DEFAULT_ADMIN_USERNAME,
-    ),
-    profile_picture_url=None,
-)
+_DEFAULT_ADMIN_GID = _GqlId(GlobalID("User", "2"))
+# The default "admin" password requires a reset before a session can be opened.
+_DEFAULT_ADMIN_INITIAL_PASSWORD = token_hex(16)
+_DEFAULT_ADMIN = _DefaultAdminMarker()
+
+
+def _auth_env(*, secret_configuration: str = "configured") -> dict[str, str]:
+    env = {
+        "PHOENIX_ENABLE_AUTH": "true",
+        "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": _DEFAULT_ADMIN_INITIAL_PASSWORD,
+    }
+    if secret_configuration != "absent":
+        env["PHOENIX_SECRET"] = token_hex(16)
+        env["PHOENIX_ADMIN_SECRET"] = token_hex(16)
+    return env
+
 
 _ApiKeyKind = Literal["System", "User"]
 
@@ -315,6 +326,19 @@ class _ApiKey(str):
 
 
 class _AdminSecret(str): ...
+
+
+def _admin_auth(app: _AppInfo) -> Union[_AdminSecret, _User]:
+    if app.env.get("PHOENIX_ADMIN_SECRET"):
+        return app.admin_secret
+    return app.default_admin
+
+
+def _admin_bearer(app: _AppInfo) -> str:
+    auth = _admin_auth(app)
+    if isinstance(auth, _AdminSecret):
+        return str(auth)
+    return str(auth.log_in(app).tokens.access_token)
 
 
 class _Token(str, ABC): ...
@@ -373,7 +397,7 @@ class _LoggedInUser(_User, _CanLogOut[_User]):
         assert response.status_code == expected_status_code
 
 
-_RoleOrUser = Union[UserRoleInput, _User]
+_RoleOrUser = Union[UserRoleInput, _User, _DefaultAdminMarker]
 _SecurityArtifact: TypeAlias = Union[
     _AdminSecret,
     _AccessToken,
@@ -404,7 +428,7 @@ class _GetUser(Protocol):
     def __call__(
         self,
         app: _AppInfo,
-        role_or_user: Union[_User, UserRoleInput] = _MEMBER,
+        role_or_user: Union[_User, UserRoleInput, _DefaultAdminMarker] = _MEMBER,
         /,
         *,
         profile: Optional[_Profile] = None,
@@ -449,6 +473,19 @@ class _AppInfo:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "env", MappingProxyType(dict(self.env)))
+
+    @property
+    def default_admin(self) -> _User:
+        return _User(
+            _DEFAULT_ADMIN_GID,
+            _ADMIN,
+            _Profile(
+                email=DEFAULT_ADMIN_EMAIL,
+                password=self.env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"],
+                username=DEFAULT_ADMIN_USERNAME,
+            ),
+            profile_picture_url=None,
+        )
 
     @cached_property
     def base_url(self) -> str:
@@ -496,6 +533,71 @@ class _AppInfo:
     @cached_property
     def client_key_file(self) -> Optional[str]:
         return self.env.get("PHOENIX_TLS_CA_FILE")
+
+
+def _is_memory_sqlite(database_url: str) -> bool:
+    # Parse the URL because its database name may be percent-encoded.
+    return database_url.startswith("sqlite") and make_url(database_url).database == ":memory:"
+
+
+if TYPE_CHECKING:
+    from phoenix.server.redaction import Redactor
+
+
+def _load_deployment_seed(database_url: str, schema: str) -> bytes:
+    from phoenix.db import models
+
+    url = get_async_db_url(database_url)
+    connect_args: dict[str, Any] = {}
+    if url.get_backend_name() == "postgresql" and schema:
+        connect_args["server_settings"] = {"search_path": schema}
+    elif url.get_backend_name() == "sqlite":
+        connect_args["timeout"] = 30.0
+    engine = create_async_engine(url, poolclass=NullPool, connect_args=connect_args)
+
+    async def load() -> bytes:
+        try:
+            async with engine.connect() as connection:
+                seed = await connection.scalar(
+                    select(models.DeploymentSecret.seed).where(models.DeploymentSecret.id == 1)
+                )
+            assert isinstance(seed, (bytes, memoryview)) and len(seed) == 32
+            return bytes(seed)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(load())
+
+
+@lru_cache(maxsize=None)
+def _redactor_for_app_key(database_url: str, schema: str, secret: str) -> Redactor:
+    from pydantic import SecretStr
+
+    from phoenix.server.deployment_secret import REDACTION_KEY_PURPOSE, derive_deployment_key
+    from phoenix.server.redaction import Redactor
+
+    return Redactor(
+        derive_deployment_key(
+            seed=_load_deployment_seed(database_url, schema),
+            secret=SecretStr(secret),
+            purpose=REDACTION_KEY_PURPOSE,
+        )
+    )
+
+
+def _redactor_for_app(app: _AppInfo) -> Redactor:
+    return _redactor_for_app_key(
+        app.env[ENV_PHOENIX_SQL_DATABASE_URL],
+        app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),
+        app.env.get("PHOENIX_SECRET", ""),
+    )
+
+
+def _deployment_seed_for_app(app: _AppInfo) -> bytes:
+    return _load_deployment_seed(
+        app.env[ENV_PHOENIX_SQL_DATABASE_URL],
+        app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),
+    )
 
 
 def _http_span_exporter(
@@ -595,41 +697,6 @@ def _start_span(
         attributes=attributes,
         start_time=start_time,
     )
-
-
-class _DefaultAdminTokens(ABC):
-    """
-    Because the tests can be run concurrently, and we need the default admin to create database
-    entities (e.g. to add new users), the default admin should never log out once logged in,
-    because logging out invalidates all existing access tokens, resulting in a race among the
-    tests. The approach here is to add a middleware to block any inadvertent use of the default
-    admin's access tokens for logging out. This class is intended to be used as a singleton
-    container to ensure that all tokens are always accounted for. Furthermore, the tokens are
-    disambiguated by the port of the server to which they belong.
-    """
-
-    _set: set[tuple[int, str]] = set()
-    _lock: Lock = Lock()
-
-    @classmethod
-    def __new__(cls) -> Self:
-        raise NotImplementedError("This class is intended as a singleton to be used directly.")
-
-    @classmethod
-    def stash(cls, port: int, headers: Headers) -> None:
-        tokens = _extract_tokens(headers, "set-cookie").values()
-        for token in tokens:
-            with cls._lock:
-                cls._set.add((port, token))
-
-    @classmethod
-    def intersect(cls, port: int, headers: Headers) -> bool:
-        tokens = _extract_tokens(headers).values()
-        for token in tokens:
-            with cls._lock:
-                if (port, token) in cls._set:
-                    return True
-        return False
 
 
 class _LogResponse(httpx.Response):
@@ -750,6 +817,8 @@ def _get_ssl_context(env: Mapping[str, str]) -> Optional[ssl.SSLContext]:
 
 _SCHEMA_PREFIX = f"_{token_hex(3)}"
 
+_SECRET_ENV = ("PHOENIX_SECRET", "PHOENIX_ADMIN_SECRET")
+
 
 @contextmanager
 def _server(app: _AppInfo) -> Iterator[_AppInfo]:
@@ -760,7 +829,13 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
     ).startswith(_SCHEMA_PREFIX):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve --debug"
-    env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
+    if sys.platform == "win32":
+        # Windows needs the parent's environment to start Python. Leave out inherited
+        # secrets so app.env alone decides whether the server has them.
+        env = {k: v for k, v in os.environ.items() if k not in _SECRET_ENV}
+        env.update(app.env)
+    else:
+        env = dict(app.env)
     # The server's stdio and this pipe's reader must agree on an encoding, and
     # the reader must never die on a byte it cannot decode: it is the only
     # thing draining the pipe, and a server whose pipe is full blocks on its
@@ -779,21 +854,28 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
     )
     log: list[str] = []
     lock: Lock = Lock()
-    Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
-    t = 60
-    time_limit = time() + t
-    timed_out = False
-    url = str(urljoin(app.base_url, "healthz"))
-    ssl_context = _get_ssl_context(app.env)
-    while not timed_out and _is_alive(process):
-        sleep(0.1)
-        try:
-            urlopen(url, context=ssl_context)
-            break
-        except BaseException:
-            timed_out = time() > time_limit
+    reader = Thread(target=_capture_stdout, args=(process, log, lock), daemon=True)
+    reader_started = False
     try:
-        if timed_out:
+        reader.start()
+        reader_started = True
+        t = 60
+        time_limit = monotonic() + t
+        started = False
+        url = str(urljoin(app.base_url, "healthz"))
+        ssl_context = _get_ssl_context(app.env)
+        while _is_alive(process):
+            remaining = time_limit - monotonic()
+            if remaining <= 0:
+                break
+            try:
+                with urlopen(url, context=ssl_context, timeout=min(1.0, remaining)):
+                    pass
+                started = True
+                break
+            except OSError:
+                sleep(min(0.1, max(0.0, time_limit - monotonic())))
+        if not started and monotonic() >= time_limit:
             raise TimeoutError(f"Server {url} did not start within {t} seconds.")
         assert _is_alive(process)
         with lock:
@@ -801,17 +883,33 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
                 print(line, end="")
             log.clear()
         yield app
-        process.kill()
-        process.wait(10)
     finally:
-        for line in log:
-            print(line, end="")
+        try:
+            if process.poll() is None:
+                try:
+                    process.kill()
+                except (NoSuchProcess, ProcessLookupError):
+                    pass
+            try:
+                process.wait(timeout=10)
+            except (NoSuchProcess, ProcessLookupError):
+                pass
+        finally:
+            if reader_started:
+                reader.join(timeout=10)
+        with lock:
+            for line in log:
+                print(line, end="")
+            log.clear()
 
 
 def _is_alive(
     process: Popen,
 ) -> bool:
-    return process.is_running() and process.status() != STATUS_ZOMBIE
+    try:
+        return process.is_running() and process.status() != STATUS_ZOMBIE
+    except NoSuchProcess:
+        return False
 
 
 def _capture_stdout(
@@ -819,11 +917,11 @@ def _capture_stdout(
     log: list[str],
     lock: Lock,
 ) -> None:
-    while _is_alive(process):
-        line = process.stdout.readline()
-        if line or (log and log[-1] != line):
-            with lock:
-                log.append(line)
+    if process.stdout is None:
+        return
+    for line in process.stdout:
+        with lock:
+            log.append(line)
 
 
 @asynccontextmanager
@@ -1267,6 +1365,7 @@ _COOKIE_NAMES = (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
 )
 
@@ -2102,7 +2201,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
         ).end()
     assert len(spans := memory.get_finished_spans()) == n
 
-    headers = {"authorization": f"Bearer {app.admin_secret}"}
+    headers = {"authorization": f"Bearer {_admin_bearer(app)}"}
     assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
 
     span_ids = set()
@@ -2124,6 +2223,9 @@ def _get_existing_spans(
     span_ids: Iterable[_SpanId],
 ) -> set[_ExistingSpan]:
     ids = list(span_ids)
+    auth = _admin_auth(app)
+    if not isinstance(auth, _AdminSecret):
+        auth = auth.log_in(app)
     query = """
       query ($spanId: String!) {
         getSpanByOtelId(spanId: $spanId) {
@@ -2148,7 +2250,7 @@ def _get_existing_spans(
     def fetch_span(span_id: _SpanId) -> _ExistingSpan | None:
         res, _ = _gql(
             app,
-            app.admin_secret,
+            auth,
             query=query,
             variables={"spanId": span_id},
         )

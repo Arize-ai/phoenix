@@ -130,6 +130,12 @@ from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.system_settings import SystemSettings
+from phoenix.server.deployment_secret import (
+    REDACTION_KEY_PURPOSE,
+    TOKEN_SIGNING_KEY_PURPOSE,
+    derive_deployment_key,
+    load_deployment_seed,
+)
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
@@ -672,14 +678,34 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    grpc_host: str,
     initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: Optional[_WelcomeMessage] = None,
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
+    secret: Optional[SecretStr] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
+        seed = await load_deployment_seed(db)
+        app.state.redactor = Redactor(
+            derive_deployment_key(
+                seed=seed,
+                secret=secret or SecretStr(""),
+                purpose=REDACTION_KEY_PURPOSE,
+            )
+        )
+        if isinstance(token_store, JwtStore):
+            if secret:
+                token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
+            else:
+                token_store.set_signing_key(
+                    derive_deployment_key(
+                        seed=seed, secret=SecretStr(""), purpose=TOKEN_SIGNING_KEY_PURPOSE
+                    ),
+                    require_stored_hash=True,
+                )
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -699,6 +725,7 @@ def _lifespan(
             grpc_server = GrpcServer(
                 enqueue_span,
                 port=resolved_grpc_port,
+                host=grpc_host,
                 disabled=read_only,
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
@@ -962,6 +989,7 @@ def create_app(
     dev_vite_port: int = 5173,
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    grpc_host: Optional[str] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
     initial_annotation_precursors: Optional[Iterable[AnnotationPrecursor]] = None,
@@ -982,6 +1010,8 @@ def create_app(
     management_url: Optional[str] = None,
     welcome_message: Optional[_WelcomeMessage] = None,
 ) -> FastAPI:
+    if grpc_host is None:
+        grpc_host = get_env_host()
     verify_server_environment_variables()
     _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
@@ -1033,8 +1063,8 @@ def create_app(
             "This is recommended when setting up OAuth2 clients or sending "
             "password reset emails."
         )
-    if authentication_enabled and secret:
-        token_store = JwtStore(db, secret)
+    if authentication_enabled:
+        token_store = JwtStore(db)
         middlewares.append(
             Middleware(
                 AuthenticationMiddleware,
@@ -1090,7 +1120,6 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
-    redactor = Redactor(secret=secret or SecretStr(""))
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
     sandbox_session_manager = SandboxSessionManager()
     experiment_runner = ExperimentRunner(
@@ -1192,6 +1221,7 @@ def create_app(
             db=db,
             read_only=read_only,
             grpc_port=grpc_port,
+            grpc_host=grpc_host,
             initial_annotation_precursors=startup_annotation_precursors,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
@@ -1220,6 +1250,7 @@ def create_app(
             scaffolder_config=scaffolder_config,
             welcome_message=welcome_message,
             docs_mcp_server=docs_mcp_server,
+            secret=secret,
         ),
         middleware=middlewares,
         exception_handlers={
@@ -1429,7 +1460,6 @@ def create_app(
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
     app.state.decrypt = encryption_service.decrypt
-    app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
@@ -1464,7 +1494,6 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
     )
-    app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -1517,22 +1546,6 @@ def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfi
             f"OAuth2 identity provider names cannot use reserved authorization server paths: "
             f"{names}. Reserved names: {reserved}."
         )
-
-
-def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:
-    """
-    Dynamically adds a `get_secret` method to the app's `state`.
-    """
-    app.state._secret = secret
-
-    def get_secret(self: StarletteState) -> SecretStr:
-        if (secret := self._secret) is None:
-            raise ValueError("app secret is not set")
-        assert isinstance(secret, SecretStr)
-        return secret
-
-    app.state.get_secret = MethodType(get_secret, app.state)
-    return app
 
 
 def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]) -> FastAPI:

@@ -3,14 +3,24 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 from anyio import to_thread
 from email_validator import EmailNotValidError, validate_email
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from typing_extensions import TypeAlias
 
-from phoenix.config import get_env_root_url, get_env_support_email
+from phoenix.config import (
+    get_env_root_url,
+    get_env_smtp_hostname,
+    get_env_smtp_mail_from,
+    get_env_smtp_password,
+    get_env_smtp_port,
+    get_env_smtp_username,
+    get_env_smtp_validate_certs,
+    get_env_support_email,
+)
+from phoenix.server.email.types import EmailSender
 
 logger = logging.getLogger(__name__)
 
@@ -176,3 +186,21 @@ class SimpleEmailSender:
                 continue
         else:
             raise Exception("All connection methods failed")
+
+
+def email_sender_from_env() -> Optional[EmailSender]:
+    """Return an SMTP sender, or None when PHOENIX_SMTP_HOSTNAME is unset."""
+    if not (mail_server := get_env_smtp_hostname()):
+        return None
+    assert (mail_username := get_env_smtp_username()), "SMTP username is required"
+    assert (mail_password := get_env_smtp_password()), "SMTP password is required"
+    assert (sender_email := get_env_smtp_mail_from()), "SMTP mail_from is required"
+    return SimpleEmailSender(
+        smtp_server=mail_server,
+        smtp_port=get_env_smtp_port(),
+        username=mail_username,
+        password=mail_password,
+        sender_email=sender_email,
+        connection_method="STARTTLS",
+        validate_certs=get_env_smtp_validate_certs(),
+    )

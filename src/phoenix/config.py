@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import os
 import re
+import socket
 import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -52,6 +54,10 @@ ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
+"""
+Bind address for HTTP, gRPC, and Prometheus. Defaults to 127.0.0.1.
+Non-loopback addresses enable authentication unless PHOENIX_ENABLE_AUTH is set.
+"""
 ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
 """
 Comma-separated skill directories or directories containing skills, loaded at startup.
@@ -468,6 +474,10 @@ Whether to mask internal server errors from the GraphQL and REST APIs. Defaults 
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+"""
+Require authentication. When unset, enabled for non-loopback PHOENIX_HOST values
+and disabled for loopback. Explicit TRUE or FALSE overrides the host default.
+"""
 ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 """
 Forbid login via password and disable the creation of local users, which log in via passwords.
@@ -491,8 +501,11 @@ ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS = (
 )
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
-The secret key used for signing JWTs. It must be at least 32 characters long and include at least
-one digit and one lowercase letter.
+Optional JWT signing and credential encryption secret. Requires at least 32 characters,
+including one digit and one lowercase letter.
+
+When unset, JWTs use a deployment-seed key and require stored issuance hashes.
+Saved credentials use a publicly known encryption key and are readable by database readers.
 """
 ENV_PHOENIX_ADMIN_SECRET = "PHOENIX_ADMIN_SECRET"
 """
@@ -509,10 +522,8 @@ and one special character. Defaults to false.
 """
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-The initial password for the default admin account, which defaults to 'admin' if not
-explicitly set. Note that changing this value will have no effect if the default admin
-record already exists in the database. In such cases, the default admin password must
-be updated manually in the application.
+Initial password for the default admin account; only used when creating the account.
+Defaults to 'admin', which requires a password reset before opening a session.
 """
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
@@ -1314,11 +1325,11 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     return value.strip()
 
 
-def get_env_enable_auth() -> bool:
-    """
-    Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
-    """
-    return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
+def auth_enabled_for_host(host: Optional[str]) -> bool:
+    """Use PHOENIX_ENABLE_AUTH if set; otherwise require auth for non-loopback hosts."""
+    if (explicit := _bool_val(ENV_PHOENIX_ENABLE_AUTH)) is not None:
+        return explicit
+    return not is_loopback_host(host)
 
 
 def get_env_disable_basic_auth() -> bool:
@@ -1549,17 +1560,11 @@ class AuthSettings(NamedTuple):
     ldap_config: Optional[LDAPConfig]
 
 
-def get_env_auth_settings() -> AuthSettings:
-    """
-    Gets auth settings and performs validation.
-    """
-    enable_auth = get_env_enable_auth()
+def get_env_auth_settings(host: Optional[str] = None) -> AuthSettings:
+    """Auth settings validated for ``host``, or for ``PHOENIX_HOST`` when ``host`` is omitted."""
+    bind_host = get_env_host() if host is None else canonicalize_host(host)
+    enable_auth = auth_enabled_for_host(bind_host)
     phoenix_secret = get_env_phoenix_secret()
-    if enable_auth and not phoenix_secret:
-        raise ValueError(
-            f"`{ENV_PHOENIX_SECRET}` must be set when "
-            f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
-        )
     phoenix_admin_secret = get_env_phoenix_admin_secret()
     disable_basic_auth = get_env_disable_basic_auth()
     from phoenix.server.oauth2 import OAuth2Clients
@@ -3145,6 +3150,29 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
 
 
+class AppAuthKwargs(TypedDict):
+    secret: SecretStr
+    password_reset_token_expiry: timedelta
+    access_token_expiry: timedelta
+    refresh_token_expiry: timedelta
+    oauth2_client_configs: list[OAuth2ClientConfig]
+    ldap_config: Optional[LDAPConfig]
+    basic_auth_disabled: bool
+
+
+def app_auth_kwargs(settings: AuthSettings) -> AppAuthKwargs:
+    """Build ``create_app`` auth arguments, preserving PHOENIX_SECRET for encryption."""
+    return {
+        "secret": settings.phoenix_secret,
+        "password_reset_token_expiry": get_env_password_reset_token_expiry(),
+        "access_token_expiry": get_env_access_token_expiry(),
+        "refresh_token_expiry": get_env_refresh_token_expiry(),
+        "oauth2_client_configs": get_env_oauth2_settings(),
+        "ldap_config": settings.ldap_config,
+        "basic_auth_disabled": settings.disable_basic_auth,
+    }
+
+
 def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
     """Retrieves the allow_sign_up setting for a specific OAuth2 identity provider.
 
@@ -3189,7 +3217,7 @@ def get_env_oauth2_auto_login(idp_name: str) -> bool:
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
-HOST = "0.0.0.0"
+HOST = "127.0.0.1"
 """The host the server will run on after launch_app is called."""
 PORT = 6006
 """The port the server will run on after launch_app is called."""
@@ -3422,8 +3450,66 @@ def get_env_grpc_port() -> int:
     )
 
 
+def canonicalize_host(host: str) -> str:
+    """Strip whitespace and brackets from IP literals, compress IPv6, and expand
+    IPv4 abbreviations accepted by ``inet_aton``.
+
+    Preserve hostnames. Listeners compare against and bind the result directly, so
+    every spelling of an address must canonicalize to one string, such as ``::``.
+    """
+    host = host.strip()
+    try:
+        return str(ipaddress.ip_address(host.strip("[]")))
+    except ValueError:
+        pass
+    try:
+        packed = socket.inet_aton(host)
+    except OSError:
+        return host
+    return socket.inet_ntoa(packed)
+
+
 def get_env_host() -> str:
-    return getenv(ENV_PHOENIX_HOST) or HOST
+    """Return the canonicalized PHOENIX_HOST, defaulting to 127.0.0.1."""
+    return canonicalize_host(getenv(ENV_PHOENIX_HOST) or HOST)
+
+
+def is_loopback_host(host: Optional[str]) -> bool:
+    """Recognize localhost and loopback IPs, including IPv4-mapped IPv6.
+
+    Treat missing hosts, unspecified addresses, and other hostnames as non-loopback.
+    Hostnames are not resolved; DNS cannot determine the authentication default.
+    """
+    if not host:
+        return False
+    candidate = host.strip().strip("[]")
+    if candidate.lower() == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(candidate)
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and (mapped := address.ipv4_mapped) is not None:
+        return mapped.is_loopback
+    return address.is_loopback
+
+
+def is_unspecified_host(host: str) -> bool:
+    """Whether a host from ``canonicalize_host`` is 0.0.0.0 or ::."""
+    return host in ("0.0.0.0", "::")
+
+
+def url_host(host: str) -> str:
+    """Format a host from ``canonicalize_host`` for a URL, bracketing IPv6 literals."""
+    return f"[{host}]" if ":" in host else host
+
+
+def local_url_host(host: str) -> str:
+    """Format a bind host from ``canonicalize_host`` for local connections.
+
+    Map 0.0.0.0 to 127.0.0.1 and :: to [::1].
+    """
+    return {"0.0.0.0": "127.0.0.1", "::": "[::1]"}.get(host) or url_host(host)
 
 
 def get_env_host_root_path() -> str:
@@ -3723,18 +3809,14 @@ def get_env_root_url() -> URL:
                 f"The environment variable `{ENV_PHOENIX_ROOT_URL}` must be a valid URL."
             )
         return URL(root_url)
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
+    host = local_url_host(get_env_host())
     scheme = "https" if get_env_tls_enabled_for_http() else "http"
     return URL(urljoin(f"{scheme}://{host}:{get_env_port()}", get_env_host_root_path()))
 
 
 def get_base_url() -> str:
     """Deprecated: Use get_env_root_url() instead, but note the difference in behavior."""
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
+    host = local_url_host(get_env_host())
     scheme = "https" if get_env_tls_enabled_for_http() else "http"
     base_url = get_env_collector_endpoint() or f"{scheme}://{host}:{get_env_port()}"
     return base_url if base_url.endswith("/") else base_url + "/"

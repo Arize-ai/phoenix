@@ -47,6 +47,7 @@ from .._helpers import (
     _VIEWER_ALLOWED_WRITE_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
+    _admin_auth,
     _AdminSecret,
     _ApiKey,
     _AppInfo,
@@ -182,7 +183,7 @@ class TestLogIn:
         _app: _AppInfo,
     ) -> None:
         user = _get_user(_app, role_or_user)
-        _delete_users(_app, _app.admin_secret, users=[user])
+        _delete_users(_app, _admin_auth(_app), users=[user])
         with _EXPECTATION_401:
             user.log_in(_app)
 
@@ -351,7 +352,7 @@ class TestPasswordReset:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         logged_in_user.visit(_app)
-        _DEFAULT_ADMIN.delete_users(_app, u)
+        _app.default_admin.delete_users(_app, u)
         assert not u.initiate_password_reset(_app, _smtpd, should_receive_email=False)
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
@@ -369,7 +370,7 @@ class TestPasswordReset:
         assert (token := u.initiate_password_reset(_app, _smtpd))
         new_password = next(_passwords)
         assert new_password != u.password
-        _DEFAULT_ADMIN.delete_users(_app, u)
+        _app.default_admin.delete_users(_app, u)
         with _EXPECTATION_401:
             token.reset(_app, new_password)
 
@@ -458,7 +459,7 @@ class TestLoggedInTokens:
         logged_in_user.log_out(_app)
 
     def test_corrupt_tokens_are_not_accepted(self, _app: _AppInfo) -> None:
-        parts = _DEFAULT_ADMIN.log_in(_app).tokens.access_token.split(".")
+        parts = _app.default_admin.log_in(_app).tokens.access_token.split(".")
         # delete last 3 characters because base64 could have up to 2 padding characters
         bad_headers = _AccessToken(f"{parts[0][:-3]}.{parts[1]}.{parts[2]}")
         with _EXPECTATION_401:
@@ -527,7 +528,7 @@ class TestCreateUser:
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_create_user(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
@@ -670,7 +671,7 @@ class TestPatchUser:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with pytest.raises(Exception, match="role"):
-            logged_in_user.patch_user(_app, _DEFAULT_ADMIN, new_role=new_role)
+            logged_in_user.patch_user(_app, _app.default_admin, new_role=new_role)
 
     def test_admin_cannot_change_role_for_self(
         self,
@@ -723,7 +724,7 @@ class TestPatchUser:
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_change_password_for_non_self(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
@@ -813,7 +814,7 @@ class TestPatchUser:
         logged_in_user.visit(_app)
 
         # Admin changes user's role
-        _patch_user(_app, user, _app.admin_secret, new_role=new_role)
+        _patch_user(_app, user, _admin_auth(_app), new_role=new_role)
 
         # Old tokens should no longer work (user should be logged out)
         logged_in_user.visit(_app, 401)
@@ -841,7 +842,7 @@ class TestDeleteUsers:
     )
     def test_cannot_delete_system_user(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         expectation: _Expectation,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -869,8 +870,8 @@ class TestDeleteUsers:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with expectation:
-            logged_in_user.delete_users(_app, _DEFAULT_ADMIN)
-        _DEFAULT_ADMIN.log_in(_app)
+            logged_in_user.delete_users(_app, _app.default_admin)
+        _app.default_admin.log_in(_app)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",
@@ -929,7 +930,7 @@ class TestDeleteUsers:
         logged_in_user = user.log_in(_app)
         tokens = logged_in_user.tokens
         logged_in_user.visit(_app)
-        _delete_users(_app, _app.admin_secret, users=[user])
+        _delete_users(_app, _admin_auth(_app), users=[user])
         with _EXPECTATION_401:
             tokens.refresh(_app)
         logged_in_user.visit(_app, 401)
@@ -1114,7 +1115,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
         is_viewer = role_or_user is _VIEWER
 
         def admin_gql(operation: str, variables: dict[str, Any]) -> dict[str, Any]:
-            response, _ = _DEFAULT_ADMIN.gql(
+            response, _ = _app.default_admin.gql(
                 _app, query=self.QUERY, operation_name=operation, variables=variables
             )
             data: dict[str, Any] = response["data"]
@@ -1338,7 +1339,7 @@ class TestSpanExporters:
         headers: Optional[_Headers] = None
         api_key: Optional[_ApiKey] = None
         if use_api_key:
-            api_key = _DEFAULT_ADMIN.create_api_key(_app, "System", expires_at=expires_at)
+            api_key = _app.default_admin.create_api_key(_app, "System", expires_at=expires_at)
             # Must use all lower case for `authorization` because
             # otherwise it would crash the gRPC receiver.
             headers = dict(authorization=f"Bearer {api_key}")
@@ -1346,7 +1347,7 @@ class TestSpanExporters:
         for _ in range(2):
             assert export(_spans) is expected
         if api_key and expected is SpanExportResult.SUCCESS:
-            _DEFAULT_ADMIN.delete_api_key(_app, api_key)
+            _app.default_admin.delete_api_key(_app, api_key)
             assert export(_spans) is SpanExportResult.FAILURE
 
     @pytest.mark.parametrize(
@@ -1363,6 +1364,7 @@ class TestSpanExporters:
         _span_exporter: _SpanExporterFactory,
         _spans: Sequence[ReadableSpan],
         _app: _AppInfo,
+        _requires_configured_secret: None,
     ) -> None:
         if use_admin_secret:
             assert (api_key := _app.admin_secret)
@@ -1914,12 +1916,9 @@ class TestSecretsCRUDAndValueVisibility:
         assert secret["value"]["__typename"] == "DecryptedSecret"
         # Server emits the value as a RedactedString token — un-redact before
         # comparing against the original plaintext.
-        from pydantic import SecretStr
+        from .._helpers import _redactor_for_app
 
-        from phoenix.server.redaction import Redactor
-
-        _redactor = Redactor(secret=SecretStr(_app.env["PHOENIX_SECRET"]))
-        assert _redactor.unredact(secret["value"]["value"]) == secret_value
+        assert _redactor_for_app(_app).unredact(secret["value"]["value"]) == secret_value
 
         # Member and Viewer should get Unauthorized when accessing secret value field
         for logged_in_user in [logged_in_member, logged_in_viewer]:

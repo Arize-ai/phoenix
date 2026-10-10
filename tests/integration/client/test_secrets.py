@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-import functools
 from collections.abc import Iterator
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any, Callable
 
 import httpx
 import pytest
-from pydantic import SecretStr
 
 from phoenix.server.api.exceptions import Unauthorized
-from phoenix.server.redaction import Redactor
 
 from .._helpers import (
     _ADMIN,
@@ -18,6 +15,7 @@ from .._helpers import (
     _VIEWER,
     _gql,
     _httpx_client,
+    _redactor_for_app,
 )
 
 if TYPE_CHECKING:
@@ -26,15 +24,8 @@ if TYPE_CHECKING:
 _UNSET: Any = object()
 
 
-@functools.lru_cache(maxsize=None)
-def _redactor_for(phoenix_secret: str) -> Redactor:
-    """Cached Redactor keyed off the running server's PHOENIX_SECRET."""
-    return Redactor(SecretStr(phoenix_secret))
-
-
 def _unredact(app: _AppInfo, token: str) -> str:
-    """Un-redact a server-emitted RedactedString using the server's secret."""
-    return _redactor_for(app.env["PHOENIX_SECRET"]).unredact(token)
+    return _redactor_for_app(app).unredact(token)
 
 
 @pytest.fixture()

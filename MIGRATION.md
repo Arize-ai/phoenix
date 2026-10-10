@@ -1,5 +1,53 @@
 # Migrations
 
+## v20.x to v21.0.0
+
+The upgrade from v20.x to v21.0.0 changes the default bind address and how authentication follows it.
+
+### Bind address and authentication
+
+- **Default bind is loopback.** `PHOENIX_HOST` defaults to `127.0.0.1`. The HTTP, gRPC, and Prometheus
+  listeners all bind `PHOENIX_HOST`. To accept connections from other machines, set `PHOENIX_HOST=0.0.0.0` (or `::`).
+- **The auth default follows the bind address.** An explicit `PHOENIX_ENABLE_AUTH` is always honored. When it is
+  unset, authentication is on for a non-loopback `PHOENIX_HOST` and off for loopback.
+- **The Docker image requires login by default.** The image sets `PHOENIX_HOST=::` (dual-stack), so authentication is on
+  unless `PHOENIX_ENABLE_AUTH=false` is set. The initial admin is `admin@localhost` with password `admin` unless
+  `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` is set; set that variable or change the password immediately. Helm
+  already enables auth explicitly and is unaffected. Trace exporters and other clients that send data without an
+  API key will be rejected (HTTP 401 / gRPC unauthenticated) after upgrading, so operators must create an API key
+  and configure their exporters with it, or set `PHOENIX_ENABLE_AUTH=false`.
+- **`launch_app` follows the same rule.** Notebook sessions previously ran with authentication off regardless of
+  `PHOENIX_ENABLE_AUTH`. They now honor it, and when it is unset, a non-loopback host (the `host` argument or
+  `PHOENIX_HOST`, such as `0.0.0.0`) requires login, and `register()`, `px.Client()`, and other clients in the
+  notebook need `PHOENIX_API_KEY`. The default loopback host keeps authentication off, except on Databricks,
+  where `launch_app` defaults to `0.0.0.0` because the driver proxy cannot reach loopback, so authentication is
+  on. Set `PHOENIX_ENABLE_AUTH=false` to restore the previous behavior.
+- **The public default password cannot open a session.** Logging in with the password `admin` while the account
+  still requires a password reset returns HTTP 403 and a password reset token instead of access and refresh
+  tokens. The password must be changed via `POST /auth/password-reset` before signing in. A custom
+  `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` is not subject to this restriction.
+- **`PHOENIX_SECRET` is optional when auth is enabled.** Without it, tokens are signed with a key derived from a
+  random per-deployment value stored in the database, and each token must also match a hash stored when it was
+  issued, so database readers cannot forge tokens. Saved credentials (provider API keys, workspace secrets,
+  GitHub tokens) are then encrypted with a publicly known key: anyone with a copy of the database can decrypt
+  them, and the UI warns wherever credentials are saved. Set `PHOENIX_SECRET` to protect them.
+
+### `--host` is removed from `phoenix serve`
+
+The bind address comes only from `PHOENIX_HOST`.
+
+**Before:**
+
+```shell
+phoenix serve --host 0.0.0.0 --port 6006
+```
+
+**After:**
+
+```shell
+PHOENIX_HOST=0.0.0.0 phoenix serve --port 6006
+```
+
 ## v19.x to v20.0.0
 
 The upgrade from v19.x to v20.0.0 needs no manual steps, but it introduces persisted agent sessions, which carry a

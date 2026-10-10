@@ -1,12 +1,23 @@
+import base64
+import json
 from secrets import token_hex
 from typing import Any, Optional, cast
+from urllib.parse import parse_qs, urlparse
 
+import httpx
 import jmespath
 import pytest
+from fastapi import FastAPI
 from sqlalchemy import insert, select
 from starlette.requests import Request
 from starlette.types import ASGIApp
 
+from phoenix.auth import (
+    PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
+    PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+    PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+)
 from phoenix.config import AssignableUserRoleName
 from phoenix.db import models
 from phoenix.server.api.routers.oauth2 import (
@@ -15,10 +26,13 @@ from phoenix.server.api.routers.oauth2 import (
     SignInNotAllowed,
     UserInfo,
     _create_or_update_user,
+    _encode_oauth2_login_context,
     _login_origin_url,
     _parse_user_info,
     _process_oauth2_user,
     _sign_in_existing_oauth2_user,
+    create_tokens_rate_limiter,
+    router,
 )
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.types import DbSessionFactory
@@ -852,3 +866,143 @@ class TestLoginOriginUrl:
         monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
         request = self._request()
         assert _login_origin_url(request) == "http://phoenix.internal:6006/"
+
+
+def _b64(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _redirect_error(response: httpx.Response) -> str:
+    assert response.status_code == 307
+    error = parse_qs(urlparse(response.headers["location"]).query)["error"]
+    assert len(error) == 1
+    return error[0]
+
+
+def _assert_oauth2_cookies_deleted(response: httpx.Response) -> None:
+    headers = response.headers.get_list("set-cookie")
+    for name in (
+        PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+        PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
+        PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+        PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+    ):
+        assert any(header.startswith(f"{name}=") and "Max-Age=0" in header for header in headers)
+
+
+async def _skip_rate_limit(request: Request) -> Request:
+    return request
+
+
+class TestOAuth2CallbackLoginContext:
+    _app: Optional[FastAPI] = None
+
+    @classmethod
+    def _callback_app(cls) -> FastAPI:
+        if cls._app is not None:
+            return cls._app
+
+        class _Clients:
+            def get_client(self, idp_name: str) -> object:
+                return object()
+
+        app = FastAPI()
+        app.state.oauth2_clients = _Clients()
+        app.include_router(router)
+        app.dependency_overrides[create_tokens_rate_limiter] = _skip_rate_limit
+        cls._app = app
+        return app
+
+    async def _callback(
+        self,
+        *,
+        state: str = "state-token",
+        stored_state: str = "state-token",
+        login_context: Optional[str] = None,
+    ) -> httpx.Response:
+        cookies = {
+            PHOENIX_OAUTH2_STATE_COOKIE_NAME: stored_state,
+            PHOENIX_OAUTH2_NONCE_COOKIE_NAME: "nonce",
+        }
+        if login_context is not None:
+            cookies[PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME] = login_context
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=self._callback_app()),
+            base_url="http://test",
+            cookies=cookies,
+        ) as client:
+            return await client.get(
+                "/oauth2/dev/tokens",
+                params={"state": state, "code": "auth-code"},
+                follow_redirects=False,
+            )
+
+    async def test_state_mismatch_is_rejected(self) -> None:
+        login_context = _encode_oauth2_login_context(
+            origin_url="http://testserver", return_url="/projects"
+        )
+        response = await self._callback(
+            state="from-idp", stored_state="from-browser", login_context=login_context
+        )
+        assert _redirect_error(response) == "invalid_state"
+
+    async def test_state_mismatch_is_rejected_before_return_url_check(self) -> None:
+        login_context = _encode_oauth2_login_context(
+            origin_url="http://testserver", return_url="https://evil.example/phish"
+        )
+        response = await self._callback(
+            state="from-idp", stored_state="from-browser", login_context=login_context
+        )
+        assert _redirect_error(response) == "invalid_state"
+
+    @pytest.mark.parametrize(
+        "login_context",
+        [
+            pytest.param(None, id="missing"),
+            pytest.param("!!!!", id="not_base64"),
+            pytest.param(_b64(b"not-json"), id="not_json"),
+            pytest.param(_b64(b"[]"), id="not_object"),
+            pytest.param(_b64(b"{}"), id="empty_object"),
+            pytest.param(_b64(b'{"origin_url":1}'), id="non_string_origin"),
+            pytest.param(_b64(b'{"return_url":"/projects"}'), id="missing_origin"),
+            pytest.param(
+                _b64(b'{"origin_url":"http://testserver","return_url":"/projects","extra":1}'),
+                id="extra_key",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(origin_url="http://[", return_url=None),
+                id="malformed_origin",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(origin_url="javascript:alert(1)", return_url=None),
+                id="non_http_origin",
+            ),
+            pytest.param("a" * 4097, id="oversized"),
+            pytest.param(
+                _b64(json.dumps({"origin_url": "https://\ud800"}).encode()),
+                id="lone_surrogate_origin",
+            ),
+            pytest.param(
+                _b64(
+                    json.dumps(
+                        {"origin_url": "https://example.com", "return_url": "/\ud800"}
+                    ).encode()
+                ),
+                id="lone_surrogate_return_url",
+            ),
+            pytest.param(_b64(("[" * 1000 + "0" + "]" * 1000).encode()), id="deeply_nested"),
+        ],
+    )
+    async def test_invalid_login_context_is_rejected(self, login_context: str | None) -> None:
+        response = await self._callback(login_context=login_context)
+        assert _redirect_error(response) == "invalid_state"
+        _assert_oauth2_cookies_deleted(response)
+
+    @pytest.mark.parametrize("return_url", ["https://evil.example/phish", "//evil.example"])
+    async def test_non_relative_return_url_is_rejected(self, return_url: str) -> None:
+        login_context = _encode_oauth2_login_context(
+            origin_url="http://testserver", return_url=return_url
+        )
+        assert "=" not in login_context
+        response = await self._callback(login_context=login_context)
+        assert _redirect_error(response) == "unsafe_return_url"

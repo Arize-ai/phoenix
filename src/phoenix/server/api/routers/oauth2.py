@@ -1,5 +1,7 @@
 """OAuth2 relying party: Phoenix logs users in via an external IdP."""
 
+import base64
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -13,10 +15,7 @@ import jmespath
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
-from joserfc import jwt
 from joserfc.errors import JoseError
-from joserfc.jwk import OctKey
-from pydantic import SecretStr
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,14 +29,17 @@ from typing_extensions import Annotated, NotRequired, TypeGuard
 from phoenix.auth import (
     DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES,
     PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     delete_oauth2_code_verifier_cookie,
+    delete_oauth2_login_context_cookie,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     sanitize_email,
     set_access_token_cookie,
     set_oauth2_code_verifier_cookie,
+    set_oauth2_login_context_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
@@ -107,15 +109,12 @@ async def login(
     # engineering attacks.
     if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
         return _redirect_to_login(request=request, error="unknown_idp")
-    secret = request.app.state.get_secret()
     origin_url = _login_origin_url(request)
     authorization_url_data = await oauth2_client.create_authorization_url(
         redirect_uri=_get_create_tokens_endpoint(
             request=request, origin_url=origin_url, idp_name=idp_name
         ),
-        state=_generate_state_for_oauth2_authorization_code_flow(
-            secret=secret, origin_url=origin_url, return_url=return_url
-        ),
+        state=generate_token(),
     )
     assert isinstance(authorization_url := authorization_url_data.get("url"), str)
     assert isinstance(state := authorization_url_data.get("state"), str)
@@ -124,6 +123,11 @@ async def login(
     response = set_oauth2_state_cookie(
         response=response,
         state=state,
+        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+    )
+    response = set_oauth2_login_context_cookie(
+        response=response,
+        login_context=_encode_oauth2_login_context(origin_url=origin_url, return_url=return_url),
         max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
     )
     response = set_oauth2_nonce_cookie(
@@ -149,6 +153,9 @@ async def create_tokens(
     error: Optional[str] = Query(default=None),  # RFC 6749 §4.1.2.1: Error response
     error_description: Optional[str] = Query(default=None),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
+    stored_login_context: Optional[str] = Cookie(
+        default=None, alias=PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME
+    ),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),  # OIDC Core §3.1.2.1
     code_verifier: Optional[str] = Cookie(
         default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME
@@ -170,15 +177,14 @@ async def create_tokens(
     if authorization_code is None:
         logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
         return _redirect_to_login(request=request, error="auth_failed")
-    secret = request.app.state.get_secret()
     # RFC 6749 §10.12: CSRF protection - validate state parameter
     if state != stored_state:
         return _redirect_to_login(request=request, error="invalid_state")
     try:
-        payload = _parse_state_payload(secret=secret, state=state)
-    except JoseError:
+        login_context = _parse_oauth2_login_context(stored_login_context)
+    except ValueError:
         return _redirect_to_login(request=request, error="invalid_state")
-    if (return_url := payload.get("return_url")) is not None and not _is_relative_url(
+    if (return_url := login_context.get("return_url")) is not None and not _is_relative_url(
         unquote(return_url)
     ):
         return _redirect_to_login(request=request, error="unsafe_return_url")
@@ -191,7 +197,7 @@ async def create_tokens(
             state=state,
             code=authorization_code,
             redirect_uri=_get_create_tokens_endpoint(  # RFC 6749 §3.1.2
-                request=request, origin_url=payload["origin_url"], idp_name=idp_name
+                request=request, origin_url=login_context["origin_url"], idp_name=idp_name
             ),
         )
         # PKCE validation: code_verifier is required when PKCE is enabled (RFC 7636 §4.5)
@@ -282,6 +288,7 @@ async def create_tokens(
         response=response, refresh_token=refresh_token, max_age=refresh_token_expiry
     )
     response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_login_context_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
     response = delete_oauth2_code_verifier_cookie(response)
     return response
@@ -867,6 +874,7 @@ def _redirect_to_login(*, request: Request, error: AuthErrorCode) -> RedirectRes
     url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_login_context_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
     response = delete_oauth2_code_verifier_cookie(response)
     return response
@@ -913,44 +921,70 @@ def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: 
     return str(url_path.make_absolute_url(base_url=origin_url))
 
 
-def _generate_state_for_oauth2_authorization_code_flow(
-    *, secret: SecretStr, origin_url: str, return_url: Optional[str]
-) -> str:
-    """
-    Generates a JWT whose payload contains both an OAuth2 state (generated using
-    the `authlib` default algorithm) and a return URL. This allows us to pass
-    the return URL to the OAuth2 authorization server via the `state` query
-    parameter and have it returned to us in the callback without needing to
-    maintain state.
-    """
-    header = {"alg": _JWT_ALGORITHM}
-    payload = _OAuth2StatePayload(
-        random=generate_token(),
-        origin_url=origin_url,
-    )
-    if return_url is not None:
-        payload["return_url"] = return_url
-    return jwt.encode(header, dict(payload), OctKey.import_key(secret.get_secret_value()))
-
-
-class _OAuth2StatePayload(TypedDict):
-    """
-    Represents the OAuth2 state payload.
-    """
-
-    random: str
+class _OAuth2LoginContext(TypedDict):
     origin_url: str
     return_url: NotRequired[str]
 
 
-def _parse_state_payload(*, secret: SecretStr, state: str) -> _OAuth2StatePayload:
-    """
-    Validates the JWT signature and parses the return URL from the OAuth2 state.
-    """
-    claims = jwt.decode(state, OctKey.import_key(secret.get_secret_value())).claims
-    if _is_oauth2_state_payload(claims):
-        return claims
-    raise ValueError("Invalid OAuth2 state payload.")
+def _encode_oauth2_login_context(*, origin_url: str, return_url: Optional[str]) -> str:
+    payload: dict[str, str] = {"origin_url": origin_url}
+    if return_url is not None:
+        payload["return_url"] = return_url
+    raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+_MAX_OAUTH2_LOGIN_CONTEXT_LENGTH = 4096
+
+
+def _parse_oauth2_login_context(value: Optional[str]) -> _OAuth2LoginContext:
+    """Decode the login-context cookie. Raises ValueError when it is missing or malformed."""
+    if not value or len(value) > _MAX_OAUTH2_LOGIN_CONTEXT_LENGTH:
+        raise ValueError("Invalid OAuth2 login context.")
+    try:
+        padded = value + "=" * (-len(value) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+    except (ValueError, UnicodeDecodeError, RecursionError):
+        raise ValueError("Invalid OAuth2 login context.") from None
+    if not _is_oauth2_login_context(payload):
+        raise ValueError("Invalid OAuth2 login context.")
+    return payload
+
+
+def _is_absolute_http_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(host)
+
+
+def _is_oauth2_login_context(payload: Any) -> TypeGuard[_OAuth2LoginContext]:
+    if not isinstance(payload, dict):
+        return False
+    keys = set(payload.keys())
+    if "origin_url" not in keys or not keys.issubset({"origin_url", "return_url"}):
+        return False
+    origin_url = payload["origin_url"]
+    if (
+        not isinstance(origin_url, str)
+        or not _encodes_as_utf8(origin_url)
+        or not _is_absolute_http_url(origin_url)
+    ):
+        return False
+    if "return_url" not in payload:
+        return True
+    return_url = payload["return_url"]
+    return isinstance(return_url, str) and _encodes_as_utf8(return_url)
+
+
+def _encodes_as_utf8(value: str) -> bool:
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def _is_relative_url(url: str) -> bool:
@@ -967,17 +1001,4 @@ def _with_random_suffix(string: str) -> str:
     return f"{string}-{randrange(10_000, 100_000)}"
 
 
-def _is_oauth2_state_payload(maybe_state_payload: Any) -> TypeGuard[_OAuth2StatePayload]:
-    """
-    Determines whether the given object is an OAuth2 state payload.
-    """
-
-    return (
-        isinstance(maybe_state_payload, dict)
-        and {"random", "origin_url"}.issubset((keys := set(maybe_state_payload.keys())))
-        and keys.issubset({"random", "origin_url", "return_url"})
-    )
-
-
-_JWT_ALGORITHM = "HS256"
 _RELATIVE_URL_PATTERN = re.compile(r"^/($|\w)")

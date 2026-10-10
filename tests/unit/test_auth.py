@@ -1,6 +1,13 @@
 import pytest
+from starlette.responses import Response
 
 from phoenix.auth import (
+    delete_access_token_cookie,
+    delete_oauth2_code_verifier_cookie,
+    delete_oauth2_login_context_cookie,
+    delete_oauth2_nonce_cookie,
+    delete_oauth2_state_cookie,
+    delete_refresh_token_cookie,
     validate_email_format,
     validate_password_format,
 )
@@ -183,3 +190,17 @@ class TestPasswordPolicy:
         with mock.patch("phoenix.config.get_env_enable_strong_password_policy", return_value=True):
             with pytest.raises(ValueError, match="special character"):
                 validate_password_format("StrongPass123")
+
+
+def test_delete_cookies_use_configured_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_COOKIES_PATH", "/phoenix")
+    response = Response()
+    delete_access_token_cookie(response)
+    delete_refresh_token_cookie(response)
+    delete_oauth2_state_cookie(response)
+    delete_oauth2_login_context_cookie(response)
+    delete_oauth2_nonce_cookie(response)
+    delete_oauth2_code_verifier_cookie(response)
+    headers = response.headers.getlist("set-cookie")
+    assert len(headers) == 6
+    assert all("Path=/phoenix" in header for header in headers)
