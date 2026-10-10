@@ -25,6 +25,11 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.api.evaluators import ContainsEvaluator
+from phoenix.server.api.routers.agents import (
+    _emit_turn_root_span,
+    _persist_db_traces,
+    _resolve_turn_trace_ids,
+)
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
@@ -36,6 +41,7 @@ from phoenix.server.online_eval.project_evaluator_resolution import (
     resolve_project_evaluators_bulk,
 )
 from phoenix.server.types import DbSessionFactory
+from phoenix.tracers import Tracer
 
 from ..._helpers import _add_project, _add_span, _add_trace
 
@@ -253,6 +259,44 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
+
+
+async def test_tick_materializes_a_root_span_persisted_by_pxi(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    await _seed_criteria(db, project.id, filter_condition="parent_id is None")
+    now = _now()
+    tracer = Tracer(span_cost_calculator=Mock())
+    _emit_turn_root_span(
+        tracer=tracer,
+        turn_ids=_resolve_turn_trace_ids(None, now=now),
+        session_id="pxi-session",
+        input_text="Summarize this trace",
+        output_text="Done",
+        error_message=None,
+        end_time=now,
+        user_email=None,
+    )
+    async with db() as session:
+        await _persist_db_traces(
+            session=session, db_traces=tracer.get_db_traces(project_id=project.id)
+        )
+    async with db() as session:
+        root_span_rowid = await session.scalar(
+            select(models.Span.id).where(models.Span.parent_id.is_(None))
+        )
+    assert root_span_rowid is not None
+    await _seed_cursor(
+        db,
+        observed_high_water_id=root_span_rowid,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    await OnlineEvalProducer(db)._tick()
+
+    assert await _work_unit_span_rowids(db) == [root_span_rowid]
 
 
 async def test_builtin_implementation_version_changes_fingerprint(

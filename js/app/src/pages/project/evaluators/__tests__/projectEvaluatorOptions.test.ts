@@ -1,8 +1,11 @@
 import {
   buildCopyCodeCreationMode,
+  buildCopyLlmCreationMode,
   getEvaluatorInputSummaries,
   type CodeProjectEvaluatorDetails,
+  type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 const codeEvaluator = {
   __typename: "CodeEvaluator",
@@ -35,13 +38,43 @@ const codeEvaluator = {
   " $fragmentType": "projectEvaluatorOptions_codeEvaluatorDetails",
 } satisfies CodeProjectEvaluatorDetails;
 
+const llmEvaluator = {
+  __typename: "LLMEvaluator",
+  id: "LLMEvaluator:1",
+  name: "correctness",
+  description: null,
+  kind: "LLM",
+  llmInputSchema: null,
+  inputs: [],
+  outputConfigs: [],
+  promptVersion: {
+    templateFormat: "MUSTACHE",
+    template: {
+      __typename: "PromptStringTemplate",
+      template: "Is {{output}} correct?",
+    },
+    tools: null,
+  },
+  " $fragmentType": "projectEvaluatorOptions_llmEvaluatorDetails",
+} satisfies LlmProjectEvaluatorDetails;
+
+describe("buildCopyLlmCreationMode", () => {
+  it("names the copy with a valid identifier the project does not use", () => {
+    const built = buildCopyLlmCreationMode(llmEvaluator, ["correctness_copy"]);
+    if (!built.ok) throw new Error("expected a copy");
+    const { copyName } = built.mode.initialState;
+    expect(copyName).toBe("correctness_copy_1");
+    expect(validateIdentifier(copyName)).toBe(true);
+  });
+});
+
 describe("buildCopyCodeCreationMode", () => {
   it("seeds a new code evaluator from the source definition", () => {
-    expect(buildCopyCodeCreationMode(codeEvaluator)).toEqual({
+    expect(buildCopyCodeCreationMode(codeEvaluator, [])).toEqual({
       kind: "copyCode",
       initialState: {
         name: "checks-output",
-        copyName: "checks-output-copy",
+        copyName: "checks-output_copy",
         description: "Checks the final answer",
         language: "TYPESCRIPT",
         sourceCode:
@@ -65,10 +98,13 @@ describe("buildCopyCodeCreationMode", () => {
 
   it("allows the duplicate form to require a replacement sandbox", () => {
     expect(
-      buildCopyCodeCreationMode({
-        ...codeEvaluator,
-        sandboxConfig: null,
-      }).initialState.sandboxConfigId
+      buildCopyCodeCreationMode(
+        {
+          ...codeEvaluator,
+          sandboxConfig: null,
+        },
+        []
+      ).initialState.sandboxConfigId
     ).toBeNull();
   });
 });
