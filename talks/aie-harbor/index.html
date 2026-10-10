@@ -166,7 +166,8 @@ p{margin:0}
 .hi{flex:1;min-height:0;margin-top:28px;display:flex;flex-direction:column;justify-content:center;gap:28px}
 .hi-m{display:grid;justify-content:center;grid-template-columns:200px repeat(3,112px) 28px repeat(3,112px) 40px 220px;gap:10px 12px;align-items:center}
 .hi-ag{grid-column:span 3;font-family:var(--mono);font-size:14px;color:var(--text);font-weight:500;text-align:center;border-bottom:1px solid var(--line-strong);padding-bottom:10px;white-space:nowrap}
-.hi-hd,.hi-pr,.hi-mean{opacity:0;transition:opacity .4s ease}
+.hi-sb,.hi-hd,.hi-pr,.hi-mean{opacity:0;transition:opacity .4s ease}
+.slide.trials .hi-sb{opacity:1}
 .slide.agg .hi-hd,.slide.agg .hi-pr,.slide.agg .hi-mean{opacity:1}
 .hi-hd{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .hi-t{display:block;min-height:20px;font-family:var(--mono);font-size:15px;color:var(--amber);white-space:nowrap}
@@ -333,7 +334,7 @@ fi</pre>
   </div>
 </section>
 
-<section class="slide" data-title="Harbor isolation" data-fragment="agg">
+<section class="slide" data-title="Harbor isolation" data-fragment="trials agg">
   <div class="hb-top">
     <div class="head">
       <div class="eyebrow"><b>05 · Scale</b></div>
@@ -597,21 +598,24 @@ fi</pre>
   const slides=[...document.querySelectorAll('#stage .slide')];
   const fwd=['ArrowRight','PageDown',' ','Enter'],back=['ArrowLeft','PageUp','Backspace'];
   const nb=document.getElementById('next'),pb=document.getElementById('prev');
-  // a slide with data-fragment="cls" has one build step: forward adds cls before leaving, back removes it before leaving
+  // a slide with data-fragment="a b c" builds in steps: forward adds the next class before leaving, back removes the last one before leaving
   slides.filter(s=>s.dataset.fragment).forEach(sl=>{
-    const cls=sl.dataset.fragment,ix=slides.indexOf(sl);
-    const active=()=>sl.classList.contains('is-active'),on=()=>sl.classList.contains(cls);
+    const steps=sl.dataset.fragment.split(/\s+/).filter(Boolean),ix=slides.indexOf(sl);
+    const active=()=>sl.classList.contains('is-active'),n=()=>steps.filter(c=>sl.classList.contains(c)).length;
+    const more=()=>{if(n()<steps.length){sl.classList.add(steps[n()]);return true}return false};
+    const less=()=>{if(n()>0){sl.classList.remove(steps[n()-1]);return true}return false};
+    const setAll=on=>steps.forEach(c=>sl.classList.toggle(c,on));
     document.addEventListener('keydown',e=>{
       if(!active())return;
-      if(fwd.includes(e.key)&&!on()){sl.classList.add(cls);e.preventDefault();e.stopImmediatePropagation()}
-      else if(back.includes(e.key)&&on()){sl.classList.remove(cls);e.preventDefault();e.stopImmediatePropagation()}
+      if(fwd.includes(e.key)&&more()){e.preventDefault();e.stopImmediatePropagation()}
+      else if(back.includes(e.key)&&less()){e.preventDefault();e.stopImmediatePropagation()}
     },true);
     const n0=nb.onclick,p0=pb.onclick;
-    nb.onclick=()=>{if(active()&&!on())sl.classList.add(cls);else n0()};
-    pb.onclick=()=>{if(active()&&on())sl.classList.remove(cls);else p0()};
-    // arriving from an earlier slide starts without the build; arriving from a later one starts with it
+    nb.onclick=()=>{if(!(active()&&more()))n0()};
+    pb.onclick=()=>{if(!(active()&&less()))p0()};
+    // arriving from an earlier slide starts unbuilt; arriving from a later one starts fully built
     let last=slides.findIndex(x=>x.classList.contains('is-active'));
-    new MutationObserver(()=>{const cur=slides.findIndex(x=>x.classList.contains('is-active'));if(cur===ix&&last!==ix)sl.classList.toggle(cls,last>ix);last=cur}).observe(document.getElementById('stage'),{attributes:true,subtree:true,attributeFilter:['class']});
+    new MutationObserver(()=>{const cur=slides.findIndex(x=>x.classList.contains('is-active'));if(cur===ix&&last!==ix)setAll(last>ix);last=cur}).observe(document.getElementById('stage'),{attributes:true,subtree:true,attributeFilter:['class']});
   });
 })();
 </script>
