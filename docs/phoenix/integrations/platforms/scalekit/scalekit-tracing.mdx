@@ -33,7 +33,7 @@ PHOENIX_PROJECT_NAME=scalekit-agentkit
 The tool call also needs the Scalekit credentials from Dashboard → Developers → API credentials:
 
 ```bash
-SCALEKIT_ENV_URL=https://your-env.scalekit.com
+SCALEKIT_ENVIRONMENT_URL=https://your-env.scalekit.com
 SCALEKIT_CLIENT_ID=your-client-id
 SCALEKIT_CLIENT_SECRET=your-client-secret
 ```
@@ -53,7 +53,7 @@ export const provider = register({
 });
 
 export const scalekit = new ScalekitClient(
-  process.env.SCALEKIT_ENV_URL!,
+  process.env.SCALEKIT_ENVIRONMENT_URL!,
   process.env.SCALEKIT_CLIENT_ID!,
   process.env.SCALEKIT_CLIENT_SECRET!,
 );
