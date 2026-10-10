@@ -11,7 +11,7 @@ import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
 ## Install
 
 ```bash
-npm install @scalekit-sdk/node @arizeai/phoenix-otel dotenv
+npm install @scalekit-sdk/node @arizeai/phoenix-otel
 ```
 
 ## Configure Environment
@@ -40,11 +40,10 @@ SCALEKIT_CLIENT_SECRET=your-client-secret
 
 ## Setup
 
-Call `register()` before the tool runs. It reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`. `import "dotenv/config"` loads `.env` before either client is created. The project name is `PHOENIX_PROJECT_NAME`, or `scalekit-agentkit` when that variable is unset.
+Call `register()` before the tool runs. It reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`. The run command loads `.env` with `--env-file` before the script starts. The project name is `PHOENIX_PROJECT_NAME`, or `scalekit-agentkit` when that variable is unset.
 
 ```typescript
 // instrumentation.ts
-import "dotenv/config";
 import { register } from "@arizeai/phoenix-otel";
 import { ScalekitClient } from "@scalekit-sdk/node";
 
@@ -109,7 +108,7 @@ A thrown error is recorded as status ERROR. A call that returns normally is stat
 The three files above are the example. From the directory that contains them:
 
 ```bash
-npx tsx example.ts
+npx tsx --env-file=.env example.ts
 ```
 
 ## Observe
