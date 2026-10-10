@@ -166,6 +166,8 @@ p{margin:0}
 .hi{flex:1;min-height:0;margin-top:28px;display:flex;flex-direction:column;justify-content:center;gap:28px}
 .hi-m{display:grid;justify-content:center;grid-template-columns:200px repeat(3,112px) 28px repeat(3,112px) 40px 220px;gap:10px 12px;align-items:center}
 .hi-ag{grid-column:span 3;font-family:var(--mono);font-size:14px;color:var(--text);font-weight:500;text-align:center;border-bottom:1px solid var(--line-strong);padding-bottom:10px;white-space:nowrap}
+.hi-hd,.hi-pr,.hi-mean{opacity:0;transition:opacity .4s ease}
+.slide.agg .hi-hd,.slide.agg .hi-pr,.slide.agg .hi-mean{opacity:1}
 .hi-hd{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .hi-t{display:block;min-height:20px;font-family:var(--mono);font-size:15px;color:var(--amber);white-space:nowrap}
 .hi-sb{position:relative;height:72px;border-radius:var(--radius);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
@@ -331,7 +333,7 @@ fi</pre>
   </div>
 </section>
 
-<section class="slide" data-title="Harbor isolation">
+<section class="slide" data-title="Harbor isolation" data-fragment="agg">
   <div class="hb-top">
     <div class="head">
       <div class="eyebrow"><b>05 · Scale</b></div>
