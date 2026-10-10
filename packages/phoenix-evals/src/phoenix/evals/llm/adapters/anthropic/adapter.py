@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Models that return 400 for tool_choice "tool"/"any". Matched as substrings so Bedrock
 # "anthropic."/"us."/"global." inference profile IDs are covered too.
-_NO_FORCED_TOOL_CHOICE_MODELS = ("claude-opus-5-5", "claude-fable-5-1")
+_NO_FORCED_TOOL_CHOICE_MODELS = ("claude-opus-5-5", "claude-fable-5-1", "claude-sonnet-5-5")
 
 
 def identify_anthropic_client(client: Any) -> bool:

@@ -59,6 +59,8 @@ def _make_async_adapter(model: str) -> tuple[AnthropicAdapter, MagicMock]:
         ("global.anthropic.claude-opus-5-5", {"type": "auto"}),
         ("claude-fable-5-1", {"type": "auto"}),
         ("us.anthropic.claude-fable-5-1", {"type": "auto"}),
+        ("us.anthropic.claude-sonnet-5", {"type": "tool", "name": "extract_structured_data"}),
+        ("us.anthropic.claude-sonnet-5-5", {"type": "auto"}),
     ],
 )
 def test_sync_generate_object_tool_choice(model: str, expected_tool_choice: dict) -> None:
@@ -76,6 +78,7 @@ def test_sync_generate_object_tool_choice(model: str, expected_tool_choice: dict
         ("claude-3-sonnet", {"type": "tool", "name": "extract_structured_data"}),
         ("us.anthropic.claude-opus-5-5", {"type": "auto"}),
         ("claude-fable-5-1", {"type": "auto"}),
+        ("us.anthropic.claude-sonnet-5-5", {"type": "auto"}),
     ],
 )
 @pytest.mark.asyncio
