@@ -12,6 +12,7 @@ import type {
 } from "relay-runtime";
 
 import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import { getEvaluatorCopyName } from "@phoenix/components/evaluators/evaluatorCopyName";
 import type { PlaygroundInstancePrompt } from "@phoenix/store";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
@@ -23,7 +24,6 @@ import type { useEvaluatorTaskSaveNamesQuery } from "./__generated__/useEvaluato
 import type { useEvaluatorTaskSavePatchCodeMutation } from "./__generated__/useEvaluatorTaskSavePatchCodeMutation.graphql";
 import type { useEvaluatorTaskSaveUpdateCodeMutation } from "./__generated__/useEvaluatorTaskSaveUpdateCodeMutation.graphql";
 import type { useEvaluatorTaskSaveUpdateLLMMutation } from "./__generated__/useEvaluatorTaskSaveUpdateLLMMutation.graphql";
-import { getEvaluatorCopyName } from "./evaluatorCopyName";
 import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 
 export type SaveEvaluatorTaskRequest = {

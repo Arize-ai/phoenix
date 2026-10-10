@@ -71,6 +71,10 @@ type SeededLlmEvaluatorInitialState = {
   includeExplanation: boolean;
 };
 
+type CopiedLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
+  copyName: string;
+};
+
 type TemplateLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
   targetType: ProjectEvaluatorTarget;
 };
@@ -91,7 +95,7 @@ export type ProjectEvaluatorCreationMode =
   | { kind: "newCode" }
   | {
       kind: "copyLlm";
-      initialState: SeededLlmEvaluatorInitialState;
+      initialState: CopiedLlmEvaluatorInitialState;
     }
   | {
       kind: "copyCode";
@@ -252,9 +256,7 @@ const CreateProjectEvaluatorDialog = ({
         : undefined;
     const defaultEvaluatorName =
       creationMode.kind === "copyLlm"
-        ? creationMode.initialState.name
-          ? `${creationMode.initialState.name} copy`
-          : DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName
+        ? creationMode.initialState.copyName
         : creationMode.kind === "template"
           ? creationMode.initialState.name
           : creationMode.kind === "code"
