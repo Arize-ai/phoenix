@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<880cbb9d094338749c407df0b1f432d1>>
+ * @generated SignedSource<<8e8bd9ee5d6a193b3e7dae787dc8e4df>>
  * @lightSyntaxTransform
  */
 
@@ -8,8 +8,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type PlaygroundQuery$variables = Record<PropertyKey, never>;
 export type PlaygroundQuery$data = {
+  readonly decisionModels: ReadonlyArray<{
+    readonly name: string;
+    readonly providerKey: GenerativeProviderKey;
+  }>;
   readonly modelProviders: ReadonlyArray<{
     readonly dependencies: ReadonlyArray<string>;
     readonly dependenciesInstalled: boolean;
@@ -22,7 +27,14 @@ export type PlaygroundQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v1 = [
   {
     "alias": null,
     "args": null,
@@ -31,13 +43,7 @@ var v0 = [
     "name": "modelProviders",
     "plural": true,
     "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "name",
-        "storageKey": null
-      },
+      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -54,6 +60,34 @@ var v0 = [
       }
     ],
     "storageKey": null
+  },
+  {
+    "alias": "decisionModels",
+    "args": [
+      {
+        "kind": "Literal",
+        "name": "input",
+        "value": {
+          "modelType": "DECISION",
+          "providerKey": null
+        }
+      }
+    ],
+    "concreteType": "PlaygroundModel",
+    "kind": "LinkedField",
+    "name": "playgroundModels",
+    "plural": true,
+    "selections": [
+      (v0/*:: as any*/),
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "providerKey",
+        "storageKey": null
+      }
+    ],
+    "storageKey": "playgroundModels(input:{\"modelType\":\"DECISION\",\"providerKey\":null})"
   }
 ];
 return {
@@ -62,7 +96,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundQuery",
-    "selections": (v0/*:: as any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -71,19 +105,19 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "PlaygroundQuery",
-    "selections": (v0/*:: as any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "f19ebe151a3a9794fa2566c66751d259",
+    "cacheID": "3056476ec15e65ae89832ac5c4e46b82",
     "id": null,
     "metadata": {},
     "name": "PlaygroundQuery",
     "operationKind": "query",
-    "text": "query PlaygroundQuery {\n  modelProviders {\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
+    "text": "query PlaygroundQuery {\n  modelProviders {\n    name\n    dependenciesInstalled\n    dependencies\n  }\n  decisionModels: playgroundModels(input: {providerKey: null, modelType: DECISION}) {\n    name\n    providerKey\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9802d9d44657ca300abc1be4d0938560";
+(node as any).hash = "886983ade6984a0e650358718f76302e";
 
 export default node;

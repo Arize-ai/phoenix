@@ -22,7 +22,56 @@ const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
   jsonSchema: { name: "MySchema", schema: { type: "object" }, strict: true },
 };
 
+describe("decision instances in the store", () => {
+  it("updates the model name and base URL of a decision-only provider", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      defaultModelType: "DECISION",
+      defaultModelProvider: "TYPESAFE",
+      defaultModelName: "jev-latest",
+    });
+    const instanceId = store.getState().instances[0].id;
+    store.getState().updateModel({
+      instanceId,
+      patch: {
+        modelName: "fixture-slow",
+        baseUrl: "http://127.0.0.1:16138/v1",
+      },
+    });
+    expect(store.getState().instances[0].model).toMatchObject({
+      provider: "TYPESAFE",
+      modelType: "DECISION",
+      modelName: "fixture-slow",
+      baseUrl: "http://127.0.0.1:16138/v1",
+    });
+  });
+});
+
 describe("getInitialInstances", () => {
+  // The page resolves provider and model from the server's decision catalog;
+  // the store carries them through without knowing any provider by name.
+  it.each([
+    ["OPENAI", "gpt-6-luna"],
+    ["TYPESAFE", "jev-latest"],
+    ["ANTHROPIC", "some-future-decision-model"],
+  ] as const)(
+    "initializes a %s decision without interpreting it as chat",
+    (provider, modelName) => {
+      const { instances, instanceMessages } = getInitialInstances({
+        defaultModelType: "DECISION",
+        defaultModelProvider: provider,
+        defaultModelName: modelName,
+        modelConfigByProvider: {},
+      });
+      expect(instances[0].model.modelType).toBe("DECISION");
+      expect(instances[0].model.provider).toBe(provider);
+      expect(instances[0].model.modelName).toBe(modelName);
+      // Each instance owns its request, like a prompt.
+      expect(instances[0].decisionRequest?.questions[0].type).toBe("choice");
+      expect(instances[0].llmModel?.provider).toBe("OPENAI");
+      expect(Object.keys(instanceMessages).length).toBeGreaterThan(0);
+    }
+  );
   beforeEach(() => {
     _resetInstanceId();
   });

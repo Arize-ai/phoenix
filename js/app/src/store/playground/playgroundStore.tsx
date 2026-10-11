@@ -10,6 +10,7 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { PLAYGROUND_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   getDefaultInvocationConfig,
@@ -202,6 +203,20 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   }
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
 
+  if (initialProps.defaultModelType === "DECISION") {
+    // The page resolves the provider and model from the decision catalog;
+    // the store does not know which providers offer decision models.
+    instance.llmModel = instance.model;
+    instance.decisionRequest = createDecisionDraft();
+    instance.model = {
+      ...instance.model,
+      modelType: "DECISION",
+      provider: initialProps.defaultModelProvider ?? DEFAULT_MODEL_PROVIDER,
+      modelName: initialProps.defaultModelName ?? null,
+    };
+    return { instances: [instance], instanceMessages };
+  }
+
   const preferredProvider =
     initialProps.defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;
   const preferredModelName =
@@ -240,6 +255,9 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     instance.model = {
       ...instance.model,
       ...savedConfigToUse,
+      // A saved default configures the provider; it never turns a chat
+      // instance into a decision instance.
+      modelType: "LLM",
       invocationParameters: parseInvocationConfig(
         savedConfigToUse.provider,
         savedConfigToUse.invocationParameters
@@ -356,17 +374,26 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       set({ operationType }, false, { type: "setOperationType" });
     },
     addInstance: () => {
-      const instances = get().instances;
-      const instanceMessages = get().allInstanceMessages;
       const firstInstance = get().instances[0];
       if (!firstInstance) {
         return;
       }
+      get().duplicateInstance(firstInstance.id);
+    },
+    duplicateInstance: (instanceId) => {
+      const instances = get().instances;
+      const instanceMessages = get().allInstanceMessages;
+      const sourceIndex = instances.findIndex(
+        (instance) => instance.id === instanceId
+      );
+      const source = instances[sourceIndex];
+      if (!source) {
+        return;
+      }
       let newMessageIds: number[] = [];
       let newMessageMap: Record<number, ChatMessage> = {};
-      if (firstInstance.template.__type === "chat") {
-        const messageIdsToCopy = firstInstance.template.messageIds;
-        const copiedMessages = messageIdsToCopy
+      if (source.template.__type === "chat") {
+        const copiedMessages = source.template.messageIds
           .map((id) => instanceMessages[id])
           .map((message) => ({
             ...message,
@@ -381,6 +408,26 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           {}
         );
       }
+      const copy: PlaygroundNormalizedInstance = {
+        ...source,
+        ...(source.template.__type === "chat"
+          ? {
+              template: {
+                ...source.template,
+                messageIds: newMessageIds,
+              },
+            }
+          : {}),
+        // A deep copy so edits to one instance's questions never leak into
+        // the other; the ids inside are only React keys.
+        decisionRequest: source.decisionRequest
+          ? structuredClone(source.decisionRequest)
+          : source.decisionRequest,
+        id: generateInstanceId(),
+        activeRunId: null,
+        experiment: null,
+        repetitions: {},
+      };
       set(
         {
           allInstanceMessages: {
@@ -388,26 +435,27 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...newMessageMap,
           },
           instances: [
-            ...instances,
-            {
-              ...firstInstance,
-              ...(firstInstance.template.__type === "chat"
-                ? {
-                    template: {
-                      ...firstInstance.template,
-                      messageIds: newMessageIds,
-                    },
-                  }
-                : {}),
-              id: generateInstanceId(),
-              activeRunId: null,
-              experiment: null,
-              repetitions: {},
-            },
+            ...instances.slice(0, sourceIndex + 1),
+            copy,
+            ...instances.slice(sourceIndex + 1),
           ],
         },
         false,
-        { type: "addInstance" }
+        { type: "duplicateInstance" }
+      );
+    },
+    updateDecisionRequest: ({ instanceId, request }) => {
+      set(
+        {
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+          instances: get().instances.map((instance) =>
+            instance.id === instanceId
+              ? { ...instance, decisionRequest: request }
+              : instance
+          ),
+        },
+        false,
+        { type: "updateDecisionRequest" }
       );
     },
     syncInvocationParametersWithSpecs: ({
@@ -509,6 +557,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...baseModel,
             ...resetFields,
             ...(savedProviderConfig || {}),
+            // A saved default never changes the instance's model type.
+            modelType: instance.model.modelType ?? "LLM",
             invocationParameters,
             // responseFormat is canonical (provider-agnostic) — carry through if present
             ...(instance.model.responseFormat != null
@@ -600,10 +650,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 model: {
                   ...instance.model,
                   ...patch,
-                  invocationParameters: parseInvocationConfig(
-                    instance.model.provider,
-                    instance.model.invocationParameters
-                  ),
+                  // Decision instances carry no chat invocation parameters,
+                  // and their providers have no chat adapter to parse them.
+                  invocationParameters:
+                    (patch.modelType ?? instance.model.modelType) === "DECISION"
+                      ? instance.model.invocationParameters
+                      : parseInvocationConfig(
+                          instance.model.provider,
+                          instance.model.invocationParameters
+                        ),
                 },
               };
             }

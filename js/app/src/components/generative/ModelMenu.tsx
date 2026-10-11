@@ -23,6 +23,12 @@ import {
   MenuTrigger,
   SearchField,
   Text,
+  Tabs,
+  TabList,
+  Tab,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
   useFilter,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
@@ -58,6 +64,7 @@ export type CustomProviderRef = {
 export type ModelMenuValue = {
   provider: GenerativeProviderKey;
   modelName: string;
+  modelType?: ModelType;
   /**
    * Reference to custom provider if using one
    */
@@ -98,6 +105,10 @@ type LeadingItemsProps = {
  * Using a Private Use Area (PUA) character unlikely to appear in provider IDs or model names.
  */
 const KEY_DELIMITER = "\uE000";
+
+function getModelType(value: ModelMenuValue | null | undefined): ModelType {
+  return value?.modelType ?? "LLM";
+}
 
 type BuiltinModelInfo = {
   type: "builtin";
@@ -198,6 +209,13 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
      * @default "any"
      */
     credentialSource?: ModelCredentialSource;
+    /** Enable decision selection only on surfaces with a decision execution path. */
+    supportsDecisionModels?: boolean;
+    /**
+     * When set, the Decision tab is shown but disabled, with this text as the
+     * reason in a tooltip (e.g. a dataset is loaded).
+     */
+    decisionModelsDisabledReason?: string;
   };
 
 export function ModelMenu({
@@ -211,9 +229,12 @@ export function ModelMenu({
   selectedLeadingItemId,
   onLeadingItemSelect,
   credentialSource,
+  supportsDecisionModels = false,
+  decisionModelsDisabledReason,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
+  const [modelType, setModelType] = useState<ModelType>(getModelType(value));
   const awsBedrockModelPrefix = usePreferencesContext(
     (state) => state.awsBedrockModelPrefix
   );
@@ -229,17 +250,23 @@ export function ModelMenu({
           }),
         });
       } else {
-        onChange?.(model);
+        onChange?.({ ...model, modelType });
       }
     },
-    [onChange, awsBedrockModelPrefix]
+    [onChange, awsBedrockModelPrefix, modelType]
   );
   const {
     customProviders,
     modelsByProvider,
     providerInfoMap,
     visibleProviders,
-  } = useModelMenuData({ credentialSource });
+  } = useModelMenuData({
+    credentialSource,
+    modelType,
+    includeDecisionModels: supportsDecisionModels,
+  });
+  const selectableCustomProviders =
+    modelType === "DECISION" ? [] : customProviders;
 
   // Providers whose models are searchable: visible in the menu and with
   // server dependencies installed, so search never surfaces a model that
@@ -282,7 +309,7 @@ export function ModelMenu({
       return [];
     }
 
-    return customProviders
+    return (modelType === "DECISION" ? [] : customProviders)
       .map((provider) => ({
         ...provider,
         modelNames: provider.modelNames.filter((model) =>
@@ -290,7 +317,7 @@ export function ModelMenu({
         ),
       }))
       .filter((provider) => provider.modelNames.length > 0);
-  }, [searchValue, customProviders, contains]);
+  }, [searchValue, modelType, customProviders, contains]);
 
   const isSearching = searchValue.trim().length > 0;
 
@@ -319,7 +346,14 @@ export function ModelMenu({
       : "Select model";
 
   return (
-    <MenuTrigger>
+    <MenuTrigger
+      onOpenChange={(isOpen) => {
+        if (isOpen) {
+          setModelType(getModelType(value));
+          setSearchValue("");
+        }
+      }}
+    >
       <Button
         size="S"
         variant={variant}
@@ -343,6 +377,41 @@ export function ModelMenu({
         )}
       </Button>
       <MenuContainer placement={placement} shouldFlip={shouldFlip}>
+        {supportsDecisionModels ? (
+          <Tabs
+            selectedKey={modelType}
+            onSelectionChange={(key) => {
+              setModelType(key === "DECISION" ? "DECISION" : "LLM");
+              setSearchValue("");
+            }}
+            // Tabs default to filling their parent (height: 100%, flex-grow)
+            // because they normally own the panel below them. Here the menu
+            // owns the content, so the tab bar must size to its tabs or it
+            // stretches into the menu's min-height and leaves a gap. The
+            // component sets its growth under an orientation attribute
+            // selector, so the override has to match that specificity.
+            css={css`
+              &[data-orientation] {
+                flex: none;
+                height: auto;
+              }
+            `}
+          >
+            <TabList aria-label="Model type">
+              <Tab id="LLM">LLM</Tab>
+              <Tab id="DECISION" isDisabled={!!decisionModelsDisabledReason}>
+                {decisionModelsDisabledReason ? (
+                  <TooltipTrigger delay={0}>
+                    <TriggerWrap>Decision</TriggerWrap>
+                    <Tooltip>{decisionModelsDisabledReason}</Tooltip>
+                  </TooltipTrigger>
+                ) : (
+                  "Decision"
+                )}
+              </Tab>
+            </TabList>
+          </Tabs>
+        ) : null}
         <Autocomplete filter={isSearching ? searchFilter : undefined}>
           <MenuHeader>
             <SearchField
@@ -359,6 +428,7 @@ export function ModelMenu({
           </MenuHeader>
           {isSearching ? (
             <ModelsByProviderMenu
+              key={modelType}
               modelsByProvider={filteredModelsByProvider}
               providerInfoMap={providerInfoMap}
               customProviders={filteredCustomProviders}
@@ -368,9 +438,10 @@ export function ModelMenu({
             />
           ) : (
             <ProviderMenu
+              key={modelType}
               providers={visibleProviders}
               modelsByProvider={modelsByProvider}
-              customProviders={customProviders}
+              customProviders={selectableCustomProviders}
               onChange={handleModelChange}
               leadingItems={leadingItems}
               onLeadingItemSelect={onLeadingItemSelect}

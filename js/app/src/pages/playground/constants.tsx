@@ -44,3 +44,14 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   META: ["muse"],
   TYPESAFE: ["jev"],
 };
+
+/**
+ * Why a run is refused when a decision instance and a dataset are both
+ * loaded. Shown on the Run button and above the prompts.
+ */
+export const DECISION_DATASET_BLOCKED_REASON =
+  "Decision models can't run over a dataset yet. Remove the decision instance or clear the dataset to run.";
+
+/** Why the dataset picker is disabled while a decision instance exists. */
+export const DECISION_DATASET_SELECT_DISABLED_REASON =
+  "Decision models can't run over a dataset yet. Remove the decision instance to test over a dataset.";

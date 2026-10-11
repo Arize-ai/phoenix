@@ -101,6 +101,50 @@ export type PlaygroundTemplate =
   | PlaygroundChatTemplate
   | PlaygroundTextCompletionTemplate;
 
+export type DecisionQuestionType = "choice" | "noul" | "score";
+
+export type DecisionChoiceOptionDraft = {
+  id: string;
+  value: string;
+  description: string;
+};
+
+export type DecisionScoreLevelDraft = {
+  id: string;
+  description: string;
+};
+
+/**
+ * One typed question in the decision request. Every type keeps its own
+ * criteria so switching the type back and forth does not lose work.
+ */
+export type DecisionQuestionDraft = {
+  id: string;
+  name: string;
+  type: DecisionQuestionType;
+  instructions: string;
+  choices: DecisionChoiceOptionDraft[];
+  levels: DecisionScoreLevelDraft[];
+  noul: { trueDescription: string; falseDescription: string };
+};
+
+/**
+ * One instance's decision request: the state (evidence) and the typed
+ * questions asked about it. Each decision instance owns its own, like a
+ * prompt, so instances can be compared and mixed with chat instances. Text
+ * fields may use template variables.
+ */
+export type DecisionRequestDraft = {
+  state: string;
+  stateFormat: "text" | "json";
+  questions: DecisionQuestionDraft[];
+  /**
+   * Bumped when the request is replaced wholesale (import), so uncontrolled
+   * editors remount and show the new text. Local typing never changes it.
+   */
+  revision?: number;
+};
+
 export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
 };
@@ -111,6 +155,8 @@ export type PlaygroundError = {
 };
 
 export type ModelConfig = {
+  /** Chat (LLM) or decision model; absent means chat. */
+  modelType?: ModelType;
   provider: ModelProvider;
   modelName: string | null;
   baseUrl?: string | null;
@@ -292,6 +338,14 @@ export type PlaygroundInstanceExperiment = {
  * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {
+  /** Preserve chat configuration while the decision editor is active. */
+  llmModel?: ModelConfig;
+  /**
+   * The decision request this instance runs when its model is a decision
+   * model. Each instance owns its own, like a prompt, so instances can be
+   * compared and mixed with chat instances.
+   */
+  decisionRequest?: DecisionRequestDraft | null;
   /**
    * An ID to uniquely identify the instance
    */
@@ -433,6 +487,7 @@ export type PlaygroundStateByDatasetId = z.infer<
 >;
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
+  defaultModelType?: ModelType;
   modelConfigByProvider: ModelConfigByProvider;
   datasetId?: string | null;
   stateByDatasetId?: PlaygroundStateByDatasetId;
@@ -549,6 +604,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   deleteInstance: (instanceId: number) => void;
   /**
+   * Add a copy of one instance right after it, with fresh ids and no runs.
+   */
+  duplicateInstance: (instanceId: number) => void;
+  /**
    * Add a message to a playground instance
    */
   addMessage: (params: AddMessageParams) => void;
@@ -663,6 +722,13 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * Set the value of a variable in the input
    */
   setVariableValue: (key: string, value: string) => void;
+  /**
+   * Replace one instance's decision request and mark the instance dirty.
+   */
+  updateDecisionRequest: (params: {
+    instanceId: number;
+    request: DecisionRequestDraft;
+  }) => void;
   /**
    * Set multiple variable values in the input
    */

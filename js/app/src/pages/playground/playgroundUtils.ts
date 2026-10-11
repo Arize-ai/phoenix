@@ -85,6 +85,11 @@ import {
   TOOLS_PARSING_ERROR,
 } from "./constants";
 import {
+  buildDecisionInstanceFromSpanAttributes,
+  extractDecisionVariables,
+  isDecisionSpanAttributes,
+} from "./decisionUtils";
+import {
   getVisibleInvocationParameterSpecs,
   getDefaultInvocationConfig,
   invocationConfigToPromptInput,
@@ -1136,6 +1141,17 @@ export function transformSpanAttributesToPlaygroundInstance(
     };
   }
 
+  // A decision span replays as a decision instance: the request body on the
+  // span becomes the editable request and the response its first output.
+  if (isDecisionSpanAttributes(parsedAttributes)) {
+    return buildDecisionInstanceFromSpanAttributes({
+      base: basePlaygroundInstance,
+      spanId: span.id,
+      attributes: parsedAttributes,
+      status: { code: span.statusCode, message: span.statusMessage },
+    });
+  }
+
   const baseModelConfigResult =
     getBaseModelConfigFromAttributes(parsedAttributes);
   let { modelConfig } = baseModelConfigResult;
@@ -1347,10 +1363,26 @@ export const getVariablesMapFromInstances = ({
   if (templateFormat === TemplateFormats.NONE) {
     return { variablesMap: {}, variableKeys: [] };
   }
-  const variableKeys = extractVariablesFromInstances({
-    instances,
-    templateFormat,
-  });
+  // Decision instances carry their variables in the request's text fields
+  // rather than in chat messages.
+  const variableKeys = Array.from(
+    new Set([
+      ...extractVariablesFromInstances({
+        instances: instances.filter(
+          (instance) => instance.model.modelType !== "DECISION"
+        ),
+        templateFormat,
+      }),
+      ...instances.flatMap((instance) =>
+        instance.model.modelType === "DECISION"
+          ? extractDecisionVariables({
+              draft: instance.decisionRequest,
+              templateFormat,
+            })
+          : []
+      ),
+    ])
+  );
 
   const variableValueCache = input.variablesValueCache ?? {};
 

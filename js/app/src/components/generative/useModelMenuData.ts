@@ -9,8 +9,6 @@ import type {
   GenerativeProviderKey,
   useModelMenuDataQuery,
 } from "./__generated__/useModelMenuDataQuery.graphql";
-
-export type { GenerativeModelSDK, GenerativeProviderKey };
 import {
   getProviderKeyForGenerativeModelSDK,
   isProviderProvisioned,
@@ -18,6 +16,8 @@ import {
   type LocalProviderCredentials,
   providerNeedsCredentials,
 } from "./modelProviderUtils";
+
+export type { GenerativeModelSDK, GenerativeProviderKey };
 
 export type CustomProviderInfo = {
   id: string;
@@ -49,6 +49,11 @@ export type ModelProviderInfo = {
   readonly dependenciesInstalled: boolean;
   readonly credentialsSet: boolean;
   /**
+   * The model types the provider offers, as the server derives them from its
+   * registered clients: chat (LLM), decision, or both.
+   */
+  readonly modelTypes: readonly ModelType[];
+  /**
    * True when the provider requires credentials and none are explicitly set
    * on the server or in the browser. Drives the "Needs credentials" hint.
    */
@@ -67,11 +72,17 @@ const FALLBACK_PROVIDER_KEYS: readonly GenerativeProviderKey[] = [
   "GOOGLE",
 ];
 
+type CatalogModel = {
+  readonly name: string;
+  readonly providerKey: string;
+};
+
+// Stable empty catalog so an omitted decision list does not invalidate the
+// memoized grouping on every render.
+const NO_CATALOG_MODELS: readonly CatalogModel[] = [];
+
 export function getModelsByProvider(
-  playgroundModels: readonly {
-    readonly name: string;
-    readonly providerKey: string;
-  }[]
+  playgroundModels: readonly CatalogModel[]
 ): Map<string, string[]> {
   const grouped = new Map<string, string[]>();
   for (const model of playgroundModels) {
@@ -108,17 +119,26 @@ const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
  *   to reuse its response instead of issuing a duplicate network fetch.
  * @param params.credentialSource - which credential store the surface's
  *   execution path can actually use; see {@link ModelCredentialSource}.
+ * @param params.modelType - which catalog `modelsByProvider` and
+ *   `visibleProviders` describe. Defaults to chat (LLM) models.
+ * @param params.includeDecisionModels - also fetch the decision catalog.
+ *   Only surfaces with a decision execution path need it; the flag is a
+ *   query variable, so toggling `modelType` never refetches.
  */
 export function useModelMenuData({
   fetchPolicy = "store-and-network",
   credentialSource = "any",
+  modelType = "LLM",
+  includeDecisionModels = false,
 }: {
   fetchPolicy?: FetchPolicy;
   credentialSource?: ModelCredentialSource;
+  modelType?: ModelType;
+  includeDecisionModels?: boolean;
 } = {}) {
   const data = useLazyLoadQuery<useModelMenuDataQuery>(
     graphql`
-      query useModelMenuDataQuery {
+      query useModelMenuDataQuery($includeDecisionModels: Boolean!) {
         generativeModelCustomProviders {
           edges {
             node {
@@ -134,20 +154,32 @@ export function useModelMenuData({
           name
           dependenciesInstalled
           credentialsSet
+          modelTypes
         }
         playgroundModels {
           name
           providerKey
+          modelType
+        }
+        decisionModels: playgroundModels(
+          input: { providerKey: null, modelType: DECISION }
+        ) @include(if: $includeDecisionModels) {
+          name
+          providerKey
+          modelType
         }
       }
     `,
-    {},
+    { includeDecisionModels },
     { fetchPolicy }
   );
 
+  const decisionModels = data.decisionModels ?? NO_CATALOG_MODELS;
+  const catalogModels =
+    modelType === "DECISION" ? decisionModels : data.playgroundModels;
   const modelsByProvider = useMemo(
-    () => getModelsByProvider(data.playgroundModels),
-    [data.playgroundModels]
+    () => getModelsByProvider(catalogModels),
+    [catalogModels]
   );
 
   const providerInfoMap = useMemo(() => {
@@ -251,25 +283,40 @@ export function useModelMenuData({
     [providersWithStatus, localCredentials]
   );
 
-  // Whether the user has explicitly set up any provider — credentials for a
-  // built-in provider or a custom provider. Zero-credential providers (e.g.
-  // Ollama) are always ready but do not count as provisioned.
+  // Whether the user has explicitly set up any chat provider — credentials
+  // for a built-in provider with chat models, or a custom provider.
+  // Zero-credential providers (e.g. Ollama) are always ready but do not
+  // count as provisioned, and configuring only a decision-only provider must
+  // not change which chat providers the picker shows.
   const hasProvisionedProvider = useMemo(
     () =>
       customProviders.length > 0 ||
-      data.modelProviders.some((provider) =>
-        isProviderProvisioned({ provider, localCredentials })
+      data.modelProviders.some(
+        (provider) =>
+          provider.modelTypes.includes("LLM") &&
+          isProviderProvisioned({ provider, localCredentials })
       ),
     [customProviders, data.modelProviders, localCredentials]
   );
 
-  // Providers to list in the picker. Once the user has provisioned a
-  // provider, only ready providers are shown; before that, fall back to the
-  // flagship providers so the picker is not empty. Fallback providers with
-  // missing server dependencies render disabled.
+  // Providers to list in the picker for the selected model type. For chat,
+  // once the user has provisioned a provider only ready chat providers are
+  // shown; before that, fall back to the flagship providers so the picker is
+  // not empty. Fallback providers with missing server dependencies render
+  // disabled.
   const visibleProviders = useMemo<ModelProviderInfo[]>(() => {
+    if (modelType === "DECISION") {
+      // Decision clients speak plain HTTP, so a provider whose chat SDK is
+      // missing can still run decisions; the server reports installation per
+      // provider, not per model type.
+      return providersWithStatus
+        .filter((provider) => provider.modelTypes.includes("DECISION"))
+        .map((provider) => ({ ...provider, dependenciesInstalled: true }));
+    }
     if (hasProvisionedProvider) {
-      return readyProviders;
+      return readyProviders.filter((provider) =>
+        provider.modelTypes.includes("LLM")
+      );
     }
     const providersByKey = new Map(
       providersWithStatus.map((provider) => [provider.key, provider])
@@ -277,7 +324,7 @@ export function useModelMenuData({
     return FALLBACK_PROVIDER_KEYS.flatMap(
       (key) => providersByKey.get(key) ?? []
     );
-  }, [hasProvisionedProvider, readyProviders, providersWithStatus]);
+  }, [hasProvisionedProvider, readyProviders, providersWithStatus, modelType]);
 
   return {
     availableBuiltinModels,

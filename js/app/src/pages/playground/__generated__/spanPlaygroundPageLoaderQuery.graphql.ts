@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<053af2d551e6387be645130bb1242fe2>>
+ * @generated SignedSource<<eb630670c278c782c2e9309e85a36c65>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type spanPlaygroundPageLoaderQuery$variables = {
   spanId: string;
 };
@@ -21,6 +22,8 @@ export type spanPlaygroundPageLoaderQuery$data = {
       readonly name: string;
     };
     readonly spanId: string;
+    readonly statusCode: SpanStatusCode;
+    readonly statusMessage: string;
     readonly trace: {
       readonly id: string;
       readonly traceId: string;
@@ -114,6 +117,20 @@ v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "statusCode",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "statusMessage",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "attributes",
   "storageKey": null
 };
@@ -140,7 +157,9 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v7/*:: as any*/)
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/)
             ],
             "type": "Span",
             "abstractKey": null
@@ -174,7 +193,9 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v7/*:: as any*/)
+              (v7/*:: as any*/),
+              (v8/*:: as any*/),
+              (v9/*:: as any*/)
             ],
             "type": "Span",
             "abstractKey": null
@@ -185,16 +206,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "db71692cacaf984e59f6ba696c00a412",
+    "cacheID": "b832b8e58ae46a1ddc9904c06285dfdb",
     "id": null,
     "metadata": {},
     "name": "spanPlaygroundPageLoaderQuery",
     "operationKind": "query",
-    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        name\n      }\n      spanId\n      trace {\n        id\n        traceId\n      }\n      attributes\n    }\n    id\n  }\n}\n"
+    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        name\n      }\n      spanId\n      trace {\n        id\n        traceId\n      }\n      statusCode\n      statusMessage\n      attributes\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9d3f9971e6c4dc88217f8c3cb56833f2";
+(node as any).hash = "c2695432ec26356e5e0e499c4ddbbbf5";
 
 export default node;

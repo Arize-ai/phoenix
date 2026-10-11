@@ -1,0 +1,224 @@
+import { css } from "@emotion/react";
+import { useRef } from "react";
+
+import {
+  Alert,
+  Button,
+  Card,
+  CardCollapsedPreview,
+  CopyToClipboardButton,
+  Flex,
+  Icon,
+  Icons,
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@phoenix/components";
+import { JSONEditor } from "@phoenix/components/code";
+import {
+  TemplateEditor,
+  TemplateEditorWrap,
+} from "@phoenix/components/templateEditor";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import type {
+  DecisionQuestionDraft,
+  DecisionRequestDraft,
+} from "@phoenix/store/playground/types";
+
+import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
+import {
+  createDecisionDraft,
+  createDecisionQuestion,
+  MAX_DECISION_QUESTIONS,
+  validateDecisionDraft,
+} from "./decisionUtils";
+import type { PlaygroundInstanceProps } from "./types";
+
+const jsonEditorCSS = css`
+  .cm-editor {
+    min-height: 75px;
+  }
+`;
+
+const questionListCSS = css`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+`;
+
+const FOOTER_MIN_HEIGHT = 32;
+
+/**
+ * One instance's decision request, laid out like a chat template: the state
+ * is one card and each question is another, so a decision column reads the
+ * same way as a prompt column beside it.
+ */
+export function DecisionRequestEditor({
+  playgroundInstanceId: instanceId,
+}: PlaygroundInstanceProps) {
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((item) => item.id === instanceId)
+  );
+  const updateDecisionRequest = usePlaygroundContext(
+    (state) => state.updateDecisionRequest
+  );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  // The state is the evidence the user supplies, so it takes the user
+  // message tint, as a chat template's user message would.
+  const stateStyles = useChatMessageStyles("user");
+  const isRunning = instance?.activeRunId != null;
+  // Deleting a question removes the focused element; focus moves here so
+  // keyboard users are not dropped to the document body.
+  const addQuestionButtonRef = useRef<HTMLButtonElement>(null);
+  const request = instance?.decisionRequest ?? createDecisionDraft();
+  const errors = validateDecisionDraft(request);
+  const revision = request.revision ?? 0;
+  const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
+
+  const update = (patch: Partial<DecisionRequestDraft>) =>
+    updateDecisionRequest({ instanceId, request: { ...request, ...patch } });
+  const updateQuestion = (
+    questionId: string,
+    patch: Partial<DecisionQuestionDraft>
+  ) =>
+    update({
+      questions: request.questions.map((question) =>
+        question.id === questionId ? { ...question, ...patch } : question
+      ),
+    });
+
+  const addQuestion = () => {
+    let suffix = request.questions.length + 1;
+    while (
+      request.questions.some(
+        (question) => question.name === `question_${suffix}`
+      )
+    ) {
+      suffix += 1;
+    }
+    update({
+      questions: [
+        ...request.questions,
+        createDecisionQuestion({ type: "noul", name: `question_${suffix}` }),
+      ],
+    });
+  };
+
+  return (
+    <Flex direction="column" gap="size-100">
+      <Card
+        collapsible
+        collapseButtonLabel="State"
+        title="State"
+        testId="decision-state"
+        {...stateStyles}
+        headerContent={
+          <CardCollapsedPreview>{request.state}</CardCollapsedPreview>
+        }
+        extra={
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <SegmentedControl
+              size="S"
+              aria-label="State format"
+              selectedKey={request.stateFormat}
+              isDisabled={isRunning}
+              onSelectionChange={(key) =>
+                update({ stateFormat: key === "json" ? "json" : "text" })
+              }
+            >
+              <SegmentedControlItem id="text" aria-label="Text">
+                Text
+              </SegmentedControlItem>
+              <SegmentedControlItem id="json" aria-label="JSON">
+                JSON
+              </SegmentedControlItem>
+            </SegmentedControl>
+            <CopyToClipboardButton
+              text={request.state}
+              aria-label="Copy state"
+            />
+          </Flex>
+        }
+      >
+        {errors.state ? (
+          <Alert variant="danger" banner>
+            {errors.state}
+          </Alert>
+        ) : null}
+        {request.stateFormat === "json" ? (
+          <div css={jsonEditorCSS}>
+            <JSONEditor
+              key={`json-${revision}`}
+              aria-label="Decision state"
+              value={request.state}
+              onChange={(state) => update({ state })}
+              readOnly={isRunning}
+            />
+          </div>
+        ) : (
+          <TemplateEditorWrap readOnly={isRunning}>
+            <TemplateEditor
+              // Uncontrolled: remount when the format toggles or a request
+              // is imported (revision).
+              key={`text-${templateFormat}-${revision}`}
+              aria-label="Decision state"
+              templateFormat={templateFormat}
+              defaultValue={request.state}
+              placeholder="The evidence the questions are asked about"
+              onChange={(state) => update({ state })}
+              readOnly={isRunning}
+            />
+          </TemplateEditorWrap>
+        )}
+      </Card>
+
+      {errors.questions ? (
+        <Alert variant="danger">{errors.questions}</Alert>
+      ) : null}
+      <ul css={questionListCSS} aria-label="Questions">
+        {request.questions.map((question, index) => (
+          <li key={question.id}>
+            <DecisionQuestionEditor
+              question={question}
+              index={index}
+              errors={errors.byQuestionId[question.id]}
+              isDisabled={isRunning}
+              canRemove={request.questions.length > 1}
+              templateFormat={templateFormat}
+              revision={revision}
+              onChange={(patch) => updateQuestion(question.id, patch)}
+              onRemove={() => {
+                update({
+                  questions: request.questions.filter(
+                    (candidate) => candidate.id !== question.id
+                  ),
+                });
+                addQuestionButtonRef.current?.focus();
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+      <Flex
+        direction="row"
+        justifyContent="end"
+        gap="size-100"
+        minHeight={FOOTER_MIN_HEIGHT}
+      >
+        <Button
+          ref={addQuestionButtonRef}
+          size="S"
+          aria-label="add question"
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
+          isDisabled={isRunning || !canAddQuestion}
+          onPress={addQuestion}
+        >
+          Question
+        </Button>
+      </Flex>
+    </Flex>
+  );
+}

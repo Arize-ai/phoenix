@@ -202,6 +202,9 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
 
   const hasExceptions = spanHasException(span);
 
+  // LLM and decision spans both carry a replayable request.
+  const canReplayInPlayground =
+    span.spanKind === "llm" || span.spanKind === "decision";
   return (
     // No fixed group id: the aside panel ref resolves its group by id, so two
     // mounted span details (the compare view) must not share one
@@ -226,9 +229,9 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               actions={
                 <>
                   <LinkButton
-                    variant={span.spanKind !== "llm" ? "default" : "primary"}
+                    variant={canReplayInPlayground ? "primary" : "default"}
                     leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                    isDisabled={span.spanKind !== "llm"}
+                    isDisabled={!canReplayInPlayground}
                     to={`/playground/spans/${span.id}`}
                     size="S"
                     aria-label="Prompt Playground"

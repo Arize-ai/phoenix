@@ -13,6 +13,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group, useDefaultLayout } from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { createReadExperimentResultsClientAction } from "@phoenix/agent/tools/experimentResults";
@@ -87,12 +88,17 @@ import {
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import {
+  Alert,
   Button,
   Flex,
   Icon,
   Icons,
   Loading,
   PageHeader,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
@@ -118,9 +124,15 @@ import {
   type AgentClientActionResult,
   waitForRegisteredClientActions,
 } from "@phoenix/store/agentStore";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import {
+  DECISION_DATASET_BLOCKED_REASON,
+  DECISION_DATASET_SELECT_DISABLED_REASON,
+  NUM_MAX_PLAYGROUND_INSTANCES,
+} from "./constants";
+import { setDecisionSearchParams } from "./decisionUtils";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -136,6 +148,7 @@ import {
   PlaygroundDatasetSection,
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
+import { PlaygroundDecisionOutput } from "./PlaygroundDecisionOutput";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -162,13 +175,19 @@ export function Playground(
     storeDatasetId: props.datasetId ?? null,
   });
 
-  const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
+  const { modelProviders, decisionModels } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
       query PlaygroundQuery {
         modelProviders {
           name
           dependenciesInstalled
           dependencies
+        }
+        decisionModels: playgroundModels(
+          input: { providerKey: null, modelType: DECISION }
+        ) {
+          name
+          providerKey
         }
       }
     `,
@@ -191,6 +210,38 @@ export function Playground(
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
+  // Decision mode is entered from the URL and resolved against the server's
+  // decision catalog, so new decision providers and models need no frontend
+  // change. URL params win when they name a cataloged provider; otherwise the
+  // first catalog entry is used. With no cataloged decision model (for example
+  // when PHOENIX_ALLOWED_PROVIDERS excludes them all) the page stays in LLM
+  // mode rather than opening a decision instance it cannot run.
+  const requestedDecisionProvider = searchParams.get("decisionProvider");
+  const requestedDecisionModel = searchParams.get("decisionModel");
+  const decisionDefault =
+    decisionModels.find(
+      (model) =>
+        model.providerKey === requestedDecisionProvider &&
+        (requestedDecisionModel == null ||
+          model.name === requestedDecisionModel)
+    ) ??
+    decisionModels.find(
+      (model) => model.providerKey === requestedDecisionProvider
+    ) ??
+    decisionModels[0] ??
+    null;
+  const decisionProvider =
+    decisionDefault && isModelProvider(decisionDefault.providerKey)
+      ? decisionDefault.providerKey
+      : null;
+  const isDecisionMode =
+    searchParams.get("modelType") === "DECISION" &&
+    !datasetId &&
+    decisionProvider != null;
+  const decisionModelName =
+    requestedDecisionProvider === decisionProvider && requestedDecisionModel
+      ? requestedDecisionModel
+      : decisionDefault?.name;
 
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
@@ -201,8 +252,13 @@ export function Playground(
       datasetId={datasetId}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
-      defaultModelProvider={defaultModelProvider}
-      defaultModelName={defaultModelName}
+      defaultModelType={isDecisionMode ? "DECISION" : "LLM"}
+      defaultModelProvider={
+        isDecisionMode && decisionProvider
+          ? decisionProvider
+          : defaultModelProvider
+      }
+      defaultModelName={isDecisionMode ? decisionModelName : defaultModelName}
     >
       <div css={playgroundWrapCSS}>
         <View borderBottomColor="default" borderBottomWidth="thin">
@@ -286,6 +342,16 @@ function PlaygroundContent() {
     return serializedSplitIds.split("\0");
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
+  const hasDecisionInstance = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.model.modelType === "DECISION")
+  );
+  const decisionInstanceIds = usePlaygroundContext(
+    useShallow((state) =>
+      state.instances
+        .filter((instance) => instance.model.modelType === "DECISION")
+        .map((instance) => instance.id)
+    )
+  );
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -702,6 +768,38 @@ function PlaygroundContent() {
     );
   }, [instancePromptParams, setSearchParams]);
 
+  // The first instance's decision target is part of the URL so a reload
+  // recreates it (see getInitialInstances). Later instances are compared in
+  // place and are not encoded, and a chat first instance clears the params.
+  const firstInstanceDecisionTarget = usePlaygroundContext(
+    (state) => {
+      const firstInstance = state.instances[0];
+      return firstInstance?.model.modelType === "DECISION"
+        ? {
+            provider: firstInstance.model.provider,
+            modelName: firstInstance.model.modelName,
+          }
+        : null;
+    },
+    (left, right) =>
+      left?.provider === right?.provider &&
+      left?.modelName === right?.modelName &&
+      (left == null) === (right == null)
+  );
+  useEffect(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        setDecisionSearchParams({
+          searchParams: next,
+          target: firstInstanceDecisionTarget,
+        });
+        return next;
+      },
+      { replace: true }
+    );
+  }, [firstInstanceDecisionTarget, setSearchParams]);
+
   // Soft block at the router level:
   // - Ephemeral experiment running: will stop on disconnect, user must stay or accept
   // - Non-ephemeral experiment running: daemon continues, but ask if user wants to stop
@@ -795,6 +893,13 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
+            {isDatasetMode && hasDecisionInstance ? (
+              <View paddingBottom="size-200">
+                <Alert variant="danger" title="Run blocked">
+                  {DECISION_DATASET_BLOCKED_REASON}
+                </Alert>
+              </View>
+            ) : null}
             <Flex direction="row" gap="size-200" maxWidth="100%">
               {instanceIds.map((instanceId) => (
                 <View
@@ -806,6 +911,12 @@ function PlaygroundContent() {
                     playgroundInstanceId={instanceId}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
+                    supportsDecisionModels
+                    decisionModelsDisabledReason={
+                      isDatasetMode
+                        ? "Decision models can't run over a dataset yet. Clear the dataset to add one."
+                        : undefined
+                    }
                   />
                 </View>
               ))}
@@ -856,7 +967,21 @@ function PlaygroundContent() {
                 headingLevel={2}
                 resizable
                 title="Inputs"
-                extra={<PlaygroundDatasetSelect />}
+                extra={
+                  hasDecisionInstance ? (
+                    <TooltipTrigger delay={0}>
+                      <TriggerWrap>
+                        <PlaygroundDatasetSelect isDisabled />
+                      </TriggerWrap>
+                      <Tooltip>
+                        <TooltipArrow />
+                        {DECISION_DATASET_SELECT_DISABLED_REASON}
+                      </Tooltip>
+                    </TooltipTrigger>
+                  ) : (
+                    <PlaygroundDatasetSelect />
+                  )
+                }
                 panelProps={{ id: "input", minSize: "10%" }}
                 onCollapseChange={(collapsed) =>
                   handleSectionCollapse(collapsed, "inputs")
@@ -881,7 +1006,13 @@ function PlaygroundContent() {
                 <Flex direction="row" gap="size-200">
                   {instanceIds.map((instanceId) => (
                     <View key={`${instanceId}-output`} flex="1 1 0px">
-                      <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      {decisionInstanceIds.includes(instanceId) ? (
+                        <PlaygroundDecisionOutput
+                          playgroundInstanceId={instanceId}
+                        />
+                      ) : (
+                        <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      )}
                     </View>
                   ))}
                 </Flex>
