@@ -13,6 +13,7 @@ from phoenix.server.api.helpers.decision_clients import (
     DecisionRequest,
     OpenAIDecisionClient,
 )
+from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -320,17 +321,97 @@ def test_decision_registry_declares_capability_credentials_and_endpoints() -> No
     assert typesafe.resolve_base_url(None) == "https://api.typesafe.ai/v1"
     assert typesafe.resolve_base_url("https://proxy.example/v1") == "https://proxy.example/v1"
     assert openai.dependencies_are_installed()
+    # The wire format tells clients which request body to render for the provider.
+    assert typesafe.wire_format is DecisionWireFormat.SYSTEM_ONE
+    assert openai.wire_format is DecisionWireFormat.OPENAI_DECISIONS
 
 
 async def test_decision_only_provider_is_listed_and_installed(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     result = await gql_client.execute(
-        "query { modelProviders { key dependenciesInstalled credentialRequirements { envVarName } } }"
+        """query {
+          modelProviders {
+            key dependenciesInstalled modelTypes decisionWireFormat
+            credentialRequirements { envVarName }
+          }
+        }"""
     )
     assert result.data and not result.errors
-    by_key = {p["key"]: p for p in result.data["modelProviders"]}
+    by_key = {provider["key"]: provider for provider in result.data["modelProviders"]}
     assert by_key["TYPESAFE"]["dependenciesInstalled"] is True
     assert by_key["TYPESAFE"]["credentialRequirements"] == [{"envVarName": "TYPESAFE_API_KEY"}]
     # Listed once even though OpenAI is in both registries.
-    assert [p["key"] for p in result.data["modelProviders"]].count("OPENAI") == 1
+    assert [provider["key"] for provider in result.data["modelProviders"]].count("OPENAI") == 1
+    # Capability and wire format come from registration, so the UI never names a provider.
+    assert by_key["TYPESAFE"]["modelTypes"] == ["DECISION"]
+    assert by_key["TYPESAFE"]["decisionWireFormat"] == "SYSTEM_ONE"
+    assert by_key["OPENAI"]["modelTypes"] == ["LLM", "DECISION"]
+    assert by_key["OPENAI"]["decisionWireFormat"] == "OPENAI_DECISIONS"
+    assert by_key["ANTHROPIC"]["modelTypes"] == ["LLM"]
+    assert by_key["ANTHROPIC"]["decisionWireFormat"] is None
+
+
+async def test_null_usage_does_not_fail_the_run(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    """Usage is optional; a provider that sends ``usage: null`` still succeeds, and the
+    span simply carries no token counts."""
+    with respx.mock:
+        respx.post("https://api.typesafe.ai/v1/systemone").respond(
+            200,
+            json={
+                "model": "jev-latest",
+                "answers": {"urgent": {"type": "noul", "noul": 0.5}},
+                "usage": None,
+            },
+        )
+        result = await gql_client.execute(
+            MUTATION,
+            variables={
+                "input": {
+                    "providerKey": "TYPESAFE",
+                    "modelName": "jev-latest",
+                    "state": "hello",
+                    "questions": {"urgent": QUESTIONS["urgent"]},
+                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}],
+                }
+            },
+        )
+    assert result.data and not result.errors
+    assert result.data["createDecision"]["error"] is None
+    assert result.data["createDecision"]["result"]["answers"]["urgent"]["noul"] == 0.5
+    async with db() as session:
+        span = await session.scalar(select(models.Span).where(models.Span.span_kind == "DECISION"))
+        assert span is not None
+        assert "token_count" not in span.attributes["decision"]
+
+
+@pytest.fixture
+def _allow_only_openai(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI")
+
+
+@pytest.mark.usefixtures("_allow_only_openai")
+async def test_provider_outside_allow_list_is_refused(gql_client: AsyncGraphQLClient) -> None:
+    """``PHOENIX_ALLOWED_PROVIDERS`` gates decision execution as well as the catalog, and
+    the refusal happens before the provider is contacted."""
+    with respx.mock(assert_all_called=False):
+        result = await gql_client.execute(
+            MUTATION,
+            variables={
+                "input": {
+                    "providerKey": "TYPESAFE",
+                    "modelName": "jev-latest",
+                    "state": "hello",
+                    "questions": QUESTIONS,
+                    "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test-key"}],
+                }
+            },
+        )
+    assert result.errors and "not permitted" in str(result.errors)
+    catalog = await gql_client.execute(
+        "query { decision: playgroundModels(input: {providerKey: null, modelType: DECISION}) { providerKey } }"
+    )
+    assert catalog.data and not catalog.errors
+    assert {model["providerKey"] for model in catalog.data["decision"]} == {"OPENAI"}

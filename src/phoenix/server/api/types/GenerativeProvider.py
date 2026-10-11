@@ -10,6 +10,8 @@ from typing_extensions import assert_never
 from phoenix.config import getenv
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
+from phoenix.server.api.types.ModelType import ModelType
 from phoenix.trace.attributes import get_attribute_value
 
 MINIMAX_MODEL_NAMES = ("MiniMax-M3", "MiniMax-M2.7")
@@ -299,6 +301,38 @@ class GenerativeProvider:
         if decision_client:
             return decision_client.dependencies_are_installed()
         return False
+
+    @strawberry.field(
+        description=(
+            "The model types this provider offers: chat (LLM) models, decision models, or both. "
+            "Derived from which clients are registered for the provider, not from its name."
+        )
+    )  # type: ignore
+    async def model_types(self) -> list[ModelType]:
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
+        from phoenix.server.api.helpers.playground_registry import (
+            provider_supports_chat_completions,
+        )
+
+        model_types: list[ModelType] = []
+        if provider_supports_chat_completions(self.key):
+            model_types.append(ModelType.LLM)
+        if DECISION_CLIENT_REGISTRY.supports_decisions(self.key):
+            model_types.append(ModelType.DECISION)
+        return model_types
+
+    @strawberry.field(
+        description=(
+            "The request body shape the provider's decision API accepts, so clients can "
+            "render or export the exact body sent. Null when the provider offers no "
+            "decision models."
+        )
+    )  # type: ignore
+    async def decision_wire_format(self) -> Optional[DecisionWireFormat]:
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
+
+        decision_client = DECISION_CLIENT_REGISTRY.get_client_class(self.key)
+        return decision_client.wire_format if decision_client else None
 
     @strawberry.field(description="The credential requirements for the provider")  # type: ignore
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:
