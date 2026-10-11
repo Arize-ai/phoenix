@@ -55,8 +55,8 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIResponsesClient,
     _get_builtin_provider_client,
     _get_custom_provider_client,
-    _resolve_provider_api_key,
     get_openai_client_class,
+    resolve_provider_api_key,
 )
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
@@ -1347,7 +1347,7 @@ class TestMiniMaxProvider:
 
 
 class TestResolveProviderApiKey:
-    """The custom-base-URL guard in ``_resolve_provider_api_key``.
+    """The custom-base-URL guard in ``resolve_provider_api_key``.
 
     A server-configured (environment variable) API key must never be sent to a
     client-supplied base URL — that would leak the credential to the
@@ -1365,7 +1365,7 @@ class TestResolveProviderApiKey:
             )
         ]
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=credentials,
                 session=session,
                 decrypt=_identity_decrypt,
@@ -1388,7 +1388,7 @@ class TestResolveProviderApiKey:
             )
             await session.commit()
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=None,
                 session=session,
                 decrypt=encryption.decrypt,
@@ -1404,7 +1404,7 @@ class TestResolveProviderApiKey:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
         async with db() as session:
             with pytest.raises(BadRequest):
-                await _resolve_provider_api_key(
+                await resolve_provider_api_key(
                     credentials=None,
                     session=session,
                     decrypt=_identity_decrypt,
@@ -1418,7 +1418,7 @@ class TestResolveProviderApiKey:
     ) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=None,
                 session=session,
                 decrypt=_identity_decrypt,
@@ -1433,7 +1433,7 @@ class TestResolveProviderApiKey:
     ) -> None:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         async with db() as session:
-            api_key = await _resolve_provider_api_key(
+            api_key = await resolve_provider_api_key(
                 credentials=None,
                 session=session,
                 decrypt=_identity_decrypt,

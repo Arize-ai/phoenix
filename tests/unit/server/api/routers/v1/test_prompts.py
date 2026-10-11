@@ -139,6 +139,33 @@ class TestPrompts:
         assert response.status_code == 422
         assert "TypeSafe" in response.text
 
+    async def test_rest_rejects_invocation_parameters_for_another_provider(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """`POST /v1/prompts` applies the same provider versus invocation-parameter
+        check as the versions endpoint, for every provider."""
+        response = await httpx_client.post(
+            "v1/prompts",
+            json={
+                "prompt": {"name": f"mismatch-{token_hex(4)}"},
+                "version": {
+                    "description": "probe",
+                    "model_provider": "ANTHROPIC",
+                    "model_name": "claude-sonnet-4-5",
+                    "template": {
+                        "type": "chat",
+                        "messages": [{"role": "user", "content": "hi"}],
+                    },
+                    "template_type": "CHAT",
+                    "template_format": "MUSTACHE",
+                    "invocation_parameters": {"type": "openai", "openai": {}},
+                },
+            },
+        )
+        assert response.status_code == 422
+        assert "does not match" in response.text
+
     async def test_get_latest_prompt_version(
         self,
         httpx_client: httpx.AsyncClient,

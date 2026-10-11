@@ -4,9 +4,10 @@ Decision models are a second model type alongside chat (LLM) models. A provider 
 offer either or both: OpenAI serves ``gpt-6-luna`` through both its chat and its
 Decisions APIs, while TypeSafe serves decision models only. The registry below is the
 single source of truth for which providers and models support decision execution, and
-each client class declares how it reaches its provider: the API shape (``system``), the
-endpoint path, the default base URL and its environment override, and the credential
-it authenticates with. Nothing outside this module should special-case a provider.
+each client class declares how it reaches its provider: the API shape (``system`` and
+``wire_format``), the endpoint path, the default base URL and its environment override,
+and the credential it authenticates with. Nothing outside this module should
+special-case a provider.
 """
 
 import asyncio
@@ -23,10 +24,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import getenv
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.playground_clients import _resolve_provider_api_key
-from phoenix.server.api.helpers.playground_registry import SingletonMeta
+from phoenix.server.api.helpers.playground_clients import resolve_provider_api_key
+from phoenix.server.api.helpers.playground_registry import (
+    SingletonMeta,
+    filter_allowed_providers,
+)
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.trace.decision import DecisionAttributes
 from phoenix.tracers import Tracer
 
 Description = str | dict[str, Any] | list[Any]
@@ -94,6 +100,7 @@ class DecisionClient(ABC):
 
     provider_key: ClassVar[GenerativeProviderKey]
     system: ClassVar[str]
+    wire_format: ClassVar[DecisionWireFormat]
     path: ClassVar[str]
     default_base_url: ClassVar[str]
     base_url_env_var: ClassVar[str]
@@ -154,10 +161,10 @@ class DecisionClient(ABC):
             context=OtelContext(),
             attributes={
                 SpanAttributes.OPENINFERENCE_SPAN_KIND: "DECISION",
-                "decision.system": self.system,
-                "decision.provider": self.system,
-                "decision.model_name": self.model_name,
-                "decision.request.model_name": self.model_name,
+                DecisionAttributes.SYSTEM: self.system,
+                DecisionAttributes.PROVIDER: self.system,
+                DecisionAttributes.MODEL_NAME: self.model_name,
+                DecisionAttributes.REQUEST_MODEL_NAME: self.model_name,
                 SpanAttributes.INPUT_MIME_TYPE: "application/json",
                 SpanAttributes.INPUT_VALUE: json.dumps(body, ensure_ascii=False),
             },
@@ -181,7 +188,9 @@ class DecisionClient(ABC):
                 if set(answers) != set(request.questions):
                     raise ValueError("Provider did not return one answer per question")
                 span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
-                span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
+                span.set_attribute(
+                    SpanAttributes.OUTPUT_VALUE, json.dumps(result, ensure_ascii=False)
+                )
                 # Providers resolve aliases such as ``jev-latest`` to a versioned model.
                 # Per the decision span convention, ``decision.model_name`` is the model
                 # that answered when the provider reports it, else the requested one.
@@ -191,13 +200,18 @@ class DecisionClient(ABC):
                     if isinstance(response_model, str) and response_model.strip()
                     else self.model_name
                 )
-                span.set_attribute("decision.response.model_name", resolved_model)
-                span.set_attribute("decision.model_name", resolved_model)
-                usage = result.get("usage", {})
-                for direction in ("input", "output"):
-                    count = usage.get(f"{direction}_tokens")
-                    if isinstance(count, int) and count >= 0:
-                        span.set_attribute(f"decision.token_count.{direction}", count)
+                span.set_attribute(DecisionAttributes.RESPONSE_MODEL_NAME, resolved_model)
+                span.set_attribute(DecisionAttributes.MODEL_NAME, resolved_model)
+                # Usage is optional, and a provider may send it as null.
+                usage = result.get("usage")
+                if isinstance(usage, dict):
+                    for key, attribute in (
+                        ("input_tokens", DecisionAttributes.TOKEN_COUNT_INPUT),
+                        ("output_tokens", DecisionAttributes.TOKEN_COUNT_OUTPUT),
+                    ):
+                        count = usage.get(key)
+                        if isinstance(count, int) and count >= 0:
+                            span.set_attribute(attribute, count)
                 span.set_status(Status(StatusCode.OK))
                 return {**result, "answers": answers}
             except asyncio.CancelledError:
@@ -227,11 +241,11 @@ class DecisionClientRegistry(metaclass=SingletonMeta):
 
     def register(
         self,
-        provider_key: GenerativeProviderKey,
-        model_names: Sequence[str],
         client_class: type[DecisionClient],
+        model_names: Sequence[str],
     ) -> None:
-        client_class.provider_key = provider_key
+        """Bind ``client_class`` to the provider it declares and add its models."""
+        provider_key = client_class.provider_key
         self._clients[provider_key] = client_class
         models = self._models.setdefault(provider_key, [])
         for model_name in model_names:
@@ -254,10 +268,7 @@ class DecisionClientRegistry(metaclass=SingletonMeta):
     ) -> list[GenerativeProviderKey]:
         """The registered decision providers this deployment permits (see
         ``PHOENIX_ALLOWED_PROVIDERS``)."""
-        providers = self.list_all_providers()
-        if allowed_provider_names is None:
-            return providers
-        return [p for p in providers if p.name in allowed_provider_names]
+        return filter_allowed_providers(self.list_all_providers(), allowed_provider_names)
 
     def list_models(self, provider_key: GenerativeProviderKey) -> list[str]:
         return list(self._models.get(provider_key, []))
@@ -274,27 +285,25 @@ DECISION_CLIENT_REGISTRY: DecisionClientRegistry = DecisionClientRegistry()
 
 
 def register_decision_client(
-    provider_key: GenerativeProviderKey,
     model_names: Sequence[str],
 ) -> Callable[[type[DecisionClient]], type[DecisionClient]]:
-    """Add a provider's decision models to the catalog and bind their client."""
+    """Add a client's decision models to the catalog under the provider it declares."""
 
     def decorator(cls: type[DecisionClient]) -> type[DecisionClient]:
-        DECISION_CLIENT_REGISTRY.register(provider_key, model_names, cls)
+        DECISION_CLIENT_REGISTRY.register(cls, model_names)
         return cls
 
     return decorator
 
 
-@register_decision_client(
-    provider_key=GenerativeProviderKey.TYPESAFE,
-    model_names=["jev-latest", "jev-1.13.0", "jev-preview"],
-)
+@register_decision_client(model_names=["jev-latest", "jev-1.13.0", "jev-preview"])
 class TypeSafeDecisionClient(DecisionClient):
     """TypeSafe System One. Any System One-compatible host (OpenRouter, a LiteLLM
     proxy, self-hosted vLLM Decision models) works through ``TYPESAFE_BASE_URL``."""
 
+    provider_key = GenerativeProviderKey.TYPESAFE
     system = "typesafe"
+    wire_format = DecisionWireFormat.SYSTEM_ONE
     path = "systemone"
     default_base_url = "https://api.typesafe.ai/v1"
     base_url_env_var = "TYPESAFE_BASE_URL"
@@ -311,14 +320,13 @@ class TypeSafeDecisionClient(DecisionClient):
         return answers
 
 
-@register_decision_client(
-    provider_key=GenerativeProviderKey.OPENAI,
-    model_names=["gpt-6-luna"],
-)
+@register_decision_client(model_names=["gpt-6-luna"])
 class OpenAIDecisionClient(DecisionClient):
     """OpenAI Decisions API. Shares OpenAI's credential and base URL with chat."""
 
+    provider_key = GenerativeProviderKey.OPENAI
     system = "openai"
+    wire_format = DecisionWireFormat.OPENAI_DECISIONS
     path = "decisions"
     default_base_url = "https://api.openai.com/v1"
     base_url_env_var = "OPENAI_BASE_URL"
@@ -376,7 +384,7 @@ async def get_decision_client(
 
     The credential name, default endpoint, and endpoint override all come from the
     client class, so adding a provider is one registered subclass. The server-key
-    endpoint guard in ``_resolve_provider_api_key`` still applies: a server-configured
+    endpoint guard in ``resolve_provider_api_key`` still applies: a server-configured
     key is never sent to a caller-supplied base URL.
     """
     client_class = DECISION_CLIENT_REGISTRY.get_client_class(provider)
@@ -389,7 +397,7 @@ async def get_decision_client(
         if url.scheme not in ("http", "https") or not url.host or url.userinfo:
             raise BadRequest("Base URL must be an HTTP(S) URL without embedded credentials.")
     env_var_name = client_class.credential_env_var()
-    api_key = await _resolve_provider_api_key(
+    api_key = await resolve_provider_api_key(
         credentials=credentials,
         session=session,
         decrypt=decrypt,

@@ -4,16 +4,14 @@ from typing import Any, Optional
 
 import strawberry
 from pydantic import ValidationError
-from sqlalchemy import select
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
-from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, get_decision_client
+from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Span import Span
@@ -31,16 +29,40 @@ class CreateDecisionInput:
     credentials: Optional[list[GenerativeCredentialInput]] = None
 
 
-@strawberry.type
+@strawberry.type(
+    description=(
+        "Outcome of one decision run. Problems found before the provider is called "
+        "(invalid questions, a provider the server does not permit, missing credentials) "
+        "fail the mutation with a GraphQL error. Once the provider has been called, a "
+        "failure is returned in `error` so the traced `span` is still available."
+    )
+)
 class CreateDecisionPayload:
-    result: Optional[JSON] = None
-    span: Optional[Span] = None
-    error: Optional[str] = None
+    result: Optional[JSON] = strawberry.field(
+        default=None,
+        description=(
+            "The provider response with `answers` keyed by question name; null when `error` is set."
+        ),
+    )
+    span: Optional[Span] = strawberry.field(
+        default=None,
+        description="The DECISION span recorded for the provider call, successful or not.",
+    )
+    error: Optional[str] = strawberry.field(
+        default=None,
+        description="Why the provider call failed; null on success.",
+    )
 
 
 @strawberry.type
 class DecisionMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Run a decision model over `state` with named `questions` and record the "
+            "call as a DECISION span in the playground project."
+        ),
+    )  # type: ignore
     async def create_decision(
         self, info: Info[Context, None], input: CreateDecisionInput
     ) -> CreateDecisionPayload:
@@ -68,16 +90,7 @@ class DecisionMutationMixin:
                 session=session,
                 decrypt=info.context.decrypt,
             )
-            project = await session.scalar(
-                select(models.Project).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
-            )
-            if project is None:
-                project = models.Project(
-                    name=PLAYGROUND_PROJECT_NAME, description="Traces from playground"
-                )
-                session.add(project)
-                await session.flush()
-            project_id = project.id
+            project_id = await get_or_create_playground_project_id(session)
         tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
         result: Any = None
         error_message: str | None = None

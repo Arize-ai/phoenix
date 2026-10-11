@@ -275,7 +275,7 @@ dev: ## Full dev environment (backend + frontend with hot reload)
 
 dev-backend: ## Backend only (FastAPI server)
 	@echo -e "$(CYAN)Starting backend server...$(NC)"
-	$(UV) run phoenix serve --debug $(ARGS)
+	$(UV) run phoenix serve --debug
 
 dev-decision-fixture: ## Local mock System One provider for decision playground verification
 	$(UV) run python scripts/dev/decision_provider_fixture.py
@@ -294,9 +294,6 @@ test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
 	@$(TOX) run -q -e integration_tests
 
-test-python-unit: ## Run targeted Python unit tests (ARGS="path/to/test.py")
-	@$(UV) run pytest $(ARGS)
-
 # Run doctests across all modules under src/ by default; override on the command
 # line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
 DOCTEST_MODULES ?= src/phoenix
@@ -308,7 +305,7 @@ doctest: ## Run doctests across all modules in src/ (override with MODULES=...)
 
 test-frontend: ## Run frontend tests (js/app/)
 	@echo -e "$(CYAN)Running frontend tests...$(NC)"
-	@cd $(APP_DIR) && $(PNPM) test $(ARGS)
+	@cd $(APP_DIR) && $(PNPM) test
 
 test-ts: ## Run all TypeScript tests (js/ workspace, including the app)
 	@echo -e "$(CYAN)Running TypeScript tests...$(NC)"

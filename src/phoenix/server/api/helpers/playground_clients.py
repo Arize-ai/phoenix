@@ -3185,7 +3185,7 @@ def _get_credential_from_input(
     )
 
 
-async def _resolve_provider_api_key(
+async def resolve_provider_api_key(
     *,
     credentials: Sequence[GenerativeCredentialInput] | None,
     session: AsyncSession,
@@ -3347,7 +3347,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3594,7 +3594,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3635,7 +3635,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3707,7 +3707,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3747,7 +3747,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3789,7 +3789,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3829,7 +3829,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3869,7 +3869,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3909,7 +3909,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3949,7 +3949,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -3989,7 +3989,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,
@@ -4029,7 +4029,7 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = await _resolve_provider_api_key(
+        api_key = await resolve_provider_api_key(
             credentials=credentials,
             session=session,
             decrypt=decrypt,

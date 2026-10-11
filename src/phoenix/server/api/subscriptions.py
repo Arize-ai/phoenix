@@ -20,7 +20,6 @@ from sqlalchemy import func as sa_func
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
@@ -40,6 +39,7 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
     initialize_playground_clients,
 )
+from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -212,20 +212,7 @@ class Subscription:
                 connection=connection,
                 headers=headers,
             )
-            if (
-                playground_project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
-                )
-            ) is None:
-                playground_project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
-                    )
-                )
-            assert playground_project_id is not None
+            playground_project_id = await get_or_create_playground_project_id(session)
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
