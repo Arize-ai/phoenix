@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix는 실험, 평가, 문제 해결을 위해 설계된 Arize의 오�
 - [**_플레이그라운드_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- 프롬프트를 최적화하고, 모델을 비교하고, 파라미터를 조정하고, 트레이싱된 LLM 호출을 재실행합니다.
 - [**_프롬프트 관리_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- 버전 관리, 태깅, 실험을 통해 프롬프트 변경 사항을 체계적으로 관리하고 테스트합니다.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - 트레이스 디버깅, 프롬프트 반복 개선, 제품 탐색을 위해 Phoenix에 내장된 AI 엔지니어링 에이전트입니다.
-- [**_원격 MCP 서버_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Claude Code, Cursor 및 기타 MCP 클라이언트를 Phoenix 인스턴스의 `/mcp` 엔드포인트에 직접 연결하여 트레이스, 데이터셋, 실험 등을 조회할 수 있습니다.
+- [**_원격 MCP 서버_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Claude Code, Cursor 및 기타 MCP 클라이언트를 Phoenix 인스턴스의 `/mcp` 엔드포인트에 직접 연결하여 트레이스, 데이터셋, 실험 등을 조회할 수 있습니다.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Docker Compose, Kubernetes/Helm 및 기타 배포 옵션은 [자체 호스팅 �
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Phoenix에 맞춘 기본값을 갖춘 OpenTelemetry 프리미티브용 경량 래퍼를 제공합니다 |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API용 클라이언트 |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | LLM 애플리케이션을 위한 TypeScript 평가 라이브러리(알파 릴리스) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 구버전 Phoenix를 위한 독립형 stdio MCP 서버(유지 관리 모드 — Phoenix에 내장된 [원격 MCP 서버](https://arize.com/docs/phoenix/integrations/remote-mcp)로 대체됨) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 구버전 Phoenix를 위한 독립형 stdio MCP 서버(유지 관리 모드 — Phoenix에 내장된 [원격 MCP 서버](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)로 대체됨) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code, Cursor 및 기타 코딩 에이전트에서 사용할 트레이스, 데이터셋, 실험을 가져오는 CLI |
 
 ## 트레이싱 통합
@@ -269,7 +269,7 @@ Phoenix는 사람과 AI 코딩 에이전트 모두가 똑같이 활용할 수 �
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli`는 트레이스, 데이터셋, 실험을 가져오고 앱을 계측(`setup`)하므로, 에이전트가 터미널에서 컨텍스트를 가져와 이를 바탕으로 작업할 수 있습니다.
 - **[스킬](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/)는 Phoenix로 디버깅, 평가, 트레이싱하는 방법을 에이전트에게 알려 주는 워크플로를 패키지로 제공합니다.
-- **[원격 MCP 서버](https://arize.com/docs/phoenix/integrations/remote-mcp)** — 모든 MCP 클라이언트를 인스턴스의 `/mcp` 엔드포인트에 연결하여 Phoenix를 직접 조회할 수 있습니다.
+- **[원격 MCP 서버](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 모든 MCP 클라이언트를 인스턴스의 `/mcp` 엔드포인트에 연결하여 Phoenix를 직접 조회할 수 있습니다.
 
 설정 및 사용 방법은 [코딩 에이전트 문서](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents)를 참고하세요.
 

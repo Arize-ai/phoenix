@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix je open-source platforma společnosti Arize pro pozorovatelnost (o
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimalizujte prompty, porovnávejte modely, upravujte parametry a znovu přehrávejte trasovaná volání LLM.
 - [**_Správa promptů_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Spravujte a testujte změny promptů systematicky pomocí správy verzí, štítků a experimentování.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - AI inženýrský agent zabudovaný přímo do Phoenixu pro ladění tras, iterování nad prompty a navigaci v produktu.
-- [**_Vzdálený MCP server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Připojte Claude Code, Cursor a další MCP klienty přímo k endpointu `/mcp` vaší instance Phoenix a dotazujte se na trasy, datové sady, experimenty a další.
+- [**_Vzdálený MCP server_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Připojte Claude Code, Cursor a další MCP klienty přímo k endpointu `/mcp` vaší instance Phoenix a dotazujte se na trasy, datové sady, experimenty a další.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Balíček `arize-phoenix` obsahuje celou platformu Phoenix. Pokud však již pla
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Poskytuje odlehčenou obálku nad primitivy OpenTelemetry s výchozím nastavením pro Phoenix |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Klient pro API Arize Phoenix |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Evaluační knihovna v TypeScriptu pro LLM aplikace (alfa verze) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Samostatný stdio MCP server pro starší verze Phoenixu (režim údržby — nahrazen [vzdáleným MCP serverem](https://arize.com/docs/phoenix/integrations/remote-mcp) zabudovaným do Phoenixu) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Samostatný stdio MCP server pro starší verze Phoenixu (režim údržby — nahrazen [vzdáleným MCP serverem](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) zabudovaným do Phoenixu) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI pro načítání tras, datových sad a experimentů pro použití s Claude Code, Cursor a dalšími kódovacími agenty |
 
 ## Integrace pro trasování
@@ -269,7 +269,7 @@ Phoenix je navržen tak, aby jej mohli ovládat lidé i AI kódovací agenti. T�
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` načítá trasy, datové sady a experimenty a instrumentuje vaši aplikaci (`setup`), takže agent může z terminálu získat kontext a pracovat s ním.
 - **[Dovednosti (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) obsahuje pracovní postupy, které agenty učí, jak s Phoenixem ladit, evaluovat a trasovat.
-- **[Vzdálený MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — připojte libovolného MCP klienta k endpointu `/mcp` vaší instance a dotazujte se přímo na Phoenix.
+- **[Vzdálený MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — připojte libovolného MCP klienta k endpointu `/mcp` vaší instance a dotazujte se přímo na Phoenix.
 
 Nastavení a použití popisuje [dokumentace pro kódovací agenty](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).
 
