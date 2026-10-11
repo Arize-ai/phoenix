@@ -940,6 +940,55 @@ input CreateDatasetSplitWithExamplesInput {
   exampleIds: [ID!]!
 }
 
+"""
+A decision request: the state the questions are asked about, and the named questions. Each question is an object with `type`, `instructions`, and `criteria`. `choice` takes `criteria` as an object of 2 to 255 option values to optional descriptions and answers with one option plus probabilities; `noul` is a yes/no predicate with optional `criteria` `{true, false}` descriptions and answers with a probability; `score` takes `criteria` as an ordered list of 2 to 10 level descriptions and answers with a position on that scale. One to 255 questions.
+"""
+input CreateDecisionInput {
+  """
+  The provider whose decision API runs the request; it must offer decision models.
+  """
+  providerKey: GenerativeProviderKey!
+
+  """The decision model to run, for example `jev-latest`."""
+  modelName: String!
+
+  """
+  The evidence the questions are asked about: a string, object, or array.
+  """
+  state: JSON!
+
+  """
+  Questions keyed by the name their answer is returned under; see the input description for the shape of each type.
+  """
+  questions: JSON!
+
+  """
+  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  """
+  baseUrl: String = null
+
+  """
+  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+}
+
+"""
+Outcome of one decision run. Problems found before the provider is called (invalid questions, a provider the server does not permit, missing credentials) fail the mutation with a GraphQL error. Once the provider has been called, a failure is returned in `error` so the traced `span` is still available.
+"""
+type CreateDecisionPayload {
+  """
+  The provider response with `answers` keyed by question name; null when `error` is set.
+  """
+  result: JSON
+
+  """The DECISION span recorded for the provider call, successful or not."""
+  span: Span
+
+  """Why the provider call failed; null on success."""
+  error: String
+}
+
 input CreateDocumentAnnotationInput {
   spanId: ID!
   documentPosition: Int!
@@ -1489,6 +1538,14 @@ input DaytonaDeploymentInput {
 type DbTableStats {
   tableName: String!
   numBytes: Float!
+}
+
+"""
+The request body shape a provider's decision API accepts. SYSTEM_ONE is the TypeSafe System One body (`state` and named `questions`); OPENAI_DECISIONS is the OpenAI Decisions API body (`input` and a `questions` array).
+"""
+enum DecisionWireFormat {
+  SYSTEM_ONE
+  OPENAI_DECISIONS
 }
 
 type DecryptedSecret {
@@ -2474,6 +2531,16 @@ type GenerativeProvider {
   dependencies: [String!]!
   dependenciesInstalled: Boolean!
 
+  """
+  The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients are registered for the provider, not from its name.
+  """
+  modelTypes: [ModelType!]!
+
+  """
+  The request body shape the provider's decision API accepts, so clients can render or export the exact body sent. Null when the provider offers no decision models.
+  """
+  decisionWireFormat: DecisionWireFormat
+
   """The credential requirements for the provider"""
   credentialRequirements: [GenerativeProviderCredentialConfig!]!
 
@@ -2504,6 +2571,7 @@ enum GenerativeProviderKey {
   TOGETHER
   ZAI
   META
+  TYPESAFE
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2655,12 +2723,25 @@ enum ModelProvider {
   TOGETHER
   ZAI
   META
+  TYPESAFE
+}
+
+"""The kind of model a playground instance runs."""
+enum ModelType {
+  """Chat completion models that generate text from messages."""
+  LLM
+
+  """
+  Decision models that answer typed questions (choice, noul, score) about a state and return probabilities rather than text.
+  """
+  DECISION
 }
 
 input ModelsInput {
-  providerKey: GenerativeProviderKey
+  providerKey: GenerativeProviderKey = null
   modelName: String = null
   openaiApiType: OpenAIApiType = null
+  modelType: ModelType! = LLM
 }
 
 input MontyConfigInput {
@@ -2703,6 +2784,11 @@ type Mutation {
   """
   setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+
+  """
+  Run a decision model over `state` with named `questions` and record the call as a DECISION span in the playground project.
+  """
+  createDecision(input: CreateDecisionInput!): CreateDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
@@ -3045,6 +3131,7 @@ input PlaygroundEvaluatorInput {
 type PlaygroundModel implements ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey!
+  modelType: ModelType!
 }
 
 type Project implements Node {

@@ -40,6 +40,7 @@ from phoenix.db.types.prompts import (
     ToolResultContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.playground_registry import require_chat_provider
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (
     PromptInvocationParametersInput,
 )
@@ -51,6 +52,12 @@ InvocationFamily = Literal["openai", "anthropic", "google", "aws"]
 
 
 def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
+    # Prompts are chat templates. Providers with no chat models (decision-only
+    # providers) are rejected by capability, not by name.
+    require_chat_provider(GenerativeProviderKey.from_model_provider(provider))
+    if provider is ModelProvider.TYPESAFE:
+        # Decision-only; unreachable after the guard above, kept for exhaustiveness.
+        raise AssertionError("decision-only provider reached invocation-family lookup")
     if provider is ModelProvider.ANTHROPIC:
         return "anthropic"
     if provider is ModelProvider.GOOGLE:

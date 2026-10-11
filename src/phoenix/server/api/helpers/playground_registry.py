@@ -20,6 +20,24 @@ class SingletonMeta(type):
         return cls._instances[cls]
 
 
+def filter_allowed_providers(
+    provider_keys: Sequence[GenerativeProviderKey],
+    allowed_provider_names: Optional[frozenset[str]],
+) -> list[GenerativeProviderKey]:
+    """Narrow ``provider_keys`` to the ``PHOENIX_ALLOWED_PROVIDERS`` allow-list.
+
+    ``None`` means unrestricted, while an empty set permits nothing. Shared by the
+    chat and decision registries so both apply the allow-list the same way.
+    """
+    if allowed_provider_names is None:
+        return list(provider_keys)
+    return [
+        provider_key
+        for provider_key in provider_keys
+        if provider_key.name in allowed_provider_names
+    ]
+
+
 class PlaygroundClientRegistry(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self._registry: dict[
@@ -46,19 +64,9 @@ class PlaygroundClientRegistry(metaclass=SingletonMeta):
         self,
         allowed_provider_names: Optional[frozenset[str]],
     ) -> list[GenerativeProviderKey]:
-        """The registered providers this deployment permits.
-
-        ``allowed_provider_names`` is the ``PHOENIX_ALLOWED_PROVIDERS`` allow-list;
-        ``None`` means unrestricted, while an empty set permits nothing.
-        """
-        provider_keys = self.list_all_providers()
-        if allowed_provider_names is None:
-            return provider_keys
-        return [
-            provider_key
-            for provider_key in provider_keys
-            if provider_key.name in allowed_provider_names
-        ]
+        """The registered providers this deployment permits (see
+        ``PHOENIX_ALLOWED_PROVIDERS``)."""
+        return filter_allowed_providers(self.list_all_providers(), allowed_provider_names)
 
     def list_models(self, provider_key: GenerativeProviderKey) -> list[str]:
         provider_registry = self._registry.get(provider_key, {})
@@ -73,6 +81,31 @@ class PlaygroundClientRegistry(metaclass=SingletonMeta):
 
 
 PLAYGROUND_CLIENT_REGISTRY: PlaygroundClientRegistry = PlaygroundClientRegistry()
+
+
+def provider_supports_chat_completions(provider_key: GenerativeProviderKey) -> bool:
+    """Whether any chat (LLM) client is registered for the provider.
+
+    Capability is derived from registration, not from the provider's identity: a
+    provider registered only as a decision client (see ``decision_clients``) has no
+    chat capability, while one registered in both places (OpenAI) has both.
+    """
+    # Registration happens when the client modules are imported; make sure they are.
+    import phoenix.server.api.helpers.playground_clients  # noqa: F401
+
+    return provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+
+
+def require_chat_provider(provider_key: GenerativeProviderKey) -> None:
+    """Reject providers with no chat models on chat-only paths (prompts, agents,
+    chat playground). Raises ``BadRequest`` with a provider-agnostic message."""
+    from phoenix.server.api.exceptions import BadRequest
+
+    if not provider_supports_chat_completions(provider_key):
+        raise BadRequest(
+            f"{provider_key.value} offers decision models only and cannot be used for "
+            "chat completions. Choose a chat model provider, or run it as a decision model."
+        )
 
 
 def register_llm_client(

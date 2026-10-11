@@ -10,6 +10,8 @@ from typing_extensions import assert_never
 from phoenix.config import getenv
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
+from phoenix.server.api.types.ModelType import ModelType
 from phoenix.trace.attributes import get_attribute_value
 
 MINIMAX_MODEL_NAMES = ("MiniMax-M3", "MiniMax-M2.7")
@@ -34,6 +36,7 @@ class GenerativeProviderKey(Enum):
     TOGETHER = "Together"
     ZAI = "Z.ai"
     META = "Meta"
+    TYPESAFE = "TypeSafe"
 
     @classmethod
     def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
@@ -73,6 +76,8 @@ class GenerativeProviderKey(Enum):
             return cls.ZAI
         elif model_provider is ModelProvider.META:
             return cls.META
+        elif model_provider is ModelProvider.TYPESAFE:
+            return cls.TYPESAFE
         assert_never(model_provider)
 
     def to_model_provider(self) -> "ModelProvider":
@@ -110,6 +115,8 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.ZAI
         if self is GenerativeProviderKey.META:
             return ModelProvider.META
+        if self is GenerativeProviderKey.TYPESAFE:
+            return ModelProvider.TYPESAFE
         assert_never(self)
 
 
@@ -136,6 +143,7 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         # OpenInference semconv has no `meta` provider value yet; ship a plain
         # string literal until an upstream semconv PR lands.
         GenerativeProviderKey.META: "meta",
+        GenerativeProviderKey.TYPESAFE: "typesafe",
     }
 )
 
@@ -181,6 +189,7 @@ class GenerativeProvider:
         GenerativeProviderKey.TOGETHER: [],
         GenerativeProviderKey.ZAI: ["glm"],
         GenerativeProviderKey.META: ["muse"],
+        GenerativeProviderKey.TYPESAFE: ["jev"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -252,6 +261,9 @@ class GenerativeProvider:
         GenerativeProviderKey.META: [
             GenerativeProviderCredentialConfig(env_var_name="META_API_KEY", is_required=True)
         ],
+        GenerativeProviderKey.TYPESAFE: [
+            GenerativeProviderCredentialConfig(env_var_name="TYPESAFE_API_KEY", is_required=True)
+        ],
         GenerativeProviderKey.AWS: [
             GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),
             GenerativeProviderCredentialConfig(
@@ -275,6 +287,7 @@ class GenerativeProvider:
 
     @strawberry.field
     async def dependencies_installed(self) -> bool:
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
         from phoenix.server.api.helpers.playground_registry import (
             PLAYGROUND_CLIENT_REGISTRY,
             PROVIDER_DEFAULT,
@@ -283,7 +296,43 @@ class GenerativeProvider:
         default_client = PLAYGROUND_CLIENT_REGISTRY.get_client(self.key, PROVIDER_DEFAULT)
         if default_client:
             return default_client.dependencies_are_installed()
+        # Decision-only providers: their client declares its own dependency check.
+        decision_client = DECISION_CLIENT_REGISTRY.get_client_class(self.key)
+        if decision_client:
+            return decision_client.dependencies_are_installed()
         return False
+
+    @strawberry.field(
+        description=(
+            "The model types this provider offers: chat (LLM) models, decision models, or both. "
+            "Derived from which clients are registered for the provider, not from its name."
+        )
+    )  # type: ignore
+    async def model_types(self) -> list[ModelType]:
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
+        from phoenix.server.api.helpers.playground_registry import (
+            provider_supports_chat_completions,
+        )
+
+        model_types: list[ModelType] = []
+        if provider_supports_chat_completions(self.key):
+            model_types.append(ModelType.LLM)
+        if DECISION_CLIENT_REGISTRY.supports_decisions(self.key):
+            model_types.append(ModelType.DECISION)
+        return model_types
+
+    @strawberry.field(
+        description=(
+            "The request body shape the provider's decision API accepts, so clients can "
+            "render or export the exact body sent. Null when the provider offers no "
+            "decision models."
+        )
+    )  # type: ignore
+    async def decision_wire_format(self) -> Optional[DecisionWireFormat]:
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
+
+        decision_client = DECISION_CLIENT_REGISTRY.get_client_class(self.key)
+        return decision_client.wire_format if decision_client else None
 
     @strawberry.field(description="The credential requirements for the provider")  # type: ignore
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:

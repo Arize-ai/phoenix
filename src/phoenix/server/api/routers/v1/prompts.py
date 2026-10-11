@@ -486,6 +486,13 @@ async def create_prompt(
                       or any other validation error occurs.
     """
     _require_chat_template(request_body.version)
+    try:
+        validate_invocation_parameters_match_provider(
+            model_provider=request_body.version.model_provider,
+            invocation_parameters=request_body.version.invocation_parameters,
+        )
+    except BadRequest as e:
+        raise HTTPException(422, str(e))
     prompt = request_body.prompt
     try:
         name = Identifier.model_validate(prompt.name)

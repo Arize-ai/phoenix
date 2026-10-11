@@ -47,6 +47,7 @@ from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.classification_evaluator_configs import (
     get_classification_evaluator_configs,
 )
+from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
@@ -100,6 +101,7 @@ from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
 )
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.ModelType import ModelType
 from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
@@ -163,9 +165,10 @@ initialize_playground_clients()
 
 @strawberry.input
 class ModelsInput:
-    provider_key: Optional[GenerativeProviderKey]
+    provider_key: Optional[GenerativeProviderKey] = None
     model_name: Optional[str] = None
     openai_api_type: Optional[OpenAIApiType] = None
+    model_type: ModelType = ModelType.LLM
 
 
 @strawberry.type
@@ -227,9 +230,16 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
+        # A provider is listed if it offers models of either type; decision-only
+        # providers come from the decision registry.
         available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
             info.context.allowed_provider_names
         )
+        for provider_key in DECISION_CLIENT_REGISTRY.list_allowed_providers(
+            info.context.allowed_provider_names
+        ):
+            if provider_key not in available_providers:
+                available_providers.append(provider_key)
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -354,7 +364,23 @@ class Query:
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
-    async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
+    async def playground_models(
+        self, info: Info[Context, None], input: Optional[ModelsInput] = None
+    ) -> list[PlaygroundModel]:
+        if input is not None and input.model_type is ModelType.DECISION:
+            allowed = DECISION_CLIENT_REGISTRY.list_allowed_providers(
+                info.context.allowed_provider_names
+            )
+            return [
+                PlaygroundModel(
+                    name_value=model_name,
+                    provider_key_value=provider_key,
+                    model_type=ModelType.DECISION,
+                )
+                for provider_key, model_name in DECISION_CLIENT_REGISTRY.list_all_models()
+                if provider_key in allowed
+                if input.provider_key is None or input.provider_key is provider_key
+            ]
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
