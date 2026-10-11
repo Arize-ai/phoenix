@@ -421,7 +421,7 @@ fi</pre>
       <rect class="sat" x="1166" y="154" width="188" height="22" rx="6"/><text class="sub" style="font-size:11px;fill:var(--text)" x="1178" y="169">STEP 2 · TOOL CALL</text>
       <rect class="sat" x="1166" y="182" width="188" height="22" rx="6"/><text class="sub" style="font-size:11px;fill:var(--text)" x="1178" y="197">STEP 3 · OBSERVATION</text>
       <rect x="0" y="262" width="1376" height="56" rx="28" style="fill:var(--primary)"/>
-      <text x="688" y="296" text-anchor="middle" class="code-t" style="font-size:19px;font-weight:500;fill:rgba(255,255,255,.72)">harbor run -d tasks/ -a claude-code -k 3 <tspan style="fill:#F2C94C">--plugin arize-phoenix</tspan></text>
+      <text x="688" y="296" text-anchor="middle" class="code-t" style="font-size:19px;font-weight:500;fill:rgba(255,255,255,.72)">harbor run --dataset tasks/ --agent claude-code -k 3 <tspan style="fill:#F2C94C">--plugin arize-phoenix</tspan></text>
       <text x="1344" y="295" class="sub" text-anchor="end" style="fill:rgba(255,255,255,.72)">ATIF → OPENINFERENCE</text>
       <rect x="22" y="496" width="188" height="14" rx="3" stroke="none" style="fill:var(--ground)"/><rect x="22" y="496" width="14" height="14" rx="3" fill="rgba(7,116,113,.35)"/>
       <rect x="22" y="514" width="188" height="14" rx="3" stroke="none" style="fill:var(--ground)"/><rect x="22" y="514" width="14" height="14" rx="3" fill="rgba(7,116,113,.35)"/>
@@ -541,7 +541,7 @@ fi</pre>
 <section class="slide closing" data-title="Close">
   <svg class="mark" viewBox="0 0 305.92 350.13" style="width:72px" aria-hidden="true"><use href="#phoenix"/></svg>
   <h1 style="font-size:112px">Questions?</h1>
-  <div class="close-cmd"><code>harbor run -d tasks/ -a claude-code -k 3 --plugin arize-phoenix</code><span>github.com/Arize-ai/phoenix</span></div>
+  <div class="close-cmd"><code>harbor run --dataset tasks/ --agent claude-code -k 3 --plugin arize-phoenix</code><span>github.com/Arize-ai/phoenix</span></div>
 </section>
 
 
