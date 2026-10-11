@@ -54,6 +54,7 @@ def _inserter(db: DbSessionFactory, *spans: Span, **kwargs: Any) -> BulkInserter
         total_tokens=10,
     )
     kwargs.setdefault("retry_delay_sec", 0)
+    kwargs.setdefault("span_retry_delay_sec", 0)
     return BulkInserter(
         db,
         event_queue=SimpleQueue[DmlEvent](),
@@ -126,7 +127,12 @@ async def test_worker_waits_for_span_retry_but_processes_other_ready_work(
     annotation_queue = MagicMock(empty=True)
     annotation_queue.insert = AsyncMock(return_value=[])
     inserter = _inserter(
-        db, _span("first"), max_ops_per_transaction=1, retry_delay_sec=10, max_spans_queue_size=2
+        db,
+        _span("first"),
+        max_ops_per_transaction=1,
+        span_retry_delay_sec=10,
+        span_retry_max_delay_sec=10,
+        max_spans_queue_size=2,
     )
 
     async def insert(
@@ -284,15 +290,14 @@ async def test_sqlite_waiting_writer_runs_between_span_batches(
     [OSError("connection refused"), DBAPIError(None, None, _PostgresError("57P03"))],
     ids=["connection-refused", "database-recovering"],
 )
-@pytest.mark.parametrize("outcome", ["recovery", "exhaustion"])
-async def test_connection_acquisition_failure_retains_batch_and_honors_retry_limit(
+async def test_connection_acquisition_failure_holds_batch_past_retry_limit(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     error: Exception,
-    outcome: str,
 ) -> None:
     connection_attempts = 0
+    outage_attempts = 3
 
     async def unavailable_connection() -> Any:
         nonlocal connection_attempts
@@ -306,7 +311,7 @@ async def test_connection_acquisition_failure_retains_batch_and_honors_retry_lim
 
     @asynccontextmanager
     async def transaction() -> AsyncIterator[AsyncSession]:
-        factory = _db(unavailable_engine) if len(sessions) < 2 else db
+        factory = _db(unavailable_engine) if len(sessions) < outage_attempts else db
         async with factory() as session:
             sessions.append(session)
             yield session
@@ -317,16 +322,16 @@ async def test_connection_acquisition_failure_retains_batch_and_honors_retry_lim
     monkeypatch.setattr(bulk_inserter, "SPAN_INGESTION_FAILED_SPANS", failures)
     monkeypatch.setattr(bulk_inserter, "SPAN_INGESTION_UNRESOLVED_SPANS", unresolved)
     monkeypatch.setattr(bulk_inserter, "SPAN_INGESTION_LAST_SUCCESS", progress)
-    allowance = 2 if outcome == "recovery" else 1
+    # Connection failures precede every write, so they never consume this allowance.
     inserter = _inserter(
         DbSessionFactory(transaction, db.dialect.name_literal),
         _span("first"),
         _span("second"),
-        retry_allowance=allowance,
+        span_retry_allowance=1,
         max_spans_queue_size=2,
     )
     try:
-        for attempt in (1, 2):
+        for attempt in range(1, outage_attempts + 1):
             await inserter._insert_spans(2)
             assert connection_attempts == attempt
             inserts.assert_not_awaited()
@@ -334,34 +339,23 @@ async def test_connection_acquisition_failure_retains_batch_and_honors_retry_lim
             assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
             unresolved.inc.assert_not_called()
             progress.set.assert_not_called()
-            if attempt <= allowance:
-                assert [span.name for span, _ in inserter._span_batch] == ["first", "second"]
-                assert inserter.is_full and inserter._span_retry_attempts == attempt
-                failures.labels.assert_not_called()
-        assert sessions[0] is not sessions[1]
+            failures.labels.assert_not_called()
+            assert [span.name for span, _ in inserter._span_batch] == ["first", "second"]
+            assert inserter.is_full and inserter._span_retry_attempts == attempt
+            assert inserter._span_limited_retries == 0
+        assert len(set(map(id, sessions))) == outage_attempts
         assert "phase=connect" in caplog.text
         assert "Span insertion failed after savepoint rollback" not in caplog.text
-        if outcome == "exhaustion":
-            assert not inserter._span_batch and not inserter.is_full
-            assert inserter._span_retry_attempts == 0 and inserter._span_retry_at == 0
-            failures.labels.assert_called_once_with(reason="retry_exhausted")
-            failures.labels.return_value.inc.assert_called_once_with(2)
-            await inserter._enqueue_span(_span("later"), "project")
         await inserter._insert_spans(2)
         assert not inserter._span_batch and not inserter.is_full
-        assert connection_attempts == 2
+        assert inserter._span_retry_attempts == 0 and inserter._span_retry_at == 0
+        assert connection_attempts == outage_attempts
         progress.set.assert_called_once()
-        expected = {"first", "second"} if outcome == "recovery" else {"later"}
+        failures.labels.assert_not_called()
         async with db() as session:
-            assert set(await session.scalars(select(models.Span.span_id))) == expected
-            assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == len(
-                expected
-            )
-        assert cast(MagicMock, inserter._span_cost_calculator).calculate_cost.call_count == len(
-            expected
-        )
-        if outcome == "recovery":
-            failures.labels.assert_not_called()
+            assert set(await session.scalars(select(models.Span.span_id))) == {"first", "second"}
+            assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 2
+        assert cast(MagicMock, inserter._span_cost_calculator).calculate_cost.call_count == 2
     finally:
         await unavailable_engine.dispose()
 
@@ -1374,6 +1368,81 @@ async def test_legacy_pgcode_field_can_retry_known_rollbacks(
         assert await session.scalar(select(func.count()).select_from(models.Span)) == 1
 
 
+async def _replay_delays(
+    inserter: BulkInserter, monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> tuple[list[float], int]:
+    """Fail every attempt with the error and record each scheduled replay delay."""
+    clock = [0.0]
+    calls = 0
+
+    async def fail(
+        session: AsyncSession, span: Span, project_name: str
+    ) -> SpanInsertionEvent | None:
+        nonlocal calls
+        calls += 1
+        raise error
+
+    monkeypatch.setattr(bulk_inserter, "perf_counter", lambda: clock[0])
+    monkeypatch.setattr(bulk_inserter, "uniform", lambda *_: 1.0)
+    monkeypatch.setattr(bulk_inserter, "insert_span", fail)
+    delays: list[float] = []
+    while True:
+        await inserter._insert_spans(1)
+        if not inserter._span_batch:
+            return delays, calls
+        delays.append(round(inserter._span_retry_at - clock[0], 6))
+        clock[0] = inserter._span_retry_at
+
+
+async def test_default_span_replays_back_off_from_a_short_delay_then_release(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    failures = MagicMock()
+    monkeypatch.setattr(bulk_inserter, "SPAN_INGESTION_FAILED_SPANS", failures)
+    calculator = MagicMock()
+    inserter = BulkInserter(
+        db,
+        event_queue=SimpleQueue[DmlEvent](),
+        span_cost_calculator=calculator,
+        initial_batch_of_spans=[(_span("span"), "project")],
+    )
+    delays, calls = await _replay_delays(
+        inserter, monkeypatch, DBAPIError("deadlock", {}, _PostgresError("40P01"))
+    )
+    # A deadlock pauses ingestion briefly rather than for the annotation retry delay.
+    assert delays == [0.1, 0.2, 0.4, 0.8, 1.6]
+    assert calls == 6
+    failures.labels.assert_called_once_with(reason="retry_exhausted")
+    failures.labels.return_value.inc.assert_called_once_with(1)
+    calculator.calculate_cost.assert_not_called()
+
+
+async def test_connection_lost_mid_batch_is_limited_and_replay_delay_is_capped(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    failures = MagicMock()
+    monkeypatch.setattr(bulk_inserter, "SPAN_INGESTION_FAILED_SPANS", failures)
+    inserter = _inserter(
+        db,
+        _span("span"),
+        span_retry_delay_sec=0.1,
+        span_retry_max_delay_sec=0.3,
+        span_retry_allowance=4,
+    )
+    # The batch may have caused the disconnect, so it must not be replayed forever.
+    error = DBAPIError("lost", {}, _PostgresError("08006"), connection_invalidated=True)
+    delays, calls = await _replay_delays(inserter, monkeypatch, error)
+    assert delays == [0.1, 0.2, 0.3, 0.3]
+    assert calls == 5
+    assert inserter._span_retry_attempts == inserter._span_limited_retries == 0
+    failures.labels.assert_called_once_with(reason="retry_exhausted")
+    monkeypatch.setattr(bulk_inserter, "insert_span", insert_span)
+    await inserter._enqueue_span(_span("later"), "project")
+    await inserter._insert_spans(1)
+    async with db() as session:
+        assert set(await session.scalars(select(models.Span.span_id))) == {"later"}
+
+
 async def test_retry_exhaustion_releases_batch_and_capacity_and_later_work_proceeds(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -1390,7 +1459,7 @@ async def test_retry_exhaustion_releases_batch_and_capacity_and_later_work_proce
         return await insert_span(session, span, project_name)
 
     monkeypatch.setattr(bulk_inserter, "insert_span", fail)
-    inserter = _inserter(db, _span("span"), retry_allowance=1, max_spans_queue_size=1)
+    inserter = _inserter(db, _span("span"), span_retry_allowance=1, max_spans_queue_size=1)
     failures = MagicMock()
     monkeypatch.setattr(bulk_inserter, "SPAN_INGESTION_FAILED_SPANS", failures)
     for _ in range(3):

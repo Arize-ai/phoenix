@@ -86,6 +86,9 @@ class BulkInserter:
         max_spans_queue_size: Optional[int] = None,
         retry_delay_sec: float = DEFAULT_RETRY_DELAY_SEC,
         retry_allowance: int = DEFAULT_RETRY_ALLOWANCE,
+        span_retry_delay_sec: float = 0.1,
+        span_retry_max_delay_sec: float = 5.0,
+        span_retry_allowance: int = 5,
     ) -> None:
         """
         :param db: A function to initiate a new database session.
@@ -94,6 +97,15 @@ class BulkInserter:
         :param max_ops_per_transaction: The maximum number of spans or queued operations
         to dequeue for each transaction.
         :param max_queue_size: The maximum length of the operations queue.
+        :param retry_delay_sec: The delay before retrying annotations whose targets are missing.
+        :param retry_allowance: The number of retries for annotations whose targets are missing.
+        :param span_retry_delay_sec: The initial delay before replaying a span batch. It
+        doubles with each consecutive failure, with jitter.
+        :param span_retry_max_delay_sec: The maximum delay between span batch replays.
+        :param span_retry_allowance: The number of replays after a deadlock, serialization
+        failure, or connection lost mid-batch, any of which the batch itself may cause.
+        Failures to connect precede all writes, so they are retried without limit and
+        hold the batch until the database is reachable.
         """
         self._db = db
         self._running = False
@@ -105,7 +117,11 @@ class BulkInserter:
         self._spans: deque[tuple[Span, ProjectName]] = deque(initial_batch_of_spans)
         self._span_batch: list[tuple[Span, ProjectName]] = []
         self._span_retry_attempts = 0
+        self._span_limited_retries = 0
         self._span_retry_at = 0.0
+        self._span_retry_delay_sec = max(0.0, span_retry_delay_sec)
+        self._span_retry_max_delay_sec = max(0.0, span_retry_max_delay_sec)
+        self._span_retry_allowance = span_retry_allowance
         self._task: Optional[asyncio.Task[None]] = None
         self._event_queue = event_queue
         self._retry_delay_sec = retry_delay_sec
@@ -278,9 +294,20 @@ class BulkInserter:
                 )
             )
             sqlstate = get_sqlstate(error) if isinstance(error, DBAPIError) else None
-            if retryable and self._span_retry_attempts < self._retry_allowance:
+            # A failure to connect cannot be caused by the batch, so it never exhausts.
+            limited = phase != "connect"
+            if retryable and (
+                not limited or self._span_limited_retries < self._span_retry_allowance
+            ):
                 self._span_retry_attempts += 1
-                delay = max(0.0, self._retry_delay_sec) * uniform(0.5, 1.5)
+                if limited:
+                    self._span_limited_retries += 1
+                delay = min(
+                    self._span_retry_max_delay_sec,
+                    self._span_retry_delay_sec
+                    * 2 ** min(self._span_retry_attempts - 1, 32)
+                    * uniform(0.5, 1.5),
+                )
                 self._span_retry_at = perf_counter() + delay
                 logger.warning(
                     "Span transaction failed before commit or confirmed rollback; retaining "
@@ -315,10 +342,12 @@ class BulkInserter:
                 )
                 self._span_batch.clear()
                 self._span_retry_attempts = 0
+                self._span_limited_retries = 0
                 self._span_retry_at = 0.0
             return
         self._span_batch.clear()
         self._span_retry_attempts = 0
+        self._span_limited_retries = 0
         self._span_retry_at = 0.0
         if failed_spans:
             SPAN_INGESTION_FAILED_SPANS.labels(reason="span_error").inc(failed_spans)
