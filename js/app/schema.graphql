@@ -940,12 +940,36 @@ input CreateDatasetSplitWithExamplesInput {
   exampleIds: [ID!]!
 }
 
+"""
+A decision request: the state the questions are asked about, and the named questions. Each question is an object with `type`, `instructions`, and `criteria`. `choice` takes `criteria` as an object of 2 to 255 option values to optional descriptions and answers with one option plus probabilities; `noul` is a yes/no predicate with optional `criteria` `{true, false}` descriptions and answers with a probability; `score` takes `criteria` as an ordered list of 2 to 10 level descriptions and answers with a position on that scale. One to 255 questions.
+"""
 input CreateDecisionInput {
+  """
+  The provider whose decision API runs the request; it must offer decision models.
+  """
   providerKey: GenerativeProviderKey!
+
+  """The decision model to run, for example `jev-latest`."""
   modelName: String!
+
+  """
+  The evidence the questions are asked about: a string, object, or array.
+  """
   state: JSON!
+
+  """
+  Questions keyed by the name their answer is returned under; see the input description for the shape of each type.
+  """
   questions: JSON!
+
+  """
+  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  """
   baseUrl: String = null
+
+  """
+  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
+  """
   credentials: [GenerativeCredentialInput!] = null
 }
 
@@ -2702,13 +2726,19 @@ enum ModelProvider {
   TYPESAFE
 }
 
+"""The kind of model a playground instance runs."""
 enum ModelType {
+  """Chat completion models that generate text from messages."""
   LLM
+
+  """
+  Decision models that answer typed questions (choice, noul, score) about a state and return probabilities rather than text.
+  """
   DECISION
 }
 
 input ModelsInput {
-  providerKey: GenerativeProviderKey
+  providerKey: GenerativeProviderKey = null
   modelName: String = null
   openaiApiType: OpenAIApiType = null
   modelType: ModelType! = LLM

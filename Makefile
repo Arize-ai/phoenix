@@ -74,6 +74,7 @@ help: ## Show this help message
 	@echo -e "  dev-frontend           - Frontend only (React dev server)"
 	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
 	@echo -e "  dev-mock-llm           - Start the mock LLM server"
+	@echo -e "  dev-decision-fixture   - Start the local System One decision fixture"
 	@echo -e ""
 	@echo -e "$(GREEN)Testing:$(NC)"
 	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + TypeScript workspace)"

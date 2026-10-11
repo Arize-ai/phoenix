@@ -83,7 +83,11 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_TELEMETRY\_ENABLED:** Toggle for telemetry (enabled by default). Set to `false` if you want to disable all analytics tracking. Only basic web analytics are collected (e.g., page views, UI interactions). No trace data or sensitive information is ever collected.
 
-* **PHOENIX\_ALLOWED\_PROVIDERS:** A comma-separated, case-insensitive list of model provider names to display in the playground UI. When unset, all providers are shown. Set to `NONE` to hide all providers. Unrecognized provider names will cause a startup error. Supported values: `OPENAI`, `ANTHROPIC`, `AZURE_OPENAI`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS`, `CEREBRAS`, `FIREWORKS`, `GROQ`, `MOONSHOT`, `MINIMAX`, `PERPLEXITY`, `TOGETHER`, `ZAI`, `META`. Example: `PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC`. Available since version 13.13.0.
+* **PHOENIX\_ALLOWED\_PROVIDERS:** A comma-separated, case-insensitive list of model provider names to display in the playground UI. When unset, all providers are shown. Set to `NONE` to hide all providers. Unrecognized provider names will cause a startup error. Supported values: `OPENAI`, `ANTHROPIC`, `AZURE_OPENAI`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS`, `CEREBRAS`, `FIREWORKS`, `GROQ`, `MOONSHOT`, `MINIMAX`, `PERPLEXITY`, `TOGETHER`, `ZAI`, `META`, `TYPESAFE`. Example: `PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC`. Available since version 13.13.0. The allow-list also decides which providers decision runs in the playground accept.
+
+* **TYPESAFE\_API\_KEY:** API key for [TypeSafe](https://typesafe.ai) decision models (System One), used by the playground's decision mode. Like other provider keys it can instead be stored as a [secret](/docs/phoenix/settings/secrets) or entered in the browser.
+
+* **TYPESAFE\_BASE\_URL:** Base URL of the TypeSafe-compatible decision endpoint. Defaults to `https://api.typesafe.ai/v1`; point it at any System One-compatible host. OpenAI decision models reuse `OPENAI_API_KEY` and `OPENAI_BASE_URL`.
 
 * **PHOENIX\_ENABLE\_MCP\_SERVER:** Whether to mount the built-in [remote MCP server](/docs/phoenix/integrations/remote-mcp) (currently in beta) at `/mcp`. Defaults to `true`. Set to `false` to remove the endpoint entirely.
 
