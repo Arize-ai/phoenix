@@ -411,7 +411,6 @@ async def test_sqlite_production_batch_is_atomic_and_releases_connection(
                 2 if outcome == "commit" else 0
             )
         if outcome != "commit":
-            cast(MagicMock, inserter._span_cost_calculator).calculate_cost.assert_not_called()
             assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
         later = _inserter(production_db, _span("later"))
         await asyncio.wait_for(later._insert_spans(1), timeout=10)
@@ -478,7 +477,7 @@ async def test_retry_whole_transaction_after_rollback(
         if record.name == bulk_inserter.__name__
     )
     calculator = cast(MagicMock, inserter._span_cost_calculator)
-    calculator.calculate_cost.assert_not_called()
+    assert calculator.calculate_cost.call_count == 2
     assert len(inserter._span_batch) == 2
     assert inserter.is_full
     assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
@@ -487,7 +486,8 @@ async def test_retry_whole_transaction_after_rollback(
         assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 0
     # Pending work is retried even when the waiting queue is empty.
     await inserter._insert_spans(0)
-    assert calculator.calculate_cost.call_count == 2
+    # Costs are recalculated for the replay and commit with its spans.
+    assert calculator.calculate_cost.call_count == 4
     assert sessions[0] is not sessions[1]
     assert not inserter._span_batch
     assert not inserter.is_full
@@ -502,48 +502,38 @@ async def test_retry_whole_transaction_after_rollback(
     assert not cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
 
 
-async def test_cost_calculation_waits_for_confirmed_span_commit(db: DbSessionFactory) -> None:
-    ready_to_commit = asyncio.Event()
-    allow_commit = asyncio.Event()
-    commit_confirmed = asyncio.Event()
+async def test_costs_are_calculated_before_span_writes_and_commit_with_spans(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
     transactions_started = 0
+    writes: list[str] = []
 
     @asynccontextmanager
     async def transaction() -> AsyncIterator[AsyncSession]:
         nonlocal transactions_started
         transactions_started += 1
-        transaction_number = transactions_started
         async with db() as session:
             yield session
-            if transaction_number == 1:
-                ready_to_commit.set()
-                await allow_commit.wait()
-        if transaction_number == 1:
-            commit_confirmed.set()
+
+    async def insert(
+        session: AsyncSession, span: Span, project_name: str
+    ) -> SpanInsertionEvent | None:
+        writes.append(span.name)
+        return await insert_span(session, span, project_name)
 
     inserter = _inserter(DbSessionFactory(transaction, db.dialect.name_literal), _span("span"))
     calculator = cast(MagicMock, inserter._span_cost_calculator)
 
     def calculate(start_time: datetime, _: Mapping[str, Any]) -> models.SpanCost:
-        assert commit_confirmed.is_set()
-        assert transactions_started == 1
+        # No locks are held while costs are calculated.
+        assert transactions_started == 1 and not writes
         return models.SpanCost(span_start_time=start_time, total_cost=1.0, total_tokens=10)
 
     calculator.calculate_cost.side_effect = calculate
-    task = asyncio.create_task(inserter._insert_spans(1))
-    try:
-        await asyncio.wait_for(ready_to_commit.wait(), timeout=10)
-        calculator.calculate_cost.assert_not_called()
-        assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
-        allow_commit.set()
-        await asyncio.wait_for(task, timeout=10)
-    finally:
-        allow_commit.set()
-        if not task.done():
-            task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+    monkeypatch.setattr(bulk_inserter, "insert_span", insert)
+    await inserter._insert_spans(1)
     calculator.calculate_cost.assert_called_once()
-    assert transactions_started == 2
+    assert transactions_started == 1
     async with db() as session:
         saved_span = (await session.scalars(select(models.Span))).one()
         saved_cost = (await session.scalars(select(models.SpanCost))).one()
@@ -583,7 +573,8 @@ async def test_cost_calculation_failure_preserves_spans_and_neighbor_costs(
 
     calculator.calculate_cost.side_effect = calculate
     await inserter._insert_spans(5)
-    assert calculator.calculate_cost.call_count == 3
+    # The duplicate is calculated too; its cost is dropped when its insert is skipped.
+    assert calculator.calculate_cost.call_count == 4
     assert not inserter._span_batch
     assert inserter._span_retry_attempts == 0
     async with db() as session:
@@ -596,7 +587,9 @@ async def test_cost_calculation_failure_preserves_spans_and_neighbor_costs(
     assert not cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
 
 
-async def test_cost_save_failure_does_not_retry_committed_spans(db: DbSessionFactory) -> None:
+async def test_rejected_cost_keeps_its_span_and_sibling_costs(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     transactions_started = 0
 
     @asynccontextmanager
@@ -605,20 +598,110 @@ async def test_cost_save_failure_does_not_retry_committed_spans(db: DbSessionFac
         transactions_started += 1
         async with db() as session:
             yield session
-            if transactions_started == 2:
-                raise RuntimeError("cost transaction failed")
 
-    inserter = _inserter(DbSessionFactory(transaction, db.dialect.name_literal), _span("span"))
-    await inserter._insert_spans(1)
+    failures = MagicMock()
+    monkeypatch.setattr(bulk_inserter, "SPAN_INGESTION_FAILED_SPANS", failures)
+    bad = _span("bad")
+    bad = replace(bad, attributes={**bad.attributes, "llm": {"model_name": "rejected-model"}})
+    inserter = _inserter(
+        DbSessionFactory(transaction, db.dialect.name_literal), _span("first"), bad, _span("last")
+    )
+    calculator = cast(MagicMock, inserter._span_cost_calculator)
+
+    def calculate(start_time: datetime, attributes: Mapping[str, Any]) -> models.SpanCost:
+        cost = models.SpanCost(span_start_time=start_time, total_cost=1.0, total_tokens=10)
+        cost.append_detail(
+            models.SpanCostDetail(token_type="input", is_prompt=True, cost=0.5, tokens=7)
+        )
+        if attributes["llm"]["model_name"] == "rejected-model":
+            # The database rejects the missing token type when the cost is saved.
+            cost.append_detail(models.SpanCostDetail(token_type=None, is_prompt=True))
+        return cost
+
+    calculator.calculate_cost.side_effect = calculate
+    await inserter._insert_spans(3)
+    assert transactions_started == 1
+    assert not inserter._span_batch and inserter._span_retry_attempts == 0
+    failures.labels.assert_not_called()
+    assert "Span cost insertion failed after savepoint rollback: span_id=bad " in caplog.text
+    # Each cost is recalculated for its own savepoint after the batch savepoint fails.
+    assert calculator.calculate_cost.call_count == 6
+    async with db() as session:
+        saved = {span.span_id: span for span in await session.scalars(select(models.Span))}
+        assert set(saved) == {"first", "bad", "last"}
+        assert set(await session.scalars(select(models.SpanCost.span_rowid))) == {
+            saved["first"].id,
+            saved["last"].id,
+        }
+        details = list(
+            await session.execute(
+                select(models.SpanCost.span_rowid, models.SpanCostDetail.tokens).join(
+                    models.SpanCostDetail
+                )
+            )
+        )
+        assert set(details) == {(saved["first"].id, 7), (saved["last"].id, 7)}
+    assert not cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
+
+
+@pytest.mark.parametrize("sqlstate", ["40P01", "40001", "08006"])
+async def test_cost_flush_failure_replays_spans_and_fresh_cost_details(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, sqlstate: str
+) -> None:
+    inserter = _inserter(db, _span("first"), _span("last"))
+    calculated: list[models.SpanCost] = []
+    calculator = cast(MagicMock, inserter._span_cost_calculator)
+
+    def calculate(start_time: datetime, _: Mapping[str, Any]) -> models.SpanCost:
+        cost = models.SpanCost(span_start_time=start_time)
+        cost.append_detail(
+            models.SpanCostDetail(token_type="input", is_prompt=True, cost=0.5, tokens=7)
+        )
+        calculated.append(cost)
+        return cost
+
+    calculator.calculate_cost.side_effect = calculate
+    original_flush = AsyncSession.flush
+    failed = False
+
+    async def flush(session: AsyncSession, *args: Any, **kwargs: Any) -> None:
+        nonlocal failed
+        saving_costs = any(isinstance(item, models.SpanCost) for item in session.new)
+        await original_flush(session, *args, **kwargs)
+        if saving_costs and not failed:
+            failed = True
+            raise DBAPIError(
+                "cost flush failed",
+                {},
+                _PostgresError(sqlstate),
+                connection_invalidated=sqlstate == "08006",
+            )
+
+    monkeypatch.setattr(AsyncSession, "flush", flush)
+    await inserter._insert_spans(2)
+    assert failed and len(inserter._span_batch) == 2
+    assert inserter._span_limited_retries == 1
+    assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
+    async with db() as session:
+        for model in (models.Span, models.SpanCost, models.SpanCostDetail):
+            assert await session.scalar(select(func.count()).select_from(model)) == 0
+
     await inserter._insert_spans(0)
-    assert transactions_started == 2
-    cast(MagicMock, inserter._span_cost_calculator).calculate_cost.assert_called_once()
-    assert not inserter._span_batch
-    assert inserter._span_retry_attempts == 0
+    assert not inserter._span_batch and inserter._span_limited_retries == 0
+    assert len(calculated) == len({id(cost) for cost in calculated}) == 4
     assert not cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
     async with db() as session:
-        assert await session.scalar(select(func.count()).select_from(models.Span)) == 1
-        assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 0
+        saved = {span.span_id: span for span in await session.scalars(select(models.Span))}
+        assert set(saved) == {"first", "last"}
+        details = list(
+            await session.execute(
+                select(models.SpanCost.span_rowid, models.SpanCostDetail.tokens).join(
+                    models.SpanCostDetail
+                )
+            )
+        )
+        assert set(details) == {(saved["first"].id, 7), (saved["last"].id, 7)}
+        assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 2
 
 
 async def test_unknown_commit_outcome_is_released_without_replay_and_later_work_proceeds(
@@ -650,20 +733,20 @@ async def test_unknown_commit_outcome_is_released_without_replay_and_later_work_
         for record in caplog.records
         if record.name == bulk_inserter.__name__
     )
-    cast(MagicMock, inserter._span_cost_calculator).calculate_cost.assert_not_called()
     assert not inserter._span_batch and not inserter.is_full
     unresolved.inc.assert_called_once_with(1)
     progress.set.assert_not_called()
     assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
     async with db() as session:
-        saved = await session.scalar(select(models.Span))
-        assert saved is not None
-        await session.delete(saved)
+        # The commit landed, and its cost landed with it.
+        assert await session.scalar(select(func.count()).select_from(models.Span)) == 1
+        assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 1
+        await session.execute(delete(models.Span))
     await inserter._insert_spans(1)
     assert calls == 1
     await inserter._enqueue_span(_span("later"), "project")
     await inserter._insert_spans(1)
-    assert calls == 3  # New span transaction and its separate cost transaction.
+    assert calls == 2  # Costs commit in the span transaction.
     unresolved.inc.assert_called_once_with(1)
     progress.set.assert_called_once()
     async with db() as session:
@@ -742,9 +825,9 @@ async def test_savepoint_cleanup_failure_aborts_batch_without_reusing_session(
     failures.labels.assert_called_once_with(reason="transaction_error")
     failures.labels.return_value.inc.assert_called_once_with(3)
     unresolved.inc.assert_not_called()
-    cast(MagicMock, inserter._span_cost_calculator).calculate_cost.assert_not_called()
     async with db() as session:
         assert await session.scalar(select(func.count()).select_from(models.Span)) == 0
+        assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 0
     monkeypatch.setattr(AsyncSessionTransaction, cleanup, original_cleanup)
     await inserter._enqueue_span(_span("later"), "project")
     await inserter._insert_spans(1)
@@ -801,7 +884,6 @@ async def test_actual_precommit_disconnect_retries_whole_batch_with_fresh_sessio
     await inserter._insert_spans(2)
     assert len(disconnects) == 1 and len(inserter._span_batch) == 2
     assert inserter.is_full and inserter._span_retry_attempts == 1
-    cast(MagicMock, inserter._span_cost_calculator).calculate_cost.assert_not_called()
     failures.labels.assert_not_called()
     unresolved.inc.assert_not_called()
     progress.set.assert_not_called()
@@ -1021,7 +1103,7 @@ async def test_invalid_span_does_not_block_valid_neighbors(
     invalid = replace(invalid, attributes={**invalid.attributes, **attributes})
     inserter = _inserter(db, _span("first"), invalid, _span("last"), _span("first"))
     await inserter._insert_spans(4)
-    assert cast(MagicMock, inserter._span_cost_calculator).calculate_cost.call_count == 2
+    assert cast(MagicMock, inserter._span_cost_calculator).calculate_cost.call_count == 4
     assert not inserter._span_batch and not inserter._spans
     async with db() as session:
         assert set(await session.scalars(select(models.Span.span_id))) == {"first", "last"}
@@ -1075,9 +1157,7 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
     cast(MagicMock, inserter._span_cost_calculator).calculate_cost.assert_any_call(
         _START, _span("first").attributes
     )
-    assert cast(MagicMock, inserter._span_cost_calculator).calculate_cost.call_count == (
-        2 if rejected else 3
-    )
+    assert cast(MagicMock, inserter._span_cost_calculator).calculate_cost.call_count == 3
     async with db() as session:
         saved = {span.span_id: span for span in await session.scalars(select(models.Span))}
         expected = {"first", "last"} | ({"root"} if existing_trace else set())
@@ -1414,7 +1494,7 @@ async def test_default_span_replays_back_off_from_a_short_delay_then_release(
     assert calls == 6
     failures.labels.assert_called_once_with(reason="retry_exhausted")
     failures.labels.return_value.inc.assert_called_once_with(1)
-    calculator.calculate_cost.assert_not_called()
+    assert calculator.calculate_cost.call_count == calls  # Recalculated for each attempt.
 
 
 async def test_connection_lost_mid_batch_is_limited_and_replay_delay_is_capped(

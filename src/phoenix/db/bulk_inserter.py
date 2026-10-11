@@ -5,9 +5,10 @@ from collections import deque
 from functools import singledispatchmethod
 from random import uniform
 from time import perf_counter, time
-from typing import Any, AsyncIterator, Awaitable, Callable, Iterable, Optional, cast
+from typing import Any, AsyncIterator, Awaitable, Callable, Iterable, NamedTuple, Optional, cast
 
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
@@ -70,6 +71,45 @@ def _span_error_locations(error: BaseException) -> str:
 
 
 ProjectName: TypeAlias = str
+
+
+class _InsertedSpan(NamedTuple):
+    span: Span
+    result: SpanInsertionEvent
+    cost: Optional[models.SpanCost]
+
+
+def _with_rowids(cost: models.SpanCost, result: SpanInsertionEvent) -> models.SpanCost:
+    cost.span_rowid = result.span_rowid
+    cost.trace_rowid = result.trace_rowid
+    return cost
+
+
+def _error_fields(error: Exception) -> tuple[str, Optional[str], str]:
+    sqlstate = get_sqlstate(error) if isinstance(error, DBAPIError) else None
+    return type(error).__name__, sqlstate, _span_error_locations(error)
+
+
+async def _save_span_costs(
+    session: AsyncSession, costs: list[models.SpanCost]
+) -> Optional[Exception]:
+    """Save costs in a savepoint, returning the error if the database rejected them."""
+    savepoint = await session.begin_nested()
+    try:
+        session.add_all(costs)
+        await session.flush()
+    except Exception as error:
+        if _is_retryable_span_error(error) or (
+            isinstance(error, DBAPIError) and error.connection_invalidated
+        ):
+            raise
+        # As with spans, never continue on a connection whose rollback failed.
+        await savepoint.rollback()
+        if not session.is_active:
+            raise
+        return error
+    await savepoint.commit()
+    return None
 
 
 class BulkInserter:
@@ -234,7 +274,7 @@ class BulkInserter:
         if not self._span_batch:
             return
         project_ids = set()
-        inserted_spans: list[tuple[Span, SpanInsertionEvent]] = []
+        inserted_spans: list[_InsertedSpan] = []
         failed_spans = 0
         commit_may_have_started = False
         phase = "connect"
@@ -243,7 +283,10 @@ class BulkInserter:
             async with self._db() as session:
                 # Checkout failures precede all span writes and are safe to retry.
                 await session.connection()
-                for span, project_name in self._span_batch:
+                # Calculated before any write so no locks are held meanwhile. Fresh on each
+                # attempt: an instance from a rolled-back flush may keep that attempt's ids.
+                costs = [self._calculate_span_cost(span) for span, _ in self._span_batch]
+                for (span, project_name), cost in zip(self._span_batch, costs):
                     result: Optional[SpanInsertionEvent] = None
                     phase = "begin_savepoint"
                     savepoint = await session.begin_nested()
@@ -278,7 +321,10 @@ class BulkInserter:
                     if result is None:
                         continue
                     project_ids.add(result.project_rowid)
-                    inserted_spans.append((span, result))
+                    inserted_spans.append(_InsertedSpan(span, result, cost))
+                # Costs commit with their spans, so a replayed batch replays its costs.
+                phase = "insert_costs"
+                await self._insert_span_costs(session, inserted_spans)
                 # Errors while exiting the context may have occurred after COMMIT was
                 # sent. Only a database-confirmed rollback is safe to replay then.
                 commit_may_have_started = True
@@ -332,7 +378,7 @@ class BulkInserter:
                     "Releasing %s spans without replay: outcome=%s error_type=%s sqlstate=%s "
                     "phase=%s locations=%s. "
                     "Later batches can proceed; these accepted spans may be missing, or an "
-                    "unresolved commit may have saved them without costs or notifications.",
+                    "unresolved commit may have saved them without notifications.",
                     len(self._span_batch),
                     outcome,
                     type(error).__name__,
@@ -355,32 +401,45 @@ class BulkInserter:
             SPAN_INGESTION_LAST_SUCCESS.set(time())
         if project_ids:
             self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
-        span_costs: list[models.SpanCost] = []
-        for span, result in inserted_spans:
-            try:
-                if not should_calculate_span_cost(span.attributes):
-                    continue
-                span_cost = self._span_cost_calculator.calculate_cost(
-                    span.start_time,
-                    span.attributes,
-                )
-            except Exception:
-                logger.exception(
-                    f"Failed to calculate span cost for span with span_id={span.context.span_id}"
-                )
-            else:
-                if span_cost is None:
-                    continue
-                span_cost.span_rowid = result.span_rowid
-                span_cost.trace_rowid = result.trace_rowid
-                span_costs.append(span_cost)
-        if not span_costs:
-            return
+
+    def _calculate_span_cost(self, span: Span) -> Optional[models.SpanCost]:
         try:
-            async with self._db() as session:
-                session.add_all(span_costs)
+            if not should_calculate_span_cost(span.attributes):
+                return None
+            return self._span_cost_calculator.calculate_cost(span.start_time, span.attributes)
         except Exception:
-            logger.exception("Failed to insert span costs")
+            logger.exception(
+                f"Failed to calculate span cost for span with span_id={span.context.span_id}"
+            )
+            return None
+
+    async def _insert_span_costs(
+        self, session: AsyncSession, inserted_spans: list[_InsertedSpan]
+    ) -> None:
+        """Save costs in one savepoint, falling back to one savepoint per cost if it fails."""
+        costs = [
+            _with_rowids(item.cost, item.result) for item in inserted_spans if item.cost is not None
+        ]
+        if not costs or (error := await _save_span_costs(session, costs)) is None:
+            return
+        logger.warning(
+            "Span cost batch failed after savepoint rollback; saving %s costs one at a time: "
+            "error_type=%s sqlstate=%s locations=%s",
+            len(costs),
+            *_error_fields(error),
+        )
+        for item in inserted_spans:
+            # The rolled-back instance may keep ids from that flush, so start fresh.
+            if item.cost is None or (fresh := self._calculate_span_cost(item.span)) is None:
+                continue
+            fresh = _with_rowids(fresh, item.result)
+            if (error := await _save_span_costs(session, [fresh])) is not None:
+                logger.error(
+                    "Span cost insertion failed after savepoint rollback: span_id=%s "
+                    "error_type=%s sqlstate=%s locations=%s",
+                    item.span.context.span_id,
+                    *_error_fields(error),
+                )
 
 
 class _QueueInserters:
