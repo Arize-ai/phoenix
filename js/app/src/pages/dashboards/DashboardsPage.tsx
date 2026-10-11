@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Navigate,
   Outlet,
@@ -9,7 +10,7 @@ import {
 } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Loading } from "@phoenix/components";
+import { ErrorBoundary, Flex, Loading } from "@phoenix/components";
 import {
   EmptyState,
   EmptyStateArea,
@@ -24,6 +25,7 @@ import { usePreferencesContext } from "@phoenix/contexts";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
 import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
+import type { DashboardsPageLastSelectedProjectQuery } from "./__generated__/DashboardsPageLastSelectedProjectQuery.graphql";
 import type { DashboardsLoaderData } from "./dashboardsLoader";
 import { dashboardsLoaderQuery } from "./dashboardsLoader";
 
@@ -104,12 +106,53 @@ export function DashboardsEmptyPage() {
   );
   if (lastSelectedDashboardProjectId) {
     return (
-      <Navigate
-        to={`/dashboards/projects/${lastSelectedDashboardProjectId}`}
-        replace
-      />
+      <ErrorBoundary fallback={ForgetLastSelectedProject}>
+        <Suspense fallback={<Loading />}>
+          <LastSelectedProjectRedirect
+            projectId={lastSelectedDashboardProjectId}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
+  return <NoProjectSelected />;
+}
+
+/**
+ * Returns to the project last selected on the dashboards page. The project is
+ * looked up first because it may have been deleted since it was selected, in
+ * which case the lookup fails and the boundary above forgets it rather than
+ * redirecting to a page that cannot load.
+ */
+function LastSelectedProjectRedirect({ projectId }: { projectId: string }) {
+  useLazyLoadQuery<DashboardsPageLastSelectedProjectQuery>(
+    graphql`
+      query DashboardsPageLastSelectedProjectQuery($id: ID!) {
+        node(id: $id) {
+          __typename
+          ... on Project {
+            name
+          }
+        }
+      }
+    `,
+    { id: projectId },
+    { fetchPolicy: "network-only" }
+  );
+  return <Navigate to={`/dashboards/projects/${projectId}`} replace />;
+}
+
+function ForgetLastSelectedProject() {
+  const setLastSelectedDashboardProjectId = usePreferencesContext(
+    (state) => state.setLastSelectedDashboardProjectId
+  );
+  useEffect(() => {
+    setLastSelectedDashboardProjectId(undefined);
+  }, [setLastSelectedDashboardProjectId]);
+  return <NoProjectSelected />;
+}
+
+function NoProjectSelected() {
   return (
     <EmptyStateArea>
       <EmptyState
