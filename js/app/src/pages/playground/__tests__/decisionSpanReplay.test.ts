@@ -101,6 +101,29 @@ describe("decision span replay", () => {
     });
   });
 
+  it("replays a failed call as a failed run rather than an empty one", () => {
+    const { playgroundInstance } = transformSpanAttributesToPlaygroundInstance({
+      ...decisionSpan({
+        openinference: { span: { kind: "DECISION" } },
+        decision: {
+          provider: "typesafe",
+          request: { model_name: "fixture-429" },
+        },
+        input: { value: JSON.stringify(systemOneBody) },
+      }),
+      statusCode: "ERROR",
+      statusMessage:
+        "TypeSafe decision request failed (HTTP 429). The provider rate-limited the request. Wait and retry.",
+    });
+    expect(playgroundInstance.repetitions[1]).toMatchObject({
+      output: null,
+      error: {
+        title: "Decision failed",
+        message: expect.stringContaining("HTTP 429"),
+      },
+    });
+  });
+
   it("reports what it could not recover and still opens a usable editor", () => {
     const { playgroundInstance, parsingErrors } =
       transformSpanAttributesToPlaygroundInstance(

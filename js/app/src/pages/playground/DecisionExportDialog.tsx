@@ -167,7 +167,8 @@ function DecisionExportBody({
   }
   const request = buildDecisionRequest({
     draft,
-    templateFormat,
+    // "Template" keeps the placeholders, so no template format is applied.
+    templateFormat: mode === "sent" ? templateFormat : undefined,
     variables: mode === "sent" ? variablesMap : undefined,
   });
   const json = JSON.stringify(

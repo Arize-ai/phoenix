@@ -51,3 +51,7 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
  */
 export const DECISION_DATASET_BLOCKED_REASON =
   "Decision models can't run over a dataset yet. Remove the decision instance or clear the dataset to run.";
+
+/** Why the dataset picker is disabled while a decision instance exists. */
+export const DECISION_DATASET_SELECT_DISABLED_REASON =
+  "Decision models can't run over a dataset yet. Remove the decision instance to test over a dataset.";

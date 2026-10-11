@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { useRef } from "react";
 
 import {
   Alert,
@@ -69,6 +70,9 @@ export function DecisionRequestEditor({
   // message tint, as a chat template's user message would.
   const stateStyles = useChatMessageStyles("user");
   const isRunning = instance?.activeRunId != null;
+  // Deleting a question removes the focused element; focus moves here so
+  // keyboard users are not dropped to the document body.
+  const addQuestionButtonRef = useRef<HTMLButtonElement>(null);
   const request = instance?.decisionRequest ?? createDecisionDraft();
   const errors = validateDecisionDraft(request);
   const revision = request.revision ?? 0;
@@ -132,7 +136,10 @@ export function DecisionRequestEditor({
                 JSON
               </SegmentedControlItem>
             </SegmentedControl>
-            <CopyToClipboardButton text={request.state} />
+            <CopyToClipboardButton
+              text={request.state}
+              aria-label="Copy state"
+            />
           </Flex>
         }
       >
@@ -183,13 +190,14 @@ export function DecisionRequestEditor({
               templateFormat={templateFormat}
               revision={revision}
               onChange={(patch) => updateQuestion(question.id, patch)}
-              onRemove={() =>
+              onRemove={() => {
                 update({
                   questions: request.questions.filter(
                     (candidate) => candidate.id !== question.id
                   ),
-                })
-              }
+                });
+                addQuestionButtonRef.current?.focus();
+              }}
             />
           </li>
         ))}
@@ -201,6 +209,7 @@ export function DecisionRequestEditor({
         minHeight={FOOTER_MIN_HEIGHT}
       >
         <Button
+          ref={addQuestionButtonRef}
           size="S"
           aria-label="add question"
           leadingVisual={<Icon svg={<Icons.Plus />} />}

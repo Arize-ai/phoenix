@@ -73,6 +73,38 @@ describe("PlaygroundRunButton with decision instances", () => {
     expect(runPlaygroundInstances).toHaveBeenCalledTimes(1);
   });
 
+  it("explains which instance blocks the run when its request is invalid", async () => {
+    const { store, runPlaygroundInstances } = mount(null);
+    const instance = store.getState().instances[0];
+    const request = instance.decisionRequest!;
+    act(() =>
+      store.getState().updateDecisionRequest({
+        instanceId: instance.id,
+        request: {
+          ...request,
+          questions: request.questions.map((question) => ({
+            ...question,
+            name: "",
+          })),
+        },
+      })
+    );
+    const button = runButton();
+    expect(button?.disabled).toBe(true);
+    act(() => button?.click());
+    expect(runPlaygroundInstances).not.toHaveBeenCalled();
+    const user = userEvent.setup();
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" })
+    );
+    await act(async () => user.hover(button!.parentElement!));
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+        "Instance A: Question name: required"
+      );
+    });
+  });
+
   it("refuses the whole run and explains why when a dataset is loaded", async () => {
     const { runPlaygroundInstances } = mount("RGF0YXNldDox");
     const button = runButton();

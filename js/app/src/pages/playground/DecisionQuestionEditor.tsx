@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { useRef } from "react";
 
 import {
   Alert,
@@ -205,7 +206,10 @@ export function DecisionQuestionEditor({
       }
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={copyText} />
+          <CopyToClipboardButton
+            text={copyText}
+            aria-label={`Copy ${label} question as JSON`}
+          />
           <Button
             size="S"
             aria-label={`Delete ${label}`}
@@ -311,12 +315,15 @@ function ChoiceCriteriaEditor({
     });
   const canAddOption = question.choices.length < MAX_CHOICE_OPTIONS;
   const canRemoveOption = question.choices.length > MIN_CHOICE_OPTIONS;
+  // Removing an option removes the focused button; focus moves to "Option".
+  const addOptionButtonRef = useRef<HTMLButtonElement>(null);
   return (
     <Flex direction="column" gap="size-100">
       <CriteriaHeading
         title="Options"
         action={
           <Button
+            ref={addOptionButtonRef}
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Plus />} />}
@@ -366,13 +373,14 @@ function ChoiceCriteriaEditor({
                 aria-label={`Remove option ${optionIndex + 1}`}
                 leadingVisual={<Icon svg={<Icons.Trash />} />}
                 isDisabled={isDisabled || !canRemoveOption}
-                onPress={() =>
+                onPress={() => {
                   onChange({
                     choices: question.choices.filter(
                       (candidate) => candidate.id !== option.id
                     ),
-                  })
-                }
+                  });
+                  addOptionButtonRef.current?.focus();
+                }}
               />
             </li>
           );
@@ -397,12 +405,15 @@ function ScoreCriteriaEditor({
   };
   const canAddLevel = question.levels.length < MAX_SCORE_LEVELS;
   const canRemoveLevel = question.levels.length > MIN_SCORE_LEVELS;
+  // Removing a level removes the focused button; focus moves to "Level".
+  const addLevelButtonRef = useRef<HTMLButtonElement>(null);
   return (
     <Flex direction="column" gap="size-100">
       <CriteriaHeading
         title="Levels, low to high"
         action={
           <Button
+            ref={addLevelButtonRef}
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Plus />} />}
@@ -464,13 +475,14 @@ function ScoreCriteriaEditor({
                 aria-label={`Remove level ${levelIndex}`}
                 leadingVisual={<Icon svg={<Icons.Trash />} />}
                 isDisabled={isDisabled || !canRemoveLevel}
-                onPress={() =>
+                onPress={() => {
                   onChange({
                     levels: question.levels.filter(
                       (candidate) => candidate.id !== level.id
                     ),
-                  })
-                }
+                  });
+                  addLevelButtonRef.current?.focus();
+                }}
               />
             </Flex>
           </li>

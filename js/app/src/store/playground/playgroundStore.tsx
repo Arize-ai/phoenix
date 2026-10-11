@@ -650,10 +650,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 model: {
                   ...instance.model,
                   ...patch,
-                  invocationParameters: parseInvocationConfig(
-                    instance.model.provider,
-                    instance.model.invocationParameters
-                  ),
+                  // Decision instances carry no chat invocation parameters,
+                  // and their providers have no chat adapter to parse them.
+                  invocationParameters:
+                    (patch.modelType ?? instance.model.modelType) === "DECISION"
+                      ? instance.model.invocationParameters
+                      : parseInvocationConfig(
+                          instance.model.provider,
+                          instance.model.invocationParameters
+                        ),
                 },
               };
             }

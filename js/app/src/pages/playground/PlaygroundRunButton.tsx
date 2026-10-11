@@ -14,10 +14,37 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
+import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
 
 import { DECISION_DATASET_BLOCKED_REASON } from "./constants";
 import { getDecisionValidationError } from "./decisionUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
+
+/** Instance labels match the A, B, C shown in each instance header. */
+function getInstanceLabel(index: number): string {
+  return String.fromCharCode("A".charCodeAt(0) + index);
+}
+
+/** The first reason a decision instance cannot run, or null when all can. */
+function getInvalidDecisionReason(
+  instances: readonly Pick<
+    PlaygroundNormalizedInstance,
+    "model" | "decisionRequest"
+  >[]
+): string | null {
+  for (const [index, instance] of instances.entries()) {
+    if (instance.model.modelType !== "DECISION") continue;
+    const label = getInstanceLabel(index);
+    if (!instance.model.modelName?.trim()) {
+      return `Instance ${label}: pick a decision model.`;
+    }
+    const problem = instance.decisionRequest
+      ? getDecisionValidationError(instance.decisionRequest)
+      : "no decision request";
+    if (problem) return `Instance ${label}: ${problem}`;
+  }
+  return null;
+}
 
 export function PlaygroundRunButton() {
   const modifierKey = useModifierKey();
@@ -39,17 +66,14 @@ export function PlaygroundRunButton() {
   );
   // Decision models have no dataset execution path, so a run that would
   // include one over a dataset is refused outright rather than half-run.
+  // An invalid decision request is refused the same way, with its first
+  // problem as the reason, since the error may sit in a collapsed card.
+  const invalidDecisionReason = getInvalidDecisionReason(instances);
   const blockedReason =
     isDatasetMode && hasDecisionInstance
       ? DECISION_DATASET_BLOCKED_REASON
-      : null;
-  const hasInvalidDecision = instances.some(
-    (instance) =>
-      instance.model.modelType === "DECISION" &&
-      (!instance.decisionRequest ||
-        !!getDecisionValidationError(instance.decisionRequest) ||
-        !instance.model.modelName?.trim())
-  );
+      : invalidDecisionReason;
+  const hasInvalidDecision = invalidDecisionReason != null;
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {

@@ -243,16 +243,25 @@ export function ModelParametersConfigButton(
             </div>
           )}
         </View>
-        <View padding="size-100" borderTopColor="default" borderTopWidth="thin">
-          <SaveModelConfigButton
-            playgroundInstanceId={playgroundInstanceId}
-            variant="quiet"
-            isDisabled={!isModelConfigValid}
-            style={{
-              width: "100%",
-            }}
-          />
-        </View>
+        {/* A saved default is a chat configuration for the provider; a decision
+            instance's model name and endpoint would send new chat instances to
+            a decision endpoint, so decision instances do not offer it. */}
+        {!isDecision ? (
+          <View
+            padding="size-100"
+            borderTopColor="default"
+            borderTopWidth="thin"
+          >
+            <SaveModelConfigButton
+              playgroundInstanceId={playgroundInstanceId}
+              variant="quiet"
+              isDisabled={!isModelConfigValid}
+              style={{
+                width: "100%",
+              }}
+            />
+          </View>
+        ) : null}
       </Popover>
     </DialogTrigger>
   );
