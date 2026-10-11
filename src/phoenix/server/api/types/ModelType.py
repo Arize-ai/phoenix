@@ -5,7 +5,15 @@ from enum import Enum
 import strawberry
 
 
-@strawberry.enum
+@strawberry.enum(description="The kind of model a playground instance runs.")
 class ModelType(Enum):
-    LLM = "LLM"
-    DECISION = "DECISION"
+    LLM = strawberry.enum_value(
+        "LLM", description="Chat completion models that generate text from messages."
+    )
+    DECISION = strawberry.enum_value(
+        "DECISION",
+        description=(
+            "Decision models that answer typed questions (choice, noul, score) about a state "
+            "and return probabilities rather than text."
+        ),
+    )

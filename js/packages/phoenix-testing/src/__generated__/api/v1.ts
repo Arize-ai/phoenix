@@ -2211,7 +2211,7 @@ export interface components {
         };
         /** BuiltInModelProvider */
         BuiltInModelProvider: {
-            /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
+            /** @description The provider family identifier, accepted wherever a built-in chat model provider is specified, such as prompts and chat completions (e.g. 'OPENAI'). Providers that offer decision models only are not listed here. */
             provider: components["schemas"]["ModelProvider"];
             /**
              * Name
