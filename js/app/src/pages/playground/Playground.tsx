@@ -204,11 +204,12 @@ export function Playground(
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
-  const isDecisionMode =
-    searchParams.get("modelType") === "DECISION" && !datasetId;
-  // Resolve the decision default from the server catalog so new decision
-  // providers and models need no frontend change. URL params win when they
-  // name a cataloged provider; otherwise fall back to the first entry.
+  // Decision mode is entered from the URL and resolved against the server's
+  // decision catalog, so new decision providers and models need no frontend
+  // change. URL params win when they name a cataloged provider; otherwise the
+  // first catalog entry is used. With no cataloged decision model (for example
+  // when PHOENIX_ALLOWED_PROVIDERS excludes them all) the page stays in LLM
+  // mode rather than opening a decision instance it cannot run.
   const requestedDecisionProvider = searchParams.get("decisionProvider");
   const requestedDecisionModel = searchParams.get("decisionModel");
   const decisionDefault =
@@ -223,10 +224,14 @@ export function Playground(
     ) ??
     decisionModels[0] ??
     null;
-  const decisionProvider: ModelProvider =
+  const decisionProvider =
     decisionDefault && isModelProvider(decisionDefault.providerKey)
       ? decisionDefault.providerKey
-      : "OPENAI";
+      : null;
+  const isDecisionMode =
+    searchParams.get("modelType") === "DECISION" &&
+    !datasetId &&
+    decisionProvider != null;
   const decisionModelName =
     requestedDecisionProvider === decisionProvider && requestedDecisionModel
       ? requestedDecisionModel
@@ -243,7 +248,9 @@ export function Playground(
       modelConfigByProvider={modelConfigByProvider}
       defaultModelType={isDecisionMode ? "DECISION" : "LLM"}
       defaultModelProvider={
-        isDecisionMode ? decisionProvider : defaultModelProvider
+        isDecisionMode && decisionProvider
+          ? decisionProvider
+          : defaultModelProvider
       }
       defaultModelName={isDecisionMode ? decisionModelName : defaultModelName}
     >

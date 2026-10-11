@@ -255,6 +255,9 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     instance.model = {
       ...instance.model,
       ...savedConfigToUse,
+      // A saved default configures the provider; it never turns a chat
+      // instance into a decision instance.
+      modelType: "LLM",
       invocationParameters: parseInvocationConfig(
         savedConfigToUse.provider,
         savedConfigToUse.invocationParameters
@@ -287,20 +290,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       variablesValueCache: {},
     },
     templateFormat: TemplateFormats.Mustache,
-    updateDecisionRequest: (instanceId, decisionRequest) => {
-      set(
-        {
-          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
-          instances: get().instances.map((instance) =>
-            instance.id === instanceId
-              ? { ...instance, decisionRequest }
-              : instance
-          ),
-        },
-        false,
-        { type: "updateDecisionRequest" }
-      );
-    },
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
@@ -455,6 +444,20 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "duplicateInstance" }
       );
     },
+    updateDecisionRequest: ({ instanceId, request }) => {
+      set(
+        {
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+          instances: get().instances.map((instance) =>
+            instance.id === instanceId
+              ? { ...instance, decisionRequest: request }
+              : instance
+          ),
+        },
+        false,
+        { type: "updateDecisionRequest" }
+      );
+    },
     syncInvocationParametersWithSpecs: ({
       instanceId,
       modelConfigByProvider,
@@ -554,6 +557,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...baseModel,
             ...resetFields,
             ...(savedProviderConfig || {}),
+            // A saved default never changes the instance's model type.
+            modelType: instance.model.modelType ?? "LLM",
             invocationParameters,
             // responseFormat is canonical (provider-agnostic) — carry through if present
             ...(instance.model.responseFormat != null

@@ -11,6 +11,7 @@ import {
   normalizeDecisionResult,
   parseDecisionImport,
   toOpenAIDecisionsBody,
+  toProviderBody,
   toSystemOneBody,
   validateDecisionDraft,
 } from "../decisionUtils";
@@ -19,7 +20,7 @@ describe("decision request draft", () => {
   it("builds a valid Choice example", () => {
     const draft = createDecisionDraft();
     expect(getDecisionValidationError(draft)).toBeNull();
-    const request = buildDecisionRequest(draft);
+    const request = buildDecisionRequest({ draft });
     expect(request.questions.department).toEqual({
       type: "choice",
       instructions: "Which department should handle this request?",
@@ -37,7 +38,9 @@ describe("decision request draft", () => {
       stateFormat: "json" as const,
       state: '{"events":["refund"]}',
     };
-    expect(buildDecisionRequest(draft).state).toEqual({ events: ["refund"] });
+    expect(buildDecisionRequest({ draft }).state).toEqual({
+      events: ["refund"],
+    });
   });
 
   it("reports field-level errors instead of one banner", () => {
@@ -47,11 +50,11 @@ describe("decision request draft", () => {
     draft.questions[0].choices[1].value = "billing";
     const errors = validateDecisionDraft(draft);
     expect(errors.state).toBe("State cannot be empty");
-    const q = errors.byQuestionId[draft.questions[0].id];
-    expect(q.name).toBe("Required");
-    expect(q.choiceOptions?.[draft.questions[0].choices[1].id]).toBe(
-      "Duplicate"
-    );
+    const questionErrors = errors.byQuestionId[draft.questions[0].id];
+    expect(questionErrors?.name).toBe("Required");
+    expect(
+      questionErrors?.choiceOptions?.[draft.questions[0].choices[1].id]
+    ).toBe("Duplicate");
   });
 
   it("rejects malformed JSON state, empty questions, and duplicate names", () => {
@@ -62,27 +65,29 @@ describe("decision request draft", () => {
     expect(getDecisionValidationError({ ...base, questions: [] })).toContain(
       "at least one"
     );
-    const dup = createDecisionDraft();
-    dup.questions.push({ ...dup.questions[0], id: "duplicate" });
-    expect(getDecisionValidationError(dup)).toContain("duplicated");
+    const duplicated = createDecisionDraft();
+    duplicated.questions.push({ ...duplicated.questions[0], id: "duplicate" });
+    expect(getDecisionValidationError(duplicated)).toContain("duplicated");
   });
 
   it("supports all primitives and omits empty Noul criteria", () => {
     const draft = createDecisionDraft();
     draft.questions.push(
-      createDecisionQuestion("noul", {
+      createDecisionQuestion({
+        type: "noul",
         name: "urgent",
         instructions: "Urgent?",
       })
     );
     draft.questions.push(
-      createDecisionQuestion("score", {
+      createDecisionQuestion({
+        type: "score",
         name: "severity",
         instructions: "Severity?",
         levels: [createScoreLevel("Low"), createScoreLevel("High")],
       })
     );
-    const request = buildDecisionRequest(draft);
+    const request = buildDecisionRequest({ draft });
     expect(request.questions.urgent).toEqual({
       type: "noul",
       instructions: "Urgent?",
@@ -97,10 +102,12 @@ describe("decision request draft", () => {
   it("keeps undescribed Choice options as null criteria", () => {
     const draft = createDecisionDraft();
     draft.questions[0].choices = [
-      createChoiceOption("yes"),
-      createChoiceOption("no"),
+      createChoiceOption({ value: "yes" }),
+      createChoiceOption({ value: "no" }),
     ];
-    expect(buildDecisionRequest(draft).questions.department.criteria).toEqual({
+    expect(
+      buildDecisionRequest({ draft }).questions.department.criteria
+    ).toEqual({
       yes: null,
       no: null,
     });
@@ -110,7 +117,7 @@ describe("decision request draft", () => {
     const draft = createDecisionDraft();
     draft.questions[0].name = "__proto__";
     expect(
-      Object.hasOwn(buildDecisionRequest(draft).questions, "__proto__")
+      Object.hasOwn(buildDecisionRequest({ draft }).questions, "__proto__")
     ).toBe(true);
   });
 });
@@ -122,9 +129,14 @@ describe("template variables", () => {
     draft.questions[0].instructions = "Route for {{team}}";
     draft.questions[0].choices[0].description = "Owned by {{owner}}";
     expect(
-      extractDecisionVariables(draft, TemplateFormats.Mustache).sort()
+      extractDecisionVariables({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      }).sort()
     ).toEqual(["owner", "team", "ticket"]);
-    expect(extractDecisionVariables(draft, TemplateFormats.NONE)).toEqual([]);
+    expect(
+      extractDecisionVariables({ draft, templateFormat: TemplateFormats.NONE })
+    ).toEqual([]);
   });
 
   it("applies variables when building the request, including inside JSON state", () => {
@@ -132,7 +144,8 @@ describe("template variables", () => {
     draft.stateFormat = "json";
     draft.state = '{"ticket": "{{ticket}}"}';
     draft.questions[0].instructions = "Route {{ticket}}";
-    const request = buildDecisionRequest(draft, {
+    const request = buildDecisionRequest({
+      draft,
       templateFormat: TemplateFormats.Mustache,
       variables: { ticket: "T-1" },
     });
@@ -143,26 +156,31 @@ describe("template variables", () => {
 
 describe("provider wire formats", () => {
   const draft = (() => {
-    const d = createDecisionDraft();
-    d.questions.push(
-      createDecisionQuestion("noul", {
+    const base = createDecisionDraft();
+    base.questions.push(
+      createDecisionQuestion({
+        type: "noul",
         name: "urgent",
         instructions: "Urgent?",
         noul: { trueDescription: "Time sensitive", falseDescription: "" },
       })
     );
-    d.questions.push(
-      createDecisionQuestion("score", {
+    base.questions.push(
+      createDecisionQuestion({
+        type: "score",
         name: "severity",
         instructions: "Severity?",
         levels: [createScoreLevel("Low"), createScoreLevel("High")],
       })
     );
-    return d;
+    return base;
   })();
 
   it("exports the System One body with the model", () => {
-    const body = toSystemOneBody(buildDecisionRequest(draft), "jev-latest");
+    const body = toSystemOneBody({
+      request: buildDecisionRequest({ draft }),
+      model: "jev-latest",
+    });
     expect(body.model).toBe("jev-latest");
     expect(body.questions.urgent).toEqual({
       type: "noul",
@@ -172,10 +190,10 @@ describe("provider wire formats", () => {
   });
 
   it("exports the OpenAI Decisions body the same way the server converts it", () => {
-    const body = toOpenAIDecisionsBody(
-      buildDecisionRequest(draft),
-      "gpt-6-luna"
-    );
+    const body = toOpenAIDecisionsBody({
+      request: buildDecisionRequest({ draft }),
+      model: "gpt-6-luna",
+    });
     expect(body.model).toBe("gpt-6-luna");
     expect(body.input).toBe(draft.state);
     expect(body.questions[0]).toMatchObject({
@@ -203,17 +221,30 @@ describe("provider wire formats", () => {
     });
   });
 
+  it("picks the body shape from the wire format the server reports", () => {
+    const request = buildDecisionRequest({ draft });
+    expect(
+      toProviderBody({ request, wireFormat: "SYSTEM_ONE", model: "m" })
+    ).toHaveProperty("state");
+    expect(
+      toProviderBody({ request, wireFormat: "OPENAI_DECISIONS", model: "m" })
+    ).toHaveProperty("input");
+  });
+
   it("imports a System One body and round-trips it", () => {
-    const original = toSystemOneBody(buildDecisionRequest(draft), "jev-latest");
+    const original = toSystemOneBody({
+      request: buildDecisionRequest({ draft }),
+      model: "jev-latest",
+    });
     const imported = parseDecisionImport(JSON.stringify(original));
-    expect(imported.format).toBe("systemone");
+    expect(imported.format).toBe("SYSTEM_ONE");
     expect(imported.model).toBe("jev-latest");
     expect(getDecisionValidationError(imported.draft)).toBeNull();
-    const { model: _m, ...roundTripped } = toSystemOneBody(
-      buildDecisionRequest(imported.draft),
-      null
-    );
-    const { model: _o, ...expected } = original;
+    const { model: _roundTrippedModel, ...roundTripped } = toSystemOneBody({
+      request: buildDecisionRequest({ draft: imported.draft }),
+      model: null,
+    });
+    const { model: _originalModel, ...expected } = original;
     expect(roundTripped).toEqual(expected);
   });
 
@@ -245,9 +276,9 @@ describe("provider wire formats", () => {
         ],
       })
     );
-    expect(imported.format).toBe("openai");
+    expect(imported.format).toBe("OPENAI_DECISIONS");
     expect(imported.draft.stateFormat).toBe("text");
-    const request = buildDecisionRequest(imported.draft);
+    const request = buildDecisionRequest({ draft: imported.draft });
     expect(request.questions.department).toEqual({
       type: "choice",
       instructions: "Which team?",
@@ -285,8 +316,8 @@ describe("provider wire formats", () => {
 describe("answer normalization", () => {
   it("normalizes a System One response in the author's option order", () => {
     const draft = createDecisionDraft();
-    const result = normalizeDecisionResult(
-      {
+    const result = normalizeDecisionResult({
+      result: {
         model: "jev-1.13.0",
         answers: {
           department: {
@@ -298,14 +329,14 @@ describe("answer normalization", () => {
         },
         usage: { input_tokens: 345, output_tokens: 38 },
       },
-      draft
-    );
+      draft,
+    });
     expect(result.model).toBe("jev-1.13.0");
     expect(result.usage).toEqual({ input: 345, output: 38 });
     const answer = result.answers[0];
     expect(answer.kind).toBe("choice");
     if (answer.kind === "choice") {
-      expect(answer.probabilities.map((p) => p.value)).toEqual([
+      expect(answer.probabilities.map((entry) => entry.value)).toEqual([
         "billing",
         "technical",
         "other",
@@ -318,16 +349,25 @@ describe("answer normalization", () => {
   it("normalizes OpenAI predicate, score, and refusal answers", () => {
     const draft = createDecisionDraft();
     draft.questions = [
-      createDecisionQuestion("noul", { name: "urgent", instructions: "?" }),
-      createDecisionQuestion("score", {
+      createDecisionQuestion({
+        type: "noul",
+        name: "urgent",
+        instructions: "?",
+      }),
+      createDecisionQuestion({
+        type: "score",
         name: "severity",
         instructions: "?",
         levels: [createScoreLevel("Low"), createScoreLevel("High")],
       }),
-      createDecisionQuestion("noul", { name: "blocked", instructions: "?" }),
+      createDecisionQuestion({
+        type: "noul",
+        name: "blocked",
+        instructions: "?",
+      }),
     ];
-    const result = normalizeDecisionResult(
-      {
+    const result = normalizeDecisionResult({
+      result: {
         answers: {
           urgent: { type: "predicate", probability: 0.2 },
           severity: {
@@ -342,16 +382,16 @@ describe("answer normalization", () => {
           blocked: { type: "refusal", name: "blocked" },
         },
       },
-      draft
-    );
-    expect(result.answers.map((a) => a.kind)).toEqual([
+      draft,
+    });
+    expect(result.answers.map((answer) => answer.kind)).toEqual([
       "noul",
       "score",
       "refusal",
     ]);
     const score = result.answers[1];
     if (score.kind === "score") {
-      expect(score.levels.map((l) => l.label)).toEqual(["0", "1"]);
+      expect(score.levels.map((level) => level.label)).toEqual(["0", "1"]);
       expect(score.score).toBe(0.7);
     }
   });

@@ -139,9 +139,9 @@ export function DecisionImportDialog({
                       setError(null);
                       try {
                         const { draft } = parseDecisionImport(text);
-                        updateDecisionRequest(instanceId, {
-                          ...draft,
-                          revision: Date.now(),
+                        updateDecisionRequest({
+                          instanceId,
+                          request: { ...draft, revision: Date.now() },
                         });
                         close();
                       } catch (e) {
