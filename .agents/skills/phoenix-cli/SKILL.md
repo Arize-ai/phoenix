@@ -1,11 +1,11 @@
 ---
 name: phoenix-cli
-description: Debug LLM applications using the Phoenix CLI. Fetch traces, spans, and sessions, annotate them, analyze errors, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user works with a Phoenix instance from the terminal.
+description: Debug LLM applications using the Phoenix CLI. Fetch traces, spans, and sessions, annotate them, analyze errors, inspect datasets, review experiments, query annotation configs, provision provider secrets safely, and use the GraphQL API. Use whenever the user works with a Phoenix instance from the terminal.
 license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.5.0"
+  version: "3.6.0"
 ---
 
 # Phoenix CLI
@@ -54,6 +54,8 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px secret set [key]
+px secret delete <keys...>
 px auth login
 px auth logout
 px auth status
@@ -412,6 +414,33 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 ```
 
 Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Invalid input (bad flags, type mismatches, malformed values) exits `3` (`INVALID_ARGUMENT`) with a `{error, code, hint?}` JSON envelope on stderr in `raw`/`json` mode. `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
+
+## Secrets
+
+Admin-only. Secrets are encrypted LLM provider credentials (`OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, …) stored server-side via `PUT /v1/secrets`. **Never put a
+secret value in argv** — there is no `--value` flag, and `KEY=value` as the
+positional argument is rejected without echoing the value. Feed values through
+stdin, a file, the environment, or a dotenv file; all sources go out in one
+atomic request, and output names only the affected keys.
+
+```bash
+printf '%s' "$OPENAI_API_KEY" | px secret set OPENAI_API_KEY            # value from stdin (trailing newline stripped)
+px secret set ANTHROPIC_API_KEY --value-file ./anthropic.key             # value from a file ('-' = stdin)
+px secret set --from-env OPENAI_API_KEY --from-env ANTHROPIC_API_KEY     # copy from the CLI's own environment by name
+px secret set --env-file ./secrets.env --format raw --no-progress | jq -r '.upserted_keys[]'  # dotenv batch
+
+# delete — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; --yes skips the prompt
+px secret delete OPENAI_API_KEY ANTHROPIC_API_KEY --yes
+```
+
+From an agent, prefer `--from-env` (the value never leaves the environment) or
+`--env-file` for batches. A bare `px secret set KEY` on a terminal prompts with
+hidden input; when stdin is not a TTY it reads the value from stdin. `raw`/`json`
+output is `{"upserted_keys": [...], "deleted_keys": [...]}`. Keys must match
+`[A-Za-z_][A-Za-z0-9_]*`; empty values, unset `--from-env` variables, and
+malformed dotenv lines exit `3` before any request, naming only the position
+(argument or line number). A non-admin credential exits `4`.
 
 ## GraphQL
 
