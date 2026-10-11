@@ -22,6 +22,31 @@ const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
   jsonSchema: { name: "MySchema", schema: { type: "object" }, strict: true },
 };
 
+describe("decision instances in the store", () => {
+  it("updates the model name and base URL of a decision-only provider", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      defaultModelType: "DECISION",
+      defaultModelProvider: "TYPESAFE",
+      defaultModelName: "jev-latest",
+    });
+    const instanceId = store.getState().instances[0].id;
+    store.getState().updateModel({
+      instanceId,
+      patch: {
+        modelName: "fixture-slow",
+        baseUrl: "http://127.0.0.1:16138/v1",
+      },
+    });
+    expect(store.getState().instances[0].model).toMatchObject({
+      provider: "TYPESAFE",
+      modelType: "DECISION",
+      modelName: "fixture-slow",
+      baseUrl: "http://127.0.0.1:16138/v1",
+    });
+  });
+});
+
 describe("getInitialInstances", () => {
   // The page resolves provider and model from the server's decision catalog;
   // the store carries them through without knowing any provider by name.

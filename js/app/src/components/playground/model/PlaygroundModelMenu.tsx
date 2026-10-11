@@ -1,5 +1,3 @@
-import { useSearchParams } from "react-router";
-
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
@@ -18,13 +16,6 @@ export type PlaygroundModelMenuProps = {
   decisionModelsDisabledReason?: string;
 };
 
-/** Search params that put the playground in decision mode on load. */
-const DECISION_SEARCH_PARAMS = [
-  "modelType",
-  "decisionProvider",
-  "decisionModel",
-] as const;
-
 /**
  * Model menu for the playground that handles provider and model changes
  * through the playground store.
@@ -37,17 +28,9 @@ export function PlaygroundModelMenu({
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
-  // The URL recreates a single instance on load (see getInitialInstances),
-  // so only the first instance writes its model type there. Other instances
-  // are compared in place and are not restored from the URL.
-  const isFirstInstance = usePlaygroundContext(
-    (state) => state.instances[0]?.id === playgroundInstanceId
-  );
-
   const updateProvider = usePlaygroundContext((state) => state.updateProvider);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const [searchParams, setSearchParams] = useSearchParams();
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -60,19 +43,6 @@ export function PlaygroundModelMenu({
         customProvider: instance.model.customProvider ?? undefined,
       }
     : null;
-
-  const syncDecisionSearchParams = (decisionModel: ModelMenuValue | null) => {
-    if (!isFirstInstance) return;
-    const params = new URLSearchParams(searchParams);
-    if (decisionModel) {
-      params.set("modelType", "DECISION");
-      params.set("decisionProvider", decisionModel.provider);
-      params.set("decisionModel", decisionModel.modelName);
-    } else {
-      DECISION_SEARCH_PARAMS.forEach((key) => params.delete(key));
-    }
-    setSearchParams(params, { replace: true });
-  };
 
   const handleChange = (model: ModelMenuValue) => {
     if (!instance) return;
@@ -103,12 +73,10 @@ export function PlaygroundModelMenu({
           experiment: null,
         },
       });
-      syncDecisionSearchParams(model);
       return;
     }
 
     if (instance.model.modelType === "DECISION") {
-      syncDecisionSearchParams(null);
       // Restore the chat configuration the instance had before it became a
       // decision instance. Without one, start from a clean chat model: the
       // decision base URL points at a decision endpoint, not a chat one.

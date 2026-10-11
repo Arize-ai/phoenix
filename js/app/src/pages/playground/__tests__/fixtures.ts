@@ -22,6 +22,8 @@ export const basePlaygroundSpan: PlaygroundSpan = {
     id: "fake-project-global-id",
     name: "test",
   },
+  statusCode: "OK",
+  statusMessage: "",
   attributes: "",
 };
 export const spanAttributesWithInputMessages = {
