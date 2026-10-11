@@ -118,6 +118,11 @@ class CodeEvaluatorUIContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CostBreakdown(TypedDict):
+    tokens: float
+    cost: float
+
+
 class CreateApiKeyRequestBody(TypedDict):
     data: ApiKeyData
 
@@ -506,6 +511,12 @@ class Project(TypedDict):
     name: str
     id: str
     description: NotRequired[str]
+
+
+class ProjectCostSummary(TypedDict):
+    prompt: CostBreakdown
+    completion: CostBreakdown
+    total: CostBreakdown
 
 
 class ProjectRetentionPolicyData(TypedDict):
@@ -1680,6 +1691,10 @@ class GetProjectAnnotationConfigsResponseBody(TypedDict):
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
     ]
     next_cursor: Optional[str]
+
+
+class GetProjectCostSummaryResponseBody(TypedDict):
+    data: ProjectCostSummary
 
 
 class GetProjectResponseBody(TypedDict):
