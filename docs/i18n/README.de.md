@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix ist die Open-Source-Plattform von Arize für KI-Observability, ent
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimieren Sie Prompts, vergleichen Sie Modelle, passen Sie Parameter an und spielen Sie getracte LLM-Aufrufe erneut ab.
 - [**_Prompt-Management_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Verwalten und testen Sie Prompt-Änderungen systematisch mit Versionskontrolle, Tagging und Experimenten.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Ein in Phoenix integrierter KI-Engineering-Agent zum Debuggen von Traces, zum iterativen Verbessern von Prompts und zur Navigation im Produkt.
-- [**_Remote-MCP-Server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Verbinden Sie Claude Code, Cursor und andere MCP-Clients direkt mit dem `/mcp`-Endpunkt Ihrer Phoenix-Instanz, um Traces, Datasets, Experimente und mehr abzufragen.
+- [**_Remote-MCP-Server_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Verbinden Sie Claude Code, Cursor und andere MCP-Clients direkt mit dem `/mcp`-Endpunkt Ihrer Phoenix-Instanz, um Traces, Datasets, Experimente und mehr abzufragen.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Das Paket `arize-phoenix` enthält die gesamte Phoenix-Plattform. Wenn Sie die P
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Stellt einen schlanken Wrapper um OpenTelemetry-Primitive mit auf Phoenix abgestimmten Standardwerten bereit |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Client für die Arize-Phoenix-API |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript-Evaluierungsbibliothek für LLM-Anwendungen (Alpha-Version) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Eigenständiger stdio-MCP-Server für ältere Phoenix-Versionen (Wartungsmodus – abgelöst durch den in Phoenix integrierten [Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/remote-mcp)) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Eigenständiger stdio-MCP-Server für ältere Phoenix-Versionen (Wartungsmodus – abgelöst durch den in Phoenix integrierten [Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI zum Abrufen von Traces, Datasets und Experimenten zur Verwendung mit Claude Code, Cursor und anderen Coding-Agenten |
 
 ## Tracing-Integrationen
@@ -269,7 +269,7 @@ Phoenix ist so gebaut, dass es von Menschen und KI-Coding-Agenten gleichermaßen
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` ruft Traces, Datasets und Experimente ab und instrumentiert Ihre App (`setup`), sodass ein Agent Kontext abrufen und direkt im Terminal darauf reagieren kann.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) bündelt Workflows, die Agenten beibringen, wie sie mit Phoenix debuggen, evaluieren und tracen.
-- **[Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — verbinden Sie einen beliebigen MCP-Client mit dem `/mcp`-Endpunkt Ihrer Instanz, um Phoenix direkt abzufragen.
+- **[Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — verbinden Sie einen beliebigen MCP-Client mit dem `/mcp`-Endpunkt Ihrer Instanz, um Phoenix direkt abzufragen.
 
 Einrichtung und Verwendung sind in der [Dokumentation zu Coding-Agenten](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) beschrieben.
 

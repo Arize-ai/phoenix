@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix — це open-source платформа спостережуван
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)— оптимізуйте промпти, порівнюйте моделі, налаштовуйте параметри та відтворюйте трасовані виклики LLM.
 - [**_Керування промптами_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)— систематично керуйте змінами промптів і тестуйте їх за допомогою контролю версій, тегів та експериментів.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) — вбудований у Phoenix ШІ-агент для інженерних завдань: налагодження трейсів, ітерації над промптами та навігація продуктом.
-- [**_Віддалений MCP-сервер_**](https://arize.com/docs/phoenix/integrations/remote-mcp) — підключайте Claude Code, Cursor та інші MCP-клієнти безпосередньо до ендпоінта `/mcp` Вашого екземпляра Phoenix, щоб запитувати трейси, датасети, експерименти та багато іншого.
+- [**_Віддалений MCP-сервер_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) — підключайте Claude Code, Cursor та інші MCP-клієнти безпосередньо до ендпоінта `/mcp` Вашого екземпляра Phoenix, щоб запитувати трейси, датасети, експерименти та багато іншого.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Docker Compose, Kubernetes/Helm та інші варіанти розгорта�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Полегшена обгортка над примітивами OpenTelemetry з налаштуваннями за замовчуванням для Phoenix                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Клієнт для API Arize Phoenix                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Бібліотека оцінювання LLM-застосунків на TypeScript (альфа-версія)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Автономний stdio MCP-сервер для старіших версій Phoenix (режим підтримки — замінено вбудованим у Phoenix [віддаленим MCP-сервером](https://arize.com/docs/phoenix/integrations/remote-mcp)) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Автономний stdio MCP-сервер для старіших версій Phoenix (режим підтримки — замінено вбудованим у Phoenix [віддаленим MCP-сервером](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI для отримання трейсів, датасетів і експериментів для використання з Claude Code, Cursor та іншими ШІ-агентами для програмування |
 
 ## Інтеграції трасування
@@ -269,7 +269,7 @@ Phoenix створено для роботи як з людьми, так і з 
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` отримує трейси, датасети й експерименти та інструментує Ваш застосунок (`setup`), тож агент може отримувати контекст і діяти на його основі просто з термінала.
 - **[Навички (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) пакує робочі процеси, які навчають агентів налагоджувати, оцінювати та трасувати за допомогою Phoenix.
-- **[Віддалений MCP-сервер](https://arize.com/docs/phoenix/integrations/remote-mcp)** — підключіть будь-який MCP-клієнт до ендпоінта `/mcp` Вашого екземпляра, щоб безпосередньо виконувати запити до Phoenix.
+- **[Віддалений MCP-сервер](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — підключіть будь-який MCP-клієнт до ендпоінта `/mcp` Вашого екземпляра, щоб безпосередньо виконувати запити до Phoenix.
 
 Налаштування та використання описано в [документації щодо ШІ-агентів для програмування](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).
 

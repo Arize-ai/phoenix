@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix হলো Arize-এর ওপেন-সোর্স AI observabili
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- prompt অপ্টিমাইজ করুন, মডেল তুলনা করুন, প্যারামিটার সামঞ্জস্য করুন এবং ট্রেস করা LLM কল পুনরায় চালান।
 - [**_প্রম্পট ব্যবস্থাপনা_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- ভার্সন কন্ট্রোল, ট্যাগিং এবং পরীক্ষা-নিরীক্ষার মাধ্যমে prompt-এর পরিবর্তনগুলো পদ্ধতিগতভাবে পরিচালনা ও পরীক্ষা করুন।
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Phoenix-এ বিল্ট-ইন একটি AI ইঞ্জিনিয়ারিং এজেন্ট, যা trace ডিবাগ করা, prompt নিয়ে বারবার উন্নতি করা এবং প্রোডাক্টে নেভিগেট করার জন্য তৈরি।
-- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Claude Code, Cursor এবং অন্যান্য MCP ক্লায়েন্টকে সরাসরি আপনার Phoenix ইনস্ট্যান্সের `/mcp` endpoint-এ সংযুক্ত করে trace, dataset, experiment এবং আরও অনেক কিছু query করুন।
+- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Claude Code, Cursor এবং অন্যান্য MCP ক্লায়েন্টকে সরাসরি আপনার Phoenix ইনস্ট্যান্সের `/mcp` endpoint-এ সংযুক্ত করে trace, dataset, experiment এবং আরও অনেক কিছু query করুন।
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Docker Compose, Kubernetes/Helm এবং অন্যান্য ডিপ্�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Phoenix-উপযোগী ডিফল্টসহ OpenTelemetry primitives-এর ওপর একটি হালকা wrapper প্রদান করে |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API-এর জন্য ক্লায়েন্ট |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | LLM অ্যাপ্লিকেশনের জন্য TypeScript মূল্যায়ন লাইব্রেরি (alpha রিলিজ) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | পুরোনো Phoenix ভার্সনের জন্য স্বতন্ত্র stdio MCP সার্ভার (রক্ষণাবেক্ষণ মোড — Phoenix-এ বিল্ট-ইন [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) দ্বারা প্রতিস্থাপিত) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | পুরোনো Phoenix ভার্সনের জন্য স্বতন্ত্র stdio MCP সার্ভার (রক্ষণাবেক্ষণ মোড — Phoenix-এ বিল্ট-ইন [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) দ্বারা প্রতিস্থাপিত) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code, Cursor এবং অন্যান্য কোডিং এজেন্টের সাথে ব্যবহারের জন্য trace, dataset ও experiment সংগ্রহের CLI |
 
 ## ট্রেসিং ইন্টিগ্রেশন
@@ -269,7 +269,7 @@ Phoenix এমনভাবে তৈরি যাতে মানুষ ও AI �
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` trace, dataset ও experiment সংগ্রহ করে এবং আপনার অ্যাপ instrument করে (`setup`), যাতে একটি এজেন্ট টার্মিনাল থেকেই প্রসঙ্গ সংগ্রহ করে সে অনুযায়ী কাজ করতে পারে।
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) এমন ওয়ার্কফ্লো প্যাকেজ করে যা এজেন্টদের Phoenix দিয়ে ডিবাগ, মূল্যায়ন ও ট্রেস করতে শেখায়।
-- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — যেকোনো MCP ক্লায়েন্টকে আপনার ইনস্ট্যান্সের `/mcp` endpoint-এ সংযুক্ত করে সরাসরি Phoenix query করুন।
+- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — যেকোনো MCP ক্লায়েন্টকে আপনার ইনস্ট্যান্সের `/mcp` endpoint-এ সংযুক্ত করে সরাসরি Phoenix query করুন।
 
 সেটআপ ও ব্যবহারের জন্য [কোডিং এজেন্ট ডকুমেন্টেশন](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) দেখুন।
 

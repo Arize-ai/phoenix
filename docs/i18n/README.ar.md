@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix هي منصة Arize مفتوحة المصدر لقابلية مر�
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- حسّن الـ prompts، وقارن بين النماذج، واضبط المعاملات، وأعد تشغيل استدعاءات LLM المتتبَّعة.
 - [**_إدارة الـ Prompts_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- أدِر واختبر تغييرات الـ prompts بشكل منهجي باستخدام التحكم في الإصدارات والوسوم والتجريب.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - وكيل هندسة ذكاء اصطناعي مدمج في Phoenix لتصحيح أخطاء الـ traces، والتحسين التكراري للـ prompts، والتنقل في المنتج.
-- [**_خادم MCP البعيد_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - اربط Claude Code وCursor وعملاء MCP الآخرين مباشرةً بنقطة النهاية `/mcp` في نسخة Phoenix الخاصة بك للاستعلام عن الـ traces ومجموعات البيانات والتجارب وغير ذلك.
+- [**_خادم MCP البعيد_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - اربط Claude Code وCursor وعملاء MCP الآخرين مباشرةً بنقطة النهاية `/mcp` في نسخة Phoenix الخاصة بك للاستعلام عن الـ traces ومجموعات البيانات والتجارب وغير ذلك.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ npx @arizeai/phoenix-cli setup
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | توفر غلافًا خفيفًا حول أساسيات OpenTelemetry مع إعدادات افتراضية مهيّأة لـ Phoenix |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | عميل لواجهة Arize Phoenix API |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | مكتبة تقييم بلغة TypeScript لتطبيقات LLM (إصدار ألفا) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | خادم MCP مستقل يعمل عبر stdio لإصدارات Phoenix الأقدم (وضع الصيانة — حلّ محله [خادم MCP البعيد](https://arize.com/docs/phoenix/integrations/remote-mcp) المدمج في Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | خادم MCP مستقل يعمل عبر stdio لإصدارات Phoenix الأقدم (وضع الصيانة — حلّ محله [خادم MCP البعيد](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) المدمج في Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | واجهة CLI لجلب الـ traces ومجموعات البيانات والتجارب لاستخدامها مع Claude Code وCursor ووكلاء البرمجة الآخرين |
 
 ## تكاملات التتبع
@@ -269,7 +269,7 @@ Phoenix مبنية على OpenTelemetry وهي مستقلة عن المزوّد 
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — يجلب `npx @arizeai/phoenix-cli` الـ traces ومجموعات البيانات والتجارب ويضيف أدوات القياس إلى تطبيقك (`setup`)، بحيث يمكن للوكيل جلب السياق والتصرف بناءً عليه من الطرفية.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — تحزم [`.agents/skills/`](../../.agents/skills/) سير عمل يعلّم الوكلاء كيفية تصحيح الأخطاء والتقييم والتتبع باستخدام Phoenix.
-- **[خادم MCP البعيد](https://arize.com/docs/phoenix/integrations/remote-mcp)** — اربط أي عميل MCP بنقطة النهاية `/mcp` في نسختك للاستعلام من Phoenix مباشرةً.
+- **[خادم MCP البعيد](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — اربط أي عميل MCP بنقطة النهاية `/mcp` في نسختك للاستعلام من Phoenix مباشرةً.
 
 راجع [توثيق وكلاء البرمجة](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) للإعداد والاستخدام.
 

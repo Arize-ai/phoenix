@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix، Arize کا اوپن سورس AI observability پلیٹ فارم 
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- prompts کو بہتر بنائیں، ماڈلز کا موازنہ کریں، پیرامیٹرز کو ایڈجسٹ کریں، اور ٹریس شدہ LLM کالز کو دوبارہ چلائیں۔
 - [**_Prompt مینجمنٹ_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- ورژن کنٹرول، ٹیگنگ اور تجربات کے ذریعے prompt میں تبدیلیوں کو منظم طریقے سے مینیج اور ٹیسٹ کریں۔
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Phoenix میں شامل ایک AI انجینئرنگ ایجنٹ جو traces کی ڈیبگنگ، prompts پر بار بار بہتری، اور پروڈکٹ میں نیویگیشن کے لیے ہے۔
-- [**_ریموٹ MCP سرور_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Claude Code، Cursor اور دیگر MCP کلائنٹس کو براہ راست اپنے Phoenix انسٹینس کے `/mcp` اینڈ پوائنٹ سے جوڑیں تاکہ traces، ڈیٹا سیٹس، تجربات اور مزید چیزوں کے بارے میں کوئری کر سکیں۔
+- [**_ریموٹ MCP سرور_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Claude Code، Cursor اور دیگر MCP کلائنٹس کو براہ راست اپنے Phoenix انسٹینس کے `/mcp` اینڈ پوائنٹ سے جوڑیں تاکہ traces، ڈیٹا سیٹس، تجربات اور مزید چیزوں کے بارے میں کوئری کر سکیں۔
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Docker Compose، Kubernetes/Helm اور ڈیپلائمنٹ کے دیگر آپش�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | OpenTelemetry primitives کے گرد ایک ہلکا پھلکا wrapper فراہم کرتا ہے جس کے ڈیفالٹس Phoenix کے مطابق ہیں |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | Arize Phoenix API کے لیے کلائنٹ |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | LLM ایپلیکیشنز کے لیے TypeScript جانچ لائبریری (الفا ریلیز) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | Phoenix کے پرانے ورژنز کے لیے خود مختار stdio MCP سرور (مینٹیننس موڈ — اس کی جگہ Phoenix میں شامل [ریموٹ MCP سرور](https://arize.com/docs/phoenix/integrations/remote-mcp) نے لے لی ہے) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | Phoenix کے پرانے ورژنز کے لیے خود مختار stdio MCP سرور (مینٹیننس موڈ — اس کی جگہ Phoenix میں شامل [ریموٹ MCP سرور](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) نے لے لی ہے) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code، Cursor اور دیگر کوڈنگ ایجنٹس کے ساتھ استعمال کے لیے traces، ڈیٹا سیٹس اور تجربات حاصل کرنے کا CLI |
 
 ## ٹریسنگ انٹیگریشنز
@@ -269,7 +269,7 @@ Phoenix کو اس طرح بنایا گیا ہے کہ اسے انسان اور AI
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` traces، ڈیٹا سیٹس اور تجربات حاصل کرتا ہے اور آپ کی ایپ میں instrumentation شامل کرتا ہے (`setup`)، تاکہ ایجنٹ ٹرمینل سے سیاق و سباق حاصل کر کے اس پر عمل کر سکے۔
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) ایسے ورک فلوز پیک کرتا ہے جو ایجنٹس کو سکھاتے ہیں کہ Phoenix کے ساتھ ڈیبگ، جانچ اور ٹریس کیسے کریں۔
-- **[ریموٹ MCP سرور](https://arize.com/docs/phoenix/integrations/remote-mcp)** — کسی بھی MCP کلائنٹ کو اپنے انسٹینس کے `/mcp` اینڈ پوائنٹ سے جوڑیں تاکہ براہ راست Phoenix سے کوئری کر سکیں۔
+- **[ریموٹ MCP سرور](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — کسی بھی MCP کلائنٹ کو اپنے انسٹینس کے `/mcp` اینڈ پوائنٹ سے جوڑیں تاکہ براہ راست Phoenix سے کوئری کر سکیں۔
 
 سیٹ اپ اور استعمال کے لیے [کوڈنگ ایجنٹس کی دستاویزات](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) دیکھیں۔
 

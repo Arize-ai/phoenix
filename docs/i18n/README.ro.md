@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix este platforma open-source de observabilitate AI a Arize, conceput
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimizați prompturi, comparați modele, ajustați parametri și reluați apeluri LLM urmărite.
 - [**_Gestionarea prompturilor_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Gestionați și testați sistematic modificările prompturilor folosind controlul versiunilor, etichetarea și experimentarea.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Un agent de inginerie AI integrat în Phoenix pentru depanarea trace-urilor, iterarea pe prompturi și navigarea în produs.
-- [**_Server MCP la distanță_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Conectați Claude Code, Cursor și alți clienți MCP direct la endpointul `/mcp` al instanței dumneavoastră Phoenix pentru a interoga trace-uri, dataseturi, experimente și multe altele.
+- [**_Server MCP la distanță_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Conectați Claude Code, Cursor și alți clienți MCP direct la endpointul `/mcp` al instanței dumneavoastră Phoenix pentru a interoga trace-uri, dataseturi, experimente și multe altele.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Pachetul `arize-phoenix` include întreaga platformă Phoenix. Totuși, dacă a�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | Oferă un wrapper ușor peste primitivele OpenTelemetry, cu valori implicite adaptate pentru Phoenix |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | Client pentru API-ul Arize Phoenix |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/) | Bibliotecă TypeScript de evaluare pentru aplicații LLM (versiune alpha) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | Server MCP stdio independent pentru versiunile mai vechi de Phoenix (în mentenanță — înlocuit de [serverul MCP la distanță](https://arize.com/docs/phoenix/integrations/remote-mcp) integrat în Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md) | Server MCP stdio independent pentru versiunile mai vechi de Phoenix (în mentenanță — înlocuit de [serverul MCP la distanță](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) integrat în Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI pentru preluarea trace-urilor, dataseturilor și experimentelor, pentru utilizare cu Claude Code, Cursor și alți agenți de programare |
 
 ## Integrări de tracing
@@ -269,7 +269,7 @@ Phoenix este conceput pentru a fi utilizat atât de oameni, cât și de agenți 
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` preia trace-uri, dataseturi și experimente și vă instrumentează aplicația (`setup`), astfel încât un agent poate obține context și poate acționa pe baza lui din terminal.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) împachetează fluxuri de lucru care îi învață pe agenți cum să depaneze, să evalueze și să facă tracing cu Phoenix.
-- **[Server MCP la distanță](https://arize.com/docs/phoenix/integrations/remote-mcp)** — conectați orice client MCP la endpointul `/mcp` al instanței dumneavoastră pentru a interoga Phoenix direct.
+- **[Server MCP la distanță](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — conectați orice client MCP la endpointul `/mcp` al instanței dumneavoastră pentru a interoga Phoenix direct.
 
 Consultați [documentația pentru agenți de programare](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) pentru configurare și utilizare.
 
