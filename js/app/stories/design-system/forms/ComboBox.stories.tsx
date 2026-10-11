@@ -122,6 +122,7 @@ const LONG_PATHS = [
  * popover instead of overflowing it.
  */
 export const LongItems: StoryObj<ComboBoxProps<object>> = {
+  tags: ["!dev"],
   args: {
     label: "Path",
   },
