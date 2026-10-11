@@ -36,6 +36,17 @@ def test_trace_dataset_accepts_empty_dataframe() -> None:
     assert list(dataset.to_spans()) == []
 
 
+def test_trace_dataset_empty_dataframe_keeps_existing_columns() -> None:
+    dataset = TraceDataset(pd.DataFrame(columns=["name", "attributes.llm.model_name"]))
+    assert dataset.dataframe.empty
+    assert set(dataset.dataframe.columns) == {*REQUIRED_COLUMNS, "attributes.llm.model_name"}
+
+
+def test_trace_dataset_rejects_rows_without_required_columns() -> None:
+    with pytest.raises(ValueError, match="missing some required columns"):
+        TraceDataset(pd.DataFrame(index=[0, 1]))
+
+
 def test_trace_dataset_from_spans_empty() -> None:
     dataset = TraceDataset.from_spans([])
     assert dataset.dataframe.empty
