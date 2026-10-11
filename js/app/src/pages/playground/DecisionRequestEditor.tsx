@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
 
 import {
   Alert,
@@ -19,6 +18,7 @@ import {
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type {
   DecisionQuestionDraft,
   DecisionRequestDraft,
@@ -28,6 +28,7 @@ import { DecisionQuestionEditor } from "./DecisionQuestionEditor";
 import {
   createDecisionDraft,
   createDecisionQuestion,
+  MAX_DECISION_QUESTIONS,
   validateDecisionDraft,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
@@ -64,29 +65,40 @@ export function DecisionRequestEditor({
     (state) => state.updateDecisionRequest
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  // The state is the evidence the user supplies, so it takes the user
+  // message tint, as a chat template's user message would.
+  const stateStyles = useChatMessageStyles("user");
   const isRunning = instance?.activeRunId != null;
   const request = instance?.decisionRequest ?? createDecisionDraft();
-  const errors = useMemo(() => validateDecisionDraft(request), [request]);
+  const errors = validateDecisionDraft(request);
   const revision = request.revision ?? 0;
+  const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
 
   const update = (patch: Partial<DecisionRequestDraft>) =>
-    updateDecisionRequest(instanceId, { ...request, ...patch });
-  const updateQuestion = (id: string, patch: Partial<DecisionQuestionDraft>) =>
+    updateDecisionRequest({ instanceId, request: { ...request, ...patch } });
+  const updateQuestion = (
+    questionId: string,
+    patch: Partial<DecisionQuestionDraft>
+  ) =>
     update({
-      questions: request.questions.map((q) =>
-        q.id === id ? { ...q, ...patch } : q
+      questions: request.questions.map((question) =>
+        question.id === questionId ? { ...question, ...patch } : question
       ),
     });
 
   const addQuestion = () => {
     let suffix = request.questions.length + 1;
-    while (request.questions.some((q) => q.name === `question_${suffix}`)) {
+    while (
+      request.questions.some(
+        (question) => question.name === `question_${suffix}`
+      )
+    ) {
       suffix += 1;
     }
     update({
       questions: [
         ...request.questions,
-        createDecisionQuestion("noul", { name: `question_${suffix}` }),
+        createDecisionQuestion({ type: "noul", name: `question_${suffix}` }),
       ],
     });
   };
@@ -98,8 +110,7 @@ export function DecisionRequestEditor({
         collapseButtonLabel="State"
         title="State"
         testId="decision-state"
-        backgroundColor="gray-100"
-        borderColor="gray-300"
+        {...stateStyles}
         headerContent={
           <CardCollapsedPreview>{request.state}</CardCollapsedPreview>
         }
@@ -175,7 +186,7 @@ export function DecisionRequestEditor({
               onRemove={() =>
                 update({
                   questions: request.questions.filter(
-                    (q) => q.id !== question.id
+                    (candidate) => candidate.id !== question.id
                   ),
                 })
               }
@@ -193,7 +204,7 @@ export function DecisionRequestEditor({
           size="S"
           aria-label="add question"
           leadingVisual={<Icon svg={<Icons.Plus />} />}
-          isDisabled={isRunning || request.questions.length >= 255}
+          isDisabled={isRunning || !canAddQuestion}
           onPress={addQuestion}
         >
           Question

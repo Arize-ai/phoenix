@@ -56,7 +56,9 @@ describe("decision span replay", () => {
       modelType: "DECISION",
     });
     expect(playgroundInstance.llmModel?.provider).toBe("OPENAI");
-    const request = buildDecisionRequest(playgroundInstance.decisionRequest!);
+    const request = buildDecisionRequest({
+      draft: playgroundInstance.decisionRequest!,
+    });
     expect(request.state).toEqual({ complaint: "I was charged twice." });
     expect(Object.keys(request.questions)).toEqual(["department", "urgent"]);
     expect(request.questions.department).toEqual(

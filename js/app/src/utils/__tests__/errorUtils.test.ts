@@ -29,6 +29,16 @@ describe("isAbortError", () => {
 });
 
 describe("getErrorMessagesFromRelayMutationError", () => {
+  it("ignores message keys and credentials inside the request variables", () => {
+    const error = new Error(
+      `Error fetching GraphQL query 'Decision' with variables '{"input":{"credentials":[{"value":"private-api-key"}],"state":{"message":"private-state"},"note":"Steps: [1]"}}': [{"message":"Configure TYPESAFE_API_KEY"},{"message":"Second \\"quoted\\" error"}]`
+    );
+    expect(getErrorMessagesFromRelayMutationError(error)).toEqual([
+      "Configure TYPESAFE_API_KEY",
+      'Second "quoted" error',
+    ]);
+  });
+
   it("should extract error messages from a Relay mutation error", () => {
     const error = new Error(
       `Error fetching GraphQL query "MutationName" with variables {"input":{"var1":"test"}: [{"message":"Actual Error Message 'with quotes'","locations":[{"line":4,"column":3}],"path":["responsePath"]}]`

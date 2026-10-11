@@ -43,7 +43,6 @@ import {
   type GenerativeProviderKey,
   type ModelCredentialSource,
   type ModelProviderInfo,
-  type ModelType,
   useModelMenuData,
 } from "@phoenix/components/generative/useModelMenuData";
 import { usePreferencesContext } from "@phoenix/contexts";
@@ -261,7 +260,11 @@ export function ModelMenu({
     modelsByProvider,
     providerInfoMap,
     visibleProviders,
-  } = useModelMenuData({ credentialSource, modelType });
+  } = useModelMenuData({
+    credentialSource,
+    modelType,
+    includeDecisionModels: supportsDecisionModels,
+  });
   const selectableCustomProviders =
     modelType === "DECISION" ? [] : customProviders;
 

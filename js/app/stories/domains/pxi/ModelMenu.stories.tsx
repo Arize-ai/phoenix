@@ -73,6 +73,7 @@ const provider = ({
   dependenciesInstalled = true,
   credentialsSet = false,
   needsCredentials = true,
+  modelTypes = ["LLM"],
 }: Partial<ModelProviderInfo> &
   Pick<ModelProviderInfo, "key" | "name">): ModelProviderInfo => ({
   key,
@@ -80,6 +81,7 @@ const provider = ({
   dependenciesInstalled,
   credentialsSet,
   needsCredentials,
+  modelTypes,
 });
 
 /**

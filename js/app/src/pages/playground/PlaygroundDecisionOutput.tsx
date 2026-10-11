@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 
 import {
   Alert,
@@ -13,10 +13,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import {
-  usePlaygroundContext,
-  usePlaygroundStore,
-} from "@phoenix/contexts/PlaygroundContext";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/ExperimentRepetitionSelector";
 
@@ -53,7 +50,9 @@ export function PlaygroundDecisionOutput({
   playgroundInstanceId: instanceId,
 }: PlaygroundInstanceProps) {
   useDecisionRunner(instanceId);
-  const store = usePlaygroundStore();
+  const setSelectedRepetitionNumber = usePlaygroundContext(
+    (state) => state.setSelectedRepetitionNumber
+  );
   const instance = usePlaygroundContext((state) =>
     state.instances.find((item) => item.id === instanceId)
   );
@@ -65,10 +64,7 @@ export function PlaygroundDecisionOutput({
   const answersStyles = useChatMessageStyles("ai");
   const selected = instance?.repetitions[instance.selectedRepetitionNumber];
   const output = typeof selected?.output === "string" ? selected.output : null;
-  const raw = useMemo(
-    () => (output == null ? "" : prettyPrint(output)),
-    [output]
-  );
+  const raw = output == null ? "" : prettyPrint(output);
   if (!instance) return null;
   const request = instance.decisionRequest ?? null;
   const runId = instance.activeRunId;
@@ -83,14 +79,12 @@ export function PlaygroundDecisionOutput({
             repetitionNumber={instance.selectedRepetitionNumber}
             totalRepetitions={totalRepetitions}
             setRepetitionNumber={(next) =>
-              store
-                .getState()
-                .setSelectedRepetitionNumber(
-                  instanceId,
-                  typeof next === "function"
-                    ? next(instance.selectedRepetitionNumber)
-                    : next
-                )
+              setSelectedRepetitionNumber(
+                instanceId,
+                typeof next === "function"
+                  ? next(instance.selectedRepetitionNumber)
+                  : next
+              )
             }
           />
         ) : undefined

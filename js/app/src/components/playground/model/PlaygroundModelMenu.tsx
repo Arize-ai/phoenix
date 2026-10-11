@@ -1,8 +1,8 @@
-import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
 import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
+import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
@@ -12,13 +12,22 @@ export type PlaygroundModelMenuProps = {
    * The playground instance ID to configure
    */
   playgroundInstanceId: number;
+  /** Enable the Decision tab in the menu. */
   supportsDecisionModels?: boolean;
+  /** Why decision models cannot be chosen right now, shown on the disabled tab. */
   decisionModelsDisabledReason?: string;
 };
 
+/** Search params that put the playground in decision mode on load. */
+const DECISION_SEARCH_PARAMS = [
+  "modelType",
+  "decisionProvider",
+  "decisionModel",
+] as const;
+
 /**
- * A model selection menu connected to the playground store.
- * Handles both provider and model name updates when a model is selected.
+ * Model menu for the playground that handles provider and model changes
+ * through the playground store.
  */
 export function PlaygroundModelMenu({
   playgroundInstanceId,
@@ -27,6 +36,12 @@ export function PlaygroundModelMenu({
 }: PlaygroundModelMenuProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
+  );
+  // The URL recreates a single instance on load (see getInitialInstances),
+  // so only the first instance writes its model type there. Other instances
+  // are compared in place and are not restored from the URL.
+  const isFirstInstance = usePlaygroundContext(
+    (state) => state.instances[0]?.id === playgroundInstanceId
   );
 
   const updateProvider = usePlaygroundContext((state) => state.updateProvider);
@@ -46,99 +61,95 @@ export function PlaygroundModelMenu({
       }
     : null;
 
-  const handleChange = useCallback(
-    (model: ModelMenuValue) => {
-      if (!instance) return;
+  const syncDecisionSearchParams = (decisionModel: ModelMenuValue | null) => {
+    if (!isFirstInstance) return;
+    const params = new URLSearchParams(searchParams);
+    if (decisionModel) {
+      params.set("modelType", "DECISION");
+      params.set("decisionProvider", decisionModel.provider);
+      params.set("decisionModel", decisionModel.modelName);
+    } else {
+      DECISION_SEARCH_PARAMS.forEach((key) => params.delete(key));
+    }
+    setSearchParams(params, { replace: true });
+  };
 
-      if (model.modelType === "DECISION") {
-        updateInstance({
-          instanceId: playgroundInstanceId,
-          dirty: true,
-          patch: {
-            // Keep a request the instance already had; start one otherwise.
-            decisionRequest: instance.decisionRequest ?? createDecisionDraft(),
-            llmModel:
-              instance.model.modelType === "DECISION"
-                ? instance.llmModel
-                : instance.model,
-            model: {
-              provider: model.provider,
-              modelName: model.modelName,
-              modelType: "DECISION",
-              invocationParameters: instance.model.invocationParameters,
-              baseUrl:
-                instance.model.modelType === "DECISION" &&
-                model.provider === instance.model.provider
-                  ? instance.model.baseUrl
-                  : null,
-            },
-            prompt: null,
-            repetitions: {},
-            experiment: null,
-          },
-        });
-        const params = new URLSearchParams(searchParams);
-        params.set("modelType", "DECISION");
-        params.set("decisionProvider", model.provider);
-        params.set("decisionModel", model.modelName);
-        setSearchParams(params, { replace: true });
-        return;
-      }
-      if (instance.model.modelType === "DECISION") {
-        const params = new URLSearchParams(searchParams);
-        params.delete("modelType");
-        params.delete("decisionProvider");
-        params.delete("decisionModel");
-        setSearchParams(params, { replace: true });
-        // Restore the conversation's config before any provider conversion.
-        updateInstance({
-          instanceId: playgroundInstanceId,
-          dirty: true,
-          patch: {
-            model: {
-              ...(instance.llmModel ?? instance.model),
-              provider: instance.llmModel?.provider ?? "OPENAI",
-              modelType: "LLM",
-            },
-            repetitions: {},
-          },
-        });
-      }
+  const handleChange = (model: ModelMenuValue) => {
+    if (!instance) return;
 
-      // Update provider if it changed
-      const previousProvider =
-        instance.model.modelType === "DECISION"
-          ? (instance.llmModel?.provider ?? "OPENAI")
-          : instance.model.provider;
-      if (model.provider !== previousProvider) {
-        updateProvider({
-          instanceId: playgroundInstanceId,
-          provider: model.provider,
-          modelConfigByProvider,
-        });
-      }
-
-      // Update model name and custom provider info
-      updateModel({
+    if (model.modelType === "DECISION") {
+      const wasDecision = instance.model.modelType === "DECISION";
+      updateInstance({
         instanceId: playgroundInstanceId,
+        dirty: true,
         patch: {
-          modelName: model.modelName,
-          customProvider: model.customProvider ?? null,
-          modelType: "LLM",
+          // Keep a request the instance already had; start one otherwise.
+          decisionRequest: instance.decisionRequest ?? createDecisionDraft(),
+          // Remember the chat configuration so switching back restores it.
+          llmModel: wasDecision ? instance.llmModel : instance.model,
+          model: {
+            provider: model.provider,
+            modelName: model.modelName,
+            modelType: "DECISION",
+            invocationParameters: instance.model.invocationParameters,
+            // A base URL points at one provider's decision endpoint.
+            baseUrl:
+              wasDecision && model.provider === instance.model.provider
+                ? instance.model.baseUrl
+                : null,
+          },
+          prompt: null,
+          repetitions: {},
+          experiment: null,
         },
       });
-    },
-    [
-      instance,
-      playgroundInstanceId,
-      updateProvider,
-      updateModel,
-      modelConfigByProvider,
-      updateInstance,
-      searchParams,
-      setSearchParams,
-    ]
-  );
+      syncDecisionSearchParams(model);
+      return;
+    }
+
+    if (instance.model.modelType === "DECISION") {
+      syncDecisionSearchParams(null);
+      // Restore the chat configuration the instance had before it became a
+      // decision instance. Without one, start from a clean chat model: the
+      // decision base URL points at a decision endpoint, not a chat one.
+      const restoredModel = instance.llmModel ?? {
+        ...instance.model,
+        provider: DEFAULT_MODEL_PROVIDER,
+        baseUrl: null,
+      };
+      updateInstance({
+        instanceId: playgroundInstanceId,
+        dirty: true,
+        patch: {
+          model: { ...restoredModel, modelType: "LLM" },
+          repetitions: {},
+        },
+      });
+    }
+
+    // Update provider if it changed
+    const previousProvider =
+      instance.model.modelType === "DECISION"
+        ? (instance.llmModel?.provider ?? DEFAULT_MODEL_PROVIDER)
+        : instance.model.provider;
+    if (model.provider !== previousProvider) {
+      updateProvider({
+        instanceId: playgroundInstanceId,
+        provider: model.provider,
+        modelConfigByProvider,
+      });
+    }
+
+    // Update model name and custom provider ref
+    updateModel({
+      instanceId: playgroundInstanceId,
+      patch: {
+        modelName: model.modelName,
+        customProvider: model.customProvider ?? null,
+        modelType: "LLM",
+      },
+    });
+  };
 
   if (!instance) {
     return null;

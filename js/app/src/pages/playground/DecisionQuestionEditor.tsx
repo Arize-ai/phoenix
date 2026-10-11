@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
+import type { ReactNode } from "react";
 
 import {
   Alert,
@@ -38,7 +38,11 @@ import {
   createScoreLevel,
   DECISION_QUESTION_TYPES,
   type DecisionQuestionErrors,
-  questionDraftToSystemOne,
+  MAX_CHOICE_OPTIONS,
+  MAX_SCORE_LEVELS,
+  MIN_CHOICE_OPTIONS,
+  MIN_SCORE_LEVELS,
+  toSystemOneQuestion,
 } from "./decisionUtils";
 
 const hiddenLabelCSS = css`
@@ -120,17 +124,10 @@ export function DecisionQuestionEditor({
   onRemove,
 }: Props) {
   const label = question.name.trim() || `question ${index + 1}`;
-  const copyText = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          [question.name.trim() || "question"]:
-            questionDraftToSystemOne(question),
-        },
-        null,
-        2
-      ),
-    [question]
+  const copyText = JSON.stringify(
+    { [question.name.trim() || "question"]: toSystemOneQuestion({ question }) },
+    null,
+    2
   );
   const headerError = errors?.name
     ? errors.name === "Required"
@@ -158,13 +155,15 @@ export function DecisionQuestionEditor({
               if (!isQuestionType(key) || key === question.type) return;
               // Seed criteria for the new type so the card never opens on a
               // validation error.
-              const fresh = createDecisionQuestion(key);
+              const seeded = createDecisionQuestion({ type: key });
               onChange({
                 type: key,
                 choices: question.choices.length
                   ? question.choices
-                  : fresh.choices,
-                levels: question.levels.length ? question.levels : fresh.levels,
+                  : seeded.choices,
+                levels: question.levels.length
+                  ? question.levels
+                  : seeded.levels,
               });
             }}
           >
@@ -174,12 +173,16 @@ export function DecisionQuestionEditor({
             </Button>
             <Popover placement="bottom start" offset={4}>
               <ListBox>
-                {DECISION_QUESTION_TYPES.map((t) => (
-                  <SelectItem key={t.id} id={t.id} textValue={t.label}>
+                {DECISION_QUESTION_TYPES.map((questionType) => (
+                  <SelectItem
+                    key={questionType.id}
+                    id={questionType.id}
+                    textValue={questionType.label}
+                  >
                     <Flex direction="column">
-                      <Text>{t.label}</Text>
+                      <Text>{questionType.label}</Text>
                       <Text size="XS" color="text-700">
-                        {t.description}
+                        {questionType.description}
                       </Text>
                     </Flex>
                   </SelectItem>
@@ -274,7 +277,7 @@ function CriteriaHeading({
   action,
 }: {
   title: string;
-  action: React.ReactNode;
+  action: ReactNode;
 }) {
   return (
     <Flex
@@ -298,14 +301,16 @@ function ChoiceCriteriaEditor({
   onChange,
 }: CriteriaProps) {
   const updateOption = (
-    id: string,
+    optionId: string,
     patch: { value?: string; description?: string }
   ) =>
     onChange({
-      choices: question.choices.map((c) =>
-        c.id === id ? { ...c, ...patch } : c
+      choices: question.choices.map((option) =>
+        option.id === optionId ? { ...option, ...patch } : option
       ),
     });
+  const canAddOption = question.choices.length < MAX_CHOICE_OPTIONS;
+  const canRemoveOption = question.choices.length > MIN_CHOICE_OPTIONS;
   return (
     <Flex direction="column" gap="size-100">
       <CriteriaHeading
@@ -315,7 +320,7 @@ function ChoiceCriteriaEditor({
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Plus />} />}
-            isDisabled={isDisabled || question.choices.length >= 255}
+            isDisabled={isDisabled || !canAddOption}
             onPress={() =>
               onChange({
                 choices: [...question.choices, createChoiceOption()],
@@ -330,13 +335,13 @@ function ChoiceCriteriaEditor({
         <Alert variant="danger">{errors.choices}</Alert>
       ) : null}
       <ul css={listCSS} aria-label="Choice options">
-        {question.choices.map((option, i) => {
+        {question.choices.map((option, optionIndex) => {
           const optionError = errors?.choiceOptions?.[option.id];
           return (
             <li key={option.id} css={optionRowCSS}>
               <TextField
                 size="S"
-                aria-label={`Option ${i + 1} value`}
+                aria-label={`Option ${optionIndex + 1} value`}
                 value={option.value}
                 onChange={(value) => updateOption(option.id, { value })}
                 isDisabled={isDisabled}
@@ -347,7 +352,7 @@ function ChoiceCriteriaEditor({
               </TextField>
               <TextField
                 size="S"
-                aria-label={`Option ${i + 1} description`}
+                aria-label={`Option ${optionIndex + 1} description`}
                 value={option.description}
                 onChange={(description) =>
                   updateOption(option.id, { description })
@@ -358,12 +363,14 @@ function ChoiceCriteriaEditor({
               </TextField>
               <Button
                 size="S"
-                aria-label={`Remove option ${i + 1}`}
+                aria-label={`Remove option ${optionIndex + 1}`}
                 leadingVisual={<Icon svg={<Icons.Trash />} />}
-                isDisabled={isDisabled || question.choices.length <= 2}
+                isDisabled={isDisabled || !canRemoveOption}
                 onPress={() =>
                   onChange({
-                    choices: question.choices.filter((c) => c.id !== option.id),
+                    choices: question.choices.filter(
+                      (candidate) => candidate.id !== option.id
+                    ),
                   })
                 }
               />
@@ -381,13 +388,15 @@ function ScoreCriteriaEditor({
   isDisabled,
   onChange,
 }: CriteriaProps) {
-  const move = (from: number, to: number) => {
-    if (to < 0 || to >= question.levels.length) return;
+  const moveLevel = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= question.levels.length) return;
     const levels = [...question.levels];
-    const [level] = levels.splice(from, 1);
-    levels.splice(to, 0, level);
+    const [level] = levels.splice(fromIndex, 1);
+    levels.splice(toIndex, 0, level);
     onChange({ levels });
   };
+  const canAddLevel = question.levels.length < MAX_SCORE_LEVELS;
+  const canRemoveLevel = question.levels.length > MIN_SCORE_LEVELS;
   return (
     <Flex direction="column" gap="size-100">
       <CriteriaHeading
@@ -397,7 +406,7 @@ function ScoreCriteriaEditor({
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Plus />} />}
-            isDisabled={isDisabled || question.levels.length >= 10}
+            isDisabled={isDisabled || !canAddLevel}
             onPress={() =>
               onChange({ levels: [...question.levels, createScoreLevel()] })
             }
@@ -408,50 +417,58 @@ function ScoreCriteriaEditor({
       />
       {errors?.levels ? <Alert variant="danger">{errors.levels}</Alert> : null}
       <ol css={listCSS} aria-label="Score levels">
-        {question.levels.map((level, i) => (
+        {question.levels.map((level, levelIndex) => (
           <li key={level.id} css={levelRowCSS}>
             <Text size="S" color="text-700" fontFamily="mono">
-              {i}
+              {levelIndex}
             </Text>
             <TextField
               size="S"
-              aria-label={`Level ${i} description`}
+              aria-label={`Level ${levelIndex} description`}
               value={level.description}
               onChange={(description) =>
                 onChange({
-                  levels: question.levels.map((l) =>
-                    l.id === level.id ? { ...l, description } : l
+                  levels: question.levels.map((candidate) =>
+                    candidate.id === level.id
+                      ? { ...candidate, description }
+                      : candidate
                   ),
                 })
               }
               isDisabled={isDisabled}
               isInvalid={!!errors?.levels && !level.description.trim()}
             >
-              <Input placeholder={i === 0 ? "e.g. Low" : "e.g. High"} />
+              <Input
+                placeholder={levelIndex === 0 ? "e.g. Low" : "e.g. High"}
+              />
             </TextField>
             <Flex direction="row" gap="size-50">
               <Button
                 size="S"
-                aria-label={`Move level ${i} up`}
+                aria-label={`Move level ${levelIndex} up`}
                 leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-                isDisabled={isDisabled || i === 0}
-                onPress={() => move(i, i - 1)}
+                isDisabled={isDisabled || levelIndex === 0}
+                onPress={() => moveLevel(levelIndex, levelIndex - 1)}
               />
               <Button
                 size="S"
-                aria-label={`Move level ${i} down`}
+                aria-label={`Move level ${levelIndex} down`}
                 leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
-                isDisabled={isDisabled || i === question.levels.length - 1}
-                onPress={() => move(i, i + 1)}
+                isDisabled={
+                  isDisabled || levelIndex === question.levels.length - 1
+                }
+                onPress={() => moveLevel(levelIndex, levelIndex + 1)}
               />
               <Button
                 size="S"
-                aria-label={`Remove level ${i}`}
+                aria-label={`Remove level ${levelIndex}`}
                 leadingVisual={<Icon svg={<Icons.Trash />} />}
-                isDisabled={isDisabled || question.levels.length <= 2}
+                isDisabled={isDisabled || !canRemoveLevel}
                 onPress={() =>
                   onChange({
-                    levels: question.levels.filter((l) => l.id !== level.id),
+                    levels: question.levels.filter(
+                      (candidate) => candidate.id !== level.id
+                    ),
                   })
                 }
               />

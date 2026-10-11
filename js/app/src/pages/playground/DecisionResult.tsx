@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
 
 import { Flex, ProgressBar, Text } from "@phoenix/components";
 import type { DecisionRequestDraft } from "@phoenix/store/playground/types";
@@ -27,34 +26,50 @@ const alignEndCSS = css`
   text-align: right;
 `;
 
+const tabularNumbersCSS = css`
+  font-variant-numeric: tabular-nums;
+`;
+
+const metaCSS = css`
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+`;
+
+const answerListCSS = css`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
+`;
+
+// Rows the model did not pick step back to a muted neutral so the eye finds
+// the answer; the chosen row keeps the bar's primary fill.
+const unchosenBarStyle = {
+  "--mod-barloader-fill-color": "var(--global-color-primary-300)",
+} as CSSProperties;
+
 export function formatPercent(value: number | null): string {
   return value == null ? "–" : `${Math.round(value * 100)}%`;
 }
 
 /**
  * A probability drawn with the design system's bar. The chosen row keeps
- * the primary fill; the rest step back to gray so the eye finds the answer.
+ * the primary fill; the rest step back so the eye finds the answer.
  */
 function ProbabilityBar({
   value,
   label,
-  chosen = false,
+  isChosen = false,
 }: {
   value: number | null;
   label: string;
-  chosen?: boolean;
+  isChosen?: boolean;
 }) {
   const percentage = value == null ? 0 : Math.max(0, Math.min(1, value)) * 100;
   return (
-    <div
-      style={
-        chosen
-          ? undefined
-          : ({
-              "--mod-barloader-fill-color": "var(--global-color-gray-500)",
-            } as CSSProperties)
-      }
-    >
+    <div style={isChosen ? undefined : unchosenBarStyle}>
       <ProgressBar aria-label={label} value={percentage} width="100%" />
     </div>
   );
@@ -64,13 +79,13 @@ function DistributionRow({
   label,
   index,
   value,
-  chosen,
+  isChosen,
   barLabel,
 }: {
   label: string;
   index?: number;
   value: number | null;
-  chosen: boolean;
+  isChosen: boolean;
   barLabel: string;
 }) {
   return (
@@ -83,18 +98,36 @@ function DistributionRow({
         ) : null}
         <Text
           size="S"
-          weight={chosen ? "heavy" : "normal"}
-          color={chosen ? "text-900" : "text-700"}
+          weight={isChosen ? "heavy" : "normal"}
+          color={isChosen ? "text-900" : "text-700"}
           css={wrapAnywhereCSS}
         >
           {label}
         </Text>
       </Flex>
-      <ProbabilityBar value={value} label={barLabel} chosen={chosen} />
-      <Text size="S" color={chosen ? "text-900" : "text-700"} css={alignEndCSS}>
+      <ProbabilityBar value={value} label={barLabel} isChosen={isChosen} />
+      <Text
+        size="S"
+        color={isChosen ? "text-900" : "text-700"}
+        css={alignEndCSS}
+      >
         {formatPercent(value)}
       </Text>
     </>
+  );
+}
+
+/** The level index closest to a score, or null without a score or levels. */
+function getNearestLevelIndex({
+  score,
+  levelIndices,
+}: {
+  score: number | null;
+  levelIndices: number[];
+}): number | null {
+  if (score == null || levelIndices.length === 0) return null;
+  return levelIndices.reduce((nearest, index) =>
+    Math.abs(index - score) < Math.abs(nearest - score) ? index : nearest
   );
 }
 
@@ -119,28 +152,22 @@ export function DecisionAnswerView({
       }
       return (
         <div css={distributionCSS} aria-label={`${answer.name} probabilities`}>
-          {answer.probabilities.map((p) => (
+          {answer.probabilities.map((entry) => (
             <DistributionRow
-              key={p.value}
-              label={p.value}
-              value={p.probability}
-              chosen={p.value === answer.choice}
-              barLabel={`${p.value} probability`}
+              key={entry.value}
+              label={entry.value}
+              value={entry.probability}
+              isChosen={entry.value === answer.choice}
+              barLabel={`${entry.value} probability`}
             />
           ))}
         </div>
       );
     case "score": {
-      const nearest =
-        answer.score == null
-          ? null
-          : answer.levels.reduce<number | null>((best, level) => {
-              if (best == null) return level.index;
-              return Math.abs(level.index - (answer.score as number)) <
-                Math.abs(best - (answer.score as number))
-                ? level.index
-                : best;
-            }, null);
+      const nearestLevelIndex = getNearestLevelIndex({
+        score: answer.score,
+        levelIndices: answer.levels.map((level) => level.index),
+      });
       return (
         <div css={distributionCSS} aria-label={`${answer.name} score levels`}>
           {answer.levels.map((level) => (
@@ -149,7 +176,7 @@ export function DecisionAnswerView({
               index={level.index}
               label={level.label}
               value={level.probability}
-              chosen={nearest === level.index}
+              isChosen={nearestLevelIndex === level.index}
               barLabel={`${level.label} probability`}
             />
           ))}
@@ -168,7 +195,7 @@ export function DecisionAnswerView({
                   : "False"
             }
             value={answer.probability}
-            chosen
+            isChosen
             barLabel={`${answer.name} probability of true`}
           />
         </div>
@@ -192,7 +219,7 @@ export function DecisionAnswerView({
  * The arg-max as plain text, for tests and assistive tech. The bars already
  * carry it visually, so callers render it hidden.
  */
-export function answerValue(answer: NormalizedDecisionAnswer): string {
+export function getAnswerValue(answer: NormalizedDecisionAnswer): string {
   switch (answer.kind) {
     case "choice":
       return answer.choice ?? "";
@@ -211,7 +238,7 @@ export function answerValue(answer: NormalizedDecisionAnswer): string {
  * The numbers the bars cannot show: a score's weighted position and the
  * provider's confidence. One short line, or nothing.
  */
-export function answerMeta(
+export function getAnswerMeta(
   answer: NormalizedDecisionAnswer | undefined
 ): string | null {
   if (!answer) return null;
@@ -228,10 +255,18 @@ export function answerMeta(
   return parts.length ? parts.join(" · ") : null;
 }
 
-export function formatUsage(
-  model: string | null,
-  usage: { input: number | null; output: number | null }
-): string {
+/**
+ * The model that answered and its token usage on one line.
+ * @param params.model - the model the provider reports, if any
+ * @param params.usage - input and output token counts, if reported
+ */
+export function formatUsage({
+  model,
+  usage,
+}: {
+  model: string | null;
+  usage: { input: number | null; output: number | null };
+}): string {
   const parts = [
     model,
     usage.input != null ? `${usage.input} in` : null,
@@ -246,20 +281,21 @@ export function AnswerMeta({
 }: {
   answer: NormalizedDecisionAnswer | undefined;
 }) {
-  const meta = answerMeta(answer);
+  const meta = getAnswerMeta(answer);
   if (meta == null) return null;
   return (
-    <Text
-      size="XS"
-      color="text-700"
-      css={css`
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      `}
-    >
+    <Text size="XS" color="text-700" css={metaCSS}>
       {meta}
     </Text>
   );
+}
+
+function parseOutput(output: string): unknown {
+  try {
+    return JSON.parse(output);
+  } catch {
+    return null;
+  }
 }
 
 /** Every answer for one instance as distributions, then the usage line. */
@@ -270,26 +306,13 @@ export function DecisionResult({
   output: string;
   request: DecisionRequestDraft | null;
 }) {
-  const result = useMemo(() => {
-    try {
-      return normalizeDecisionResult(JSON.parse(output), request);
-    } catch {
-      return normalizeDecisionResult(null, request);
-    }
-  }, [output, request]);
+  const result = normalizeDecisionResult({
+    result: parseOutput(output),
+    draft: request,
+  });
   return (
     <Flex direction="column" gap="size-200">
-      <ul
-        css={css`
-          list-style: none;
-          margin: 0;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          gap: var(--global-dimension-size-200);
-        `}
-        aria-label="Decision answers"
-      >
+      <ul css={answerListCSS} aria-label="Decision answers">
         {result.answers.map((answer) => (
           <li key={answer.name}>
             <Flex direction="column" gap="size-75">
@@ -297,7 +320,7 @@ export function DecisionResult({
                 {answer.name}
               </Text>
               <span data-testid={`answer-${answer.name}`} hidden>
-                {answerValue(answer)}
+                {getAnswerValue(answer)}
               </span>
               <DecisionAnswerView answer={answer} />
               <AnswerMeta answer={answer} />
@@ -305,14 +328,8 @@ export function DecisionResult({
           </li>
         ))}
       </ul>
-      <Text
-        size="XS"
-        color="text-700"
-        css={css`
-          font-variant-numeric: tabular-nums;
-        `}
-      >
-        {formatUsage(result.model, result.usage)}
+      <Text size="XS" color="text-700" css={tabularNumbersCSS}>
+        {formatUsage({ model: result.model, usage: result.usage })}
       </Text>
     </Flex>
   );

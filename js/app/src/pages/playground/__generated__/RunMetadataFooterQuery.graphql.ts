@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<46e1097e7e96e9e83fa5ce1a3dd0e090>>
+ * @generated SignedSource<<1474e0267ac0492045316af1a379d56b>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type RunMetadataFooterQuery$variables = {
+  includeAttributes: boolean;
   spanId: string;
 };
 export type RunMetadataFooterQuery$data = {
@@ -38,28 +39,31 @@ export type RunMetadataFooterQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "spanId"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "includeAttributes"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "spanId"
+},
+v2 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "spanId"
   }
 ],
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -77,7 +81,7 @@ v3 = {
       "name": "trace",
       "plural": false,
       "selections": [
-        (v2/*:: as any*/),
+        (v3/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -93,7 +97,7 @@ v3 = {
           "name": "project",
           "plural": false,
           "selections": [
-            (v2/*:: as any*/)
+            (v3/*:: as any*/)
           ],
           "storageKey": null
         }
@@ -115,11 +119,18 @@ v3 = {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "attributes",
-      "storageKey": null
+      "condition": "includeAttributes",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "attributes",
+          "storageKey": null
+        }
+      ]
     },
     {
       "alias": null,
@@ -156,21 +167,24 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "RunMetadataFooterQuery",
     "selections": [
       {
         "alias": "span",
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*:: as any*/),
-          (v3/*:: as any*/)
+          (v3/*:: as any*/),
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -180,13 +194,16 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
+    ],
     "kind": "Operation",
     "name": "RunMetadataFooterQuery",
     "selections": [
       {
         "alias": "span",
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -199,24 +216,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*:: as any*/),
-          (v3/*:: as any*/)
+          (v3/*:: as any*/),
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "bbe8c05a70891f01e516ead81f942274",
+    "cacheID": "e94c66883299bd43895a652d8cd2b699",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      attributes\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n  $includeAttributes: Boolean!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountTotal\n      latencyMs\n      attributes @include(if: $includeAttributes)\n      costSummary {\n        total {\n          cost\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2c469d671759cbfebc0126ce113689df";
+(node as any).hash = "8feebc84425bf4cfcb2d038b3a7d70ed";
 
 export default node;
