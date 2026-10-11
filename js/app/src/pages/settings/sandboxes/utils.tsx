@@ -242,6 +242,8 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Local restricted-Python runtime";
     case "DOCKER":
       return "Docker cloud Python and TypeScript sandboxes";
+    case "TENKI":
+      return "Tenki Cloud microVM Python sandbox";
     default:
       return "Sandbox runtime";
   }
@@ -370,6 +372,7 @@ const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
     MODAL: "modal",
     MONTY: "monty",
     DOCKER: "docker",
+    TENKI: "tenki",
   };
 
 export function formValuesToConfigPatch(

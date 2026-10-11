@@ -31,6 +31,7 @@ from phoenix.server.sandbox.types import (
     SupportsDependencies,
     SupportsEnvVars,
     SupportsInternetAccess,
+    TenkiDeployment,
     UnsupportedOperation,
 )
 
@@ -67,6 +68,7 @@ class SandboxBackendType(Enum):
     MODAL = "MODAL"
     MONTY = "MONTY"
     DOCKER = "DOCKER"
+    TENKI = "TENKI"
 
 
 @strawberry.enum
@@ -209,8 +211,14 @@ class E2BDeploymentData:
     api_url: Optional[str]
 
 
+@strawberry.type
+class TenkiDeploymentData:
+    # None means "fall back to Tenki's hosted SaaS".
+    api_url: Optional[str]
+
+
 SandboxDeployment = Annotated[
-    Union[DaytonaDeploymentData, E2BDeploymentData],
+    Union[DaytonaDeploymentData, E2BDeploymentData, TenkiDeploymentData],
     strawberry.union(
         "SandboxDeployment",
         description=(
@@ -302,6 +310,8 @@ def _deployment_from_stored(stored: Any) -> Optional[SandboxDeployment]:
         return DaytonaDeploymentData(api_url=dep.api_url, target=dep.target)
     if isinstance(dep, E2BDeployment):
         return E2BDeploymentData(domain=dep.domain, api_url=dep.api_url)
+    if isinstance(dep, TenkiDeployment):
+        return TenkiDeploymentData(api_url=dep.api_url)
     return None
 
 

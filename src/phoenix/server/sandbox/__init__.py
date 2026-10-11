@@ -32,6 +32,7 @@ from phoenix.server.sandbox.docker_backend import DockerAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.modal_backend import ModalAdapter
 from phoenix.server.sandbox.monty_backend import MontyAdapter
+from phoenix.server.sandbox.tenki_backend import TenkiAdapter
 from phoenix.server.sandbox.types import (
     EnvVarValue,
     SandboxAdapter,
@@ -114,6 +115,7 @@ def _build_sandbox_adapter_metadata() -> Mapping[SandboxBackendType, AdapterMeta
             ModalAdapter,
             MontyAdapter,
             DockerAdapter,
+            TenkiAdapter,
         )
     }
 
@@ -392,3 +394,4 @@ _try_register_adapter(DenoAdapter)
 _try_register_adapter(ModalAdapter)
 _try_register_adapter(MontyAdapter)
 _try_register_adapter(DockerAdapter)
+_try_register_adapter(TenkiAdapter)
