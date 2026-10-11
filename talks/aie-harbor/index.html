@@ -212,6 +212,8 @@ p{margin:0}
 .px-tag b{font-weight:500;color:var(--text);margin-right:8px}
 .hx-stage{position:relative;flex:1;min-height:0;margin-top:48px}
 .hx-bench,.hx-trace{position:absolute;margin:0}
+.hx-bench{z-index:1}.hx-trace{z-index:2}
+.slide.front .hx-bench{z-index:3}
 .hx-bench{right:0;top:0;width:1000px}
 .hx-trace{left:0;bottom:0;width:720px}
 .hx-bench img,.hx-trace img{display:block;width:100%;height:auto;border-radius:var(--radius);box-shadow:var(--shadow-shot)}
@@ -517,7 +519,7 @@ fi</pre>
 </section>
 
 
-<section class="slide" data-title="Harbor screenshot">
+<section class="slide" data-title="Harbor screenshot" data-fragment="front">
   <div class="head"><div class="eyebrow"><b>08 · In Phoenix</b></div><h3 style="font-size:44px;font-weight:400">In the product</h3></div>
   <div class="hx-stage">
     <figure class="hx-bench">
