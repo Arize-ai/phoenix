@@ -172,7 +172,6 @@ def get_setup_args():
         url="https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-sqlean",
         package_dir={PACKAGE_NAME: PACKAGE_NAME},
         packages=packages,
-        python_requires=">=3.11, <3.15",
         ext_modules=[
             Extension(
                 name=f"{PACKAGE_NAME}._sqlite3",
@@ -196,4 +195,11 @@ def get_setup_args():
 
 
 if __name__ == "__main__":
-    setuptools.setup(**get_setup_args())
+    # The only definition of the supported Python range. Keep it a string
+    # literal in this call: cibuildwheel parses it statically to select
+    # CPythons, and the CI test matrix and scripts/check-wheelhouse.py derive
+    # their versions from it.
+    setuptools.setup(
+        python_requires=">=3.11, <3.16",
+        **get_setup_args(),
+    )

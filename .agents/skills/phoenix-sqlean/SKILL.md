@@ -101,25 +101,42 @@ sqlean moves its own pin.
   `build_ext` keys on source mtime. `touch src/sqlean.c` after editing, or the version test fails
   against a merely stale build.
 - **Keep the package version plain SemVer.** release-please's version regex is unanchored, so
-  `3.53.4.1` and `3.53.4.post1` truncate to `3.53.4` and collide with an existing tag, silently.
+  `1.2.3.1` and `1.2.3.post1` truncate to `1.2.3` and collide with an existing tag, silently.
   For the same reason `VERSION` must stay above `SQLEAN_VERSION` in `setup.py`. The package version
   is intentionally independent of the bundled SQLite version.
 
 ## Wheels and publishing
 
-- Settings are in `cibuildwheel.toml`, steps in `phoenix-sqlean-build.yml` — a `workflow_call`
-  workflow that both `build-sqlean` in `publish.yaml` and CI's `wheel` job invoke, so a PR runs
-  the build a release runs.
-- The matrix is cp311–cp314 across Linux x86_64/aarch64, macOS x86_64/arm64, Windows AMD64/ARM64,
-  plus an sdist of the C sources. A misspelled key in the toml errors; a misspelled `CIBW_*` env
-  var is a silent no-op.
-- **An empty `CIBW_*` is an override, not a no-op.** It replaces the toml's value with
-  cibuildwheel's own default — Linux goes from 10 identifiers to 36, musllinux and free-threaded
-  included. Hence the `cibw-*` inputs reach the environment only when non-empty.
+- Settings are in `cibuildwheel.toml`; runners and steps are in `phoenix-sqlean-build.yml`, a
+  `workflow_call` workflow that `build-sqlean` in `publish.yaml` and CI's `wheels` job both invoke
+  with no overrides. A PR runs the exact build a release runs — keep it that way rather than
+  narrowing CI's copy.
+- The wheel matrix is every CPython `python_requires` admits × the toml's `build` platforms ×
+  the build workflow's runners, minus the toml's `skip`, plus an sdist of the C sources. Read it
+  there rather than restating it.
+- **Every wheel is tested by cibuildwheel, which needs one runner per Linux/Windows arch.** Those
+  archs are `native`; cibuildwheel skips testing a cross-compiled `win_arm64`, and `auto` on
+  Windows AMD64 adds 32-bit x86. macOS builds both arches on one arm64 runner and tests x86_64
+  under Rosetta. Free-threaded builds are excluded by the toml's `skip`; cibuildwheel would
+  otherwise build them by default.
+- **`scripts/check-wheelhouse.py` gates the merged set** in the build workflow's `check` job, so
+  both CI and publish run it: exactly one wheel per CPython that `python_requires` admits on each
+  of its `PLATFORMS`, plus one sdist. Adding or dropping a platform means editing `PLATFORMS`
+  alongside the runners and `archs`.
+- **The supported Python range is `python_requires` in `setup.py`, and nothing else.**
+  cibuildwheel reads it to pick CPythons, the CI `test` matrix derives from it via
+  `check-wheelhouse.py --print-pythons`, and the wheelhouse check expects exactly its versions.
+  It must stay a string literal keyword in the `setuptools.setup(...)` call under
+  `if __name__ == "__main__"` — cibuildwheel parses that statically, and silently builds every
+  CPython it knows if it cannot find one (the wheelhouse check would then fail).
+- **Admitting a new CPython can fail two ways, both loudly.** cibuildwheel may still gate it as a
+  prerelease, so its wheels are missing and the wheelhouse check fails — bump cibuildwheel. Or it
+  may have removed private C API the driver uses — the `test` job compiling against it catches
+  that first.
 - **`test-sources` resolves against cibuildwheel's working directory, not `package-dir`** — hence
   the workspace-root unpack, which the shared workflow puts under CI.
-- CI's `test` matrix compiles in place across every OS/arch pair the publish job ships. It never runs
-  cibuildwheel, which is what the `wheel` job is for.
+- CI's `test` matrix compiles in place with setup-python's interpreters — faster feedback, and
+  final releases where cibuildwheel may still pin a release candidate.
 - Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
   creates it, `sqlean-sources` skips and nothing builds.
 - PyPI uses trusted publishing with **no** GitHub environment; the publisher's Environment field

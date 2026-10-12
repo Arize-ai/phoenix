@@ -329,8 +329,8 @@ jobs:
           name: arize-phoenix-sqlean-sources
           path: packages/phoenix-sqlean
 
-  # phoenix-sqlean-ci.yml calls the same workflow, so a PR runs this build. No
-  # cibw-* overrides here: the shipped matrix is cibuildwheel.toml's business.
+  # phoenix-sqlean-ci.yml calls the same workflow, so a PR runs this build. It
+  # uploads arize-phoenix-sqlean-dist-<runner> and checks the merged set.
   build-sqlean:
     name: Build arize-phoenix-sqlean
     needs: sqlean-sources
@@ -340,8 +340,6 @@ jobs:
     uses: ./.github/workflows/phoenix-sqlean-build.yml
     with:
       sources-artifact: arize-phoenix-sqlean-sources
-      runners: '["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]'
-      dist-artifact-prefix: arize-phoenix-sqlean-dist
 
   publish-sqlean:
     name: Publish arize-phoenix-sqlean
