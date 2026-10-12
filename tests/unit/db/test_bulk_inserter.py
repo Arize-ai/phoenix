@@ -55,6 +55,8 @@ def _inserter(db: DbSessionFactory, *spans: Span, **kwargs: Any) -> BulkInserter
     )
     kwargs.setdefault("retry_delay_sec", 0)
     kwargs.setdefault("span_retry_delay_sec", 0)
+    # Tests that park the worker expect shutdown to cancel it at once.
+    kwargs.setdefault("shutdown_drain_sec", 0)
     return BulkInserter(
         db,
         event_queue=SimpleQueue[DmlEvent](),
@@ -954,6 +956,95 @@ async def test_shutdown_awaits_rollback_and_keeps_pending_batch(
         assert inserter.is_full
     assert inserter._task is None and inserter.is_full
     assert len(inserter._span_batch) == 1
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.Span)) == 0
+
+
+async def test_shutdown_drains_queued_spans_and_operations(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    started, release = asyncio.Event(), asyncio.Event()
+    operation_done = asyncio.Event()
+
+    async def insert(
+        session: AsyncSession, span: Span, project_name: str
+    ) -> SpanInsertionEvent | None:
+        started.set()
+        await release.wait()
+        return await insert_span(session, span, project_name)
+
+    async def operation(session: AsyncSession) -> None:
+        await session.execute(select(1))
+        operation_done.set()
+
+    monkeypatch.setattr(bulk_inserter, "insert_span", insert)
+    inserter = _inserter(
+        db, _span("first"), _span("second"), max_ops_per_transaction=1, shutdown_drain_sec=10
+    )
+    await inserter.__aenter__()
+    exit_task: asyncio.Task[None] | None = None
+    try:
+        await asyncio.wait_for(started.wait(), timeout=10)
+        await inserter._enqueue_span(_span("third"), "project")
+        inserter._enqueue_operation(operation)
+        worker = inserter._task
+        assert worker is not None
+        exit_task = asyncio.create_task(inserter.__aexit__(None, None, None))
+        # Shutdown runs synchronously until it awaits the drain, so one turn reaches it.
+        await asyncio.sleep(0)
+        assert not inserter._running
+        assert not exit_task.done() and not worker.done()  # Waiting on the queued work.
+        release.set()
+        await asyncio.wait_for(exit_task, timeout=10)
+    finally:
+        release.set()
+        if exit_task is None:
+            exit_task = asyncio.create_task(inserter.__aexit__(None, None, None))
+        # Never leave shutdown or the worker running into later tests.
+        if not exit_task.done():
+            await asyncio.wait({exit_task}, timeout=10)
+        if not exit_task.done():
+            exit_task.cancel()
+        await asyncio.gather(exit_task, return_exceptions=True)
+    assert inserter._task is None and not inserter._spans and not inserter._span_batch
+    assert operation_done.is_set()
+    assert "still pending" not in caplog.text
+    async with db() as session:
+        assert set(await session.scalars(select(models.Span.span_id))) == {
+            "first",
+            "second",
+            "third",
+        }
+        assert await session.scalar(select(func.count()).select_from(models.SpanCost)) == 3
+
+
+async def test_shutdown_drain_stops_at_deadline_and_keeps_pending_batch(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    written = asyncio.Event()
+    never_released = asyncio.Event()
+
+    async def insert(
+        session: AsyncSession, span: Span, project_name: str
+    ) -> SpanInsertionEvent | None:
+        result = await insert_span(session, span, project_name)
+        written.set()
+        await never_released.wait()
+        return result
+
+    monkeypatch.setattr(bulk_inserter, "insert_span", insert)
+    inserter = _inserter(db, _span("span"), _span("later"), shutdown_drain_sec=0.2)
+    loop = asyncio.get_running_loop()
+    await inserter.__aenter__()
+    try:
+        await asyncio.wait_for(written.wait(), timeout=10)
+    finally:
+        exit_started = loop.time()
+        # Bounded so a timeout that never fires fails here instead of hanging the suite.
+        await asyncio.wait_for(inserter.__aexit__(None, None, None), timeout=10)
+    assert 0.2 <= loop.time() - exit_started < 5
+    assert inserter._task is None and len(inserter._span_batch) == 2
+    assert "2 spans still pending after a 0.2s shutdown drain that processed 0" in caplog.text
     async with db() as session:
         assert await session.scalar(select(func.count()).select_from(models.Span)) == 0
 

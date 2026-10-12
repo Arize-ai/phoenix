@@ -129,6 +129,7 @@ class BulkInserter:
         span_retry_delay_sec: float = 0.1,
         span_retry_max_delay_sec: float = 5.0,
         span_retry_allowance: int = 5,
+        shutdown_drain_sec: float = 5.0,
     ) -> None:
         """
         :param db: A function to initiate a new database session.
@@ -146,6 +147,8 @@ class BulkInserter:
         failure, or connection lost mid-batch, any of which the batch itself may cause.
         Failures to connect precede all writes, so they are retried without limit and
         hold the batch until the database is reachable.
+        :param shutdown_drain_sec: How long shutdown keeps writing queued spans and
+        operations before cancelling and dropping what remains.
         """
         self._db = db
         self._running = False
@@ -162,6 +165,7 @@ class BulkInserter:
         self._span_retry_delay_sec = max(0.0, span_retry_delay_sec)
         self._span_retry_max_delay_sec = max(0.0, span_retry_max_delay_sec)
         self._span_retry_allowance = span_retry_allowance
+        self._shutdown_drain_sec = max(0.0, shutdown_drain_sec)
         self._task: Optional[asyncio.Task[None]] = None
         self._event_queue = event_queue
         self._retry_delay_sec = retry_delay_sec
@@ -194,15 +198,27 @@ class BulkInserter:
 
     async def __aexit__(self, *args: Any) -> None:
         self._running = False
-        if self._task:
-            self._task.cancel()
+        pending = len(self._spans) + len(self._span_batch)
+        if task := self._task:
             try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-            self._task = None
+                # Once not running, the loop exits by itself after emptying its queues.
+                await asyncio.wait((task,), timeout=self._shutdown_drain_sec)
+            finally:
+                if not task.done():
+                    task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                self._task = None
         if remaining := len(self._spans) + len(self._span_batch):
-            logger.warning("Span ingestion stopped with %s spans still pending", remaining)
+            logger.warning(
+                "Span ingestion stopped with %s spans still pending after a %.1fs shutdown "
+                "drain that processed %s",
+                remaining,
+                self._shutdown_drain_sec,
+                max(0, pending - remaining),
+            )
 
     async def _enqueue_annotations(self, *items: Any) -> None:
         await self._queue_inserters.enqueue(*items)
