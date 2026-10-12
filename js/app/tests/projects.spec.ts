@@ -543,7 +543,7 @@ test.describe.serial("Projects", () => {
       .getByRole("button", { name: "Create", exact: true })
       .click();
     const duplicateNameError = createDialog.getByText(
-      "A project evaluator with this name already exists for this project",
+      `A project evaluator named '${evaluatorName}' already exists for this project`,
       { exact: true }
     );
     await expect(duplicateNameError).toBeVisible();
