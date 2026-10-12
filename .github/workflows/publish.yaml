@@ -56,6 +56,9 @@ jobs:
           NEED_PACKAGES='[]'
           for path in $(jq -r 'keys[]' .release-please-manifest.json); do
             [ -z "$path" ] && continue
+            # sqlean-release decides arize-phoenix-sqlean: after an interrupted
+            # upload a version is on PyPI with only some of its files.
+            [ "$path" = "packages/phoenix-sqlean" ] && continue
             NAME=$(jq -r --arg p "$path" '.packages[$p]["package-name"] // empty' release-please-config.json)
             VERSION=$(jq -r --arg p "$path" '.[$p]' .release-please-manifest.json)
             if [ -z "$NAME" ] || [ "$VERSION" = "null" ] || [ -z "$VERSION" ]; then
@@ -280,21 +283,28 @@ jobs:
   # so it cannot go through the pure-Python `uv build` matrix above: wheels are
   # compiled per platform and interpreter with cibuildwheel, from the release
   # tag, by phoenix-sqlean-build.yml.
+  #
+  # Runs on every release: it publishes when the manifest version is tagged and
+  # PyPI lacks any of its distributions, so re-running after an interrupted
+  # upload completes the release.
   sqlean-release:
     name: Resolve arize-phoenix-sqlean release
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: list-python-packages
-    if: contains(fromJSON(needs.list-python-packages.outputs.package_paths), 'packages/phoenix-sqlean')
     permissions:
       contents: read
     outputs:
-      needed: ${{ steps.ref.outputs.needed }}
+      needed: ${{ steps.pypi.outputs.needed || 'false' }}
       ref: ${{ steps.ref.outputs.ref }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          sparse-checkout: |
+            .release-please-manifest.json
+            packages/phoenix-sqlean/scripts/check-wheelhouse.py
+          sparse-checkout-cone-mode: false
       - name: Resolve ref from manifest
         id: ref
         run: |
@@ -307,12 +317,44 @@ jobs:
           # Until release-please creates the first release of this package, the
           # manifest version has no tag — skip instead of failing the run.
           if git ls-remote --exit-code origin "refs/tags/${TAG}" > /dev/null 2>&1; then
-            echo "needed=true" >> $GITHUB_OUTPUT
             echo "ref=refs/tags/${TAG}" >> $GITHUB_OUTPUT
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
           else
             echo "Tag ${TAG} does not exist yet; skipping arize-phoenix-sqlean"
-            echo "needed=false" >> $GITHUB_OUTPUT
           fi
+      # A complete release is the tag's python_requires across this commit's
+      # PLATFORMS: the runners that would build it come from this commit too.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.ref.outputs.ref != ''
+        with:
+          persist-credentials: false
+          ref: ${{ steps.ref.outputs.ref }}
+          path: release
+          sparse-checkout: packages/phoenix-sqlean/setup.py
+          sparse-checkout-cone-mode: false
+      - name: Check PyPI for every distribution
+        id: pypi
+        if: steps.ref.outputs.ref != ''
+        env:
+          VERSION: ${{ steps.ref.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir on-pypi
+          HTTP=$(curl -sS -o pypi.json -w "%{http_code}" "https://pypi.org/pypi/arize-phoenix-sqlean/${VERSION}/json")
+          case "$HTTP" in
+            200) jq -r '.urls[].filename' pypi.json | while read -r f; do touch "on-pypi/$f"; done ;;
+            404) ;;
+            *) echo "::error::PyPI returned HTTP ${HTTP} for arize-phoenix-sqlean ${VERSION}"; exit 1 ;;
+          esac
+          rc=0
+          python3 packages/phoenix-sqlean/scripts/check-wheelhouse.py \
+            release/packages/phoenix-sqlean/setup.py on-pypi --missing-only || rc=$?
+          case "$rc" in
+            0) echo "arize-phoenix-sqlean ${VERSION} is complete on PyPI, skipping"
+               echo "needed=false" >> "$GITHUB_OUTPUT" ;;
+            3) echo "needed=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$rc" ;;
+          esac
 
   # phoenix-sqlean-ci.yml calls the same workflow, so a PR runs this build. It
   # uploads arize-phoenix-sqlean-dist-<runner> and checks the merged set.
@@ -340,7 +382,10 @@ jobs:
           pattern: arize-phoenix-sqlean-dist-*
           path: dist/
           merge-multiple: true
+      # skip-existing: completing a partial release uploads only what PyPI lacks.
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          skip-existing: true
 
   trigger-version-updates:
     name: Trigger dependency updates

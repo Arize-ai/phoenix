@@ -4,14 +4,20 @@ Expected: one sdist, plus one wheel per CPython version that setup.py's
 python_requires admits on each platform below. PLATFORMS must match the
 runners in phoenix-sqlean-build.yml and the archs in cibuildwheel.toml.
 
-Usage: python check-wheelhouse.py <setup.py> <dist dir>
+Usage: python check-wheelhouse.py <setup.py> <dist dir> [--missing-only]
+
+--missing-only fails only on absent distributions, ignoring everything else,
+and exits with MISSING rather than 1 so callers can tell an incomplete set from
+an error. publish.yaml uses it to decide whether PyPI holds a complete release.
 """
 
+import argparse
 import re
 import sys
 from pathlib import Path
 
 DIST_NAME = "arize_phoenix_sqlean"
+MISSING = 3
 
 # Each platform tag must match exactly one entry. Linux and macOS tags carry a
 # glibc or deployment-target version that the build image decides, and a
@@ -54,16 +60,21 @@ def platform_of(tag: str) -> str | None:
 
 
 def main() -> None:
-    setup_py, dist = Path(sys.argv[1]), Path(sys.argv[2])
-    pythons = [f"cp3{minor}" for minor in admitted_minors(setup_py)]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("setup_py", type=Path)
+    parser.add_argument("dist", type=Path)
+    parser.add_argument("--missing-only", action="store_true")
+    args = parser.parse_args()
+    pythons = [f"cp3{minor}" for minor in admitted_minors(args.setup_py)]
     expected = {(python, kind) for python in pythons for kind in PLATFORMS}
 
     errors: list[str] = []
+    missing: list[str] = []
     seen: dict[tuple[str, str], str] = {}
     versions: set[str] = set()
     sdists: list[str] = []
 
-    for path in sorted(dist.iterdir()):
+    for path in sorted(args.dist.iterdir()):
         name = path.name
         if sdist := SDIST.fullmatch(name):
             sdists.append(name)
@@ -88,14 +99,22 @@ def main() -> None:
             seen[key] = name
 
     for python, kind in sorted(expected - seen.keys()):
-        errors.append(f"missing wheel: {python} {kind}")
-    if len(sdists) != 1:
+        missing.append(f"missing wheel: {python} {kind}")
+    if not sdists:
+        missing.append("missing sdist")
+    elif len(sdists) > 1:
         errors.append(f"expected 1 sdist, found {len(sdists)}: {sdists}")
     if len(versions) > 1:
         errors.append(f"mixed package versions: {sorted(versions)}")
 
-    if errors:
-        print("\n".join(errors), file=sys.stderr)
+    if args.missing_only:
+        if missing:
+            print("\n".join(missing), file=sys.stderr)
+            sys.exit(MISSING)
+        print("no distributions missing")
+        return
+    if errors or missing:
+        print("\n".join(errors + missing), file=sys.stderr)
         sys.exit(1)
     print(f"{len(seen)} wheels ({', '.join(pythons)} x {len(PLATFORMS)} platforms) and 1 sdist")
 

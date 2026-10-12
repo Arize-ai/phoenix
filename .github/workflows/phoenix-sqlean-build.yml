@@ -93,6 +93,14 @@ jobs:
     permissions:
       contents: read
     steps:
+      # The script comes from the caller's commit, like the runners PLATFORMS
+      # must match; python_requires comes from the sources being built, which
+      # for publish is a release tag that may predate the script.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: packages/phoenix-sqlean/scripts/check-wheelhouse.py
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: arize-phoenix-sqlean-sources
@@ -103,4 +111,4 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Check the distribution set against python_requires
-        run: python3 sources/scripts/check-wheelhouse.py sources/setup.py dist
+        run: python3 packages/phoenix-sqlean/scripts/check-wheelhouse.py sources/setup.py dist

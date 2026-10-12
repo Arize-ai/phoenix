@@ -138,5 +138,13 @@ sqlean moves its own pin.
   the build legs unpack the sources at the workspace root.
 - Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
   creates it, `sqlean-release` skips and nothing builds.
+- **sqlean publishes until PyPI holds every distribution, not just the version.** The generic
+  "version on PyPI" gate in `list-python-packages` skips sqlean; `sqlean-release` runs on every
+  release and runs `check-wheelhouse.py --missing-only` on PyPI's file list for that version. A
+  release interrupted mid-upload is finished by re-running publish, which rebuilds from the tag and
+  uploads with `skip-existing`.
+- **`check-wheelhouse.py` always comes from the commit running the workflow; `python_requires`
+  comes from the sources being built.** `PLATFORMS` must match the runners, which also come from
+  that commit, and older release tags predate the script.
 - PyPI uses trusted publishing with **no** GitHub environment; the publisher's Environment field
   must stay blank to match.
