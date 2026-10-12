@@ -236,8 +236,7 @@ def validate_jsonpath(value: str) -> str:
         )
 
     try:
-        # jsonpath-ng 1.9 types JsonPathParser.parse, but not its constructor.
-        parser = JsonPathParser()  # type: ignore[no-untyped-call]
+        parser = JsonPathParser()
         ast = parser.parse(value)
     except (JsonPathLexerError, JsonPathParserError) as e:
         raise ValueError(f"Invalid JSONPath syntax: {e}")

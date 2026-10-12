@@ -183,6 +183,7 @@ async def process_ui_message_stream(
     write: Callable[[], None] = _noop_write,
     on_error: Callable[[Exception], None] | None = None,
     on_data: Callable[[DataUIPart], None] | None = None,
+    reset_state_on_message_id_change: bool = False,
 ) -> AsyncIterator[BaseChunk]:
     """Reduce UI-message chunks into ``state`` while yielding them unchanged.
 
@@ -457,6 +458,23 @@ async def process_ui_message_stream(
             # stream's part is still active.
             pass
         elif isinstance(chunk, StartChunk):
+            # readUIMessageStream sets resetStateOnMessageIdChange. A start chunk
+            # for a different message drops the previous assistant message
+            # instead of continuing it.
+            if (
+                chunk.message_id is not None
+                and reset_state_on_message_id_change
+                and chunk.message_id != state.message.id
+            ):
+                fresh = create_streaming_ui_message_state(
+                    message_id=chunk.message_id,
+                    last_message=None,
+                )
+                state.message = fresh.message
+                state.active_text_parts = fresh.active_text_parts
+                state.active_reasoning_parts = fresh.active_reasoning_parts
+                state.partial_tool_calls = fresh.partial_tool_calls
+                state.finish_reason = None
             if chunk.message_id is not None:
                 state.message.id = chunk.message_id
             _update_message_metadata(
@@ -556,6 +574,7 @@ async def read_ui_message_stream(
             state=state,
             write=write,
             on_error=handle_error,
+            reset_state_on_message_id_change=True,
         ):
             while pending_writes:
                 yield pending_writes.pop(0)

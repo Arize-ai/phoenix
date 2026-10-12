@@ -1023,8 +1023,7 @@ def apply_input_mapping(
                 ignored_keys.append(key)
                 continue
             try:
-                # jsonpath-ng 1.9 types JsonPathParser.parse, but not its constructor.
-                parser = JsonPathParser()  # type: ignore[no-untyped-call]
+                parser = JsonPathParser()
                 jsonpath = parser.parse(path_expr)
             except Exception as e:
                 raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
