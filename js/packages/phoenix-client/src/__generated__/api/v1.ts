@@ -13156,6 +13156,7 @@ export interface operations {
             };
             cookie: {
                 "phoenix-oauth2-state": string;
+                "phoenix-oauth2-login-context"?: string | null;
                 "phoenix-oauth2-nonce": string;
                 "phoenix-oauth2-code-verifier"?: string | null;
             };
