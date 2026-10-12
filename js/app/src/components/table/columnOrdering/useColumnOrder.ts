@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import type { OrderableColumnDef } from "./columnOrderingUtils";
 import {
   applySubsetColumnOrder,
@@ -47,41 +49,61 @@ export function useColumnOrder({
   columnVisibility,
   nonOrderableColumnIds = [],
 }: UseColumnOrderProps): UseColumnOrderResult {
-  const nonOrderable = new Set(nonOrderableColumnIds);
-  const topLevelColumnIds = getTopLevelColumnIds(columns);
-  const orderableColumnIds = topLevelColumnIds.filter(
-    (id) => !nonOrderable.has(id)
-  );
-  const topLevelColumnOrder = mergeColumnOrder({
-    columnOrder,
-    columnIds: orderableColumnIds,
-  });
-  // Persisted ids that are temporarily absent from the column defs may be
-  // hidden dynamic columns. Keep them out of the table order, but retain their
-  // positions when a header drag writes the current order back to storage.
-  const topLevelColumnIdSet = new Set(topLevelColumnIds);
-  const absentColumnIds = columnOrder.filter(
-    (id) => !topLevelColumnIdSet.has(id)
-  );
-  const persistedColumnOrder = mergeColumnOrder({
-    columnOrder,
-    columnIds: [...absentColumnIds, ...orderableColumnIds],
-  });
-  const leafIdsByTopLevelId = getLeafIdsByTopLevelId(columns);
-  const leafColumnOrder = expandColumnOrderToLeafIds(
-    topLevelColumnOrder,
-    columns
-  );
-  // Hidden columns render no header, so header drag-and-drop operates on the
-  // visible subset and the result is merged back into the full order
-  const visibleColumnOrder = topLevelColumnOrder.filter((id) =>
-    (leafIdsByTopLevelId.get(id) ?? [id]).some(
-      (leafId) => columnVisibility[leafId] ?? true
-    )
-  );
-  const visibleOrderIndexById = new Map(
-    visibleColumnOrder.map((id, index) => [id, index])
-  );
+  // Memoized so the derived orders keep their identity across renders:
+  // tanstack's v9 store compares state slices by reference, so a fresh
+  // `leafColumnOrder` array on every render reads as a state change.
+  const nonOrderableKey = nonOrderableColumnIds.join("\0");
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    persistedColumnOrder,
+    visibleOrderIndexById,
+  } = useMemo(() => {
+    const nonOrderableColumnIds = nonOrderableKey
+      ? nonOrderableKey.split("\0")
+      : [];
+    const nonOrderable = new Set(nonOrderableColumnIds);
+    const topLevelColumnIds = getTopLevelColumnIds(columns);
+    const orderableColumnIds = topLevelColumnIds.filter(
+      (id) => !nonOrderable.has(id)
+    );
+    const topLevelColumnOrder = mergeColumnOrder({
+      columnOrder,
+      columnIds: orderableColumnIds,
+    });
+    // Persisted ids that are temporarily absent from the column defs may be
+    // hidden dynamic columns. Keep them out of the table order, but retain their
+    // positions when a header drag writes the current order back to storage.
+    const topLevelColumnIdSet = new Set(topLevelColumnIds);
+    const absentColumnIds = columnOrder.filter(
+      (id) => !topLevelColumnIdSet.has(id)
+    );
+    const persistedColumnOrder = mergeColumnOrder({
+      columnOrder,
+      columnIds: [...absentColumnIds, ...orderableColumnIds],
+    });
+    const leafIdsByTopLevelId = getLeafIdsByTopLevelId(columns);
+    const leafColumnOrder = expandColumnOrderToLeafIds(
+      topLevelColumnOrder,
+      columns
+    );
+    // Hidden columns render no header, so header drag-and-drop operates on the
+    // visible subset and the result is merged back into the full order
+    const visibleColumnOrder = topLevelColumnOrder.filter((id) =>
+      (leafIdsByTopLevelId.get(id) ?? [id]).some(
+        (leafId) => columnVisibility[leafId] ?? true
+      )
+    );
+    const visibleOrderIndexById = new Map(
+      visibleColumnOrder.map((id, index) => [id, index])
+    );
+    return {
+      leafColumnOrder,
+      visibleColumnOrder,
+      persistedColumnOrder,
+      visibleOrderIndexById,
+    };
+  }, [columns, columnOrder, columnVisibility, nonOrderableKey]);
   return {
     leafColumnOrder,
     visibleColumnOrder,
