@@ -20,7 +20,9 @@ import type { DecisionModel } from "../src";
  */
 
 const decisionModel = openai.decisionModel("gpt-6-luna");
-const languageModel = openai("gpt-4o-mini");
+// The language model the Decisions API's `gpt-6-luna` is based on, for a
+// like-for-like comparison.
+const languageModel = openai("gpt-6-luna");
 
 // The text around the `<data>` block becomes the question's instructions
 // and the block becomes the content being judged. Without one, the whole
@@ -89,8 +91,8 @@ async function sideBySideExample() {
 
   // The same evaluator, built once per model.
   const judges = {
-    [decisionModel.modelId]: createHallucinationEvaluator(decisionModel),
-    [languageModel.modelId]: createHallucinationEvaluator(languageModel),
+    "gpt-6-luna (decision)": createHallucinationEvaluator(decisionModel),
+    "gpt-6-luna (language)": createHallucinationEvaluator(languageModel),
   };
 
   const examples = [
