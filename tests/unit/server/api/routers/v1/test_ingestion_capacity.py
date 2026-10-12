@@ -1,12 +1,15 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
+import grpc
 import httpx
 import pytest
 from fastapi import FastAPI
 
+from phoenix.server import app as app_module
 from phoenix.server.api.routers.v1 import utils
 from phoenix.server.api.routers.v1.spans import router as spans_router
 from phoenix.server.api.routers.v1.traces import router as traces_router
+from phoenix.server.app import CapacityInterceptor
 from phoenix.server.authorization import is_not_locked
 
 
@@ -38,3 +41,28 @@ def test_create_spans_documents_capacity_response() -> None:
         "responses"
     ]
     assert "503" in responses
+
+
+@pytest.mark.parametrize("is_full", [True, False])
+async def test_grpc_capacity_rejection_is_retryable_backpressure(
+    is_full: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rejections = MagicMock()
+    monkeypatch.setattr(app_module, "SPAN_QUEUE_REJECTIONS", rejections)
+    interceptor = CapacityInterceptor(MagicMock(is_full=is_full))
+    method = AsyncMock(return_value="response")
+    context = MagicMock()
+    result = await interceptor.intercept(
+        method, "request", context, "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
+    )
+    if is_full:
+        # OTLP exporters retry UNAVAILABLE; RESOURCE_EXHAUSTED needs RetryInfo to be retried.
+        context.set_code.assert_called_once_with(grpc.StatusCode.UNAVAILABLE)
+        method.assert_not_awaited()
+        rejections.inc.assert_called_once_with()
+        assert result is None
+    else:
+        context.set_code.assert_not_called()
+        method.assert_awaited_once_with("request", context)
+        rejections.inc.assert_not_called()
+        assert result == "response"

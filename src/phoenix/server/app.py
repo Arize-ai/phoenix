@@ -629,7 +629,9 @@ class CapacityInterceptor(AsyncServerInterceptor):
     ) -> Any:
         if self._indicator.is_full:
             SPAN_QUEUE_REJECTIONS.inc()
-            context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+            # OTLP clients treat RESOURCE_EXHAUSTED without RetryInfo as non-retryable,
+            # and the spec names UNAVAILABLE as the backpressure signal.
+            context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details("Server is at capacity and cannot process more requests")
             return
 
