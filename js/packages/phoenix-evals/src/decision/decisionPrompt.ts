@@ -28,8 +28,9 @@ const DATA_BLOCK = /<data>[\s\S]*?<\/data>/g;
  * evaluator) are split: the rubric around the block becomes the question
  * instructions and the rendered block becomes the state. The split is done
  * before rendering so a `<data>` tag inside a variable can't move it.
- * Other templates are rendered and sent as one plain-text state with
- * generic instructions.
+ * Other templates, and templates whose Mustache sections span the block's
+ * boundary (so the pieces can't be rendered on their own), are rendered
+ * and sent as one plain-text state with generic instructions.
  */
 export function templateToDecisionPrompt(args: {
   template: PromptTemplate;
@@ -38,14 +39,29 @@ export function templateToDecisionPrompt(args: {
   const { template, variables } = args;
   const text = promptTemplateToText(template);
   const blocks = text.match(DATA_BLOCK) ?? [];
-  if (blocks.length !== 1) {
-    return {
-      instructions: GENERIC_DECISION_INSTRUCTIONS,
-      state: render(text, variables),
-    };
+  if (blocks.length === 1) {
+    try {
+      return splitAtDataBlock({ text, block: blocks[0]!, variables });
+    } catch {
+      // A section opened on one side of the block and closed on the other
+      // makes the pieces invalid Mustache. Fall through to rendering the
+      // whole template, which still throws if the template itself is invalid.
+    }
   }
-  const start = text.indexOf(blocks[0]!);
-  const end = start + blocks[0]!.length;
+  return {
+    instructions: GENERIC_DECISION_INSTRUCTIONS,
+    state: render(text, variables),
+  };
+}
+
+function splitAtDataBlock(args: {
+  text: string;
+  block: string;
+  variables: TemplateVariables;
+}): DecisionPrompt {
+  const { text, block, variables } = args;
+  const start = text.indexOf(block);
+  const end = start + block.length;
   const instructions = [text.slice(0, start), text.slice(end)]
     .map((part) => render(part, variables).trim())
     .filter((part) => part.length > 0)
