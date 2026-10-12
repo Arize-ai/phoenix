@@ -20,7 +20,7 @@ export function AnnotationTooltip({
   return (
     <TooltipTrigger delay={500}>
       <TriggerWrap>{children}</TriggerWrap>
-      <RichTooltip offset={3}>
+      <RichTooltip offset={3} placement="end">
         <AnnotationDetailsContent annotation={annotation} />
       </RichTooltip>
     </TooltipTrigger>

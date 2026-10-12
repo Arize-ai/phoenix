@@ -185,7 +185,9 @@ export function DocumentAnnotationItem({
             <Text size="XS" color="text-900" weight="heavy">
               Explanation
             </Text>
-            <PrettyText>{documentAnnotation.explanation}</PrettyText>
+            <PrettyText variant="compact">
+              {documentAnnotation.explanation}
+            </PrettyText>
           </Flex>
         ) : null}
       </Flex>

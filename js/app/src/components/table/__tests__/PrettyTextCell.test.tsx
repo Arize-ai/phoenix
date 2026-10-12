@@ -56,7 +56,7 @@ describe("PrettyTextCell", () => {
     "preserves text without HTML interpretation: %s",
     async (value) => {
       await renderValue(value);
-      expect(container.querySelector("td pre")?.textContent).toBe(value);
+      expect(container.querySelector("td")?.textContent).toBe(value);
       expect(container.querySelector("script")).toBeNull();
     }
   );
@@ -66,10 +66,11 @@ describe("PrettyTextCell", () => {
     expect(container.querySelector("pre")?.textContent).toBe(value);
     expect(container.querySelector(".cm-editor")).toBeNull();
     await renderValue(value, true);
-    expect(container.querySelector(".cm-content")?.textContent).toContain(
+    expect(container.querySelector(".pretty-text")?.textContent).toContain(
       '"reason": "ok"'
     );
     expect(container.querySelector("table")?.dataset.rows).toBe("expanded");
+    expect(container.querySelector(".cm-editor, [contenteditable]")).toBeNull();
     await renderValue(value, false);
     expect(container.querySelector(".cm-editor")).toBeNull();
     expect(container.querySelector("pre")?.textContent).toBe(value);

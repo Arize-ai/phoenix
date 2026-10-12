@@ -10,7 +10,7 @@ import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
 import { SpanAnnotationsTable } from "../SpanAnnotationsTable";
 
 // Deletion has its own viewer/mutation dependencies, unrelated to rendering
-// the explanation column. The query, table, cells and JSONBlock remain real.
+// the explanation column. The query, table, cells and PrettyText remain real.
 vi.mock("@phoenix/components/trace/SpanAnnotationDeleteButton", () => ({
   SpanAnnotationDeleteButton: () => null,
 }));
@@ -80,10 +80,11 @@ describe("SpanAnnotationsTable explanations", () => {
     expect(container.querySelector("pre")?.textContent).toBe(explanation);
     expect(container.querySelector(".cm-editor")).toBeNull();
     await render(true);
-    expect(container.querySelector(".cm-content")?.textContent).toContain(
+    expect(container.querySelector(".pretty-text")?.textContent).toContain(
       '"reason": "grounded"'
     );
     expect(container.querySelector("table")?.dataset.rows).toBe("expanded");
+    expect(container.querySelector(".cm-editor, [contenteditable]")).toBeNull();
     await render(false);
     expect(container.querySelector("pre")?.textContent).toBe(explanation);
     expect(container.querySelector(".cm-editor")).toBeNull();

@@ -1,18 +1,16 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
 
 import type { CardProps } from "@phoenix/components";
 import {
+  Alert,
   Card,
   CopyToClipboardButton,
   Dialog,
   Flex,
-  Heading,
-  Icon,
-  Icons,
-  TitleWithID,
+  IDBadge,
+  Text,
   View,
   ViewSummaryAside,
 } from "@phoenix/components";
@@ -22,9 +20,9 @@ import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
+  DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { PrettyText } from "@phoenix/components/utility/PrettyText";
 
@@ -81,26 +79,50 @@ export function PlaygroundExperimentRunDetailsDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <TitleWithID title="Experiment Run" id={exampleId || ""} />
+          <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+            <DialogTitle>Experiment Run</DialogTitle>
+            <IDBadge id={exampleId || ""} />
+          </Flex>
           <DialogTitleExtra>
-            <DialogCloseButton />
+            {run.error ? (
+              <CopyToClipboardButton text={run.error} aria-label="Copy error" />
+            ) : null}
+            <DialogCloseButton aria-label="Close experiment run" />
           </DialogTitleExtra>
         </DialogHeader>
-        <Group orientation="vertical">
-          <Panel defaultSize="33%">
-            <View overflow="auto" height="100%" padding="size-200">
-              <Flex direction="row" gap="size-200" flex="1 1 auto">
+        <div
+          className="playground-run-details__body"
+          role="region"
+          aria-label="Experiment run details"
+          tabIndex={0}
+          css={css`
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+          `}
+        >
+          {run.error ? (
+            <div role="alert">
+              <Alert variant="danger" banner title="Experiment run failed">
+                <PrettyText variant="compact">{run.error}</PrettyText>
+              </Alert>
+            </div>
+          ) : null}
+          <View padding="size-200">
+            <Flex direction="column" gap="size-200">
+              <Flex direction="row" gap="size-200">
                 <View width="50%">
                   <Card
                     title="Input"
                     {...defaultCardProps}
                     extra={
-                      <CopyToClipboardButton text={JSON.stringify(input)} />
+                      <CopyToClipboardButton
+                        text={JSON.stringify(input)}
+                        aria-label="Copy input"
+                      />
                     }
                   >
-                    <View maxHeight="300px" overflow="auto">
-                      <JSONBlock value={JSON.stringify(input, null, 2)} />
-                    </View>
+                    <JSONBlock value={JSON.stringify(input, null, 2)} />
                   </Card>
                 </View>
                 <View width="50%">
@@ -110,87 +132,67 @@ export function PlaygroundExperimentRunDetailsDialog({
                     extra={
                       <CopyToClipboardButton
                         text={JSON.stringify(referenceOutput)}
+                        aria-label="Copy reference output"
                       />
                     }
                   >
-                    <View maxHeight="300px" overflow="auto">
-                      <JSONBlock
-                        value={JSON.stringify(referenceOutput, null, 2)}
-                      />
-                    </View>
+                    <JSONBlock
+                      value={JSON.stringify(referenceOutput, null, 2)}
+                    />
                   </Card>
                 </View>
               </Flex>
-            </View>
-          </Panel>
-          <Separator css={resizeHandleCSS} />
-          <Panel defaultSize="67%">
-            <Flex direction="column" height="100%">
-              <View
-                paddingStart="size-200"
-                paddingEnd="size-200"
-                paddingTop="size-100"
-                paddingBottom="size-100"
-                borderBottomColor="default"
-                borderBottomWidth="thin"
-                flex="none"
+              <Card
+                title="Experiment Run Output"
+                {...defaultCardProps}
+                extra={
+                  run.error ? null : (
+                    <CopyToClipboardButton
+                      text={JSON.stringify(run.output, null, 2)}
+                      aria-label="Copy output"
+                    />
+                  )
+                }
               >
-                <Heading level={2}>Experiment Run Output</Heading>
-              </View>
-              <div
-                css={css`
-                  overflow-y: auto;
-                  height: 100%;
-                  padding: var(--global-dimension-size-200);
-                `}
-              >
-                <View
-                  borderColor="default"
-                  borderWidth="thin"
-                  borderRadius="small"
-                >
-                  <Flex direction="row">
-                    <View flex>
-                      {run.error ? (
-                        <View padding="size-200">
-                          <RunError error={run.error} />
-                        </View>
-                      ) : (
-                        <JSONBlock
-                          value={JSON.stringify(run.output, null, 2)}
-                        />
-                      )}
-                    </View>
-                    <ViewSummaryAside width="size-3000">
-                      {run.startTime && run.endTime && (
-                        <RunLatency
-                          startTime={run.startTime}
-                          endTime={run.endTime}
-                        />
-                      )}
-                      <ul
-                        css={css`
-                          margin-top: var(--global-dimension-size-100);
-                          display: flex;
-                          flex-direction: column;
-                          justify-content: flex-start;
-                          align-items: flex-end;
-                          gap: var(--global-dimension-size-100);
-                        `}
-                      >
-                        {run.annotations?.edges.map((edge) => (
-                          <li key={edge.annotation.id}>
-                            <AnnotationLabel annotation={edge.annotation} />
-                          </li>
-                        ))}
-                      </ul>
-                    </ViewSummaryAside>
-                  </Flex>
-                </View>
-              </div>
+                <Flex direction="row">
+                  <View flex="1 1 auto" minWidth={0}>
+                    {run.error ? (
+                      <View padding="size-200">
+                        <Text color="text-700">No output available</Text>
+                      </View>
+                    ) : (
+                      <JSONBlock value={JSON.stringify(run.output, null, 2)} />
+                    )}
+                  </View>
+                  <ViewSummaryAside width="size-3000">
+                    {run.startTime && run.endTime && (
+                      <RunLatency
+                        startTime={run.startTime}
+                        endTime={run.endTime}
+                      />
+                    )}
+                    <ul
+                      css={css`
+                        margin-top: var(--global-dimension-size-100);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: flex-start;
+                        align-items: flex-end;
+                        gap: var(--global-dimension-size-100);
+                      `}
+                    >
+                      {run.annotations?.edges.map((edge) => (
+                        <li key={edge.annotation.id}>
+                          <AnnotationLabel annotation={edge.annotation} />
+                        </li>
+                      ))}
+                    </ul>
+                  </ViewSummaryAside>
+                </Flex>
+              </Card>
             </Flex>
-          </Panel>
-        </Group>
+          </View>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -214,23 +216,6 @@ function RunLatency({
     return null;
   }
   return <LatencyText latencyMs={latencyMs} />;
-}
-
-function RunError({ error }: { error: string }) {
-  return (
-    <Flex direction="row" gap="size-50" alignItems="start">
-      <Icon svg={<Icons.AlertCircle />} color="danger" />
-      <View minWidth={0} flex="1 1 auto">
-        <PrettyText
-          preCSS={css`
-            color: var(--global-color-danger);
-          `}
-        >
-          {error}
-        </PrettyText>
-      </View>
-    </Flex>
-  );
 }
 
 const defaultCardProps: Partial<CardProps> = {

@@ -63,5 +63,5 @@ export function PrettyTextCell<TData extends object, TValue>({
   if (typeof value !== "string") {
     return <span>--</span>;
   }
-  return <PrettyText>{value}</PrettyText>;
+  return <PrettyText variant="compact">{value}</PrettyText>;
 }

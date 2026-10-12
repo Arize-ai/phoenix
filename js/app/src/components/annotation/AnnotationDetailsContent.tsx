@@ -63,7 +63,9 @@ export function AnnotationDetailsContent({
                 explanation
               </Text>
               <View maxHeight="300px" overflow="auto">
-                <PrettyText>{annotation.explanation}</PrettyText>
+                <PrettyText variant="compact">
+                  {annotation.explanation}
+                </PrettyText>
               </View>
             </Flex>
           </View>
