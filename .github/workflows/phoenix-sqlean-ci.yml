@@ -32,15 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sqlean: ${{ steps.filter.outputs.sqlean }}
-      pythons: ${{ steps.pythons.outputs.pythons }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Read supported Pythons from setup.py
-        id: pythons
-        working-directory: packages/phoenix-sqlean
-        run: echo "pythons=$(python3 scripts/check-wheelhouse.py setup.py --print-pythons)" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
@@ -80,44 +75,10 @@ jobs:
             packages/phoenix-sqlean/sqlite
             packages/phoenix-sqlean/tests
 
-  test:
-    name: ${{ matrix.os }} / ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
-    needs: [changes, download-sources]
-    if: needs.changes.outputs.sqlean == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        # Covers every OS/arch pair that publish.yaml ships a wheel for, so
-        # a build break surfaces on the PR rather than at publication time.
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04-arm
-          - macos-latest
-          - windows-latest
-          - windows-11-arm
-        # Every CPython that python_requires in setup.py admits.
-        python-version: ${{ fromJSON(needs.changes.outputs.pythons) }}
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: sqlean-sources
-          path: pkg
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Build extension in place and run tests
-        working-directory: pkg
-        run: |
-          python -m pip install --upgrade setuptools wheel
-          python setup.py build_ext -i
-          python -m tests
-
   # The exact build publish.yaml runs: every shipped wheel, each tested by
-  # cibuildwheel, then checked as a set. The test job above differs in using
-  # setup-python's interpreters rather than cibuildwheel's pinned ones.
+  # cibuildwheel, then checked as a set.
   wheels:
-    name: Release wheels
+    name: Build and test wheels
     needs: [changes, download-sources]
     if: needs.changes.outputs.sqlean == 'true'
     uses: ./.github/workflows/phoenix-sqlean-build.yml
@@ -129,7 +90,6 @@ jobs:
     needs:
       - changes
       - download-sources
-      - test
       - wheels
     if: always()
     runs-on: ubuntu-latest

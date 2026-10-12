@@ -197,8 +197,7 @@ def get_setup_args():
 if __name__ == "__main__":
     # The only definition of the supported Python range. Keep it a string
     # literal in this call: cibuildwheel parses it statically to select
-    # CPythons, and the CI test matrix and scripts/check-wheelhouse.py derive
-    # their versions from it.
+    # CPythons, and scripts/check-wheelhouse.py expects exactly those.
     setuptools.setup(
         python_requires=">=3.11, <3.16",
         **get_setup_args(),

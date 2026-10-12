@@ -124,19 +124,15 @@ sqlean moves its own pin.
   of its `PLATFORMS`, plus one sdist. Adding or dropping a platform means editing `PLATFORMS`
   alongside the runners and `archs`.
 - **The supported Python range is `python_requires` in `setup.py`, and nothing else.**
-  cibuildwheel reads it to pick CPythons, the CI `test` matrix derives from it via
-  `check-wheelhouse.py --print-pythons`, and the wheelhouse check expects exactly its versions.
+  cibuildwheel reads it to pick CPythons, and the wheelhouse check expects exactly its versions.
   It must stay a string literal keyword in the `setuptools.setup(...)` call under
   `if __name__ == "__main__"` — cibuildwheel parses that statically, and silently builds every
   CPython it knows if it cannot find one (the wheelhouse check would then fail).
 - **Admitting a new CPython can fail two ways, both loudly.** cibuildwheel may still gate it as a
   prerelease, so its wheels are missing and the wheelhouse check fails — bump cibuildwheel. Or it
-  may have removed private C API the driver uses — the `test` job compiling against it catches
-  that first.
+  may have removed private C API the driver uses, which fails that version's wheel builds.
 - **`test-sources` resolves against cibuildwheel's working directory, not `package-dir`** — hence
   the workspace-root unpack, which the shared workflow puts under CI.
-- CI's `test` matrix compiles in place with setup-python's interpreters — faster feedback, and
-  final releases where cibuildwheel may still pin a release candidate.
 - Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
   creates it, `sqlean-sources` skips and nothing builds.
 - PyPI uses trusted publishing with **no** GitHub environment; the publisher's Environment field

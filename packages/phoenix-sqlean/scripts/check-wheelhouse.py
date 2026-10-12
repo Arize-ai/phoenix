@@ -5,13 +5,8 @@ python_requires admits on each platform below. PLATFORMS must match the
 runners in phoenix-sqlean-build.yml and the archs in cibuildwheel.toml.
 
 Usage: python check-wheelhouse.py <setup.py> <dist dir>
-       python check-wheelhouse.py <setup.py> --print-pythons
-
---print-pythons prints the admitted versions as a JSON list ("3.11", ...)
-for the CI test matrix.
 """
 
-import json
 import re
 import sys
 from pathlib import Path
@@ -59,13 +54,8 @@ def platform_of(tag: str) -> str | None:
 
 
 def main() -> None:
-    setup_py = Path(sys.argv[1])
-    minors = admitted_minors(setup_py)
-    if sys.argv[2] == "--print-pythons":
-        print(json.dumps([f"3.{minor}" for minor in minors]))
-        return
-    dist = Path(sys.argv[2])
-    pythons = [f"cp3{minor}" for minor in minors]
+    setup_py, dist = Path(sys.argv[1]), Path(sys.argv[2])
+    pythons = [f"cp3{minor}" for minor in admitted_minors(setup_py)]
     expected = {(python, kind) for python in pythons for kind in PLATFORMS}
 
     errors: list[str] = []
