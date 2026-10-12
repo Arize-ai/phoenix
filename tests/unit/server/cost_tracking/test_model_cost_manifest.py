@@ -2,7 +2,7 @@
 Regression tests for src/phoenix/server/cost_tracking/model_cost_manifest.json.
 
 Guards that LiteLLM whole-prompt tier rates (``*_above_NNNk_tokens``) survive the
-sync from LiteLLM through ``.github/.scripts/sync_models.py`` and land in the
+sync from LiteLLM through ``scripts/cost_tracking/sync_models.py`` and land in the
 manifest as ``threshold_based`` customizations. See Arize-ai/phoenix#14314.
 
 Also guards that the current flagship lineup stays priced and, just as importantly,
