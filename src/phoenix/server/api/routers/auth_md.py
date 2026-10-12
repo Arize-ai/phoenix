@@ -130,6 +130,8 @@ def _build_auth_md(
               `{{"email": "...", "password": "..."}}` sets a `{PHOENIX_ACCESS_TOKEN_COOKIE_NAME}`
               cookie usable as a bearer token. Renew an expired token via
               `POST {base_url}/auth/refresh` with the `{PHOENIX_REFRESH_TOKEN_COOKIE_NAME}` cookie.
+              A login with the default password `admin` returns 403 with a password reset token,
+              and the password must be changed via `POST {base_url}/auth/password-reset` first.
 
             ## Use the credential
 
@@ -181,6 +183,8 @@ def _build_auth_md(
           `{{"email": "...", "password": "..."}}` sets a `{PHOENIX_ACCESS_TOKEN_COOKIE_NAME}`
           cookie usable as a bearer token. Renew an expired token via
           `POST {base_url}/auth/refresh` with the `{PHOENIX_REFRESH_TOKEN_COOKIE_NAME}` cookie.
+          A login with the default password `admin` returns 403 with a password reset token,
+          and the password must be changed via `POST {base_url}/auth/password-reset` first.
 
         ## Use the credential
 
