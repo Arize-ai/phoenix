@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""The mean trail_reliability trace annotation score."""
+
+from statistics import mean
+
+from harbor_verifiers.phoenix_api import (
+    project_spans,
+    spans_by_trace,
+    trace_annotation_scores,
+    write_answer,
+)
+
+trace_ids = sorted(spans_by_trace(project_spans("research-assistant")))
+scores = trace_annotation_scores("research-assistant", "trail_reliability", trace_ids)
+write_answer(f"{mean(scores.values()):.2f} across {len(scores)} traces")

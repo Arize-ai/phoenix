@@ -70,8 +70,33 @@ tests/unit/server/api/
   unauthenticated by default — this has been exploited as an SSRF vector. See
   `references/graphql-patterns.md` → "Query vs Mutation".
 
+## Tests
+
+- **Never sleep to wait for a daemon.** Unit-test apps run the server's daemons in the
+  test's event loop, so a fixed sleep ties the outcome to machine load. Patch the daemon's
+  sleep so it parks on an event; the test releases it once and awaits its return to the
+  parked state, with a timeout that fails the test by name. See
+  `references/test-patterns.md` → "Waiting on Daemons".
+- **Any `import phoenix.<anything>` imports the whole server.** The package init pulls in the
+  session module and with it the app, several seconds per process, including pytest plugins
+  and scripts. Keep new imports out of `src/phoenix/__init__.py`.
+- **Unit-test apps take startup shortcuts, most with an opt-out marker.** The conftest
+  memoizes key derivation, the GraphQL schema, routers, and FastAPI's route analysis across
+  apps in a worker, stubs out the docs MCP session, model-cost seeding, and other startup
+  effects no test observes, and seeds each worker's template database with the startup rows.
+  A test whose subject is one of those behaviors must opt out with its marker or it passes
+  against the shortcut. The markers registered in the unit conftest are the authoritative
+  list. See `references/test-patterns.md` → "Startup Shortcuts".
+
 ## Naming
 
+- **Name new mutations after the HTTP verb they are synonymous with**:
+  `createThing`, `patchThing`, `setThing`, `deleteThing` — not `applyThingChanges`
+  or `updateThing`. `patch` covers any partial write to existing resources,
+  including a collection-level write that also adds and removes members in one
+  transaction. The input type takes the same name (`PatchThingInput`). Existing
+  `update*` mutations and `addXToY` linking mutations are not covered by this.
+  See `references/graphql-patterns.md` → "Naming: use the HTTP verb".
 - **Avoid acronyms and single/double-letter abbreviations for local variables.**
   Prefer the full noun: `session` / `project_session` over `ps`, `trace` over `t`,
   `example` / `dataset_example` over `de`. The cost of a longer identifier is trivial; the

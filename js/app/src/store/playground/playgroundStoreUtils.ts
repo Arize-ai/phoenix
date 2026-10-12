@@ -18,6 +18,8 @@ export const convertMessageToolCallsToProvider = ({
   if (toolCalls == null) {
     return undefined;
   }
+  // Exhaustive provider switch: a new built-in (META) adds a case and trips the cap.
+  // eslint-disable-next-line complexity
   return toolCalls.map((toolCall) => {
     switch (provider) {
       case "OPENAI":
@@ -28,8 +30,11 @@ export const convertMessageToolCallsToProvider = ({
       case "FIREWORKS":
       case "GROQ":
       case "MOONSHOT":
+      case "MINIMAX":
       case "PERPLEXITY":
       case "TOGETHER":
+      case "ZAI":
+      case "META":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }

@@ -1,5 +1,24 @@
 # @arizeai/phoenix-evals
 
+## 2.6.0
+
+### Minor Changes
+
+- b7b7dfb: Classification evaluators now accept AI SDK evaluation models such as TypeSafe's Jev. When an evaluation model is passed as `model`, the classification is routed through `experimental_evaluate` as a single choice question instead of `generateObject`. Results carry a `label` and `score` but no `explanation`, since evaluation models do not generate text.
+
+## 2.5.0
+
+### Minor Changes
+
+- 63805d0: Add `createCompletenessEvaluator` to judge whether every active user request in a conversation was actually completed.
+
+### Patch Changes
+
+- d67ea3f: Deprecate `createDocumentRelevanceEvaluator` in favor of
+  `createRetrievalRelevanceEvaluator`. Rename `documentText` to `context` and the
+  `unrelated` label to `irrelevant`. The deprecated factory and its types will be
+  removed in the next major release.
+
 ## 2.4.0
 
 ### Minor Changes

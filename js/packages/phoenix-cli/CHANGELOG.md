@@ -1,5 +1,84 @@
 # @arizeai/phoenix-cli
 
+## 1.18.8
+
+### Patch Changes
+
+- Updated dependencies [7b9f900]
+  - @arizeai/phoenix-client@7.16.1
+
+## 1.18.7
+
+### Patch Changes
+
+- Updated dependencies [f8ae2fc]
+  - @arizeai/phoenix-client@7.16.0
+
+## 1.18.6
+
+### Patch Changes
+
+- c72f77b: PXI slash-command hints now have a highlighted row: arrow keys move it (wrapping at either end), Tab completes it, and Enter runs it, so `/he` runs `/help`. A bare `/` lists every command, and `/help` is listed first so `/` + Enter is harmless.
+- Updated dependencies [5b37f12]
+  - @arizeai/phoenix-client@7.15.0
+
+## 1.18.5
+
+### Patch Changes
+
+- Updated dependencies [aab229f]
+  - @arizeai/phoenix-client@7.14.0
+
+## 1.18.4
+
+### Patch Changes
+
+- Updated dependencies [c282563]
+  - @arizeai/phoenix-client@7.13.0
+
+## 1.18.3
+
+### Patch Changes
+
+- Updated dependencies [dab09f1]
+  - @arizeai/phoenix-client@7.12.0
+
+## 1.18.2
+
+### Patch Changes
+
+- Updated dependencies [2b73847]
+  - @arizeai/phoenix-client@7.11.0
+
+## 1.18.1
+
+### Patch Changes
+
+- Updated dependencies [c839254]
+  - @arizeai/phoenix-client@7.10.0
+
+## 1.18.0
+
+### Minor Changes
+
+- bf047af: Add Meta (Muse Spark models) as a built-in OpenAI-compatible model provider (`META`).
+
+### Patch Changes
+
+- Updated dependencies [bf047af]
+  - @arizeai/phoenix-client@7.9.0
+
+## 1.17.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
 ## 1.16.5
 
 ### Patch Changes

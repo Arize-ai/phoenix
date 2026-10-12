@@ -1,11 +1,12 @@
 """Tests for the skills the MCP server serves.
 
 Which skills a consumer sees is decided by the roots its server is built with:
-the mount receives the general root alone; the in-process agent adds its own.
+the mount receives the shared root alone; the in-process agent adds its own.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -15,11 +16,13 @@ from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
 from phoenix.server.mcp.skills import (
-    GENERAL_SKILLS_ROOT,
     PXI_SKILLS_ROOT,
     PXI_SKILLS_ROOTS,
+    SHARED_SKILLS_ROOT,
     Skill,
+    load_external_skills,
     load_skills,
+    merge_skills,
 )
 from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
@@ -47,11 +50,10 @@ async def _text(client: Client[Any], tool: str, **arguments: Any) -> str:
     return "".join(getattr(block, "text", "") for block in result.content)
 
 
-class TestHandshake:
+class TestAdvertisedInstructions:
     async def test_lists_every_skill_with_its_trigger_guidance(self) -> None:
         async with Client(_server(*PXI_SKILLS_ROOTS)) as client:
-            assert client.initialize_result is not None
-            instructions = client.initialize_result.instructions or ""
+            instructions = client.instructions or ""
 
         assert "<available_skills>" in instructions
         for skill in load_skills(PXI_SKILLS_ROOTS):
@@ -65,8 +67,7 @@ class TestHandshake:
             FastAPI(), code_mode=False, read_only=True, db=_unused_db()
         )
         async with Client(mcp) as client:
-            assert client.initialize_result is not None
-            assert client.initialize_result.instructions is None
+            assert client.instructions is None
             names = {tool.name for tool in await client.list_tools()}
             assert names.isdisjoint({"load_skill", "load_skill_reference"})
 
@@ -77,6 +78,11 @@ class TestTools:
             loaded = await _text(client, "load_skill", skill_name="phoenix-graphql")
 
         assert loaded == (_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_skill_files_link_to_their_references(self) -> None:
+        for skill in load_skills(PXI_SKILLS_ROOTS):
+            for reference in skill.references:
+                assert f"]({reference.name})" in skill.text
 
     async def test_load_skill_reference_returns_the_file(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
@@ -106,8 +112,8 @@ class TestTools:
 
         skills = load_skills(PXI_SKILLS_ROOTS)
         skill_names = [skill.name for skill in skills]
-        load_params = tools["load_skill"].inputSchema["properties"]
-        read_params = tools["load_skill_reference"].inputSchema["properties"]
+        load_params = tools["load_skill"].input_schema["properties"]
+        read_params = tools["load_skill_reference"].input_schema["properties"]
         assert load_params["skill_name"]["enum"] == skill_names
         assert read_params["skill_name"]["enum"] == skill_names
         assert read_params["reference_name"]["enum"] == sorted(
@@ -116,7 +122,7 @@ class TestTools:
         assert "references/datasets.md" in read_params["reference_name"]["enum"]
         for tool in ("load_skill", "load_skill_reference"):
             assert tools[tool].annotations is not None
-            assert tools[tool].annotations.readOnlyHint is True
+            assert tools[tool].annotations.read_only_hint is True
 
     async def test_a_catalog_without_references_leaves_the_reference_name_open(
         self, tmp_path: Path
@@ -125,7 +131,7 @@ class TestTools:
         async with Client(_server(tmp_path)) as client:
             tools = {tool.name: tool for tool in await client.list_tools()}
 
-        read_params = tools["load_skill_reference"].inputSchema["properties"]
+        read_params = tools["load_skill_reference"].input_schema["properties"]
         assert read_params["skill_name"]["enum"] == ["a-skill"]
         assert "enum" not in read_params["reference_name"]
 
@@ -143,29 +149,48 @@ class TestTools:
                 skills_roots=PXI_SKILLS_ROOTS,
             )
             async with Client(mcp) as client:
-                names = {tool.name for tool in await client.list_tools()}
+                tools = {tool.name: tool for tool in await client.list_tools()}
                 catalog = await _text(client, "list_tools")
                 loaded = await _text(client, "load_skill", skill_name="datasets")
         finally:
             await runtime.aclose()
 
+        names = set(tools)
         assert {"execute", "search", "load_skill", "load_skill_reference"} <= names
         assert "load_skill" not in catalog
         assert "load_skill_reference" not in catalog
         assert loaded.startswith("---\nname: datasets")
+        execute = tools["execute"].description or ""
+        for direct in names - {"execute"}:
+            assert f"`{direct}`" in execute, direct
+
+    async def test_execute_names_no_skill_tools_when_there_are_none(self) -> None:
+        runtime = MontyRuntime()
+        try:
+            mcp, _ = build_phoenix_mcp_server(
+                FastAPI(), monty_runtime=runtime, code_mode=True, read_only=True, db=_unused_db()
+            )
+            async with Client(mcp) as client:
+                tools = {tool.name: tool for tool in await client.list_tools()}
+        finally:
+            await runtime.aclose()
+
+        execute = tools["execute"].description or ""
+        assert "`list_tools`" in execute
+        assert "load_skill" not in execute
 
 
 class TestLoadSkills:
-    def test_pxi_skills_are_by_name_and_exclude_the_general_root(self) -> None:
+    def test_pxi_skills_are_the_shared_root_then_its_own(self) -> None:
         names = [skill.name for skill in load_skills(PXI_SKILLS_ROOTS)]
-        general = [skill.name for skill in load_skills((GENERAL_SKILLS_ROOT,))]
+        shared = [skill.name for skill in load_skills((SHARED_SKILLS_ROOT,))]
         pxi = [skill.name for skill in load_skills((PXI_SKILLS_ROOT,))]
 
-        assert names == pxi
-        assert names == sorted(names)
-        assert {"phoenix-graphql", "datasets"} <= set(names)
-        assert general == ["project-overview"]
-        assert not set(general) & set(names)
+        assert names == shared + pxi
+        assert shared == sorted(shared)
+        assert pxi == sorted(pxi)
+        assert {"phoenix-graphql", "datasets"} <= set(pxi)
+        assert not set(shared) & set(pxi)
 
     def test_references_are_named_by_their_path_from_the_skill_root(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "a-skill")
@@ -191,11 +216,14 @@ class TestLoadSkills:
 
         assert [skill.name for skill in load_skills((tmp_path,))] == ["a-skill"]
 
-    def test_roots_with_no_skills_are_refused(self, tmp_path: Path) -> None:
+    def test_a_root_with_no_skills_yields_none(self, tmp_path: Path) -> None:
         (tmp_path / "notes").mkdir()
 
-        with pytest.raises(ValueError, match="No skills found under"):
-            load_skills((tmp_path,))
+        assert load_skills((tmp_path,)) == ()
+
+    def test_a_missing_root_is_refused(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="is not a directory"):
+            load_skills((tmp_path / "nope",))
 
     def test_a_name_defined_in_two_roots_is_refused(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "one" / "a-skill")
@@ -285,3 +313,93 @@ def _write_skill(directory: Path) -> None:
     (directory / "SKILL.md").write_text(
         f"---\nname: {directory.name}\ndescription: d\nsummary: s\n---\n\nbody\n"
     )
+
+
+async def test_external_skills_reach_instructions_and_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ["first-skill", "second-skill"]:
+        _write_skill(tmp_path / name)
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+    skills = load_external_skills()
+    assert {skill.name for skill in skills} == {"first-skill", "second-skill"}
+    async with Client(_server(SHARED_SKILLS_ROOT, external_skills=skills)) as client:
+        for skill in skills:
+            assert f"<name>{skill.name}</name>" in (client.instructions or "")
+            assert f"name: {skill.name}" in await _text(client, "load_skill", skill_name=skill.name)
+        for skill in load_skills((SHARED_SKILLS_ROOT,)):
+            assert f"<name>{skill.name}</name>" in (client.instructions or "")
+
+
+def test_individual_skill_symlink_and_relative_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_skill(tmp_path / "installed" / "a-skill")
+    (tmp_path / "a-skill").symlink_to(tmp_path / "installed" / "a-skill", target_is_directory=True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", "./a-skill")
+    assert [skill.name for skill in load_external_skills()] == ["a-skill"]
+
+
+def test_external_skill_cannot_override_builtin_skill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_skill(tmp_path / "datasets")
+    _write_skill(tmp_path / "a-skill")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.name for skill in skills] == ["a-skill"]
+    assert "Ignoring external skill 'datasets'" in caplog.text
+    assert "taken by a built-in skill" in caplog.text
+    merge_skills(load_skills(PXI_SKILLS_ROOTS), skills)
+
+
+def test_external_skill_duplicates_keep_the_first_and_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_skill(tmp_path / "one" / "a-skill")
+    _write_skill(tmp_path / "two" / "a-skill")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", f"{tmp_path / 'one'},{tmp_path / 'two'}")
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.path for skill in skills] == [tmp_path / "one" / "a-skill"]
+    assert "Ignoring external skill 'a-skill'" in caplog.text
+    assert str(tmp_path / "two" / "a-skill") in caplog.text
+
+
+def test_unparseable_external_skill_is_skipped_and_logged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_skill(tmp_path / "a-skill")
+    (tmp_path / "broken").mkdir()
+    (tmp_path / "broken" / "SKILL.md").write_text("---\nname: broken\n---\nno description\n")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.name for skill in skills] == ["a-skill"]
+    assert f"Ignoring external skill at {tmp_path / 'broken'}" in caplog.text
+    assert "non-empty 'description'" in caplog.text
+
+
+def test_external_root_without_skills_warns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    with caplog.at_level(logging.WARNING, logger="phoenix.server.mcp.skills"):
+        assert load_external_skills() == ()
+
+    assert f"Skills root {tmp_path} contains no skill directories" in caplog.text
+
+
+def test_missing_external_root_still_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path / "nowhere"))
+    with pytest.raises(ValueError, match="not a directory"):
+        load_external_skills()

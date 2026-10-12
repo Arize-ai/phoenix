@@ -79,8 +79,6 @@ def _fold_unquoted_identifiers(
     return root
 
 
-_QUOTED_CHAR_TYPE = re.compile(r'(?:AS|::)\s*"char"', re.IGNORECASE)
-
 _RECURSIVE_CTE_MESSAGE = (
     "Recursive CTEs are not supported. Walk a parent/child "
     "relationship with a self-join instead (for spans, "
@@ -89,29 +87,10 @@ _RECURSIVE_CTE_MESSAGE = (
 
 
 def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
-    # Workaround for https://github.com/tobymao/sqlglot/issues/8280, open
-    # upstream: quoted `"char"` folds to CHAR (bpchar). PostgreSQL's `"char"` is
-    # a 1-byte type; CAST(65 AS "char") is 'A' and CAST(65 AS CHAR) is '6'.
-    if dialect == "postgresql" and _QUOTED_CHAR_TYPE.search(sql):
-        raise AnalyticsSqlError(
-            code=ErrorCode.UNSUPPORTED_SYNTAX,
-            message=(
-                'CAST to quoted `"char"` is not supported: this parser folds it '
-                'to CHAR, which is bpchar, not PostgreSQL\'s 1-byte `"char"` '
-                "type. Cast to TEXT or CHAR if that is what you mean."
-            ),
-        )
     try:
         statements = parse(sql, read=sqlglot_read_dialect(dialect))
     except ParseError as exc:
-        recovered = _recover_grouping_limit_parse(sql, dialect=dialect)
-        if recovered is None:
-            raise admission_error_from_outcome(
-                "parse_error",
-                str(exc),
-                message=_grouping_limit_parse_message(sql) or "",
-            ) from exc
-        return _finish_parse(recovered, dialect=dialect)
+        raise admission_error_from_outcome("parse_error", str(exc)) from exc
     except SqlglotError as exc:
         # TokenError (unterminated comment, etc.) is not a ParseError. Left
         # uncaught it escapes the error envelope as a tool crash.
@@ -167,95 +146,8 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
     repaired = _strip_sqlite_index_hints(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_interval_arithmetic(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_ilike(repaired, dialect=dialect)
+    repaired = _repair_sqlite_time_trunc(repaired, dialect=dialect)
     return _fold_unquoted_identifiers(repaired, dialect=dialect)
-
-
-def _grouping_limit_parse_message(sql: str) -> Optional[str]:
-    """Actionable copy when SQLGlot cannot parse GROUPING SETS/ROLLUP/CUBE with LIMIT.
-
-    PostgreSQL accepts ``GROUP BY GROUPING SETS (...) LIMIT n``. SQLGlot's
-    postgres parser does not; ``FETCH FIRST n ROWS ONLY`` and wrapping the
-    aggregation in a subquery both parse. The generic parse error names a
-    token the caller cannot act on.
-
-    Workaround for https://github.com/tobymao/sqlglot/issues/8279, open
-    upstream.
-    """
-    folded = sql.casefold()
-    if "limit" not in folded and "offset" not in folded:
-        return None
-    if (
-        "grouping sets" not in folded
-        and not re.search(r"rollup\s*\(", folded)
-        and not re.search(r"cube\s*\(", folded)
-    ):
-        return None
-    return (
-        "GROUP BY GROUPING SETS, ROLLUP, or CUBE cannot be combined with LIMIT or "
-        "OFFSET in this parser. Wrap the aggregation in a subquery and LIMIT the "
-        "outer SELECT, or write FETCH FIRST n ROWS ONLY."
-    )
-
-
-_TRAILING_LIMIT_OFFSET = re.compile(
-    r"^(?P<head>.*?)(?:\s+LIMIT\s+(?P<limit>\d+)(?:\s+OFFSET\s+(?P<offset>\d+))?"
-    r"|\s+OFFSET\s+(?P<offset_only>\d+))\s*;?\s*$",
-    re.IGNORECASE | re.DOTALL,
-)
-
-
-def _split_trailing_limit_offset(sql: str) -> Optional[tuple[str, Optional[int], Optional[int]]]:
-    """Peel a trailing LIMIT/OFFSET the postgres parser cannot attach to GROUPING SETS."""
-    match = _TRAILING_LIMIT_OFFSET.match(sql.strip())
-    if match is None:
-        return None
-    head = match.group("head").strip()
-    if not head:
-        return None
-    if match.group("offset_only") is not None:
-        return head, None, int(match.group("offset_only"))
-    offset = match.group("offset")
-    return head, int(match.group("limit")), int(offset) if offset is not None else None
-
-
-def _recover_grouping_limit_parse(
-    sql: str, *, dialect: SupportedSQLDialectName
-) -> Optional[exp.Expression]:
-    """Reattach LIMIT/OFFSET that SQLGlot rejects after GROUPING SETS/ROLLUP/CUBE.
-
-    PostgreSQL accepts the combination. The parser does not. Peeling the
-    trailing clause, parsing the rest, and putting Limit/Offset back preserves
-    the statement the caller wrote rather than refusing a query the engine
-    would run.
-
-    Workaround for https://github.com/tobymao/sqlglot/issues/8279, open
-    upstream.
-    """
-    if _grouping_limit_parse_message(sql) is None:
-        return None
-    split = _split_trailing_limit_offset(sql)
-    if split is None:
-        return None
-    head, limit, offset = split
-    try:
-        statements = parse(head, read=sqlglot_read_dialect(dialect))
-    except ParseError:
-        return None
-    statements = [
-        statement
-        for statement in statements
-        if statement is not None and not isinstance(statement, exp.Semicolon)
-    ]
-    if len(statements) != 1:
-        return None
-    root = statements[0]
-    if root is None or not isinstance(root, ALLOWED_ROOTS):
-        return None
-    if limit is not None:
-        root.set("limit", exp.Limit(expression=exp.Literal.number(limit)))
-    if offset is not None:
-        root.set("offset", exp.Offset(expression=exp.Literal.number(offset)))
-    return root
 
 
 def _json_extract_node(
@@ -740,6 +632,28 @@ def _rewrite_sqlite_ilike(
         if node.args.get("negate"):
             like.set("negate", True)
         node.replace(like)
+    return root
+
+
+def _repair_sqlite_time_trunc(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """Rebuild ``time_trunc(t, 'hour')`` as the plain call SQLite runs.
+
+    The parser models it as ``TimeTrunc`` and degrades the quoted field to a
+    bare word, so it would render as ``TIME_TRUNC(t, HOUR)`` and SQLite would
+    look for a column named HOUR. The sqlean function takes the field as a
+    string, or a duration as a number.
+    """
+    if dialect != "sqlite":
+        return root
+    for node in reversed(list(root.find_all(exp.TimeTrunc))):
+        unit = node.args.get("unit")
+        if not isinstance(unit, exp.Var):
+            continue
+        name = unit.name
+        literal = exp.Literal.number(name) if name.isdigit() else exp.Literal.string(name.lower())
+        node.replace(exp.Anonymous(this="time_trunc", expressions=[node.this.copy(), literal]))
     return root
 
 

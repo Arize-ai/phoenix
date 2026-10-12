@@ -21,7 +21,7 @@ from anthropic.types.beta.message_create_params import MessageCreateParams
 from fastapi import FastAPI
 from opentelemetry.trace import NoOpTracerProvider
 from pydantic import SecretStr
-from pydantic_ai import Agent, RunContext, UserError
+from pydantic_ai import Agent, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
@@ -45,7 +45,6 @@ from phoenix.db.types.data_stream_protocol.ui_state_types import (
 from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
     GitHubMCPCapability,
-    MintlifyDocsMCPServer,
     build_anthropic_prompt_cache_capability,
 )
 from phoenix.server.agents.capabilities.github_mcp import GITHUB_WRITE_TOOLS
@@ -67,6 +66,7 @@ from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import DbSessionFactory
+from tests.unit.conftest import OfflineDocsMCPServer
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
@@ -94,11 +94,8 @@ between the emptiest and the busiest page in the app."""
 
 
 def build_agent(**kwargs: Any) -> Any:
-    """Build an agent for factory tests with inert DB-backed tool dependencies."""
     kwargs.setdefault("name", "PXIAgent")
     kwargs.setdefault("headless", False)
-    kwargs.setdefault("db", Mock(spec=DbSessionFactory))
-    kwargs.setdefault("event_queue", Mock())
     return _build_agent(**kwargs)
 
 
@@ -198,6 +195,45 @@ def captured_request() -> CapturedRequest:
     return CapturedRequest()
 
 
+def _sse_event(event: dict[str, Any]) -> str:
+    return f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+
+
+_ANTHROPIC_STUB_EVENTS: list[dict[str, Any]] = [
+    {
+        "type": "message_start",
+        "message": {
+            "id": "msg_test",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-haiku-4-5",
+            "content": [],
+            "stop_reason": None,
+            "stop_sequence": None,
+            "usage": {"input_tokens": 1, "output_tokens": 0},
+        },
+    },
+    {
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "text", "text": ""},
+    },
+    {
+        "type": "content_block_delta",
+        "index": 0,
+        "delta": {"type": "text_delta", "text": "ok"},
+    },
+    {"type": "content_block_stop", "index": 0},
+    {
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn", "stop_sequence": None},
+        "usage": {"output_tokens": 1},
+    },
+    {"type": "message_stop"},
+]
+_ANTHROPIC_STUB_EVENT_STREAM = "".join(_sse_event(event) for event in _ANTHROPIC_STUB_EVENTS)
+
+
 @pytest.fixture
 def anthropic_model(
     anthropic_api_key: str,
@@ -207,7 +243,16 @@ def anthropic_model(
     ``httpx2.MockTransport``."""
 
     def handler(request: httpx2.Request) -> httpx2.Response:
-        captured_request.bodies.append(json.loads(request.read()))
+        body = json.loads(request.read())
+        captured_request.bodies.append(body)
+        if body.get("stream"):
+            # pydantic-ai streams a non-streaming request when its default max_tokens
+            # exceeds the SDK's non-streaming limit.
+            return httpx2.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=_ANTHROPIC_STUB_EVENT_STREAM,
+            )
         stub_response = BetaMessage(
             id="msg_test",
             type="message",
@@ -273,27 +318,9 @@ class TestPromptCacheCapabilityMounting:
         assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
 
-class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
-    """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
-
-    Overrides ``get_tools`` to return an empty tool dict and the async
-    context-manager protocol to no-op, so the agent run never opens an
-    HTTP/SSE session to the real Mintlify endpoint.
-    """
-
-    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, Any]:
-        return {}
-
-    async def __aenter__(self) -> "_OfflineDocsMCPToolset":
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        return None
-
-
 @pytest.fixture
-def docs_mcp_server() -> _OfflineDocsMCPToolset:
-    return _OfflineDocsMCPToolset()
+def docs_mcp_server() -> OfflineDocsMCPServer:
+    return OfflineDocsMCPServer()
 
 
 @pytest.fixture
@@ -845,7 +872,6 @@ class TestHeadlessMode:
         assert {
             "bash",
             "get_current_datetime",
-            "write_span_note",
         } <= tool_names
         instructions = result.all_messages()[0].instructions
         assert instructions is not None
@@ -1038,7 +1064,7 @@ class TestDocsMCPToolset:
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
-        docs_mcp_server: _OfflineDocsMCPToolset,
+        docs_mcp_server: OfflineDocsMCPServer,
         headless: bool,
     ) -> None:
         agent = build_agent(
@@ -1134,7 +1160,6 @@ class TestSkills:
         assert "execute" in tool_names
         assert "load_skill" in tool_names
         assert "load_skill_reference" in tool_names
-        assert "write_span_note" in tool_names
 
     async def test_absent_without_a_server(
         self,

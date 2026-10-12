@@ -113,7 +113,29 @@ const { traces: recentTraces } = await getTraces({
   limit: 50,
   includeSpans: true,
 });
+
+// Server-side trace filter (requires Phoenix server >= 20.12.0)
+const { traces: slowFailures } = await getTraces({
+  project: { projectName: "my-project" },
+  filter: "error_count > 0 and latency_ms >= 1000",
+  limit: 50,
+});
+
+// The clean, slow traces — the ones that are wrong without crashing
+const { traces: quietAndSlow } = await getTraces({
+  project: { projectName: "my-project" },
+  filter: "error_count == 0 and 5000 <= latency_ms <= 30000",
+  limit: 50,
+});
 ```
+
+`filter` is a trace filter expression: the same language as the UI's traces
+filter bar, with rollups like `error_count`, `latency_ms`, `num_spans`, and
+`total_cost` and comprehensions over `spans`. The vocabulary is in
+[filter-expressions.md](filter-expressions.md) under "Trace filter". It
+combines with `startTime`, `endTime`, and `sessionId` using AND. Against an
+older server the client throws before sending the request rather than
+returning unfiltered traces.
 
 ## Building a Review Queue
 

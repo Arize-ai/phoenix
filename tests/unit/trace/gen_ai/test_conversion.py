@@ -18,8 +18,8 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.semconv._incubating.attributes import gen_ai_attributes as gen_ai
-from opentelemetry.util.types import AttributeValue
 
+from phoenix.trace.attributes import AttributeValue
 from phoenix.trace.gen_ai.conversion import (
     get_openinference_attributes,
     get_openinference_base_attributes,

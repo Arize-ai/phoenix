@@ -14,13 +14,13 @@ import {
 } from "@tanstack/react-table";
 import React, {
   startTransition,
-  Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
@@ -49,6 +49,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { SESSION_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
@@ -65,14 +66,15 @@ import {
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
-import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { withFilterConditionParam } from "./filterConditionParam";
 import {
   SessionInputValueTooltipCell,
   SessionOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
-import { SessionFilterConditionField } from "./SessionFilterConditionField";
+import type { SessionFilterValidConditionArgs } from "./SessionFilterConditionField";
+import { SessionFilterConditionFieldWithVocabulary } from "./SessionFilterConditionField";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
@@ -88,6 +90,11 @@ import {
 } from "./tableUtils";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
+  /**
+   * The settled condition `project` was loaded with; the rows on hand already
+   * match it.
+   */
+  seed: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -100,48 +107,6 @@ const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
 `;
-
-const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
-
-/**
- * The filter field, once its per-project autocomplete vocabulary has loaded.
- * The vocabulary resolver scans annotation names and root-span attributes, so
- * it is suspended separately from the table it sits above.
- */
-function SessionFilterConditionFieldWithVocabulary({
-  projectId,
-  onValidCondition,
-}: {
-  projectId: string;
-  onValidCondition: (condition: string) => void;
-}) {
-  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
-    graphql`
-      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
-        project: node(id: $id) {
-          ... on Project {
-            sessionFilterVocabulary {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId }
-  );
-  return (
-    <SessionFilterConditionField
-      vocabulary={
-        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
-      }
-      onValidCondition={onValidCondition}
-    />
-  );
-}
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -199,9 +164,37 @@ export const MemoizedTableBody = React.memo(
 export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =
-    useState<string>("");
+    useState<string>(props.seed);
+  // React Router 8.2 recreates this setter whenever location.search changes; a
+  // stable ref keeps unrelated param changes out of the field's validation.
+  const [, setSearchParams] = useSearchParams();
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
+  const handleValidSessionFilterCondition = useCallback(
+    ({ condition, isInitialSettlement }: SessionFilterValidConditionArgs) => {
+      setValidSessionFilterCondition(condition);
+      // The mount settlement echoes the URL's own condition; writing it back
+      // would touch the URL on every visit to the tab.
+      if (isInitialSettlement) {
+        return;
+      }
+      setSearchParamsRef.current(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            SESSION_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
+    },
+    []
+  );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the current
@@ -481,6 +474,12 @@ export function SessionsTable(props: SessionsTableProps) {
     },
   ];
   useEffect(() => {
+    // The parent's query already carries the seed, so the first render needs
+    // no refetch.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const sort = sorting[0];
     startTransition(() => {
       refetch(
@@ -612,21 +611,9 @@ export function SessionsTable(props: SessionsTableProps) {
             wrap="wrap"
           >
             <div css={toolbarFilterFieldCSS}>
-              {/* Autocomplete data must not gate the table's first paint, so
-                  the field renders — and filters — before it arrives. */}
-              <Suspense
-                fallback={
-                  <SessionFilterConditionField
-                    vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
-                    onValidCondition={setValidSessionFilterCondition}
-                  />
-                }
-              >
-                <SessionFilterConditionFieldWithVocabulary
-                  projectId={data.id}
-                  onValidCondition={setValidSessionFilterCondition}
-                />
-              </Suspense>
+              <SessionFilterConditionFieldWithVocabulary
+                onValidCondition={handleValidSessionFilterCondition}
+              />
             </div>
             <TableMetricsChartSelector view="sessions" />
             <SessionColumnSelector

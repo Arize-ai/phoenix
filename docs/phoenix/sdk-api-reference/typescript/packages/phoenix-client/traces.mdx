@@ -29,7 +29,7 @@ The traces module provides trace retrieval, project transfer, and trace-level an
 
 ## Retrieve Traces
 
-Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session.
+Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session, error status, or latency.
 
 ```ts
 import { getTraces } from "@arizeai/phoenix-client/traces";
@@ -60,6 +60,18 @@ console.log(result.nextCursor);
 - `cursor`
 - `includeSpans`
 - `sessionId`
+- `filter` — a trace DSL expression, combined with other filters using AND
+- `error` (deprecated; use `filter`)
+- `minLatencyMs` (deprecated; use `filter`)
+- `maxLatencyMs` (deprecated; use `filter`)
+
+```ts
+// Slow traces that contain at least one errored span
+const slowFailures = await getTraces({
+  project: { projectName: "support-bot" },
+  filter: "error_count > 0 and latency_ms >= 1000",
+});
+```
 
 ### Notes
 
@@ -67,6 +79,8 @@ console.log(result.nextCursor);
 - Use the returned `nextCursor` to continue pagination
 - Set `includeSpans` when you need a trace-centric fetch that also contains span details
 - `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
+- `filter` takes a trace filter expression; the language is documented on the [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions) page, and its [Finding field names](/docs/phoenix/tracing/how-to-tracing/filter-expressions#finding-field-names) section covers discovering valid names for your project.
+- `error`, `minLatencyMs`, and `maxLatencyMs` remain supported on Phoenix server >= 20.8.0. Replace them with `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and `latency_ms <= N` respectively. Latency bounds are inclusive and errors include child spans.
 
 ## Move Traces To Another Project
 

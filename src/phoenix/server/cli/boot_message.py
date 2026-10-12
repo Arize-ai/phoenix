@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from urllib.parse import urlsplit, urlunsplit
 
@@ -125,6 +125,14 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   REST API            {{ rest_api_url }}
   GraphQL API         {{ graphql_url }}
   MCP server          {{ mcp_url or disabled }}
+{% if skills_paths %}
+  External skills     {{ skills_paths[0] }}
+{% for path in skills_paths[1:] %}
+                      {{ path }}
+{% endfor %}
+{% else %}
+  External skills     {{ not_configured }}
+{% endif %}
 {% if read_only %}
   Mode                Read-only
 {% endif %}
@@ -210,6 +218,7 @@ class BootMessage:
     # server has started. `phoenix serve` fills it in at render time; until then
     # the banner omits the Assistant section entirely.
     assistant_config: Optional[AssistantConfig] = None
+    skills_paths: list[str] = field(default_factory=list)
     dev_mode: bool = False
     debug_logging: bool = False
     dev_vite_url: Optional[str] = None

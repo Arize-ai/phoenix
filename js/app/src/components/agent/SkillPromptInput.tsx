@@ -17,6 +17,8 @@ const wrapperCSS = css`
   width: 100%;
 `;
 
+export const PROMPT_MAX_ROWS = 12;
+
 // The textarea sits above the highlight overlay with transparent text so the
 // overlay's highlighted runs show through, while the caret stays visible.
 const textareaCSS = css`
@@ -30,6 +32,12 @@ const textareaCSS = css`
   // original height.
   min-height: calc(
     var(--global-line-height-s) * 3 + var(--global-dimension-size-100)
+  );
+  // Bounds the box against the auto-resize below, which writes an unbounded
+  // pixel height inline; the overlay is positioned to this box and follows.
+  max-height: calc(
+    var(--global-line-height-s) * ${PROMPT_MAX_ROWS} +
+      var(--global-dimension-size-100)
   );
   border: none;
   outline: none;

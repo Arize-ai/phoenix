@@ -1,5 +1,10 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingState, Table } from "@tanstack/react-table";
+import type {
+  CellContext,
+  ColumnDef,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -16,7 +21,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -69,15 +74,14 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SPAN_FILTER_CONDITION_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { isSpanRowSelected } from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -115,6 +119,7 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
+import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -149,14 +154,11 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { traceId } = useParams();
-  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected =
-          selectedSpanNodeId === row.original.id ||
-          (!selectedSpanNodeId && row.original.trace.traceId === traceId);
+        const isSelected = isSpanRowSelected(selectedTraceSlots, row.original);
         return (
           <tr
             key={row.id}
@@ -211,6 +213,17 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
+const MetadataCell = <TData extends { metadata: unknown }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <MetadataTableCell
+      metadata={row.original.metadata}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
+};
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -299,11 +312,9 @@ export function SpansTable(props: SpansTableProps) {
     setIsExpanded: setAreRowsExpanded,
     tableProps: rowsExpandedTableProps,
   } = useTableRowsExpanded();
-  // Root-span scoping is expressed inside `filterCondition`, so the query below
-  // deliberately passes neither `rootSpansOnly` nor `orphanSpanAsRootSpan`:
-  // sending both would AND two independent root filters together, and the
-  // stricter one would silently win. `rootSpansOnly` survives only as a
-  // presentation flag selecting cumulative versus per-span metric fields.
+  // Root-span scoping is a clause of `filterCondition`; the server has no
+  // root-span argument. `rootSpansOnly` here is a presentation flag only,
+  // selecting cumulative versus per-span metric fields.
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -714,7 +725,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
+      cell: MetadataCell,
       enableSorting: false,
     },
     {

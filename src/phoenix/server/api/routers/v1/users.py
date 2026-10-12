@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import secrets
-from datetime import datetime
 from functools import partial
 from typing import Annotated, Literal, Union
 
@@ -27,7 +26,7 @@ from phoenix.auth import (
 )
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -65,8 +64,8 @@ class LDAPUserData(UserData):
 
 class DbUser(V1RoutesBaseModel):
     id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
 
 
 class LocalUser(LocalUserData, DbUser):

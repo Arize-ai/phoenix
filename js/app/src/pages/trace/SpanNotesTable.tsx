@@ -89,7 +89,7 @@ function NotesTable({
             <SpanAnnotationDeleteButton
               annotationId={row.original.id}
               spanNodeId={spanNodeId}
-              noun="note"
+              annotationKind="note"
               onDeleteSuccess={handleDeleteSuccess}
               onDeleteError={(error) => {
                 setError(error.message);

@@ -60,7 +60,8 @@ import {
   type MessageRewindRequest,
   UserMessage,
 } from "./ChatMessage";
-import { ChatScrollContext } from "./ChatScrollContext";
+import { ChatScrollContext, useChatScrollContext } from "./ChatScrollContext";
+import { getConversationUsage } from "./ChatSessionUsage";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -72,11 +73,10 @@ import {
 } from "./MessageRewindDialog";
 import { isVisibleMessagePart } from "./partitionMessageParts";
 import { PxiGlyph } from "./PxiGlyph";
-import { useScrollAnchor } from "./scrollAnchor";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
 import type { AgentChatOperationError } from "./useAgentChat";
-import { useChatFollowScroll } from "./useChatFollowScroll";
+import { useChatScroll } from "./useChatScroll";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -204,10 +204,9 @@ const chatCSS = css`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    /* The transcript does its own scroll management (follow-bottom via
-       useChatFollowScroll, expand/collapse anchoring via useScrollAnchor).
-       Native scroll anchoring is a second, invisible compensator that
-       double-adjusts on the same layout changes and fights those writers. */
+    /* The transcript's scroll controller owns turn placement, streaming
+       follow, and expand/collapse anchoring. Native scroll anchoring would be
+       a second, invisible compensator fighting the same layout changes. */
     overflow-anchor: none;
   }
 
@@ -250,6 +249,13 @@ const chatCSS = css`
     padding: var(--global-dimension-size-200) var(--chat-sidebar-inset);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
+  }
+
+  .chat__turn-spacer {
+    flex: none;
+    width: 100%;
+    min-height: 0;
+    pointer-events: none;
   }
 
   .chat__compaction-divider {
@@ -383,15 +389,17 @@ function getCompactionSummaryMarkdown(summary: string): string {
 function ChatCompaction({ summary }: { summary: string }) {
   const containerRef = useRef<HTMLElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const scrollAnchor = useScrollAnchor();
+  const chatScrollContext = useChatScrollContext();
   const markdown = getCompactionSummaryMarkdown(summary);
   const handleExpandedChange = useCallback(
     (nextIsExpanded: boolean) => {
-      scrollAnchor.capture(containerRef.current);
+      chatScrollContext?.captureAnchor(containerRef.current);
       setIsExpanded(nextIsExpanded);
-      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+      requestAnimationFrame(() =>
+        chatScrollContext?.restoreAnchor(containerRef.current)
+      );
     },
-    [scrollAnchor]
+    [chatScrollContext]
   );
 
   return (
@@ -508,23 +516,33 @@ export function ChatView({
   autoFocusInput?: boolean;
 }>) {
   const { theme } = useTheme();
-  const { contentRef, scrollRef, scrollToBottom, stopScroll } =
-    useChatFollowScroll();
+  const isRequestActive = status === "submitted" || status === "streaming";
+  const {
+    captureAnchor,
+    contentRef,
+    restoreAnchor,
+    resumeFollowing,
+    scrollElementToTop,
+    scrollRef,
+    startTurn,
+    stopScroll,
+    turnSpacerRef,
+  } = useChatScroll({ isRequestActive });
   const chatScrollContextValue = useMemo(
-    () => ({ stopScroll, scrollToBottom }),
-    [stopScroll, scrollToBottom]
-  );
-  const handleScrollRef = useCallback(
-    (element: HTMLElement | null) => {
-      scrollRef(element);
-      if (!element) {
-        return;
-      }
-      // Align restored chat history before first paint; useChatFollowScroll
-      // handles later resize/follow behavior once its observers are attached.
-      element.scrollTop = element.scrollHeight - element.clientHeight;
-    },
-    [scrollRef]
+    () => ({
+      captureAnchor,
+      restoreAnchor,
+      resumeFollowing,
+      scrollElementToTop,
+      stopScroll,
+    }),
+    [
+      captureAnchor,
+      restoreAnchor,
+      resumeFollowing,
+      scrollElementToTop,
+      stopScroll,
+    ]
   );
   const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -591,6 +609,7 @@ export function ChatView({
   }, [sessionId, sendMessage, store]);
 
   const showsEmptyState = messages.length === 0 && !isBusyElsewhere;
+  const conversationUsage = getConversationUsage({ messages });
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
@@ -631,6 +650,27 @@ export function ChatView({
       preventDefault: true,
     },
     [canToggleEditPermission, editPermissionMode, setPermissions]
+  );
+
+  // Escape cancels the in-flight response from anywhere in the chat panel. It is
+  // only enabled while a turn is streaming, so Escape keeps its normal behavior
+  // otherwise. We defer to any popup that already consumed the key: the
+  // slash-command menu the session list.
+  useHotkeys(
+    "escape",
+    (event) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      event.preventDefault();
+      void stop();
+    },
+    {
+      enabled: isRequestActive,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+    },
+    [isRequestActive, stop]
   );
 
   // Quick actions track the agent contexts the assistant is advertising for the current
@@ -724,7 +764,7 @@ export function ChatView({
       if (restoredInput == null) {
         return;
       }
-      scrollToBottom();
+      startTurn();
       sendMessage({ text: messageText });
     } catch (error) {
       setHistoryActionError({
@@ -778,7 +818,7 @@ export function ChatView({
         <ChatLantern isVisible={showsEmptyState} />
         <ChatScrollContext.Provider value={chatScrollContextValue}>
           <div className="chat__scroll-frame">
-            <div className="chat__scroll" ref={handleScrollRef}>
+            <div className="chat__scroll" ref={scrollRef}>
               <div className="chat__messages" ref={contentRef}>
                 {showsEmptyState && (
                   <ChatEmptyState
@@ -817,6 +857,7 @@ export function ChatView({
                     // Only the last assistant message can still be streaming — hide
                     // its actions until the chat reports it is settled.
                     const isLast = index === messages.length - 1;
+                    const isMessageStreaming = isLast && status === "streaming";
                     const showActions = !isLast || hasChatSettled;
                     // Pin the most recent assistant turn's toolbar so its actions
                     // stay visible; other turns reveal their toolbars on hover to
@@ -828,6 +869,7 @@ export function ChatView({
                     renderedMessage = (
                       <AssistantMessage
                         message={message}
+                        isStreaming={isMessageStreaming}
                         showActions={showActions}
                         pinToolbar={pinToolbar}
                         onRewindRequest={onRewindRequest}
@@ -860,6 +902,11 @@ export function ChatView({
                     onRewind={onRewindRequest}
                   />
                 )}
+                <div
+                  ref={turnSpacerRef}
+                  className="chat__turn-spacer"
+                  aria-hidden="true"
+                />
               </div>
             </div>
           </div>
@@ -969,7 +1016,7 @@ export function ChatView({
                       pendingElicitation.questions.length - 1
                     ),
                   });
-                  scrollToBottom();
+                  resumeFollowing();
                   handleElicitationSubmit(output);
                 }}
                 onCancel={() => {
@@ -1003,7 +1050,7 @@ export function ChatView({
                 if (!text) {
                   return;
                 }
-                scrollToBottom();
+                startTurn();
                 sendMessage(
                   { text },
                   requestedSkills.length > 0
@@ -1016,6 +1063,8 @@ export function ChatView({
               onModelChange={onModelChange}
               isInputDisabled={isCompacting || isBusyElsewhere}
               isSubmitDisabled={isSubmitDisabled}
+              hasMessages={messages.length > 0}
+              promptTokenCount={conversationUsage?.tokenCount.prompt ?? null}
               onStop={() => {
                 void stop();
               }}

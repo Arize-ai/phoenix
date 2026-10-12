@@ -97,6 +97,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
+    MINIMAX_MODEL_NAMES,
     GenerativeProviderKey,
 )
 from phoenix.utilities.json import jsonify
@@ -130,7 +131,6 @@ if TYPE_CHECKING:
         Response,
         ResponseInputItemParam,
     )
-    from opentelemetry.util.types import AttributeValue
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
     from types_aiobotocore_bedrock_runtime.type_defs import (
         ContentBlockTypeDef,
@@ -140,6 +140,8 @@ if TYPE_CHECKING:
         MessageOutputTypeDef,
         MessageTypeDef,
     )
+
+    from phoenix.trace.attributes import AttributeValue
 
 # TypeVar for generic client type
 ClientT = TypeVar("ClientT")
@@ -1153,6 +1155,8 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                     pass
                 elif event.type == "response.shell_call_output_content.done":
                     pass
+                elif event.type == "response.compaction.compacting":
+                    pass
                 elif TYPE_CHECKING:
                     assert_never(event.type)
 
@@ -1265,8 +1269,6 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
         PROVIDER_DEFAULT,
-        "deepseek-chat",
-        "deepseek-reasoner",
     ],
 )
 class DeepSeekClient(OpenAICompatibleClient):
@@ -1314,6 +1316,7 @@ class OllamaClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.CEREBRAS,
     model_names=[
         PROVIDER_DEFAULT,
+        "qwen-3.8-27b",
         "llama3.1-8b",
         "gpt-oss-120b",
     ],
@@ -1336,14 +1339,9 @@ class FireworksClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.GROQ,
     model_names=[
         PROVIDER_DEFAULT,
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "qwen/qwen3.8-27b",
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
-        "qwen/qwen3-32b",
-        "groq/compound",
-        "groq/compound-mini",
     ],
 )
 class GroqClient(OpenAICompatibleClient):
@@ -1354,6 +1352,9 @@ class GroqClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k3",
+        "kimi-k2.7-code",
+        "kimi-k2.6",
         "kimi-k2-turbo-preview",
         "kimi-k2-thinking-turbo",
         "kimi-k2-thinking",
@@ -1365,6 +1366,17 @@ class GroqClient(OpenAICompatibleClient):
     ],
 )
 class MoonshotClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.MINIMAX,
+    model_names=[
+        PROVIDER_DEFAULT,
+        *MINIMAX_MODEL_NAMES,
+    ],
+)
+class MiniMaxClient(OpenAICompatibleClient):
     pass
 
 
@@ -1386,12 +1398,11 @@ class PerplexityClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.TOGETHER,
     model_names=[
         PROVIDER_DEFAULT,
+        "moonshotai/Kimi-K3",
         "moonshotai/Kimi-K2.5",
-        "deepseek-ai/DeepSeek-V3.1",
+        "deepseek-ai/DeepSeek-V4.1-Flash",
         "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
-        "zai-org/GLM-5",
-        "zai-org/GLM-4.5-Air-FP8",
+        "zai-org/GLM-5.3",
         "Qwen/Qwen3-235B-A22B-Thinking-2507",
         "deepseek-ai/DeepSeek-R1",
     ],
@@ -1401,28 +1412,59 @@ class TogetherClient(OpenAICompatibleClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.ZAI,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "glm-5.3",
+        "glm-5.3-flash",
+        "glm-5.2",
+        "glm-5.1",
+        "glm-5",
+        "glm-4.7",
+        "glm-4.6",
+        "glm-4.5",
+        "glm-4.5-air",
+    ],
+)
+class ZAIClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.META,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "muse-spark-1.3",
+        "muse-spark-1.3-contributor",
+        "muse-spark-1.2",
+        "muse-spark-1.2-contributor",
+        "muse-spark-1.1",
+    ],
+)
+class MetaClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5-5",
         "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
+        "anthropic.claude-sonnet-5-5",
         "anthropic.claude-sonnet-5",
+        "anthropic.claude-haiku-5-5",
         "anthropic.claude-opus-4-6-v1",
         "anthropic.claude-sonnet-4-6",
         "anthropic.claude-opus-4-5-20251101-v1:0",
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
-        "anthropic.claude-opus-4-1-20250805-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
         "anthropic.claude-sonnet-4-20250514-v1:0",
-        "anthropic.claude-3-7-sonnet-20250219-v1:0",
-        "anthropic.claude-3-5-sonnet-20241022-v2:0",
-        "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "anthropic.claude-3-5-haiku-20241022-v1:0",
-        "anthropic.claude-3-haiku-20240307-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -1912,10 +1954,8 @@ OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4.1-mini",
     "gpt-4.1-nano",
     "gpt-4o",
-    "chatgpt-4o-latest",
     "gpt-4o-mini",
     "gpt-4-turbo",
-    "gpt-4-turbo-preview",
     "gpt-4",
     "gpt-3.5-turbo",
 ]
@@ -1938,26 +1978,26 @@ class OpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 
 OPENAI_REASONING_MODELS = [
+    "gpt-6.1-sol",
+    "gpt-6-astra",
+    "gpt-6-sol",
+    "gpt-6-luna",
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
     "gpt-5.5",
+    "gpt-5.5-pro",
     "gpt-5.4",
     "gpt-5.4-mini",
     "gpt-5.4-nano",
     "gpt-5.4-pro",
-    "gpt-5.3-chat-latest",
     "gpt-5.2",
-    "gpt-5.2-chat-latest",
     "gpt-5.2-pro",
     "gpt-5.1",
-    "gpt-5.1-chat-latest",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
     "gpt-5-pro",
-    "gpt-5-chat",
-    "gpt-5-chat-latest",
     "o1",
     "o1-pro",
     "o3",
@@ -2102,10 +2142,13 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
     "claude-fable-5-1",
     "claude-fable-5",
+    "claude-opus-5-5",
     "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
+    "claude-sonnet-5-5",
     "claude-sonnet-5",
+    "claude-haiku-5-5",
 ]
 
 # Older Anthropic models that still accept extended thinking
@@ -2118,10 +2161,8 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-opus-4-5",
     "claude-sonnet-4-5",
     "claude-haiku-4-5",
-    "claude-opus-4-1",
     "claude-sonnet-4-0",
     "claude-opus-4-0",
-    "claude-3-7-sonnet-latest",
 ]
 
 
@@ -2941,12 +2982,13 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.8-flash",
     "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
     "gemini-3.1-pro-preview",
-    "gemini-3-pro-preview",
     "gemini-3-flash-preview",
 ]
 
@@ -3813,6 +3855,46 @@ async def _get_builtin_provider_client(
             provider=provider,
         )
 
+    elif provider_key == GenerativeProviderKey.MINIMAX:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="MINIMAX_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="MiniMax",
+        )
+        base_url = base_url or getenv("MINIMAX_BASE_URL") or "https://api.minimax.io/v1"
+
+        if not api_key:
+            if base_url == "https://api.minimax.io/v1":
+                raise BadRequest(
+                    "An API key is required for MiniMax models. "
+                    "Set the MINIMAX_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_minimax_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_minimax_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
     elif provider_key == GenerativeProviderKey.PERPLEXITY:
         try:
             from openai import AsyncOpenAI
@@ -3886,6 +3968,86 @@ async def _get_builtin_provider_client(
 
         client_factory = LLMClientFactory(
             create_together_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.ZAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="ZAI_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Z.ai",
+        )
+        base_url = base_url or getenv("ZAI_BASE_URL") or "https://api.z.ai/api/paas/v4"
+
+        if not api_key:
+            if base_url.startswith("https://api.z.ai/"):
+                raise BadRequest(
+                    "An API key is required for Z.ai models. "
+                    "Set the ZAI_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_zai_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_zai_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.META:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="META_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Meta",
+        )
+        base_url = base_url or getenv("META_BASE_URL") or "https://api.meta.ai/v1"
+
+        if not api_key:
+            if base_url.startswith("https://api.meta.ai/"):
+                raise BadRequest(
+                    "An API key is required for Meta models. "
+                    "Set the META_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_meta_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_meta_client, openai_rate_limit_key(api_key, base_url)
         )
         return OpenAIChatCompletionsClient(
             client_factory=client_factory,

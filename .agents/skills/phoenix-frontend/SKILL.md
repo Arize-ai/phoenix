@@ -21,9 +21,17 @@ Read the relevant file(s) based on the task:
 | `references/test-ids.md` | Adding or changing `data-testid` attributes for E2E tests |
 | `references/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
 
+## Storybook
+
+For any change to `js/app/stories/` or `js/app/.storybook/` — including stories that accompany a component change — use the `phoenix-storybook` skill.
+
+## PXI data changes
+
+When a PXI write changes the membership or filters of a mounted Relay query, use `useAgentDataChangeFetchKey` from `@phoenix/hooks` in the query owner. See `references/relay.md` for the event and fetch policy convention.
+
 ## Verification
 
-After visual changes, use `agent-browser` to verify the UI looks correct. When modifying a shared component, check its usages across the app.
+After visual changes, use the available browser tooling to verify the UI looks correct. When modifying a shared component, check its usages across the app.
 
 ## Route Metadata
 
