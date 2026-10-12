@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix คือแพลตฟอร์ม AI observability แบบโ
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- ปรับแต่ง prompt เปรียบเทียบโมเดล ปรับพารามิเตอร์ และเล่นซ้ำการเรียก LLM ที่ถูก trace ไว้
 - [**_การจัดการ Prompt (Prompt Management)_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- จัดการและทดสอบการเปลี่ยนแปลงของ prompt อย่างเป็นระบบด้วยการควบคุมเวอร์ชัน การติดแท็ก และการทดลอง
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - เอเจนต์ด้าน AI engineering ที่มีมาในตัว Phoenix สำหรับดีบัก trace ปรับปรุง prompt ซ้ำ ๆ และนำทางภายในผลิตภัณฑ์
-- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - เชื่อมต่อ Claude Code, Cursor และไคลเอนต์ MCP อื่น ๆ เข้ากับ endpoint `/mcp` ของอินสแตนซ์ Phoenix ของคุณโดยตรง เพื่อ query trace, dataset, experiment และอื่น ๆ
+- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - เชื่อมต่อ Claude Code, Cursor และไคลเอนต์ MCP อื่น ๆ เข้ากับ endpoint `/mcp` ของอินสแตนซ์ Phoenix ของคุณโดยตรง เพื่อ query trace, dataset, experiment และอื่น ๆ
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ npx @arizeai/phoenix-cli setup
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | wrapper ขนาดเล็กครอบ primitive ของ OpenTelemetry พร้อมค่าเริ่มต้นที่ออกแบบมาสำหรับ Phoenix |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | ไคลเอนต์สำหรับ Arize Phoenix API |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | ไลบรารีประเมินผลแอปพลิเคชัน LLM สำหรับ TypeScript (รุ่น alpha) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | เซิร์ฟเวอร์ MCP แบบ stdio แยกต่างหากสำหรับ Phoenix เวอร์ชันเก่า (อยู่ในโหมดบำรุงรักษา — ถูกแทนที่ด้วย [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) ที่มีในตัว Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | เซิร์ฟเวอร์ MCP แบบ stdio แยกต่างหากสำหรับ Phoenix เวอร์ชันเก่า (อยู่ในโหมดบำรุงรักษา — ถูกแทนที่ด้วย [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) ที่มีในตัว Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI สำหรับดึง trace, dataset และ experiment เพื่อใช้กับ Claude Code, Cursor และ coding agents อื่น ๆ |
 
 ## Tracing Integrations
@@ -269,7 +269,7 @@ Phoenix ถูกสร้างมาให้ทั้งมนุษย์แ
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` ดึง trace, dataset และ experiment รวมถึงทำ instrumentation ให้แอปของคุณ (`setup`) เพื่อให้เอเจนต์ดึงบริบทและดำเนินการต่อได้จากเทอร์มินัล
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) รวบรวมเวิร์กโฟลว์ที่สอนเอเจนต์ให้ดีบัก ประเมินผล และ trace ด้วย Phoenix
-- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — เชื่อมต่อไคลเอนต์ MCP ใดก็ได้เข้ากับ endpoint `/mcp` ของอินสแตนซ์ของคุณเพื่อ query Phoenix โดยตรง
+- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — เชื่อมต่อไคลเอนต์ MCP ใดก็ได้เข้ากับ endpoint `/mcp` ของอินสแตนซ์ของคุณเพื่อ query Phoenix โดยตรง
 
 ดู[เอกสาร coding agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) สำหรับการตั้งค่าและการใช้งาน
 

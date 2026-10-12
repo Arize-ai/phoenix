@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix 是 Arize 推出的開源 AI 可觀測性平台，專為實驗、�
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- 最佳化提示詞、比較模型、調整參數，並重新播放已追蹤的 LLM 呼叫。
 - [**_提示詞管理 (Prompt Management)_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- 透過版本控管、標籤與實驗，系統化地管理並測試提示詞的變更。
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - 內建於 Phoenix 的 AI 工程代理，可協助除錯追蹤、反覆改進提示詞，以及瀏覽產品功能。
-- [**_遠端 MCP 伺服器 (Remote MCP Server)_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - 將 Claude Code、Cursor 及其他 MCP 用戶端直接連線至 Phoenix 執行個體的 `/mcp` 端點，以查詢追蹤、資料集、實驗等內容。
+- [**_遠端 MCP 伺服器 (Remote MCP Server)_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - 將 Claude Code、Cursor 及其他 MCP 用戶端直接連線至 Phoenix 執行個體的 `/mcp` 端點，以查詢追蹤、資料集、實驗等內容。
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Phoenix 容器映像檔可透過 [Docker Hub](https://hub.docker.com/r/arizephoe
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | 為 OpenTelemetry 基本元件提供輕量級封裝，並內建適用於 Phoenix 的預設設定                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API 用戶端                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | 適用於 LLM 應用程式的 TypeScript 評估函式庫（Alpha 版）                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 適用於舊版 Phoenix 的獨立 stdio MCP 伺服器（維護模式 — 已由 Phoenix 內建的 [遠端 MCP 伺服器](https://arize.com/docs/phoenix/integrations/remote-mcp) 取代） |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 適用於舊版 Phoenix 的獨立 stdio MCP 伺服器（維護模式 — 已由 Phoenix 內建的 [遠端 MCP 伺服器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) 取代） |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | 用於擷取追蹤、資料集與實驗的 CLI，可搭配 Claude Code、Cursor 及其他程式設計代理使用 |
 
 ## 追蹤整合
@@ -269,7 +269,7 @@ Phoenix 的設計讓人類與 AI 程式設計代理都能操作。代理（Claud
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` 可擷取追蹤、資料集與實驗，並為您的應用程式加上檢測（`setup`），讓代理能在終端機中取得情境並採取行動。
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) 封裝了多種工作流程，教導代理如何使用 Phoenix 進行除錯、評估與追蹤。
-- **[遠端 MCP 伺服器](https://arize.com/docs/phoenix/integrations/remote-mcp)** — 將任何 MCP 用戶端連線至執行個體的 `/mcp` 端點，直接查詢 Phoenix。
+- **[遠端 MCP 伺服器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 將任何 MCP 用戶端連線至執行個體的 `/mcp` 端點，直接查詢 Phoenix。
 
 如需設定與使用方式，請參閱 [程式設計代理文件](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents)。
 

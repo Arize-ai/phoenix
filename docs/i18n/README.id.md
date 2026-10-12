@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix adalah platform observabilitas AI open-source dari Arize yang dira
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimalkan prompt, bandingkan model, sesuaikan parameter, dan putar ulang panggilan LLM yang telah di-trace.
 - [**_Manajemen Prompt_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Kelola dan uji perubahan prompt secara sistematis menggunakan kontrol versi, penandaan (tagging), dan eksperimen.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Agen rekayasa AI yang terpasang di dalam Phoenix untuk men-debug trace, mengiterasi prompt, dan menavigasi produk.
-- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Hubungkan Claude Code, Cursor, dan klien MCP lainnya langsung ke endpoint `/mcp` pada instance Phoenix Anda untuk melakukan kueri trace, dataset, eksperimen, dan lainnya.
+- [**_Remote MCP Server_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Hubungkan Claude Code, Cursor, dan klien MCP lainnya langsung ke endpoint `/mcp` pada instance Phoenix Anda untuk melakukan kueri trace, dataset, eksperimen, dan lainnya.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Paket `arize-phoenix` mencakup seluruh platform Phoenix. Namun, jika Anda telah 
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Menyediakan wrapper ringan untuk primitif OpenTelemetry dengan nilai default yang disesuaikan untuk Phoenix                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Klien untuk Arize Phoenix API                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Pustaka evaluasi TypeScript untuk aplikasi LLM (rilis alpha)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Server MCP stdio mandiri untuk versi Phoenix lama (mode pemeliharaan — telah digantikan oleh [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) yang terpasang di Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Server MCP stdio mandiri untuk versi Phoenix lama (mode pemeliharaan — telah digantikan oleh [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) yang terpasang di Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI untuk mengambil trace, dataset, dan eksperimen untuk digunakan dengan Claude Code, Cursor, dan coding agent lainnya |
 
 ## Integrasi Tracing
@@ -269,7 +269,7 @@ Phoenix dirancang untuk dapat digunakan oleh manusia maupun AI coding agent. Tig
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` mengambil trace, dataset, dan eksperimen serta menginstrumentasi aplikasi Anda (`setup`), sehingga agen dapat menarik konteks dan bertindak berdasarkan konteks tersebut dari terminal.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) mengemas alur kerja yang mengajarkan agen cara men-debug, mengevaluasi, dan melakukan tracing dengan Phoenix.
-- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — hubungkan klien MCP apa pun ke endpoint `/mcp` pada instance Anda untuk melakukan kueri ke Phoenix secara langsung.
+- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — hubungkan klien MCP apa pun ke endpoint `/mcp` pada instance Anda untuk melakukan kueri ke Phoenix secara langsung.
 
 Lihat [dokumentasi coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) untuk penyiapan dan penggunaan.
 
