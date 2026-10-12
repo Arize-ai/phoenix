@@ -2830,10 +2830,18 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
             token_counts = {}
             if event.usage_metadata.prompt_token_count is not None:
                 token_counts[LLM_TOKEN_COUNT_PROMPT] = event.usage_metadata.prompt_token_count
-            if event.usage_metadata.candidates_token_count is not None:
-                token_counts[LLM_TOKEN_COUNT_COMPLETION] = (
-                    event.usage_metadata.candidates_token_count
+            if (
+                cached_tokens := getattr(event.usage_metadata, "cached_content_token_count", None)
+            ) is not None:
+                token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = cached_tokens
+            candidates_tokens = getattr(event.usage_metadata, "candidates_token_count", None)
+            thoughts_tokens = getattr(event.usage_metadata, "thoughts_token_count", None)
+            if candidates_tokens is not None or thoughts_tokens is not None:
+                token_counts[LLM_TOKEN_COUNT_COMPLETION] = (candidates_tokens or 0) + (
+                    thoughts_tokens or 0
                 )
+            if thoughts_tokens is not None:
+                token_counts[LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING] = thoughts_tokens
             if event.usage_metadata.total_token_count is not None:
                 token_counts[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
             if token_counts:
@@ -2843,6 +2851,8 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
             candidate = event.candidates[0]
             if candidate.content and candidate.content.parts:
                 for part in candidate.content.parts:
+                    if getattr(part, "thought", False):
+                        continue
                     if function_call := part.function_call:
                         # Gemini often returns an empty or ``None``
                         # ``id`` on ``FunctionCall``.  The frontend
