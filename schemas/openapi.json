@@ -10863,6 +10863,22 @@
             }
           },
           {
+            "name": "phoenix-oauth2-login-context",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phoenix-Oauth2-Login-Context"
+            }
+          },
+          {
             "name": "phoenix-oauth2-nonce",
             "in": "cookie",
             "required": true,
