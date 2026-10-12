@@ -278,13 +278,10 @@ jobs:
 
   # arize-phoenix-sqlean is a vendored C extension (fork of nalgeon/sqlean.py),
   # so it cannot go through the pure-Python `uv build` matrix above: wheels are
-  # compiled per platform and interpreter with cibuildwheel. Source preparation
-  # (downloading the SQLite amalgamation and sqlean extension sources that the
-  # sdist bundles) runs once on Ubuntu and is handed to the build legs as an
-  # artifact, because the Makefile needs make/curl/unzip, which the Windows
-  # runner does not provide.
-  sqlean-sources:
-    name: Prepare arize-phoenix-sqlean sources
+  # compiled per platform and interpreter with cibuildwheel, from the release
+  # tag, by phoenix-sqlean-build.yml.
+  sqlean-release:
+    name: Resolve arize-phoenix-sqlean release
     runs-on: ubuntu-latest
     needs: list-python-packages
     if: contains(fromJSON(needs.list-python-packages.outputs.package_paths), 'packages/phoenix-sqlean')
@@ -292,6 +289,7 @@ jobs:
       contents: read
     outputs:
       needed: ${{ steps.ref.outputs.needed }}
+      ref: ${{ steps.ref.outputs.ref }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -314,32 +312,18 @@ jobs:
             echo "Tag ${TAG} does not exist yet; skipping arize-phoenix-sqlean"
             echo "needed=false" >> $GITHUB_OUTPUT
           fi
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        if: steps.ref.outputs.needed == 'true'
-        with:
-          persist-credentials: false
-          ref: ${{ steps.ref.outputs.ref }}
-      - name: Download SQLite and sqlean extension sources
-        if: steps.ref.outputs.needed == 'true'
-        working-directory: packages/phoenix-sqlean
-        run: make prepare-src download-sqlite download-sqlean
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: steps.ref.outputs.needed == 'true'
-        with:
-          name: arize-phoenix-sqlean-sources
-          path: packages/phoenix-sqlean
 
   # phoenix-sqlean-ci.yml calls the same workflow, so a PR runs this build. It
   # uploads arize-phoenix-sqlean-dist-<runner> and checks the merged set.
   build-sqlean:
     name: Build arize-phoenix-sqlean
-    needs: sqlean-sources
-    if: needs.sqlean-sources.result == 'success' && needs.sqlean-sources.outputs.needed == 'true'
+    needs: sqlean-release
+    if: needs.sqlean-release.result == 'success' && needs.sqlean-release.outputs.needed == 'true'
     permissions:
       contents: read
     uses: ./.github/workflows/phoenix-sqlean-build.yml
     with:
-      sources-artifact: arize-phoenix-sqlean-sources
+      ref: ${{ needs.sqlean-release.outputs.ref }}
 
   publish-sqlean:
     name: Publish arize-phoenix-sqlean
@@ -417,7 +401,7 @@ jobs:
       - publish-phoenix
       - build-packages
       - publish-packages
-      - sqlean-sources
+      - sqlean-release
       - build-sqlean
       - publish-sqlean
       - trigger-version-updates

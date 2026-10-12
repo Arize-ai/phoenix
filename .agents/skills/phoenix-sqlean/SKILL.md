@@ -131,9 +131,12 @@ sqlean moves its own pin.
 - **Admitting a new CPython can fail two ways, both loudly.** cibuildwheel may still gate it as a
   prerelease, so its wheels are missing and the wheelhouse check fails — bump cibuildwheel. Or it
   may have removed private C API the driver uses, which fails that version's wheel builds.
+- **Source preparation is the build workflow's first job**, on Ubuntu because Windows runners lack
+  make/curl/unzip. Its `ref` input selects what to build: CI leaves it empty (the PR's commit),
+  publish passes the release tag. Callers pass nothing else.
 - **`test-sources` resolves against cibuildwheel's working directory, not `package-dir`** — hence
-  the workspace-root unpack, which the shared workflow puts under CI.
+  the build legs unpack the sources at the workspace root.
 - Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
-  creates it, `sqlean-sources` skips and nothing builds.
+  creates it, `sqlean-release` skips and nothing builds.
 - PyPI uses trusted publishing with **no** GitHub environment; the publisher's Environment field
   must stay blank to match.

@@ -3,11 +3,6 @@ name: phoenix-sqlean CI
 # Build-and-test for the vendored arize-phoenix-sqlean C extension
 # (packages/phoenix-sqlean, a fork of nalgeon/sqlean.py). Publishing is
 # handled by the build-sqlean/publish-sqlean jobs in publish.yaml.
-#
-# Source preparation (downloading the SQLite amalgamation and sqlean
-# extension sources) runs once on Ubuntu and is handed to the build legs
-# as an artifact: the Makefile needs make/curl/unzip, which Windows
-# runners don't provide.
 
 on:
   push:
@@ -45,51 +40,18 @@ jobs:
               - ".github/workflows/phoenix-sqlean-ci.yml"
               - ".github/workflows/phoenix-sqlean-build.yml"
 
-  download-sources:
-    name: Download and store sources
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.sqlean == 'true'
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - name: Download SQLite and sqlean extension sources
-        working-directory: packages/phoenix-sqlean
-        run: make prepare-src download-sqlite download-sqlean
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: sqlean-sources
-          path: |
-            packages/phoenix-sqlean/MANIFEST.in
-            packages/phoenix-sqlean/Makefile
-            packages/phoenix-sqlean/README.md
-            packages/phoenix-sqlean/scripts/check-wheelhouse.py
-            packages/phoenix-sqlean/LICENSE
-            packages/phoenix-sqlean/THIRD_PARTY_LICENSES
-            packages/phoenix-sqlean/cibuildwheel.toml
-            packages/phoenix-sqlean/setup.cfg
-            packages/phoenix-sqlean/setup.py
-            packages/phoenix-sqlean/sqlean
-            packages/phoenix-sqlean/src
-            packages/phoenix-sqlean/sqlite
-            packages/phoenix-sqlean/tests
-
   # The exact build publish.yaml runs: every shipped wheel, each tested by
   # cibuildwheel, then checked as a set.
   wheels:
     name: Build and test wheels
-    needs: [changes, download-sources]
+    needs: changes
     if: needs.changes.outputs.sqlean == 'true'
     uses: ./.github/workflows/phoenix-sqlean-build.yml
-    with:
-      sources-artifact: sqlean-sources
 
   ci-required:
     name: phoenix-sqlean CI Required
     needs:
       - changes
-      - download-sources
       - wheels
     if: always()
     runs-on: ubuntu-latest

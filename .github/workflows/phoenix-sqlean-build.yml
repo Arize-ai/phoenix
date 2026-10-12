@@ -1,23 +1,47 @@
 name: Build arize-phoenix-sqlean wheels
 
 # Called by build-sqlean in publish.yaml and wheels in phoenix-sqlean-ci.yml, so
-# a PR runs the build a release runs. cibuildwheel.toml carries the settings;
-# the runners and layout they depend on live here.
+# a PR runs the build a release runs, from source preparation on.
+# cibuildwheel.toml carries the settings; the runners and layout they depend on
+# live here.
 
 on:
   workflow_call:
     inputs:
-      sources-artifact:
-        description: Artifact holding the prepared package sources.
-        required: true
+      ref:
+        description: Ref to build. Empty builds the caller's commit.
+        required: false
         type: string
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
+  # Once, on Ubuntu: the Makefile needs make, curl and unzip, which the
+  # Windows runners lack. The build legs get the result as an artifact.
+  sources:
+    name: Prepare sources
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref }}
+      - name: Download SQLite and sqlean extension sources
+        working-directory: packages/phoenix-sqlean
+        run: make prepare-src download-sqlite download-sqlean
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: arize-phoenix-sqlean-sources
+          path: packages/phoenix-sqlean
+          retention-days: 7
+
   build:
     name: ${{ matrix.os }}
+    needs: sources
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -37,7 +61,7 @@ jobs:
       # package-dir.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: ${{ inputs.sources-artifact }}
+          name: arize-phoenix-sqlean-sources
       - name: Build wheels
         # Must be >= v3.4.0: earlier releases reference actions/setup-python@v6
         # inside their own action.yml, and this org rejects unpinned actions
@@ -68,7 +92,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: ${{ inputs.sources-artifact }}
+          name: arize-phoenix-sqlean-sources
           path: sources
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
