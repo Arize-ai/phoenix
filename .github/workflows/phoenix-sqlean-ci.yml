@@ -25,6 +25,7 @@ jobs:
   changes:
     name: Filter Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       sqlean: ${{ steps.filter.outputs.sqlean }}
     steps:
@@ -55,6 +56,7 @@ jobs:
       - wheels
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Check all required jobs passed or were skipped
         run: |

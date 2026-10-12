@@ -283,6 +283,7 @@ jobs:
   sqlean-release:
     name: Resolve arize-phoenix-sqlean release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: list-python-packages
     if: contains(fromJSON(needs.list-python-packages.outputs.package_paths), 'packages/phoenix-sqlean')
     permissions:
@@ -328,6 +329,7 @@ jobs:
   publish-sqlean:
     name: Publish arize-phoenix-sqlean
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: build-sqlean
     if: needs.build-sqlean.result == 'success'
     permissions:

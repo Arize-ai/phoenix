@@ -23,6 +23,7 @@ jobs:
   sources:
     name: Prepare sources
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -43,6 +44,7 @@ jobs:
     name: ${{ matrix.os }}
     needs: sources
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     permissions:
       contents: read
     strategy:
@@ -87,6 +89,7 @@ jobs:
     name: Check wheelhouse
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
