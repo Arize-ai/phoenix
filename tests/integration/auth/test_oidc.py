@@ -21,6 +21,7 @@ from phoenix.auth import sanitize_email
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (
+    _admin_auth,
     _AppInfo,
     _create_user,
     _delete_users,
@@ -40,7 +41,7 @@ from .._helpers import (
 
 def _get_user_by_email(app: _AppInfo, email: str) -> Optional[_User]:
     """Get user by email from the user list."""
-    users = {u.profile.email: u for u in _list_users(app, app.admin_secret)}
+    users = {u.profile.email: u for u in _list_users(app, _admin_auth(app))}
     return users.get(email)
 
 
@@ -125,8 +126,10 @@ def _verify_access_denied(
 
 
 def _verify_sensitive_cookies_cleaned(set_cookie_headers: list[str]) -> None:
-    """Verify sensitive cookies (state, nonce) are cleaned up."""
     assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
+    assert any(
+        "phoenix-oauth2-login-context=" in h and "Max-Age=0" in h for h in set_cookie_headers
+    )
     assert any("phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers)
 
 
@@ -144,14 +147,14 @@ async def _verify_user_exists_with_role(
     cleanup: bool = True,
 ) -> None:
     """Verify user exists and has expected role, optionally cleaning up after."""
-    users = {u.profile.email: u for u in _list_users(app, app.admin_secret)}
+    users = {u.profile.email: u for u in _list_users(app, _admin_auth(app))}
     assert email in users, f"User {email} should exist but was not found"
     assert users[email].role is expected_role, (
         f"Expected role {expected_role}, got {users[email].role}"
     )
 
     if cleanup:
-        _delete_users(app, app.admin_secret, users=[users[email]])
+        _delete_users(app, _admin_auth(app), users=[users[email]])
 
 
 async def _verify_user_does_not_exist(
@@ -159,7 +162,7 @@ async def _verify_user_does_not_exist(
     email: str,
 ) -> None:
     """Verify user does not exist."""
-    users = {u.profile.email: u for u in _list_users(app, app.admin_secret)}
+    users = {u.profile.email: u for u in _list_users(app, _admin_auth(app))}
     assert email not in users, f"User {email} should not exist but was found"
 
 
@@ -235,7 +238,7 @@ class TestBasicFlow:
             expected_role: UserRoleInput = choice(list(UserRoleInput))
             _create_user(
                 _app,
-                _app.admin_secret,
+                _admin_auth(_app),
                 role=expected_role,
                 profile=_Profile(case_insensitive_email, "", token_hex(8)),
                 local=False,
@@ -279,7 +282,7 @@ class TestBasicFlow:
         # Create user with password
         _create_user(
             _app,
-            _app.admin_secret,
+            _admin_auth(_app),
             role=UserRoleInput.VIEWER,
             profile=_Profile(email, token_hex(8), token_hex(8)),
             local=True,
@@ -321,7 +324,7 @@ class TestBasicFlow:
         # Admin manually changes user's role to MEMBER
         user = _get_user_by_email(_app, email1)
         assert user is not None
-        _patch_user_gid(_app, user.gid, _app.admin_secret, new_role=UserRoleInput.MEMBER)
+        _patch_user_gid(_app, user.gid, _admin_auth(_app), new_role=UserRoleInput.MEMBER)
 
         # Verify role changed to MEMBER
         user = _get_user_by_email(_app, email1)
@@ -462,6 +465,13 @@ class TestBasicFlow:
         assert "SameSite=lax" in state_cookie or "SameSite=Lax" in state_cookie
         assert "Path=/" in state_cookie
 
+        login_context_cookie = [
+            h for h in set_cookie_headers if "phoenix-oauth2-login-context=" in h
+        ][0]
+        assert "HttpOnly" in login_context_cookie
+        assert "SameSite=lax" in login_context_cookie or "SameSite=Lax" in login_context_cookie
+        assert "Path=/" in login_context_cookie
+
         # Verify security attributes on nonce cookie
         nonce_cookie = [h for h in set_cookie_headers if "phoenix-oauth2-nonce=" in h][0]
         assert "HttpOnly" in nonce_cookie
@@ -513,6 +523,7 @@ class TestPKCE:
 
         # Verify PKCE cookies set
         assert "phoenix-oauth2-state" in cookies
+        assert "phoenix-oauth2-login-context" in cookies
         assert "phoenix-oauth2-nonce" in cookies
         assert "phoenix-oauth2-code-verifier" in cookies
 

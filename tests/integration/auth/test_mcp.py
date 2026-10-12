@@ -37,7 +37,11 @@ from tests.integration._helpers import (
     _server,
 )
 
-from .conftest import _oauth2_app_env, _OAuthPublicClient
+from .conftest import (
+    _assert_issued_token_verifies_with_secret_configuration,
+    _oauth2_app_env,
+    _OAuthPublicClient,
+)
 
 
 def _base_url(app: _AppInfo) -> str:
@@ -440,6 +444,7 @@ class TestMcpToolAuthorization:
 def _app_mcp_code_mode(
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
+    _secret_configuration: str,
 ) -> Iterator[_AppInfo]:
     """A server with auth, the /mcp mount, and PHOENIX_ENABLE_MCP_CODE_MODE all enabled.
 
@@ -456,12 +461,22 @@ def _app_mcp_code_mode(
             "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
             "PHOENIX_DISABLE_RATE_LIMIT": "true",
         },
+        secret_configuration=_secret_configuration,
     )
     with _server(_AppInfo(env)) as app:
         yield app
 
 
 class TestMcpCodeMode:
+    def test_issued_token_verifies_with_the_expected_key(
+        self,
+        _app_mcp_code_mode: _AppInfo,
+        _secret_configuration: str,
+    ) -> None:
+        _assert_issued_token_verifies_with_secret_configuration(
+            _app_mcp_code_mode, _secret_configuration
+        )
+
     async def test_oauth_token_drives_sandboxed_execute_end_to_end(
         self,
         _app_mcp_code_mode: _AppInfo,
