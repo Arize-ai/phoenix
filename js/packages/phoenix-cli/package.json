@@ -46,7 +46,7 @@
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
     "@clack/prompts": "^1.8.1",
-    "ai": "^7.0.131",
+    "ai": "^7.0.137",
     "commander": "^15.0.0",
     "cross-spawn": "^7.0.6",
     "ignore": "^7.0.12",
@@ -59,7 +59,7 @@
   "devDependencies": {
     "@arizeai/phoenix-testing": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/react": "19.3.0",
     "ink-testing-library": "^4.0.0",
     "rimraf": "^6.1.3",
