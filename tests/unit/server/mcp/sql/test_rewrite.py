@@ -924,6 +924,21 @@ def test_postgres_literal_json_key_keeps_the_arrow_operator() -> None:
 
 
 @pytest.mark.parametrize(
+    ("operator", "accessor"),
+    [("->", "jsonb_extract_path"), ("->>", "jsonb_extract_path_text")],
+)
+def test_postgres_dotted_json_arrow_path_is_decomposed(operator: str, accessor: str) -> None:
+    ctx, rendered = _rewritten(
+        f"SELECT attributes {operator} '$.llm.model_name' AS v FROM spans",
+        dialect="postgresql",
+    )
+
+    assert f"{accessor}(attributes, 'llm', 'model_name')" in rendered.casefold()
+    assert operator not in rendered
+    assert "jsonb_extract_path" in ctx.applied
+
+
+@pytest.mark.parametrize(
     ("sql", "admitted"),
     [
         ("SELECT MIN(attributes -> 'total') AS v FROM spans", True),
