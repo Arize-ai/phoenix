@@ -652,6 +652,27 @@ export function ChatView({
     [canToggleEditPermission, editPermissionMode, setPermissions]
   );
 
+  // Escape cancels the in-flight response from anywhere in the chat panel. It is
+  // only enabled while a turn is streaming, so Escape keeps its normal behavior
+  // otherwise. We defer to any popup that already consumed the key: the
+  // slash-command menu the session list.
+  useHotkeys(
+    "escape",
+    (event) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      event.preventDefault();
+      void stop();
+    },
+    {
+      enabled: isRequestActive,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+    },
+    [isRequestActive, stop]
+  );
+
   // Quick actions track the agent contexts the assistant is advertising for the current
   // route, so the empty state suggests what the assistant can actually do here
   // (e.g. run/enhance prompts on the playground). An explicit prop still wins

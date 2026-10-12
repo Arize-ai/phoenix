@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { RECENTLY_VIEWED_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+
 export type RecentlyViewedResourceType =
   | "project"
   | "dataset"
@@ -67,6 +69,6 @@ export const useRecentlyViewedStore = create<RecentlyViewedState>()(
       }),
       { name: "recentlyViewedStore" }
     ),
-    { name: "arize-phoenix-recently-viewed" }
+    { name: RECENTLY_VIEWED_STORAGE_KEY }
   )
 );

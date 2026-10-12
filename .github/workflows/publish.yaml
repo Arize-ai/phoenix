@@ -111,6 +111,7 @@ jobs:
         with:
           python-version: "3.11"
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Build distribution
         run: rm -rf dist && uv build
       - name: Verify bundled UI assets in wheel
@@ -220,6 +221,7 @@ jobs:
         with:
           python-version: "3.11"
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uv build
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
@@ -545,6 +547,7 @@ jobs:
         with:
           python-version: "3.11"
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           enable-cache: false
       - name: Stamp dev version
         env:
@@ -617,6 +620,7 @@ jobs:
         with:
           python-version: "3.11"
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           enable-cache: false
       - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'

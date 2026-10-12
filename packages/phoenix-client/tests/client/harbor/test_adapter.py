@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -22,6 +23,7 @@ from phoenix.client.harbor._adapter import (
     _agent_identity_digest,  # pyright: ignore[reportPrivateUsage]
     _build_slices,  # pyright: ignore[reportPrivateUsage]
     _build_trial_slots,  # pyright: ignore[reportPrivateUsage]
+    _read_reference_output,  # pyright: ignore[reportPrivateUsage]
     _redact_env,  # pyright: ignore[reportPrivateUsage]
     _require_supported_harbor,  # pyright: ignore[reportPrivateUsage]
     _resolve_adhoc_dataset_identity,  # pyright: ignore[reportPrivateUsage]
@@ -275,3 +277,76 @@ class TestRedaction:
         assert redacted["environment"]["env"] == ["ANTHROPIC_API_KEY", "MODE"]
         assert redacted["steps"][0]["agent"]["env"] == ["TOKEN"]
         assert "sk-secret" not in repr(redacted)
+
+
+class TestReferenceOutput:
+    def test_no_setting_leaves_output_empty(self, tmp_path: Path) -> None:
+        (tmp_path / "expected.json").write_text('{"reference": "do not infer"}')
+        assert _read_reference_output(tmp_path, {}) == {}
+        assert _read_reference_output(tmp_path, {"arize-phoenix": {}}) == {}
+
+    @pytest.mark.parametrize("value", ["117 traces", "", {}, {"answer": [1, 2], "ok": True}])
+    def test_text_and_structured_references(self, tmp_path: Path, value: Any) -> None:
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests/expected.json").write_text(json.dumps(value))
+        output = _read_reference_output(
+            tmp_path, {"arize-phoenix": {"reference_output_path": "tests/expected.json"}}
+        )
+        expected = (
+            {"messages": [{"role": "assistant", "content": value}]}
+            if isinstance(value, str)
+            else value
+        )
+        assert output == expected
+
+    @pytest.mark.parametrize(
+        "path", ["../outside.json", "tests/../expected.json", "/tmp/expected.json"]
+    )
+    def test_rejects_traversal_and_absolute_paths(self, tmp_path: Path, path: str) -> None:
+        with pytest.raises(HarborPluginError, match="relative to the task root"):
+            _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": path}})
+
+    def test_rejects_symlink_escape(self, tmp_path: Path) -> None:
+        root = tmp_path / "task"
+        root.mkdir()
+        outside = tmp_path / "outside.json"
+        outside.write_text('"secret"')
+        (root / "expected.json").symlink_to(outside)
+        with pytest.raises(HarborPluginError, match="outside the task root"):
+            _read_reference_output(
+                root, {"arize-phoenix": {"reference_output_path": "expected.json"}}
+            )
+
+    @pytest.mark.parametrize(
+        "content", [b"{bad json", b"\xff", b'{"value": NaN}', b'{"value": 1e999}']
+    )
+    def test_rejects_invalid_json(self, tmp_path: Path, content: bytes) -> None:
+        (tmp_path / "expected.json").write_bytes(content)
+        with pytest.raises(HarborPluginError, match="readable UTF-8 JSON"):
+            _read_reference_output(
+                tmp_path, {"arize-phoenix": {"reference_output_path": "expected.json"}}
+            )
+
+    @pytest.mark.parametrize("content", ["null", "true", "117", "[]"])
+    def test_rejects_unsupported_shapes(self, tmp_path: Path, content: str) -> None:
+        (tmp_path / "expected.json").write_text(content)
+        with pytest.raises(HarborPluginError, match="JSON string or object"):
+            _read_reference_output(
+                tmp_path, {"arize-phoenix": {"reference_output_path": "expected.json"}}
+            )
+
+    @pytest.mark.parametrize("value", [None, 1, [], "", "   "])
+    def test_rejects_invalid_setting(self, tmp_path: Path, value: Any) -> None:
+        with pytest.raises(HarborPluginError, match="non-empty relative path"):
+            _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": value}})
+
+    def test_rejects_invalid_namespace(self, tmp_path: Path) -> None:
+        with pytest.raises(HarborPluginError, match="TOML table"):
+            _read_reference_output(tmp_path, {"arize-phoenix": "expected.json"})
+
+    @pytest.mark.parametrize("path", ["missing.json", "."])
+    def test_missing_file_or_directory_is_actionable(self, tmp_path: Path, path: str) -> None:
+        with pytest.raises(HarborPluginError, match="reference_output_path") as caught:
+            _read_reference_output(tmp_path, {"arize-phoenix": {"reference_output_path": path}})
+        assert str(tmp_path) in str(caught.value)
+        assert path in str(caught.value)
