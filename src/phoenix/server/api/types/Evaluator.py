@@ -24,6 +24,9 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
+    ProjectEvaluatorLatestOutcomes,
+)
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
 from phoenix.server.api.evaluators import (
     BuiltInEvaluator as BuiltInEvaluatorClass,
@@ -177,27 +180,50 @@ class ProjectEvaluatorRunSummary:
             "retry, was queued, or null if none is waiting. Running evaluations are not waiting."
         )
     )
-    evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
-    failed_count: int = strawberry.field(description="Evaluations that were given up on.")
-    dropped_count: int = strawberry.field(
+    project_evaluator_id: strawberry.Private[int]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Evaluations that produced an annotation."
+    )
+    async def evaluated_count(self, info: Info[Context, None]) -> int:
+        return (await self._counts(info)).evaluated
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Evaluations that were given up on."
+    )
+    async def failed_count(self, info: Info[Context, None]) -> int:
+        return (await self._counts(info)).failed
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Evaluations removed from the queue before they ran, because a user cleared the "
-            "queue or turned the evaluator on or off. They are not failures and do not "
-            "affect the status."
+            "Evaluations removed from the queue before they ran, because a user cleared them "
+            "or the evaluator was disabled when their turn came. They are not failures and do "
+            "not affect the status."
         )
     )
-    last_error: Optional[str] = strawberry.field(
+    async def dropped_count(self, info: Info[Context, None]) -> int:
+        return (await self._counts(info)).dropped
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
         description="The most recent evaluation error, or null if none was recorded."
     )
+    async def last_error(self, info: Info[Context, None]) -> Optional[str]:
+        return (await self._counts(info)).last_error
+
+    async def _counts(self, info: Info[Context, None]) -> ProjectEvaluatorRunCounts:
+        return await info.context.data_loaders.project_evaluator_run_counts.load(
+            (self.project_evaluator_id, None, None)
+        )
 
 
 def _project_evaluator_run_summary(
     *,
+    project_evaluator_id: int,
     enabled: bool,
-    counts: ProjectEvaluatorRunCounts,
+    outcomes: ProjectEvaluatorLatestOutcomes,
     queued: QueuedWork,
 ) -> ProjectEvaluatorRunSummary:
-    last_evaluated_at, last_failed_at = counts.last_evaluated_at, counts.last_failed_at
+    last_evaluated_at, last_failed_at = outcomes.last_evaluated_at, outcomes.last_failed_at
     status = project_evaluator_run_status(
         enabled=enabled,
         last_evaluated_at=last_evaluated_at,
@@ -211,10 +237,7 @@ def _project_evaluator_run_summary(
         queued_count=queued.queued_count,
         running_count=queued.running_count,
         oldest_queued_at=queued.oldest_queued_at,
-        evaluated_count=counts.evaluated,
-        failed_count=counts.failed,
-        dropped_count=counts.dropped,
-        last_error=counts.last_error,
+        project_evaluator_id=project_evaluator_id,
     )
 
 
@@ -1431,11 +1454,16 @@ class ProjectEvaluator(Node):
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
         record = await self._get_record(info)
         loaders = info.context.data_loaders
-        counts, queued = await asyncio.gather(
-            loaders.project_evaluator_run_counts.load((self.id, None, None)),
+        outcomes, queued = await asyncio.gather(
+            loaders.project_evaluator_latest_outcomes.load(self.id),
             loaders.project_evaluator_queues.load(self.id),
         )
-        return _project_evaluator_run_summary(enabled=record.enabled, counts=counts, queued=queued)
+        return _project_evaluator_run_summary(
+            project_evaluator_id=self.id,
+            enabled=record.enabled,
+            outcomes=outcomes,
+            queued=queued,
+        )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

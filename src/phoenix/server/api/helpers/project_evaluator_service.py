@@ -283,7 +283,6 @@ async def update_project_llm_evaluator(
     if input.prompt_source.content is not None:
         input.prompt_source.content.user_id = user_id
 
-    cleared: dict[models.EvaluationTarget, int] = {}
     try:
         async with context.db() as session:
             # Tag moves and evaluator edits lock the evaluator row first, so each validates
@@ -347,15 +346,11 @@ async def update_project_llm_evaluator(
             if input.enabled is not UNSET:
                 assert input.enabled is not None
                 binding_values["enabled"] = input.enabled
-            cleared = await _drop_queued_work_on_enabled_change(
-                session, project_evaluator, input.enabled
-            )
             project_evaluator = await _write_project_evaluator(
                 session, project_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
-    count_cleared_work(cleared)
 
     return project_evaluator
 
@@ -714,7 +709,6 @@ async def update_project_code_evaluator(
                 sandbox_runtime=context.sandbox_runtime,
             )
 
-    cleared: dict[models.EvaluationTarget, int] = {}
     try:
         async with context.db() as session:
             pair = (
@@ -818,32 +812,13 @@ async def update_project_code_evaluator(
             if input.enabled is not UNSET:
                 assert input.enabled is not None
                 binding_values["enabled"] = input.enabled
-            cleared = await _drop_queued_work_on_enabled_change(
-                session, project_evaluator, input.enabled
-            )
             project_evaluator = await _write_project_evaluator(
                 session, project_evaluator.id, binding_values
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
-    count_cleared_work(cleared)
 
     return project_evaluator
-
-
-async def _drop_queued_work_on_enabled_change(
-    session: AsyncSession,
-    project_evaluator: models.ProjectEvaluator,
-    enabled: Any,
-) -> dict[models.EvaluationTarget, int]:
-    """Drop this evaluator's queued work when its enabled flag changes.
-
-    Saving the same value drops nothing. The caller counts the result after the transaction
-    commits.
-    """
-    if enabled is UNSET or enabled is None or project_evaluator.enabled == enabled:
-        return {}
-    return await drop_queued_work(session, [project_evaluator.id])
 
 
 async def _write_project_evaluator(
@@ -869,8 +844,8 @@ async def set_project_evaluator_enabled(
 ) -> models.ProjectEvaluator:
     """Enable or disable a binding without changing its other settings.
 
-    Changing the flag clears the evaluator's queued evaluations. Saving the same value
-    drops nothing.
+    Its queued evaluations stay queued; a disabled evaluator's are dropped, not run, when
+    their turn comes. Clear them now with ``clear_project_evaluator_queued_evaluations``.
     """
     try:
         project_evaluator_id = from_global_id_with_expected_type(
@@ -882,14 +857,33 @@ async def set_project_evaluator_enabled(
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         if project_evaluator is None:
             raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
-        cleared = await _drop_queued_work_on_enabled_change(
-            session, project_evaluator, input.enabled
-        )
         project_evaluator = await _write_project_evaluator(
             session, project_evaluator.id, {"enabled": input.enabled}
         )
-    count_cleared_work(cleared)
     return project_evaluator
+
+
+async def clear_project_evaluator_queued_evaluations(
+    context: EvaluatorServiceContext, project_evaluator_id: GlobalID
+) -> tuple[int, models.ProjectEvaluator]:
+    """Clear one evaluator's queued evaluations, whether it is enabled or not.
+
+    Evaluations already running are left alone. Returns how many were cleared and the
+    evaluator.
+    """
+    try:
+        project_evaluator_rowid = from_global_id_with_expected_type(
+            project_evaluator_id, "ProjectEvaluator"
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
+    async with context.db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_rowid)
+        if project_evaluator is None:
+            raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
+        dropped = await drop_queued_work(session, [project_evaluator.id])
+    count_cleared_work(dropped)
+    return sum(dropped.values()), project_evaluator
 
 
 async def clear_queued_evaluations(
@@ -1027,7 +1021,6 @@ async def patch_project_evaluator(
         row_id = from_global_id_with_expected_type(project_evaluator_id, "ProjectEvaluator")
     except ValueError as error:
         raise BadRequest(f"Invalid project evaluator id: {project_evaluator_id}") from error
-    cleared: dict[models.EvaluationTarget, int] = {}
     try:
         async with context.db() as session:
             row = await session.get(models.ProjectEvaluator, row_id)
@@ -1046,7 +1039,6 @@ async def patch_project_evaluator(
                 assert patch.filter_condition is not None
                 validate_project_evaluator_filter(patch.filter_condition, target)
                 values["filter_condition"] = patch.filter_condition
-            cleared = await _drop_queued_work_on_enabled_change(session, row, patch.enabled)
             if patch.enabled is not UNSET:
                 assert patch.enabled is not None
                 values["enabled"] = patch.enabled
@@ -1064,5 +1056,4 @@ async def patch_project_evaluator(
         raise Conflict(
             "A project evaluator with this name already exists for this project"
         ) from error
-    count_cleared_work(cleared)
     return row

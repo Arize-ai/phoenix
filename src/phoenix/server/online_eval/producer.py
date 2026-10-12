@@ -6,9 +6,10 @@ one replica scanning at a time so scans aren't repeated, but no write is fenced 
 The unique (span, project evaluator) work-unit key absorbs duplicate
 inserts. Each tick takes the lease and deletes aged terminal work rows. When a frontier
 is due and the queue has room, it also scans the lag-gated span id window per project
-evaluator and inserts surviving work units, as many as the room left under the admission
-lock allows. A slow-cadence backstop sweep re-covers a bounded id window behind the
-watermark to catch spans that became visible after their window was scanned.
+evaluator, until the scans have found as much work as the queue has room for, and inserts
+surviving work units, as many as the room left under the admission lock allows. A
+slow-cadence backstop sweep re-covers a bounded id window behind the watermark to catch
+spans that became visible after their window was scanned.
 
 Every cursor write is compare-and-set on the position it read, and a scan (frontier or
 backstop) commits only if the cursor still holds the position it scanned against. The
@@ -484,24 +485,27 @@ class OnlineEvalProducer(DaemonTask):
         low_exclusive: int,
         high_inclusive: int,
     ) -> tuple[int, int, bool]:
-        """Scan the window for every project evaluator, then queue the sampled spans in
-        evaluator order while the queue has room. Returns the room left, how many rows were
-        queued, and whether any sampled span was left unqueued.
+        """Scan the window evaluator by evaluator until the scans have found as many sampled
+        spans as the queue has room for, then queue them in evaluator order while the queue
+        has room. Returns the room left, how many rows were queued, and whether the window
+        was left unfinished: an evaluator went unscanned, or a sampled span went unqueued.
 
-        The room is read under the admission lock, which holds until the session's
-        transaction ends, so the scans run first and outside it."""
-        sampled = [
-            (
-                project_evaluator,
-                project_evaluator.sampled(
-                    await self._scan(session, project_evaluator, low_exclusive, high_inclusive)
-                ),
+        Queuing reads the room again under the admission lock, which holds until the
+        session's transaction ends, so the scans run first and outside it."""
+        room = await admission.room(session)
+        sampled: list[tuple[_ActiveProjectEvaluator, list[int]]] = []
+        found_count = 0
+        for project_evaluator in active:
+            if found_count >= room:
+                break
+            sampled_span_ids = project_evaluator.sampled(
+                await self._scan(session, project_evaluator, low_exclusive, high_inclusive)
             )
-            for project_evaluator in active
-        ]
+            sampled.append((project_evaluator, sampled_span_ids))
+            found_count += len(sampled_span_ids)
         budget = await admission.lock_room(session, self._db.dialect)
         queued_count = 0
-        truncated = False
+        truncated = len(sampled) < len(active)
         for project_evaluator, sampled_span_ids in sampled:
             admitted_span_ids = sampled_span_ids[:budget]
             queued_count += await self._insert_work_units(

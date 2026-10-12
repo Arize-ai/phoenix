@@ -417,10 +417,11 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
 - The evaluator system should fail independently from the core observability path: if evaluation
   is unhealthy, Phoenix should still ingest and display traces normally.
 - Disabling a project evaluator stops new runs immediately.
-- **Clearing the queue.** A user can clear the queued evaluations of one project or of every
-  project, and turning a project evaluator on or off clears its own. Cleared evaluations are
-  recorded as dropped, not failed, so clearing never turns an evaluator to Error. Evaluations
-  already running are not cleared.
+- **Clearing the queue.** A user can clear the queued evaluations of one project evaluator, one
+  project, or every project. Turning a project evaluator off doesn't clear its queued
+  evaluations: they are dropped, not run, when their turn comes, and the evaluators page clears
+  them right after turning one off. Cleared evaluations are recorded as dropped, not failed, so
+  clearing never turns an evaluator to Error. Evaluations already running are not cleared.
 - **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
   rate, the queue must not blow up. Span, trace, and session evaluations wait in one queue under
   one limit: once it holds that many, Phoenix stops queueing new evaluations of any kind until the
@@ -428,7 +429,10 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   rather than dropping them — sampled spans are evaluated late, not skipped, unless trace
   retention deletes a span (and any work already queued for it) before its turn comes. One limit
   is simpler to size and reason about than one per kind, at a cost: a flood of one kind fills the
-  room the others would use, and delays them too. The span producer and the trace and session
+  room the others would use, and delays them too. The limit (`PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING`,
+  30,000 by default) bounds how many evaluations wait, not how long: the newest evaluation in a
+  full queue waits roughly the limit divided by the rate evaluations complete. Lower it to keep
+  results current; raise it to absorb bursts. The span producer and the trace and session
   sweepers take turns at admission, under a lock that holds across replicas, so two of them never
   both fill the same room.
   Overload shows up in three places: the producer and sweepers log a warning each time they find

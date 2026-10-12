@@ -714,6 +714,17 @@ type ClearAllQueuedEvaluationsPayload {
   droppedCount: Int!
 }
 
+input ClearProjectEvaluatorQueuedEvaluationsInput {
+  projectEvaluatorId: ID!
+}
+
+type ClearProjectEvaluatorQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+  evaluator: ProjectEvaluator!
+  query: Query!
+}
+
 input ClearProjectInput {
   id: ID!
 
@@ -3253,9 +3264,14 @@ type Mutation {
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Enable or disable a project evaluator, leaving the underlying evaluator untouched. Changing the flag clears the evaluator's queued evaluations. Works for both LLM and CODE evaluators.
+  Enable or disable a project evaluator, leaving the underlying evaluator untouched. This changes only whether the evaluator runs: its queued evaluations stay queued, and a disabled evaluator's queued evaluations are dropped, not run, when their turn comes. To remove them now, clear them with clearProjectEvaluatorQueuedEvaluations. Works for both LLM and CODE evaluators.
   """
   setProjectEvaluatorEnabled(input: SetProjectEvaluatorEnabledInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Clear the queued evaluations of one project evaluator, without enabling or disabling it. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearProjectEvaluatorQueuedEvaluations(input: ClearProjectEvaluatorQueuedEvaluationsInput!): ClearProjectEvaluatorQueuedEvaluationsPayload!
 
   """
   Clear the queued evaluations of every evaluator in a project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
@@ -4102,7 +4118,7 @@ type ProjectEvaluatorRunSummary {
   failedCount: Int!
 
   """
-  Evaluations removed from the queue before they ran, because a user cleared the queue or turned the evaluator on or off. They are not failures and do not affect the status.
+  Evaluations removed from the queue before they ran, because a user cleared them or the evaluator was disabled when their turn came. They are not failures and do not affect the status.
   """
   droppedCount: Int!
 
