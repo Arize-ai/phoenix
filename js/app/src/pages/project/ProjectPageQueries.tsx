@@ -8,14 +8,21 @@ import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
+// Each query carries the settled condition, so a table never loads unfiltered
+// rows first.
 export const ProjectPageQueriesTracesQuery = graphql`
-  query ProjectPageQueriesTracesQuery($id: ID!, $timeRange: TimeRange!) {
+  query ProjectPageQueriesTracesQuery(
+    $id: ID!
+    $timeRange: TimeRange!
+    $traceFilterCondition: String
+  ) {
     project: node(id: $id) {
       ... on Project {
         name
         hasTraces
       }
       ...TracesTable_spans
+        @arguments(traceFilterCondition: $traceFilterCondition)
     }
   }
 `;
@@ -47,9 +54,14 @@ export const ProjectPageQueriesSpansQuery = graphql`
 `;
 
 export const ProjectPageQueriesSessionsQuery = graphql`
-  query ProjectPageQueriesSessionsQuery($id: ID!, $timeRange: TimeRange!) {
+  query ProjectPageQueriesSessionsQuery(
+    $id: ID!
+    $timeRange: TimeRange!
+    $sessionFilterCondition: String
+  ) {
     project: node(id: $id) {
       ...SessionsTable_sessions
+        @arguments(sessionFilterCondition: $sessionFilterCondition)
     }
   }
 `;
@@ -82,14 +94,27 @@ export const ProjectPageQueryReferenceContext = createContext<{
     persistToUrl?: boolean
   ) => void;
   sessionsQueryReference: PreloadedQuery<ProjectPageSessionsQueryType> | null;
+  /**
+   * The condition the sessions query was loaded with; null while the server
+   * validates one. See `spansFilterSeed`.
+   */
+  sessionsFilterSeed: string | null;
+  resolveSessionsSeed: (condition: string, persistToUrl?: boolean) => void;
   tracesQueryReference: PreloadedQuery<ProjectPageTracesQueryType> | null;
+  /** The traces counterpart of `sessionsFilterSeed`. */
+  tracesFilterSeed: string | null;
+  resolveTracesSeed: (condition: string, persistToUrl?: boolean) => void;
   projectConfigQueryReference: PreloadedQuery<ProjectPageProjectConfigQueryType> | null;
 }>({
   spansQueryReference: null,
   spansFilterSeed: null,
   resolveSpansSeed: () => {},
   sessionsQueryReference: null,
+  sessionsFilterSeed: null,
+  resolveSessionsSeed: () => {},
   tracesQueryReference: null,
+  tracesFilterSeed: null,
+  resolveTracesSeed: () => {},
   projectConfigQueryReference: null,
 });
 

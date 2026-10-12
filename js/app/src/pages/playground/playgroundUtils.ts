@@ -169,8 +169,11 @@ const OPENAI_COMPATIBLE_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
   "FIREWORKS",
   "GROQ",
   "MOONSHOT",
+  "MINIMAX",
   "PERPLEXITY",
   "TOGETHER",
+  "ZAI",
+  "META",
 ]);
 
 function convertAttributeToolCall({
@@ -1449,8 +1452,11 @@ export const createToolCallForProvider = (
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
+    case "ZAI":
+    case "META":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -1921,7 +1927,7 @@ export function getToolDefinitionDisplay(
     };
   }
   // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
-  // FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER
+  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META
   return {
     type: "function",
     function: {
@@ -2250,6 +2256,18 @@ export const getChatCompletionInput = ({
 };
 
 /**
+ * Resolve an experiment name/description for the next dataset-backed run,
+ * preferring the scaffold value and falling back to the trimmed store value.
+ * An empty result becomes null so the server applies its generated default.
+ */
+function resolveNextExperimentField(
+  scaffoldValue: string | null | undefined,
+  storeValue: string | null | undefined
+): string | null {
+  return (scaffoldValue ?? storeValue?.trim()) || null;
+}
+
+/**
  * Gets chat completion input for running over a dataset.
  *
  * Builds the same hub-and-spoke ChatCompletionOverDatasetInput shape as
@@ -2349,8 +2367,14 @@ export const getChatCompletionOverDatasetInput = ({
     promptName: instance.prompt?.name,
     promptVersionId: instance.prompt?.version ?? null,
     createEphemeralExperiment: !recordExperiments,
-    experimentName: nextExperimentScaffold?.name ?? null,
-    experimentDescription: nextExperimentScaffold?.description ?? null,
+    experimentName: resolveNextExperimentField(
+      nextExperimentScaffold?.name,
+      playgroundDatasetState?.experimentName
+    ),
+    experimentDescription: resolveNextExperimentField(
+      nextExperimentScaffold?.description,
+      playgroundDatasetState?.experimentDescription
+    ),
     experimentMetadata: nextExperimentScaffold?.metadata ?? null,
     streamModelOutput: streaming,
     maxConcurrency: maxConcurrency ?? 10,

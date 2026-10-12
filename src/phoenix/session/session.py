@@ -482,7 +482,7 @@ def _is_colab() -> bool:
         from IPython.core.getipython import get_ipython
     except ImportError:
         return False
-    return get_ipython() is not None  # type: ignore[no-untyped-call]
+    return get_ipython() is not None
 
 
 def _is_sagemaker() -> bool:
@@ -497,7 +497,7 @@ def _is_sagemaker() -> bool:
         from IPython.core.getipython import get_ipython
     except ImportError:
         return False
-    return get_ipython() is not None  # type: ignore[no-untyped-call]
+    return get_ipython() is not None
 
 
 def _is_databricks() -> bool:
@@ -506,7 +506,7 @@ def _is_databricks() -> bool:
         from IPython.core.getipython import get_ipython
     except ImportError:
         return False
-    if (shell := get_ipython()) is None:  # type: ignore[no-untyped-call]
+    if (shell := get_ipython()) is None:
         return False
     try:
         dbutils = shell.user_ns["dbutils"]
@@ -577,7 +577,9 @@ def _get_databricks_context() -> DatabricksContext:
     """
     from IPython.core.getipython import get_ipython
 
-    shell = get_ipython()  # type: ignore[no-untyped-call]
+    shell = get_ipython()
+    if shell is None:
+        raise RuntimeError("IPython shell is not available")
     dbutils = shell.user_ns["dbutils"]
     notebook_context = json.loads(
         dbutils.entry_point.getDbutils().notebook().getContext().toJson()

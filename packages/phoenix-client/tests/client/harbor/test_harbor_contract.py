@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import json
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -81,7 +83,7 @@ class TestPluginRegistration:
         # The first adapter read proves Harbor loaded and called the plugin.
         with pytest.raises(HarborPluginError, match="expected `harbor.job.Job`"):
             await attach_job_plugin(
-                cast(Job, object()), "arize-phoenix", kwargs={"trace_mode": "none"}
+                cast(Job, object()), "arize-phoenix", kwargs={"trace_mode": None}
             )
 
     async def test_plugin_satisfies_harbors_protocol(self) -> None:
@@ -90,7 +92,7 @@ class TestPluginRegistration:
         from phoenix.client.harbor import PhoenixJobPlugin
 
         assert issubclass(PhoenixJobPlugin, BaseJobPlugin)
-        plugin: JobPlugin = PhoenixJobPlugin(trace_mode="none")
+        plugin: JobPlugin = PhoenixJobPlugin(trace_mode=None)
         assert isinstance(plugin, JobPlugin)
 
 
@@ -212,3 +214,63 @@ def test_trial_reward_names_match_harbors_verifier_output(
 
     extracted = {record.name: record.score for record in extract_evaluations(trial)}
     assert set(extracted) == expected_names
+
+
+def test_trace_discovery_reads_supported_harbor_attributes() -> None:
+    """Pin the Harbor attributes the ATIF trace loader reads.
+
+    ``TrialConfig.user_agent`` and ``TrialPaths.user_agent_dir`` arrived in Harbor
+    0.22 and are read defensively; everything else must exist at the minimum version.
+    """
+    from harbor.models.trial.config import AgentConfig, TrialConfig
+    from harbor.models.trial.paths import TrialPaths
+    from harbor.models.trial.result import StepResult, TrialResult
+
+    assert "resume_trajectory" in AgentConfig.model_fields
+    assert "trials_dir" in TrialConfig.model_fields
+    assert "step_results" in TrialResult.model_fields
+    assert "step_name" in StepResult.model_fields
+    assert callable(TrialPaths.step_agent_dir)
+    assert isinstance(TrialPaths.agent_dir, property)
+
+
+@pytest.mark.parametrize("direct", [False, True])
+@pytest.mark.parametrize("multi_step", [False, True])
+async def test_reference_output_in_resolved_plan(
+    dataset_dir: Path, tmp_path: Path, direct: bool, multi_step: bool
+) -> None:
+    from harbor.models.job.config import JobConfig
+    from harbor.models.trial.config import AgentConfig, TaskConfig
+
+    local_dataset = tmp_path / "dataset"
+    task_dir = local_dataset / "triage"
+    shutil.copytree(dataset_dir / "triage", task_dir)
+    toml = TASK_TOML if multi_step else 'schema_version = "1.3"\n[task]\nname = "arize/triage"\n'
+    (task_dir / "instruction.md").write_text("Count traces.")
+    (task_dir / "task.toml").write_text(
+        toml + '\n[metadata.arize-phoenix]\nreference_output_path = "tests/expected.json"\n'
+    )
+    reference = task_dir / "tests/expected.json"
+    reference.write_text(json.dumps("117 traces"))
+    config = (
+        JobConfig(
+            jobs_dir=tmp_path / "jobs",
+            tasks=[TaskConfig(path=task_dir)],
+            agents=[AgentConfig(name="oracle")],
+        )
+        if direct
+        else job_config(local_dataset, tmp_path)
+    )
+    job = await make_job(config)
+    (task,) = build_job_plan(job).tasks
+    assert task.to_example()["output"] == {
+        "messages": [{"role": "assistant", "content": "117 traces"}]
+    }
+    reference.write_text(json.dumps({"count": 118}))
+    (updated,) = build_job_plan(job).tasks
+    assert updated.task_id == task.task_id
+    assert updated.to_example()["output"] == {"count": 118}
+    assert updated.to_example() != task.to_example()
+    reference.unlink()
+    with pytest.raises(HarborPluginError, match="tests/expected.json"):
+        build_job_plan(job)

@@ -22,6 +22,7 @@ __all__ = [
     "JobPlan",
     "StepRecord",
     "TaskRecord",
+    "TraceMode",
     "TrialSlot",
     "canonical_digest",
     "short_digest",
@@ -29,6 +30,9 @@ __all__ = [
 
 _DIGEST_PREFIX = "sha256:"
 _SHORT_DIGEST_LENGTH = 12
+
+TraceMode = Literal["atif"]
+"""Trace recording modes. ``None`` disables tracing."""
 
 
 def canonical_digest(payload: Any) -> str:
@@ -63,6 +67,7 @@ class TaskRecord:
     steps: tuple[StepRecord, ...] = ()
     multi_step_reward_strategy: Literal["mean", "final"] | None = None
     config: Mapping[str, Any] = field(default_factory=dict)
+    reference_output: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def task_id(self) -> str:
@@ -95,8 +100,7 @@ class TaskRecord:
         return {
             "id": self.task_id,
             "input": example_input,
-            # Harbor verifies environment state, not a reference response.
-            "output": {},
+            "output": dict(self.reference_output),
             "metadata": {
                 "task_digest": self.lock.digest,
                 "task_source": self.lock.source,

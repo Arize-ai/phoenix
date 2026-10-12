@@ -19,6 +19,7 @@ export const promptVersionLoaderQuery = graphql`
         ...PromptChatMessagesCard__main
         ...PromptCodeExportCard__main
         ...PromptModelConfigurationCard__main
+        ...PromptVersionMetadataCard__main
         ...PromptVersionTagsList_data
         description
         modelName

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dc2f28bccd7332a3e447be97ed1f51a4>>
+ * @generated SignedSource<<1016956133572d79f6a47addec1b9f54>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,13 @@ export type SessionTokenCountDetailsQuery$variables = {
 export type SessionTokenCountDetailsQuery$data = {
   readonly node: {
     readonly __typename: "ProjectSession";
+    readonly costDetailSummaryEntries: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly tokens: number | null;
+      };
+    }>;
     readonly tokenUsage: {
       readonly completion: number;
       readonly prompt: number;
@@ -78,6 +85,49 @@ v3 = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostDetailSummaryEntry",
+      "kind": "LinkedField",
+      "name": "costDetailSummaryEntries",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokenType",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isPrompt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "value",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "tokens",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "ProjectSession",
@@ -136,16 +186,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5df073c3f0f20378aed5118f6f0d2f4b",
+    "cacheID": "93497e7310b4997d752381d6dc4cb664",
     "id": null,
     "metadata": {},
     "name": "SessionTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SessionTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ProjectSession {\n      tokenUsage {\n        prompt\n        completion\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "da1b954f5615c67f552ece1b8b3478b5";
+(node as any).hash = "3a24cdce58fdf51b24b7b555304f4e33";
 
 export default node;

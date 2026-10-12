@@ -28,12 +28,13 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_LIMITS: "ResourceLimits" = {
-    "max_duration_secs": 30.0,
+    "max_feed_duration_secs": 30.0,
+    "max_total_sleep_secs": 30.0,
     "max_memory": DEFAULT_GUEST_MAX_MEMORY_BYTES,
     "max_recursion_depth": DEFAULT_GUEST_MAX_RECURSION_DEPTH,
 }
-"""Per-session guest limits. ``max_duration_secs`` charges guest execution only,
-not time awaiting a host callback."""
+"""Per-session guest limits. ``max_feed_duration_secs`` charges guest execution
+only, not time awaiting a host callback or sleeping."""
 
 DEFAULT_TOTAL_TIMEOUT = 300.0
 """End-to-end ceiling for one ``execute``, host callbacks and pool startup

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, Literal, Optional
 
 from dateutil.parser import isoparse
@@ -11,6 +10,7 @@ from typing_extensions import Self
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentRunAnnotationInsertEvent
 
@@ -34,8 +34,8 @@ class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
         description="The kind of annotator used for the evaluation"
     )
-    start_time: datetime = Field(description="The start time of the evaluation in ISO format")
-    end_time: datetime = Field(description="The end time of the evaluation in ISO format")
+    start_time: IsoDatetime = Field(description="The start time of the evaluation in ISO format")
+    end_time: IsoDatetime = Field(description="The end time of the evaluation in ISO format")
     result: Optional[ExperimentEvaluationResult] = Field(
         None, description="The result of the evaluation. Either result or error must be provided."
     )
@@ -94,6 +94,13 @@ async def upsert_experiment_evaluation(
     explanation = result.explanation if result else None
     error = request_body.error
     metadata = request_body.metadata or {}
+    # Older clients nested `metadata` under `result`, which the model above
+    # silently drops. Recover it from the raw payload; top-level keys win.
+    raw_result = payload.get("result")
+    if isinstance(raw_result, dict) and isinstance(
+        legacy_metadata := raw_result.get("metadata"), dict
+    ):
+        metadata = {**legacy_metadata, **metadata}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
@@ -110,7 +117,7 @@ async def upsert_experiment_evaluation(
             end_time=isoparse(end_time),
             trace_id=payload.get("trace_id"),
         )
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         exp_eval_run = await session.scalar(
             insert_on_conflict(
                 values,

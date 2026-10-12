@@ -114,7 +114,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         async with self._db.read() as session:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             for segment, params in arguments.items():
                 async for position, quantile_value in _get_results(
                     dialect, session, segment, params
@@ -137,9 +137,9 @@ async def _get_results(
         if filter_condition:
             sf = SpanFilter(filter_condition)
             stmt = stmt.where(
-                models.Trace.id.in_(
-                    sf(select(models.Span.trace_rowid).distinct()).scalar_subquery()
-                )
+                sf(select(1).where(models.Span.trace_rowid == models.Trace.id))
+                .correlate(models.Trace)
+                .exists()
             )
     elif kind == "span":
         latency_column = cast(FloatCol, models.Span.latency_ms)

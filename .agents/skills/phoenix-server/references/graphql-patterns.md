@@ -33,6 +33,50 @@ other than a confident no, it must be a mutation behind auth.
 
 ## Adding a Mutation
 
+### Naming: use the HTTP verb
+
+Name a **new** mutation `<verb><Resource>`, where the verb is the HTTP method it
+is synonymous with. Name the input type to match: `patchDatasetExamples` takes
+`PatchDatasetExamplesInput`.
+
+| Verb | HTTP | Use for |
+| --- | --- | --- |
+| `create` | `POST` | Bringing a new resource into existence |
+| `patch` | `PATCH` | Any partial write to existing resources |
+| `set` | `PUT` | Replacing a value or membership set wholesale (idempotent) |
+| `delete` | `DELETE` | Removing a resource |
+
+`patch` covers a collection-level write that also adds and removes members in one
+transaction — that is still an HTTP `PATCH` on the collection, so
+`patchDatasetExamples` takes additions, patches, and deletions together rather
+than splitting into three mutations. Reach for `set` only when the write replaces
+the whole thing and re-sending it is a no-op (`setDatasetLabels`,
+`setPromptVersionTag`).
+
+Prefer the verb over a bespoke name that describes the implementation:
+
+| Instead of | Use |
+| --- | --- |
+| `applyDatasetExampleChanges` | `patchDatasetExamples` |
+| `updateThing`, `editThing`, `modifyThing` | `patchThing` |
+| `removeThing` | `deleteThing` |
+| `newThing` | `createThing` |
+
+Two shapes this rule does **not** reach:
+
+- **Linking a resource into a parent collection** — `addSpansToDataset`,
+  `addExamplesToDataset`, `addAnnotationConfigToProject`. `addXToY` is the right
+  name; it is not CRUD on `X` itself.
+- **Mutations that already ship.** `updateModel`, `updateAnnotationConfig` and
+  friends predate this convention and are part of the public schema. Follow the
+  convention for new mutations; do not rename existing ones without a deliberate
+  migration.
+
+A verb-named mutation is a stable place to grow. When a write needs to do more
+(add deletions to a patch mutation, say), widen the existing input rather than
+adding a second mutation beside it — two mutations that write the same resource
+force callers to choose, and the narrower one rots.
+
 ### Step-by-step
 
 1. Define an input type (or reuse an existing one)

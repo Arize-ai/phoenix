@@ -14,11 +14,11 @@ SQLEAN_REPO := https://github.com/nalgeon/sqlean.git
 # The release SQLEAN_COMMIT corresponds to, +<short sha> when the commit sits
 # ahead of it. check-sqlean-pin enforces that, and that setup.py's copy agrees
 # -- setup.py's is the one compiled in as what sqlean_version() reports.
-SQLEAN_VERSION := 0.28.4+10a13f9
+SQLEAN_VERSION := 0.28.4+71e7625
 # Pinned by commit, not tag: a tag can be moved to different content, a commit
 # cannot, and git verifies every object it receives. Why a given pin was
 # chosen belongs in the commit that moved it.
-SQLEAN_COMMIT := 10a13f904a80f43da65d8029ab3bb7db2d5a2304
+SQLEAN_COMMIT := 71e76250c7c5d2431283d687a04a1433a9f5efe3
 # sqlean's crypto extension includes crypto/xxhash.impl.h but does not ship it.
 # XXHASH_TAG is the tag sqlean's own Makefile fetches; download-sqlean asserts
 # they still agree, so an upstream move stops the build.

@@ -46,6 +46,7 @@ class SpanCostSummaryByGenerativeModelDataLoader(DataLoader[Key, Result]):
                 completion_tokens,
                 total_tokens,
             ) in data:
+                assert id_ is not None
                 summary = SpanCostSummary(
                     prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
                     completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),

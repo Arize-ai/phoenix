@@ -18,6 +18,26 @@ import type {
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
 
+/** Returns whether a mapping value survives persistence. */
+export function hasMappingValue(value: unknown): boolean {
+  return value != null && value !== "";
+}
+
+/** Removes paths shadowed by literal mappings, matching server precedence. */
+export function normalizeInputMapping(
+  mapping: EvaluatorInputMapping
+): EvaluatorInputMapping {
+  const pathMapping = { ...mapping.pathMapping };
+
+  for (const [name, value] of Object.entries(mapping.literalMapping)) {
+    if (hasMappingValue(value)) {
+      delete pathMapping[name];
+    }
+  }
+
+  return { ...mapping, pathMapping };
+}
+
 // Single source of judge tools, shared by Save and preview so the two can't diverge.
 export const buildJudgeToolFunctions = ({
   outputConfigs,
@@ -161,7 +181,7 @@ export const updateLLMEvaluatorPayload = ({
     description,
     datasetEvaluatorId,
     datasetId,
-    inputMapping: inputMapping,
+    inputMapping: inputMapping && normalizeInputMapping(inputMapping),
     promptVersion,
     outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
@@ -230,7 +250,7 @@ export const createLLMEvaluatorPayload = ({
     name,
     description,
     datasetId,
-    inputMapping: inputMapping,
+    inputMapping: inputMapping && normalizeInputMapping(inputMapping),
     promptVersion,
     outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,

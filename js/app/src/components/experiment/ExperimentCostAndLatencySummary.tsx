@@ -17,6 +17,12 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
 import { ExperimentAverageRunTokenCosts } from "./ExperimentAverageRunTokenCosts";
 import { ExperimentAverageRunTokenCount } from "./ExperimentAverageRunTokenCount";
+import { getExperimentRunMetricValue } from "./experimentDeltaUtils";
+import {
+  ExperimentMetricStat,
+  ExperimentMetricStatRow,
+  ExperimentRunMetricDelta,
+} from "./ExperimentMetricDelta";
 
 /**
  * The shape of experiment data needed to render cost and latency summary.
@@ -50,6 +56,11 @@ type ExperimentCostAndLatencySummaryProps = {
    * When true, renders with reduced opacity.
    */
   isPlaceholder?: boolean;
+  /**
+   * The base experiment to show deltas against. Omitted on the base column
+   * and when deltas are hidden.
+   */
+  baseExperiment?: ExperimentCostAndLatencySummaryExperiment;
 };
 
 const placeholderCSS = css`
@@ -64,6 +75,7 @@ export function ExperimentCostAndLatencySummary({
   executionState,
   experiment,
   isPlaceholder = false,
+  baseExperiment,
 }: ExperimentCostAndLatencySummaryProps) {
   if (executionState === "idle") {
     return (
@@ -85,17 +97,15 @@ export function ExperimentCostAndLatencySummary({
     );
   }
 
-  const { id, runCount, costSummary, averageRunLatencyMs } = experiment;
-  const costTotal = costSummary.total.cost;
-  const tokenCountTotal = costSummary.total.tokens;
-
-  const averageRunTokenCountTotal =
-    tokenCountTotal == null || runCount === 0
-      ? null
-      : tokenCountTotal / runCount;
-
-  const averageRunCostTotal =
-    costTotal == null || runCount === 0 ? null : costTotal / runCount;
+  const { id, averageRunLatencyMs } = experiment;
+  const averageRunTokenCountTotal = getExperimentRunMetricValue({
+    experiment,
+    metric: "tokens",
+  });
+  const averageRunCostTotal = getExperimentRunMetricValue({
+    experiment,
+    metric: "cost",
+  });
 
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
@@ -107,21 +117,49 @@ export function ExperimentCostAndLatencySummary({
         </TriggerWrap>
         <Tooltip>Averages computed over all runs in the experiment</Tooltip>
       </TooltipTrigger>
-      {averageRunLatencyMs != null && (
-        <LatencyText size="S" latencyMs={averageRunLatencyMs} />
-      )}
-      <ExperimentAverageRunTokenCount
-        averageRunTokenCountTotal={averageRunTokenCountTotal}
-        experimentId={id}
-        size="S"
-      />
-      {averageRunCostTotal != null && (
-        <ExperimentAverageRunTokenCosts
-          averageRunCostTotal={averageRunCostTotal}
-          experimentId={id}
-          size="S"
-        />
-      )}
+      <ExperimentMetricStatRow>
+        {averageRunLatencyMs != null && (
+          <ExperimentMetricStat>
+            <LatencyText size="S" latencyMs={averageRunLatencyMs} />
+            <ExperimentRunMetricDelta
+              metric="latency"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
+              tooltipPlacement="top"
+            />
+          </ExperimentMetricStat>
+        )}
+        <ExperimentMetricStat>
+          <ExperimentAverageRunTokenCount
+            averageRunTokenCountTotal={averageRunTokenCountTotal}
+            experimentId={id}
+            size="S"
+          />
+          {averageRunTokenCountTotal != null && (
+            <ExperimentRunMetricDelta
+              metric="tokens"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
+              tooltipPlacement="top"
+            />
+          )}
+        </ExperimentMetricStat>
+        {averageRunCostTotal != null && (
+          <ExperimentMetricStat>
+            <ExperimentAverageRunTokenCosts
+              averageRunCostTotal={averageRunCostTotal}
+              experimentId={id}
+              size="S"
+            />
+            <ExperimentRunMetricDelta
+              metric="cost"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
+              tooltipPlacement="top"
+            />
+          </ExperimentMetricStat>
+        )}
+      </ExperimentMetricStatRow>
     </Flex>
   );
 }

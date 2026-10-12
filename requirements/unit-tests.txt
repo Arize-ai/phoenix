@@ -10,6 +10,7 @@ httpx
 litellm>=1.83.14; python_version < '3.14'
 nest-asyncio # for executor testing
 numpy
+scikit-learn # reference implementation for retrieval metric tests
 pandas-stubs==2.0.3.230814
 pandas>=1.0
 protobuf

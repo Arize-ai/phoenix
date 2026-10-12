@@ -20,13 +20,16 @@ from anthropic.types.beta import (
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from fastapi import FastAPI
 from opentelemetry.trace import NoOpTracerProvider
-from pydantic_ai import Agent, RunContext, UserError
+from pydantic import SecretStr
+from pydantic_ai import Agent, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.native_tools import WebFetchTool, WebSearchTool
 from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.toolsets import ApprovalRequiredToolset, FilteredToolset
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.db.types.data_stream_protocol import EditPermission
@@ -41,12 +44,14 @@ from phoenix.db.types.data_stream_protocol.ui_state_types import (
 )
 from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
-    MintlifyDocsMCPServer,
+    GitHubMCPCapability,
     build_anthropic_prompt_cache_capability,
 )
+from phoenix.server.agents.capabilities.github_mcp import GITHUB_WRITE_TOOLS
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.context import ResolvedContexts
+from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -61,6 +66,7 @@ from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import DbSessionFactory
+from tests.unit.conftest import OfflineDocsMCPServer
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
@@ -88,11 +94,8 @@ between the emptiest and the busiest page in the app."""
 
 
 def build_agent(**kwargs: Any) -> Any:
-    """Build an agent for factory tests with inert DB-backed tool dependencies."""
     kwargs.setdefault("name", "PXIAgent")
     kwargs.setdefault("headless", False)
-    kwargs.setdefault("db", Mock(spec=DbSessionFactory))
-    kwargs.setdefault("event_queue", Mock())
     return _build_agent(**kwargs)
 
 
@@ -192,6 +195,45 @@ def captured_request() -> CapturedRequest:
     return CapturedRequest()
 
 
+def _sse_event(event: dict[str, Any]) -> str:
+    return f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+
+
+_ANTHROPIC_STUB_EVENTS: list[dict[str, Any]] = [
+    {
+        "type": "message_start",
+        "message": {
+            "id": "msg_test",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-haiku-4-5",
+            "content": [],
+            "stop_reason": None,
+            "stop_sequence": None,
+            "usage": {"input_tokens": 1, "output_tokens": 0},
+        },
+    },
+    {
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "text", "text": ""},
+    },
+    {
+        "type": "content_block_delta",
+        "index": 0,
+        "delta": {"type": "text_delta", "text": "ok"},
+    },
+    {"type": "content_block_stop", "index": 0},
+    {
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn", "stop_sequence": None},
+        "usage": {"output_tokens": 1},
+    },
+    {"type": "message_stop"},
+]
+_ANTHROPIC_STUB_EVENT_STREAM = "".join(_sse_event(event) for event in _ANTHROPIC_STUB_EVENTS)
+
+
 @pytest.fixture
 def anthropic_model(
     anthropic_api_key: str,
@@ -201,7 +243,16 @@ def anthropic_model(
     ``httpx2.MockTransport``."""
 
     def handler(request: httpx2.Request) -> httpx2.Response:
-        captured_request.bodies.append(json.loads(request.read()))
+        body = json.loads(request.read())
+        captured_request.bodies.append(body)
+        if body.get("stream"):
+            # pydantic-ai streams a non-streaming request when its default max_tokens
+            # exceeds the SDK's non-streaming limit.
+            return httpx2.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=_ANTHROPIC_STUB_EVENT_STREAM,
+            )
         stub_response = BetaMessage(
             id="msg_test",
             type="message",
@@ -267,27 +318,9 @@ class TestPromptCacheCapabilityMounting:
         assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
 
-class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
-    """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
-
-    Overrides ``get_tools`` to return an empty tool dict and the async
-    context-manager protocol to no-op, so the agent run never opens an
-    HTTP/SSE session to the real Mintlify endpoint.
-    """
-
-    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, Any]:
-        return {}
-
-    async def __aenter__(self) -> "_OfflineDocsMCPToolset":
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        return None
-
-
 @pytest.fixture
-def docs_mcp_server() -> _OfflineDocsMCPToolset:
-    return _OfflineDocsMCPToolset()
+def docs_mcp_server() -> OfflineDocsMCPServer:
+    return OfflineDocsMCPServer()
 
 
 @pytest.fixture
@@ -839,7 +872,6 @@ class TestHeadlessMode:
         assert {
             "bash",
             "get_current_datetime",
-            "write_span_note",
         } <= tool_names
         instructions = result.all_messages()[0].instructions
         assert instructions is not None
@@ -1032,7 +1064,7 @@ class TestDocsMCPToolset:
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
-        docs_mcp_server: _OfflineDocsMCPToolset,
+        docs_mcp_server: OfflineDocsMCPServer,
         headless: bool,
     ) -> None:
         agent = build_agent(
@@ -1128,7 +1160,6 @@ class TestSkills:
         assert "execute" in tool_names
         assert "load_skill" in tool_names
         assert "load_skill_reference" in tool_names
-        assert "write_span_note" in tool_names
 
     async def test_absent_without_a_server(
         self,
@@ -1253,3 +1284,73 @@ class TestWebAccessCapabilities:
         native_tool_types = self._get_native_tool_types(model_without_web_access)
         assert WebSearchTool not in native_tool_types
         assert WebFetchTool not in native_tool_types
+
+
+class TestGitHubMCPCapabilityRegistration:
+    """The GitHub capability registers only when a token was resolved, and its
+    write surface follows the same headless/edit-permission derivation as
+    GraphQL mutations."""
+
+    @staticmethod
+    def _github_config() -> GitHubMCPConfig:
+        return GitHubMCPConfig(
+            token=SecretStr("ghp_test"),
+            base_url="http://127.0.0.1:9/mcp/",
+        )
+
+    @staticmethod
+    def _write_tools_visible(capability: Any) -> bool:
+        toolset = capability.get_toolset()
+        filtered = toolset.wrapped if isinstance(toolset, ApprovalRequiredToolset) else toolset
+        assert isinstance(filtered, FilteredToolset)
+        return all(
+            filtered.filter_func(Mock(), ToolDefinition(name=name)) for name in GITHUB_WRITE_TOOLS
+        )
+
+    def test_absent_without_a_resolved_token(self, model: TestModel) -> None:
+        agent = build_agent(model=model)
+        assert _get_capabilities(agent, GitHubMCPCapability) == []
+
+    def test_browser_manual_gates_writes_behind_approval(self, model: TestModel) -> None:
+        agent = build_agent(model=model, github_mcp_config=self._github_config())
+        capability = _find_capability(agent, GitHubMCPCapability)
+        assert capability.get_instructions() == _DEFAULT_PROMPTS.github_tools
+        assert isinstance(capability.get_toolset(), ApprovalRequiredToolset)
+        assert self._write_tools_visible(capability)
+
+    def test_headless_manual_excludes_write_tools(self, model: TestModel) -> None:
+        agent = build_agent(
+            model=model,
+            headless=True,
+            github_mcp_config=self._github_config(),
+        )
+        capability = _find_capability(agent, GitHubMCPCapability)
+        assert isinstance(capability.get_toolset(), FilteredToolset)
+        assert not self._write_tools_visible(capability)
+
+    def test_bypass_allows_writes_without_approval(self, model: TestModel) -> None:
+        agent = build_agent(
+            model=model,
+            headless=True,
+            edit_permission="bypass",
+            github_mcp_config=self._github_config(),
+        )
+        capability = _find_capability(agent, GitHubMCPCapability)
+        assert isinstance(capability.get_toolset(), FilteredToolset)
+        assert self._write_tools_visible(capability)
+
+    def test_subagent_inherits_read_only_github_tools(self, model: TestModel) -> None:
+        agent = build_agent(
+            model=model,
+            enable_subagents=True,
+            github_mcp_config=self._github_config(),
+        )
+        call_subagent = _find_capability(agent, CallSubAgentCapability)
+        subagent = call_subagent.subagent.wrapped
+        matches = [
+            capability
+            for capability in _iter_capabilities(subagent.root_capability)
+            if isinstance(capability, GitHubMCPCapability)
+        ]
+        assert len(matches) == 1
+        assert not self._write_tools_visible(matches[0])

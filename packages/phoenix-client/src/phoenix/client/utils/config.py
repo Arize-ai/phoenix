@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import stat as stat_module
+import sys
 from pathlib import Path
 from typing import Iterable, Literal, NamedTuple, Optional, overload
 
@@ -102,8 +103,12 @@ def _is_env_file_discovery_enabled() -> bool:
 
 def _is_trusted_env_file_stat(stat: os.stat_result) -> bool:
     """Whether the stat describes a regular file owned by the current user."""
-    is_owned_by_current_user = not hasattr(os, "getuid") or stat.st_uid == os.getuid()
-    return stat_module.S_ISREG(stat.st_mode) and is_owned_by_current_user
+    if not stat_module.S_ISREG(stat.st_mode):
+        return False
+    if sys.platform == "win32" or not hasattr(os, "getuid"):
+        # Without POSIX file ownership ``st_uid`` carries no information.
+        return True
+    return stat.st_uid == os.getuid()
 
 
 def _find_env_file(start_dir: Path) -> Optional[Path]:

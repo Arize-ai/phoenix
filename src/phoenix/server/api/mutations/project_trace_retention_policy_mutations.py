@@ -187,7 +187,7 @@ class ProjectTraceRetentionPolicyMutationMixin:
                 policy.cron_expression = TraceRetentionCronExpression(root=input.cron_expression)
             if isinstance(input.rule, ProjectTraceRetentionRuleInput):
                 policy.rule = _gql_to_db_rule(input.rule)
-            if policy is session.dirty:
+            if policy in session.dirty:
                 await session.flush()
             if add_project_ids:
                 stmt = (

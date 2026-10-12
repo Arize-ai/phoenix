@@ -1,0 +1,26 @@
+# Dev stack started by `pnpm dev` (dekit up && dekit attach).
+#
+# dekit runs these tasks in a detached runner, so they survive closing the
+# terminal. In the console, `q` detaches and leaves everything running and
+# `Q` stops the stack; `dekit down` does the same from a shell.
+# `dekit help config` documents every key.
+tasks:
+  api:
+    cmd:
+      [
+        "sh",
+        "-c",
+        "pnpm run dev:server 2>&1 | tee /tmp/phoenix-${PHOENIX_PORT:-6006}.log",
+      ]
+    stop: { keys: ["<C-c>"] }
+    autostart: true
+
+  frontend:
+    cmd: ["pnpm", "run", "dev:ui"]
+    autostart: true
+
+  # Continuously replays recorded OpenInference traces into the dev server so
+  # there is always live traffic.
+  datagen:
+    cmd: ["pnpm", "run", "dev:datagen"]
+    autostart: true

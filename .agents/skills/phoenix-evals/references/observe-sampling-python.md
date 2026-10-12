@@ -98,4 +98,26 @@ traces = client.traces.get_traces(
     order="desc",
     limit=50,
 )
+
+# Server-side trace filter (requires Phoenix server >= 20.12.0)
+slow_failures = client.traces.get_traces(
+    project_identifier="my-app",
+    filter="error_count > 0 and latency_ms >= 1000",
+    limit=50,
+)
+
+# The clean, slow traces — the ones that are wrong without crashing
+quiet_and_slow = client.traces.get_traces(
+    project_identifier="my-app",
+    filter="error_count == 0 and 5000 <= latency_ms <= 30000",
+    limit=50,
+)
 ```
+
+`filter` is a trace filter expression: the same language as the UI's traces
+filter bar, with rollups like `error_count`, `latency_ms`, `num_spans`, and
+`total_cost` and comprehensions over `spans`. The vocabulary is in
+[filter-expressions.md](filter-expressions.md) under "Trace filter". It
+combines with `start_time`, `end_time`, and `session_id` using AND. Against an
+older server the client raises before sending the request rather than
+returning unfiltered traces.

@@ -300,6 +300,14 @@ def _semconv_provider_to_gql_generative_provider_key(
         return GenerativeProviderKey.TOGETHER
     if semconv_provider == OpenInferenceLLMProviderValues.OLLAMA:
         return GenerativeProviderKey.OLLAMA
+    if semconv_provider == OpenInferenceLLMProviderValues.META:
+        return GenerativeProviderKey.META
+    if semconv_provider == OpenInferenceLLMProviderValues.ZAI:
+        return GenerativeProviderKey.ZAI
+    if semconv_provider == OpenInferenceLLMProviderValues.MINIMAX:
+        return GenerativeProviderKey.MINIMAX
+    if semconv_provider == OpenInferenceLLMProviderValues.ORACLE:
+        return None  # TODO
     if TYPE_CHECKING:
         assert_never(semconv_provider)
     else:

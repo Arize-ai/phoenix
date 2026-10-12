@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { FEATURE_FLAGS_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 
 /**
  * No flags are currently in flight — add new pre-release gates here.
@@ -29,13 +30,11 @@ export type FeatureFlagsContextType = {
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
 };
 
-export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
-
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {};
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
   const featureFlagsFromLocalStorage = localStorage.getItem(
-    LOCAL_STORAGE_FEATURE_FLAGS_KEY
+    FEATURE_FLAGS_STORAGE_KEY
   );
   if (!featureFlagsFromLocalStorage) {
     return DEFAULT_FEATURE_FLAGS;
@@ -56,10 +55,7 @@ function getFeatureFlags(): Record<FeatureFlag, boolean> {
       }
     }
     if (hasUnknownFeatureFlags) {
-      localStorage.setItem(
-        LOCAL_STORAGE_FEATURE_FLAGS_KEY,
-        JSON.stringify(next)
-      );
+      localStorage.setItem(FEATURE_FLAGS_STORAGE_KEY, JSON.stringify(next));
     }
     return next;
   } catch (_e) {
@@ -87,10 +83,10 @@ export function useFeatureFlag(featureFlag: FeatureFlag) {
 
 export function FeatureFlagsProvider(props: React.PropsWithChildren) {
   const [featureFlags, _setFeatureFlags] =
-    useState<Record<FeatureFlag, boolean>>(getFeatureFlags());
+    useState<Record<FeatureFlag, boolean>>(getFeatureFlags);
   const setFeatureFlags = (featureFlags: Record<FeatureFlag, boolean>) => {
     localStorage.setItem(
-      LOCAL_STORAGE_FEATURE_FLAGS_KEY,
+      FEATURE_FLAGS_STORAGE_KEY,
       JSON.stringify(featureFlags)
     );
     _setFeatureFlags(featureFlags);

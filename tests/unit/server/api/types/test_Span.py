@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from random import choice, randint, random
 from secrets import token_hex
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, NamedTuple, Optional
 
 import pytest
 from faker import Faker
@@ -26,6 +26,14 @@ _SpanRowId: TypeAlias = int
 _SpanId: TypeAlias = str
 
 fake = Faker()
+
+
+class _SpanCostDetailsTree(NamedTuple):
+    root: models.Span
+    child: models.Span
+    grandchild: models.Span
+    sibling: models.Span
+    costless_leaf: models.Span
 
 
 async def test_project_resolver_returns_correct_project(
@@ -715,6 +723,31 @@ async def test_span_annotation_summaries(
         )
 
 
+async def test_span_annotation_summaries_are_ordered_by_name(
+    gql_client: AsyncGraphQLClient,
+    spans_with_annotations: None,
+) -> None:
+    """Summaries have no id, so clients cache them by position (see the resolver)."""
+    response = await gql_client.execute(
+        """
+        query ($spanId: ID!) {
+          span: node(id: $spanId) {
+            ... on Span {
+              spanAnnotationSummaries {
+                name
+              }
+            }
+          }
+        }
+        """,
+        variables={"spanId": str(GlobalID(Span.__name__, str(1)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [summary["name"] for summary in response.data["span"]["spanAnnotationSummaries"]]
+    assert names == ["Hallucination", "Relevance"]
+
+
 @pytest.fixture
 async def spans_with_annotations(
     db: DbSessionFactory,
@@ -892,8 +925,9 @@ async def spans_with_annotations(
             ),
         ]
 
-        # Add all annotations to the session
-        session.add_all(hallucination_annotations + relevance_annotations)
+        # Add all annotations to the session. Relevance goes in first so the
+        # summaries' order cannot fall out of insertion order by accident.
+        session.add_all(relevance_annotations + hallucination_annotations)
 
 
 @pytest.fixture
@@ -913,7 +947,7 @@ async def _span_with_invalid_mime_type(db: DbSessionFactory) -> int:
             )
             .returning(models.Trace.id)
         )
-        span_rowid = await session.scalar(
+        span_rowid: int | None = await session.scalar(
             insert(models.Span)
             .values(
                 trace_rowid=trace_rowid,
@@ -1033,3 +1067,319 @@ async def test_as_example_revision_with_annotations(
         assert "annotator_kind" in annotation
         # annotator_kind should be a string, not a function or enum
         assert annotation["annotator_kind"] in ("HUMAN", "LLM", "CODE")
+
+
+@pytest.fixture
+async def _span_cost_details_tree(
+    db: DbSessionFactory,
+) -> _SpanCostDetailsTree:
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        now = datetime.now(timezone.utc)
+        trace = models.Trace(
+            trace_id=token_hex(16),
+            project_rowid=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(trace)
+        await session.flush()
+
+        def _new_span(parent: Optional[models.Span]) -> models.Span:
+            return models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                parent_id=None if parent is None else parent.span_id,
+                name=token_hex(8),
+                span_kind="LLM",
+                start_time=now,
+                end_time=now,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+
+        root = _new_span(None)
+        session.add(root)
+        await session.flush()
+        child = _new_span(root)
+        session.add(child)
+        await session.flush()
+        grandchild = _new_span(child)
+        session.add(grandchild)
+        await session.flush()
+        sibling = _new_span(root)
+        session.add(sibling)
+        await session.flush()
+        costless_leaf = _new_span(sibling)
+        session.add(costless_leaf)
+        await session.flush()
+
+        async def _add_cost_details(
+            span: models.Span,
+            entries: list[tuple[str, bool, float, float]],
+        ) -> None:
+            span_cost = models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=span.start_time,
+                model_id=None,
+            )
+            session.add(span_cost)
+            await session.flush()
+            for token_type, is_prompt, tokens, cost in entries:
+                session.add(
+                    models.SpanCostDetail(
+                        span_cost_id=span_cost.id,
+                        token_type=token_type,
+                        is_prompt=is_prompt,
+                        tokens=tokens,
+                        cost=cost,
+                        cost_per_token=None,
+                    )
+                )
+            await session.flush()
+
+        await _add_cost_details(
+            root,
+            [("input", True, 10, 0.1), ("cache_read", True, 5, 0.01)],
+        )
+        await _add_cost_details(
+            child,
+            [("input", True, 20, 0.2), ("output", False, 8, 0.08)],
+        )
+        await _add_cost_details(
+            grandchild,
+            [("cache_read", True, 3, 0.003), ("output", False, 2, 0.02)],
+        )
+        await _add_cost_details(
+            sibling,
+            [("input", True, 7, 0.07)],
+        )
+
+        await session.commit()
+    return _SpanCostDetailsTree(
+        root=root,
+        child=child,
+        grandchild=grandchild,
+        sibling=sibling,
+        costless_leaf=costless_leaf,
+    )
+
+
+_CUMULATIVE_COST_DETAIL_QUERY = """
+  query ($spanId: ID!) {
+    span: node(id: $spanId) {
+      ... on Span {
+        cumulativeCostDetailSummaryEntries {
+          tokenType
+          isPrompt
+          value {
+            tokens
+            cost
+          }
+        }
+      }
+    }
+  }
+"""
+
+_Entries: TypeAlias = dict[tuple[str, bool], tuple[Any, Any]]
+
+
+def _entries_by_key(entries: list[dict[str, Any]]) -> _Entries:
+    return {
+        (entry["tokenType"], entry["isPrompt"]): (
+            entry["value"]["tokens"],
+            entry["value"]["cost"],
+        )
+        for entry in entries
+    }
+
+
+async def _cumulative_entries(gql_client: AsyncGraphQLClient, span_rowid: int) -> _Entries:
+    response = await gql_client.execute(
+        query=_CUMULATIVE_COST_DETAIL_QUERY,
+        variables={"spanId": str(GlobalID(Span.__name__, str(span_rowid)))},
+    )
+    assert not response.errors
+    assert (data := response.data) is not None
+    return _entries_by_key(data["span"]["cumulativeCostDetailSummaryEntries"])
+
+
+async def test_cumulative_cost_detail_summary_entries_aggregates_self_and_descendants(
+    _span_cost_details_tree: _SpanCostDetailsTree,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    grandchild_entries = await _cumulative_entries(
+        gql_client, _span_cost_details_tree.grandchild.id
+    )
+    assert grandchild_entries == {
+        ("cache_read", True): (3, pytest.approx(0.003)),
+        ("output", False): (2, pytest.approx(0.02)),
+    }
+
+    child_entries = await _cumulative_entries(gql_client, _span_cost_details_tree.child.id)
+    assert child_entries == {
+        ("input", True): (20, pytest.approx(0.2)),
+        ("cache_read", True): (3, pytest.approx(0.003)),
+        ("output", False): (2 + 8, pytest.approx(0.02 + 0.08)),
+    }
+
+    root_entries = await _cumulative_entries(gql_client, _span_cost_details_tree.root.id)
+    assert root_entries == {
+        ("input", True): (10 + 20 + 7, pytest.approx(0.1 + 0.2 + 0.07)),
+        ("cache_read", True): (5 + 3, pytest.approx(0.01 + 0.003)),
+        ("output", False): (2 + 8, pytest.approx(0.02 + 0.08)),
+    }
+
+
+async def test_cumulative_cost_detail_summary_entries_excludes_sibling_subtree(
+    _span_cost_details_tree: _SpanCostDetailsTree,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    sibling_entries = await _cumulative_entries(gql_client, _span_cost_details_tree.sibling.id)
+    assert sibling_entries == {("input", True): (7, pytest.approx(0.07))}
+
+
+async def test_cumulative_cost_detail_summary_entries_is_empty_without_costs(
+    _span_cost_details_tree: _SpanCostDetailsTree,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    leaf_entries = await _cumulative_entries(gql_client, _span_cost_details_tree.costless_leaf.id)
+    assert leaf_entries == {}
+
+
+async def test_cumulative_cost_detail_summary_entries_batches_overlapping_roots(
+    _span_cost_details_tree: _SpanCostDetailsTree,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    query = """
+      query ($rootId: ID!, $childId: ID!, $duplicateRootId: ID!) {
+        root: node(id: $rootId) {
+          ... on Span {
+            cumulativeCostDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value { tokens cost }
+            }
+          }
+        }
+        child: node(id: $childId) {
+          ... on Span {
+            cumulativeCostDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value { tokens cost }
+            }
+          }
+        }
+        duplicateRoot: node(id: $duplicateRootId) {
+          ... on Span {
+            cumulativeCostDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value { tokens cost }
+            }
+          }
+        }
+      }
+    """
+    root_gid = str(GlobalID(Span.__name__, str(_span_cost_details_tree.root.id)))
+    child_gid = str(GlobalID(Span.__name__, str(_span_cost_details_tree.child.id)))
+    response = await gql_client.execute(
+        query=query,
+        variables={"rootId": root_gid, "childId": child_gid, "duplicateRootId": root_gid},
+    )
+    assert not response.errors
+    assert (data := response.data) is not None
+
+    expected_root = {
+        ("input", True): (10 + 20 + 7, pytest.approx(0.1 + 0.2 + 0.07)),
+        ("cache_read", True): (5 + 3, pytest.approx(0.01 + 0.003)),
+        ("output", False): (2 + 8, pytest.approx(0.02 + 0.08)),
+    }
+    assert _entries_by_key(data["root"]["cumulativeCostDetailSummaryEntries"]) == expected_root
+    assert (
+        _entries_by_key(data["duplicateRoot"]["cumulativeCostDetailSummaryEntries"])
+        == expected_root
+    )
+    assert _entries_by_key(data["child"]["cumulativeCostDetailSummaryEntries"]) == {
+        ("input", True): (20, pytest.approx(0.2)),
+        ("cache_read", True): (3, pytest.approx(0.003)),
+        ("output", False): (2 + 8, pytest.approx(0.02 + 0.08)),
+    }
+
+
+async def test_cumulative_cost_detail_summary_entries_terminates_on_parent_cycle(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        now = datetime.now(timezone.utc)
+        trace = models.Trace(
+            trace_id=token_hex(16),
+            project_rowid=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(trace)
+        await session.flush()
+
+        first_span_id, second_span_id = token_hex(8), token_hex(8)
+
+        def _new_span(span_id: str, parent_id: str) -> models.Span:
+            return models.Span(
+                trace_rowid=trace.id,
+                span_id=span_id,
+                parent_id=parent_id,
+                name=token_hex(8),
+                span_kind="LLM",
+                start_time=now,
+                end_time=now,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+
+        first = _new_span(first_span_id, parent_id=second_span_id)
+        second = _new_span(second_span_id, parent_id=first_span_id)
+        session.add_all([first, second])
+        await session.flush()
+
+        for span, tokens, cost in ((first, 4, 0.04), (second, 6, 0.06)):
+            span_cost = models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=span.start_time,
+                model_id=None,
+            )
+            session.add(span_cost)
+            await session.flush()
+            session.add(
+                models.SpanCostDetail(
+                    span_cost_id=span_cost.id,
+                    token_type="input",
+                    is_prompt=True,
+                    tokens=tokens,
+                    cost=cost,
+                    cost_per_token=None,
+                )
+            )
+        await session.commit()
+
+    entries = await _cumulative_entries(gql_client, first.id)
+    assert entries == {("input", True): (4 + 6, pytest.approx(0.04 + 0.06))}

@@ -37,6 +37,9 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   FIREWORKS: [],
   GROQ: [],
   MOONSHOT: ["moonshot", "kimi"],
+  MINIMAX: ["minimax"],
   PERPLEXITY: ["sonar"],
   TOGETHER: [],
+  ZAI: ["glm"],
+  META: ["muse"],
 };

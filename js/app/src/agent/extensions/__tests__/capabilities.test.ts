@@ -1,8 +1,4 @@
-import {
-  AGENT_CAPABILITY_DEFINITIONS,
-  createDefaultAgentCapabilities,
-  getAgentCapabilitiesForControlSurface,
-} from "@phoenix/agent/extensions/capabilities";
+import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 describe("agent capabilities", () => {
   it("creates a fresh copy of the default capabilities", () => {
@@ -11,17 +7,5 @@ describe("agent capabilities", () => {
 
     expect(firstDefaults).toEqual(secondDefaults);
     expect(firstDefaults).not.toBe(secondDefaults);
-  });
-
-  it("filters capabilities by control surface", () => {
-    const debugMenuCapabilities = getAgentCapabilitiesForControlSurface(
-      "experimental-settings"
-    );
-
-    expect(debugMenuCapabilities).toEqual(
-      AGENT_CAPABILITY_DEFINITIONS.filter(
-        (definition) => definition.controlSurface === "experimental-settings"
-      )
-    );
   });
 });

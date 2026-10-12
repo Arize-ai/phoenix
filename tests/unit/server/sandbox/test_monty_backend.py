@@ -105,7 +105,8 @@ async def test_execute_applies_resource_limits(runtime: MontyRuntime) -> None:
 
     assert result.success
     assert runtime.run.call_args.kwargs["limits"] == {
-        "max_duration_secs": 7.0,
+        "max_feed_duration_secs": 7.0,
+        "max_total_sleep_secs": 7.0,
         "max_memory": DEFAULT_GUEST_MAX_MEMORY_BYTES,
         "max_recursion_depth": DEFAULT_GUEST_MAX_RECURSION_DEPTH,
     }
