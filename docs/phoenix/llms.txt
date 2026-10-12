@@ -325,6 +325,7 @@
 - [Flowise Tracing](https://arize.com/docs/phoenix/integrations/platforms/flowise/flowise-tracing): Send traces from Flowise flows
 - [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
 - [Prompt Flow Tracing](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing): Send traces from Azure Prompt Flow
+- [Scalekit Tracing](https://arize.com/docs/phoenix/integrations/platforms/scalekit/scalekit-tracing): Trace Scalekit AgentKit tool calls as TOOL spans with traceTool
 
 ### Vector Databases
 
@@ -352,6 +353,7 @@
 - [Flowise Integration](https://arize.com/docs/phoenix/integrations/platforms/flowise): Connect Flowise chatflows and agentflows to Phoenix
 - [LangFlow Integration](https://arize.com/docs/phoenix/integrations/platforms/langflow): Connect LangFlow's visual workflow builder to Phoenix
 - [Prompt Flow Integration](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow): Connect Azure Prompt Flow orchestrations to Phoenix
+- [Scalekit Integration](https://arize.com/docs/phoenix/integrations/platforms/scalekit): Connect Scalekit AgentKit tool execution to Phoenix
 
 ### Java Frameworks — Additional
 
