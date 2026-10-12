@@ -4,10 +4,10 @@ Decision models are a second model type alongside chat (LLM) models. A provider 
 offer either or both: OpenAI serves ``gpt-6-luna`` through both its chat and its
 Decisions APIs, while TypeSafe serves decision models only. The registry below is the
 single source of truth for which providers and models support decision execution, and
-each client class declares how it reaches its provider: the API shape (``system`` and
-``wire_format``), the endpoint path, the default base URL and its environment override,
-and the credential it authenticates with. Nothing outside this module should
-special-case a provider.
+each client class declares how it reaches its provider: the OpenInference ``system`` and
+``provider`` values and the ``wire_format`` that name its API shape, the endpoint path,
+the default base URL and its environment override, and the credential it authenticates
+with. Nothing outside this module should special-case a provider.
 """
 
 import asyncio
@@ -16,7 +16,12 @@ from abc import ABC, abstractmethod
 from typing import Annotated, Any, Callable, ClassVar, Literal, Optional, Sequence
 
 import httpx
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import (
+    OpenInferenceDecisionProviderValues,
+    OpenInferenceDecisionSystemValues,
+    OpenInferenceSpanKindValues,
+    SpanAttributes,
+)
 from opentelemetry.context import Context as OtelContext
 from opentelemetry.trace import Span as OtelSpan
 from opentelemetry.trace import Status, StatusCode
@@ -33,7 +38,6 @@ from phoenix.server.api.helpers.playground_registry import (
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
-from phoenix.trace.decision import DecisionAttributes
 from phoenix.tracers import Tracer
 
 Description = str | dict[str, Any] | list[Any]
@@ -129,7 +133,8 @@ class DecisionClient(ABC):
     """
 
     provider_key: ClassVar[GenerativeProviderKey]
-    system: ClassVar[str]
+    system: ClassVar[OpenInferenceDecisionSystemValues]
+    provider: ClassVar[OpenInferenceDecisionProviderValues]
     wire_format: ClassVar[DecisionWireFormat]
     path: ClassVar[str]
     default_base_url: ClassVar[str]
@@ -190,11 +195,11 @@ class DecisionClient(ABC):
             "Decision",
             context=OtelContext(),
             attributes={
-                SpanAttributes.OPENINFERENCE_SPAN_KIND: "DECISION",
-                DecisionAttributes.SYSTEM: self.system,
-                DecisionAttributes.PROVIDER: self.system,
-                DecisionAttributes.MODEL_NAME: self.model_name,
-                DecisionAttributes.REQUEST_MODEL_NAME: self.model_name,
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.DECISION.value,
+                SpanAttributes.DECISION_SYSTEM: self.system.value,
+                SpanAttributes.DECISION_PROVIDER: self.provider.value,
+                SpanAttributes.DECISION_MODEL_NAME: self.model_name,
+                SpanAttributes.DECISION_REQUEST_MODEL_NAME: self.model_name,
                 SpanAttributes.INPUT_MIME_TYPE: "application/json",
                 SpanAttributes.INPUT_VALUE: json.dumps(body, ensure_ascii=False),
             },
@@ -233,14 +238,14 @@ class DecisionClient(ABC):
                     if isinstance(response_model, str) and response_model.strip()
                     else self.model_name
                 )
-                span.set_attribute(DecisionAttributes.RESPONSE_MODEL_NAME, resolved_model)
-                span.set_attribute(DecisionAttributes.MODEL_NAME, resolved_model)
+                span.set_attribute(SpanAttributes.DECISION_RESPONSE_MODEL_NAME, resolved_model)
+                span.set_attribute(SpanAttributes.DECISION_MODEL_NAME, resolved_model)
                 # Usage is optional, and a provider may send it as null.
                 usage = result.get("usage")
                 if isinstance(usage, dict):
                     for key, attribute in (
-                        ("input_tokens", DecisionAttributes.TOKEN_COUNT_INPUT),
-                        ("output_tokens", DecisionAttributes.TOKEN_COUNT_OUTPUT),
+                        ("input_tokens", SpanAttributes.DECISION_TOKEN_COUNT_INPUT),
+                        ("output_tokens", SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT),
                     ):
                         count = usage.get(key)
                         if isinstance(count, int) and count >= 0:
@@ -339,7 +344,8 @@ class TypeSafeDecisionClient(DecisionClient):
     proxy, self-hosted vLLM Decision models) works through ``TYPESAFE_BASE_URL``."""
 
     provider_key = GenerativeProviderKey.TYPESAFE
-    system = "typesafe"
+    system = OpenInferenceDecisionSystemValues.TYPESAFE
+    provider = OpenInferenceDecisionProviderValues.TYPESAFE
     wire_format = DecisionWireFormat.SYSTEM_ONE
     path = "systemone"
     default_base_url = "https://api.typesafe.ai/v1"
@@ -362,7 +368,8 @@ class OpenAIDecisionClient(DecisionClient):
     """OpenAI Decisions API. Shares OpenAI's credential and base URL with chat."""
 
     provider_key = GenerativeProviderKey.OPENAI
-    system = "openai"
+    system = OpenInferenceDecisionSystemValues.OPENAI
+    provider = OpenInferenceDecisionProviderValues.OPENAI
     wire_format = DecisionWireFormat.OPENAI_DECISIONS
     path = "decisions"
     default_base_url = "https://api.openai.com/v1"
