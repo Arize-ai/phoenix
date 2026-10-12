@@ -212,13 +212,12 @@ p{margin:0}
 /* in the product: screenshots as app windows */
 .px-tag{position:absolute;bottom:calc(100% + 12px);white-space:nowrap;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .px-tag b{font-weight:500;color:var(--text);margin-right:8px}
-.hx-stage{position:relative;flex:1;min-height:0;margin-top:48px}
-.hx-bench,.hx-trace{position:absolute;margin:0}
-.hx-bench{z-index:1}.hx-trace{z-index:2}
-.slide.front .hx-bench{z-index:3}
-.hx-bench{right:0;top:0;width:1000px}
-.hx-trace{left:0;bottom:0;width:720px}
-.hx-bench img,.hx-trace img{display:block;width:100%;height:auto;border-radius:var(--radius);box-shadow:var(--shadow-shot)}
+.hx-stage{position:relative;flex:1;min-height:0;margin-top:48px;container-type:size}
+.hx-shot{position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s}
+.hx-shot>span{position:relative;display:block;width:min(100%,calc(100cqh * var(--r)))}
+.hx-shot img{display:block;width:100%;height:auto;border-radius:var(--radius);box-shadow:var(--shadow-shot)}
+.hx-shot.hx-trace,.slide.s2 .hx-data,.slide.s3 .hx-bench{opacity:1;visibility:visible;transition:opacity .35s ease}
+.slide.s2 .hx-trace,.slide.s3 .hx-data{opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s}
 .hx-ring{position:absolute;border:2px solid #3FD9D4;border-radius:var(--radius);pointer-events:none}
 
 @media (prefers-reduced-motion:reduce){.slide,.progress i{transition:none}}
@@ -244,7 +243,7 @@ p{margin:0}
   <div class="head">
     <div class="eyebrow">Phoenix × Harbor</div>
     <h1>Harbor Intro</h1>
-    <p class="lede">Ship on evidence, not vibes.</p>
+    <p class="lede">Ship on evidence, not vibes</p>
   </div>
 </section>
 
@@ -511,17 +510,21 @@ fi</pre>
 </section>
 
 
-<section class="slide" data-title="Harbor screenshot" data-fragment="front">
+<section class="slide" data-title="Harbor screenshot" data-fragment="s2 s3">
   <div class="head"><div class="eyebrow"><b>08 · In Phoenix</b></div><h3 style="font-size:44px;font-weight:400">In the product</h3></div>
   <div class="hx-stage">
-    <figure class="hx-bench">
-      <img src="harbor-benchmark.png" alt="The pxi-benchmark dataset in Phoenix with 21 experiments. Charts show cost per experiment and mean reward climbing from 0 to 1.00 across experiments 15 to 21. The table lists each experiment's verifier scores, including configs_ok, coverage_ok, infra_ok, judge_ok, labels_ok, notes_ok, planted_recall, reward, and sidecar_ok.">
-      <i class="hx-ring" style="left:37.6%;top:19.8%;width:23.8%;height:23.8%"></i>
-    </figure>
-    <figure class="hx-trace">
+    <figure class="hx-shot hx-trace" style="--r:1.8274"><span>
       <img src="harbor-trace.png" alt="An experiment run trace for harbor.trial error-analysis: status OK, cost $2.49, latency 7 minutes 59 seconds. The span tree shows harbor.step 1 step_01_open_coding and harbor.step 2 step_02_axial_coding, then the claude-code agent, turn 1, and iterations with claude-fable-5-1 LLM spans and Bash, ToolSearch, and mcp__phoenix__load_skill tool spans. The input panel lists the two step instructions.">
       <i class="hx-ring" style="left:1.4%;top:21.6%;width:29.4%;height:73.6%"></i>
-    </figure>
+    </span></figure>
+    <figure class="hx-shot hx-data" style="--r:2.8397"><span>
+      <img src="harbor-dataset.png" alt="The api-selection-test dataset in Phoenix with 36 experiments and 101 examples, opened on the example repeat-failers. The input panel holds the task id, task name, and instruction asking which dataset examples failed safe_sql_exact_match more than once across four experiments; the output panel holds the reference assistant message: example 126 failed 2 times; example 127 failed 2 times.">
+      <i class="hx-ring" style="left:37.4%;top:17.8%;width:50.4%;height:80.3%"></i>
+    </span></figure>
+    <figure class="hx-shot hx-bench" style="--r:1.8533"><span>
+      <img src="harbor-benchmark.png" alt="The pxi-benchmark dataset in Phoenix with 21 experiments. Charts show cost per experiment and mean reward climbing from 0 to 1.00 across experiments 15 to 21. The table lists each experiment's verifier scores, including configs_ok, coverage_ok, infra_ok, judge_ok, labels_ok, notes_ok, planted_recall, reward, and sidecar_ok.">
+      <i class="hx-ring" style="left:37.6%;top:19.8%;width:23.8%;height:23.8%"></i>
+    </span></figure>
   </div>
 </section>
 
