@@ -5,10 +5,7 @@ import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Flex } from "@phoenix/components";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import {
-  PreformattedTextCell,
-  ResizableTable,
-} from "@phoenix/components/table";
+import { PrettyTextCell, ResizableTable } from "@phoenix/components/table";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationDeleteButton } from "@phoenix/components/trace/SpanAnnotationDeleteButton";
@@ -78,7 +75,9 @@ function AnnotationsTable({
       {
         header: "explanation",
         accessorKey: "explanation",
-        cell: PreformattedTextCell,
+        cell: (context) => (
+          <PrettyTextCell {...context} isExpanded={areRowsExpanded} />
+        ),
         size: 400,
       },
       {
@@ -149,7 +148,7 @@ function AnnotationsTable({
         ),
       },
     ],
-    [spanNodeId, handleDeleteSuccess]
+    [spanNodeId, handleDeleteSuccess, areRowsExpanded]
   );
 
   return (

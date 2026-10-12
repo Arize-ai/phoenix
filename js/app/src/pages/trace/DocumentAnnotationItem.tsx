@@ -4,6 +4,7 @@ import type { TokenProps, ViewProps } from "@phoenix/components";
 import { Flex, Text, Token, View } from "@phoenix/components";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { PrettyText } from "@phoenix/components/utility/PrettyText";
 import { isAnnotatorKind } from "@phoenix/constants";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -184,7 +185,7 @@ export function DocumentAnnotationItem({
             <Text size="XS" color="text-900" weight="heavy">
               Explanation
             </Text>
-            <Text>{documentAnnotation.explanation}</Text>
+            <PrettyText>{documentAnnotation.explanation}</PrettyText>
           </Flex>
         ) : null}
       </Flex>

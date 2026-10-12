@@ -12,7 +12,6 @@ import {
   Heading,
   Icon,
   Icons,
-  Text,
   TitleWithID,
   View,
   ViewSummaryAside,
@@ -27,6 +26,7 @@ import {
 } from "@phoenix/components/core/dialog";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { PrettyText } from "@phoenix/components/utility/PrettyText";
 
 import type { PlaygroundExperimentRunDetailsDialogQuery } from "./__generated__/PlaygroundExperimentRunDetailsDialogQuery.graphql";
 
@@ -218,9 +218,17 @@ function RunLatency({
 
 function RunError({ error }: { error: string }) {
   return (
-    <Flex direction="row" gap="size-50" alignItems="center">
+    <Flex direction="row" gap="size-50" alignItems="start">
       <Icon svg={<Icons.AlertCircle />} color="danger" />
-      <Text color="danger">{error}</Text>
+      <View minWidth={0} flex="1 1 auto">
+        <PrettyText
+          preCSS={css`
+            color: var(--global-color-danger);
+          `}
+        >
+          {error}
+        </PrettyText>
+      </View>
     </Flex>
   );
 }
