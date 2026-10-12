@@ -68,8 +68,9 @@ export async function decideClassification(args: {
 }
 
 /**
- * OpenAI reports a per-question confidence only in provider metadata.
- * For a two-way choice it is the margin between the two probabilities.
+ * The decision model spec has no confidence field, but providers that
+ * report one (OpenAI, TypeSafe) put it in their provider metadata as
+ * `confidence[questionId]`.
  */
 function getConfidence(providerMetadata: unknown): number | undefined {
   if (typeof providerMetadata !== "object" || providerMetadata === null) {

@@ -55,7 +55,7 @@ const result = await correctness.evaluate({
 How it differs from a language model:
 
 - **No explanation.** Decision models don't generate text, so `explanation` is always undefined.
-- **Probabilities in metadata.** `metadata.probabilities` maps each label to its probability. `metadata.confidence` is included when the provider reports one (OpenAI does).
+- **Probabilities in metadata.** `metadata.probabilities` maps each label to its probability. `metadata.confidence` is included when the provider reports one (OpenAI and TypeSafe do).
 - **Prompt shape.** The template is rendered the same way as for a language model, then sent as one plain-text state. Message roles are dropped and only text content is sent.
 - **Choices.** Each provider sets its own limits on how many choices a question can have. A classification outside them fails with the provider's error.
 - **Refusals.** A decision model may refuse to classify, for example when asked to infer sensitive attributes rejected by the chosen model. On a refusal, the evaluator throws the AI SDK's `Experimental_DecisionRefusalError`. In `runExperiment`, it's recorded as that evaluation's error.
