@@ -9,6 +9,12 @@ import {
   createExpandedRowModel,
   createFilteredRowModel,
   createSortedRowModel,
+  filterFn_arrIncludes,
+  filterFn_equals,
+  filterFn_inDateRange,
+  filterFn_includesString,
+  filterFn_inNumberRange,
+  filterFn_weakEquals,
   globalFilteringFeature,
   rowExpandingFeature,
   rowSelectionFeature,
@@ -46,6 +52,15 @@ export const appTableFeatures = tableFeatures({
   filteredRowModel: createFilteredRowModel(),
   sortedRowModel: createSortedRowModel(),
   expandedRowModel: createExpandedRowModel(),
+  // the functions a column's `filterFn: "auto"` (the default) can pick from
+  filterFns: {
+    arrIncludes: filterFn_arrIncludes,
+    equals: filterFn_equals,
+    inDateRange: filterFn_inDateRange,
+    includesString: filterFn_includesString,
+    inNumberRange: filterFn_inNumberRange,
+    weakEquals: filterFn_weakEquals,
+  },
   // the functions a column's `sortFn: "auto"` (the default) can pick from
   sortFns: {
     alphanumeric: sortFn_alphanumeric,
