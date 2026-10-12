@@ -19,7 +19,8 @@ export type DecisionPrompt = {
 export const GENERIC_DECISION_INSTRUCTIONS =
   "Read the prompt in the state and answer it by selecting exactly one of the choices.";
 
-const DATA_BLOCK = /<data>[\s\S]*?<\/data>/g;
+const DATA_OPEN = "<data>";
+const DATA_CLOSE = "</data>";
 
 /**
  * Build a decision prompt from an unrendered prompt template.
@@ -38,7 +39,7 @@ export function templateToDecisionPrompt(args: {
 }): DecisionPrompt {
   const { template, variables } = args;
   const text = promptTemplateToText(template);
-  const blocks = text.match(DATA_BLOCK) ?? [];
+  const blocks = findDataBlocks(text);
   if (blocks.length === 1) {
     try {
       return splitAtDataBlock({ text, block: blocks[0]!, variables });
@@ -54,14 +55,35 @@ export function templateToDecisionPrompt(args: {
   };
 }
 
+type TextSpan = { start: number; end: number };
+
+/**
+ * Find each `<data>…</data>` block, pairing every opening tag with the next
+ * closing tag. Scans with `indexOf` rather than a lazy regex, which would
+ * backtrack quadratically on text with many unclosed `<data>` tags.
+ */
+function findDataBlocks(text: string): TextSpan[] {
+  const blocks: TextSpan[] = [];
+  let from = 0;
+  for (;;) {
+    const start = text.indexOf(DATA_OPEN, from);
+    if (start === -1) break;
+    const close = text.indexOf(DATA_CLOSE, start + DATA_OPEN.length);
+    if (close === -1) break;
+    const end = close + DATA_CLOSE.length;
+    blocks.push({ start, end });
+    from = end;
+  }
+  return blocks;
+}
+
 function splitAtDataBlock(args: {
   text: string;
-  block: string;
+  block: TextSpan;
   variables: TemplateVariables;
 }): DecisionPrompt {
   const { text, block, variables } = args;
-  const start = text.indexOf(block);
-  const end = start + block.length;
+  const { start, end } = block;
   const instructions = [text.slice(0, start), text.slice(end)]
     .map((part) => render(part, variables).trim())
     .filter((part) => part.length > 0)
