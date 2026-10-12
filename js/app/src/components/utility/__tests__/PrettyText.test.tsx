@@ -136,14 +136,14 @@ describe("PrettyText compact presentation", () => {
       JSON.stringify({ payload }, null, 2)
     );
   });
-  it("shows the full formatted source without a label on budget fallback", async () => {
+  it("shows the full original source without a label on budget fallback", async () => {
     const source = {
       early: "{}",
       values: Array.from({ length: 101 }, () => "{broken"),
     };
     await renderText({ text: JSON.stringify(source) });
     expect(container.querySelector(".pretty-text")?.textContent).toBe(
-      JSON.stringify(source, null, 2)
+      JSON.stringify(source)
     );
     expect(container.querySelector(".pretty-text__preview-label")).toBeNull();
   });
@@ -176,5 +176,49 @@ describe("PrettyText compact presentation", () => {
     expect(
       container.querySelector(".pretty-text__preview-label")
     ).not.toBeNull();
+  });
+  it.each([
+    "9007199254740993",
+    "1e400",
+    "1e-400",
+    "0.123456789012345678901",
+    "-0",
+  ])("never rounds raw compact number %s, native or encoded", async (token) => {
+    const inner = `{ "value": ${token} }`;
+    for (const text of [` ${inner}\n`, JSON.stringify({ payload: inner })]) {
+      await renderText({ text });
+      expect(container.querySelector(".pretty-text")?.textContent).toBe(text);
+      expect(
+        container.querySelector(".pretty-text")?.classList.contains("font-mono")
+      ).toBe(true);
+      expect(container.querySelector(".pretty-text__preview-label")).toBeNull();
+    }
+  });
+  it("memoizes by raw source, not the rounded output of the shared formatter", async () => {
+    const first = '{"id":9007199254740993}';
+    const second = ' {"id":9007199254740992.1}  ';
+    await renderText({ text: first });
+    expect(container.querySelector(".pretty-text")?.textContent).toBe(first);
+    await renderText({ text: second });
+    expect(container.querySelector(".pretty-text")?.textContent).toBe(second);
+    await renderText({ text: '{"id":1e3}' });
+    expect(container.querySelector(".pretty-text")?.textContent).toBe(
+      '{\n  "id": 1000\n}'
+    );
+  });
+  it("does not pass oversized compact source to the shared parser", async () => {
+    const text = "9".repeat(100_001);
+    const parse = vi.spyOn(JSON, "parse");
+    await renderText({ text });
+    expect(container.querySelector(".pretty-text")?.textContent).toBe(text);
+    expect(parse).not.toHaveBeenCalled();
+    expect(container.querySelector(".pretty-text__preview-label")).toBeNull();
+  });
+  it("leaves the default caller's existing number formatting policy unchanged", async () => {
+    await renderText({ text: '{"id":9007199254740993}', variant: "code" });
+    expect(container.querySelector(".cm-content")?.textContent).toContain(
+      '"id": 9007199254740992'
+    );
+    expect(container.querySelector(".pretty-text__preview-label")).toBeNull();
   });
 });

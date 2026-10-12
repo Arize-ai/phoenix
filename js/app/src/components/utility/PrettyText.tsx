@@ -28,45 +28,54 @@ export function PrettyText({
   preCSS,
   variant = "code",
 }: PrettyTextProps) {
-  const { text, textType } = usePrettyText(children);
-  const preview = useMemo(
-    () =>
-      variant === "compact" && textType === "json"
-        ? getJSONDisplayPreview({ text })
-        : { text, hasDecodedStrings: false },
-    [variant, text, textType]
+  return variant === "compact" ? (
+    <CompactPrettyText>{children}</CompactPrettyText>
+  ) : (
+    <CodePrettyText preCSS={preCSS}>{children}</CodePrettyText>
   );
-  if (variant === "compact") {
-    return (
-      <>
-        {preview.hasDecodedStrings ? (
-          <Text
-            className="pretty-text__preview-label"
-            size="XS"
-            color="inherit"
-            css={css`
-              display: block;
-              padding-bottom: var(--global-dimension-size-50);
-            `}
-          >
-            JSON preview · encoded strings decoded
-          </Text>
-        ) : null}
+}
+
+function CompactPrettyText({ children }: { children: string }) {
+  const preview = useMemo(
+    () => getJSONDisplayPreview({ text: children }),
+    [children]
+  );
+  return (
+    <>
+      {preview.hasDecodedStrings ? (
         <Text
-          className="pretty-text pretty-text--compact"
+          className="pretty-text__preview-label"
+          size="XS"
           color="inherit"
-          fontFamily={textType === "json" ? "mono" : "default"}
           css={css`
             display: block;
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
+            padding-bottom: var(--global-dimension-size-50);
           `}
         >
-          {preview.text}
+          JSON preview · encoded strings decoded
         </Text>
-      </>
-    );
-  }
+      ) : null}
+      <Text
+        className="pretty-text pretty-text--compact"
+        color="inherit"
+        fontFamily={preview.textType === "json" ? "mono" : "default"}
+        css={css`
+          display: block;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+        `}
+      >
+        {preview.text}
+      </Text>
+    </>
+  );
+}
+
+function CodePrettyText({
+  children,
+  preCSS,
+}: Omit<PrettyTextProps, "variant">) {
+  const { text, textType } = usePrettyText(children);
   if (textType === "string") {
     return (
       <pre

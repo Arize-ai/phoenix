@@ -26,6 +26,7 @@ describe("getJSONDisplayPreview", () => {
         native: [[1, { note: "kept" }]],
       }),
       hasDecodedStrings: true,
+      textType: "json",
     });
     expect(typeof source.payload).toBe("string");
     expect(typeof source.native[0]).toBe("string");
@@ -39,10 +40,12 @@ describe("getJSONDisplayPreview", () => {
     ).toEqual({
       text: format({ payload: { items: [1, 2], empty: {} } }),
       hasDecodedStrings: true,
+      textType: "json",
     });
     expect(getJSONDisplayPreview({ text: format(encoded) })).toEqual({
       text: format({ items: [1, 2], empty: {} }),
       hasDecodedStrings: true,
+      textType: "json",
     });
   });
 
@@ -60,6 +63,7 @@ describe("getJSONDisplayPreview", () => {
     ).toEqual({
       text: format({ payload: decoded }),
       hasDecodedStrings: true,
+      textType: "json",
     });
   });
 
@@ -90,6 +94,7 @@ describe("getJSONDisplayPreview", () => {
         decoded: { values: strings },
       }),
       hasDecodedStrings: true,
+      textType: "json",
     });
   });
 
@@ -112,6 +117,7 @@ describe("getJSONDisplayPreview", () => {
     expect(getJSONDisplayPreview({ text })).toEqual({
       text,
       hasDecodedStrings: false,
+      textType: "json",
     });
   });
   it.each(["", "text", '{"broken":', '["unterminated'])(
@@ -120,6 +126,7 @@ describe("getJSONDisplayPreview", () => {
       expect(getJSONDisplayPreview({ text })).toEqual({
         text,
         hasDecodedStrings: false,
+        textType: "string",
       });
     }
   );
@@ -127,6 +134,7 @@ describe("getJSONDisplayPreview", () => {
     expect(getJSONDisplayPreview({ text: format(["{}", "[]"]) })).toEqual({
       text: format([{}, []]),
       hasDecodedStrings: true,
+      textType: "json",
     });
   });
   it("treats prototype keys as ordinary own data, without mutating prototypes", () => {
@@ -151,6 +159,7 @@ describe("getJSONDisplayPreview", () => {
     expect(getJSONDisplayPreview({ text, maxDepth: 2 })).toEqual({
       text,
       hasDecodedStrings: false,
+      textType: "json",
     });
   });
   it("counts repeated encoding layers toward the same depth bound", () => {
@@ -161,6 +170,7 @@ describe("getJSONDisplayPreview", () => {
     expect(getJSONDisplayPreview({ text, maxDepth: 2 })).toEqual({
       text,
       hasDecodedStrings: false,
+      textType: "json",
     });
   });
   it("limits total visited nodes across branches, not just each container", () => {
@@ -168,6 +178,7 @@ describe("getJSONDisplayPreview", () => {
     expect(getJSONDisplayPreview({ text, maxNodes: 8 })).toEqual({
       text,
       hasDecodedStrings: false,
+      textType: "json",
     });
   });
   it("limits all parse attempts including malformed candidates", () => {
@@ -179,6 +190,7 @@ describe("getJSONDisplayPreview", () => {
     expect(getJSONDisplayPreview({ text, maxParseAttempts: 3 })).toEqual({
       text,
       hasDecodedStrings: false,
+      textType: "json",
     });
     expect(parse).toHaveBeenCalledTimes(3);
   });
@@ -187,14 +199,14 @@ describe("getJSONDisplayPreview", () => {
     const parse = vi.spyOn(JSON, "parse");
     expect(
       getJSONDisplayPreview({ text, maxCharacters: text.length - 1 })
-    ).toEqual({ text, hasDecodedStrings: false });
+    ).toEqual({ text, hasDecodedStrings: false, textType: "string" });
     expect(parse).not.toHaveBeenCalled();
   });
   it("limits cumulative parse characters rather than each string alone", () => {
     const text = format(["{}", "[]"]);
     expect(
       getJSONDisplayPreview({ text, maxCharacters: text.length + 2 })
-    ).toEqual({ text, hasDecodedStrings: false });
+    ).toEqual({ text, hasDecodedStrings: false, textType: "json" });
   });
   it("discards an oversized formatted preview without truncating the source", () => {
     const text = JSON.stringify({
@@ -207,6 +219,162 @@ describe("getJSONDisplayPreview", () => {
     expect(getJSONDisplayPreview({ text, maxCharacters: parseSize })).toEqual({
       text,
       hasDecodedStrings: false,
+      textType: "json",
+    });
+  });
+  // RAW numeric tokens: constructing JS number fixtures would round them before
+  // the production parser sees them. Expectations deliberately keep the literals.
+  it.each([
+    "9007199254740993",
+    "-9007199254740993",
+    "1e400",
+    "-1e400",
+    "1e-400",
+    "-1e-400",
+    "0.12345678901234567890123456789",
+    "1.0000000000000001",
+    "0.100000000000000005",
+    "9007199254740992.1",
+    "1000000000000000000001",
+    "-0",
+    "-0.0",
+    "-0e3",
+  ])(
+    "keeps the complete original source for unsafe numeric token %s",
+    (token) => {
+      const inner = `{"value":${token}}`;
+      const sources = [
+        ` \t${token}\n`,
+        `  ${inner}  `,
+        JSON.stringify({ early: '{"safe":[1,2]}', payload: inner }),
+        JSON.stringify([JSON.stringify(JSON.stringify(inner))]),
+      ];
+      for (const text of sources) {
+        expect(getJSONDisplayPreview({ text })).toEqual({
+          text,
+          hasDecodedStrings: false,
+          textType: "json",
+        });
+      }
+    }
+  );
+  it.each([
+    ["1.0", "1"],
+    ["1e3", "1000"],
+    ["1E+03", "1000"],
+    ["0.1", "0.1"],
+    ["1.2300", "1.23"],
+    ["100.00e-2", "1"],
+    ["-12.5e+2", "-1250"],
+    ["5e-324", "5e-324"],
+    ["1e-323", "1e-323"],
+    ["1.7976931348623157e308", "1.7976931348623157e+308"],
+    ["1000000000000000000000", "1e+21"],
+    ["9007199254740992", "9007199254740992"],
+    ["0e99999999999999999999", "0"],
+  ])("formats equivalent safe decimal %s as %s", (token, expected) => {
+    const text = `{ "value": ${token} }`;
+    expect(getJSONDisplayPreview({ text })).toEqual({
+      text: `{\n  "value": ${expected}\n}`,
+      hasDecodedStrings: false,
+      textType: "json",
+    });
+    expect(
+      getJSONDisplayPreview({ text: JSON.stringify({ payload: text }) })
+    ).toEqual({
+      text: `{\n  "payload": {\n    "value": ${expected}\n  }\n}`,
+      hasDecodedStrings: true,
+      textType: "json",
+    });
+  });
+  it("ignores numerical text in keys/strings, including escapes and Unicode", () => {
+    const strings = [
+      "9007199254740993",
+      "1e400",
+      "1e-400",
+      "-0",
+      '"1e400"',
+      'C:\\guide\n"9007199254740993"',
+      "☃ 1e400",
+    ];
+    const source = Object.fromEntries([
+      ["1e400", strings],
+      ['escaped"-0', strings],
+      ["__proto__", JSON.stringify({ strings, safe: 0.1 })],
+    ]);
+    const text = JSON.stringify(source);
+    expect(getJSONDisplayPreview({ text })).toEqual({
+      text: format(
+        Object.fromEntries([
+          ["1e400", strings],
+          ['escaped"-0', strings],
+          ["__proto__", { strings, safe: 0.1 }],
+        ])
+      ),
+      hasDecodedStrings: true,
+      textType: "json",
+    });
+    expect(
+      getJSONDisplayPreview({ text: '{"\\u0031e400":"\\u0031e-400"}' })
+    ).toEqual({
+      text: '{\n  "1e400": "1e-400"\n}',
+      hasDecodedStrings: false,
+      textType: "json",
+    });
+    expect(Object.hasOwn(Object.prototype, "strings")).toBe(false);
+    expect(JSON.stringify(source)).toBe(text);
+  });
+  it.each(['{"value":01}', "[1e]", '{"value":1.}', "1e400oops"])(
+    "validates malformed numeric JSON before scanning: %s",
+    (text) => {
+      expect(getJSONDisplayPreview({ text })).toEqual({
+        text,
+        hasDecodedStrings: false,
+        textType: "string",
+      });
+    }
+  );
+  it("handles long significands/exponents with bounded work and exact comparison", () => {
+    const equivalent = `1${"0".repeat(2000)}e-2000`;
+    expect(getJSONDisplayPreview({ text: equivalent })).toEqual({
+      text: "1",
+      hasDecodedStrings: false,
+      textType: "json",
+    });
+    const precise = `1.${"0".repeat(2000)}1`;
+    expect(getJSONDisplayPreview({ text: precise })).toEqual({
+      text: precise,
+      hasDecodedStrings: false,
+      textType: "json",
+    });
+    const oversized = "9".repeat(100_001);
+    const parse = vi.spyOn(JSON, "parse");
+    expect(getJSONDisplayPreview({ text: oversized })).toEqual({
+      text: oversized,
+      hasDecodedStrings: false,
+      textType: "string",
+    });
+    expect(parse).not.toHaveBeenCalled();
+  });
+  it("applies budgets before outer formatting and falls back atomically to raw text", () => {
+    const deep = "[".repeat(25) + "1" + "]".repeat(25);
+    expect(getJSONDisplayPreview({ text: deep })).toEqual({
+      text: deep,
+      hasDecodedStrings: false,
+      textType: "json",
+    });
+    const text = '{"values":[0,1,2]}';
+    expect(getJSONDisplayPreview({ text, maxCharacters: text.length })).toEqual(
+      { text, hasDecodedStrings: false, textType: "json" }
+    );
+    const mixed = JSON.stringify({
+      safe: '{"ok":true}',
+      values: ['{"id":9007199254740993}'],
+    });
+    expect(getJSONDisplayPreview({ text: mixed })).toEqual({
+      text: mixed,
+      hasDecodedStrings: false,
+      textType: "json",
     });
   });
 });

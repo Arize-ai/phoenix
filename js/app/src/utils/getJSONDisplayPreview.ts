@@ -1,3 +1,4 @@
+import { hasLosslessJSONNumbers } from "./hasLosslessJSONNumbers";
 import { safelyParseJSON } from "./jsonUtils";
 
 const DEFAULT_MAX_DEPTH = 20;
@@ -11,8 +12,10 @@ const DEFAULT_MAX_CHARACTERS = 100_000;
  * encoding layers. Scalar-looking strings and quoted prose stay strings.
  *
  * Work is bounded across the whole preview, not per branch. If any limit is
- * reached, discard the entire preview and return the full supplied text.
- * @param params.text - Source JSON text (normally already formatted by usePrettyText).
+ * reached or a number cannot round-trip without changing its decimal value,
+ * discard the entire preview and return the full ORIGINAL source. Validation
+ * and numeric checks precede all formatting, including the outer JSON value.
+ * @param params.text - Original source, before any JSON parse/stringify formatting.
  * @param params.maxDepth - Combined container nesting and decoding-layer limit.
  * @param params.maxNodes - Maximum total visited values.
  * @param params.maxParseAttempts - Maximum total parse attempts, including the root.
@@ -30,9 +33,9 @@ export function getJSONDisplayPreview({
   maxNodes?: number;
   maxParseAttempts?: number;
   maxCharacters?: number;
-}): { text: string; hasDecodedStrings: boolean } {
-  const fallback = { text, hasDecodedStrings: false };
+}): { text: string; hasDecodedStrings: boolean; textType: "string" | "json" } {
   let hasReachedLimit = false;
+  let hasUnsafeNumbers = false;
   let hasDecodedStrings = false;
   let visitedNodes = 0;
   let parseAttempts = 0;
@@ -46,11 +49,13 @@ export function getJSONDisplayPreview({
       return undefined;
     }
     const result = safelyParseJSON(candidate);
-    return result.parseError ? undefined : result.json;
+    if (result.parseError) return undefined;
+    if (!hasLosslessJSONNumbers(candidate)) hasUnsafeNumbers = true;
+    return result.json;
   }
 
   function visit({ value, depth }: { value: unknown; depth: number }): unknown {
-    if (hasReachedLimit) return value;
+    if (hasReachedLimit || hasUnsafeNumbers) return value;
     visitedNodes += 1;
     if (depth > maxDepth || visitedNodes > maxNodes) {
       hasReachedLimit = true;
@@ -74,7 +79,7 @@ export function getJSONDisplayPreview({
           return value;
         }
         candidate = parseCandidate(candidate);
-        if (hasReachedLimit) return value;
+        if (hasReachedLimit || hasUnsafeNumbers) return value;
         if (typeof candidate === "object" && candidate !== null) {
           hasDecodedStrings = true;
           return visit({ value: candidate, depth: decodingDepth });
@@ -109,11 +114,19 @@ export function getJSONDisplayPreview({
   }
 
   const value = parseCandidate(text);
-  if (value === undefined || hasReachedLimit) return fallback;
+  if (value === undefined) {
+    // Oversized/unparsed input remains verbatim; do not guess JSON validity.
+    return { text, hasDecodedStrings: false, textType: "string" };
+  }
+  const fallback = {
+    text,
+    hasDecodedStrings: false,
+    textType: "json" as const,
+  };
   const preview = visit({ value, depth: 0 });
-  if (hasReachedLimit || !hasDecodedStrings) return fallback;
+  if (hasReachedLimit || hasUnsafeNumbers) return fallback;
   const previewText = JSON.stringify(preview, null, 2);
   return previewText.length > maxCharacters
     ? fallback
-    : { text: previewText, hasDecodedStrings: true };
+    : { text: previewText, hasDecodedStrings, textType: "json" };
 }
