@@ -16,7 +16,6 @@ from openinference.instrumentation import (
 )
 from openinference.semconv.trace import OpenInferenceMimeTypeValues
 from opentelemetry.trace import Status, StatusCode, Tracer
-from opentelemetry.util.types import AttributeValue
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.agent.wrapper import WrapperAgent
 from pydantic_ai.messages import (
@@ -52,6 +51,8 @@ from pydantic_ai.output import OutputDataT
 from pydantic_ai.run import AgentRun
 from pydantic_ai.tools import AgentDepsT
 from typing_extensions import assert_never
+
+from phoenix.trace.attributes import AttributeValue
 
 _MODEL_REQUEST_PARTS_ADAPTER: pydantic.TypeAdapter[list[ModelRequestPart]] = pydantic.TypeAdapter(
     list[ModelRequestPart],

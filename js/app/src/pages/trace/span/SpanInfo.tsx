@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Alert, Flex, View } from "@phoenix/components";
 
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
+import { DecisionSpanInfo } from "./DecisionSpanInfo";
 import { EmbeddingSpanInfo } from "./EmbeddingSpanInfo";
 import { LLMSpanInfo } from "./LLMSpanInfo";
 import { RerankerSpanInfo } from "./RerankerSpanInfo";
@@ -82,6 +83,14 @@ export function SpanInfo({ span }: { span: SpanInfoData }) {
     case "embedding": {
       content = (
         <EmbeddingSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
+    case "decision": {
+      hasContentAboveAttributes =
+        span.input?.value != null || span.output?.value != null;
+      content = (
+        <DecisionSpanInfo span={span} spanAttributes={attributesObject} />
       );
       break;
     }

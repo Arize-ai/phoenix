@@ -8,13 +8,15 @@ from phoenix.server.cli.commands import datagen
 
 
 def test_datagen_run_loop_applies_cli_flags_over_environment(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     events: list[object] = []
     replayer_arguments: dict[str, object] = {}
     exporter_arguments: dict[str, object] = {}
 
     class FakeReplayer:
+        project_names = ("cli-project",)
+
         def __init__(self, corpus: object, **kwargs: object) -> None:
             replayer_arguments.update({"corpus": corpus, **kwargs})
 
@@ -51,7 +53,6 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
     monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://env.example")
     monkeypatch.setenv("PHOENIX_API_KEY", "env-key")
     monkeypatch.setenv("PHOENIX_CLIENT_HEADERS", "x-tenant=tenant%20one,x-route=blue")
-    monkeypatch.setenv("PHOENIX_PROJECT_NAME", "env-project")
 
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -90,6 +91,20 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
         ("interarrival", {"rate": 30.0, "burstiness": 0.8}),
         ("sleep", 2.0),
     ]
+    assert capsys.readouterr().err == "Replaying into projects: cli-project\n"
+
+
+def test_datagen_ignores_project_name_environment() -> None:
+    parser = ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    datagen.register(subparsers)
+
+    config = datagen._resolve_config(
+        parser.parse_args(["datagen"]),
+        {"PHOENIX_PROJECT_NAME": "env-project"},
+    )
+
+    assert config.project is None
 
 
 def test_datagen_pull_prints_the_cached_corpus_path(

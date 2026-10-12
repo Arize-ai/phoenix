@@ -3,7 +3,7 @@ import gzip
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Annotated, Literal, Optional, cast
+from typing import Annotated, Any, Literal, Optional, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -12,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select, tuple_, update
+from sqlalchemy import Select, delete, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -229,7 +229,7 @@ async def list_project_traces(
 
         sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
         # Select the database value because latency is rounded in SQL but not in Python.
-        stmt = select(models.Trace, sort_col.label("sort_value")).filter(
+        stmt: Select[*tuple[Any, ...]] = select(models.Trace, sort_col.label("sort_value")).filter(
             models.Trace.project_rowid == project_rowid
         )
         if order == "asc":
@@ -571,7 +571,7 @@ async def annotate_traces(
                 status_code=404,
             )
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
             trace_annotation_id = await session.scalar(
@@ -682,7 +682,7 @@ async def create_trace_note(
         }
 
         if note_data.identifier:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             result = await session.execute(
                 insert_on_conflict(
                     values,

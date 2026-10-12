@@ -177,7 +177,7 @@ class TestOpenAIBaseStreamingClient:
         assert not span.events
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -313,7 +313,7 @@ class TestOpenAIBaseStreamingClient:
         assert not span.events
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -470,7 +470,7 @@ class TestOpenAIBaseStreamingClient:
         event = events[0]
         assert event.name == "exception"
         assert event.attributes is not None
-        event_attrs = dict(event.attributes)
+        event_attrs: dict[str, Any] = dict(event.attributes)
         assert event_attrs.pop("exception.type") == "openai.AuthenticationError"
         exception_message = event_attrs.pop("exception.message")
         assert isinstance(exception_message, str)
@@ -482,7 +482,7 @@ class TestOpenAIBaseStreamingClient:
         assert not event_attrs
 
         assert span.attributes is not None
-        attributes = dict(span.attributes)
+        attributes: dict[str, Any] = dict(span.attributes)
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o-mini"
@@ -1152,10 +1152,8 @@ class TestDefaultApiTypeRouting:
             "gpt-4.1-mini",
             "gpt-4.1-nano",
             "gpt-4o",
-            "chatgpt-4o-latest",
             "gpt-4o-mini",
             "gpt-4-turbo",
-            "gpt-4-turbo-preview",
             "gpt-4",
             "gpt-3.5-turbo",
         }

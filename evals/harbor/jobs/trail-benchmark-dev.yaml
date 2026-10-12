@@ -5,10 +5,6 @@
 #
 # Each condition uses the same image and TRAIL fixture. The plugin records all results in
 # the trail-benchmark-dev Phoenix dataset.
-#
-# The environment allows the Phoenix documentation hosts and the Claude Code download
-# host. Each agent allows its model provider. The image includes Codex because its
-# installer requires a host that the network policy blocks.
 datasets:
   - path: evals/harbor/tasks/trail-benchmark-dev
 agents:
@@ -17,7 +13,6 @@ agents:
     model_name: anthropic/claude-opus-5
     extra_allowed_hosts: [api.anthropic.com]
     kwargs:
-      version: "2.1.267"
       reasoning_effort: high
       disallowed_tools: "WebSearch,WebFetch"
   - name: claude-code-cli
@@ -25,7 +20,6 @@ agents:
     model_name: anthropic/claude-opus-5
     extra_allowed_hosts: [api.anthropic.com]
     kwargs:
-      version: "2.1.267"
       reasoning_effort: high
       disallowed_tools: "WebSearch,WebFetch"
     env:
@@ -37,7 +31,6 @@ agents:
     model_name: openai/gpt-5.6
     extra_allowed_hosts: [api.openai.com]
     kwargs:
-      version: "0.154.0"
       reasoning_effort: high
       web_search: disabled
   - name: codex-cli
@@ -45,7 +38,6 @@ agents:
     model_name: openai/gpt-5.6
     extra_allowed_hosts: [api.openai.com]
     kwargs:
-      version: "0.154.0"
       reasoning_effort: high
       web_search: disabled
     env:
@@ -58,7 +50,7 @@ agents:
     extra_allowed_hosts: [api.anthropic.com]
 environment:
   type: daytona
-  extra_allowed_hosts: [downloads.claude.ai, arizeai-433a7140.mintlify.app, arize.com]
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
   # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
   kwargs:
     auto_stop_interval_mins: 30

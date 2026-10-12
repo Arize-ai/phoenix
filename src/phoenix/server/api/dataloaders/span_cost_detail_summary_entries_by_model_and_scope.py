@@ -67,6 +67,7 @@ class SpanCostDetailSummaryEntriesByModelAndScopeDataLoader(
                     _build_cost_detail_summary_statement(model_ids=model_ids, scope=scope)
                 )
                 async for model_id, token_type, is_prompt, cost, tokens in rows:
+                    assert model_id is not None
                     summaries[(scope, model_id)].append(
                         SpanCostDetailSummaryEntry(
                             token_type=token_type,
@@ -82,7 +83,7 @@ def _build_cost_detail_summary_statement(
     *,
     model_ids: set[int],
     scope: CostDetailSummaryScope,
-) -> Select[tuple[Optional[int], str, bool, Optional[float], Optional[float]]]:
+) -> Select[Optional[int], str, bool, Optional[float], Optional[float]]:
     """Aggregate token counts and costs by model, token type, and prompt kind."""
     statement = (
         select(

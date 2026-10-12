@@ -29,7 +29,7 @@ from phoenix.client.harbor._model import (
     TaskRecord,
     TrialSlot,
 )
-from phoenix.client.harbor._traces import build_harbor_trace
+from phoenix.client.harbor._traces import build_harbor_trace, extract_harbor_run_output
 
 NOW = "2026-08-26T12:00:00+00:00"
 AGENT = AgentConfig(name="terminus-2", model_name="gpt-5-mini")
@@ -162,6 +162,97 @@ def llm_metadata(trace: Any, key: str) -> list[Any]:
 
 def agent_roots(trace: Any) -> list[Any]:
     return [span for span in trace.spans if span["span_kind"] == "AGENT"]
+
+
+class TestExtractHarborRunOutput:
+    def test_extracts_the_terminal_agent_message(self, tmp_path: Path) -> None:
+        write(tmp_path / "task-a__1/agent/trajectory.json", trajectory())
+        *_, result = context(tmp_path)
+
+        assert extract_harbor_run_output(result) == {
+            "messages": [{"role": "assistant", "content": "Done"}]
+        }
+
+    def test_uses_the_last_attempted_step_for_a_multi_step_task(self, tmp_path: Path) -> None:
+        first = trajectory()
+        first["steps"][-1]["message"] = "Prepared"
+        final = trajectory()
+        final["steps"][-1]["message"] = "Solved"
+        write(tmp_path / "task-a__1/steps/prepare/agent/trajectory.json", first)
+        write(tmp_path / "task-a__1/steps/solve/agent/trajectory.json", final)
+        *_, result = context(tmp_path, step_names=("prepare", "solve"))
+
+        assert extract_harbor_run_output(result) == {
+            "messages": [{"role": "assistant", "content": "Solved"}]
+        }
+
+    def test_does_not_fall_back_to_an_earlier_resumed_step(self, tmp_path: Path) -> None:
+        write(tmp_path / "task-a__1/steps/prepare/agent/trajectory.json", trajectory())
+        *_, result = context(
+            tmp_path,
+            step_names=("prepare", "solve"),
+            resume_trajectory=True,
+        )
+
+        assert extract_harbor_run_output(result) is None
+
+    def test_uses_the_terminal_continuation(self, tmp_path: Path) -> None:
+        initial = trajectory()
+        initial["continued_trajectory_ref"] = "trajectory.cont-1.json"
+        continuation = trajectory(session_id="producer-session-cont-1")
+        continuation["steps"][-1]["message"] = "Final answer"
+        write(tmp_path / "task-a__1/agent/trajectory.json", initial)
+        write(tmp_path / "task-a__1/agent/trajectory.cont-1.json", continuation)
+        *_, result = context(tmp_path)
+
+        assert extract_harbor_run_output(result) == {
+            "messages": [{"role": "assistant", "content": "Final answer"}]
+        }
+
+    def test_flattens_structured_text_and_omits_media(self, tmp_path: Path) -> None:
+        source = trajectory()
+        source["steps"][-1]["message"] = [
+            {"type": "text", "text": "First paragraph."},
+            {
+                "type": "image",
+                "source": {"media_type": "image/png", "path": "result.png"},
+            },
+            {"type": "text", "text": "Second paragraph."},
+        ]
+        write(tmp_path / "task-a__1/agent/trajectory.json", source)
+        *_, result = context(tmp_path)
+
+        assert extract_harbor_run_output(result) == {
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "First paragraph.\nSecond paragraph.",
+                }
+            ]
+        }
+
+    def test_state_only_terminal_tool_call_has_empty_output(self, tmp_path: Path) -> None:
+        source = trajectory()
+        source["steps"][-1]["tool_calls"] = [
+            {
+                "tool_call_id": "call-1",
+                "function_name": "write_file",
+                "arguments": {"path": "answer.txt"},
+            }
+        ]
+        write(tmp_path / "task-a__1/agent/trajectory.json", source)
+        *_, result = context(tmp_path)
+
+        assert extract_harbor_run_output(result) == {}
+
+    def test_missing_or_invalid_trajectory_is_unavailable(self, tmp_path: Path) -> None:
+        *_, result = context(tmp_path)
+        assert extract_harbor_run_output(result) is None
+
+        source = trajectory()
+        source["steps"][-1]["message"] = 42
+        write(tmp_path / "task-a__1/agent/trajectory.json", source)
+        assert extract_harbor_run_output(result) is None
 
 
 def test_single_step_builds_one_stable_chain_root(tmp_path: Path) -> None:

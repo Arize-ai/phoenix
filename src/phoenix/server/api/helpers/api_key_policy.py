@@ -107,7 +107,7 @@ async def get_user_role_and_api_keys(
     ).all()
     if not rows:
         return None, []
-    role = cast(models.UserRoleName, rows[0][0])
+    role = rows[0][0]
     return role, [api_key for _, api_key in rows if api_key is not None]
 
 

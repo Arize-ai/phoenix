@@ -7,11 +7,11 @@ description: Instrument TypeSafe AI SDK calls in Python
 
 [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-typesafe.svg)](https://pypi.org/project/openinference-instrumentation-typesafe)
 
-This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for the [TypeSafe AI Python SDK](https://pypi.org/project/typesafe-sdk/) (`typesafe-sdk`). Calls to `TypeSafeClient.system_one` and `AsyncTypeSafeClient.system_one` are captured as OpenInference `LLM` spans.
+This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for the [TypeSafe AI Python SDK](https://pypi.org/project/typesafe-sdk/) (`typesafe-sdk`). Calls to `TypeSafeClient.system_one` and `AsyncTypeSafeClient.system_one` are captured as OpenInference [`DECISION` spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision).
 
-A System One request sends a `state` plus a map of typed `questions` (Noul, Choice, Score) and returns one typed `answer` per question, so the span records the request `state`/`model`/`questions` as `input.value`, the response `answers`/`usage` as `output.value`, the request and resolved model names, and prompt/completion/total token counts.
+A System One request sends a `state` plus a map of typed `questions` (Noul, Choice, Score) and returns one typed `answer` per question. That makes System One a decision model rather than a language model. The span records the request `state`/`model`/`questions` as `input.value` and the response `answers`/`usage` as `output.value`, and identifies the model and its token usage under `decision.*` rather than `llm.*`.
 
-Requires `typesafe-sdk >= 0.6.0`.
+Requires `typesafe-sdk >= 0.6.0` and `openinference-instrumentation-typesafe >= 0.1.4`.
 
 ## Install
 
@@ -63,13 +63,16 @@ The `AsyncTypeSafeClient` is instrumented the same way, and questions can be pas
 
 ## Observe
 
-With instrumentation enabled, each `system_one` call shows up in Phoenix as an **LLM span** containing:
+With instrumentation enabled, each `system_one` call shows up in Phoenix as a **DECISION span** containing:
 
 - `input.value`: the request body (`state`, `model`, `questions`) as JSON
 - `llm.invocation_parameters`: the call configuration, meaning the `model` and any `extra_body` fields
 - `output.value`: the response body (`model`, `answers`, `usage`) as JSON
-- `llm.request.model_name` and `llm.response.model_name` (the resolved model)
-- `llm.token_count.prompt`, `llm.token_count.completion`, and `llm.token_count.total`
+- `decision.system` and `decision.provider`: both `typesafe`
+- `decision.request.model_name` (for example `jev-latest`), `decision.response.model_name` (the resolved model, for example `jev-1.13.0`), and `decision.model_name` (the response model when reported, else the requested one)
+- `decision.token_count.input` and `decision.token_count.output`, from the response's `usage`
+
+Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. Earlier releases recorded them under `llm.*`, and releases before 0.1.3 recorded them as LLM spans.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typesafe.png" alt="TypeSafe AI traces in Phoenix" />

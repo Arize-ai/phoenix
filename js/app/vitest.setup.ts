@@ -57,6 +57,7 @@ export const baseWindowConfig = {
   basename: "/",
   platformVersion: "1.0.0",
   passwordResetEmailEnabled: false,
+  allowExternalResources: true,
   agentAssistantDisabled: false,
   agentBashDisabled: false,
   mcpServerEnabled: true,

@@ -16,16 +16,23 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
+import type { OptimizationDirectionResult } from "@phoenix/components/annotation";
 import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import {
+  computeMetricDelta,
+  DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
+  OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+} from "@phoenix/components/experiment/experimentDeltaUtils";
+import { ExperimentMetricDelta } from "@phoenix/components/experiment/ExperimentMetricDelta";
 import { useTheme } from "@phoenix/contexts";
 import { ExperimentComparePageQueriesCompareMetricsQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
+import { compareAnnotationMeanScores } from "@phoenix/pages/experiment/utils";
 import { getWordColor } from "@phoenix/utils/colorUtils";
 import {
   costFormatter,
   latencyMsFormatter,
   numberFormatter,
-  percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
 import type {
@@ -206,8 +213,9 @@ export function ExperimentCompareMetricsPage({
           numImprovements: comparisons?.latency.numRunsImproved ?? 0,
           numRegressions: comparisons?.latency.numRunsRegressed ?? 0,
           numEqual: comparisons?.latency.numRunsEqual ?? 0,
-          optimizationDirection: "MAXIMIZE",
         },
+        optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+        neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
         compareExperiments: [],
         formatter: latencyMsFormatter,
       };
@@ -219,8 +227,9 @@ export function ExperimentCompareMetricsPage({
           numImprovements: comparisons?.totalTokenCount.numRunsImproved ?? 0,
           numRegressions: comparisons?.totalTokenCount.numRunsRegressed ?? 0,
           numEqual: comparisons?.totalTokenCount.numRunsEqual ?? 0,
-          optimizationDirection: "MINIMIZE",
         },
+        optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+        neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
         compareExperiments: [],
       };
       const promptTokensMetric: MetricCardProps = {
@@ -231,8 +240,9 @@ export function ExperimentCompareMetricsPage({
           numImprovements: comparisons?.promptTokenCount.numRunsImproved ?? 0,
           numRegressions: comparisons?.promptTokenCount.numRunsRegressed ?? 0,
           numEqual: comparisons?.promptTokenCount.numRunsEqual ?? 0,
-          optimizationDirection: "MINIMIZE",
         },
+        optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+        neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
         compareExperiments: [],
       };
       const completionTokensMetric: MetricCardProps = {
@@ -245,8 +255,9 @@ export function ExperimentCompareMetricsPage({
           numRegressions:
             comparisons?.completionTokenCount.numRunsRegressed ?? 0,
           numEqual: comparisons?.completionTokenCount.numRunsEqual ?? 0,
-          optimizationDirection: "MINIMIZE",
         },
+        optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+        neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
         compareExperiments: [],
       };
       const totalCostMetric: MetricCardProps = {
@@ -257,8 +268,9 @@ export function ExperimentCompareMetricsPage({
           numImprovements: comparisons?.totalCost.numRunsImproved ?? 0,
           numRegressions: comparisons?.totalCost.numRunsRegressed ?? 0,
           numEqual: comparisons?.totalCost.numRunsEqual ?? 0,
-          optimizationDirection: "MINIMIZE",
         },
+        optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+        neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
         compareExperiments: [],
         formatter: costFormatter,
       };
@@ -270,8 +282,9 @@ export function ExperimentCompareMetricsPage({
           numImprovements: comparisons?.promptCost.numRunsImproved ?? 0,
           numRegressions: comparisons?.promptCost.numRunsRegressed ?? 0,
           numEqual: comparisons?.promptCost.numRunsEqual ?? 0,
-          optimizationDirection: "MINIMIZE",
         },
+        optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+        neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
         compareExperiments: [],
         formatter: costFormatter,
       };
@@ -283,8 +296,9 @@ export function ExperimentCompareMetricsPage({
           numImprovements: comparisons?.completionCost.numRunsImproved ?? 0,
           numRegressions: comparisons?.completionCost.numRunsRegressed ?? 0,
           numEqual: comparisons?.completionCost.numRunsEqual ?? 0,
-          optimizationDirection: "MINIMIZE",
         },
+        optimizationDirection: OPERATIONAL_METRIC_OPTIMIZATION_DIRECTION,
+        neutralThreshold: DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
         compareExperiments: [],
         formatter: costFormatter,
       };
@@ -338,73 +352,15 @@ export function ExperimentCompareMetricsPage({
         completionTokensMetric,
       ];
 
-      const annotationNameToBaseExperimentMeanScore: Record<string, number> =
-        {};
-      baseExperiment.annotationSummaries?.forEach((annotation) => {
-        if (annotation.meanScore != null) {
-          annotationNameToBaseExperimentMeanScore[annotation.annotationName] =
-            annotation.meanScore;
-        }
-      });
-      const annotationNameToCompareExperimentIdToMeanScore: Record<
-        string,
-        Record<string, number>
-      > = {};
-      compareExperiments.forEach((experiment) => {
-        experiment.annotationSummaries?.forEach((annotationSummary) => {
-          const annotationName = annotationSummary.annotationName;
-          const experimentId = experiment.id;
-          const meanScore = annotationSummary.meanScore;
-          if (experimentId != null && meanScore != null) {
-            if (
-              !(
-                annotationName in annotationNameToCompareExperimentIdToMeanScore
-              )
-            ) {
-              annotationNameToCompareExperimentIdToMeanScore[annotationName] =
-                {};
-            }
-            annotationNameToCompareExperimentIdToMeanScore[annotationName][
-              experimentId
-            ] = meanScore;
-          }
-        });
-      });
-      const annotationMetrics: MetricCardProps[] = [];
-      for (const annotationName in annotationNameToBaseExperimentMeanScore) {
-        const baseExperimentMeanScore =
-          annotationNameToBaseExperimentMeanScore[annotationName];
-        if (
-          !(annotationName in annotationNameToCompareExperimentIdToMeanScore)
-        ) {
-          continue;
-        }
-        const annotationMetricComparisons: CompareExperiment[] = [];
-        compareExperiments.forEach((experiment, experimentIndex) => {
-          const compareExperimentId = experiment.id;
-          const compareExperimentColor = getExperimentColor(experimentIndex);
-          let compareExperimentMeanScore: MetricValue = null;
-          if (
-            compareExperimentId == null ||
-            !(
-              compareExperimentId in
-              annotationNameToCompareExperimentIdToMeanScore[annotationName]
-            )
-          ) {
-            compareExperimentMeanScore = null;
-          } else {
-            compareExperimentMeanScore =
-              annotationNameToCompareExperimentIdToMeanScore[annotationName][
-                compareExperimentId
-              ];
-          }
-          annotationMetricComparisons.push({
-            id: compareExperimentId,
-            value: compareExperimentMeanScore,
-            color: compareExperimentColor,
-          });
-        });
-        annotationMetrics.push({
+      const annotationMetrics: MetricCardProps[] = compareAnnotationMeanScores(
+        baseExperiment,
+        compareExperiments
+      ).map(
+        ({
+          annotationName,
+          baseExperimentMeanScore,
+          compareExperimentMeanScores,
+        }) => ({
           icon: (
             <ColorSwatch
               color={getWordColor({ word: annotationName, theme })}
@@ -412,9 +368,15 @@ export function ExperimentCompareMetricsPage({
           ),
           title: annotationName,
           baseExperimentValue: baseExperimentMeanScore,
-          compareExperiments: annotationMetricComparisons,
-        });
-      }
+          compareExperiments: compareExperimentMeanScores.map(
+            ({ experimentId, meanScore }, experimentIndex) => ({
+              id: experimentId,
+              value: meanScore,
+              color: getExperimentColor(experimentIndex),
+            })
+          ),
+        })
+      );
       return {
         annotationMetrics,
         costMetrics,
@@ -497,7 +459,6 @@ type ExperimentRunMetricComparison = {
   numImprovements: number;
   numRegressions: number;
   numEqual: number;
-  optimizationDirection: OptimizationDirection;
 };
 
 type MetricCardProps = {
@@ -507,6 +468,10 @@ type MetricCardProps = {
   compareExperiments: CompareExperiment[];
   formatter?: (value: MetricValue) => string;
   comparison?: ExperimentRunMetricComparison;
+  /** Which way is better; undefined leaves the deltas uncolored */
+  optimizationDirection?: OptimizationDirectionResult;
+  /** Relative magnitude below which a delta is colored neutral */
+  neutralThreshold?: number;
 };
 
 function MetricCard({
@@ -516,6 +481,8 @@ function MetricCard({
   comparison,
   compareExperiments,
   formatter = numberFormatter,
+  optimizationDirection,
+  neutralThreshold,
 }: MetricCardProps) {
   const { baseExperimentColor } = useExperimentColors();
   return (
@@ -552,10 +519,13 @@ function MetricCard({
           {compareExperiments.map((experiment) => (
             <CompareExperimentMetric
               key={experiment.id}
+              title={title}
               value={experiment.value}
               baseExperimentValue={baseExperimentValue}
               color={experiment.color}
               formatter={formatter}
+              optimizationDirection={optimizationDirection}
+              neutralThreshold={neutralThreshold}
             />
           ))}
         </Flex>
@@ -584,42 +554,46 @@ function BaseExperimentMetric({
 }
 
 function CompareExperimentMetric({
+  title,
   value,
   baseExperimentValue,
   color,
   formatter = numberFormatter,
+  optimizationDirection,
+  neutralThreshold,
 }: {
+  title: string;
   value: MetricValue;
   baseExperimentValue: MetricValue;
   color: string;
   formatter?: (value: MetricValue) => string;
+  optimizationDirection?: OptimizationDirectionResult;
+  neutralThreshold?: number;
 }) {
-  const valueText = useMemo(() => formatter(value), [formatter, value]);
-  const percentageDeltaText = useMemo(() => {
-    let percentageDeltaText: string = "+0%";
-    if (baseExperimentValue == null || value == null) {
-      return percentageDeltaText;
-    }
-    const delta = value - baseExperimentValue;
-    const sign = delta >= 0 ? "+" : "-";
-    if (baseExperimentValue !== 0) {
-      const absolutePercentageDelta =
-        Math.abs(delta / baseExperimentValue) * 100;
-      percentageDeltaText = `${sign}${percentFormatter(absolutePercentageDelta)}`;
-    }
-    return percentageDeltaText;
-  }, [baseExperimentValue, value]);
+  const valueText = formatter(value);
+  const delta = computeMetricDelta({
+    base: baseExperimentValue,
+    compare: value,
+    optimizationDirection,
+    neutralThreshold,
+  });
 
   return (
     <Flex direction="row" alignItems="center" gap="size-100">
       <ColorSwatch color={color} shape="circle" />
-      <Flex direction="row" alignItems="center" gap="size-50">
+      <Flex direction="row" alignItems="center" gap="size-100">
         <Text size="M" fontFamily="mono">
           {valueText}
         </Text>
-        <Text color="text-500" size="S" fontFamily="mono">
-          {percentageDeltaText}
-        </Text>
+        <ExperimentMetricDelta
+          delta={delta}
+          display="relative"
+          metricLabel={title}
+          formatter={formatter}
+          compareValueText={valueText}
+          baseValueText={formatter(baseExperimentValue)}
+          tooltipPlacement="top"
+        />
       </Flex>
     </Flex>
   );

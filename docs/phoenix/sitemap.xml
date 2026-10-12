@@ -5,8 +5,8 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/agent-assisted-setup</loc>
-    <lastmod>2026-02-21T00:34:41+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/get-started</loc>
+    <lastmod>2026-10-09T19:59:54+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/get-started/get-started-tracing</loc>
@@ -17,60 +17,28 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/get-started/get-started-prompt-playground</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/get-started/get-started-datasets-and-experiments</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-tracing</loc>
-    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-evaluations</loc>
-    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-prompt-playground</loc>
-    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/get-started/ts-get-started-datasets-and-experiments</loc>
-    <lastmod>2026-02-08T18:08:13+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/developer-tools/cli</loc>
+    <lastmod>2026-10-09T19:59:54+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/mcp</loc>
     <lastmod>2026-07-18T05:20:08+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/integrations/remote-mcp</loc>
-    <lastmod>2026-07-18T05:20:08+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/integrations/docs-mcp</loc>
-    <lastmod>2026-07-18T05:20:08+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/end-to-end-features-notebook</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/phoenix-demo</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/integrations/developer-tools/skills</loc>
+    <lastmod>2026-10-09T19:59:54+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/pxi</loc>
     <lastmod>2026-05-28T01:36:38+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/pxi-advanced</loc>
+    <lastmod>2026-10-09T19:59:54+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/tutorial</loc>
@@ -477,12 +445,16 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments</loc>
+    <lastmod>2026-09-24T17:58:09+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background</loc>
-    <lastmod>2026-04-28T22:15:51+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change</loc>
+    <lastmod>2026-10-09T19:59:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background</loc>
+    <lastmod>2026-09-24T17:58:09+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators</loc>
@@ -1285,6 +1257,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/vector-databases/qdrant</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/e2b</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
   </url>
@@ -1299,6 +1275,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/sandboxes/modal</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/docker</loc>
+    <lastmod>2026-10-02T18:30:25+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab</loc>
@@ -2177,18 +2157,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/relevance-classification-evaluation</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense</loc>
     <lastmod>2026-06-12T16:31:09+00:00</lastmod>
   </url>
@@ -2227,6 +2195,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans</loc>
+    <lastmod>2026-10-09T02:28:54+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics</loc>
+    <lastmod>2026-10-06T18:17:14+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis</loc>

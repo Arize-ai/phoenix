@@ -16,6 +16,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
+from phoenix.config import get_env_agents_mcp_code_mode
 from phoenix.db.types.data_stream_protocol import EditPermission
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
@@ -34,7 +35,11 @@ from phoenix.server.agents.capabilities.tools.internal import (
     CallSubAgentCapability,
     GetCurrentDatetimeCapability,
 )
-from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BASH_TOOL_NAME,
+    BashCapability,
+    get_bash_tool_error,
+)
 from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
 from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
@@ -138,7 +143,9 @@ def build_agent(
                     principal=principal,
                     id="phoenix_rest_api",
                 ),
-                instructions=resolved_prompts.phoenix_mcp_tools,
+                instructions=resolved_prompts.phoenix_mcp_tools.render(
+                    code_mode=get_env_agents_mcp_code_mode()
+                ),
                 initialize_instructions=phoenix_mcp_server.instructions,
             )
         )
@@ -197,6 +204,7 @@ def build_agent(
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
+        get_error_by_tool_name={BASH_TOOL_NAME: get_bash_tool_error},
     )
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(

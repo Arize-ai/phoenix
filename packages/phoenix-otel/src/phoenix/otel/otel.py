@@ -4,7 +4,7 @@ import re
 import warnings
 from enum import Enum
 from importlib.metadata import entry_points
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, Literal, Optional, Tuple, Type, Union
 from urllib.parse import ParseResult, urlparse
 
 from openinference.instrumentation import TracerProvider as _TracerProvider
@@ -334,7 +334,7 @@ class TracerProvider(_TracerProvider):
                         processor_name = span_processor.__class__.__name__
                         endpoint = exporter._endpoint
                         transport = _exporter_transport(exporter)
-                        headers = _printable_headers(exporter._headers)
+                        headers = _printable_headers(_exporter_headers(exporter))
                 else:
                     processor_name = "Multiple Span Processors"
                     endpoint = "Multiple Span Exporters"
@@ -725,20 +725,30 @@ def _exporter_transport(exporter: SpanExporter) -> str:
         return exporter.__class__.__name__
 
 
-def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
-    """
-    Mask header values for safe printing/logging.
+_OTLP_HTTP_EXPORTER_OWN_HEADERS = frozenset({"content-encoding", "content-type", "user-agent"})
 
-    Args:
-        headers (Union[List[Tuple[str, str]], Dict[str, str]]): Headers as either
-            a list of key-value tuples or a dictionary.
 
-    Returns:
-        Dict[str, str]: Dictionary with header keys preserved but values masked as "****".
+def _exporter_headers(exporter: SpanExporter) -> Dict[str, str]:
     """
-    if isinstance(headers, dict):
-        return {key: "****" for key, _ in headers.items()}
-    return {key: "****" for key, _ in headers}
+    Get the headers configured on an OTLP span exporter, without the ones the HTTP exporter
+    adds on its own.
+    """
+    if isinstance(exporter, _HTTPSpanExporter):
+        return {
+            key: value
+            for key, value in exporter._client._headers.items()
+            if key.lower() not in _OTLP_HTTP_EXPORTER_OWN_HEADERS
+        }
+    if isinstance(exporter, _GRPCSpanExporter):
+        headers = exporter._headers
+        if isinstance(headers, (dict, list, tuple)):
+            return dict(headers)
+    return {}
+
+
+def _printable_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Mask header values for safe printing/logging."""
+    return {key: "****" for key in headers}
 
 
 def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
