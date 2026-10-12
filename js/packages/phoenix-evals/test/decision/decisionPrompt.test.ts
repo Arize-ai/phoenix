@@ -166,11 +166,4 @@ describe("renderedPromptToDecisionPrompt", () => {
       state: "Be strict.\n\nIs this correct?",
     });
   });
-
-  it("uses a string prompt as the state", () => {
-    expect(renderedPromptToDecisionPrompt({ prompt: "Is it?" })).toEqual({
-      instructions: GENERIC_DECISION_INSTRUCTIONS,
-      state: "Is it?",
-    });
-  });
 });

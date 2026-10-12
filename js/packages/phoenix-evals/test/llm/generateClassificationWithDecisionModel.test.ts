@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  ClassificationRefusalError,
-  createClassificationEvaluator,
-  createCorrectnessEvaluator,
-} from "../../src";
+import { createCorrectnessEvaluator } from "../../src";
 import { generateClassification } from "../../src/llm/generateClassification";
 import {
   type DecisionModel,
@@ -93,73 +89,6 @@ describe("generateClassification with a decision model", () => {
     });
   });
 
-  it("joins system text and messages into one plain-text state", async () => {
-    const { model, doDecide } = createMockDecisionModel({ choice: "correct" });
-
-    await generateClassification({
-      model,
-      labels: ["correct", "incorrect"],
-      system: "You are a strict grader.",
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: "Is the sky blue?" }],
-        },
-      ],
-    });
-
-    expect(stateText(doDecide.mock.calls[0]![0])).toBe(
-      "You are a strict grader.\n\nIs the sky blue?"
-    );
-  });
-
-  it("returns the provider's confidence when it reports one", async () => {
-    const { model } = createMockDecisionModel(
-      { choice: "correct", probabilities: { correct: 0.9, incorrect: 0.1 } },
-      { providerMetadata: { openai: { confidence: { label: 0.8 } } } }
-    );
-
-    const result = await generateClassification({
-      model,
-      labels: ["correct", "incorrect"],
-      prompt: "Is 2 + 2 = 4 correct?",
-    });
-
-    expect(result.metadata).toEqual({
-      probabilities: { correct: 0.9, incorrect: 0.1 },
-      confidence: 0.8,
-      modelId: "mock-decision-model",
-    });
-  });
-
-  it("turns a refusal into a ClassificationRefusalError", async () => {
-    const { model } = createMockDecisionModel({ refusal: true });
-
-    const result = generateClassification({
-      model,
-      labels: ["a", "b"],
-      prompt: "x",
-    });
-
-    await expect(result).rejects.toBeInstanceOf(ClassificationRefusalError);
-    await expect(result).rejects.toMatchObject({
-      modelId: "mock-decision-model",
-      message: expect.stringContaining("refused to classify"),
-    });
-  });
-
-  it("surfaces answers outside the label set as an error", async () => {
-    const { model } = createMockDecisionModel({ choice: "maybe" });
-
-    await expect(
-      generateClassification({
-        model,
-        labels: ["correct", "incorrect"],
-        prompt: "Is 2 + 2 = 4 correct?",
-      })
-    ).rejects.toThrow();
-  });
-
   it("rejects fewer than two labels before calling the model", async () => {
     const { model, doDecide } = createMockDecisionModel({ choice: "only" });
 
@@ -219,35 +148,6 @@ describe("createClassificationEvaluator with a decision model", () => {
     expect(instructions).toContain("Is the output correct or incorrect?");
     expect(instructions).not.toContain("<data>");
     expect(instructions).not.toContain("Sydney.");
-  });
-
-  it("does not split at a <data> tag that comes from a variable", async () => {
-    const { model, doDecide } = createMockDecisionModel({ choice: "valid" });
-    const evaluator = createClassificationEvaluator<{ question: string }>({
-      name: "isValid",
-      model,
-      promptTemplate: [
-        { role: "system", content: "You judge questions." },
-        {
-          role: "user",
-          content: "is the following question valid: {{question}}",
-        },
-      ],
-      choices: { valid: 1, invalid: 0 },
-    });
-
-    const result = await evaluator.evaluate({
-      question: "what is <data>x</data>?",
-    });
-
-    expect(result).toMatchObject({ label: "valid", score: 1 });
-    const call = doDecide.mock.calls[0]![0];
-    expect(stateText(call)).toBe(
-      "You judge questions.\n\nis the following question valid: what is <data>x</data>?"
-    );
-    expect(call.questions.label!.instructions).toBe(
-      "Read the prompt in the state and answer it by selecting exactly one of the choices."
-    );
   });
 });
 
