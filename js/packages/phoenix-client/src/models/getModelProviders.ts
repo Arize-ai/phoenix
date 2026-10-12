@@ -10,23 +10,8 @@ export type BuiltInModelProvider =
 export type GetModelProvidersParams = ClientFn;
 
 /**
- * List the built-in model providers enabled for the Phoenix deployment.
+ * List the built-in model providers enabled on the Phoenix server.
  *
- * The server filters this list according to its provider allow-list. Use the
- * returned providers instead of maintaining a hard-coded provider list in the
- * client application.
- *
- * @example
- * ```ts
- * import { getModelProviders } from "@arizeai/phoenix-client/models";
- *
- * const modelProviders = await getModelProviders();
- * for (const modelProvider of modelProviders) {
- *   console.log(`${modelProvider.name}: ${modelProvider.provider}`);
- * }
- * ```
- *
- * @param params - Client options.
  * @param params.client - Phoenix client to use. Defaults to a new client.
  */
 export async function getModelProviders(
