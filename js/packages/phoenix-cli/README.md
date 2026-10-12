@@ -780,6 +780,66 @@ px annotation-config get response-quality --format raw --no-progress | jq -r '.i
 
 ---
 
+### `px secret set [key]`
+
+Create or update Phoenix secrets (encrypted LLM provider credentials such as `OPENAI_API_KEY`) via `PUT /v1/secrets`. Requires an **admin** API key.
+
+Secret values are **never accepted on the command line** — anything in argv lands in shell history and is visible to other users through `ps` and CI logs. Instead, the value for `<key>` is read from stdin (piped, or a hidden prompt on a terminal) or from `--value-file`; batches come from `--from-env` (environment variable names) or `--env-file` (a dotenv file). Every source is combined into a single atomic request, so a batch either fully applies or not at all. Output and errors name only the affected keys; values are never printed, and any transport error text is scrubbed of the submitted values before it reaches stderr.
+
+```bash
+# Read the value from stdin (nothing is echoed; a trailing newline is stripped)
+printf '%s' "$OPENAI_API_KEY" | px secret set OPENAI_API_KEY
+
+# Prompt for the value with hidden input (interactive terminals)
+px secret set OPENAI_API_KEY
+
+# Read the value from a file (keep the file mode 0600)
+px secret set ANTHROPIC_API_KEY --value-file ./anthropic.key
+
+# Copy secrets from the current environment by name (values never touch argv)
+px secret set --from-env OPENAI_API_KEY --from-env ANTHROPIC_API_KEY
+
+# Provision a whole batch atomically from a dotenv file and list the keys written (agent-friendly)
+px secret set --env-file ./secrets.env --format raw --no-progress | jq -r '.upserted_keys[]'
+```
+
+| Option                | Description                                                                                | Default  |
+| --------------------- | ------------------------------------------------------------------------------------------ | -------- |
+| `--value-file <path>` | Read the value for `<key>` from a file, or from stdin when the path is `-`                 | stdin    |
+| `--from-env <NAME>`   | Set secret `NAME` to the value of environment variable `NAME` (repeatable)                 | —        |
+| `--env-file <path>`   | Set every `KEY=value` line of a dotenv file, or of stdin when the path is `-` (repeatable) | —        |
+| `--format <format>`   | `pretty`, `json`, or `raw`                                                                 | `pretty` |
+| `--no-progress`       | Suppress progress output                                                                   | —        |
+
+Keys must match `[A-Za-z_][A-Za-z0-9_]*`. When the same key appears in more than one source, the positional `<key>` wins over `--from-env`, which wins over `--env-file`; within a file the last line wins. `--env-file` understands blank lines, `#` comments, an optional `export ` prefix, and matching single or double quotes; it does not interpolate variables or unescape sequences. Passing `KEY=value` as the positional argument, an empty value, an unset `--from-env` variable, or an unreadable file exits `INVALID_ARGUMENT` before any request is made — the offending text is never echoed. A non-admin key exits `AUTH_REQUIRED`. `set` is also available as `px secret upsert`.
+
+`json`/`raw` output is the API result object:
+
+```json
+{ "upserted_keys": ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"], "deleted_keys": [] }
+```
+
+---
+
+### `px secret delete <keys...>`
+
+Delete one or more secrets in a single atomic request. Requires an **admin** API key. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed. Deleting a key that does not exist succeeds silently.
+
+```bash
+# Delete one secret with an interactive confirmation prompt
+px secret delete OPENAI_API_KEY
+
+# Delete several secrets atomically, skipping the prompt (for scripts and agents)
+px secret delete OPENAI_API_KEY ANTHROPIC_API_KEY --yes
+```
+
+| Option          | Description              | Default |
+| --------------- | ------------------------ | ------- |
+| `-y, --yes`     | Skip confirmation prompt | —       |
+| `--no-progress` | Suppress progress output | —       |
+
+---
+
 ### `px auth login`
 
 Log in with the browser-based OAuth flow and store tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in.

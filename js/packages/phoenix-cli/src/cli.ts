@@ -13,6 +13,7 @@ import {
   createProfileCommand,
   createProjectCommand,
   createPromptCommand,
+  createSecretCommand,
   createSessionAnnotationsCommand,
   createSessionCommand,
   createSelfCommand,
@@ -52,6 +53,7 @@ export function createProgram(): Command {
   program.addCommand(createSessionAnnotationsCommand());
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptCommand());
+  program.addCommand(createSecretCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
   program.addCommand(createSelfCommand());
