@@ -2164,6 +2164,12 @@ class TestClientForSessionAnnotations:
 
         # Test data
         annotation_name = token_hex(8)
+        label = "helpful"
+        score = 0.9
+        explanation = "This session was very helpful to the user"
+        new_label = "extremely_helpful"
+        new_score = 1.0
+        new_explanation = "This session was extremely helpful after review"
 
         # ============================================================================
         # Test Case: Create New Session Annotation
@@ -2174,9 +2180,9 @@ class TestClientForSessionAnnotations:
                 annotation_name=annotation_name,
                 session_id=session_id1,
                 annotator_kind="CODE",
-                label="helpful",
-                score=0.9,
-                explanation="This session was very helpful to the user",
+                label=label,
+                score=score,
+                explanation=explanation,
                 metadata={"model_name": "gpt-4", "version": "2024-01"},
                 identifier="test-id-123",
                 sync=sync,
@@ -2189,7 +2195,9 @@ class TestClientForSessionAnnotations:
 
         # Verify the annotation was created correctly by querying the GraphQL API
 
-        def get_session_annotation() -> Optional[dict[str, Any]]:
+        def get_session_annotation(
+            expected: tuple[str, float, str],
+        ) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
                 api_key,
@@ -2197,11 +2205,15 @@ class TestClientForSessionAnnotations:
                 operation_name="GetSessionAnnotations",
                 variables={"id": str(session_gid1)},
             )
-            annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
-            return annotations.get(annotation_name)
+            annotations = {
+                (anno["name"], anno["label"], anno["score"], anno["explanation"]): anno
+                for anno in res["data"]["node"]["sessionAnnotations"]
+            }
+            return annotations.get((annotation_name, *expected))
 
         anno = await _get(
             query_fn=get_session_annotation,
+            args=((label, score, explanation),),
             error_msg="Session annotation should be present in session annotations",
             no_wait=sync,
         )
@@ -2209,9 +2221,9 @@ class TestClientForSessionAnnotations:
         # Verify the annotation exists and has the expected values
         assert anno["name"] == annotation_name
         assert anno["annotatorKind"] == "CODE"
-        assert anno["label"] == "helpful"
-        assert anno["score"] == 0.9
-        assert anno["explanation"] == "This session was very helpful to the user"
+        assert anno["label"] == label
+        assert anno["score"] == score
+        assert anno["explanation"] == explanation
         assert anno["metadata"] == {"model_name": "gpt-4", "version": "2024-01"}
         assert anno["identifier"] == "test-id-123"
         assert anno["source"] == "API"
@@ -2228,9 +2240,9 @@ class TestClientForSessionAnnotations:
                 annotation_name=annotation_name,
                 session_id=session_id1,
                 annotator_kind="HUMAN",  # Changed
-                label="extremely_helpful",  # Changed
-                score=1.0,  # Changed
-                explanation="This session was extremely helpful after review",  # Changed
+                label=new_label,  # Changed
+                score=new_score,  # Changed
+                explanation=new_explanation,  # Changed
                 metadata={"model_name": "gpt-4", "version": "2024-02", "reviewed": True},  # Changed
                 identifier="test-id-123",  # Same identifier - should update
                 sync=sync,
@@ -2244,6 +2256,7 @@ class TestClientForSessionAnnotations:
         # Verify the annotation was updated correctly
         updated_anno = await _get(
             query_fn=get_session_annotation,
+            args=((new_label, new_score, new_explanation),),
             error_msg="Updated session annotation should be present in session annotations",
             no_wait=sync,
         )
@@ -2252,11 +2265,9 @@ class TestClientForSessionAnnotations:
         assert updated_anno["id"] == original_annotation_id  # ID should remain the same
         assert updated_anno["name"] == annotation_name
         assert updated_anno["annotatorKind"] == "HUMAN"  # Updated
-        assert updated_anno["label"] == "extremely_helpful"  # Updated
-        assert updated_anno["score"] == 1.0  # Updated
-        assert (
-            updated_anno["explanation"] == "This session was extremely helpful after review"
-        )  # Updated
+        assert updated_anno["label"] == new_label  # Updated
+        assert updated_anno["score"] == new_score  # Updated
+        assert updated_anno["explanation"] == new_explanation  # Updated
         assert updated_anno["metadata"] == {
             "model_name": "gpt-4",
             "version": "2024-02",
