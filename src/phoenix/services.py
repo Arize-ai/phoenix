@@ -9,7 +9,7 @@ from time import sleep, time
 
 import psutil
 
-from phoenix.config import SERVER_DIR, get_pids_path, get_running_pid
+from phoenix.config import ENV_PHOENIX_HOST, SERVER_DIR, get_pids_path, get_running_pid
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,11 @@ class Service:
     def command(self) -> list[str]:
         raise NotImplementedError(f"{type(self)} must define `command`")
 
+    @property
+    def environment(self) -> dict[str, str]:
+        """Environment variables passed to the child process."""
+        return {**os.environ}
+
     def start(self) -> psutil.Popen:
         """Starts the service."""
 
@@ -53,7 +58,7 @@ class Service:
             stderr=subprocess.STDOUT,
             bufsize=1,
             text=True,
-            env={**os.environ},
+            env=self.environment,
         )
         return process
 
@@ -117,13 +122,15 @@ class AppService(Service):
         command = [
             sys.executable,
             "main.py",
+            "serve",
             "--database-url",
             self.database_url,
-            "--host",
-            str(self.host),
             "--port",
             str(self.port),
-            "serve",
         ]
         logger.info(f"command: {' '.join(command)}")
         return command
+
+    @property
+    def environment(self) -> dict[str, str]:
+        return {**super().environment, ENV_PHOENIX_HOST: self.host}

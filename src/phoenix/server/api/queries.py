@@ -164,6 +164,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -1694,8 +1695,15 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> ServerStatus:
+        if info.context.auth_enabled and not (
+            isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        ):
+            database_encryption_key_is_public = None
+        else:
+            database_encryption_key_is_public = not info.context.secret
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
+            database_encryption_key_is_public=database_encryption_key_is_public,
         )
 
     @strawberry.field(

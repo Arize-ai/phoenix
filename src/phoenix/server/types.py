@@ -241,15 +241,27 @@ class _DbId(str, ABC):
         return self
 
 
+# PostgreSQL BIGINT and SQLite INTEGER primary keys are signed 64-bit.
+_MAX_SIGNED_64 = 2**63 - 1
+_MAX_SIGNED_64_DIGITS = len(str(_MAX_SIGNED_64))
+
+
 class TokenId(_DbId, ABC):
     @classmethod
-    def parse(cls, value: str) -> Optional[TokenId]:
-        table_name, _, id_ = value.partition(":")
-        if not id_.isnumeric():
+    def parse(cls, value: Any) -> Optional[TokenId]:
+        if not isinstance(value, str):
+            return None
+        table_name, separator, id_ = value.partition(":")
+        if not separator or not id_.isascii() or not id_.isdigit():
+            return None
+        if len(id_) > _MAX_SIGNED_64_DIGITS:
+            return None
+        parsed = int(id_)
+        if parsed > _MAX_SIGNED_64:
             return None
         for sub in cls.__subclasses__():
             if sub.table.__name__ == table_name:
-                return sub(int(id_))
+                return sub(parsed)
         return None
 
 
