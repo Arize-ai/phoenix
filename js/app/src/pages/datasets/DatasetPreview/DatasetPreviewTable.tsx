@@ -2,9 +2,7 @@ import { css } from "@emotion/react";
 import {
   createColumnHelper,
   flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type CellContext,
+  useTable,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 
@@ -12,6 +10,11 @@ import { Text } from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import type {
+  AppTableFeatures,
+  CellContext,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { safelyParseJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 const containerCSS = css`
@@ -43,7 +46,7 @@ type DatasetPreviewRow = {
 };
 
 // Hoisted outside component - createColumnHelper returns a stateless factory
-const columnHelper = createColumnHelper<DatasetPreviewRow>();
+const columnHelper = createColumnHelper<AppTableFeatures, DatasetPreviewRow>();
 
 function PreviewCell(
   row: CellContext<DatasetPreviewRow, Record<string, unknown>>
@@ -144,7 +147,6 @@ export function DatasetPreviewTable({
   splitColumn,
   exampleIdColumn,
 }: DatasetPreviewTableProps) {
-  "use no memo";
   const keysToCollapseSet = useMemo(
     () => new Set(keysToCollapse),
     [keysToCollapse]
@@ -305,7 +307,7 @@ export function DatasetPreviewTable({
 
   const tableColumns = useMemo(() => {
     const hasExampleId = previewData.some((row) => row.exampleId != null);
-    return [
+    return columnHelper.columns([
       ...(hasExampleId
         ? [
             columnHelper.accessor("exampleId", {
@@ -373,7 +375,7 @@ export function DatasetPreviewTable({
             }),
           ]
         : []),
-    ];
+    ]);
   }, [
     inputColumns.length,
     outputColumns.length,
@@ -382,11 +384,11 @@ export function DatasetPreviewTable({
     previewData,
   ]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: previewData,
     columns: tableColumns,
-    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
   });
 
   const hasAnyAssignments =

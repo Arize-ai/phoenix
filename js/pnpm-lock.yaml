@@ -245,8 +245,8 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(react@19.3.0)
       '@tanstack/react-table':
-        specifier: ^8.21.3
-        version: 8.21.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^9.2.8
+        version: 9.2.8(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-virtual':
         specifier: ^3.14.14
         version: 3.14.14(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -4804,12 +4804,17 @@ packages:
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
 
-  '@tanstack/react-table@8.21.3':
-    resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
-    engines: {node: '>=12'}
+  '@tanstack/react-store@0.11.2':
+    resolution: {integrity: sha512-oj5O5DmiMWE+ih+SioX2ayC1kbK7d3fpLx0B75fPJr9nY3zU+hoW010yr64qXsY/9fyiLVE2bn5mGNV3owm8RQ==}
     peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  '@tanstack/react-table@9.2.8':
+    resolution: {integrity: sha512-cJxgratJm3uMm2sXnmY3PCTvcvIEFleCJ2uSOM2nxCmIY8RWA1KjXt5fsWGlYisL7DODr2w9YpLRQ3i/7MdIsQ==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=18'
 
   '@tanstack/react-virtual@3.14.14':
     resolution: {integrity: sha512-eo/arVIpYi9rGJXR5y4fDoTiz+BBOc4HKVBKQMoPRswxJtP6HV8iupW/DkBE9TRh+PjzikIDHw2h7aV25g0Z4w==}
@@ -4817,9 +4822,12 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  '@tanstack/table-core@8.21.3':
-    resolution: {integrity: sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==}
-    engines: {node: '>=12'}
+  '@tanstack/store@0.11.2':
+    resolution: {integrity: sha512-sJ4mjol8uQsHV0gOJzzjwXfh2Fwm+Sz0+8deqiTm4jGbMdjzNSW+xZCFm0kUa870uhd8yi+DpKnZb5Kc4apa0Q==}
+
+  '@tanstack/table-core@9.2.8':
+    resolution: {integrity: sha512-M4D6fY5jnc7z7TaoD3Pjvz5R+8MbhzCGYdkcFf2T1AgjigwLinvFWZh6mtqfN016A7yGIroOL0GiTlVGsTh6Vg==}
+    engines: {node: '>=20'}
 
   '@tanstack/virtual-core@3.18.0':
     resolution: {integrity: sha512-8frWsyfyBwLGoDQ6wN6Lq3CoT8j4BPJUzE6nH4P9mruLhxPOamk82prC3JxRMLJzYnNa9ISaZ8NtfxEiOGkHEQ==}
@@ -13590,11 +13598,20 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@tanstack/react-table@8.21.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@tanstack/react-store@0.11.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@tanstack/table-core': 8.21.3
+      '@tanstack/store': 0.11.2
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
+      use-sync-external-store: 1.7.0(react@19.3.0)
+
+  '@tanstack/react-table@9.2.8(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@tanstack/react-store': 0.11.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tanstack/table-core': 9.2.8
+      react: 19.3.0
+    transitivePeerDependencies:
+      - react-dom
 
   '@tanstack/react-virtual@3.14.14(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
@@ -13602,7 +13619,11 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@tanstack/table-core@8.21.3': {}
+  '@tanstack/store@0.11.2': {}
+
+  '@tanstack/table-core@9.2.8':
+    dependencies:
+      '@tanstack/store': 0.11.2
 
   '@tanstack/virtual-core@3.18.0': {}
 

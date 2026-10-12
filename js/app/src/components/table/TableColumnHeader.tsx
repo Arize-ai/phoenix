@@ -1,8 +1,10 @@
-import type { Header } from "@tanstack/react-table";
-import { flexRender } from "@tanstack/react-table";
+import type { CellData, RowData, SortDirection } from "@tanstack/react-table";
+import { flexRender, Subscribe } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
+
+import type { Header } from "./tableFeatures";
 
 /** The `aria-sort` value for each of TanStack's sort directions. */
 const SORT_LABEL = {
@@ -28,20 +30,46 @@ const SORT_LABEL = {
  * ))}
  * ```
  */
-export function TableColumnHeader<Data, Value>({
-  header,
-  style,
-}: {
+export function TableColumnHeader<
+  Data extends RowData,
+  Value extends CellData,
+>(props: {
   header: Header<Data, Value>;
   /** Merged after the resize width, so a pinned column's width wins. */
   style?: CSSProperties;
 }) {
-  // TanStack mutates the same header object in place on resize and sort, so a
-  // memoized version of this would never see the change and the resizer would
-  // drag nothing.
-  "use no memo";
+  const { header } = props;
+  // The header object stays the same while the table is sorted and resized,
+  // so its sort and size have to be subscribed to; read straight off the
+  // header, a memoized cell would never see them change.
+  return (
+    <Subscribe
+      source={header.table.store}
+      selector={() => ({
+        sorted: header.column.getIsSorted(),
+        size: header.getSize(),
+        isResizing: header.column.getIsResizing(),
+      })}
+    >
+      {(state) => <HeaderCell {...props} {...state} />}
+    </Subscribe>
+  );
+}
+
+function HeaderCell<Data extends RowData, Value extends CellData>({
+  header,
+  style,
+  sorted,
+  size,
+  isResizing,
+}: {
+  header: Header<Data, Value>;
+  style?: CSSProperties;
+  sorted: false | SortDirection;
+  size: number;
+  isResizing: boolean;
+}) {
   const { column } = header;
-  const sorted = column.getIsSorted();
   const canSort = column.getCanSort();
   const canResize = column.getCanResize();
   const toggleSorting = column.getToggleSortingHandler();
@@ -58,7 +86,7 @@ export function TableColumnHeader<Data, Value>({
       aria-sort={canSort ? (sorted ? SORT_LABEL[sorted] : "none") : undefined}
       // a resizable column is driven by the width the drag left it at; the rest
       // are left to the table's own layout
-      style={canResize ? { width: header.getSize(), ...style } : style}
+      style={canResize ? { width: size, ...style } : style}
     >
       {canSort && !header.isPlaceholder ? (
         <div
@@ -96,7 +124,7 @@ export function TableColumnHeader<Data, Value>({
         <div
           onMouseDown={header.getResizeHandler()}
           onTouchStart={header.getResizeHandler()}
-          className={`resizer ${column.getIsResizing() ? "isResizing" : ""}`}
+          className={`resizer ${isResizing ? "isResizing" : ""}`}
         />
       ) : null}
     </th>

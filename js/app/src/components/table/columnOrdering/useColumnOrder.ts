@@ -9,7 +9,7 @@ import {
 
 export interface UseColumnOrderProps {
   /** The table's top-level column defs, in their natural order. */
-  columns: OrderableColumnDef[];
+  columns: readonly OrderableColumnDef[];
   /** The persisted top-level column order. Empty means natural order. */
   columnOrder: string[];
   onColumnOrderChange: (columnOrder: string[]) => void;

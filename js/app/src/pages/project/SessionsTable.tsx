@@ -1,17 +1,10 @@
 import { css } from "@emotion/react";
 import type {
-  ColumnDef,
   ExpandedState,
+  RowData,
   SortingState,
-  Table,
 } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import React, {
   startTransition,
   useCallback,
@@ -50,6 +43,8 @@ import {
   expandableSelectableTableCSS,
   TABLE_DATA_CELL_CLASS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
@@ -106,7 +101,7 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 const defaultColumnSettings = {
   minSize: 100,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
@@ -118,7 +113,6 @@ const TableBody = <T extends { id: string }>({
 }: {
   table: Table<T>;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
   const { sessionId } = useParams();
   const [searchParams] = useSearchParams();
@@ -551,7 +545,8 @@ export function SessionsTable(props: SessionsTableProps) {
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
   });
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     onExpandedChange: setExpanded,
@@ -568,36 +563,22 @@ export function SessionsTable(props: SessionsTableProps) {
     onColumnSizingChange: setColumnSizing,
     enableSubRowSelection: false,
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = columns.length;
+  const { columnResizing } = table.state;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
   return (
     <TableMetricsChartsPanelGroup view="sessions">
       <div css={spansTableCSS}>
@@ -749,7 +730,7 @@ export function SessionsTable(props: SessionsTableProps) {
                   </thead>
                   {isEmpty ? (
                     <SessionsTableEmpty />
-                  ) : columnSizingInfo.isResizingColumn ? (
+                  ) : columnResizing.isResizingColumn ? (
                     <MemoizedTableBody table={table} />
                   ) : (
                     <TableBody table={table} />

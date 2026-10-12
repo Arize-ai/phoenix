@@ -1,12 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingFn } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
 import { Focusable } from "react-aria";
@@ -33,6 +26,8 @@ import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef, Row } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import type {
   GenerativeModelKind,
@@ -103,10 +98,10 @@ function getRowCost(row: ModelsTableGenerativeModel, tokenType: string) {
  * @param columnId - the id of the column to sort by
  * @returns the difference between the costs of the two rows
  */
-const sortCostColumnFn: SortingFn<ModelsTableGenerativeModel> = (
-  rowA,
-  rowB,
-  columnId
+const sortCostColumnFn = (
+  rowA: Row<ModelsTableGenerativeModel>,
+  rowB: Row<ModelsTableGenerativeModel>,
+  columnId: string
 ) => {
   const costA = getRowCostNumber(rowA.original, columnId);
   const costB = getRowCostNumber(rowB.original, columnId);
@@ -121,7 +116,6 @@ export function ModelsTable({
   kindFilter,
   search,
 }: ModelsTableProps) {
-  "use no memo";
   const data = useFragment(
     graphql`
       fragment ModelsTable_generativeModels on Query
@@ -268,7 +262,7 @@ export function ModelsTable({
         id: "input",
         accessorFn: (row) => getRowCost(row, "input"),
         meta: { textAlign: "right" },
-        sortingFn: sortCostColumnFn,
+        sortFn: sortCostColumnFn,
         sortUndefined: "last",
         cell: ({ row }) => {
           const inputCost = getRowCost(row.original, "input");
@@ -315,7 +309,7 @@ export function ModelsTable({
         id: "output",
         accessorFn: (row) => getRowCost(row, "output"),
         meta: { textAlign: "right" },
-        sortingFn: sortCostColumnFn,
+        sortFn: sortCostColumnFn,
         sortUndefined: "last",
         cell: ({ row }) => {
           const outputCost = getRowCost(row.original, "output");
@@ -442,8 +436,8 @@ export function ModelsTable({
     ];
   }, [kindFilter]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     defaultColumn: {
@@ -456,15 +450,12 @@ export function ModelsTable({
         provider: false,
       },
       columnPinning: {
-        left: ["name"],
-        right: ["actions"],
+        start: ["name"],
+        end: ["actions"],
       },
       globalFilter: search?.trim(),
       columnFilters,
     },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   });
 
   const rows = table.getRowModel().rows;

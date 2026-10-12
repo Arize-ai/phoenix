@@ -1,10 +1,11 @@
-import type { ColumnDef, Row, Table } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 import type { MouseEvent } from "react";
 
 import { CHECKBOX_COLUMN_ID } from "./constants";
 import { IndeterminateCheckboxCell } from "./IndeterminateCheckboxCell";
+import type { ColumnDef, Row, Table } from "./tableFeatures";
 
-export type SelectRowHandler<TData> = ({
+export type SelectRowHandler<TData extends RowData> = ({
   event,
   row,
   table,
@@ -25,7 +26,7 @@ export type SelectRowHandler<TData> = ({
  * @param params.minSize - minimum column size in pixels
  * @param params.maxSize - maximum column size in pixels
  */
-export function createRowSelectionColumn<TData>({
+export function createRowSelectionColumn<TData extends RowData>({
   selectRow,
   shouldRenderCell = () => true,
   showSelectAllHeader = true,
@@ -51,7 +52,10 @@ export function createRowSelectionColumn<TData>({
       ? ({ table }) => (
           <IndeterminateCheckboxCell
             isSelected={table.getIsAllRowsSelected()}
-            isIndeterminate={table.getIsSomeRowsSelected()}
+            // "some" includes "all", so rule that out for the dash
+            isIndeterminate={
+              table.getIsSomeRowsSelected() && !table.getIsAllRowsSelected()
+            }
             onChange={table.toggleAllRowsSelected}
           />
         )
@@ -65,7 +69,7 @@ export function createRowSelectionColumn<TData>({
           isSelected={row.getIsSelected()}
           isDisabled={!row.getCanSelect()}
           isIndeterminate={row.getIsSomeSelected()}
-          onChange={row.toggleSelected}
+          onChange={(isSelected) => row.toggleSelected(isSelected)}
           onCellClick={
             selectRow
               ? (event) => {

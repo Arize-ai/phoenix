@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
-import type { CellContext } from "@tanstack/react-table";
 
 import { isNumberOrNull } from "@phoenix/typeUtils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import type { CellContext } from "./tableFeatures";
 
 const floatRightCSS = css`
   float: right;

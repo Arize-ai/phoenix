@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
 
 import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
+
+import type { Column } from "./tableFeatures";
 
 /**
  * Marks a `<td>` that holds one column's value, as opposed to the cells that
@@ -299,14 +301,16 @@ export const paginationCSS = css`
 //These are the important styles to make sticky column pinning work!
 //Apply styles like this using your CSS strategy of choice with this kind of logic to head cells, data cells, footer cells, etc.
 //View the index.css file for more needed styles such as border-collapse: separate
-export function getCommonPinningStyles<Row>(
+export function getCommonPinningStyles<Row extends RowData>(
   column: Column<Row>
 ): CSSProperties {
+  // TanStack pins to the logical start and end, which are left and right in
+  // the app's left-to-right layout
   const isPinned = column.getIsPinned();
   const isLastLeftPinnedColumn =
-    isPinned === "left" && column.getIsLastColumn("left");
+    isPinned === "start" && column.getIsLastColumn("start");
   const isFirstRightPinnedColumn =
-    isPinned === "right" && column.getIsFirstColumn("right");
+    isPinned === "end" && column.getIsFirstColumn("end");
 
   return {
     borderRight: isLastLeftPinnedColumn
@@ -315,8 +319,8 @@ export function getCommonPinningStyles<Row>(
     borderLeft: isFirstRightPinnedColumn
       ? "1px solid var(--global-border-color-default)"
       : undefined,
-    left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
-    right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
+    left: isPinned === "start" ? `${column.getStart("start")}px` : undefined,
+    right: isPinned === "end" ? `${column.getAfter("end")}px` : undefined,
     opacity: 1,
     position: isPinned ? "sticky" : "relative",
     width: column.getSize(),

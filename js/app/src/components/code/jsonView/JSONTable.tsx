@@ -1,14 +1,11 @@
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useState } from "react";
 
 import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import type { FlatJSONEntry } from "@phoenix/utils/jsonUtils";
 import { formatFlatJSONValue } from "@phoenix/utils/jsonUtils";
 
@@ -27,7 +24,7 @@ const columns: ColumnDef<FlatJSONEntry>[] = [
     maxSize: 720,
     // digits within a key are indices, so `messages.9` sorts before
     // `messages.10` the way the list itself is ordered
-    sortingFn: "alphanumeric",
+    sortFn: "alphanumeric",
     cell: ({ getValue }) => <JSONTableKeyCell path={getValue<string>()} />,
   },
   {
@@ -37,7 +34,7 @@ const columns: ColumnDef<FlatJSONEntry>[] = [
     accessorFn: (entry) => formatFlatJSONValue(entry.value),
     // the accessor hands over strings, so the default comparison would order
     // token counts 10, 1024, 9; compare the digit runs as the numbers they are
-    sortingFn: "alphanumeric",
+    sortFn: "alphanumeric",
     // the value column takes whatever the key column leaves, so there is only
     // one boundary to drag and it belongs to the key
     enableResizing: false,
@@ -69,18 +66,15 @@ export function JSONTable({
    */
   areRowsExpanded?: boolean;
 }) {
-  "use no memo";
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<FlatJSONEntry>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: entries,
     state: { sorting },
     onSortingChange: setSorting,
     columnResizeMode: "onChange",
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;
