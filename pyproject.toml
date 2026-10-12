@@ -46,7 +46,7 @@ dependencies = [
   "openinference-semantic-conventions>=0.1.40",
   "openinference-instrumentation>=0.1.60",
   "openinference-instrumentation-openai>=0.1.41",
-  "sqlglot==30.18.0",
+  "sqlglot==30.21.0",
   "sqlalchemy[asyncio]>=2.1.1, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",
@@ -54,14 +54,14 @@ dependencies = [
   "arize-phoenix-sqlean>=0.1.2",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.9.0",
+  "arize-phoenix-evals>=3.9.2",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==1.0.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.52.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.53.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
@@ -449,6 +449,9 @@ target-version = "py311"
 # makes them unreadable, so let those lines run long.
 "src/phoenix/server/agents/capabilities/tools/**/*.py" = ["E501"]
 "examples/**/*.py" = ["E501"]
+# The quickstarts are split into docs:start/docs:end regions that the docs embed as
+# separate steps, so each region keeps its own imports.
+"examples/quickstarts/**/*.py" = ["E402"]
 "evals/**/*.py" = ["E501"]
 "tests/**/*.py" = ["E501"]
 

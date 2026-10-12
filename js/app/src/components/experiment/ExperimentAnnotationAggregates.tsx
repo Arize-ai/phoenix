@@ -15,11 +15,8 @@ import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import {
-  computeMetricDelta,
-  indexSummariesByAnnotationName,
-} from "./experimentDeltaUtils";
-import { ExperimentMetricDelta } from "./ExperimentMetricDelta";
+import { indexSummariesByAnnotationName } from "./experimentDeltaUtils";
+import { ExperimentAnnotationMeanDelta } from "./ExperimentMetricDelta";
 
 /**
  * The shape of annotation summary data needed to render aggregates.
@@ -144,8 +141,7 @@ function ExperimentAnnotationAggregateItem({
   baseMeanScore?: number | null;
 }) {
   const annotationColor = useWordColor(config.name);
-  const { lowerBound, upperBound, optimizationDirection } =
-    getOptimizationBounds(config);
+  const { lowerBound, upperBound } = getOptimizationBounds(config);
   // Default to 0-1 range if bounds not specified
   const min = lowerBound ?? 0;
   const max = upperBound ?? 1;
@@ -214,22 +210,11 @@ function ExperimentAnnotationAggregateItem({
             <Truncate maxWidth="100%">{floatFormatter(meanScore)}</Truncate>
           </AnnotationScoreText>
           {baseMeanScore !== undefined && meanScore != null && (
-            <ExperimentMetricDelta
-              delta={computeMetricDelta({
-                base: baseMeanScore,
-                compare: meanScore,
-                optimizationDirection,
-              })}
-              display="absolute"
-              metricLabel={`${config.name} average`}
-              formatter={floatFormatter}
-              compareValueText={floatFormatter(meanScore)}
-              baseValueText={floatFormatter(baseMeanScore)}
-              note={
-                optimizationDirection == null
-                  ? "No optimization direction set"
-                  : undefined
-              }
+            <ExperimentAnnotationMeanDelta
+              annotationName={config.name}
+              meanScore={meanScore}
+              baseMeanScore={baseMeanScore}
+              config={config}
               tooltipPlacement="top"
             />
           )}

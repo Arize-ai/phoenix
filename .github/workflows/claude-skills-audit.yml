@@ -167,3 +167,5 @@ jobs:
             --title "docs(skills): weekly audit — $AUDIT_DATE" \
             --body-file "$BODY_FILE" \
             --label "documentation"
+          # Auto-merge once a reviewer approves and checks pass.
+          gh pr merge "$AUDIT_BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $AUDIT_BRANCH"

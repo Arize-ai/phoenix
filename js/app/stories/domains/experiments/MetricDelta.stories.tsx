@@ -10,16 +10,22 @@ import {
 import type { ExperimentCostAndLatencySummaryExperiment } from "@phoenix/components/experiment/ExperimentCostAndLatencySummary";
 import type {
   DeltaDisplay,
+  ExperimentRunMetric,
+  ExperimentRunMetricsSource,
   MetricDelta,
 } from "@phoenix/components/experiment/experimentDeltaUtils";
 import {
   computeLabelDelta,
   computeMetricDelta,
   DEFAULT_RELATIVE_NEUTRAL_THRESHOLD,
+  EXPERIMENT_RUN_METRICS,
+  getExperimentRunMetricValue,
 } from "@phoenix/components/experiment/experimentDeltaUtils";
 import {
   ExperimentLabelDelta,
+  ExperimentMetricCell,
   ExperimentMetricDelta,
+  ExperimentRunMetricDelta,
 } from "@phoenix/components/experiment/ExperimentMetricDelta";
 import {
   costFormatter,
@@ -180,13 +186,62 @@ const labelCases = [
   },
 ];
 
+const runMetrics: { label: ExperimentRunMetric; code: true }[] = [
+  { label: "latency", code: true },
+  { label: "tokens", code: true },
+  { label: "cost", code: true },
+  { label: "errorRate", code: true },
+];
+
+const baselineRunMetrics: ExperimentRunMetricsSource = {
+  runCount: 50,
+  averageRunLatencyMs: 111_000,
+  errorRate: 0,
+  costSummary: { total: { cost: 12.0, tokens: 10_500_000 } },
+};
+
+const runMetricCases: {
+  label: string;
+  experiment: ExperimentRunMetricsSource;
+}[] = [
+  {
+    label: "Faster, more tokens, same cost, errors appeared",
+    experiment: {
+      runCount: 50,
+      averageRunLatencyMs: 104_000,
+      errorRate: 0.04,
+      costSummary: { total: { cost: 12.05, tokens: 11_800_000 } },
+    },
+  },
+  {
+    label: "Half the runs, same per-run cost",
+    experiment: {
+      runCount: 25,
+      averageRunLatencyMs: 111_000,
+      errorRate: 0,
+      costSummary: { total: { cost: 6.0, tokens: 5_250_000 } },
+    },
+  },
+  {
+    label: "No runs yet",
+    experiment: {
+      runCount: 0,
+      averageRunLatencyMs: null,
+      errorRate: null,
+      costSummary: { total: { cost: null, tokens: null } },
+    },
+  },
+];
+
 /**
  * How a compare experiment moved against the base, as one inline token per
  * metric. The arrow carries the sign, the color carries whether the move was
  * good for the metric's optimization direction, and the tooltip carries the
  * base value and both forms of the change. Latency, tokens and cost show the
- * relative change; eval scores show the absolute change; a label shows the
- * label it replaced.
+ * relative change per run; eval scores show the absolute change; the error
+ * rate shows the change in percentage points; a label shows the label it
+ * replaced. The compare grid shows them against its base experiment and the
+ * experiments table against the dataset's baseline.
  */
 const meta: Meta<typeof ExperimentMetricDelta> = {
   title: "Domains/Experiments/Metric Delta",
@@ -276,6 +331,89 @@ export const LabelChanges: Story = {
           annotationName="status"
           note={row.note}
           size={column?.label}
+        />
+      )}
+    />
+  ),
+};
+
+const tabularRows: { label: string; experiment: ExperimentRunMetricsSource }[] =
+  [
+    { label: "Baseline", experiment: baselineRunMetrics },
+    ...runMetricCases.slice(0, 2),
+    {
+      label: "Ten times the cost",
+      experiment: {
+        runCount: 50,
+        averageRunLatencyMs: 9_000,
+        errorRate: 0.5,
+        costSummary: { total: { cost: 120.0, tokens: 105_000_000 } },
+      },
+    },
+  ];
+
+/**
+ * A table column of values and deltas in fixed slots: the value is the
+ * figure, its delta follows in a smaller token, values share a right edge,
+ * an unchanged delta reads as a muted zero, and the baseline row keeps the
+ * slot empty so nothing shifts.
+ */
+export const TabularColumn: Story = {
+  name: "Tabular Column",
+  tags: ["!dev"],
+  parameters: { themeLayout: "column" },
+  render: () => (
+    <OptionGrid
+      rows={tabularRows}
+      columns={runMetrics}
+      cellWidth="160px"
+      justifyCells="stretch"
+      renderCell={(row, column) => {
+        const metric = column?.label ?? "latency";
+        const { formatter } = EXPERIMENT_RUN_METRICS[metric];
+        const value = getExperimentRunMetricValue({
+          experiment: row.experiment,
+          metric,
+        });
+        return (
+          <ExperimentMetricCell
+            value={<span className="font-mono">{formatter(value)}</span>}
+            delta={
+              row.experiment === baselineRunMetrics ? undefined : (
+                <ExperimentRunMetricDelta
+                  metric={metric}
+                  experiment={row.experiment}
+                  baseExperiment={baselineRunMetrics}
+                  size="XS"
+                  variant="tabular"
+                />
+              )
+            }
+            hasDeltaSlot
+          />
+        );
+      }}
+    />
+  ),
+};
+
+/**
+ * The per-run metrics against one baseline. Totals are divided by run count,
+ * so half the runs at the same per-run cost is no change.
+ */
+export const RunMetrics: Story = {
+  name: "Run Metrics",
+  tags: ["!dev"],
+  parameters: { themeLayout: "column" },
+  render: () => (
+    <OptionGrid
+      rows={runMetricCases}
+      columns={runMetrics}
+      renderCell={(row, column) => (
+        <ExperimentRunMetricDelta
+          metric={column?.label ?? "latency"}
+          experiment={row.experiment}
+          baseExperiment={baselineRunMetrics}
         />
       )}
     />

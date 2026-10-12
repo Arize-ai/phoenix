@@ -59,6 +59,7 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "cerebras/": "cerebras",
     "groq/": "groq",
     "minimax/": "minimax",
+    "mistral/": "mistralai",
     "moonshot/": None,
     "perplexity/": None,
     "together_ai/": "together",

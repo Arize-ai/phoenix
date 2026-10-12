@@ -473,9 +473,6 @@ importers:
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1
-      mprocs:
-        specifier: ^0.9.6
-        version: 0.9.6
       only-allow:
         specifier: ^1.2.2
         version: 1.2.2
@@ -8008,11 +8005,6 @@ packages:
         optional: true
       react-dom:
         optional: true
-
-  mprocs@0.9.6:
-    resolution: {integrity: sha512-sEwB5XD3/rReB47h0YbN2L5fXOLcMjF8sOEDTMr/daCLyVZfU4CegbanxO0ybiaFx0MQ/nV7yzOHmprmy2Wq9w==}
-    engines: {node: '>=0.10.0'}
-    hasBin: true
 
   mrmime@2.0.1:
     resolution: {integrity: sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ==}
@@ -17208,8 +17200,6 @@ snapshots:
     optionalDependencies:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-
-  mprocs@0.9.6: {}
 
   mrmime@2.0.1: {}
 

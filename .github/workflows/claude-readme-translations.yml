@@ -1,10 +1,13 @@
 name: Sync README Translations
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - README.md
+  # Daily rather than on push: claude-code-action rejects `push` events
+  # ("Unsupported event type: push"), and each run syncs every README.md change
+  # since the translations were last updated, so a daily batch loses nothing
+  # and turns several README edits into one translation run. Days without a
+  # README.md change exit at the diff step before Claude is invoked.
+  schedule:
+    - cron: "0 9 * * *"
   workflow_dispatch:
     inputs:
       base:
@@ -164,3 +167,5 @@ jobs:
               --title "docs: sync README translations" \
               --body-file "$BODY_FILE"
           fi
+          # Auto-merge once a reviewer approves and checks pass.
+          gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"

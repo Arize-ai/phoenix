@@ -14,22 +14,14 @@ import type { ExecutionState } from "@phoenix/components/core/types";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import {
-  costFormatter,
-  numberFormatter,
-  latencyMsFormatter,
-} from "@phoenix/utils/numberFormatUtils";
 
 import { ExperimentAverageRunTokenCosts } from "./ExperimentAverageRunTokenCosts";
 import { ExperimentAverageRunTokenCount } from "./ExperimentAverageRunTokenCount";
+import { getExperimentRunMetricValue } from "./experimentDeltaUtils";
 import {
-  computeMeanPerRun,
-  computeOperationalMetricDelta,
-} from "./experimentDeltaUtils";
-import {
-  ExperimentMetricDelta,
   ExperimentMetricStat,
   ExperimentMetricStatRow,
+  ExperimentRunMetricDelta,
 } from "./ExperimentMetricDelta";
 
 /**
@@ -71,26 +63,6 @@ type ExperimentCostAndLatencySummaryProps = {
   baseExperiment?: ExperimentCostAndLatencySummaryExperiment;
 };
 
-/**
- * Per-run averages of an experiment's latency, tokens and cost.
- */
-function getAverageRunMetrics(
-  experiment: ExperimentCostAndLatencySummaryExperiment
-) {
-  const { runCount, costSummary, averageRunLatencyMs } = experiment;
-  return {
-    averageRunLatencyMs,
-    averageRunTokenCountTotal: computeMeanPerRun({
-      total: costSummary.total.tokens,
-      runCount,
-    }),
-    averageRunCostTotal: computeMeanPerRun({
-      total: costSummary.total.cost,
-      runCount,
-    }),
-  };
-}
-
 const placeholderCSS = css`
   opacity: 0.5;
 `;
@@ -125,15 +97,15 @@ export function ExperimentCostAndLatencySummary({
     );
   }
 
-  const { id } = experiment;
-  const {
-    averageRunLatencyMs,
-    averageRunTokenCountTotal,
-    averageRunCostTotal,
-  } = getAverageRunMetrics(experiment);
-  const baseAverages = baseExperiment
-    ? getAverageRunMetrics(baseExperiment)
-    : null;
+  const { id, averageRunLatencyMs } = experiment;
+  const averageRunTokenCountTotal = getExperimentRunMetricValue({
+    experiment,
+    metric: "tokens",
+  });
+  const averageRunCostTotal = getExperimentRunMetricValue({
+    experiment,
+    metric: "cost",
+  });
 
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
@@ -149,22 +121,12 @@ export function ExperimentCostAndLatencySummary({
         {averageRunLatencyMs != null && (
           <ExperimentMetricStat>
             <LatencyText size="S" latencyMs={averageRunLatencyMs} />
-            {baseAverages && (
-              <ExperimentMetricDelta
-                delta={computeOperationalMetricDelta({
-                  base: baseAverages.averageRunLatencyMs,
-                  compare: averageRunLatencyMs,
-                })}
-                display="relative"
-                metricLabel="Average latency"
-                formatter={latencyMsFormatter}
-                compareValueText={latencyMsFormatter(averageRunLatencyMs)}
-                baseValueText={latencyMsFormatter(
-                  baseAverages.averageRunLatencyMs
-                )}
-                tooltipPlacement="top"
-              />
-            )}
+            <ExperimentRunMetricDelta
+              metric="latency"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
+              tooltipPlacement="top"
+            />
           </ExperimentMetricStat>
         )}
         <ExperimentMetricStat>
@@ -173,19 +135,11 @@ export function ExperimentCostAndLatencySummary({
             experimentId={id}
             size="S"
           />
-          {baseAverages && averageRunTokenCountTotal != null && (
-            <ExperimentMetricDelta
-              delta={computeOperationalMetricDelta({
-                base: baseAverages.averageRunTokenCountTotal,
-                compare: averageRunTokenCountTotal,
-              })}
-              display="relative"
-              metricLabel="Average tokens per run"
-              formatter={numberFormatter}
-              compareValueText={numberFormatter(averageRunTokenCountTotal)}
-              baseValueText={numberFormatter(
-                baseAverages.averageRunTokenCountTotal
-              )}
+          {averageRunTokenCountTotal != null && (
+            <ExperimentRunMetricDelta
+              metric="tokens"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
               tooltipPlacement="top"
             />
           )}
@@ -197,20 +151,12 @@ export function ExperimentCostAndLatencySummary({
               experimentId={id}
               size="S"
             />
-            {baseAverages && (
-              <ExperimentMetricDelta
-                delta={computeOperationalMetricDelta({
-                  base: baseAverages.averageRunCostTotal,
-                  compare: averageRunCostTotal,
-                })}
-                display="relative"
-                metricLabel="Average cost per run"
-                formatter={costFormatter}
-                compareValueText={costFormatter(averageRunCostTotal)}
-                baseValueText={costFormatter(baseAverages.averageRunCostTotal)}
-                tooltipPlacement="top"
-              />
-            )}
+            <ExperimentRunMetricDelta
+              metric="cost"
+              experiment={experiment}
+              baseExperiment={baseExperiment}
+              tooltipPlacement="top"
+            />
           </ExperimentMetricStat>
         )}
       </ExperimentMetricStatRow>

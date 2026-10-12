@@ -226,3 +226,9 @@ def test_precision_recall_fscore_errors(
     # Evaluators now raise exceptions instead of returning an ERROR score
     with pytest.raises(ValueError):
         _ = evaluator.evaluate({"expected": expected, "output": output})
+
+
+@pytest.mark.parametrize("beta", [float("nan"), float("inf")])
+def test_precision_recall_fscore_rejects_non_finite_beta(beta: float) -> None:
+    with pytest.raises(ValueError, match="beta must be finite and > 0"):
+        PrecisionRecallFScore(beta=beta)

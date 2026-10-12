@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix, Arize'ın deney, değerlendirme ve sorun giderme için tasarlanm�
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Prompt'ları optimize edin, modelleri karşılaştırın, parametreleri ayarlayın ve izlenen LLM çağrılarını yeniden oynatın.
 - [**_Prompt Yönetimi_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Sürüm kontrolü, etiketleme ve deneyler kullanarak prompt değişikliklerini sistematik biçimde yönetin ve test edin.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - Trace'lerde hata ayıklamak, prompt'lar üzerinde iterasyon yapmak ve üründe gezinmek için Phoenix'e yerleşik bir AI mühendislik ajanı.
-- [**_Uzak MCP Sunucusu_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Trace'leri, veri setlerini, deneyleri ve daha fazlasını sorgulamak için Claude Code, Cursor ve diğer MCP istemcilerini doğrudan Phoenix örneğinizin `/mcp` endpoint'ine bağlayın.
+- [**_Uzak MCP Sunucusu_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Trace'leri, veri setlerini, deneyleri ve daha fazlasını sorgulamak için Claude Code, Cursor ve diğer MCP istemcilerini doğrudan Phoenix örneğinizin `/mcp` endpoint'ine bağlayın.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Docker Compose, Kubernetes/Helm ve diğer dağıtım seçenekleri için [self-ho
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | OpenTelemetry temel yapıları etrafında Phoenix'e uygun varsayılanlara sahip hafif bir sarmalayıcı sağlar |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API'si için istemci |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | LLM uygulamaları için TypeScript değerlendirme kütüphanesi (alfa sürümü) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Eski Phoenix sürümleri için bağımsız stdio MCP sunucusu (bakım modu — yerini Phoenix'e yerleşik [uzak MCP sunucusu](https://arize.com/docs/phoenix/integrations/remote-mcp) almıştır) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Eski Phoenix sürümleri için bağımsız stdio MCP sunucusu (bakım modu — yerini Phoenix'e yerleşik [uzak MCP sunucusu](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) almıştır) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code, Cursor ve diğer kodlama ajanlarıyla kullanmak üzere trace'leri, veri setlerini ve deneyleri getirmek için CLI |
 
 ## İzleme Entegrasyonları
@@ -269,7 +269,7 @@ Phoenix, hem insanlar hem de AI kodlama ajanları tarafından kullanılmak üzer
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` trace'leri, veri setlerini ve deneyleri getirir ve uygulamanızı enstrümante eder (`setup`); böylece bir ajan terminalden bağlam çekip buna göre işlem yapabilir.
 - **[Beceriler (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/), ajanlara Phoenix ile nasıl hata ayıklayacaklarını, değerlendirme yapacaklarını ve izleme yapacaklarını öğreten iş akışlarını paketler.
-- **[Uzak MCP Sunucusu](https://arize.com/docs/phoenix/integrations/remote-mcp)** — Phoenix'i doğrudan sorgulamak için herhangi bir MCP istemcisini örneğinizin `/mcp` endpoint'ine bağlayın.
+- **[Uzak MCP Sunucusu](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — Phoenix'i doğrudan sorgulamak için herhangi bir MCP istemcisini örneğinizin `/mcp` endpoint'ine bağlayın.
 
 Kurulum ve kullanım için [kodlama ajanları dokümantasyonuna](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) bakın.
 

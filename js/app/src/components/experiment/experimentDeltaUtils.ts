@@ -5,7 +5,10 @@ import type {
 import { getOptimizationBounds } from "@phoenix/components/annotation/optimizationUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
+  costFormatter,
+  errorRateFormatter,
   formatPercentShort,
+  latencyMsFormatter,
   numberFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
@@ -59,6 +62,67 @@ export const MISSING_VALUE_TEXT = "--";
 export const UNCHANGED_DELTA_TEXT = "no change";
 
 type MaybeNumber = number | null | undefined;
+
+/**
+ * A metric aggregated over an experiment's runs that is compared against a
+ * base or baseline experiment.
+ */
+export type ExperimentRunMetric = "latency" | "tokens" | "cost" | "errorRate";
+
+/**
+ * The experiment fields the run metrics derive from. `errorRate` is optional
+ * since not every surface fetches it.
+ */
+export type ExperimentRunMetricsSource = {
+  readonly runCount: number;
+  readonly averageRunLatencyMs: number | null;
+  readonly errorRate?: number | null;
+  readonly costSummary: {
+    readonly total: {
+      readonly cost: number | null;
+      readonly tokens: number | null;
+    };
+  };
+};
+
+export type ExperimentRunMetricDefinition = {
+  /** What the number is, for tooltips and aria-labels */
+  label: string;
+  /** Formats values and absolute magnitudes */
+  formatter: (value: MaybeNumber) => string;
+  /** Which form a change shows */
+  display: DeltaDisplay;
+};
+
+/**
+ * How each run metric is labeled and formatted. Latency, tokens and cost show
+ * the relative change; the error rate shows the change in percentage points.
+ */
+export const EXPERIMENT_RUN_METRICS: Record<
+  ExperimentRunMetric,
+  ExperimentRunMetricDefinition
+> = {
+  latency: {
+    label: "Average latency",
+    formatter: latencyMsFormatter,
+    display: "relative",
+  },
+  tokens: {
+    label: "Average tokens per run",
+    formatter: numberFormatter,
+    display: "relative",
+  },
+  cost: {
+    label: "Average cost per run",
+    formatter: costFormatter,
+    display: "relative",
+  },
+  errorRate: {
+    label: "Error rate",
+    formatter: errorRateFormatter,
+    display: "absolute",
+  },
+};
 
 /**
  * Relative tolerance under which two values count as equal, so floating-point
@@ -156,6 +220,17 @@ export function computeOperationalMetricDelta({
 }
 
 /**
+ * Indexes annotation configs by annotation name.
+ */
+export function indexAnnotationConfigsByName<
+  T extends { readonly name: string },
+>(configs: readonly T[] | undefined): Partial<Record<string, T>> {
+  return Object.fromEntries(
+    (configs ?? []).map((config) => [config.name, config])
+  );
+}
+
+/**
  * Indexes annotation summaries by annotation name.
  */
 export function indexSummariesByAnnotationName<
@@ -235,6 +310,39 @@ export function computeMeanPerRun({
 }
 
 /**
+ * An experiment's per-run value of a metric. Token and cost totals are divided
+ * by the run count so experiments with different run counts compare.
+ * @param params.experiment - the experiment's aggregate fields
+ * @param params.metric - which run metric to read
+ */
+export function getExperimentRunMetricValue({
+  experiment,
+  metric,
+}: {
+  experiment: ExperimentRunMetricsSource;
+  metric: ExperimentRunMetric;
+}): number | null {
+  switch (metric) {
+    case "latency":
+      return experiment.averageRunLatencyMs;
+    case "tokens":
+      return computeMeanPerRun({
+        total: experiment.costSummary.total.tokens,
+        runCount: experiment.runCount,
+      });
+    case "cost":
+      return computeMeanPerRun({
+        total: experiment.costSummary.total.cost,
+        runCount: experiment.runCount,
+      });
+    case "errorRate":
+      return experiment.errorRate ?? null;
+    default:
+      return assertUnreachable(metric);
+  }
+}
+
+/**
  * Formats a relative change as an unsigned percentage, e.g. `0.364` → `36%`.
  */
 export function formatRelativeDelta(relative: number): string {
@@ -302,6 +410,22 @@ export function formatMetricDelta({
     default:
       return assertUnreachable(delta);
   }
+}
+
+/**
+ * The text of an unchanged delta shown as a number rather than `no change`,
+ * for columns of deltas that need equal widths: `0%`, `0.00`, `$0`.
+ * @param params.display - which form the column's changes show
+ * @param params.formatter - formats absolute magnitudes (default `numberFormatter`)
+ */
+export function formatZeroDelta({
+  display,
+  formatter = numberFormatter,
+}: {
+  display: DeltaDisplay;
+  formatter?: (value: number) => string;
+}): string {
+  return display === "relative" ? formatRelativeDelta(0) : formatter(0);
 }
 
 /**

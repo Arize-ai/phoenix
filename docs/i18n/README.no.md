@@ -37,7 +37,7 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
@@ -53,7 +53,7 @@ Arize Phoenix er Arizes plattform med åpen kildekode for AI-observability, utvi
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimaliser prompter, sammenlign modeller, juster parametere og spill av tracede LLM-kall på nytt.
 - [**_Prompt-håndtering_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Administrer og test prompt-endringer systematisk med versjonskontroll, tagging og eksperimentering.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - En AI-engineering-agent innebygd i Phoenix for å feilsøke traces, iterere på prompter og navigere i produktet.
-- [**_Ekstern MCP-server_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Koble Claude Code, Cursor og andre MCP-klienter direkte til `/mcp`-endepunktet på Phoenix-instansen din for å spørre etter traces, datasett, eksperimenter og mer.
+- [**_Ekstern MCP-server_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Koble Claude Code, Cursor og andre MCP-klienter direkte til `/mcp`-endepunktet på Phoenix-instansen din for å spørre etter traces, datasett, eksperimenter og mer.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -144,7 +144,7 @@ Pakken `arize-phoenix` inneholder hele Phoenix-plattformen. Hvis du allerede har
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Tilbyr en lett wrapper rundt OpenTelemetry-primitiver med Phoenix-tilpassede standardinnstillinger                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Klient for Arize Phoenix-API-et                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript-evalueringsbibliotek for LLM-applikasjoner (alfaversjon)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Frittstående stdio-MCP-server for eldre Phoenix-versjoner (vedlikeholdsmodus — erstattet av den [eksterne MCP-serveren](https://arize.com/docs/phoenix/integrations/remote-mcp) som er innebygd i Phoenix) |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Frittstående stdio-MCP-server for eldre Phoenix-versjoner (vedlikeholdsmodus — erstattet av den [eksterne MCP-serveren](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) som er innebygd i Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI for å hente traces, datasett og eksperimenter til bruk med Claude Code, Cursor og andre kodeagenter |
 
 ## Tracing-integrasjoner
@@ -269,7 +269,7 @@ Phoenix er bygget for å styres av både mennesker og AI-kodeagenter. Tre grense
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` henter traces, datasett og eksperimenter og instrumenterer appen din (`setup`), slik at en agent kan hente kontekst og handle på den fra terminalen.
 - **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) pakker arbeidsflyter som lærer agenter å feilsøke, evaluere og trace med Phoenix.
-- **[Ekstern MCP-server](https://arize.com/docs/phoenix/integrations/remote-mcp)** — koble en hvilken som helst MCP-klient til `/mcp`-endepunktet på instansen din for å spørre Phoenix direkte.
+- **[Ekstern MCP-server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — koble en hvilken som helst MCP-klient til `/mcp`-endepunktet på instansen din for å spørre Phoenix direkte.
 
 Se [dokumentasjonen om kodeagenter](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for oppsett og bruk.
 

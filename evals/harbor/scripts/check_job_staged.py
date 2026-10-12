@@ -10,7 +10,9 @@ image without its fixture. Usage::
     uv run --script evals/harbor/scripts/check_job_staged.py JOB.yaml [--agents-replaced]
 
 Use ``--agents-replaced`` when the run passes ``-a``. That option replaces the agents in
-the job file, so the run does not require the px archive used by its CLI agents.
+the job file, so the run does not require the px archive used by its CLI agents. Use
+``--client-wheel-dir`` when the run loads the Phoenix plugin from the client wheel that
+staging builds, so a missing wheel fails here and not inside ``uvx``.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ STAGED = (
     "data/phoenix.db",
 )
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
+CLIENT_WHEEL = "arize_phoenix_client-*.whl"
 
 
 def job_tasks(job: dict[str, Any]) -> list[Path]:
@@ -52,6 +55,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("job", type=Path)
     parser.add_argument("--agents-replaced", action="store_true")
+    parser.add_argument("--client-wheel-dir", type=Path)
     args = parser.parse_args()
     job = yaml.safe_load(args.job.read_text()) or {}
 
@@ -67,6 +71,8 @@ def main() -> int:
     )
     if needs_cli and not CLI_ARCHIVE.is_file():
         failures.append(f"{CLI_ARCHIVE} is missing")
+    if args.client_wheel_dir and not any(args.client_wheel_dir.glob(CLIENT_WHEEL)):
+        failures.append(f"{args.client_wheel_dir}/{CLIENT_WHEEL} is missing")
     if failures:
         print("\n".join(failures), file=sys.stderr)
         print(
