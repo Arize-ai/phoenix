@@ -5128,7 +5128,7 @@ type ServerStatus {
   insufficientStorage: Boolean!
 
   """
-  Whether stored credentials use a publicly known encryption key because PHOENIX_SECRET is unset. Null for non-admin viewers when authentication is enabled.
+  Whether PHOENIX_SECRET is unset for stored credential encryption. Null for non-admin viewers when authentication is enabled.
   """
   databaseEncryptionKeyIsPublic: Boolean
 }

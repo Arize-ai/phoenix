@@ -7,7 +7,7 @@ import type { PublicEncryptionKeyWarningQuery } from "./__generated__/PublicEncr
 
 export function PublicEncryptionKeyWarning({ banner }: { banner?: boolean }) {
   return (
-    // Keep the surrounding form mounted while the warning query is pending.
+    // Keep settings mounted while the warning query is pending.
     <Suspense fallback={null}>
       <PublicEncryptionKeyWarningAlert banner={banner} />
     </Suspense>
@@ -34,13 +34,13 @@ function PublicEncryptionKeyWarningAlert({ banner }: { banner?: boolean }) {
   return (
     <Alert
       variant="warning"
-      title="Saved credentials are not protected"
+      title="Configure encryption for saved credentials"
       banner={banner}
     >
-      PHOENIX_SECRET is not set, so credentials saved here are encrypted with a
-      publicly known key. Anyone with a copy of the database can read them. Set
-      PHOENIX_SECRET on the server to protect them; credentials saved before
-      then will need to be entered again.
+      PHOENIX_SECRET is not set. Saved credentials use a default encryption key,
+      so anyone with a copy of the database can decrypt them. Set PHOENIX_SECRET
+      on the server to protect saved credentials; existing credentials will need
+      to be entered again.
     </Alert>
   );
 }
