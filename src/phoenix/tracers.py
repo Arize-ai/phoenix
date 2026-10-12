@@ -37,6 +37,7 @@ from opentelemetry.trace import (
 from opentelemetry.trace import (
     SpanKind as OtelSpanKind,
 )
+from opentelemetry.util.types import AttributeValue
 
 from phoenix.config import (
     get_env_phoenix_agents_collector_api_key,
@@ -47,7 +48,6 @@ from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.trace.attributes import (
-    AttributeValue,
     get_attribute_value,
     load_json_strings,
     unflatten,
