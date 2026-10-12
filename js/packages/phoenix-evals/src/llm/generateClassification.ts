@@ -2,7 +2,6 @@ import { generateObject } from "ai";
 import { z } from "zod";
 
 import { decideClassification } from "../decision/decideClassification";
-import { renderedPromptToDecisionPrompt } from "../decision/decisionPrompt";
 import { getTelemetryOptions } from "../telemetry";
 import type { ClassificationResult, WithLLM } from "../types/evals";
 import type { WithTelemetry } from "../types/otel";
@@ -44,7 +43,7 @@ export async function generateClassification(
     return decideClassification({
       model,
       labels,
-      prompt: renderedPromptToDecisionPrompt(prompt),
+      prompt,
       telemetry,
     });
   }

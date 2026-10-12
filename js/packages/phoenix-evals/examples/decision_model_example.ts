@@ -24,9 +24,8 @@ const decisionModel = openai.decisionModel("gpt-6-luna");
 // like-for-like comparison.
 const languageModel = openai("gpt-6-luna");
 
-// The text around the `<data>` block becomes the question's instructions
-// and the block becomes the content being judged. Without one, the whole
-// prompt is sent as the content with generic instructions.
+// Templates are rendered the same way for both kinds of model. A decision
+// model receives the rendered prompt as plain text.
 const hallucinationTemplate = `
 You are checking whether an answer to a question is supported by a reference
 text. An answer is "hallucinated" if it states anything that the reference

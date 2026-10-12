@@ -1,108 +1,13 @@
 import type { ModelMessage } from "ai";
 
-import { formatTemplate } from "../template";
 import type { WithPrompt } from "../types/prompts";
-import type { PromptTemplate, TemplateVariables } from "../types/templating";
 
 /**
- * What a decision model is asked: `instructions` for the single choice
- * question, and the text it should judge as the shared `state`.
+ * Join a rendered AI SDK prompt into the plain-text state a decision model
+ * judges. Decision models have no roles, so system text, instructions and
+ * messages are joined in order.
  */
-export type DecisionPrompt = {
-  instructions: string;
-  state: string;
-};
-
-/**
- * Used when the prompt can't be split into a rubric and the data it applies to.
- */
-export const GENERIC_DECISION_INSTRUCTIONS =
-  "Read the prompt in the state and answer it by selecting exactly one of the choices.";
-
-const DATA_OPEN = "<data>";
-const DATA_CLOSE = "</data>";
-
-/**
- * Build a decision prompt from an unrendered prompt template.
- *
- * Templates with exactly one `<data>…</data>` block (every built-in
- * evaluator) are split: the rubric around the block becomes the question
- * instructions and the rendered block becomes the state. The split is done
- * before rendering so a `<data>` tag inside a variable can't move it.
- * Other templates, and templates whose Mustache sections span the block's
- * boundary (so the pieces can't be rendered on their own), are rendered
- * and sent as one plain-text state with generic instructions.
- */
-export function templateToDecisionPrompt(args: {
-  template: PromptTemplate;
-  variables: TemplateVariables;
-}): DecisionPrompt {
-  const { template, variables } = args;
-  const text = promptTemplateToText(template);
-  const blocks = findDataBlocks(text);
-  if (blocks.length === 1) {
-    try {
-      return splitAtDataBlock({ text, block: blocks[0]!, variables });
-    } catch {
-      // A section opened on one side of the block and closed on the other
-      // makes the pieces invalid Mustache. Fall through to rendering the
-      // whole template, which still throws if the template itself is invalid.
-    }
-  }
-  return {
-    instructions: GENERIC_DECISION_INSTRUCTIONS,
-    state: render(text, variables),
-  };
-}
-
-type TextSpan = { start: number; end: number };
-
-/**
- * Find each `<data>…</data>` block, pairing every opening tag with the next
- * closing tag. Scans with `indexOf` rather than a lazy regex, which would
- * backtrack quadratically on text with many unclosed `<data>` tags.
- */
-function findDataBlocks(text: string): TextSpan[] {
-  const blocks: TextSpan[] = [];
-  let from = 0;
-  for (;;) {
-    const start = text.indexOf(DATA_OPEN, from);
-    if (start === -1) break;
-    const close = text.indexOf(DATA_CLOSE, start + DATA_OPEN.length);
-    if (close === -1) break;
-    const end = close + DATA_CLOSE.length;
-    blocks.push({ start, end });
-    from = end;
-  }
-  return blocks;
-}
-
-function splitAtDataBlock(args: {
-  text: string;
-  block: TextSpan;
-  variables: TemplateVariables;
-}): DecisionPrompt {
-  const { text, block, variables } = args;
-  const { start, end } = block;
-  const instructions = [text.slice(0, start), text.slice(end)]
-    .map((part) => render(part, variables).trim())
-    .filter((part) => part.length > 0)
-    .join("\n\n");
-  return {
-    instructions: instructions || GENERIC_DECISION_INSTRUCTIONS,
-    state: render(text.slice(start, end), variables),
-  };
-}
-
-/**
- * Build a decision prompt from an already rendered AI SDK prompt, for
- * callers of `generateClassification` that pass a prompt directly.
- * System text, instructions and messages are joined into one plain-text
- * state, since decision models have no roles.
- */
-export function renderedPromptToDecisionPrompt(
-  prompt: WithPrompt
-): DecisionPrompt {
+export function promptToDecisionState(prompt: WithPrompt): string {
   const parts: string[] = [];
   const { instructions, system, messages, prompt: promptContent } = prompt;
   for (const value of [instructions, system]) {
@@ -114,18 +19,7 @@ export function renderedPromptToDecisionPrompt(
     parts.push(messagesToText(promptContent));
   }
   if (messages !== undefined) parts.push(messagesToText(messages));
-  return {
-    instructions: GENERIC_DECISION_INSTRUCTIONS,
-    state: parts.filter((part) => part.length > 0).join("\n\n"),
-  };
-}
-
-function render(template: string, variables: TemplateVariables): string {
-  return formatTemplate({ template, variables }) as string;
-}
-
-function promptTemplateToText(template: PromptTemplate): string {
-  return typeof template === "string" ? template : messagesToText(template);
+  return parts.filter((part) => part.length > 0).join("\n\n");
 }
 
 function messagesToText(messages: readonly ModelMessage[]): string {

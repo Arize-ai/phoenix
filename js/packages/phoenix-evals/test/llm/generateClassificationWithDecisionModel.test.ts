@@ -108,7 +108,7 @@ describe("generateClassification with a decision model", () => {
 });
 
 describe("createClassificationEvaluator with a decision model", () => {
-  it("splits a template at its <data> block", async () => {
+  it("sends the rendered template as the state", async () => {
     const { model, doDecide } = createMockDecisionModel({
       choice: "incorrect",
       probabilities: { correct: 0.1, incorrect: 0.9 },
@@ -128,17 +128,10 @@ describe("createClassificationEvaluator with a decision model", () => {
         modelId: "mock-decision-model",
       },
     });
-    const call = doDecide.mock.calls[0]![0];
-    const state = stateText(call);
-    expect(state.startsWith("<data>")).toBe(true);
-    expect(state.endsWith("</data>")).toBe(true);
+    const state = stateText(doDecide.mock.calls[0]![0]);
+    expect(state).toContain("<rubric>");
     expect(state).toContain("What is the capital of Australia?");
     expect(state).toContain("Sydney.");
-    const instructions = call.questions.label!.instructions as string;
-    expect(instructions).toContain("<rubric>");
-    expect(instructions).toContain("Is the output correct or incorrect?");
-    expect(instructions).not.toContain("<data>");
-    expect(instructions).not.toContain("Sydney.");
   });
 });
 

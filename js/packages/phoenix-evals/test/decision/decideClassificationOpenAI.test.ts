@@ -66,12 +66,13 @@ describe("phoenix-evals with @ai-sdk/openai decision models", () => {
     expect(requests).toHaveLength(1);
     const [request] = requests;
     expect(request!.url).toBe("https://api.openai.com/v1/decisions");
+    expect(JSON.stringify(request!.body)).toContain("<rubric>");
     expect(JSON.stringify(request!.body)).toContain("Sydney.");
     expect(request!.body.questions).toEqual([
       {
         type: "choice",
         name: "label",
-        instructions: expect.stringContaining("<rubric>"),
+        instructions: expect.any(String),
         choices: [{ value: "correct" }, { value: "incorrect" }],
       },
     ]);

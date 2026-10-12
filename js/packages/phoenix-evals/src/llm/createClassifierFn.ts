@@ -1,5 +1,3 @@
-import { decideClassification } from "../decision/decideClassification";
-import { templateToDecisionPrompt } from "../decision/decisionPrompt";
 import { formatTemplate } from "../template";
 import type {
   ClassificationChoicesMap,
@@ -7,7 +5,6 @@ import type {
   EvaluationResult,
   EvaluatorFn,
 } from "../types/evals";
-import { isDecisionModel } from "../utils/isDecisionModel";
 import { generateClassification } from "./generateClassification";
 
 /**
@@ -37,27 +34,17 @@ export function createClassifierFn<
       ...args,
     };
 
-    // Decision models get the template split into a rubric and the data it
-    // applies to, which has to happen before the variables are filled in.
-    const classification = isDecisionModel(model)
-      ? await decideClassification({
-          model,
-          labels: choicesToLabels(choices),
-          prompt: templateToDecisionPrompt({
-            template: promptTemplate,
-            variables: templateVariables,
-          }),
-          telemetry: rest.telemetry,
-        })
-      : await generateClassification({
-          model,
-          labels: choicesToLabels(choices),
-          prompt: formatTemplate({
-            template: promptTemplate,
-            variables: templateVariables,
-          }),
-          ...rest,
-        });
+    const prompt = formatTemplate({
+      template: promptTemplate,
+      variables: templateVariables,
+    });
+
+    const classification = await generateClassification({
+      model,
+      labels: choicesToLabels(choices),
+      prompt,
+      ...rest,
+    });
 
     // Post-process the classification result and map it to the choices
     const score = choices[classification.label];
