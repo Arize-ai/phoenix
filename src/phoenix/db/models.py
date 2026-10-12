@@ -2588,7 +2588,6 @@ class PasswordResetToken(HasId):
     user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
-    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2720,7 +2719,6 @@ class RefreshToken(HasId):
     # recognizable as a replay rather than an unknown token. A consumed row must never
     # authenticate: every read path filters on consumed_at IS NULL.
     consumed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2741,7 +2739,6 @@ class AccessToken(HasId):
     )
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
-    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2759,7 +2756,6 @@ class ApiKey(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
-    # SHA-256 of the issued JWT; NULL requires PHOENIX_SECRET for validation.
     token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
