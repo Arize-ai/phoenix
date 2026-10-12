@@ -16,6 +16,7 @@ import {
 import type { Span } from "@opentelemetry/api";
 
 import { createDataset } from "../datasets";
+import { toExperimentEvaluationRequestBody } from "../experiments/helpers/toExperimentEvaluationRequestBody";
 import {
   cleanupOwnedTracerProvider,
   getTraceExportUrl,
@@ -647,28 +648,26 @@ export async function postAnnotation(
   const end = new Date();
   try {
     await suite.client.POST("/v1/experiment_evaluations", {
-      body: {
-        experiment_run_id: runId,
+      body: toExperimentEvaluationRequestBody({
+        experimentRunId: runId,
         name: annotation.name,
-        annotator_kind: annotation.annotatorKind ?? "CODE",
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
+        annotatorKind: annotation.annotatorKind ?? "CODE",
+        startTime: start,
+        endTime: end,
         result: {
           score:
             typeof annotation.score === "boolean"
               ? annotation.score
                 ? 1
                 : 0
-              : (annotation.score ?? null),
-          label: annotation.label ?? null,
-          explanation: annotation.explanation ?? null,
-          // Forward annotation metadata, matching the experiment evaluator
-          // upload path in `runExperiment`. Spread so it's omitted when unset.
-          ...(annotation.metadata ? { metadata: annotation.metadata } : {}),
+              : annotation.score,
+          label: annotation.label,
+          explanation: annotation.explanation,
+          metadata: annotation.metadata,
         },
         error: null,
-        trace_id: annotation.traceId ?? null,
-      },
+        traceId: annotation.traceId ?? null,
+      }),
     });
   } catch {
     suite.uploadFailureCount = (suite.uploadFailureCount ?? 0) + 1;

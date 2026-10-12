@@ -75,10 +75,7 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SPAN_FILTER_CONDITION_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
@@ -86,6 +83,10 @@ import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import {
+  getTraceSelectionSlots,
+  isSpanRowSelected,
+} from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -177,13 +178,15 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  // the caller passes the viewed trace, since its route param name varies
+  const selectedTraceSlots = getTraceSelectionSlots({
+    routeTraceId: selectedRowId,
+    searchParams,
+  });
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected =
-          selectedSpanNodeId === row.original.id ||
-          (!selectedSpanNodeId && row.original.trace.traceId === selectedRowId);
+        const isSelected = isSpanRowSelected(selectedTraceSlots, row.original);
         return (
           <tr
             key={row.id}

@@ -86,6 +86,7 @@ import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceSelectionSlots } from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -184,10 +185,18 @@ const TableBody = <
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // the caller passes the viewed trace, since its route param name varies
+  const selectedTraceSlots = getTraceSelectionSlots({
+    routeTraceId: selectedRowId,
+    searchParams,
+  });
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === selectedRowId;
+        // every row of a viewed trace is highlighted, whichever span is shown
+        const isSelected = selectedTraceSlots.some(
+          (slot) => slot.traceId === row.original.trace.traceId
+        );
         return (
           <tr
             key={row.id}

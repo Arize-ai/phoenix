@@ -45,17 +45,22 @@ uv sync --all-extras --all-packages
 nvm install
 npm i -g pnpm@12.0.0
 
-# 3. Install the JavaScript workspace and build the web app
+# 3. Install dekit, the process manager that `pnpm dev` uses to run the API and UI together
+curl -fsSL https://dekit.run/install.sh | sh
+
+# 4. Install the JavaScript workspace and build the web app
 cd js
 pnpm install
 pnpm build
 cp app/.env.example app/.env
 # Set PHOENIX_ENABLE_AUTH=False in app/.env to disable authentication locally
 
-# 4. Start the dev server (Python API + frontend with hot reload)
+# 5. Start the dev server (Python API + frontend with hot reload)
 cd app
 pnpm dev
 ```
+
+`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `dekit help` documents the rest of the CLI.
 
 Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `js/app/.env` to bypass it.
 
@@ -79,7 +84,7 @@ If a step fails, consult the detailed setup instructions below.
 
 ### With `pnpm dev`
 
-`pnpm dev` runs datagen as the `datagen` process in `mprocs` (see `js/app/mprocs.yaml`), via:
+`pnpm dev` runs datagen as the `datagen` task in `dekit` (see `js/app/dekit.yaml`), via:
 
 ```bash
 pnpm dev:datagen   # from js/app
@@ -87,7 +92,7 @@ pnpm dev:datagen   # from js/app
 
 It sources `js/app/.env` and sends traces to `http://localhost:${PHOENIX_PORT:-6006}`. It starts at the same time as the server; exports that fail while the server is still booting are logged as `OTLP export failed` warnings and that trace is skipped, so a few warnings at startup are expected; traffic flows once the server is up.
 
-- **Stop or restart it** from the `mprocs` UI: select the `datagen` process and press `x` to stop, `s` to start, or `r` to restart.
+- **Stop or restart it** from the `dekit` console: select the `datagen` task and press `x` to stop, `s` to start, or `r` to restart.
 - **Authentication:** if `PHOENIX_ENABLE_AUTH` is on, create a system API key in the Phoenix UI and add `PHOENIX_API_KEY=<key>` to `js/app/.env`. Without it every export fails with `401 Unauthorized`.
 - **Configure it** by adding the environment variables below to `js/app/.env` (for example `PHOENIX_PROJECT_NAME=my-project`).
 
@@ -463,7 +468,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
  pnpm dev
 ```
 
-This launches the Python server, the frontend UI, and the [synthetic trace generator](#synthetic-trace-traffic) simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
+This launches the Python server, the frontend UI, and the [synthetic trace generator](#synthetic-trace-traffic) simultaneously using [dekit](https://dekit.run) (see `js/app/dekit.yaml`). The server will start with debugpy listening on port 5678.
 
 > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
 >
@@ -476,6 +481,8 @@ This launches the Python server, the frontend UI, and the [synthetic trace gener
 > ```bash
 > VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
 > ```
+>
+> Environment variables apply when the dekit runner starts. If a runner is already up, run `dekit down` first so the new values take effect.
 >
 > Or add to `js/app/.env`:
 >

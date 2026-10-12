@@ -38,7 +38,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-evaluator-bound-variables check-prompt-compilers gen-otel-models \
+	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-evaluator-bound-variables check-prompt-compilers sync-docs-snippets check-docs-snippets gen-otel-models \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -104,6 +104,8 @@ help: ## Show this help message
 	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
 	@echo -e "  check-evaluator-bound-variables - Ensure the evaluator editor's bound variables match the server"
 	@echo -e "  check-prompt-compilers - Ensure the YAML prompt compilers accept and emit evaluator gallery metadata"
+	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
+	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -113,7 +115,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -145,6 +147,7 @@ check-tools: ## Verify required tools are installed
 	@echo -e "$(GREEN)✓$(NC) tox found: $$($(TOX) --version)"
 	@command -v $(NODE) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: node is not installed. Install from https://nodejs.org$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) node found: $$($(NODE) --version)"
+	@command -v dekit >/dev/null 2>&1 && echo -e "$(GREEN)✓$(NC) dekit found: $$(dekit --version)" || echo -e "$(YELLOW)WARNING: dekit is not installed (needed by make dev). Run: curl -fsSL https://dekit.run/install.sh | sh$(NC)"
 	@echo -e "$(GREEN)All required tools are installed!$(NC)"
 
 #=============================================================================
@@ -421,7 +424,7 @@ codegen-prompts: ## Generate prompts code from YAML files
 
 sync-models: ## Sync model cost manifest from remote sources
 	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
-	@$(UV) run python .github/.scripts/sync_models.py
+	@$(UV) run python scripts/cost_tracking/sync_models.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 # ARGS=--external points the PostgreSQL extractor at a foreign database, which
@@ -480,6 +483,17 @@ check-prompt-compilers: ## Ensure the YAML prompt compilers accept and emit eval
 	@$(UV) run python $(CURDIR)/scripts/ci/check_prompt_compilers.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
+# These two call python3 directly: the script is stdlib-only and its CI job has no uv.
+sync-docs-snippets: ## Copy examples/quickstarts code into the docs' fenced code blocks
+	@echo -e "$(CYAN)Syncing docs code blocks from examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-docs-snippets: ## Ensure docs' fenced code blocks match examples/quickstarts
+	@echo -e "$(CYAN)Checking docs code blocks against examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py --check
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
 	@echo -e "$(CYAN)Generating OTel GenAI semconv Pydantic models...$(NC)"
 	@$(UV) run --script scripts/generate_otel_gen_ai_models.py
@@ -532,24 +546,31 @@ HARBOR_CLI ?= 1
 HARBOR_DATASET ?=
 HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
-# This client package provides the arize-phoenix Harbor plugin.
-HARBOR_CLIENT_VERSION ?= 3.5.0
+# The client package provides the arize-phoenix Harbor plugin. harbor-stage builds it from
+# this checkout so a job records with the plugin in the tree. Set HARBOR_CLIENT_VERSION to
+# a released version to use that release instead.
+HARBOR_CLIENT_VERSION ?=
+HARBOR_CLIENT_WHEEL_DIR := dist/phoenix-client
+HARBOR_CLIENT = $(if $(HARBOR_CLIENT_VERSION),arize-phoenix-client==$(HARBOR_CLIENT_VERSION),$(firstword $(wildcard $(CURDIR)/$(HARBOR_CLIENT_WHEEL_DIR)/arize_phoenix_client-*.whl)))
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
 # Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.11.
 HARBOR_PYTHON ?= 3.13
 UVX := uvx
-HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
-	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
+HARBOR_UVX := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)'
+HARBOR = $(HARBOR_UVX) --with '$(HARBOR_CLIENT)' harbor
 
-# Require the px archive only when HARBOR_ARGS does not replace the configured agents.
+# Require the px archive only when HARBOR_ARGS does not replace the configured agents, and
+# the client wheel only when no released client version is selected.
 define check-harbor-staged
-	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
+	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,) $(if $(HARBOR_CLIENT_VERSION),,--client-wheel-dir $(HARBOR_CLIENT_WHEEL_DIR))
 endef
 
-harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
+harbor-stage: ## Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=..., HARBOR_CLIENT_VERSION=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_environments.sh
+	$(if $(HARBOR_CLIENT_VERSION),@echo -e "$(YELLOW)Skipping the client wheel (HARBOR_CLIENT_VERSION=$(HARBOR_CLIENT_VERSION))$(NC)",\
+	rm -rf $(HARBOR_CLIENT_WHEEL_DIR) && $(UV) build --wheel packages/phoenix-client --out-dir $(HARBOR_CLIENT_WHEEL_DIR))
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
 	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
@@ -559,13 +580,13 @@ harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 		HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
 		uv run python tests/integration/harbor/run_plugin_e2e.py
 
-harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)
+harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=..., HARBOR_CLIENT_VERSION=...)
 	$(check-harbor-staged)
 	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
-	$(HARBOR) view jobs
+	$(HARBOR_UVX) harbor view jobs
 
 #=============================================================================
 # Cleanup

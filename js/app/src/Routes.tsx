@@ -93,6 +93,7 @@ import {
   examplesLoader,
   ExamplesPage,
   ChatPage,
+  CompareTracesPage,
   ExperimentComparePage,
   ExperimentDetailPage,
   ExperimentsPage,
@@ -275,6 +276,15 @@ const projectEvaluatorCreationRoutes = (
     />
   </>
 );
+
+// Shared by the traces and spans tabs, which both host the compare drawer
+const compareTracesRouteHandle = {
+  agentRoute: {
+    label: "Compare Traces",
+    description:
+      "Compare two traces side by side, each with its own span tree and span details, to diff their trajectories. The compared traces are the repeated traceId search param (the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id) in left-to-right order; each one's selected span is the repeated selectedSpanNodeId search param at the same position.",
+  },
+};
 
 export const appRouteObjects = createRoutesFromElements(
   <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
@@ -503,6 +513,11 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               >
                 <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
+                <Route
                   path=":traceId"
                   element={<TracePage />}
                   handle={{
@@ -525,6 +540,11 @@ export const appRouteObjects = createRoutesFromElements(
                   },
                 }}
               >
+                <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
                 <Route
                   path=":traceId"
                   element={<TracePage />}

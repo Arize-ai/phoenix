@@ -73,6 +73,7 @@ import type {
   ExperimentCompareTable_comparisons$key,
 } from "./__generated__/ExperimentCompareTable_comparisons.graphql";
 import type { ExperimentCompareTableQuery as ExperimentCompareTableQueryType } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { useExperimentCompareDeltasViewSetting } from "./experimentCompareDeltasViewSetting";
 import {
   ExperimentCompareChartSelector,
   useExperimentCompareChartsViewSetting,
@@ -144,6 +145,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentSelection } = props;
   const { baseExperimentId, compareExperimentIds } = experimentSelection;
   const chartsViewSetting = useExperimentCompareChartsViewSetting(datasetId);
+  const deltasViewSetting = useExperimentCompareDeltasViewSetting(datasetId);
+  const areDeltasVisible = deltasViewSetting.isEnabled;
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -449,6 +452,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       (experimentId, experimentIndex) => ({
         header: () => {
           const experiment = experimentInfoById[experimentId];
+          const isBaseColumn = experimentIndex === 0;
+          const deltaBaseExperiment =
+            areDeltasVisible && !isBaseColumn ? baseExperiment : undefined;
           const name = experiment?.name || "unknown-experiment";
           const metadata = experiment?.metadata;
           const projectId = experiment?.project?.id;
@@ -491,6 +497,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   <ExperimentCostAndLatencySummary
                     executionState="complete"
                     experiment={experiment}
+                    baseExperiment={deltaBaseExperiment}
                   />
                 )}
               </div>
@@ -498,6 +505,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 executionState="complete"
                 annotationConfigs={annotationConfigs}
                 annotationSummaries={experiment?.annotationSummaries ?? []}
+                baseAnnotationSummaries={
+                  deltaBaseExperiment?.annotationSummaries ?? undefined
+                }
               />
             </Flex>
           );
@@ -513,6 +523,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             return null;
           }
           const annotationSummaries = repeatedRunGroup.annotationSummaries;
+          const baseRepeatedRunGroup =
+            areDeltasVisible && experimentIndex !== 0
+              ? (row.original.repeatedRunGroupsByExperimentId[
+                  baseExperimentId
+                ] ?? null)
+              : undefined;
 
           return (
             <ExperimentRunOutputCell
@@ -521,6 +537,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
+              baseRepeatedRunGroup={baseRepeatedRunGroup}
               onOpenTraceDetails={openTraceDetails}
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
@@ -533,6 +550,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     );
   }, [
     annotationConfigs,
+    areDeltasVisible,
+    baseExperiment,
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
@@ -645,7 +664,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               datasetId={datasetId}
               experimentSelection={experimentSelection}
             />
-            <TableViewSettingsButton settings={[chartsViewSetting]} />
+            <TableViewSettingsButton
+              settings={[chartsViewSetting, deltasViewSetting]}
+            />
           </Flex>
         </View>
         <div
@@ -911,6 +932,12 @@ function ExperimentRunOutput(
     annotationSummaries: readonly AnnotationSummary[];
     annotationConfigs: readonly AnnotationConfig[];
     height: number;
+    /**
+     * The base experiment's run group for the same example, to show deltas
+     * against. Omitted on the base column and when deltas are hidden; `null`
+     * when the base has no group for the example.
+     */
+    baseRepeatedRunGroup?: ExperimentRepeatedRunGroup | null;
   }
 ) {
   const {
@@ -920,6 +947,8 @@ function ExperimentRunOutput(
     onOpenTraceDetails,
     height,
     annotationConfigs,
+    repetitionNumber,
+    baseRepeatedRunGroup,
   } = props;
 
   if (error) {
@@ -928,6 +957,11 @@ function ExperimentRunOutput(
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
     : [];
+  const baseRun = baseRepeatedRunGroup?.runs.find(
+    (run) => run.repetitionNumber === repetitionNumber
+  );
+  const baseAnnotationsList =
+    baseRun?.annotations?.edges.map((edge) => edge.annotation) ?? undefined;
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
@@ -941,6 +975,9 @@ function ExperimentRunOutput(
         annotationSummaries={props.annotationSummaries}
         annotationConfigs={annotationConfigs}
         numRepetitions={props.numRepetitions}
+        showDeltas={baseRepeatedRunGroup !== undefined}
+        baseAnnotations={baseAnnotationsList}
+        baseAnnotationSummaries={baseRepeatedRunGroup?.annotationSummaries}
         onTraceClick={({ traceId, projectId, annotationName }) => {
           onOpenTraceDetails({
             traceId,
@@ -969,6 +1006,7 @@ function RunError({ error, height }: { error: string; height: number }) {
 function ExperimentRunOutputCell({
   experimentRepetitionCount,
   repeatedRunGroup,
+  baseRepeatedRunGroup,
   onOpenTraceDetails,
   rowIndex,
   setSelectedExampleIndex,
@@ -978,6 +1016,12 @@ function ExperimentRunOutputCell({
 }: {
   experimentRepetitionCount: number;
   repeatedRunGroup: ExperimentRepeatedRunGroup;
+  /**
+   * The base experiment's run group for the same example, to show deltas
+   * against. Omitted on the base column and when deltas are hidden; `null`
+   * when the base has no group for the example.
+   */
+  baseRepeatedRunGroup?: ExperimentRepeatedRunGroup | null;
   onOpenTraceDetails: (details: SelectedTraceDetails) => void;
   rowIndex: number;
   setSelectedExampleIndex: (index: number) => void;
@@ -1066,7 +1110,12 @@ function ExperimentRunOutputCell({
   return (
     <Flex direction="column" height="100%">
       <CellTop extra={runControls}>
-        <ExperimentRepeatedRunGroupMetadata fragmentRef={repeatedRunGroup} />
+        <ExperimentRepeatedRunGroupMetadata
+          fragmentRef={repeatedRunGroup}
+          baseFragmentRef={baseRepeatedRunGroup}
+          runCount={repeatedRunGroup.runs.length}
+          baseRunCount={baseRepeatedRunGroup?.runs.length ?? 0}
+        />
       </CellTop>
       {run ? (
         <ExperimentRunOutput
@@ -1076,6 +1125,7 @@ function ExperimentRunOutputCell({
           annotationSummaries={annotationSummaries}
           annotationConfigs={annotationConfigs}
           height={height}
+          baseRepeatedRunGroup={baseRepeatedRunGroup}
         />
       ) : (
         <PaddedCell>

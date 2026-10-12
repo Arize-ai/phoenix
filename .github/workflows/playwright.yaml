@@ -12,7 +12,7 @@ on:
       - main
       - version-*
   schedule:
-    - cron: "0 16 * * 1-5"
+    - cron: "0 16 * * MON-FRI"
   workflow_dispatch:
 
 env:
