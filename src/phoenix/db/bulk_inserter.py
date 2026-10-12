@@ -300,7 +300,7 @@ class BulkInserter:
                 # Checkout failures precede all span writes and are safe to retry.
                 await session.connection()
                 # Calculated before any write so no locks are held meanwhile. Fresh on each
-                # attempt: an instance from a rolled-back flush may keep that attempt's ids.
+                # attempt: an instance from a rolled-back flush keeps that attempt's ids.
                 costs = [self._calculate_span_cost(span) for span, _ in self._span_batch]
                 for (span, project_name), cost in zip(self._span_batch, costs):
                     result: Optional[SpanInsertionEvent] = None
@@ -445,7 +445,8 @@ class BulkInserter:
             *_error_fields(error),
         )
         for item in inserted_spans:
-            # The rolled-back instance may keep ids from that flush, so start fresh.
+            # A rolled-back instance keeps the ids from that flush, and saving it again
+            # would insert those ids explicitly. Recalculate so each save is new.
             if item.cost is None or (fresh := self._calculate_span_cost(item.span)) is None:
                 continue
             fresh = _with_rowids(fresh, item.result)
