@@ -53,6 +53,23 @@ export const isExperimentMetricChartKey = (
   ) || getExperimentAnnotationName(key) != null;
 
 /**
+ * Drops persisted chart keys that are no longer in the chart catalog so stale
+ * keys don't render as empty panels. A value that is not a list falls back to
+ * `fallback`.
+ */
+export function sanitizeExperimentMetricChartKeys(
+  keys: unknown,
+  fallback: ExperimentMetricChartKey[]
+): ExperimentMetricChartKey[] {
+  return Array.isArray(keys)
+    ? keys.filter(
+        (key): key is ExperimentMetricChartKey =>
+          typeof key === "string" && isExperimentMetricChartKey(key)
+      )
+    : fallback;
+}
+
+/**
  * The default metric charts shown above the experiments table.
  */
 export const DEFAULT_EXPERIMENT_METRIC_CHART_KEYS: ExperimentMetricChartKey[] =

@@ -32,6 +32,7 @@ const SPAN_KINDS = [
   "reranker",
   "evaluator",
   "guardrail",
+  "decision",
   "prompt",
   "unknown",
 ] as const;

@@ -2,7 +2,7 @@
 Regression tests for src/phoenix/server/cost_tracking/model_cost_manifest.json.
 
 Guards that LiteLLM whole-prompt tier rates (``*_above_NNNk_tokens``) survive the
-sync from LiteLLM through ``.github/.scripts/sync_models.py`` and land in the
+sync from LiteLLM through ``scripts/cost_tracking/sync_models.py`` and land in the
 manifest as ``threshold_based`` customizations. See Arize-ai/phoenix#14314.
 
 Also guards that the current flagship lineup stays priced and, just as importantly,
@@ -166,6 +166,76 @@ def test_flat_rate_models_carry_every_token_rate(
         )
 
 
+@pytest.mark.parametrize(
+    "model_name, provider, input_rate, output_rate, cache_read_rate",
+    [
+        # Direct Mistral AI API prices from LiteLLM ``mistral/*`` IDs. OpenInference uses
+        # ``llm.provider = "mistralai"`` (not LiteLLM's ``mistral`` string).
+        ("mistral/mistral-large-latest", "mistralai", 5e-7, 1.5e-6, 5e-8),
+        ("mistral/mistral-small-latest", "mistralai", 1.5e-7, 6e-7, 1.5e-8),
+        ("mistral/codestral-latest", "mistralai", 3e-7, 9e-7, 3e-8),
+        ("mistral/pixtral-large-latest", "mistralai", 2e-6, 6e-6, 2e-7),
+    ],
+)
+def test_direct_mistral_models_carry_openinference_provider_and_rates(
+    models_by_name: dict[str, dict[str, Any]],
+    model_name: str,
+    provider: str,
+    input_rate: float,
+    output_rate: float,
+    cache_read_rate: float,
+) -> None:
+    assert model_name in models_by_name, f"missing model entry: {model_name}"
+    model = models_by_name[model_name]
+    assert model.get("provider") == provider
+    assert model["name_pattern"] == model_name.removeprefix("mistral/")
+    prices = {price["token_type"]: price for price in model["token_prices"]}
+    assert prices["input"]["base_rate"] == pytest.approx(input_rate, rel=1e-9)
+    assert prices["output"]["base_rate"] == pytest.approx(output_rate, rel=1e-9)
+    assert prices["cache_read"]["base_rate"] == pytest.approx(cache_read_rate, rel=1e-9)
+    assert "cache_write" not in prices
+
+
+@pytest.mark.parametrize(
+    "span_model_name, span_provider, expected_entry",
+    [
+        ("mistral-large-latest", "mistralai", "mistral/mistral-large-latest"),
+        ("mistral-small-latest", "mistralai", "mistral/mistral-small-latest"),
+        ("codestral-latest", "mistralai", "mistral/codestral-latest"),
+        # Provider-less spans still match by name_pattern alone.
+        ("mistral-large-latest", None, "mistral/mistral-large-latest"),
+        # Together-hosted Mistral stays on the together provider entry.
+        (
+            "mistralai/Mistral-7B-Instruct-v0.1",
+            "together",
+            "together_ai/mistralai/Mistral-7B-Instruct-v0.1",
+        ),
+        # Unknown model name does not resolve.
+        ("totally-unknown-mistral-model", "mistralai", None),
+    ],
+)
+def test_mistral_span_model_names_resolve_to_manifest_entries(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    span_provider: str | None,
+    expected_entry: str | None,
+) -> None:
+    attributes: dict[str, Any] = {"llm": {"model_name": span_model_name}}
+    if span_provider is not None:
+        attributes["llm"]["provider"] = span_provider
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes=attributes,
+    )
+    if expected_entry is None:
+        assert model is None
+    else:
+        assert model is not None, f"no built-in model priced {span_model_name}"
+        assert model.name == expected_entry
+        if span_provider is not None:
+            assert model.provider == span_provider
+
+
 @pytest.fixture(scope="module")
 def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
     """A lookup over every built-in model, mirroring how the facilitator seeds them."""
@@ -202,7 +272,8 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         ("gpt-6-astra", "gpt-6-astra"),
         ("gpt-6-sol", "gpt-6-sol"),
         ("gpt-6-luna", "gpt-6-luna"),
-        ("us.openai.gpt-6-luna", "gpt-6-luna"),
+        # LiteLLM lists this regional ID with its own prices.
+        ("us.openai.gpt-6-luna", "us.openai.gpt-6-luna"),
         ("gpt-5.6-sol", "gpt-5.6-sol"),
         ("gpt-5.6-terra", "gpt-5.6-terra"),
         ("gpt-5.6-luna", "gpt-5.6-luna"),

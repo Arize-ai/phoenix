@@ -723,6 +723,31 @@ async def test_span_annotation_summaries(
         )
 
 
+async def test_span_annotation_summaries_are_ordered_by_name(
+    gql_client: AsyncGraphQLClient,
+    spans_with_annotations: None,
+) -> None:
+    """Summaries have no id, so clients cache them by position (see the resolver)."""
+    response = await gql_client.execute(
+        """
+        query ($spanId: ID!) {
+          span: node(id: $spanId) {
+            ... on Span {
+              spanAnnotationSummaries {
+                name
+              }
+            }
+          }
+        }
+        """,
+        variables={"spanId": str(GlobalID(Span.__name__, str(1)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [summary["name"] for summary in response.data["span"]["spanAnnotationSummaries"]]
+    assert names == ["Hallucination", "Relevance"]
+
+
 @pytest.fixture
 async def spans_with_annotations(
     db: DbSessionFactory,
@@ -900,8 +925,9 @@ async def spans_with_annotations(
             ),
         ]
 
-        # Add all annotations to the session
-        session.add_all(hallucination_annotations + relevance_annotations)
+        # Add all annotations to the session. Relevance goes in first so the
+        # summaries' order cannot fall out of insertion order by accident.
+        session.add_all(relevance_annotations + hallucination_annotations)
 
 
 @pytest.fixture

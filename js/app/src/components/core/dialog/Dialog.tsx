@@ -112,6 +112,7 @@ export const DialogTitleExtra = ({
     <Flex
       gap="size-100"
       alignItems="center"
+      flexShrink={0}
       data-testid="dialog-title-extra"
       {...props}
       className={classNames(props.className, "dialog__title-extra")}

@@ -179,6 +179,7 @@ const providers = Object.entries(ModelProviders)
 const SANDBOX_PROVIDER_KINDS = Object.keys({
   DAYTONA: true,
   DENO: true,
+  DOCKER: true,
   E2B: true,
   MODAL: true,
   MONTY: true,

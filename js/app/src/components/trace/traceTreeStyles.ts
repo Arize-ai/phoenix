@@ -105,15 +105,18 @@ export const traceTreeListCSS = css`
 
 /**
  * A row of the tree. Its children anchor to the title line; a metrics footer
- * hangs below without moving them. Expects {@link nestingLevelStyle}.
+ * hangs below without moving them, and {@link spanNodeAnnotationsCSS} wraps
+ * onto a line of its own. Expects {@link nestingLevelStyle}.
  */
 export const spanNodeWrapCSS = css`
   position: relative;
   width: 100%;
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--global-dimension-size-100);
+  column-gap: var(--global-dimension-size-100);
+  row-gap: var(--global-dimension-size-25);
   padding-right: var(--global-dimension-size-100);
   padding-top: var(--trace-tree-row-padding-y);
   padding-bottom: var(--trace-tree-row-padding-y);
@@ -148,9 +151,21 @@ export const spanNodeContentCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-25);
-  flex: 1 1 auto;
+  /* A content-sized basis would let a long name wrap the timing bar */
+  flex: 1 1 0%;
   min-width: 0;
   overflow: hidden;
+`;
+
+/**
+ * The row's annotation line, aligned with the name and spanning under the
+ * timing bar, where it has more room than the name column.
+ */
+export const spanNodeAnnotationsCSS = css`
+  flex: 1 0 100%;
+  min-width: 0;
+  padding-left: calc(${ICON_SIZE}px + var(--global-dimension-size-100));
+  box-sizing: border-box;
 `;
 
 export const spanTimingCSS = css`
