@@ -1,22 +1,29 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from secrets import token_hex
-from typing import TYPE_CHECKING, Any, Iterator, Mapping
+from typing import TYPE_CHECKING, Any, Iterator, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from smtpdfix.certs import Cert, _generate_certs
+from sqlalchemy import URL, make_url
 
 from .._helpers import (
     _AppInfo,
+    _auth_env,
     _ExistingSpan,
     _httpx_client,
     _insert_spans,
+    _is_memory_sqlite,
     _OIDCServer,
+    _random_schema,
+    _redactor_for_app,
     _server,
 )
 
@@ -443,27 +450,89 @@ def _env_agents() -> dict[str, str]:
     }
 
 
+@pytest.fixture(scope="package", params=("configured", "absent"))
+def _secret_configuration(request: pytest.FixtureRequest) -> str:
+    """Use PHOENIX_SECRET when configured; otherwise derive the signing key from the seed."""
+    return str(request.param)
+
+
+@pytest.fixture
+def _requires_configured_secret(_secret_configuration: str) -> None:
+    if _secret_configuration == "absent":
+        pytest.skip("PHOENIX_ADMIN_SECRET requires PHOENIX_SECRET")
+
+
+@pytest.fixture
+def _requires_derived_signing_key(_secret_configuration: str) -> None:
+    if _secret_configuration != "absent":
+        pytest.skip("The signing key can be derived from the deployment seed")
+
+
+@pytest.fixture(scope="package")
+def _env_auth(_secret_configuration: str) -> dict[str, str]:
+    return {
+        **_auth_env(secret_configuration=_secret_configuration),
+        "PHOENIX_DISABLE_RATE_LIMIT": "true",
+        "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,",
+    }
+
+
+@pytest.fixture(scope="package")
+def _env_database(_sql_database_url: URL) -> dict[str, str]:
+    return {"PHOENIX_SQL_DATABASE_URL": _sql_database_url.render_as_string()}
+
+
+@contextmanager
+def _isolated_database(
+    env: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
+    name: str,
+) -> Iterator[dict[str, str]]:
+    prepared = dict(env)
+    database_url = prepared["PHOENIX_SQL_DATABASE_URL"]
+    schema_loop: Optional[asyncio.AbstractEventLoop] = None
+    schema_ctx: Any = None
+    if _is_memory_sqlite(database_url):
+        database = tmp_path_factory.mktemp(name) / "phoenix.db"
+        prepared["PHOENIX_SQL_DATABASE_URL"] = f"sqlite:///{database}"
+    elif database_url.startswith("postgresql"):
+        schema_loop = asyncio.new_event_loop()
+        schema_ctx = _random_schema(make_url(database_url))
+        prepared["PHOENIX_SQL_DATABASE_SCHEMA"] = schema_loop.run_until_complete(
+            schema_ctx.__aenter__()
+        )
+    try:
+        yield prepared
+    finally:
+        if schema_loop is not None and schema_ctx is not None:
+            schema_loop.run_until_complete(schema_ctx.__aexit__(None, None, None))
+            schema_loop.close()
+
+
 @pytest.fixture(scope="package")
 def _env(
     _env_auth: Mapping[str, str],
     _env_database: Mapping[str, str],
     _env_oauth2: Mapping[str, str],
     _env_ldap: Mapping[str, str],
-    _env_ports: Mapping[str, str],
     _env_smtp: Mapping[str, str],
     _env_tls: Mapping[str, str],
     _env_agents: Mapping[str, str],
-) -> dict[str, str]:
+    _ports: Iterator[int],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[dict[str, str]]:
     """Combine all environment variable configurations for testing."""
-    return {
+    env = {
         **_env_tls,
-        **_env_ports,
         **_env_database,
         **_env_auth,
         **_env_smtp,
         **_env_oauth2,
         **_env_ldap,
         **_env_agents,
+        "PHOENIX_PORT": str(next(_ports)),
+        "PHOENIX_GRPC_PORT": str(next(_ports)),
+        "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
         # The OAuth2 consent decision endpoint requires an Origin header that
         # matches the server's public origin. Tests reach the server at
         # 127.0.0.1, so that hostname must be trusted in addition to the
@@ -480,35 +549,82 @@ def _env(
         # _app_mcp_code_mode is the dedicated fixture that opts into code mode.
         "PHOENIX_ENABLE_MCP_CODE_MODE": "false",
     }
+    with _isolated_database(env, tmp_path_factory, "auth-app") as env:
+        yield env
+
+
+def _assert_issued_token_verifies_with_secret_configuration(
+    app: _AppInfo,
+    secret_configuration: str,
+) -> None:
+    from joserfc import jwt
+    from joserfc.errors import JoseError
+    from joserfc.jwk import OctKey
+    from pydantic import SecretStr
+
+    from phoenix.server.deployment_secret import TOKEN_SIGNING_KEY_PURPOSE, derive_deployment_key
+
+    from .._helpers import _deployment_seed_for_app
+
+    token = str(app.default_admin.log_in(app).create_api_key(app))
+    if secret_configuration == "absent":
+        key = OctKey.import_key(
+            derive_deployment_key(
+                seed=_deployment_seed_for_app(app),
+                secret=SecretStr(""),
+                purpose=TOKEN_SIGNING_KEY_PURPOSE,
+            )
+        )
+    else:
+        key = OctKey.import_key(app.env["PHOENIX_SECRET"])
+    jwt.decode(token, key)
+    with pytest.raises(JoseError):
+        jwt.decode(token, OctKey.import_key("not-the-server-signing-key"))
 
 
 @pytest.fixture(scope="package")
-def _app(
-    _env: dict[str, str],
-) -> Iterator[_AppInfo]:
+def _app(_env: dict[str, str]) -> Iterator[_AppInfo]:
     with _server(_AppInfo(_env)) as app:
         yield app
 
 
 @pytest.fixture(scope="package")
 def _redactor(_app: _AppInfo) -> "Redactor":
-    """A Redactor keyed off the same PHOENIX_SECRET as the running server.
+    return _redactor_for_app(_app)
 
-    Tests use this to redact values before sending and to un-redact server-emitted
-    tokens — verifying symmetric round-trips end-to-end.
-    """
-    from pydantic import SecretStr
 
-    from phoenix.server.redaction import Redactor
+@pytest.fixture(scope="package")
+def _env_ldap_app_base(
+    _env_auth: Mapping[str, str],
+    _env_database: Mapping[str, str],
+    _env_oauth2: Mapping[str, str],
+    _env_smtp: Mapping[str, str],
+    _env_tls: Mapping[str, str],
+) -> dict[str, str]:
+    """Settings each dedicated LDAP app shares with the package app."""
+    return {**_env_tls, **_env_database, **_env_auth, **_env_smtp, **_env_oauth2}
 
-    return Redactor(secret=SecretStr(_app.env["PHOENIX_SECRET"]))
+
+@contextmanager
+def _ldap_app(
+    env: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
+    name: str,
+) -> Iterator[_AppInfo]:
+    with _isolated_database(env, tmp_path_factory, name) as isolated:
+        with _server(_AppInfo(isolated)) as app:
+            yield app
 
 
 @pytest.fixture(scope="package")
 def _env_ports_ldap_no_sign_up(
     _ports: Iterator[int],
+    _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for LDAP no-sign-up app."""
+    """Separate port allocation for LDAP no-sign-up app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -517,36 +633,29 @@ def _env_ports_ldap_no_sign_up(
 
 @pytest.fixture(scope="package")
 def _app_ldap_no_sign_up(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_no_sign_up: Mapping[str, str],
     _env_ports_ldap_no_sign_up: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP allow_sign_up=false.
 
     Uses separate ports from _app_ldap to allow both apps to run concurrently.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_ldap_no_sign_up,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_no_sign_up,
-    }
-    with _server(_AppInfo(env)) as app:
+    env = {**_env_ldap_app_base, **_env_ports_ldap_no_sign_up, **_env_ldap_no_sign_up}
+    with _ldap_app(env, tmp_path_factory, "ldap-no-sign-up") as app:
         yield app
 
 
 @pytest.fixture(scope="package")
 def _env_ports_posix(
     _ports: Iterator[int],
+    _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for POSIX LDAP app to avoid conflicts with _app_ldap."""
+    """Separate port allocation for POSIX LDAP app to avoid conflicts with _app_ldap.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -556,8 +665,12 @@ def _env_ports_posix(
 @pytest.fixture(scope="package")
 def _env_ports_ldap_no_email(
     _ports: Iterator[int],
+    _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for LDAP no-email app."""
+    """Separate port allocation for LDAP no-email app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -567,8 +680,12 @@ def _env_ports_ldap_no_email(
 @pytest.fixture(scope="package")
 def _env_ports_ldap_unique_id(
     _ports: Iterator[int],
+    _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for LDAP unique_id app."""
+    """Separate port allocation for LDAP unique_id app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -577,37 +694,30 @@ def _env_ports_ldap_unique_id(
 
 @pytest.fixture(scope="package")
 def _app_ldap_posix(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_posix: Mapping[str, str],
     _env_ports_posix: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for POSIX group search (OpenLDAP).
 
     Uses separate ports from _app_ldap to allow both apps to run concurrently
     during integration tests.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_posix,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_posix,
-    }
-    with _server(_AppInfo(env)) as app:
+    env = {**_env_ldap_app_base, **_env_ports_posix, **_env_ldap_posix}
+    with _ldap_app(env, tmp_path_factory, "ldap-posix") as app:
         yield app
 
 
 @pytest.fixture(scope="package")
 def _env_ports_posix_memberuid(
     _ports: Iterator[int],
+    _secret_configuration: str,
 ) -> dict[str, str]:
-    """Separate port allocation for POSIX memberUid LDAP app."""
+    """Separate port allocation for POSIX memberUid LDAP app.
+
+    Depends on _secret_configuration only so that each secret variant gets fresh ports.
+    """
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
@@ -616,41 +726,27 @@ def _env_ports_posix_memberuid(
 
 @pytest.fixture(scope="package")
 def _app_ldap_posix_memberuid(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_posix_memberuid: Mapping[str, str],
     _env_ports_posix_memberuid: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for POSIX memberUid group search.
 
     Uses GROUP_SEARCH_FILTER_USER_ATTR=uid to test the code path where Phoenix
     must fetch the uid attribute from the user entry for group filter substitution.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_posix_memberuid,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_posix_memberuid,
-    }
-    with _server(_AppInfo(env)) as app:
+    env = {**_env_ldap_app_base, **_env_ports_posix_memberuid, **_env_ldap_posix_memberuid}
+    with _ldap_app(env, tmp_path_factory, "ldap-posix-memberuid") as app:
         yield app
 
 
 @pytest.fixture(scope="package")
 def _app_ldap_unique_id(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_unique_id: Mapping[str, str],
     _env_ports_ldap_unique_id: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for unique_id identification (enterprise mode).
 
@@ -658,28 +754,17 @@ def _app_ldap_unique_id(
     unique identifier rather than email. This enables identity preservation
     across email and DN changes.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_ldap_unique_id,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_unique_id,
-    }
-    with _server(_AppInfo(env)) as app:
+    env = {**_env_ldap_app_base, **_env_ports_ldap_unique_id, **_env_ldap_unique_id}
+    with _ldap_app(env, tmp_path_factory, "ldap-unique-id") as app:
         yield app
 
 
 @pytest.fixture(scope="package")
 def _app_ldap_no_email(
-    _env_auth: Mapping[str, str],
-    _env_database: Mapping[str, str],
-    _env_oauth2: Mapping[str, str],
+    _env_ldap_app_base: Mapping[str, str],
     _env_ldap_no_email: Mapping[str, str],
     _env_ports_ldap_no_email: Mapping[str, str],
-    _env_smtp: Mapping[str, str],
-    _env_tls: Mapping[str, str],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """App instance with LDAP configured for no-email mode (null email markers).
 
@@ -687,16 +772,8 @@ def _app_ldap_no_email(
     identified by entryUUID instead of email. Phoenix generates null email
     markers for the database.
     """
-    env = {
-        **_env_tls,
-        **_env_ports_ldap_no_email,
-        **_env_database,
-        **_env_auth,
-        **_env_smtp,
-        **_env_oauth2,
-        **_env_ldap_no_email,
-    }
-    with _server(_AppInfo(env)) as app:
+    env = {**_env_ldap_app_base, **_env_ports_ldap_no_email, **_env_ldap_no_email}
+    with _ldap_app(env, tmp_path_factory, "ldap-no-email") as app:
         yield app
 
 
@@ -1104,6 +1181,7 @@ def _active_grants(app: _AppInfo, user: Any) -> list[dict[str, Any]]:
 def _app_dcr_rate_limited(
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
+    _secret_configuration: str,
 ) -> Iterator[_AppInfo]:
     port = next(_ports)
     env = _oauth2_app_env(
@@ -1111,6 +1189,7 @@ def _app_dcr_rate_limited(
         grpc_port=next(_ports),
         database=str(tmp_path_factory.mktemp("oauth2_dcr_rate_limited") / "phoenix.db"),
         extra={"PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR": "1"},
+        secret_configuration=_secret_configuration,
     )
     with _server(_AppInfo(env)) as app:
         yield app
@@ -1120,6 +1199,7 @@ def _app_dcr_rate_limited(
 def _app_dcr_enabled(
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
+    _secret_configuration: str,
 ) -> Iterator[_AppInfo]:
     port = next(_ports)
     env = _oauth2_app_env(
@@ -1131,6 +1211,7 @@ def _app_dcr_enabled(
             "PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION": "enabled",
             "PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS": "vscode.dev,insiders.vscode.dev",
         },
+        secret_configuration=_secret_configuration,
     )
     with _server(_AppInfo(env)) as app:
         yield app
@@ -1143,6 +1224,7 @@ _SHORT_GRANT_EXPIRY_SECONDS = 120
 def _app_short_grant(
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
+    _secret_configuration: str,
 ) -> Iterator[_AppInfo]:
     """An app whose grant ceiling is shorter than its default token lifetimes.
 
@@ -1159,6 +1241,7 @@ def _app_short_grant(
             "PHOENIX_DISABLE_RATE_LIMIT": "true",
             "PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS": str(_SHORT_GRANT_EXPIRY_SECONDS / 86400),
         },
+        secret_configuration=_secret_configuration,
     )
     with _server(_AppInfo(env)) as app:
         yield app
@@ -1168,6 +1251,7 @@ def _app_short_grant(
 def _app_dcr_disabled(
     _ports: Iterator[int],
     tmp_path_factory: pytest.TempPathFactory,
+    _secret_configuration: str,
 ) -> Iterator[_AppInfo]:
     port = next(_ports)
     env = _oauth2_app_env(
@@ -1179,6 +1263,7 @@ def _app_dcr_disabled(
             "PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION": "disabled",
             "PHOENIX_ENABLE_MCP_SERVER": "false",
         },
+        secret_configuration=_secret_configuration,
     )
     with _server(_AppInfo(env)) as app:
         yield app
@@ -1190,18 +1275,18 @@ def _oauth2_app_env(
     grpc_port: int,
     database: str,
     extra: Mapping[str, str],
+    secret_configuration: str = "configured",
 ) -> dict[str, str]:
-    return {
+    env = {
         "PHOENIX_PORT": str(port),
         "PHOENIX_GRPC_PORT": str(grpc_port),
         "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
         "PHOENIX_SQL_DATABASE_URL": f"sqlite:///{database}",
-        "PHOENIX_ENABLE_AUTH": "true",
-        "PHOENIX_SECRET": token_hex(16),
-        "PHOENIX_ADMIN_SECRET": token_hex(16),
         "PHOENIX_CSRF_TRUSTED_ORIGINS": f",http://localhost,http://127.0.0.1:{port},",
+        **_auth_env(secret_configuration=secret_configuration),
         **extra,
     }
+    return env
 
 
 def _origin(url: str) -> str:
