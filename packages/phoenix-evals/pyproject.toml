@@ -102,6 +102,14 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
+# Follow imports when py.typed is present.
+module = [
+  "jsonpath_ng",
+  "jsonpath_ng.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = [
   "litellm",
   "langchain_openai",
