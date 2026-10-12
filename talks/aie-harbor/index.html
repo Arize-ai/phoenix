@@ -179,7 +179,8 @@ p{margin:0}
 .slide.trials .hi-sb{opacity:1}
 .slide.agg .hi-hd,.slide.agg .hi-pr,.slide.agg .hi-mean{opacity:1}
 .hi-hd{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-.hi-t{display:block;min-height:20px;font-family:var(--mono);font-size:15px;color:var(--amber);white-space:nowrap}
+.hi-t{display:block;min-height:20px;font-family:var(--mono);font-size:15px;color:var(--muted);white-space:nowrap;transition:color .4s ease}
+.slide.trials .hi-t{color:var(--amber)}.slide.trials .hi-t.low{color:var(--bad)}
 .hi-sb{position:relative;height:72px;border-radius:var(--radius);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .hi-k{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--faint);text-align:center}
 .hi-sb .mt,.hi-sb .cur{display:none}
@@ -646,7 +647,7 @@ fi</pre>
       if(x<0)set(c,'');else if(x<.7)set(c,'build');else if(x<.7+c.run)set(c,'run');else set(c,fin)});
     rows.forEach(r=>{const cs=cells.filter(c=>c.i===r.i),all=cs.every(done),p=cs.filter(c=>c.st==='pass').length;
       r.pr.querySelector('b').textContent=all?p+'/6':'—';r.pr.querySelector('i').style.width=all?(p/6*100)+'%':'0%';
-      r.pr.classList.toggle('low',all&&p<=2);const k3=agents.filter((a,j)=>cs.some(c=>c.j===j&&c.st==='pass')).length;const em=r.pr.querySelector('em');em.textContent=all?'pass@3 · '+k3+'/'+agents.length+' agents':'';em.classList.toggle('ok',all&&k3===agents.length);r.lab.style.color=all&&p<=2?'var(--bad)':''});
+      r.pr.classList.toggle('low',all&&p<=2);const k3=agents.filter((a,j)=>cs.some(c=>c.j===j&&c.st==='pass')).length;const em=r.pr.querySelector('em');em.textContent=all?'pass@3 · '+k3+'/'+agents.length+' agents':'';em.classList.toggle('ok',all&&k3===agents.length);r.lab.classList.toggle('low',all&&p<=2)});
     means.forEach((e,j)=>{const cs=cells.filter(c=>c.j===j),d=cs.every(done);const k3=tasks.filter((t,i)=>cs.some(c=>c.i===i&&c.res===1)).length;e.querySelector('em').textContent=d?'pass@3 · '+k3+'/'+tasks.length+' tasks':''});
     root.classList.toggle('spot',cells.every(done));
   }
