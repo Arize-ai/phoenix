@@ -1054,15 +1054,20 @@ def get_env_default_retention_policy_days() -> int:
     return days
 
 
+DEFAULT_PLAYGROUND_TIMEOUT_SECONDS = 90
+
+
 def get_env_playground_timeout_seconds() -> int:
     """
     Returns the playground task timeout in seconds as set by the
-    PHOENIX_PLAYGROUND_TIMEOUT_SECONDS environment variable, defaulting to 90 if not set.
+    PHOENIX_PLAYGROUND_TIMEOUT_SECONDS environment variable, defaulting to
+    DEFAULT_PLAYGROUND_TIMEOUT_SECONDS if not set.
 
     Returns:
-        int: Playground task timeout in seconds. Defaults to 90 if the environment variable is not set.
+        int: Playground task timeout in seconds. Defaults to DEFAULT_PLAYGROUND_TIMEOUT_SECONDS
+        if the environment variable is not set.
     """  # noqa: E501
-    seconds = _int_val(ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS, 90)
+    seconds = _int_val(ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS, DEFAULT_PLAYGROUND_TIMEOUT_SECONDS)
     if seconds <= 0:
         raise ValueError("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS must be positive")
     return seconds
