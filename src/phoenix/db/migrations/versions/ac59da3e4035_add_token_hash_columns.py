@@ -1,7 +1,7 @@
 """add token hash columns
 
 Revision ID: ac59da3e4035
-Revises: a7f1c3e9d2b4
+Revises: 52e79887a7e3
 Create Date: 2026-10-01 00:00:00.000000
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "ac59da3e4035"
-down_revision: Union[str, None] = "a7f1c3e9d2b4"
+down_revision: Union[str, None] = "52e79887a7e3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
