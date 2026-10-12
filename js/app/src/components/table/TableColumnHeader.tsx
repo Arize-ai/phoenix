@@ -23,6 +23,12 @@ const SORT_LABEL = {
  * Styling comes from the `.sort`, `.sort-icon` and `.resizer` rules in
  * `tableCSS`, so the table this is rendered in must use that stylesheet.
  *
+ * The cell re-renders only when the column's sort, size or resizing changes,
+ * and the rendered `columnDef.header` is memoized on the header object, which
+ * stays the same across renders. A header that reads any other table state —
+ * a select-all checkbox reading row selection, say — would go stale here, so
+ * render such a header yourself rather than through this component.
+ *
  * @example
  * ```tsx
  * {headerGroup.headers.map((header) => (
