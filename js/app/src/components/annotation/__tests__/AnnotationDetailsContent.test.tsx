@@ -76,4 +76,17 @@ describe("AnnotationDetailsContent explanations", () => {
     // focusable content that disappears as focus leaves its trigger.
     expect(container.querySelector("[tabindex], [contenteditable]")).toBeNull();
   });
+  it("uses the shared labeled preview for JSON-encoded explanation values", async () => {
+    const decoded = { reasons: ["grounded", "complete"], score: 1 };
+    await renderExplanation(
+      JSON.stringify({ payload: JSON.stringify(decoded) })
+    );
+    expect(container.querySelector(".pretty-text")?.textContent).toBe(
+      JSON.stringify({ payload: decoded }, null, 2)
+    );
+    expect(
+      container.querySelector(".pretty-text__preview-label")?.textContent
+    ).toBe("JSON preview · encoded strings decoded");
+    expect(container.querySelector("[tabindex], button")).toBeNull();
+  });
 });

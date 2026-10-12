@@ -75,4 +75,21 @@ describe("PrettyTextCell", () => {
     expect(container.querySelector(".cm-editor")).toBeNull();
     expect(container.querySelector("pre")?.textContent).toBe(value);
   });
+  it("shows the source string when collapsed and labeled nested preview when expanded", async () => {
+    const decoded = { reasons: ["supported", "complete"] };
+    const value = JSON.stringify({ payload: JSON.stringify(decoded) });
+    await renderValue(value, false);
+    expect(container.querySelector("td")?.textContent).toBe(value);
+    expect(container.querySelector(".pretty-text__preview-label")).toBeNull();
+    await renderValue(value, true);
+    expect(container.querySelector(".pretty-text")?.textContent).toBe(
+      JSON.stringify({ payload: decoded }, null, 2)
+    );
+    expect(
+      container.querySelector(".pretty-text__preview-label")
+    ).not.toBeNull();
+    await renderValue(value, false);
+    expect(container.querySelector("td")?.textContent).toBe(value);
+    expect(container.querySelector(".pretty-text__preview-label")).toBeNull();
+  });
 });

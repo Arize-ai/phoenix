@@ -97,27 +97,44 @@ describe("PlaygroundExperimentRunDetailsDialog errors", () => {
     expect(
       container.querySelector('[aria-label="Close experiment run"]')
     ).not.toBeNull();
-    expect(header?.querySelector('[aria-label="Copy error"]')).not.toBeNull();
+    expect(
+      header?.querySelector('[aria-label="Copy original error"]')
+    ).not.toBeNull();
   });
   it("does not retain an earlier run's error when rendering normal output", async () => {
     await renderError("Request failed");
     await renderError(null);
     expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Copy error"]')).toBeNull();
+    expect(
+      container.querySelector('[aria-label="Copy original error"]')
+    ).toBeNull();
     expect(
       container.querySelector('[aria-label="Copy output"]')?.closest("header")
     ).not.toBeNull();
     expect(container.textContent).toContain('"result": "success"');
   });
   it("copies the original error once from the fixed header", async () => {
-    const error = '{"code":429,"nested":"{\\\"keep\\\":true}"}';
+    const decoded = {
+      reasons: ["rate limit", "retry later"],
+      retry: { seconds: 30 },
+    };
+    const error = JSON.stringify({
+      code: 429,
+      details: JSON.stringify(decoded),
+    });
     await renderError(error);
     const buttons = container.querySelectorAll<HTMLButtonElement>(
-      '[aria-label="Copy error"]'
+      '[aria-label="Copy original error"]'
     );
     expect(buttons).toHaveLength(1);
     await act(async () => buttons[0].click());
     expect(copy).toHaveBeenCalledWith(error);
+    expect(
+      container.querySelector('[role="alert"] .pretty-text')?.textContent
+    ).toBe(JSON.stringify({ code: 429, details: decoded }, null, 2));
+    expect(
+      container.querySelector('[role="alert"] .pretty-text__preview-label')
+    ).not.toBeNull();
   });
   it("copies normal output from the output card header", async () => {
     await renderError(null);

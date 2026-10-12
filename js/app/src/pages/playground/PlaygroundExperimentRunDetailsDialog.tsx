@@ -85,7 +85,11 @@ export function PlaygroundExperimentRunDetailsDialog({
           </Flex>
           <DialogTitleExtra>
             {run.error ? (
-              <CopyToClipboardButton text={run.error} aria-label="Copy error" />
+              <CopyToClipboardButton
+                text={run.error}
+                aria-label="Copy original error"
+                tooltipText="Copy original error"
+              />
             ) : null}
             <DialogCloseButton aria-label="Close experiment run" />
           </DialogTitleExtra>

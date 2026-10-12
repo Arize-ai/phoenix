@@ -1,10 +1,12 @@
 import type { SerializedStyles } from "@emotion/react";
 import { css } from "@emotion/react";
+import { useMemo } from "react";
 
 import { JSONBlock } from "@phoenix/components/code/JSONBlock";
 import { Text } from "@phoenix/components/core/content";
 import { usePrettyText } from "@phoenix/hooks/usePrettyText";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { getJSONDisplayPreview } from "@phoenix/utils/getJSONDisplayPreview";
 
 type PrettyTextProps = {
   children: string;
@@ -27,20 +29,42 @@ export function PrettyText({
   variant = "code",
 }: PrettyTextProps) {
   const { text, textType } = usePrettyText(children);
+  const preview = useMemo(
+    () =>
+      variant === "compact" && textType === "json"
+        ? getJSONDisplayPreview({ text })
+        : { text, hasDecodedStrings: false },
+    [variant, text, textType]
+  );
   if (variant === "compact") {
     return (
-      <Text
-        className="pretty-text pretty-text--compact"
-        color="inherit"
-        fontFamily={textType === "json" ? "mono" : "default"}
-        css={css`
-          display: block;
-          white-space: pre-wrap;
-          overflow-wrap: anywhere;
-        `}
-      >
-        {text}
-      </Text>
+      <>
+        {preview.hasDecodedStrings ? (
+          <Text
+            className="pretty-text__preview-label"
+            size="XS"
+            color="inherit"
+            css={css`
+              display: block;
+              padding-bottom: var(--global-dimension-size-50);
+            `}
+          >
+            JSON preview · encoded strings decoded
+          </Text>
+        ) : null}
+        <Text
+          className="pretty-text pretty-text--compact"
+          color="inherit"
+          fontFamily={textType === "json" ? "mono" : "default"}
+          css={css`
+            display: block;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+          `}
+        >
+          {preview.text}
+        </Text>
+      </>
     );
   }
   if (textType === "string") {
