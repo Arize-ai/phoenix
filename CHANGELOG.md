@@ -1,5 +1,19 @@
 # Changelog
 
+## [20.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.0...arize-phoenix-v20.21.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* improve span ingestion reliability ([#16889](https://github.com/Arize-ai/phoenix/issues/16889)) ([678740c](https://github.com/Arize-ai/phoenix/commit/678740c3be5a5568af8887a44ebbad30b01e9078))
+* **trace:** accept empty dataframes in TraceDataset ([#16913](https://github.com/Arize-ai/phoenix/issues/16913)) ([d0dc9e5](https://github.com/Arize-ai/phoenix/commit/d0dc9e5ff0a33a1962da6aae83e6f56ac72c444f))
+
+
+### Documentation
+
+* Add Scalekit to the Phoenix platform docs ([#16896](https://github.com/Arize-ai/phoenix/issues/16896)) ([1afe1ea](https://github.com/Arize-ai/phoenix/commit/1afe1ea12e77adbe56de0383f659cdbf372c26b3))
+* **readme:** make the "Add to Cursor" MCP badge clickable on GitHub ([#16926](https://github.com/Arize-ai/phoenix/issues/16926)) ([b8d0e3f](https://github.com/Arize-ai/phoenix/commit/b8d0e3fd9be43bae658cd933f66cc386ef1ed2c9))
+
 ## [20.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.20.0...arize-phoenix-v20.21.0) (2026-10-11)
 
 
