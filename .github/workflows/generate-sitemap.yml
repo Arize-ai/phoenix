@@ -23,12 +23,16 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
 
       - name: Generate sitemap
         run: uv run scripts/generate_sitemap.py
 
       - name: Create or update PR
+        id: cpr
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
@@ -39,3 +43,15 @@ jobs:
           add-paths: |
             sitemap.xml
             docs/phoenix/sitemap.xml
+
+      - name: Enable auto-merge
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        # Lets a reviewer merge with a single approval; a failure here should
+        # not fail the run since the PR itself was opened successfully.
+        # Block scalar: in a plain YAML scalar, " #" would start a comment and
+        # truncate the command mid-string.
+        run: |
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"

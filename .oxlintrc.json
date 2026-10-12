@@ -4,6 +4,7 @@
   "plugins": ["typescript"],
 
   "rules": {
+    "complexity": "error",
     "no-console": "error",
     "import/no-duplicates": "error",
     "typescript/no-explicit-any": "error",

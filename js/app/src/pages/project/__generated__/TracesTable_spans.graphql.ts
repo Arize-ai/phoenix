@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb6f6d8b05ef2483a8d5a94fc65ad8d2>>
+ * @generated SignedSource<<c6ba71c535124c2ea29b485004bca9e9>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "decision" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
@@ -394,8 +394,8 @@ return {
       "args": [
         {
           "kind": "Literal",
-          "name": "rootSpansOnly",
-          "value": true
+          "name": "filterCondition",
+          "value": "parent_span is None"
         },
         {
           "kind": "Variable",
@@ -675,6 +675,6 @@ return {
 };
 })();
 
-(node as any).hash = "9a65fd03128e6daf24bf3b4887765164";
+(node as any).hash = "ecd2b25fcf05120a75d45782fa89471b";
 
 export default node;

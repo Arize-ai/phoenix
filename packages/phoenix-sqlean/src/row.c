@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2005-2010 Gerhard Häring <gh@ghaering.de>
  *
+ * Modified by the Arize Phoenix team, 2026.
+ *
  * This file is part of pysqlite.
  *
  * This software is provided 'as-is', without any express or implied
@@ -51,6 +53,14 @@ pysqlite_row_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 
     if (!PyTuple_Check(data)) {
         PyErr_SetString(PyExc_TypeError, "tuple required for second argument");
+        return NULL;
+    }
+
+    /* An uninitialized cursor (Cursor.__new__ without __init__) has a
+       NULL description. */
+    if (cursor->description == NULL) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Base Cursor.__init__ not called.");
         return NULL;
     }
 
@@ -183,7 +193,19 @@ static PyObject* pysqlite_iter(pysqlite_Row* self)
 
 static Py_hash_t pysqlite_row_hash(pysqlite_Row *self)
 {
-    return PyObject_Hash(self->description) ^ PyObject_Hash(self->data);
+    Py_hash_t descr_hash, data_hash, hash;
+
+    descr_hash = PyObject_Hash(self->description);
+    if (descr_hash == -1) {
+        return -1;
+    }
+    data_hash = PyObject_Hash(self->data);
+    if (data_hash == -1) {
+        return -1;
+    }
+    hash = descr_hash ^ data_hash;
+    /* -1 signals an error to the caller */
+    return (hash == -1) ? -2 : hash;
 }
 
 static PyObject* pysqlite_row_richcompare(pysqlite_Row *self, PyObject *_other, int opid)

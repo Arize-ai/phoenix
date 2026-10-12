@@ -1,20 +1,4 @@
-"""Every construct admission accepts must survive all the way to a result.
-
-Admission and the SQLite authorizer are separate gates applied at different
-stages, and they see different things. Admission inspects the statement the
-caller wrote, as parsed. The authorizer inspects the statement after rendering,
-which changes spelling: ``json_extract(x, path)`` is emitted as the ``->``
-operator, and functions the caller never named appear under their SQL names.
-
-When the two disagree, a caller writes something the surface documents as
-allowed and receives a sanitized failure that names nothing. That is worse than
-a refusal, because there is no way to tell a bug from a policy decision.
-
-These tests close the gap by executing rather than inspecting. Every construct
-listed as permitted runs against a real database and has to come back with rows.
-Add a case whenever the function or expression policy grows -- a construct that
-is allowed but has never been executed is only theoretically allowed.
-"""
+"""Permitted analytics SQL executes on real databases and returns the expected results."""
 
 from __future__ import annotations
 
@@ -28,15 +12,13 @@ from sqlalchemy import text
 from phoenix.server.mcp.sql.errors import AnalyticsSqlError
 from phoenix.server.mcp.sql.execute import (
     ExecuteParams,
-    ExecutionSemaphore,
+    StatementAdmissionController,
     execute_analytics_sql,
 )
 from phoenix.server.mcp.sql.teaching import describe_sql_schema
 from phoenix.server.types import DbSessionFactory
 
-# Statements are shaped so that a policy failure is the only plausible cause of an
-# error: each selects from an allowlisted table with a trivial predicate, so
-# nothing here can fail on data.
+# Permitted constructs evaluated against nonempty analytics tables.
 PERMITTED = [
     pytest.param("SELECT count(*) AS v FROM spans", id="count"),
     pytest.param("SELECT sum(cumulative_error_count) AS v FROM spans", id="sum"),
@@ -47,6 +29,14 @@ PERMITTED = [
     pytest.param("SELECT ceil(cumulative_error_count) AS v FROM spans", id="ceil"),
     pytest.param("SELECT floor(cumulative_error_count) AS v FROM spans", id="floor"),
     pytest.param("SELECT sign(cumulative_error_count) AS v FROM spans", id="sign"),
+    pytest.param("SELECT abs(cumulative_error_count) AS v FROM spans", id="abs"),
+    pytest.param("SELECT lower(name) AS v FROM spans", id="lower"),
+    pytest.param("SELECT upper(name) AS v FROM spans", id="upper"),
+    pytest.param("SELECT length(name) AS v FROM spans", id="length"),
+    pytest.param("SELECT substring(name, 1, 5) AS v FROM spans", id="substring"),
+    pytest.param("SELECT group_concat(name) AS v FROM spans", id="group_concat"),
+    pytest.param("SELECT current_timestamp AS v FROM spans", id="current_timestamp"),
+    pytest.param("SELECT current_date AS v FROM spans", id="current_date"),
     pytest.param("SELECT coalesce(parent_id, 'x') AS v FROM spans", id="coalesce"),
     pytest.param("SELECT nullif(span_kind, 'LLM') AS v FROM spans", id="nullif"),
     pytest.param("SELECT CAST(cumulative_error_count AS TEXT) AS v FROM spans", id="cast"),
@@ -79,9 +69,9 @@ PERMITTED = [
     # SQLite materialises a CTE when it carries GROUP BY, ORDER BY, DISTINCT or
     # LIMIT, and reports reads of the materialised result as reads of a table
     # named after the alias. Admission sees a CTE and permits it; the authorizer
-    # saw a table nobody allowlisted and refused it. The inlinable case passed,
-    # so the gap was invisible to any corpus that tested CTEs generically --
-    # each materialising clause is listed separately for that reason.
+    # sees a table nobody allowlisted. An inlined CTE reports the underlying
+    # table and passes, so a corpus that tests CTEs generically cannot reach
+    # this -- each materialising clause is therefore listed separately.
     pytest.param(
         "WITH t AS (SELECT span_kind, COUNT(*) AS c FROM spans GROUP BY span_kind) "
         "SELECT COUNT(*) AS v FROM t",
@@ -115,6 +105,15 @@ PERMITTED = [
         "SELECT strftime('%Y-%m-%d %H', start_time) AS v FROM spans GROUP BY v",
         id="strftime-hour-bucket",
     ),
+    pytest.param(
+        "SELECT time_fmt_datetime(time_trunc(time_parse(start_time), 'hour')) AS v "
+        "FROM spans GROUP BY v",
+        id="time_trunc-hour-bucket",
+    ),
+    pytest.param(
+        "SELECT time_sub(time_parse(end_time), time_parse(start_time)) AS v FROM spans",
+        id="time_sub-elapsed-nanoseconds",
+    ),
     pytest.param("SELECT latency_ms AS v FROM spans", id="latency_ms-virtual-column"),
     pytest.param("SELECT row_number() OVER (ORDER BY id) AS v FROM spans", id="row_number"),
     pytest.param("SELECT rank() OVER (ORDER BY id) AS v FROM spans", id="rank"),
@@ -134,9 +133,11 @@ PERMITTED = [
         id="nth_value",
     ),
     pytest.param("SELECT ntile(4) OVER (ORDER BY id) AS v FROM spans", id="ntile"),
-    # The JSON family. These are the ones that were admitted and then refused:
-    # json_extract because rendering turns it into an operator, json_each because
-    # a table-valued function reads a pseudo-table rather than calling a function.
+    pytest.param("SELECT lag(id) OVER (ORDER BY id) AS v FROM spans", id="lag"),
+    pytest.param("SELECT lead(id) OVER (ORDER BY id) AS v FROM spans", id="lead"),
+    # The JSON family, where admission and the authorizer see different things:
+    # rendering turns json_extract into an operator, and json_each reads a
+    # pseudo-table rather than calling a function.
     pytest.param("SELECT json_extract(attributes, '$.a.b') AS v FROM spans", id="json_extract"),
     pytest.param("SELECT key AS v FROM spans, json_each(attributes)", id="json_each"),
     pytest.param(
@@ -189,55 +190,30 @@ PERMITTED = [
 async def test_permitted_statement_executes(
     analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
 ) -> None:
-    """Every permitted construct must produce a row, not merely avoid raising.
-
-    `assert "columns" in envelope` cannot fail: `_success_envelope` always sets
-    it, so the assertion held for any call that did not raise, and the fixture
-    had no spans -- so every statement here ran over an empty table. That
-    verifies the parser and the authorizer agree, and nothing about whether the
-    construct computes. A rewrite emitting valid SQL with the wrong semantics
-    passes an empty table without complaint.
-    """
+    """Permitted constructs return rows from seeded analytics data."""
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
     assert result.envelope.rows, "no values were returned to check"
 
 
-async def test_json_extract_survives_being_rendered_as_an_operator(
+async def test_json_extract_returns_attribute_values(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
-    """Named separately because the failure mode is invisible in the caller's SQL.
-
-    The caller writes an allowlisted function. The renderer emits an operator.
-    The authorizer gates on what it is shown, so unless it recognises the
-    operator as the same capability, a documented function becomes unusable and
-    the reported error mentions neither the function nor the operator.
-    """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
         db,
-        ExecuteParams(sql="SELECT json_extract(attributes, '$.llm.model_name') AS m FROM spans"),
+        ExecuteParams(
+            sql="SELECT json_extract(attributes, '$.llm.model_name') AS m FROM spans ORDER BY id"
+        ),
         sqlite_db_path=db_path,
     )
-    assert result.envelope.columns == ["m"]
+    assert result.envelope.rows == [[None], ["gpt-4"], [None]]
 
 
-async def test_json_extract_returns_a_value_not_json_text(
+async def test_json_extract_preserves_numeric_ordering(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
-    """Executing successfully is not the same as answering correctly.
-
-    SQLite's two JSON accessors differ in return type: one yields the underlying
-    value, the other yields JSON text. Aggregates hide the difference -- SUM
-    coerces either way -- but MIN, MAX and ORDER BY compare text
-    lexicographically, so a larger number can sort below a smaller one.
-
-    Nothing errors when this goes wrong, which is why liveness alone cannot
-    catch it: the query runs, returns a row, and the number is wrong. The
-    assertion is therefore on the value, using inputs whose lexicographic and
-    numeric orderings disagree.
-    """
+    """JSON numbers retain numeric ordering in MIN and MAX."""
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
         db,
@@ -249,12 +225,7 @@ async def test_json_extract_returns_a_value_not_json_text(
         ),
         sqlite_db_path=db_path,
     )
-    lo, hi = result.envelope.rows[0]
-    assert isinstance(lo, (str, int, float))
-    assert isinstance(hi, (str, int, float))
-    assert (int(lo), int(hi)) == (149740, 1017066), (
-        f"got lo={lo!r} hi={hi!r}; lexicographic comparison would give lo=1017066"
-    )
+    assert result.envelope.rows == [[149740, 1017066]]
 
 
 async def test_json_type_reports_the_shape_of_a_value(
@@ -428,60 +399,60 @@ async def test_queue_slot_is_returned_when_a_waiter_is_cancelled() -> None:
     """A client disconnecting while queued must not consume capacity forever.
 
     Acquisition happens before the caller's try/finally, so a cancellation while
-    waiting on the semaphore unwinds through code that would otherwise never
+    waiting on the controller unwinds through code that would otherwise never
     decrement the counter. Enough of those and every later request is refused as
     QUEUE_FULL until the process restarts -- a denial of service reachable by
     doing nothing but disconnecting.
     """
     import asyncio
 
-    from phoenix.server.mcp.sql.execute import ExecutionSemaphore
+    from phoenix.server.mcp.sql.execute import StatementAdmissionController
 
-    semaphore = ExecutionSemaphore()
-    await semaphore.acquire("sqlite")
-    waiters = [asyncio.create_task(semaphore.acquire("sqlite")) for _ in range(3)]
+    controller = StatementAdmissionController("sqlite")
+    await controller.acquire()
+    waiters = [asyncio.create_task(controller.acquire()) for _ in range(3)]
     await asyncio.sleep(0.05)
     for waiter in waiters:
         waiter.cancel()
     await asyncio.gather(*waiters, return_exceptions=True)
 
-    assert semaphore._waiting["sqlite"] == 0
+    assert controller._waiting == 0
 
 
 async def test_queue_slot_is_returned_when_a_waiter_is_cancelled_twice() -> None:
-    """One cancellation was survivable; a second during the unwind was not.
+    """A second cancellation arriving during the unwind must still return the slot.
 
-    The decrement used to run under the same lock the admission check holds, so
-    it awaited inside a `finally` that a cancellation was already unwinding. A
-    second cancellation delivered during that await skipped it, and the slot was
-    gone for the life of the process -- the identical denial of service the test
-    above exists to prevent, reachable whenever the lock happened to be held.
+    Releasing the slot under the lock the admission check holds means awaiting
+    inside a `finally` that a cancellation is already unwinding. A second
+    cancellation delivered during that await skips the release, and the slot is
+    gone for the life of the process -- the denial of service the single-
+    cancellation test above exists to prevent, reachable whenever the lock is
+    held.
 
-    The comment on that decrement asserted the `finally` made a leak
-    impossible. It did not, which is why this case is separate: the single
-    cancellation above passed throughout.
+    A `finally` alone does not make the leak impossible, which is why this case
+    is separate: a single cancellation passes either way.
     """
     import asyncio
 
-    from phoenix.server.mcp.sql.execute import ExecutionSemaphore
+    from phoenix.server.mcp.sql.execute import StatementAdmissionController
 
-    semaphore = ExecutionSemaphore()
-    await semaphore.acquire("sqlite")
-    waiter = asyncio.create_task(semaphore.acquire("sqlite"))
+    controller = StatementAdmissionController("sqlite")
+    await controller.acquire()
+    waiter = asyncio.create_task(controller.acquire())
     await asyncio.sleep(0.05)
-    assert semaphore._waiting["sqlite"] == 1
+    assert controller._waiting == 1
 
     # Hold the guard so anything taking it inside the unwind has to wait, then
     # cancel a second time while it is waiting.
-    await semaphore._guard.acquire()
+    await controller._guard.acquire()
     waiter.cancel()
     await asyncio.sleep(0.05)
     waiter.cancel()
     await asyncio.sleep(0.05)
-    semaphore._guard.release()
+    controller._guard.release()
     await asyncio.gather(waiter, return_exceptions=True)
 
-    assert semaphore._waiting["sqlite"] == 0
+    assert controller._waiting == 0
 
 
 async def test_row_limit_is_clamped(
@@ -506,30 +477,23 @@ async def test_row_limit_is_clamped(
     assert result.envelope.notes == [f"row_limit clamped to {MAX_ROW_LIMIT}"]
 
 
-NEWLY_ALLOWED = [
-    pytest.param("SELECT abs(cumulative_error_count) AS v FROM spans", id="abs"),
-    pytest.param("SELECT lower(name) AS v FROM spans", id="lower"),
-    pytest.param("SELECT substring(name, 1, 5) AS v FROM spans", id="substring"),
-    pytest.param("SELECT lag(id) OVER (ORDER BY id) AS v FROM spans", id="lag"),
-    pytest.param("SELECT lead(id) OVER (ORDER BY id) AS v FROM spans", id="lead"),
-    pytest.param("SELECT group_concat(name) AS v FROM spans", id="group_concat"),
-]
-
-
-@pytest.mark.parametrize("sql", NEWLY_ALLOWED)
-async def test_newly_allowed_function_executes(
-    analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
+@pytest.mark.parametrize(
+    ("order", "expected"),
+    [("ASC", "llm call|root|tool call"), ("DESC", "tool call|root|llm call")],
+)
+async def test_sqlite_group_concat_preserves_requested_order(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], order: str, expected: str
 ) -> None:
-    """Admitting a function is not the same as being able to run it.
-
-    Each of these was refused until the allowlist was widened, and widening it
-    only settles the parser's view. The engine still has to accept the rendered
-    spelling, which is not always the one the caller wrote -- group_concat is
-    emitted as string_agg on PostgreSQL, from the same node class.
-    """
     db, db_path = analytics_sqlite_db
-    result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(
+            sql=f"SELECT group_concat(name, '|' ORDER BY name {order}) AS names FROM spans"
+        ),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.columns == ["names"]
+    assert result.envelope.rows == [[expected]]
 
 
 @pytest.mark.parametrize(
@@ -540,17 +504,9 @@ async def test_newly_allowed_function_executes(
         pytest.param("SELECT randomblob(100000000) AS v FROM spans", id="randomblob"),
     ],
 )
-async def test_amplifying_neighbours_stay_denied(
+async def test_sqlite_rejects_disallowed_functions(
     analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
 ) -> None:
-    """Widening a family must not widen its neighbours.
-
-    substring, lower and abs are safe because their output is bounded by their
-    input. These are their nearest neighbours and are not: each turns a short
-    statement into a large value, which is a different property from being a
-    string function. Admitting the first group is only defensible while this
-    group stays refused.
-    """
     from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
 
     db, db_path = analytics_sqlite_db
@@ -588,12 +544,12 @@ async def test_partial_flag_is_honest_at_the_boundary(
 ) -> None:
     """A result of exactly N rows must not claim it was truncated.
 
-    While the injected limit equalled the reported one, the row that would prove
-    truncation was never fetched, so an exactly-complete result was reported
-    identically to a truncated one. An agent acts on that flag by paginating or
-    narrowing a query that was already complete. The rewrite now asks for one
-    row more than the caller wants and the consumer drops it, which is what
-    makes the distinction observable.
+    An injected limit equal to the reported one never fetches the row that would
+    prove truncation, so an exactly-complete result reports identically to a
+    truncated one. An agent acts on that flag by paginating or narrowing a query
+    that is already complete. The rewrite asks for one row more than the caller
+    wants and the consumer drops it, which is what makes the distinction
+    observable.
 
     The rows are seeded here and the query is scoped to them by name. A
     boundary test needs to know exactly how many rows exist, so it cannot read
@@ -666,6 +622,26 @@ async def test_negative_sqlite_limit_cannot_disable_the_work_cap(
     assert "LIMIT 3" in result.envelope.applied.executed
 
 
+#: Wall-clock seconds and the same span in milliseconds, per seeded span.
+#:
+#: Asserted by value rather than by being non-zero, because non-zero does not
+#: discriminate: truncating to whole seconds, resolving the column against the
+#: wrong relation, and comparing timestamps as text all return numbers that pass
+#: it. The sub-second spans carry the precision claim -- under whole-second
+#: arithmetic span-1 reads 1.0 and the other two read 0.0.
+ELAPSED_BY_SPAN = [
+    ("span-1", 1.5, 1500.0),
+    ("span-2", 0.65, 650.0),
+    ("span-3", 0.1, 100.0),
+]
+
+#: SQLite reaches elapsed time through julianday, whose result carries
+#: representation noise at the seventh significant figure. This bound clears
+#: that by two orders of magnitude while staying far tighter than the precision
+#: loss it exists to detect, which moves 1500 to 1000.
+ELAPSED_TOLERANCE = 1e-4
+
+
 async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
@@ -674,16 +650,34 @@ async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
         db,
         ExecuteParams(
             sql=(
-                "SELECT end_time - start_time AS duration, latency_ms "
-                "FROM spans WHERE span_id = 'span-1'"
+                "SELECT span_id, end_time - start_time AS duration, latency_ms "
+                "FROM spans ORDER BY span_id"
             )
         ),
         sqlite_db_path=db_path,
     )
-    assert result.envelope.rows
-    duration, latency_ms = result.envelope.rows[0]
-    assert duration != 0
-    assert latency_ms != 0
+    assert [row[0] for row in result.envelope.rows] == [s for s, _, _ in ELAPSED_BY_SPAN]
+    for (span_id, seconds, millis), row in zip(ELAPSED_BY_SPAN, result.envelope.rows):
+        assert row[1] == pytest.approx(seconds, rel=ELAPSED_TOLERANCE), span_id
+        assert row[2] == pytest.approx(millis, rel=ELAPSED_TOLERANCE), span_id
+
+
+async def test_sqlite_latency_predicate_selects_by_elapsed_milliseconds(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """A threshold between the seeded durations must divide them where it falls.
+
+    The predicate form is what a truncating implementation gets wrong while the
+    projected form still looks right: span-1 truncated to 1000 fails `> 1000`
+    and disappears, leaving an empty result that no non-empty check would catch.
+    """
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT span_id FROM spans WHERE latency_ms > 1000 ORDER BY span_id"),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.rows == [["span-1"]]
 
 
 async def test_no_window_is_imposed_when_none_is_asked_for(
@@ -691,20 +685,18 @@ async def test_no_window_is_imposed_when_none_is_asked_for(
 ) -> None:
     """A query with no bounds reads all of history, and the envelope says so.
 
-    The surface used to inject a trailing seven-day window. It could not bound a
-    determined caller, since defeating it cost one parameter, and for everyone
-    else it answered a different question than the one asked while reporting
-    success. Across roughly twenty-five cold-agent runs every caller noticed it
-    and worked around it, so it protected nobody and charged everybody a round
-    trip. The row and byte caps bound the answer; the statement deadline bounds
-    the work.
+    An implicit trailing window cannot bound a determined caller -- defeating one
+    costs a single parameter -- while for everyone else it answers a different
+    question than the one asked and reports success. Bounding belongs to limits
+    that do not change the question: the row and byte caps bound the answer, and
+    the statement deadline bounds the work.
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
         db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
     )
-    # Absent entirely, rather than present with null bounds: reporting a window
-    # that was never imposed is what made the old default so easy to miss.
+    # Absent entirely, rather than present with null bounds: a reported window
+    # that was never imposed reads as one that was.
     assert "time_window" not in result.envelope.applied.model_dump(exclude_none=True)
     assert "time_bounds" not in result.envelope.applied.rewrites
 
@@ -734,8 +726,8 @@ async def test_cancelling_a_query_stops_the_worker(
     from phoenix.server.mcp.sql import execute as execute_module
 
     db, db_path = analytics_sqlite_db
-    semaphore = ExecutionSemaphore()
-    monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
+    controller = StatementAdmissionController("sqlite")
+    db.analytics_sql_admission = controller
     statement_started = threading.Event()
     close_started = threading.Event()
     allow_close = threading.Event()
@@ -815,9 +807,9 @@ async def test_cancelling_a_query_stops_the_worker(
 
         # Hold cleanup briefly so this assertion cannot race the worker's done
         # callback. The timeout and finally prevent a test failure from
-        # stranding a worker thread or its semaphore permit.
+        # stranding a worker thread or its admission permit.
         await wait_for_event(close_started)
-        assert semaphore._locks["sqlite"].locked()
+        assert controller._permits.locked()
     finally:
         allow_close.set()
         if not task.done():
@@ -881,14 +873,6 @@ async def test_envelope_carries_only_fields_that_can_vary(
     assert "-- area: telemetry" in schema, "the areas must survive the removal"
 
 
-NEWLY_ALLOWED_ON_BOTH = [
-    pytest.param("SELECT upper(name) AS v FROM spans", id="upper"),
-    pytest.param("SELECT length(name) AS v FROM spans", id="length"),
-    pytest.param("SELECT current_timestamp AS v FROM spans", id="current_timestamp"),
-    pytest.param("SELECT current_date AS v FROM spans", id="current_date"),
-]
-
-
 SQLITE_JSON_SURFACE = [
     pytest.param("SELECT json_array_length('[1,2]') AS v FROM spans", id="array_length"),
     pytest.param("SELECT json_valid(attributes) AS v FROM spans", id="valid"),
@@ -911,14 +895,7 @@ SQLITE_JSON_SURFACE = [
 async def test_sqlite_json_surface_executes(
     analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
 ) -> None:
-    """Every json1 operation admitted for SQLite must also pass the authorizer.
-
-    A function that parses to a node class rather than to a generic call does
-    not reach the authorizer set through `allowed_anon_functions`, so it has to
-    be named in `SQLITE_AUTHORIZER_FUNCTIONS` directly. `json_object`,
-    `json_group_array` and `json_group_object` are all of that kind, and a name
-    missing there is admitted by the parser policy and denied by the engine.
-    """
+    """Permitted SQLite JSON operations return rows."""
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
     assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
@@ -978,6 +955,7 @@ POSTGRES_JSON_SURFACE = [
         "FROM spans",
         id="computed_key_nested_accessor",
     ),
+    pytest.param("SELECT json_extract('{\"a\":1}'::jsonb, '$') AS v FROM spans", id="root_path"),
     # The array-constructor spelling of a `#>` path, which reaches the same
     # value as `#> '{a,b}'`.
     pytest.param(
@@ -1018,37 +996,139 @@ POSTGRES_JSON_SURFACE = [
 async def test_postgres_json_surface_executes(
     analytics_postgres_db: DbSessionFactory, sql: str
 ) -> None:
-    """Every JSONB operation admitted for PostgreSQL must survive the plan gate.
-
-    Admission settles only the parser's view. The rendered spelling still has to
-    be one PostgreSQL accepts, and a set-returning member has to pass the plan
-    gate as well, which recognises a `ProjectSet` by the function names in the
-    node's expression text: a name in the anon allowlist but absent from
-    `UNNEST_FUNCTIONS` is refused there. That two-layer disagreement is what
-    this suite exists to catch.
-
-    Rows are required, not just a clean run. The plan gate gets exercised either
-    way, since it runs at `EXPLAIN` before any row is produced -- but a construct
-    that executes over an empty table has only been shown to parse and render.
-    Where a function is fussy about its input type it is given a literal, so a
-    failure here is a policy failure rather than a data one.
-    """
+    """Permitted PostgreSQL JSON operations pass planning and return rows."""
     result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
     assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
 
 
-@pytest.mark.parametrize("sql", NEWLY_ALLOWED_ON_BOTH)
-async def test_portable_function_classes_are_executable_on_sqlite(
-    analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
-) -> None:
-    """A class in the portable allowlist must also be in the authorizer's set.
+JSON_WITH_QUOTED_KEYS = """'{"c''d":7,"a''b":[11,13],"e''f":{"g":[17]}}'"""
 
-    exp.Upper, exp.Length, exp.CurrentTimestamp and exp.CurrentDate were
-    admitted by the parser policy and denied by the SQLite authorizer, so each
-    worked on PostgreSQL and was refused here -- the divergence the two
-    policies exist to prevent, and the one the allowlist comment claims the
-    liveness suite makes fail loudly. It did not, because no case covered them.
-    """
+
+@pytest.mark.parametrize(
+    ("accessor", "expected"),
+    [
+        pytest.param("""-> '$."c''d"'""", "7", id="json-value"),
+        pytest.param("""->> '$."c''d"'""", 7, id="scalar-value"),
+        pytest.param("""-> '$."a''b"[0]'""", "11", id="array-element"),
+        pytest.param("""->> '$."e''f".g[0]'""", 17, id="nested-array-element"),
+    ],
+)
+async def test_sqlite_json_accessors_extract_keys_with_apostrophes(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], accessor: str, expected: str | int
+) -> None:
     db, db_path = analytics_sqlite_db
-    result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql=f"SELECT {JSON_WITH_QUOTED_KEYS} {accessor} AS value"),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.rows == [[expected]]
+
+
+@pytest.mark.parametrize("dialect", ["postgresql"])
+@pytest.mark.parametrize(
+    ("accessor", "expected"),
+    [
+        pytest.param("-> 'c''d'", 7, id="json-value"),
+        pytest.param("->> 'c''d'", "7", id="scalar-value"),
+        pytest.param("-> 'a''b' -> 1", 13, id="array-element"),
+        pytest.param("-> 'e''f' -> 'g' ->> 0", "17", id="nested-array-element"),
+    ],
+)
+async def test_postgres_json_accessors_extract_keys_with_apostrophes(
+    db: DbSessionFactory, accessor: str, expected: str | int
+) -> None:
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql=f"SELECT {JSON_WITH_QUOTED_KEYS}::jsonb {accessor} AS value"),
+    )
+    assert result.envelope.rows == [[expected]]
+
+
+DISTINCT_ON_SHAPES = [
+    pytest.param("SELECT DISTINCT ON (name) id FROM spans ORDER BY name, id", id="single-key"),
+    pytest.param("SELECT DISTINCT ON ((name)) id FROM spans ORDER BY name, id", id="parenthesised"),
+    pytest.param("SELECT DISTINCT ON (name, id) id FROM spans ORDER BY name, id", id="multi-key"),
+]
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize("sql", DISTINCT_ON_SHAPES)
+async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql: str) -> None:
+    """`DISTINCT ON (expr)` is a key list, not a row constructor.
+
+    A one-element parenthesised list is a record constructor almost everywhere
+    it appears, and is rewritten to `ROW(expr)` so PostgreSQL reads it as one.
+    In `DISTINCT ON` the same text is grammar, and `ROW` there is a syntax
+    error, so admission accepted a statement the engine then rejected.
+
+    Executed rather than rendered: admission accepting the shape says nothing
+    about whether the emitted SQL parses.
+    """
+    result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
     assert result.envelope.row_count > 0
+
+
+@pytest.mark.postgres_only
+async def test_quoted_char_cast_is_the_one_byte_type(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """`"char"` must reach the engine quoted, so it is the 1-byte type, not bpchar.
+
+    Executed rather than rendered because the two types accept the same cast
+    and differ only in the answer: 65 is 'A' as `"char"` and '6' as `CHAR`.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db, ExecuteParams(sql='SELECT CAST(65 AS "char") AS v')
+    )
+    assert result.envelope.rows == [["A"]]
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        pytest.param("status_code", [["span-3"], ["span-1"]], id="two-groups"),
+        pytest.param("trace_rowid", [["span-1"]], id="one-group"),
+    ],
+)
+async def test_distinct_on_collapses_duplicate_keys(
+    analytics_postgres_db: DbSessionFactory, key: str, expected: list[list[str]]
+) -> None:
+    """The key list must select one row per distinct key, not merely execute.
+
+    Keys are chosen where the seeded spans repeat a value, so the row count
+    drops. A key that is unique per row leaves the result indistinguishable
+    from no de-duplication at all.
+
+    Rows are compared in engine order, which the trailing `ORDER BY` fixes: the
+    surviving row of each group is the first under that ordering, so the
+    expectation covers which row wins as well as how many.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(sql=f"SELECT DISTINCT ON ({key}) span_id FROM spans ORDER BY {key}, span_id"),
+    )
+    assert result.envelope.rows == expected
+
+
+@pytest.mark.postgres_only
+async def test_interval_predicate_selects_by_elapsed_time(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """A threshold between the seeded durations must divide them where it falls.
+
+    The counterpart to the SQLite predicate test: the same question asked in the
+    spelling PostgreSQL accepts, so a divergence in either engine's elapsed-time
+    arithmetic shows up as a different set of spans rather than as an error.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(
+            sql=(
+                "SELECT span_id FROM spans "
+                "WHERE end_time - start_time > INTERVAL '1 second' ORDER BY span_id"
+            )
+        ),
+    )
+    assert result.envelope.rows == [["span-1"]]

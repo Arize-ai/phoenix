@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3b69dfe88c8b220d6804091c3040e311>>
+ * @generated SignedSource<<407b93bdaffd9dac111816f640786bf0>>
  * @lightSyntaxTransform
  */
 
@@ -20,8 +20,10 @@ export type addSpansToDatasetToolMutation$variables = {
 export type addSpansToDatasetToolMutation$data = {
   readonly addSpansToDataset: {
     readonly dataset: {
+      readonly exampleCount: number;
       readonly id: string;
       readonly name: string;
+      readonly updatedAt: string;
     };
   };
 };
@@ -74,6 +76,20 @@ v1 = [
             "kind": "ScalarField",
             "name": "name",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "exampleCount",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "updatedAt",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -100,16 +116,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "e6726d9163b354e86835a766effb0daf",
+    "cacheID": "3e4d83269ed185ace20cc1506b527948",
     "id": null,
     "metadata": {},
     "name": "addSpansToDatasetToolMutation",
     "operationKind": "mutation",
-    "text": "mutation addSpansToDatasetToolMutation(\n  $input: AddSpansToDatasetInput!\n) {\n  addSpansToDataset(input: $input) {\n    dataset {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation addSpansToDatasetToolMutation(\n  $input: AddSpansToDatasetInput!\n) {\n  addSpansToDataset(input: $input) {\n    dataset {\n      id\n      name\n      exampleCount\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "958b7273436747987a87928e872f7b0d";
+(node as any).hash = "9c924a16e466f5e871dfb04cbd6794e2";
 
 export default node;

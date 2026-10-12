@@ -13,6 +13,9 @@ export function toSession(data: SessionData): Session {
     projectId: data.project_id,
     startTime: data.start_time,
     endTime: data.end_time,
+    tokenCountPrompt: data.token_count_prompt,
+    tokenCountCompletion: data.token_count_completion,
+    tokenCountTotal: data.token_count_total,
     traces: data.traces.map((trace) => ({
       id: trace.id,
       traceId: trace.trace_id,

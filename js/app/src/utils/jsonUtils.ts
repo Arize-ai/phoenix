@@ -604,6 +604,47 @@ export function clearJSONValues(obj: unknown): unknown {
 }
 
 /**
+ * Keeps the shape of a JSON value and clears what it holds: every key stays,
+ * strings become "", numbers 0, booleans false, null stays null, and an array
+ * keeps a single blanked element as a sample of what it expects.
+ *
+ * Differs from {@link clearJSONValues}, which keeps numbers and booleans, turns
+ * null into "", and blanks every array element.
+ *
+ * @example
+ * ```ts
+ * blankJSONValue({ question: "Why?", attempts: 3, tags: ["a", "b"] })
+ * // { question: "", attempts: 0, tags: [""] }
+ * ```
+ */
+export function blankJSONValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? [blankJSONValue(value[0])] : [];
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, blankJSONValue(entry)])
+    );
+  }
+  switch (typeof value) {
+    case "string":
+      return "";
+    case "number":
+      return 0;
+    case "boolean":
+      return false;
+    default:
+      return null;
+  }
+}
+
+/**
+ * The text a JSON editor opens with for an empty object: a line to type on
+ * between the braces, instead of a cursor squeezed inside "{}".
+ */
+export const EMPTY_JSON_OBJECT_EDITOR_TEXT = "{\n  \n}";
+
+/**
  * Creates an empty JSON structure based on an existing JSON string,
  * preserving keys but clearing all string values.
  *
@@ -626,7 +667,7 @@ export function createEmptyJSONStructure(jsonString: string): string {
     const cleared = clearJSONValues(parsed);
     return JSON.stringify(cleared, null, 2);
   } catch {
-    return "{\n  \n}";
+    return EMPTY_JSON_OBJECT_EDITOR_TEXT;
   }
 }
 

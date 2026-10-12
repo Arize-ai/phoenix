@@ -161,7 +161,7 @@ Agents can leverage Phoenix to:
 OpenAI, Anthropic, Amazon Bedrock, Google (Gemini), Groq, MistralAI, VertexAI, LiteLLM, OpenRouter, Together, Vercel AI
 
 ### Python Frameworks
-Agno, AutoGen, BeeAI, CrewAI, DSPy, Google ADK, Graphite, Guardrails AI, Haystack, Hugging Face smolagents, Instructor, LlamaIndex, LangChain, LangGraph, MCP, NVIDIA, Portkey, Pydantic AI
+AG2, Agno, AutoGen, BeeAI, CrewAI, DSPy, Google ADK, Graphite, Guardrails AI, Haystack, Hugging Face smolagents, Instructor, LlamaIndex, LangChain, LangGraph, MCP, NVIDIA, Portkey, Pydantic AI
 
 ### TypeScript Frameworks
 BeeAI, LangChain.js, Mastra, MCP, Vercel AI SDK

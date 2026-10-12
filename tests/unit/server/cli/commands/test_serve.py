@@ -26,6 +26,7 @@ from phoenix.server.cli.commands.serve import (
 )
 from phoenix.server.settings.registry import (
     AgentAssistantEnabledSetting,
+    AgentGitHubSetting,
     AgentTraceRecordingSetting,
 )
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
@@ -103,6 +104,7 @@ def _system_settings(
     assistant_enabled: bool = True,
     allow_local_traces: bool = False,
     allow_remote_export: bool = False,
+    github_enabled: bool = False,
 ) -> Any:
     return SimpleNamespace(
         agent_assistant_enabled=AgentAssistantEnabledSetting(enabled=assistant_enabled),
@@ -110,6 +112,7 @@ def _system_settings(
             allow_local_traces=allow_local_traces,
             allow_remote_export=allow_remote_export,
         ),
+        agent_github=AgentGitHubSetting(enabled=github_enabled),
     )
 
 
@@ -121,6 +124,7 @@ def test_render_boot_message_shows_effective_assistant_config(ascii_banner: None
         force_tracing=False,
         web_access_enabled=True,
         server_bash_enabled=False,
+        github_enabled=False,
     )
 
     rendered = _render_boot_message(
@@ -148,6 +152,7 @@ def test_render_boot_message_force_tracing_overrides_admin_ceilings(ascii_banner
         force_tracing=True,
         web_access_enabled=False,
         server_bash_enabled=True,
+        github_enabled=False,
     )
 
     rendered = _render_boot_message(
@@ -171,6 +176,7 @@ def test_render_boot_message_admin_kill_switch_also_hides_docs_mcp(ascii_banner:
         force_tracing=False,
         web_access_enabled=True,
         server_bash_enabled=True,
+        github_enabled=False,
     )
 
     rendered = _render_boot_message(
@@ -192,6 +198,7 @@ def test_render_boot_message_masks_collector_endpoint_password(ascii_banner: Non
         force_tracing=False,
         web_access_enabled=True,
         server_bash_enabled=True,
+        github_enabled=False,
     )
 
     rendered = _render_boot_message(_boot_message(), agents_env, _system_settings())
@@ -208,6 +215,7 @@ def test_render_boot_message_falls_back_when_project_name_is_blank(ascii_banner:
         force_tracing=False,
         web_access_enabled=True,
         server_bash_enabled=True,
+        github_enabled=False,
     )
 
     rendered = _render_boot_message(_boot_message(), agents_env, _system_settings())

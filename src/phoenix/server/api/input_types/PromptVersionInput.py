@@ -67,8 +67,11 @@ def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
         or provider is ModelProvider.FIREWORKS
         or provider is ModelProvider.GROQ
         or provider is ModelProvider.MOONSHOT
+        or provider is ModelProvider.MINIMAX
         or provider is ModelProvider.PERPLEXITY
         or provider is ModelProvider.TOGETHER
+        or provider is ModelProvider.ZAI
+        or provider is ModelProvider.META
     ):
         return "openai"
     assert_never(provider)
@@ -322,6 +325,7 @@ class PromptChatTemplateInput:
 @strawberry.input
 class ChatPromptVersionInput:
     description: Optional[str] = None
+    metadata: Optional[JSON] = UNSET
     template_format: PromptTemplateFormat
     template: PromptChatTemplateInput
     invocation_parameters: PromptInvocationParametersInput
@@ -371,8 +375,5 @@ class ChatPromptVersionInput:
             model_provider=self.model_provider.to_model_provider(),
             model_name=self.model_name,
             custom_provider_id=custom_provider_id,
-            # metadata_ will default to {} in the DB if not provided due to the NOT NULL constraint,
-            # so setting it here allows us to more accurately check prompt version equality
-            # between prompts that have been saved to the DB and those that haven't.
-            metadata_={},
+            metadata_=self.metadata or {},
         )

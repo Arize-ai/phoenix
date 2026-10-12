@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from random import getrandbits
 from typing import Any, Optional
 
@@ -23,6 +22,7 @@ from phoenix.db.helpers import (
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
@@ -66,8 +66,8 @@ class Experiment(V1RoutesBaseModel):
     project_name: Optional[str] = Field(
         description="The name of the project associated with the experiment"
     )
-    created_at: datetime = Field(description="The creation timestamp of the experiment")
-    updated_at: datetime = Field(description="The last update timestamp of the experiment")
+    created_at: IsoDatetime = Field(description="The creation timestamp of the experiment")
+    updated_at: IsoDatetime = Field(description="The last update timestamp of the experiment")
     example_count: int = Field(description="Number of examples in the experiment")
     successful_run_count: int = Field(description="Number of successful runs in the experiment")
     failed_run_count: int = Field(description="Number of failed runs in the experiment")
@@ -230,7 +230,7 @@ async def create_experiment(
         # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
 
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         project_rowid = await session.scalar(
             insert_on_conflict(
                 dict(
@@ -1044,7 +1044,7 @@ async def get_experiment_json(
                 "repetition_number": run.repetition_number,
                 "input": revision.input,
                 "reference_output": revision.output,
-                "output": run.output["task_output"],
+                "output": run.output.get("task_output"),
                 "error": run.error,
                 "latency_ms": run.latency_ms,
                 "start_time": run.start_time.isoformat(),
@@ -1094,10 +1094,9 @@ async def get_experiment_csv(
         )
         records = []
         for run, revision in zip(runs, revisions):
+            task_output = run.output.get("task_output")
             serialized_run_output = (
-                json.dumps(run.output["task_output"])
-                if isinstance(run.output["task_output"], dict)
-                else run.output["task_output"]
+                json.dumps(task_output) if isinstance(task_output, dict) else task_output
             )
             record = {
                 "example_id": str(GlobalID("DatasetExample", str(run.dataset_example_id))),

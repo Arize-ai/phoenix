@@ -155,6 +155,80 @@ export type GetSpansResult = {
  * } while (cursor);
  * ```
  */
+type SpansQuery = NonNullable<operations["getSpans"]["parameters"]["query"]>;
+
+async function ensureSpanFilterCapabilities({
+  client,
+  traceIds,
+  spanIds,
+  name,
+  spanKind,
+  statusCode,
+  attributeFilters,
+}: Pick<
+  GetSpansParams,
+  "traceIds" | "spanIds" | "name" | "spanKind" | "statusCode"
+> & {
+  client: NonNullable<GetSpansParams["client"]>;
+  attributeFilters: string[] | undefined;
+}): Promise<void> {
+  if (traceIds) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
+  }
+  if (spanIds) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_SPAN_IDS });
+  }
+  if (name != null || spanKind != null || statusCode != null) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
+  }
+  if (attributeFilters) {
+    await ensureServerCapability({
+      client,
+      requirement: GET_SPANS_BY_ATTRIBUTE,
+    });
+  }
+}
+
+function buildSpansQuery({
+  cursor,
+  limit,
+  startTime,
+  endTime,
+  traceIds,
+  spanIds,
+  parentId,
+  name,
+  spanKind,
+  statusCode,
+  attributeFilters,
+}: Omit<GetSpansParams, "client" | "project" | "attributes"> & {
+  limit: number;
+  attributeFilters: string[] | undefined;
+}): SpansQuery {
+  const params: SpansQuery = { limit };
+  if (cursor) params.cursor = cursor;
+  if (startTime) {
+    params.start_time =
+      startTime instanceof Date ? startTime.toISOString() : startTime;
+  }
+  if (endTime) {
+    params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
+  }
+  if (traceIds) params.trace_id = traceIds;
+  if (spanIds) params.span_id = spanIds;
+  if (parentId !== undefined) {
+    params.parent_id = parentId === null ? "null" : parentId;
+  }
+  if (name) params.name = Array.isArray(name) ? name : [name];
+  if (spanKind)
+    params.span_kind = Array.isArray(spanKind) ? spanKind : [spanKind];
+  if (statusCode) {
+    params.status_code = Array.isArray(statusCode) ? statusCode : [statusCode];
+  }
+  if (attributeFilters) params.attribute = attributeFilters;
+  return params;
+}
+
 export async function getSpans({
   client: _client,
   project,
@@ -177,67 +251,29 @@ export async function getSpans({
     serializedAttributes != null && serializedAttributes.length > 0
       ? serializedAttributes
       : undefined;
-  if (traceIds) {
-    await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
-  }
-  if (spanIds) {
-    await ensureServerCapability({ client, requirement: GET_SPANS_SPAN_IDS });
-  }
-  if (name != null || spanKind != null || statusCode != null) {
-    await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
-  }
-  if (attributeFilters != null) {
-    await ensureServerCapability({
-      client,
-      requirement: GET_SPANS_BY_ATTRIBUTE,
-    });
-  }
+  await ensureSpanFilterCapabilities({
+    client,
+    traceIds,
+    spanIds,
+    name,
+    spanKind,
+    statusCode,
+    attributeFilters,
+  });
   const projectIdentifier = resolveProjectIdentifier(project);
-
-  const params: NonNullable<operations["getSpans"]["parameters"]["query"]> = {
+  const params = buildSpansQuery({
+    cursor,
     limit,
-  };
-
-  if (cursor) {
-    params.cursor = cursor;
-  }
-
-  if (startTime) {
-    params.start_time =
-      startTime instanceof Date ? startTime.toISOString() : startTime;
-  }
-
-  if (endTime) {
-    params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
-  }
-
-  if (traceIds) {
-    params.trace_id = traceIds;
-  }
-
-  if (spanIds) {
-    params.span_id = spanIds;
-  }
-
-  if (parentId !== undefined) {
-    params.parent_id = parentId === null ? "null" : parentId;
-  }
-
-  if (name) {
-    params.name = Array.isArray(name) ? name : [name];
-  }
-
-  if (spanKind) {
-    params.span_kind = Array.isArray(spanKind) ? spanKind : [spanKind];
-  }
-
-  if (statusCode) {
-    params.status_code = Array.isArray(statusCode) ? statusCode : [statusCode];
-  }
-
-  if (attributeFilters != null) {
-    params.attribute = attributeFilters;
-  }
+    startTime,
+    endTime,
+    traceIds,
+    spanIds,
+    parentId,
+    name,
+    spanKind,
+    statusCode,
+    attributeFilters,
+  });
 
   const { data, error } = await client.GET(
     "/v1/projects/{project_identifier}/spans",

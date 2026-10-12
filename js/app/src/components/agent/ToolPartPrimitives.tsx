@@ -8,7 +8,6 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { selectIsSessionOccupied } from "@phoenix/store/agentStore";
 
 import { useChatScrollContext } from "./ChatScrollContext";
-import { useScrollAnchor } from "./scrollAnchor";
 
 export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
   from {
@@ -167,14 +166,13 @@ export function ToolPartApprovalActions({
   );
   const chatScrollContext = useChatScrollContext();
   const isActionDisabled = isDisabled || isPaused;
-  // Deciding — either way — ends the review checkpoint that paused
-  // follow-bottom when the approval auto-opened (or that the user's own
-  // scrolling created). The turn resumes streaming below the card, so
-  // re-engage follow and pin so the user sees it continue. Null context
+  // Deciding — either way — ends the review checkpoint that paused automatic
+  // scrolling when the approval opened. The turn resumes below the card, so
+  // re-engage the transcript's smooth follower. Null context
   // (read-only surfaces) degrades to just resolving the approval.
   const decide = (respond: () => void) => {
     respond();
-    chatScrollContext?.scrollToBottom();
+    chatScrollContext?.resumeFollowing();
   };
   return (
     <>
@@ -228,15 +226,17 @@ export function ToolPartExpandableSection({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const scrollAnchor = useScrollAnchor();
+  const chatScrollContext = useChatScrollContext();
 
   const handleExpandedChange = useCallback(
     (nextIsExpanded: boolean) => {
-      scrollAnchor.capture(containerRef.current);
+      chatScrollContext?.captureAnchor(containerRef.current);
       setIsExpanded(nextIsExpanded);
-      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+      requestAnimationFrame(() =>
+        chatScrollContext?.restoreAnchor(containerRef.current)
+      );
     },
-    [scrollAnchor]
+    [chatScrollContext]
   );
 
   return (

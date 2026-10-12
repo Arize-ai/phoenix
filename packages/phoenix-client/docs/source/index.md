@@ -263,11 +263,14 @@ print(retrieved_docs_df.head())
 # Columns: context.trace_id, input, document, document_score, document_metadata
 
 # Use with phoenix.evals for relevance evaluation
-from phoenix.evals import LLM, async_evaluate_dataframe
-from phoenix.evals.metrics import DocumentRelevanceEvaluator
+from phoenix.evals import LLM, async_evaluate_dataframe, bind_evaluator
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
 llm = LLM(model="gpt-4o", provider="openai")
-relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
+relevance_evaluator = bind_evaluator(
+    evaluator=RetrievalRelevanceEvaluator(llm=llm),
+    input_mapping={"context": "document"},
+)
 
 relevance_results = await async_evaluate_dataframe(
     dataframe=retrieved_docs_df,

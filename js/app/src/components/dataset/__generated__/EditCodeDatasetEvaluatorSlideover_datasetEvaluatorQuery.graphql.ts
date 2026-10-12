@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a31b03d280e811591757ee848e2608c6>>
+ * @generated SignedSource<<15dccd423890117f3f85ccc3b984c123>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;

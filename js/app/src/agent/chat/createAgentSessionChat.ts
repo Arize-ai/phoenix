@@ -226,6 +226,7 @@ export function createAgentSessionChat({
             permissions: store.getState().permissions,
             contexts: selectActiveContexts(store.getState()),
             modelSelection,
+            integrationCredentials: store.getState().integrationCredentials,
             toolTimings,
             locallyInterruptedToolCallIds:
               store.getState().locallyInterruptedToolCallIds,

@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.10, <3.15"
+requires-python = ">=3.11, <3.15"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,14 +15,12 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-  "scikit-learn",
   "numpy",
   "pandas>=1.0",
   "jinja2",
@@ -33,10 +31,10 @@ dependencies = [
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.320.4",
+  "strawberry-graphql==0.327.7",
+  "graphql-core<3.3",  # 3.3 changes default-value coercion used by schema search
   "pyarrow",
   "typing-extensions>=4.6",
-  "scipy",
   "wrapt>=1.17.2,<3",
   "grpcio",
   "grpc-interceptor",
@@ -45,38 +43,39 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
-  "openinference-semantic-conventions>=0.1.26",
-  "openinference-instrumentation>=0.1.44",
+  "openinference-semantic-conventions>=0.1.40",
+  "openinference-instrumentation>=0.1.60",
   "openinference-instrumentation-openai>=0.1.41",
-  "sqlglot==30.17.0",
-  "sqlalchemy[asyncio]>=2.0.46, <3",
+  "sqlglot==30.21.0",
+  "sqlalchemy[asyncio]>=2.1.1, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",
   "aioitertools",
-  "arize-phoenix-sqlean",
+  "arize-phoenix-sqlean>=0.1.2",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.5.1",
+  "arize-phoenix-evals>=3.9.2",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
-  "fastmcp-slim[client,server]>=3.4.2,<4",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp. Cap below 4: FastMCP 4 is an SDK-v2 engine swap (mcp_types, httpx2, sampling removals) still in prerelease.
-  # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
-  "pydantic-monty==0.0.19",
+  "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
+  # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
+  "pydantic-monty==1.0.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.34.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.53.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
-  "authlib>=1.7.0",
+  "authlib>=1.8.0",
   "joserfc",
-  "arize-phoenix-client>=3.2.0",
+  "arize-phoenix-client>=3.5.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
   "orjson",
   "jmespath",
   "ldap3",
+  "snowballstemmer>=3.1",
 ]
 dynamic = ["version"]
 
@@ -88,7 +87,7 @@ phoenix = "phoenix.server.main:main"
 dev = [
   "check-wheel-contents",
   "twine",
-  "aiobotocore>=3.1.1",
+  "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "aioboto3",
   "aiosqlite>=0.22.1",
   "anthropic>=1,<2",
@@ -108,6 +107,7 @@ dev = [
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx",
+  "httpx2",
   "jsonpath-ng",
   "ldap3",
   "litellm>=1.83.14; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
@@ -118,9 +118,10 @@ dev = [
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
+  "scikit-learn",  # reference implementation for retrieval metric tests
   "openai>=3.1.0,<4",
-  "openinference-semantic-conventions>=0.1.26",
-  "openinference-instrumentation>=0.1.44",
+  "openinference-semantic-conventions>=0.1.40",
+  "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
@@ -152,7 +153,7 @@ dev = [
   "requests",  # this is needed to type-check third-party packages
   "responses",
   "respx>=0.22.0",
-  "strawberry-graphql[opentelemetry,cli]==0.320.4",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
+  "strawberry-graphql[opentelemetry,cli]==0.327.7",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -179,6 +180,7 @@ dev = [
   "ruff>=0.15.2",
   "libcst>=1.8.6",
   "datamodel-code-generator==0.72.2",
+  "ariadne-codegen==0.19.0",
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
   "jinja2>=3.1.6",
@@ -208,6 +210,7 @@ pg = [
 ]
 aws = [
   "aioboto3",
+  "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "types-aiobotocore-bedrock-runtime>=3.6.0",
 ]
 azure = [
@@ -216,25 +219,25 @@ azure = [
 ]
 container = [
   "anthropic>=1,<2",
-  "google-genai>=1.50.0 ; python_version >= '3.10'",
-  "google-genai ; python_version < '3.10'",
+  "google-genai>=1.50.0",
   "prometheus-client",
   "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
-  # released on the same date (e.g., 1.43.0/0.64b0) to ensure compatibility.
-  "opentelemetry-sdk==1.43.0",
-  "opentelemetry-proto==1.43.0",
-  "opentelemetry-exporter-otlp==1.43.0",
-  "opentelemetry-semantic-conventions==0.64b0",
-  "opentelemetry-instrumentation-fastapi==0.64b0",
-  "opentelemetry-instrumentation-sqlalchemy==0.64b0",
-  "opentelemetry-instrumentation-grpc==0.64b0",
+  # released on the same date (e.g., 1.45.0/0.66b0) to ensure compatibility.
+  "opentelemetry-sdk==1.45.0",
+  "opentelemetry-proto==1.45.0",
+  "opentelemetry-exporter-otlp==1.45.0",
+  "opentelemetry-semantic-conventions==0.66b0",
+  "opentelemetry-instrumentation-fastapi==0.66b0",
+  "opentelemetry-instrumentation-sqlalchemy==0.66b0",
+  "opentelemetry-instrumentation-grpc==0.66b0",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.320.4",
+  "strawberry-graphql[opentelemetry]==0.327.7",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
+  "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "types-aiobotocore-bedrock-runtime>=3.6.0",
   # Sandbox provider SDKs — bundled so the shipped container can use any
   # configured provider without a rebuild. Each pin matches the matching
@@ -305,6 +308,8 @@ artifacts = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope="function"
+faulthandler_timeout = 300.0
+faulthandler_exit_on_timeout = false
 addopts = [
   "-rA",
   "--import-mode=importlib",
@@ -314,6 +319,11 @@ addopts = [
   "--ignore=src/phoenix/db/migrations/env.py",
   "--new-first",
   "--showlocals",
+  # arize-phoenix-client's pytest plugin records marked tests as Phoenix experiments
+  # and, under xdist, collects the whole suite on the controller to find them. No
+  # test here carries its marker.
+  "-p",
+  "no:phoenix",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 testpaths = [
@@ -323,6 +333,12 @@ testpaths = [
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
+explicit_package_bases = true
+mypy_path = [
+  "$MYPY_CONFIG_FILE_DIR",
+  "$MYPY_CONFIG_FILE_DIR/src",
+  "$MYPY_CONFIG_FILE_DIR/evals/harbor/verifiers",
+]
 files = [
   "evals/",
   "src/",
@@ -331,6 +347,8 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
+  "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
+  "evals/harbor/tasks/trail-benchmark-dev/",
   "examples/",
   "packages/",
   "scripts/",
@@ -364,6 +382,7 @@ module = [
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
+  "snowballstemmer",
 ]
 ignore_missing_imports = true
 
@@ -388,7 +407,7 @@ follow_untyped_imports = true
 venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 # Restating all three defaults is required because setting exclude replaces
 # them; omitting "**/.*" makes pyright walk .venv and every other
 # dot-directory. packages/phoenix-sqlean is a vendored fork of
@@ -401,6 +420,7 @@ exclude = ["**/node_modules", "**/__pycache__", "**/.*", "packages/phoenix-sqlea
 force-exclude = true
 exclude = [
   "api_reference",
+  "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
   "dist/",
   ".git",
   "__pycache__",
@@ -420,7 +440,7 @@ exclude = [
   "packages/phoenix-sqlean",
 ]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
@@ -429,6 +449,9 @@ target-version = "py310"
 # makes them unreadable, so let those lines run long.
 "src/phoenix/server/agents/capabilities/tools/**/*.py" = ["E501"]
 "examples/**/*.py" = ["E501"]
+# The quickstarts are split into docs:start/docs:end regions that the docs embed as
+# separate steps, so each region keeps its own imports.
+"examples/quickstarts/**/*.py" = ["E402"]
 "evals/**/*.py" = ["E501"]
 "tests/**/*.py" = ["E501"]
 
@@ -437,6 +460,7 @@ select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
+known-first-party = ["harbor_verifiers"]
 
 [tool.ruff.format]
 line-ending = "native"
@@ -445,13 +469,18 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.12.5"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
+# The lower bound is the exact uv that writes uv.lock: CI installs it with
+# setup-uv resolution-strategy "lowest", and scripts/uv.sh runs it locally.
+# Newer 0.12.x releases work for everything else.
+required-version = ">=0.12.19,<0.13"
 exclude-newer = "3 days"
 # Exempt our own packages from the `exclude-newer` window so freshly published
 # versions are immediately resolvable. arize-phoenix-sqlean is not a workspace
 # member — it is a setup.py C extension — so it resolves from PyPI and needs
-# this to be installable at all on the day it publishes.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z" }
+# this to be installable at all on the day it publishes. The openinference
+# packages are ours too (Arize-ai/openinference), and phoenix regularly needs a
+# semantic convention or instrumentation helper the day it is released.
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z", openinference-instrumentation = "2099-12-31T00:00:00Z", openinference-semantic-conventions = "2099-12-31T00:00:00Z" }
 # litellm bounds shared dependencies below what the rest of the tree needs: it
 # caps `openai<3` while phoenix and pydantic-ai require openai 3, and it has
 # capped `python-dotenv` below the `>=1.1.0` fastmcp requires. Overriding is safe
@@ -463,7 +492,7 @@ override-dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = ["packages/*", "evals/harbor/verifiers"]
 # phoenix-sqlean is a vendored setup.py-based C extension (fork of
 # nalgeon/sqlean.py), not a uv-managed project.
 exclude = ["packages/phoenix-sqlean"]
@@ -472,3 +501,21 @@ exclude = ["packages/phoenix-sqlean"]
 arize-phoenix-client = { workspace = true }
 arize-phoenix-evals = { workspace = true }
 arize-phoenix-otel = { workspace = true }
+
+[tool.ariadne-codegen]
+# `make codegen-harbor-graphql` compiles the queries into typed models for the verifiers.
+schema_path = "js/app/schema.graphql"
+queries_path = "evals/harbor/verifiers/harbor_verifiers/graphql/operations"
+target_package_path = "evals/harbor/verifiers/harbor_verifiers/graphql"
+target_package_name = "__generated__"
+async_client = false
+multipart_uploads = false
+include_all_inputs = false
+include_all_enums = false
+include_comments = "none"
+
+[tool.ariadne-codegen.scalars.DateTime]
+type = "datetime.datetime"
+
+[tool.ariadne-codegen.scalars.Identifier]
+type = "str"

@@ -136,15 +136,11 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # cost is bounded by that document's size. `@>` and `<@` also test
             # array containment, bounded the same way.
             #
-            # SQLGlot models PostgreSQL `?` (key exists) as JSONBContains, whose
-            # sql name is jsonb_contains. That is a name collision: PostgreSQL's
-            # jsonb_contains is the `@>` support function; `?` is jsonb_exists.
-            # After parse, `jsonb_contains(x, y)` and `x ? y` are the same node,
-            # so we emit `?`. Do not rewrite this class to `@>` — that would
-            # change real `?` queries. `@>` is ArrayContainsAll.
-            # Write-up:
-            # .scratch/pending_issues/sglglot/ISSUE-postgres-jsonb-contains-emits-key-exists.md
+            # `?` (key exists) is JSONBContainsTopKey. JSONBContains is the
+            # `jsonb_contains(x, y)` function, PostgreSQL's support function for
+            # `@>`; the operator itself is ArrayContainsAll.
             exp.JSONBContains,
+            exp.JSONBContainsTopKey,
             exp.JSONBContainsAnyTopKeys,
             exp.JSONBContainsAllTopKeys,
             exp.ArrayContainsAll,
@@ -179,11 +175,15 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # which is why admitting it has to be done by class rather than by
             # the spelling the caller used.
             exp.TimeToStr,
+            # time_sub(t, u) from the bundled time extension: the elapsed
+            # nanoseconds between two parsed times, and what latency_ms is built
+            # on. The parser gives it a node class of its own rather than
+            # treating it as a generic call, so it is admitted here by class.
+            exp.TimeSub,
             # date() truncates a timestamp to its day, which is the coarser half
             # of the same bucketing need and the spelling most callers try
-            # first. The authorizer already permitted it; only admission did
-            # not, so a caller was refused a function the engine was willing to
-            # run.
+            # first. The authorizer permits it, so admission must too, or a
+            # caller is refused a function the engine is willing to run.
             exp.Date,
             # json1 construction. `json_object` is bounded by its arguments.
             #
@@ -207,12 +207,12 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # question once a caller has found a key but does not know whether
             # the value is a scalar, an object or an array.
             exp.JSONType,
-            # SQLite's type-of-a-value probe. The authorizer already permitted
-            # it; only admission did not, so a caller was refused a function
-            # the engine was willing to run.
+            # SQLite's type-of-a-value probe, which the authorizer permits, so
+            # admission has to as well or the two policies disagree about a
+            # function the engine is willing to run.
             exp.Typeof,
-            # sqlean stats. The schema used to say this was unavailable; the
-            # authorizer already permitted it. `percentile(x, 50)` is the same
+            # sqlean stats, which the authorizer permits. `median(x)` is the
+            # median as its own function. `percentile(x, 50)` is the same
             # question with an explicit percentile.
             exp.Median,
         }
@@ -316,9 +316,9 @@ SQLITE_AUTHORIZER_FUNCTIONS: frozenset[str] = frozenset(
         "lower",
         # Admitted by the parser policy as portable classes (exp.Upper,
         # exp.Length, exp.CurrentTimestamp, exp.CurrentDate) but absent here,
-        # so each worked on PostgreSQL and was refused on SQLite -- the exact
-        # divergence the two policies exist to prevent. The liveness suite now
-        # executes all four so the gap cannot silently reopen.
+        # a class listed there but absent here works on PostgreSQL and is refused
+        # on SQLite -- the exact divergence the two policies exist to prevent.
+        # The liveness suite executes all four so the gap cannot open silently.
         "upper",
         "length",
         "current_timestamp",
@@ -354,6 +354,9 @@ SQLITE_AUTHORIZER_FUNCTIONS: frozenset[str] = frozenset(
         "datetime",
         "time",
         "strftime",
+        # What the latency_ms overlay renders to. Admitted by class above, so
+        # a caller may also write it directly.
+        "time_sub",
         # Percentiles, from the bundled stats extension.
         "percentile",
         "median",
@@ -395,6 +398,23 @@ TABLE_GRAPHQL_TYPES: dict[str, str] = {
     "experiments": "Experiment",
     "experiment_runs": "ExperimentRun",
     "experiment_run_annotations": "ExperimentRunAnnotation",
+    "trace_annotations": "TraceAnnotation",
+    "project_trace_retention_policies": "ProjectTraceRetentionPolicy",
+    "dataset_splits": "DatasetSplit",
+    "dataset_labels": "DatasetLabel",
+    "experiment_tags": "ExperimentTag",
+    "experiment_jobs": "ExperimentJob",
+    "experiment_logs": "ExperimentLog",
+    "llm_evaluators": "LLMEvaluator",
+    "code_evaluators": "CodeEvaluator",
+    "builtin_evaluators": "BuiltInEvaluator",
+    "code_evaluator_code_versions": "CodeEvaluatorVersion",
+    "dataset_evaluators": "DatasetEvaluator",
+    "sandbox_configs": "SandboxConfig",
+    "prompts": "Prompt",
+    "prompt_versions": "PromptVersion",
+    "prompt_version_tags": "PromptVersionTag",
+    "prompt_labels": "PromptLabel",
 }
 
 GRAPHQL_NODE_ID_COLUMN = "graphql_node_id"
@@ -521,8 +541,9 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
         {
             "unixepoch",
             "datetime",
-            # time() is the time-of-day constructor. CAST AS TIME used to become
-            # CAST AS TEXT, which returns the full datetime string.
+            # time() is the time-of-day constructor, and the only spelling that
+            # yields one: CAST AS TIME renders as CAST AS TEXT, which keeps the
+            # full datetime string.
             "time",
             # The older spelling of the same idea, and the one a model is more
             # likely to reach for: julianday has been in SQLite for decades
@@ -533,8 +554,15 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
             # It returns days as a float near 2.46e6, so a difference between
             # two of them carries fewer significant digits than the equivalent
             # unixepoch subtraction. That is a precision characteristic, not a
-            # safety one, and it is why latency_ms is built on unixepoch.
+            # safety one; latency_ms itself is built on the time extension's
+            # nanosecond-exact time_sub.
             "julianday",
+            # From the bundled time extension. time_trunc is SQLite's date_trunc.
+            # It takes a parsed time value, so time_parse has to come with it,
+            # and time_fmt_datetime renders the result back as text.
+            "time_parse",
+            "time_trunc",
+            "time_fmt_datetime",
             "json_each",
             # SQLite's continuous percentile, from the bundled stats extension.
             # Verified to agree with Postgres percentile_cont to within floating

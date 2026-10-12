@@ -13,10 +13,6 @@
     "node": true
   },
 
-  "rules": {
-    "eqeqeq": ["error", "smart"]
-  },
-
   "overrides": [
     {
       "files": ["examples/apps/**"],

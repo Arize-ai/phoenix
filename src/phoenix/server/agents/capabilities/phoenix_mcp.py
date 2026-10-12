@@ -32,8 +32,7 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
     Tools derive from the same OpenAPI spec as the mounted MCP server, so a new
     ``/v1`` endpoint needs no hand-written tool.
 
-    Scoped to a single agent run: the principal binding and the session's
-    tool-group reveals both end with the run.
+    Scoped to a single agent run: the principal binding ends with the run.
     """
 
     def __init__(
@@ -51,8 +50,8 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
 
     @override
     async def __aenter__(self) -> Self:
-        # Bound here rather than per call, and before the session opens; see
-        # `bind_principal` for why the placement is the only one that works.
+        # Bound before the session opens; see `bind_principal` for why that
+        # placement holds across transports.
         # Per enter rather than per instance: one instance is entered from
         # several tasks at once when a model response fans out two
         # `call_subagent` calls onto the subagent's single toolset, and a

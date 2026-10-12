@@ -1,0 +1,255 @@
+interactions:
+- request:
+    body: "{\"messages\":[{\"role\":\"user\",\"content\":\"You are grading the final
+      reply of an AI agent that was asked a question about data in an observability
+      tool. You are given the reference answer.\\n\\nDecide whether the reply's conclusion
+      semantically matches the reference after applying the grading notes. Treat the
+      grading notes as authoritative. Wording, formatting, explanations, units, extra
+      correct context, and rounding to the reference's precision do not matter. A
+      reply does not match when its conclusion differs, remains uncertain between
+      incompatible candidates, answers a different question, or gives no answer. Mentioning
+      the reference is insufficient if the reply rejects it or ultimately chooses
+      another answer.\\n\\nAuthoritative grading notes: page_down and PageDownTool
+      are equivalent answers. Accept either name when identified as the tool with
+      the most failures, whether standalone or embedded in an explanation with counts.
+      Reject a reply that selects another tool or remains undecided between tools.\\n\\n[BEGIN
+      REFERENCE ANSWER]\\nPageDownTool\\n[END REFERENCE ANSWER]\\n\\n[BEGIN AGENT
+      REPLY]\\n**page_down (PageDownTool)** \u2014 109 failed spans...\\n[END AGENT
+      REPLY]\\n\\nDoes the reply's conclusion semantically match the reference after
+      applying the grading notes?\"}],\"model\":\"gpt-5-nano\",\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"extract_structured_data\",\"schema\":{\"type\":\"object\",\"properties\":{\"explanation\":{\"type\":\"string\",\"description\":\"A
+      brief explanation of your reasoning.\"},\"label\":{\"type\":\"string\",\"enum\":[\"match\",\"mismatch\"]}},\"required\":[\"explanation\",\"label\"],\"additionalProperties\":false},\"strict\":true}}}"
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-ER6smNKZf17f83ci8Gh86WWKSEeqz\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1790130020,\n  \"model\": \"gpt-5-nano-2025-08-07\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"{\\\"explanation\\\":\\\"The agent's
+        reply identifies the tool as page_down (PageDownTool), which is equivalent
+        to PageDownTool per the authoritative note. Therefore it semantically matches
+        the reference.\\\", \\\"label\\\":\\\"match\\\"}\",\n        \"refusal\":
+        null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n
+        \   }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 295,\n    \"completion_tokens\":
+        635,\n    \"total_tokens\": 930,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 576,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": null\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"role":"user","content":"You are grading the final reply
+      of an AI agent that was asked a question about data in an observability tool.
+      You are given the reference answer.\n\nDecide whether the reply''s conclusion
+      semantically matches the reference after applying the grading notes. Treat the
+      grading notes as authoritative. Wording, formatting, explanations, units, extra
+      correct context, and rounding to the reference''s precision do not matter. A
+      reply does not match when its conclusion differs, remains uncertain between
+      incompatible candidates, answers a different question, or gives no answer. Mentioning
+      the reference is insufficient if the reply rejects it or ultimately chooses
+      another answer.\n\nAuthoritative grading notes: page_down and PageDownTool are
+      equivalent answers. Accept either name when identified as the tool with the
+      most failures, whether standalone or embedded in an explanation with counts.
+      Reject a reply that selects another tool or remains undecided between tools.\n\n[BEGIN
+      REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nThe
+      page_down tool failed the most: **109 times** out of 174 failed tool spans.\n[END
+      AGENT REPLY]\n\nDoes the reply''s conclusion semantically match the reference
+      after applying the grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-ER6srGsTp1vK4khCqFwCmX9xbrtPq\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1790130025,\n  \"model\": \"gpt-5-nano-2025-08-07\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"{\\\"explanation\\\":\\\"The reference
+        answer treats PageDownTool and page_down as equivalent and acceptable names
+        for the tool with the most failures. The agent reply identifies the 'page_down'
+        tool as having the most failures, which semantically matches the reference
+        (i.e., PageDownTool). Therefore, it is a match.\\\", \\\"label\\\":\\\"match\\\"}\",\n
+        \       \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\":
+        \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 301,\n    \"completion_tokens\":
+        532,\n    \"total_tokens\": 833,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 448,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": null\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"role":"user","content":"You are grading the final reply
+      of an AI agent that was asked a question about data in an observability tool.
+      You are given the reference answer.\n\nDecide whether the reply''s conclusion
+      semantically matches the reference after applying the grading notes. Treat the
+      grading notes as authoritative. Wording, formatting, explanations, units, extra
+      correct context, and rounding to the reference''s precision do not matter. A
+      reply does not match when its conclusion differs, remains uncertain between
+      incompatible candidates, answers a different question, or gives no answer. Mentioning
+      the reference is insufficient if the reply rejects it or ultimately chooses
+      another answer.\n\nAuthoritative grading notes: page_down and PageDownTool are
+      equivalent answers. Accept either name when identified as the tool with the
+      most failures, whether standalone or embedded in an explanation with counts.
+      Reject a reply that selects another tool or remains undecided between tools.\n\n[BEGIN
+      REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nTextInspectorTool\n[END
+      AGENT REPLY]\n\nDoes the reply''s conclusion semantically match the reference
+      after applying the grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-ER6sujY804lTJPW7MVCYlR6fw3BiO\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1790130028,\n  \"model\": \"gpt-5-nano-2025-08-07\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"{\\\"explanation\\\":\\\"The reference
+        answer is PageDownTool. The agent replied TextInspectorTool, which is a different
+        tool name and not among the accepted equivalents (page_down/PageDownTool).
+        Therefore the reply does not semantically match the reference.\\\", \\\"label\\\":\\\"mismatch\\\"}\",\n
+        \       \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\":
+        \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 285,\n    \"completion_tokens\":
+        646,\n    \"total_tokens\": 931,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 576,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": null\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"role":"user","content":"You are grading the final reply
+      of an AI agent that was asked a question about data in an observability tool.
+      You are given the reference answer.\n\nDecide whether the reply''s conclusion
+      semantically matches the reference after applying the grading notes. Treat the
+      grading notes as authoritative. Wording, formatting, explanations, units, extra
+      correct context, and rounding to the reference''s precision do not matter. A
+      reply does not match when its conclusion differs, remains uncertain between
+      incompatible candidates, answers a different question, or gives no answer. Mentioning
+      the reference is insufficient if the reply rejects it or ultimately chooses
+      another answer.\n\nAuthoritative grading notes: page_down and PageDownTool are
+      equivalent answers. Accept either name when identified as the tool with the
+      most failures, whether standalone or embedded in an explanation with counts.
+      Reject a reply that selects another tool or remains undecided between tools.\n\n[BEGIN
+      REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nEither
+      page_down or TextInspectorTool; I cannot determine which.\n[END AGENT REPLY]\n\nDoes
+      the reply''s conclusion semantically match the reference after applying the
+      grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-ER6sy4so3njFZuOXQej1DHi2s3Jig\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1790130032,\n  \"model\": \"gpt-5-nano-2025-08-07\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"{\\\"explanation\\\":\\\"The reference
+        answer is PageDownTool. The agent reply says either page_down (an equivalent
+        name) or TextInspectorTool and cannot determine which one is correct. It does
+        not commit to PageDownTool as the answer and introduces a non-equivalent tool,
+        so it does not semantically match the reference.\\\", \\\"label\\\":\\\"mismatch\\\"}\",\n
+        \       \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\":
+        \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 294,\n    \"completion_tokens\":
+        1110,\n    \"total_tokens\": 1404,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 1024,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": null\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"role":"user","content":"You are grading the final reply
+      of an AI agent that was asked a question about data in an observability tool.
+      You are given the reference answer.\n\nDecide whether the reply''s conclusion
+      semantically matches the reference after applying the grading notes. Treat the
+      grading notes as authoritative. Wording, formatting, explanations, units, extra
+      correct context, and rounding to the reference''s precision do not matter. A
+      reply does not match when its conclusion differs, remains uncertain between
+      incompatible candidates, answers a different question, or gives no answer. Mentioning
+      the reference is insufficient if the reply rejects it or ultimately chooses
+      another answer.\n\nAuthoritative grading notes: page_down and PageDownTool are
+      equivalent answers. Accept either name when identified as the tool with the
+      most failures, whether standalone or embedded in an explanation with counts.
+      Reject a reply that selects another tool or remains undecided between tools.\n\n[BEGIN
+      REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nPageDownTool
+      appeared frequently, but TextInspectorTool failed the most.\n[END AGENT REPLY]\n\nDoes
+      the reply''s conclusion semantically match the reference after applying the
+      grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-ER6t5OY4dRuwCrMk9ENc7ae8hQ7XH\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1790130039,\n  \"model\": \"gpt-5-nano-2025-08-07\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"{\\\"explanation\\\":\\\"Reference:
+        PageDownTool as the tool with the most failures. The agent reply claims TextInspectorTool
+        failed the most, contradicting the reference. Therefore the conclusion does
+        not semantically match.\\\",\\\"label\\\":\\\"mismatch\\\"}\",\n        \"refusal\":
+        null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n
+        \   }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 295,\n    \"completion_tokens\":
+        1022,\n    \"total_tokens\": 1317,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 960,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": null\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"role":"user","content":"You are grading the final reply
+      of an AI agent that was asked a question about data in an observability tool.
+      You are given the reference answer.\n\nDecide whether the reply''s conclusion
+      semantically matches the reference after applying the grading notes. Treat the
+      grading notes as authoritative. Wording, formatting, explanations, units, extra
+      correct context, and rounding to the reference''s precision do not matter. A
+      reply does not match when its conclusion differs, remains uncertain between
+      incompatible candidates, answers a different question, or gives no answer. Mentioning
+      the reference is insufficient if the reply rejects it or ultimately chooses
+      another answer.\n\nAuthoritative grading notes: page_down and PageDownTool are
+      equivalent answers. Accept either name when identified as the tool with the
+      most failures, whether standalone or embedded in an explanation with counts.
+      Reject a reply that selects another tool or remains undecided between tools.\n\n[BEGIN
+      REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nTextInspectorTool,
+      not page_down, had the most failures.\n[END AGENT REPLY]\n\nDoes the reply''s
+      conclusion semantically match the reference after applying the grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"id\": \"chatcmpl-ER6tBFsrwbjBD0a3UxMbZucrsrMGg\",\n  \"object\":
+        \"chat.completion\",\n  \"created\": 1790130045,\n  \"model\": \"gpt-5-nano-2025-08-07\",\n
+        \ \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\":
+        \"assistant\",\n        \"content\": \"{\\\"explanation\\\":\\\"The reference
+        answer specifies PageDownTool as the tool with the most failures. The agent
+        reply identifies TextInspectorTool (and says not page_down) as having the
+        most failures. Since page_down and PageDownTool are equivalent, the agent's
+        conclusion does not match the reference.\\\",\\\"label\\\":\\\"mismatch\\\"}\",\n
+        \       \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\":
+        \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 294,\n    \"completion_tokens\":
+        719,\n    \"total_tokens\": 1013,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\":
+        0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\":
+        {\n      \"reasoning_tokens\": 640,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\":
+        0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\":
+        \"default\",\n  \"system_fingerprint\": null\n}\n"
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

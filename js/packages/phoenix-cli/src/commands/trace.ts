@@ -419,6 +419,71 @@ async function writeTracesToDirectory(
   }
 }
 
+async function fetchRequestedTraceMetadata({
+  client,
+  projectId,
+  requestedTraceId,
+  resolvedTraceId,
+  spans,
+  options,
+}: {
+  client: PhoenixClient;
+  projectId: string;
+  requestedTraceId: string;
+  resolvedTraceId: string | undefined;
+  spans: SpanWithAnnotations[];
+  options: TraceGetOptions;
+}): Promise<{
+  traceAnnotations?: TraceAnnotation[];
+  traceNotes?: TraceAnnotation[];
+}> {
+  const traceIds = [resolvedTraceId ?? requestedTraceId];
+  const spanIds = spans
+    .map((span) => span.context?.span_id)
+    .filter((spanId): spanId is string => Boolean(spanId));
+  let traceAnnotations: TraceAnnotation[] | undefined;
+  let traceNotes: TraceAnnotation[] | undefined;
+  if (options.includeAnnotations) {
+    writeProgress({
+      message: "Fetching trace and span annotations...",
+      noProgress: !options.progress,
+    });
+    traceAnnotations = await fetchTraceAnnotations({
+      client,
+      projectIdentifier: projectId,
+      traceIds,
+      excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const spanAnnotations = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    attachSpanAnnotationsToSpans(spans, spanAnnotations);
+  }
+  if (options.includeNotes) {
+    writeProgress({
+      message: "Fetching trace and span notes...",
+      noProgress: !options.progress,
+    });
+    traceNotes = await fetchTraceAnnotations({
+      client,
+      projectIdentifier: projectId,
+      traceIds,
+      includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const spanNotes = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    attachSpanNotesToSpans(spans, spanNotes);
+  }
+  return { traceAnnotations, traceNotes };
+}
+
 /**
  * Handler for `trace get`
  */
@@ -489,56 +554,14 @@ async function traceGetHandler(
 
     const traceSpans: SpanWithAnnotations[] = spans;
     const resolvedTraceId = getResolvedTraceId(spans);
-    let traceAnnotations: TraceAnnotation[] | undefined;
-    let traceNotes: TraceAnnotation[] | undefined;
-    if (options.includeAnnotations) {
-      writeProgress({
-        message: "Fetching trace and span annotations...",
-        noProgress: !options.progress,
-      });
-
-      traceAnnotations = await fetchTraceAnnotations({
-        client,
-        projectIdentifier: projectId,
-        traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
-        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const spanIds = traceSpans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-      const spanAnnotations = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-      attachSpanAnnotationsToSpans(traceSpans, spanAnnotations);
-    }
-    if (options.includeNotes) {
-      writeProgress({
-        message: "Fetching trace and span notes...",
-        noProgress: !options.progress,
-      });
-
-      traceNotes = await fetchTraceAnnotations({
-        client,
-        projectIdentifier: projectId,
-        traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
-        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const spanIds = traceSpans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-      const spanNotes = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-      attachSpanNotesToSpans(traceSpans, spanNotes);
-    }
+    const { traceAnnotations, traceNotes } = await fetchRequestedTraceMetadata({
+      client,
+      projectId,
+      requestedTraceId: traceId,
+      resolvedTraceId,
+      spans: traceSpans,
+      options,
+    });
 
     // Build trace
     const trace = buildTrace({ spans: traceSpans });

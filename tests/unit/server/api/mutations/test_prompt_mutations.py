@@ -110,6 +110,7 @@ class TestPromptMutations:
                 }
                 modelName
                 modelProvider
+                metadata
               }
             }
           }
@@ -215,6 +216,7 @@ class TestPromptMutations:
                 }
                 modelName
                 modelProvider
+                metadata
               }
             }
           }
@@ -323,6 +325,7 @@ class TestPromptMutations:
                 }
                 modelName
                 modelProvider
+                metadata
               }
             }
           }
@@ -633,6 +636,10 @@ class TestPromptMutations:
                         },
                         "promptVersion": {
                             "description": "prompt-version-description",
+                            "metadata": {
+                                "agent": "support",
+                                "dependencies": ["retriever", "answerer"],
+                            },
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -650,7 +657,7 @@ class TestPromptMutations:
                 },
                 None,
                 None,
-                id="with-metadata",
+                id="with-prompt-and-version-metadata",
             ),
         ],
     )
@@ -684,6 +691,8 @@ class TestPromptMutations:
         expected_model_name = variables["input"]["promptVersion"]["modelName"]
         assert prompt_version.pop("modelProvider") == expected_model_provider
         assert prompt_version.pop("modelName") == expected_model_name
+        expected_version_metadata = variables["input"]["promptVersion"].get("metadata", {})
+        assert prompt_version.pop("metadata") == expected_version_metadata
         input_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
         returned_invocation_parameters = prompt_version.pop("invocationParameters")
         (input_variant,) = [k for k, v in input_invocation_parameters.items() if v is not None]
@@ -879,6 +888,10 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
+                            "metadata": {
+                                "agent": "support",
+                                "dependencies": ["retriever", "answerer"],
+                            },
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -896,7 +909,7 @@ class TestPromptMutations:
                 },
                 None,
                 None,
-                id="basic-input",
+                id="with-metadata",
             ),
             pytest.param(
                 {
@@ -1214,6 +1227,8 @@ class TestPromptMutations:
         expected_model_name = variables["input"]["promptVersion"]["modelName"]
         assert latest_prompt_version.pop("modelProvider") == expected_model_provider
         assert latest_prompt_version.pop("modelName") == expected_model_name
+        expected_metadata = variables["input"]["promptVersion"].get("metadata", {})
+        assert latest_prompt_version.pop("metadata") == expected_metadata
         input_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
         returned_invocation_parameters = latest_prompt_version.pop("invocationParameters")
         (input_variant,) = [k for k, v in input_invocation_parameters.items() if v is not None]
@@ -1471,6 +1486,10 @@ class TestPromptMutations:
                         "metadata": {"environment": "staging", "version": "2.0"},
                         "promptVersion": {
                             "description": "initial-version",
+                            "metadata": {
+                                "agent": "support",
+                                "dependencies": ["retriever", "answerer"],
+                            },
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -1537,6 +1556,7 @@ class TestPromptMutations:
         )
         assert cloned_prompt_version.pop("modelProvider") == created_prompt_version["modelProvider"]
         assert cloned_prompt_version.pop("modelName") == created_prompt_version["modelName"]
+        assert cloned_prompt_version.pop("metadata") == created_prompt_version["metadata"]
         assert cloned_prompt_version.pop("template") == created_prompt_version["template"]
         assert cloned_prompt_version.pop("tools") == created_prompt_version["tools"]
         assert (

@@ -80,6 +80,32 @@ describe("AskUserToolDetails", () => {
     expect(formatAskUserState(part.state, part)).toBe("Preparing questions");
   });
 
+  it("keeps the question count visible while later questions stream", () => {
+    const firstQuestion = {
+      id: "question-1",
+      prompt: "Which option should we use?",
+      type: "freeform",
+    };
+    const firstSnapshot = createAskUserPart({
+      state: "input-streaming",
+      input: { questions: [firstQuestion] },
+    });
+    const secondSnapshot = createAskUserPart({
+      state: "input-streaming",
+      input: {
+        questions: [
+          firstQuestion,
+          {
+            id: "question-2",
+          },
+        ],
+      },
+    });
+
+    expect(getAskUserToolPreview(firstSnapshot)).toBe("1 question");
+    expect(getAskUserToolPreview(secondSnapshot)).toBe("2 questions");
+  });
+
   it("treats a completed ask_user call without output as awaiting a response", () => {
     const part = createAskUserPart({
       state: "output-available",

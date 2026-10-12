@@ -1,5 +1,7 @@
 export * from "./createDataset";
 export * from "./datasetLabelAssignments";
+export * from "./createDatasetSplit";
+export * from "./deleteDatasetSplit";
 export * from "./getDataset";
 export * from "./getDatasetExamples";
 export * from "./appendDatasetExamples";
@@ -10,3 +12,5 @@ export * from "./getDatasetLabel";
 export * from "./getDatasetInfo";
 export * from "./listDatasetLabels";
 export * from "./updateDatasetLabel";
+export * from "./updateDatasetSplit";
+export type { DatasetIdentifier, DatasetSplit } from "../types/datasets";

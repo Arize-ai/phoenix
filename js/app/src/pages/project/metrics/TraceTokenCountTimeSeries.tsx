@@ -33,6 +33,7 @@ import {
   intShortFormatter,
   percentFormatter,
 } from "@phoenix/utils/numberFormatUtils";
+import type { TokenKind } from "@phoenix/utils/tokenDetailUtils";
 import {
   compareTokenTypes,
   getTokenDetailColor,
@@ -49,7 +50,6 @@ type TokenCountTimeSeriesDatum = NonNullable<
     >["traceTokenCountTimeSeries"]
   >["data"]
 >[number];
-type TokenDetailsKind = "prompt" | "completion";
 type TokenDetailsChartDatum = {
   timestamp: number;
   total: number | null;
@@ -58,17 +58,14 @@ type TokenDetailsChartDatum = {
 
 function getTokenDetails(
   datum: TokenCountTimeSeriesDatum,
-  tokenKind: TokenDetailsKind
+  tokenKind: TokenKind
 ) {
   return tokenKind === "prompt"
     ? datum.promptTokenCountDetails
     : datum.completionTokenCountDetails;
 }
 
-function getTokenTotal(
-  datum: TokenCountTimeSeriesDatum,
-  tokenKind: TokenDetailsKind
-) {
+function getTokenTotal(datum: TokenCountTimeSeriesDatum, tokenKind: TokenKind) {
   return tokenKind === "prompt"
     ? datum.promptTokenCount
     : datum.completionTokenCount;
@@ -297,7 +294,7 @@ function TraceTokenDetailsTimeSeries({
   timeRange,
   onTimeRangeSelected,
   tokenKind,
-}: ProjectMetricViewProps & { tokenKind: TokenDetailsKind }) {
+}: ProjectMetricViewProps & { tokenKind: TokenKind }) {
   const { data, scale } = useTraceTokenCountTimeSeriesData({
     projectId,
     timeRange,

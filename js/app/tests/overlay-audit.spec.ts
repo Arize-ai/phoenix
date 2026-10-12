@@ -25,7 +25,7 @@ async function openAssistant(page: Page) {
   const rail = page.getByRole("complementary", { name: "Assistant" });
   await expect(rail).toBeVisible();
   const acknowledgeButton = rail.getByRole("button", { name: "Acknowledge" });
-  const input = rail.getByPlaceholder("Send a message...");
+  const input = rail.getByLabel("Message input");
   await expect(acknowledgeButton.or(input)).toBeVisible();
   if (await acknowledgeButton.isVisible()) {
     await acknowledgeButton.click();
@@ -203,7 +203,7 @@ test.describe("overlay audit", () => {
     }) => {
       await page.goto("/settings/users");
       const rail = await openAssistant(page);
-      const railInput = rail.getByPlaceholder("Send a message...");
+      const railInput = rail.getByLabel("Message input");
       await railInput.fill("audit draft");
 
       await page.getByRole("button", { name: "Add User" }).click();
