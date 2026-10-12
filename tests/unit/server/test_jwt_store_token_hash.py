@@ -49,6 +49,7 @@ from tests.unit.conftest import (
     TestBulkInserter,
     patch_dml_event_handler,
     patch_grpc_server,
+    patch_online_eval_daemons,
 )
 
 _SEED = b"\x11" * 32
@@ -424,6 +425,7 @@ class TestLegacyRowThroughStartup:
         async with contextlib.AsyncExitStack() as stack:
             await stack.enter_async_context(patch_grpc_server())
             await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_online_eval_daemons())
             await stack.enter_async_context(LifespanManager(app))
             if mode == "derived_key":
                 signing_key: str | bytes = derive_deployment_key(
