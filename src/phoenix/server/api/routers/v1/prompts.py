@@ -812,7 +812,7 @@ async def create_prompt_version_tag(
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
             raise HTTPException(404)
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         values = dict(
             name=request_body.name,
             description=request_body.description,
@@ -987,7 +987,7 @@ def _parse_prompt_identifier(
 
 
 def _filter_by_prompt_identifier(
-    stmt: Select[tuple[models.PromptVersion]],
+    stmt: Select[models.PromptVersion],
     prompt_identifier: str,
 ) -> Any:
     identifier = _parse_prompt_identifier(prompt_identifier)

@@ -354,7 +354,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         self._claims = claims
 
     @cached_property
-    def _update_stmt(self) -> Select[tuple[_RecordT, UserRoleName]]:
+    def _update_stmt(self) -> Select[_RecordT, UserRoleName]:
         return (
             select(self._table, models.UserRole.name)
             .join_from(self._table, models.User)
@@ -429,7 +429,7 @@ class _AccessTokenStore(
     _token = AccessToken
 
     @cached_property
-    def _update_stmt(self) -> Select[Any]:
+    def _update_stmt(self) -> Select[*tuple[Any, ...]]:
         # Join the paired refresh token so grant linkage (oauth2_grant_id) is
         # available without a second query. Access-token rows do not store
         # oauth2_grant_id themselves — only the denormalized scopes snapshot.
@@ -564,7 +564,7 @@ class _RefreshTokenStore(
         )
 
     @cached_property
-    def _update_stmt(self) -> Select[Any]:
+    def _update_stmt(self) -> Select[*tuple[Any, ...]]:
         # A consumed row is a tombstone, not a credential. Excluding it here is what makes
         # retention safe: without this filter a rotated-away token would keep hydrating
         # into the claims cache and would go on authenticating indefinitely.

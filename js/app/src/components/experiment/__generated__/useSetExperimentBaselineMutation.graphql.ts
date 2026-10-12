@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<82e3b8e33f087eb4a97beecfebcd0777>>
+ * @generated SignedSource<<a7f0c35773b057d6c79bb7daa383998f>>
  * @lightSyntaxTransform
  */
 
@@ -66,14 +66,15 @@ v3 = {
   "name": "id",
   "storageKey": null
 },
-v4 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "tokens",
-    "storageKey": null
-  },
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "tokens",
+  "storageKey": null
+},
+v5 = [
+  (v4/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -82,7 +83,7 @@ v4 = [
     "storageKey": null
   }
 ],
-v5 = [
+v6 = [
   (v3/*:: as any*/),
   {
     "alias": null,
@@ -159,7 +160,7 @@ v5 = [
         "kind": "LinkedField",
         "name": "prompt",
         "plural": false,
-        "selections": (v4/*:: as any*/),
+        "selections": (v5/*:: as any*/),
         "storageKey": null
       },
       {
@@ -169,7 +170,7 @@ v5 = [
         "kind": "LinkedField",
         "name": "completion",
         "plural": false,
-        "selections": (v4/*:: as any*/),
+        "selections": (v5/*:: as any*/),
         "storageKey": null
       },
       {
@@ -179,14 +180,51 @@ v5 = [
         "kind": "LinkedField",
         "name": "total",
         "plural": false,
-        "selections": (v4/*:: as any*/),
+        "selections": (v5/*:: as any*/),
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "SpanCostDetailSummaryEntry",
+    "kind": "LinkedField",
+    "name": "costDetailSummaryEntries",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "tokenType",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "isPrompt",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "CostBreakdown",
+        "kind": "LinkedField",
+        "name": "value",
+        "plural": false,
+        "selections": [
+          (v4/*:: as any*/)
+        ],
         "storageKey": null
       }
     ],
     "storageKey": null
   }
 ],
-v6 = [
+v7 = [
   (v3/*:: as any*/),
   {
     "alias": null,
@@ -196,24 +234,24 @@ v6 = [
     "storageKey": null
   }
 ],
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "Experiment",
   "kind": "LinkedField",
   "name": "experiment",
   "plural": false,
-  "selections": (v6/*:: as any*/),
+  "selections": (v7/*:: as any*/),
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "Experiment",
   "kind": "LinkedField",
   "name": "previousBaselineExperiment",
   "plural": false,
-  "selections": (v6/*:: as any*/),
+  "selections": (v7/*:: as any*/),
   "storageKey": null
 };
 return {
@@ -254,7 +292,7 @@ return {
                   {
                     "kind": "InlineDataFragmentSpread",
                     "name": "useExperimentMetricsData_experiment",
-                    "selections": (v5/*:: as any*/),
+                    "selections": (v6/*:: as any*/),
                     "args": null,
                     "argumentDefinitions": []
                   }
@@ -264,8 +302,8 @@ return {
             ],
             "storageKey": null
           },
-          (v7/*:: as any*/),
-          (v8/*:: as any*/)
+          (v8/*:: as any*/),
+          (v9/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -306,26 +344,26 @@ return {
                 "kind": "LinkedField",
                 "name": "baselineExperiment",
                 "plural": false,
-                "selections": (v5/*:: as any*/),
+                "selections": (v6/*:: as any*/),
                 "storageKey": null
               }
             ],
             "storageKey": null
           },
-          (v7/*:: as any*/),
-          (v8/*:: as any*/)
+          (v8/*:: as any*/),
+          (v9/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "a733163cf613308e905432699a246c27",
+    "cacheID": "48995268c46af9f2486de01abd8340d0",
     "id": null,
     "metadata": {},
     "name": "useSetExperimentBaselineMutation",
     "operationKind": "mutation",
-    "text": "mutation useSetExperimentBaselineMutation(\n  $experimentId: ID!\n  $baseline: Boolean!\n) {\n  setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {\n    dataset {\n      id\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n    }\n    experiment {\n      id\n      isBaseline\n    }\n    previousBaselineExperiment {\n      id\n      isBaseline\n    }\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n}\n"
+    "text": "mutation useSetExperimentBaselineMutation(\n  $experimentId: ID!\n  $baseline: Boolean!\n) {\n  setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {\n    dataset {\n      id\n      baselineExperiment {\n        ...useExperimentMetricsData_experiment\n        id\n      }\n    }\n    experiment {\n      id\n      isBaseline\n    }\n    previousBaselineExperiment {\n      id\n      isBaseline\n    }\n  }\n}\n\nfragment useExperimentMetricsData_experiment on Experiment {\n  id\n  name\n  sequenceNumber\n  averageRunLatencyMs\n  errorRate\n  runCount\n  annotationSummaries {\n    annotationName\n    meanScore\n  }\n  costSummary {\n    prompt {\n      tokens\n      cost\n    }\n    completion {\n      tokens\n      cost\n    }\n    total {\n      tokens\n      cost\n    }\n  }\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      tokens\n    }\n  }\n}\n"
   }
 };
 })();

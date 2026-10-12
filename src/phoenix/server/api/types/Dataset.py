@@ -20,6 +20,7 @@ from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
+from phoenix.server.api.input_types.ExperimentSort import ExperimentSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
     DatasetExperimentAnnotationSummary,
@@ -400,6 +401,14 @@ class Dataset(Node):
         filter_ids: Optional[
             list[GlobalID]
         ] = UNSET,  # this is a stopgap until a query DSL is implemented
+        sequence_numbers: Annotated[
+            Optional[list[int]],
+            strawberry.argument(
+                description="When provided, return only the experiments with the given 1-based "
+                "per-dataset sequence numbers."
+            ),
+        ] = UNSET,
+        sort: Optional[ExperimentSort] = UNSET,
     ) -> Connection[Experiment]:
         args = ConnectionArgs(
             first=first,
@@ -408,14 +417,24 @@ class Dataset(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         dataset_id = self.id
-        row_number = func.row_number().over(order_by=models.Experiment.id).label("row_number")
-        query = (
-            select(models.Experiment, row_number)
-            .where(models.Experiment.dataset_id == dataset_id)
-            .order_by(models.Experiment.id.desc())
-        )
+        sequence_stmt = select(
+            models.Experiment.id.label("experiment_id"),
+            func.row_number().over(order_by=models.Experiment.id).label("row_number"),
+        ).where(models.Experiment.dataset_id == dataset_id)
         if not include_ephemeral:
-            query = query.where(models.Experiment.is_ephemeral.is_(False))
+            sequence_stmt = sequence_stmt.where(models.Experiment.is_ephemeral.is_(False))
+        sequence_subq = sequence_stmt.subquery()
+        query = select(models.Experiment, sequence_subq.c.row_number).join(
+            sequence_subq, models.Experiment.id == sequence_subq.c.experiment_id
+        )
+        if sort:
+            sort_col = sort.col.orm_expression
+            if sort.dir is SortDir.desc:
+                query = query.order_by(sort_col.desc(), models.Experiment.id.desc())
+            else:
+                query = query.order_by(sort_col.asc(), models.Experiment.id.asc())
+        else:
+            query = query.order_by(models.Experiment.id.desc())
         if filter_condition is not UNSET and filter_condition:
             # Search both name and description columns with case-insensitive partial matching
             search_filter = or_(
@@ -437,6 +456,9 @@ class Dataset(Node):
                 except ValueError:
                     raise BadRequest(f"Invalid filter ID: {filter_id}")
             query = query.where(models.Experiment.id.in_(filter_rowids))
+
+        if sequence_numbers is not UNSET and sequence_numbers is not None:
+            query = query.where(sequence_subq.c.row_number.in_(sequence_numbers))
 
         async with info.context.db.read() as session:
             experiments = [

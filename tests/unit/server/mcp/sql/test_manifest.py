@@ -11,9 +11,9 @@ from phoenix.server.mcp.sql.manifest import (
 )
 
 
-def test_manifest_loads_sixteen_tables() -> None:
+def test_manifest_loads_forty_eight_tables() -> None:
     allowlist = load_allowlist("sqlite")
-    assert len(allowlist.tables) == 16
+    assert len(allowlist.tables) == 48
 
 
 def test_allowlists_are_cached_per_dialect_and_immutable() -> None:

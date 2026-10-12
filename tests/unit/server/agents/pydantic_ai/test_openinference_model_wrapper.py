@@ -164,7 +164,7 @@ async def test_request_emits_llm_span_for_text_response(
     span = spans[0]
     assert span.name == MODEL_NAME
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -280,7 +280,7 @@ async def test_request_emits_llm_span_for_tool_call_response(
 
     spans = in_memory_span_exporter.get_finished_spans()
     assert len(spans) == 1
-    attributes = dict(spans[0].attributes or {})
+    attributes: dict[str, Any] = dict(spans[0].attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -357,7 +357,7 @@ async def test_request_emits_llm_span_for_native_tool_call_response(
     span = spans[0]
     assert span.name == "test"
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == "test"
@@ -450,7 +450,7 @@ async def test_request_stream_emits_llm_span(
     span = spans[0]
     assert span.name == MODEL_NAME
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -570,7 +570,7 @@ async def test_request_emits_tool_return_message_in_history(
     span = spans[0]
     assert span.name == MODEL_NAME
     assert span.status.status_code == StatusCode.OK
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -683,7 +683,7 @@ async def test_request_emits_system_message_from_instructions(
 
     spans = in_memory_span_exporter.get_finished_spans()
     assert len(spans) == 1
-    attributes = dict(spans[0].attributes or {})
+    attributes: dict[str, Any] = dict(spans[0].attributes or {})
     assert attributes[f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}"] == "system"
     assert attributes[f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}"] == joined
     assert attributes[f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_ROLE}"] == "user"
@@ -713,14 +713,14 @@ async def test_request_raises_expected_exception_events(
     assert len(span.events) == 1
     (exception_event,) = span.events
     assert exception_event.name == "exception"
-    exception_attributes = dict(exception_event.attributes or {})
+    exception_attributes: dict[str, Any] = dict(exception_event.attributes or {})
     assert exception_attributes.pop("exception.type") == "RuntimeError"
     assert exception_attributes.pop("exception.message") == "boom from raising model"
     assert isinstance(exception_attributes.pop("exception.stacktrace"), str)
     assert exception_attributes.pop("exception.escaped") == "False"
     assert not exception_attributes
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == "test"
     assert attributes.pop(LLM_SYSTEM) == "test"
