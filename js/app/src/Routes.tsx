@@ -1195,7 +1195,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Settings",
               description:
-                "Open Phoenix instance settings, saved credential encryption status, configuration, and admin settings.",
+                "Open Phoenix instance settings, configuration, and admin settings.",
             },
           }}
         >
@@ -1265,7 +1265,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Secrets",
                 description:
-                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools.",
+                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools, and review saved credential encryption status.",
               },
             }}
           />

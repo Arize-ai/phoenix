@@ -9,10 +9,6 @@ import { SettingsPage } from "../SettingsPage";
 
 installTestMatchMedia();
 
-vi.mock("@phoenix/components/settings/PublicEncryptionKeyWarning", () => ({
-  PublicEncryptionKeyWarning: () => null,
-}));
-
 let container: HTMLDivElement;
 let root: Root;
 let originalAuthenticationEnabled: boolean;

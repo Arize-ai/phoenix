@@ -16,7 +16,6 @@ import {
 } from "@phoenix/components";
 import { PxiGlyphOutline } from "@phoenix/components/agent";
 import { McpSVG } from "@phoenix/components/project/IntegrationIcons";
-import { PublicEncryptionKeyWarning } from "@phoenix/components/settings/PublicEncryptionKeyWarning";
 import {
   useIsAuthenticatedAdmin,
   useViewerCanManageSandboxes,
@@ -32,19 +31,8 @@ import { useMediaQuery } from "@phoenix/hooks";
 const VERTICAL_TABS_MEDIA_QUERY = "(min-width: 900px)";
 
 const settingsPageCSS = css`
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   height: 100%;
-  & > [data-banner="true"] {
-    flex: none;
-  }
-`;
-
-const settingsTabsCSS = css`
-  flex: 1 1 auto;
-  min-height: 0;
-  height: auto;
 `;
 
 const tabLabelCSS = css`
@@ -137,9 +125,7 @@ export function SettingsPage() {
   }
   return (
     <main css={settingsPageCSS}>
-      <PublicEncryptionKeyWarning banner />
       <Tabs
-        css={settingsTabsCSS}
         selectedKey={tab}
         onSelectionChange={onChangeTab}
         orientation={isLargeScreen ? "vertical" : "horizontal"}
