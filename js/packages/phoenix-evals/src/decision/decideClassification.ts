@@ -12,12 +12,6 @@ import type { DecisionModel } from "../utils/isDecisionModel";
 import type { DecisionPrompt } from "./decisionPrompt";
 
 /**
- * The OpenAI Decisions API accepts between 2 and 255 options per choice question.
- */
-const MIN_LABELS = 2;
-const MAX_LABELS = 255;
-
-/**
  * The ID of the single choice question asked per classification.
  */
 const QUESTION_ID = "label";
@@ -56,7 +50,6 @@ export async function decideClassification(args: {
   telemetry?: TelemetryConfig;
 }): Promise<ClassificationResult> {
   const { model, labels, prompt, telemetry } = args;
-  assertLabelCount(labels);
   let result;
   try {
     result = await experimental_decide({
@@ -93,14 +86,6 @@ export async function decideClassification(args: {
       modelId: result.response.modelId,
     },
   };
-}
-
-function assertLabelCount(labels: readonly string[]) {
-  if (labels.length < MIN_LABELS || labels.length > MAX_LABELS) {
-    throw new Error(
-      `Decision models need between ${MIN_LABELS} and ${MAX_LABELS} choices, got ${labels.length}.`
-    );
-  }
 }
 
 /**

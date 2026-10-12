@@ -89,15 +89,6 @@ describe("generateClassification with a decision model", () => {
     });
   });
 
-  it("rejects fewer than two labels before calling the model", async () => {
-    const { model, doDecide } = createMockDecisionModel({ choice: "only" });
-
-    await expect(
-      generateClassification({ model, labels: ["only"], prompt: "Hi" })
-    ).rejects.toThrow("between 2 and 255 choices");
-    expect(doDecide).not.toHaveBeenCalled();
-  });
-
   it("still accepts models written against the older evaluation spec", async () => {
     const { model: decisionModel, doDecide } = createMockDecisionModel({
       choice: "correct",
