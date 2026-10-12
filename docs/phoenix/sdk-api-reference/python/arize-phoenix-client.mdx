@@ -20,6 +20,7 @@ Phoenix Client provides a interface for interacting with the Phoenix platform vi
 - **Spans** - Query and analyze traces with powerful filtering
 - **Annotations** - Add human feedback and automated evaluations
 - **Sessions** - Retrieve and list multi-turn conversation sessions
+- **Evaluators** - Manage evaluator definitions and bind them to datasets and projects
 
 ## Installation
 
@@ -126,6 +127,25 @@ oai_client = OpenAI()
 resp = oai_client.chat.completions.create(**formatted_prompt)
 print(resp.choices[0].message.content)
 ```
+
+Pass `custom_provider_id` to send a version to a custom model provider configured in Phoenix. `model_provider` still selects the invocation parameter format, so the provider's SDK must be able to serve it; Phoenix refuses an incompatible provider with 422 and an unknown one with 404.
+
+```python
+prompt = client.prompts.create(
+    name="article-bullet-summarizer",
+    version=PromptVersion(
+        [{"role": "user", "content": content}],
+        model_name="gpt-4o-mini",
+        model_provider="OPENAI",
+        custom_provider_id="R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+    ),
+)
+print(prompt.custom_provider_id)
+```
+
+<Note>
+Creating a version with `custom_provider_id` requires Phoenix server 21.0.0 or later. The client checks the server version first and raises against an older server, which would ignore the field and silently store the version with the built-in provider. Versions without it are not checked.
+</Note>
 
 ## Datasets
 
@@ -264,6 +284,132 @@ new_project = client.projects.create(
 )
 print(f"Created project with ID: {new_project['id']}")
 ```
+
+## Evaluators
+
+Manage shared evaluator definitions and the bindings that run them. A definition is shared by every dataset and project binding that references it, so an update applies everywhere it is used. `client.evaluators` manages definitions, `client.evaluators.dataset_evaluators` binds them to datasets, and `client.evaluators.project_evaluators` runs them on a project's incoming traces.
+
+<Note>
+The evaluator helpers require Phoenix server 21.0.0 or later. Each method checks the server version first and raises against an older server.
+</Note>
+
+| Kind | How it is created | Dataset bindings | Project bindings | Edit and delete |
+|------|-------------------|------------------|------------------|-----------------|
+| `llm` | `create_llm`, pinned to an existing prompt version | By ID | By ID | `update_llm`, `delete` |
+| `code` | `create_code`, with its first version | By ID | By ID | `update_code`, `create_code_version`, `delete` |
+| `builtin` | Ships with Phoenix | By ID | Not accepted | Never edited or deleted |
+
+Create a definition first, then bind it by its `id`. One definition can back any number of bindings, and deleting a binding never deletes the definition.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Create an LLM evaluator that runs an existing prompt version. This adds the
+# "evaluator" label to the prompt and creates a tag that pins the version;
+# the prompt is otherwise unchanged.
+judge = client.evaluators.create_llm(
+    name="toxicity",
+    prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+    output_configs=[
+        {
+            "type": "CATEGORICAL",
+            "name": "toxicity",
+            "optimization_direction": "MINIMIZE",
+            "values": [{"label": "toxic", "score": 1}, {"label": "clean", "score": 0}],
+        }
+    ],
+)
+
+# Create a code evaluator in a usable sandbox; at least one output config is required
+sandbox = next(
+    config
+    for config in client.evaluators.list_sandbox_configs(language="PYTHON")
+    if config["is_usable"]
+)
+definition = client.evaluators.create_code(
+    name="exact-match",
+    source_code=open("evaluator.py").read(),
+    language="PYTHON",
+    sandbox_config_id=sandbox["id"],
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+    output_configs=[{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}],
+)
+
+# Deploy new code; the server refuses with 409 if another version landed first
+[current] = client.evaluators.list_code_versions(evaluator_id=definition["id"], limit=1)
+version = client.evaluators.create_code_version(
+    evaluator_id=definition["id"],
+    source_code=open("evaluator.py").read(),
+    expected_current_version_id=current["id"],
+)
+print(version["id"], version["was_created"])
+
+# Attach it to a dataset. The input mapping lives on the binding.
+binding = client.evaluators.dataset_evaluators.create(
+    dataset="golden-questions",
+    name="exact-match",
+    evaluator_id=definition["id"],
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+)
+
+# Override the outputs on this binding only, then follow the evaluator's outputs again
+client.evaluators.dataset_evaluators.update(
+    dataset_evaluator_id=binding["id"],
+    output_configs=[{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}],
+)
+client.evaluators.dataset_evaluators.update(dataset_evaluator_id=binding["id"], output_configs=None)
+
+# Run it on each trace in a project once the trace has been quiet for 10 minutes
+client.evaluators.project_evaluators.create(
+    project="support-bot",
+    name="exact-match",
+    evaluation_target="TRACE",
+    sampling_rate=1.0,
+    evaluator_id=definition["id"],
+    evaluation_delay_seconds=600,
+)
+
+# Delete the binding and its trace project; keep the definition and prompt
+client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
+```
+
+Failed requests raise `PhoenixAPIError`, a subclass of `httpx.HTTPStatusError`. A name clash is refused with `code == "already_exists"` and `existing_id` naming the resource that holds the name:
+
+```python
+from phoenix.client.exceptions import PhoenixAPIError
+
+try:
+    client.evaluators.create_code(name="exact-match", ...)
+except PhoenixAPIError as error:
+    if error.code != "already_exists":
+        raise
+    definition = client.evaluators.get(evaluator_id=error.existing_id)
+```
+
+### Errors
+
+When the server explains a failure with [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, the full parsed body is on `error.problem`, and `error.code` and `error.reason` are shortcuts to two of its fields:
+
+- `code` is a stable category, published as `urn:phoenix:problem:<code>` on `problem["type"]`: `validation_error`, `invalid_argument`, `not_found`, `already_exists`, `conflict`, `forbidden`, `insufficient_storage`, or `error`. Treat a `code` you don't recognize by `error.response.status_code` — new codes are additive.
+- `reason` is a finer condition under `code`, present on some `conflict` responses. Treat a `reason` you don't recognize by `code` alone. The reasons today:
+  - `still_bound` (deleting a definition something still binds): detach the bindings first, then delete.
+  - `incompatible_override` (an edit would leave a dataset binding's override outputs unsupported by the prompt it now runs): fix or clear the listed overrides.
+  - `version_mismatch` (`expected_current_version_id` didn't match): re-read the evaluator and reconcile before retrying — never blindly resubmit with the version the error reports as current, since another deploy can land before you do.
+  - `concurrent_change` (another write touched the same row mid-request): retry the same request unchanged.
+- The recovery fields, present only for the `reason` (or, for `existing_id`, `code`) named:
+  - `existing_id` (`already_exists`): the GlobalID of the resource holding the name.
+  - `current_version_id` (`version_mismatch`): the GlobalID of the version actually current, or `None` when the evaluator has none yet.
+  - `binding_counts` (`still_bound`): `{"project": int, "dataset": int}`, how many of each kind still refuse the delete.
+  - `dataset_evaluator_ids` (`incompatible_override`): GlobalIDs of the dataset bindings whose overrides no longer fit.
+- `detail` is a human-readable explanation, not meant to be parsed; branch on `code` and `reason`, never on the text of `detail`.
+
+Not every failure is problem details shaped this way. A 401 is a plain-text authentication challenge. An unhandled 500, or a proxy sitting in front of Phoenix, can return a body that isn't JSON at all. In every case `error.response.status_code` is still the real HTTP status, and `error.problem` is `None` when the body didn't parse as one.
+
+- **Definitions**: `create_code_version` returns the current version with `was_created=False` when the source is unchanged. Prompt content for an LLM evaluator is edited through `client.prompts`; `update_llm` only records which prompt version runs. `delete` removes an LLM or code evaluator that nothing binds and refuses one that is still bound with 409; an LLM evaluator's prompt is kept. Built-in evaluators are never deleted.
+- **Dataset bindings**: attach an existing LLM, code, or built-in evaluator with `evaluator_id`. `description` and `output_configs` are overrides: omit them on `create`, or pass `None` to `update`, and the binding uses the evaluator's values and follows later changes to them. An `output_configs` override needs at least one config (`[]` is rejected). On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description. Deleting a binding also deletes its trace project and recorded traces while keeping its definition and prompt. `delete_many(dataset=..., dataset_evaluator_ids=...)` deletes up to 1000 of a dataset's bindings atomically.
+- **Project bindings**: attach an existing LLM or code evaluator with `evaluator_id`. `evaluation_target` is `SPAN`, `TRACE`, or `SESSION` and cannot change later. `filter_condition` is written in the target's filter language (span, trace, or session); `update` clears it with `""`, not `None`. `evaluation_delay_seconds` applies to `TRACE` and `SESSION` only: at least 10 seconds, 300 by default. `SPAN` targets reject a delay and evaluate spans as they arrive. `delete_many(project=..., project_evaluator_ids=...)` deletes up to 1000 of a project's bindings atomically.
 
 ## Sessions
 

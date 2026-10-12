@@ -1,17 +1,17 @@
 """Consumer-side coordination seam for online-eval work distribution: claim,
-heartbeat, completion, failure, expiration, and queue-lag observability. Producer-side
-operations (cursor lease, watermark advance, and work-row materialization) are not part
-of this interface.
+heartbeat, publication, failure, expiration, and counts of work that recently ended
+without a result. Producer-side operations (materializer leases, watermark advance, and
+work-row materialization) are not part of this interface.
 
 Work-unit lifecycle:
 
-    PENDING --claim--> RUNNING --complete--> DONE
+    PENDING --claim--> RUNNING --publish--> DONE
                        RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
-                       RUNNING --expire---> EXPIRED | SUPERSEDED | CONTENT_LOST
+                       RUNNING --expire---> EXPIRED | CONTENT_LOST | DROPPED
                        RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
-    PENDING (pending TTL exceeded) --> DROPPED
+    PENDING | ERROR (queue cleared) --> DROPPED
 """
 
 from __future__ import annotations
@@ -29,8 +29,11 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
 LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
+# Metrics over terminal work read only rows that reached their status within this window;
+# session and trace work is never deleted, so all-time aggregates would grow without bound.
+TERMINAL_METRICS_WINDOW_SECONDS = 86_400.0
 
-RetiredWorkStatus = Literal["EXPIRED", "SUPERSEDED", "CONTENT_LOST"]
+RetiredWorkStatus = Literal["EXPIRED", "CONTENT_LOST", "DROPPED"]
 
 PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
 """Writes one unit's results, inside the transaction that fenced its publication."""
@@ -48,37 +51,35 @@ class PublicationClaimLostError(Exception):
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit with an idempotent annotation identifier."""
+    """A leased work unit: one project evaluator to run against one target row."""
 
     work_unit_id: int
     evaluation_target: models.EvaluationTarget
     target_rowid: int
-    evaluator_id: int
     project_evaluator_id: int
-    config_fingerprint: str
-    identifier: str
     attempts: int
     claimed_by: str
     lease_expires_at: datetime
 
 
 @dataclass(frozen=True)
-class QueueLag:
-    """Observable backlog; all counts are zero when no work rows exist.
-    ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is
-    None when that backlog is empty. ``expired_count`` covers every retirement without
-    an outcome: EXPIRED, SUPERSEDED, CONTENT_LOST, and DROPPED."""
+class EndedWorkCounts:
+    """Work of one evaluation target that ended without a result, last updated within
+    ``TERMINAL_METRICS_WINDOW_SECONDS``: FAILED (``exhausted_error_count``), EXPIRED and
+    CONTENT_LOST (``expired_count``), and DROPPED, removed from the queue before it ran
+    (``dropped_count``). Live work is measured by ``queue_health``."""
 
-    pending_count: int
-    running_count: int
-    retryable_error_count: int
     exhausted_error_count: int
     expired_count: int
-    oldest_actionable_age_seconds: Optional[float]
+    dropped_count: int
 
 
 class EvalWorkCoordinator(Protocol):
-    """Coordinates online-eval work across replicas behind a swappable backend."""
+    """Coordinates online-eval work across replicas behind a swappable backend.
+
+    Heartbeat, fail, expire and release return False once the claim is lost, and True,
+    changing nothing, when the claim's own publication already finished the unit, so a
+    call that raced that publication doesn't report a lost claim."""
 
     async def claim(
         self,
@@ -89,7 +90,10 @@ class EvalWorkCoordinator(Protocol):
         """Lease up to ``limit`` claimable work units for ``claimed_by``. A unit is
         claimable when it is PENDING, or RUNNING with a lapsed lease, or ERROR past
         its cooldown. Returns an empty sequence when no
-        claimable work exists."""
+        claimable work exists.
+
+        Every later write for a unit is fenced on the ``claimed_by`` it was claimed
+        with, so each call should pass a value no earlier claim used."""
         ...
 
     async def heartbeat(
@@ -98,19 +102,9 @@ class EvalWorkCoordinator(Protocol):
         work_unit_id: int,
         claimed_by: str,
     ) -> bool:
-        """Renew the lease on a claimed unit. Returns False if the claim was lost —
-        never silent success."""
-        ...
-
-    async def complete(
-        self,
-        *,
-        work_unit_id: int,
-        claimed_by: str,
-    ) -> bool:
-        """Transition a claimed unit RUNNING -> DONE. Returns True when the unit is
-        already DONE so callers can safely retry an ambiguous commit. Returns False for
-        any other lost claim."""
+        """Renew the lease on a claimed unit. Returns False once the claim is lost, and True
+        without renewing when the claim's own publication already finished the unit, so a
+        heartbeat that waited on that publication doesn't report a lost claim."""
         ...
 
     async def publish(
@@ -120,15 +114,14 @@ class EvalWorkCoordinator(Protocol):
         claimed_by: str,
         write: PublicationWrite,
     ) -> None:
-        """Fence a claimed unit for publication and run ``write`` in that transaction.
+        """Fence a claimed unit, run ``write``, and mark the unit DONE, all in one
+        transaction, so a unit is never left RUNNING with its results published.
 
-        The fence is stricter than a lifecycle transition's: the unit must still be
-        owned and RUNNING, *and* its project evaluator still enabled — a result must not be
-        published under a configuration that has since been turned off.
+        The fence holds the unit's target against deletion and locks the unit, which must
+        still be owned and RUNNING, then requires its project evaluator to be enabled. A
+        deletion of the target either waits for the write or leaves nothing to fence.
 
-        Raises ``PublicationClaimLostError`` when the fence fails. Does not complete the
-        unit — publication and completion are separate steps, so a lost acknowledgement
-        re-runs an idempotent write rather than a lost result."""
+        Raises ``PublicationClaimLostError`` when the fence fails."""
         ...
 
     async def fail(
@@ -168,6 +161,6 @@ class EvalWorkCoordinator(Protocol):
         """Return a still-owned RUNNING unit to PENDING without incrementing attempts."""
         ...
 
-    async def lag(self) -> QueueLag:
-        """Report current queue backlog. Returns zeroed metrics when the queue is empty."""
+    async def ended_work_counts(self) -> EndedWorkCounts:
+        """Count recently ended work that produced no result."""
         ...

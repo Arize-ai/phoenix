@@ -12,7 +12,6 @@ import {
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
   buildOutputConfigsInput,
@@ -37,9 +36,10 @@ import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/Pro
 import {
   isSameInputMapping,
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
@@ -370,7 +370,7 @@ function EditLlmProjectEvaluatorContent({
     // The persisted target decides the mapping vocabulary before any recorded
     // record loads; a session evaluator must never open speaking span.
     evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-      toEvaluatorMappingSourceGrain(scope.targetType)
+      toEvaluatorRecordKind(scope.targetType)
     ),
   } satisfies EvaluatorStoreProps;
 
@@ -436,12 +436,13 @@ function EditLlmProjectEvaluatorContent({
       {({ store }) => {
         trackStoreForDirtyCheck(store);
         return (
-          <EditLLMEvaluatorDialogContent
+          <ProjectLlmEvaluatorDialogContent
+            targetType={scope.targetType}
+            isFilterValid={isFilterValid}
             title={getEditProjectEvaluatorTitle(evaluator)}
             onClose={onClose}
             onSubmit={() => submit(store)}
             isSubmitting={isUpdating}
-            isSubmitDisabled={!isFilterValid}
             mode="update"
             error={error}
             llmEvaluatorNodeId={evaluator.evaluator.id}
@@ -540,7 +541,7 @@ function EditCodeProjectEvaluator({
     outputConfigs: loadedOutputConfigs,
     showPromptPreview: false,
     evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-      toEvaluatorMappingSourceGrain(scope.targetType)
+      toEvaluatorRecordKind(scope.targetType)
     ),
   };
   return (
@@ -566,6 +567,11 @@ function EditCodeProjectEvaluator({
                 sourceCode={sourceCode}
                 onSourceCodeChange={setSourceCode}
                 onFieldChange={clearError}
+                resetSource={{
+                  language,
+                  sourceCode: initialSourceCode,
+                  kind: "saved",
+                }}
               />
             }
             inlineCode={{

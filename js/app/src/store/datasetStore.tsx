@@ -3,14 +3,16 @@ import { ConnectionHandler } from "relay-runtime";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { DATASET_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import {
   DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
-  isExperimentMetricChartKey,
+  sanitizeExperimentMetricChartKeys,
 } from "@phoenix/pages/dataset/constants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { datasetStore_latestVersionQuery } from "./__generated__/datasetStore_latestVersionQuery.graphql";
+import type { datasetStore_summaryQuery } from "./__generated__/datasetStore_summaryQuery.graphql";
 
 interface DatasetVersion {
   id: string;
@@ -37,9 +39,19 @@ export interface DatasetStoreProps {
    */
   isRefreshingLatestVersion: boolean;
   /**
+   * Bumped to ask the examples table to refetch its rows when the version has
+   * not changed but the rows' related records have (e.g. a split was deleted
+   * out from under them).
+   */
+  examplesRefreshToken: number;
+  /**
    * The metric charts to show above the experiments table
    */
   experimentsMetricChartKeys: ExperimentMetricChartKey[];
+  /**
+   * Whether the metric charts above the experiments table are shown
+   */
+  areExperimentsMetricChartsVisible: boolean;
 }
 
 export type InitialDatasetStoreProps = Pick<
@@ -53,13 +65,27 @@ export interface DatasetStoreState extends DatasetStoreProps {
    */
   refreshLatestVersion: () => Promise<void>;
   /**
+   * Re-reads the dataset's labels and splits into the Relay store, for
+   * changes made to those instance-wide entities outside this page's own
+   * controls (e.g. by a PXI script).
+   */
+  refreshSummary: () => Promise<void>;
+  /**
+   * Asks the examples table to refetch its current rows.
+   */
+  requestExamplesRefresh: () => void;
+  /**
    * Set the metric charts to show above the experiments table
    */
   setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => void;
+  /**
+   * Show or hide the metric charts above the experiments table
+   */
+  setAreExperimentsMetricChartsVisible: (isVisible: boolean) => void;
 }
 
 const makeDatasetStoreKey = (datasetId: string) =>
-  `arize-phoenix-dataset-${datasetId}`;
+  `${DATASET_STORAGE_KEY_PREFIX}${datasetId}`;
 
 export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
   return create<DatasetStoreState>()(
@@ -68,6 +94,17 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
         (set, get) => ({
           ...initialProps,
           isRefreshingLatestVersion: false,
+          examplesRefreshToken: 0,
+          refreshSummary: async () => {
+            await fetchDatasetSummary({ datasetId: get().datasetId });
+          },
+          requestExamplesRefresh: () => {
+            set(
+              { examplesRefreshToken: get().examplesRefreshToken + 1 },
+              false,
+              { type: "requestExamplesRefresh" }
+            );
+          },
           refreshLatestVersion: async () => {
             const dataset = get();
             set({ isRefreshingLatestVersion: true }, false, {
@@ -103,6 +140,12 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
               type: "setExperimentsMetricChartKeys",
             });
           },
+          areExperimentsMetricChartsVisible: true,
+          setAreExperimentsMetricChartsVisible: (isVisible: boolean) => {
+            set({ areExperimentsMetricChartsVisible: isVisible }, false, {
+              type: "setAreExperimentsMetricChartsVisible",
+            });
+          },
         }),
         {
           name: "datasetStore",
@@ -110,23 +153,24 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
       ),
       {
         name: makeDatasetStoreKey(initialProps.datasetId),
-        // Only the chart selection is a persistent preference; the rest of
-        // the store (latest version, refresh state) must stay fresh per load
+        // Only the chart preferences persist; the rest of the store (latest
+        // version, refresh state) must stay fresh per load
         partialize: (state) => ({
           experimentsMetricChartKeys: state.experimentsMetricChartKeys,
+          areExperimentsMetricChartsVisible:
+            state.areExperimentsMetricChartsVisible,
         }),
         merge: (persistedState, currentState) => {
           const merged = {
             ...currentState,
             ...(persistedState as Partial<DatasetStoreState>),
           };
-          // Persisted chart keys may reference charts that no longer exist in
-          // the chart catalog; drop them so stale keys don't render as empty
-          // panels
-          const keys = merged.experimentsMetricChartKeys;
-          merged.experimentsMetricChartKeys = Array.isArray(keys)
-            ? keys.filter(isExperimentMetricChartKey)
-            : DEFAULT_EXPERIMENT_METRIC_CHART_KEYS;
+          merged.experimentsMetricChartKeys = sanitizeExperimentMetricChartKeys(
+            merged.experimentsMetricChartKeys,
+            DEFAULT_EXPERIMENT_METRIC_CHART_KEYS
+          );
+          merged.areExperimentsMetricChartsVisible =
+            merged.areExperimentsMetricChartsVisible !== false;
           return merged;
         },
       }
@@ -172,6 +216,43 @@ async function fetchLatestVersion({
   const latestVersion =
     (versions && versions.length && versions[0].version) || null;
   return latestVersion;
+}
+
+/**
+ * Re-fetches the fields of the dataset that summarize instance-wide entities
+ * (labels, splits) plus its row count. The result is normalized into the Relay
+ * store, so the page header, table rows, and pickers re-render from it.
+ */
+async function fetchDatasetSummary({
+  datasetId,
+}: {
+  datasetId: string;
+}): Promise<void> {
+  await fetchQuery<datasetStore_summaryQuery>(
+    RelayEnvironment,
+    graphql`
+      query datasetStore_summaryQuery($datasetId: ID!) {
+        dataset: node(id: $datasetId) {
+          id
+          ... on Dataset {
+            exampleCount
+            labels {
+              id
+              name
+              color
+            }
+            splits {
+              id
+              name
+              color
+            }
+          }
+        }
+      }
+    `,
+    { datasetId },
+    { fetchPolicy: "network-only" }
+  ).toPromise();
 }
 
 /**

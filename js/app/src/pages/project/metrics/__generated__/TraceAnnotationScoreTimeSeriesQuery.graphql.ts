@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7415c5d2a6c0b803e05bc6c504b82ae1>>
+ * @generated SignedSource<<9f44400195bf6f0f6649ea9b6c1e4c25>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,7 @@ export type TimeRange = {
 };
 export type TimeBinConfig = {
   scale?: TimeBinScale;
+  unitsPerBin?: number;
   utcOffsetMinutes?: number;
 };
 export type TraceAnnotationScoreTimeSeriesQuery$variables = {
@@ -390,7 +391,7 @@ return {
                 "storageKey": "evaluators(filter:{\"annotationNames\":null},first:100)"
               },
               {
-                "alias": null,
+                "alias": "configsByName",
                 "args": [
                   (v7/*:: as any*/)
                 ],
@@ -435,12 +436,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f24837b0e9c4db8ea2547077a04757b7",
+    "cacheID": "ed89fee05bd36aa4138b53b80d95af59",
     "id": null,
     "metadata": {},
     "name": "TraceAnnotationScoreTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment\n      traceAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query TraceAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment\n      traceAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

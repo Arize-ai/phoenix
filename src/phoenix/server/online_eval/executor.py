@@ -1,8 +1,8 @@
 """Execution glue for claimed online-eval work units: configuration-first hydration,
 target context assembly, evaluator invocation, and idempotent annotation writes.
-Publication runs through the coordinator, which fences the claim and records any
-coverage watermark in the same transaction; every lifecycle transition, including
-completion, stays with the coordinator and its caller.
+Publication runs through the coordinator, which fences the claim, writes the annotations,
+and finishes the unit in one transaction; every other lifecycle transition stays with the
+coordinator and its caller.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from typing import (
 )
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
 from strawberry.relay import GlobalID
@@ -82,10 +83,10 @@ from phoenix.server.online_eval.coordinator import (
     RetiredWorkStatus,
 )
 from phoenix.server.online_eval.derivation import (
-    STALE_FINGERPRINT_ERROR,
+    annotation_identifier,
     config_fingerprint,
 )
-from phoenix.server.online_eval.failure_policy import FailureDisposition
+from phoenix.server.online_eval.failure_policy import FailureDisposition, is_transient_error
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
@@ -134,7 +135,6 @@ class HydrationFailureReason(str, Enum):
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
-    CONFIG_FINGERPRINT_MISMATCH = STALE_FINGERPRINT_ERROR
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
@@ -164,23 +164,24 @@ class HydrationFailure:
 
     @property
     def terminal_status(self) -> RetiredWorkStatus:
-        """The status the unit is retired with. Two lifecycle reasons get their own, on
-        every grain: the configuration moved under the unit, or the subject had no
-        content left to evaluate by the time it was hydrated."""
-        if self.reason is HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH:
-            return "SUPERSEDED"
+        """The status the unit is retired with. Two reasons get their own: the subject had
+        no content left to evaluate by the time it was hydrated, or the evaluator was
+        disabled, which drops its queued work rather than failing it."""
         if self.reason in _CONTENT_LOST_REASONS:
             return "CONTENT_LOST"
+        if self.reason is HydrationFailureReason.PROJECT_EVALUATOR_DISABLED:
+            return "DROPPED"
         return "EXPIRED"
 
 
 @dataclass(frozen=True)
 class HydratedWorkUnit:
     """Everything one eval needs, copied out of the mutable project-evaluator/evaluator
-    rows while the staleness guard held. The executor never re-reads those rows
-    after hydration, so the eval runs under snapshot semantics."""
+    rows at claim time. The executor never re-reads those rows after hydration, so the
+    eval runs under snapshot semantics."""
 
     annotation_name: str
+    identifier: str
     annotator_kind: AnnotatorKind
     evaluator_kind: EvaluatorKind
     evaluator: BaseEvaluator
@@ -206,7 +207,7 @@ class HydratedConfigurationSnapshot:
     """Immutable evaluator configuration observed for one claim batch."""
 
     project_id: int
-    fingerprint: str
+    identifier: str
     annotation_name: str
     evaluator: _HydratedEvaluatorSnapshot
     input_mapping: InputMapping
@@ -219,6 +220,12 @@ class SharedHydrationFailure:
     """A batch-level database failure that must not consume any unit's retry budget."""
 
     error: Exception
+
+
+def _batch_hydration_failure(error: Exception) -> SharedHydrationFailure | Exception:
+    if isinstance(error, DBAPIError) or is_transient_error(error):
+        return SharedHydrationFailure(error)
+    return error
 
 
 ConfigurationSnapshotOutcome = (
@@ -574,7 +581,6 @@ class _EvaluationTargetSpec:
         | type[models.TraceAnnotation]
     )
     unique_by: tuple[str, ...]
-    on_conflict: OnConflict
     insert_event: Callable[[tuple[int, ...]], DmlEvent]
 
 
@@ -585,7 +591,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="span_rowid",
         annotation_table=models.SpanAnnotation,
         unique_by=("name", "span_rowid", "identifier"),
-        on_conflict=OnConflict.DO_NOTHING,
         insert_event=SpanAnnotationInsertEvent,
     ),
     "SESSION": _EvaluationTargetSpec(
@@ -594,7 +599,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="project_session_id",
         annotation_table=models.ProjectSessionAnnotation,
         unique_by=("name", "project_session_id", "identifier"),
-        on_conflict=OnConflict.DO_UPDATE,
         insert_event=ProjectSessionAnnotationInsertEvent,
     ),
     "TRACE": _EvaluationTargetSpec(
@@ -603,7 +607,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="trace_rowid",
         annotation_table=models.TraceAnnotation,
         unique_by=("name", "trace_rowid", "identifier"),
-        on_conflict=OnConflict.DO_UPDATE,
         insert_event=TraceAnnotationInsertEvent,
     ),
 }
@@ -662,7 +665,7 @@ class OnlineEvalExecutor:
                 async with self._db() as session:
                     return await self._hydrate_configuration_snapshots(session, units)
         except Exception as error:
-            return [SharedHydrationFailure(error) for _ in units]
+            return [_batch_hydration_failure(error) for _ in units]
 
     async def _hydrate_configuration_snapshots(
         self,
@@ -747,16 +750,6 @@ class OnlineEvalExecutor:
             if resolved is None:
                 outcomes.append(unresolved_failures[unit.project_evaluator_id])
                 continue
-            try:
-                fingerprint = config_fingerprint(resolved)
-            except Exception as error:
-                outcomes.append(error)
-                continue
-            if fingerprint != unit.config_fingerprint:
-                outcomes.append(
-                    HydrationFailure(HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH)
-                )
-                continue
             outcomes.append(None)
 
         target_vocabularies: dict[int, dict[str, Any]] = {}
@@ -771,7 +764,7 @@ class OnlineEvalExecutor:
                     )
             except Exception as error:
                 for index in pending:
-                    outcomes[index] = SharedHydrationFailure(error)
+                    outcomes[index] = _batch_hydration_failure(error)
 
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
         applied_policies: list[Optional[dict[str, Any]]] = [None for _ in units]
@@ -860,9 +853,14 @@ class OnlineEvalExecutor:
                 if snapshot_applied_policy is not None
                 else {}
             )
+            try:
+                identifier = annotation_identifier(config_fingerprint(resolved))
+            except Exception as error:
+                outcomes[index] = error
+                continue
             outcomes[index] = HydratedConfigurationSnapshot(
                 project_id=project_evaluator.project_id,
-                fingerprint=unit.config_fingerprint,
+                identifier=identifier,
                 annotation_name=resolved.name,
                 evaluator=evaluator_snapshot_outcome,
                 input_mapping=snapshot_input_mapping,
@@ -915,6 +913,7 @@ class OnlineEvalExecutor:
     ) -> HydratedWorkUnit:
         return HydratedWorkUnit(
             annotation_name=configuration.annotation_name,
+            identifier=configuration.identifier,
             annotator_kind=configuration.evaluator.annotator_kind,
             evaluator_kind=configuration.evaluator.evaluator_kind,
             evaluator=configuration.evaluator.evaluator,
@@ -1101,11 +1100,10 @@ class OnlineEvalExecutor:
     async def evaluate_and_annotate(
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
     ) -> None:
-        """Run the eval and publish successful results as target annotations under
-        the unit's identifier. Span results are first-write-wins; session results
-        replace a prior attempt so the annotation stays paired with its coverage.
-        Raises before writing unless the evaluator returns one complete, error-free
-        result set. No DB session is open while the evaluator runs."""
+        """Run the eval, then publish successful results as target annotations under
+        the hydrated configuration's identifier and finish the work unit in the same
+        transaction. Raises before writing unless the evaluator returns one complete,
+        error-free result set. No DB session is open while the evaluator runs."""
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
@@ -1196,7 +1194,7 @@ class OnlineEvalExecutor:
                     **_evaluator_trace_metadata(result),
                 },
                 "annotator_kind": hydrated.annotator_kind,
-                "identifier": unit.identifier,
+                "identifier": hydrated.identifier,
                 "source": "API",
                 "user_id": None,
             }
@@ -1214,7 +1212,7 @@ class OnlineEvalExecutor:
                             table=target_spec.annotation_table,
                             dialect=self._db.dialect,
                             unique_by=target_spec.unique_by,
-                            on_conflict=target_spec.on_conflict,
+                            on_conflict=OnConflict.DO_NOTHING,
                         ).returning(target_spec.annotation_table.id)
                     )
                 ).all()
@@ -1227,8 +1225,6 @@ class OnlineEvalExecutor:
                     claimed_by=unit.claimed_by,
                     write=_write_annotations,
                 )
-            # Span duplicates return no id and need no cache invalidation. Session
-            # replacements return their id because the annotation genuinely changed.
             if self._event_queue is not None and inserted_ids:
                 self._event_queue.put(target_spec.insert_event(tuple(inserted_ids)))
         if not records:

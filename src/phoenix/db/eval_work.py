@@ -1,20 +1,37 @@
 """Work-unit status vocabulary and the schema predicates derived from it.
 
-This module has no Phoenix imports so the schema (``models``), the queries
-(``online_eval``), and the migrations can all read the same values.
+This module imports nothing from Phoenix at runtime so the schema (``models``), the
+queries (``online_eval``), and the migrations can all read the same values.
 """
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from phoenix.db.models import EvalSessionWorkStatus
+
 MAX_ATTEMPTS = 3
 
 LIVE_EVAL_WORK_STATUSES = ("PENDING", "RUNNING", "ERROR")
-_SHARED_TERMINAL_STATUSES = ("DONE", "FAILED", "EXPIRED", "SUPERSEDED")
-TERMINAL_EVAL_WORK_STATUSES = (*_SHARED_TERMINAL_STATUSES, "DROPPED")
+# DROPPED: removed from the queue before it ran.
+TERMINAL_EVAL_WORK_STATUSES = ("DONE", "FAILED", "EXPIRED", "DROPPED")
+# Given up on: the terminal statuses the user is owed an error for.
+FAILED_EVAL_WORK_STATUSES = ("FAILED", "EXPIRED")
+# Evaluated or given up on: the work a consumer finished, for every evaluation target.
+COMPLETED_EVAL_WORK_STATUSES = ("DONE", *FAILED_EVAL_WORK_STATUSES)
 EVAL_WORK_STATUSES = (*LIVE_EVAL_WORK_STATUSES, *TERMINAL_EVAL_WORK_STATUSES)
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
-TERMINAL_EVAL_SESSION_WORK_STATUSES = (*_SHARED_TERMINAL_STATUSES, "CONTENT_LOST")
+# Session and trace work that ended without a result is offered again once its entity has
+# newer activity. DONE and declined rows are final.
+SESSION_REOFFERED_STATUSES: tuple[EvalSessionWorkStatus, ...] = (
+    "FAILED",
+    "EXPIRED",
+    "DROPPED",
+    "CONTENT_LOST",
+)
+TERMINAL_EVAL_SESSION_WORK_STATUSES = (*TERMINAL_EVAL_WORK_STATUSES, "CONTENT_LOST")
 EVAL_SESSION_WORK_STATUSES = (
     *LIVE_EVAL_WORK_STATUSES,
     *TERMINAL_EVAL_SESSION_WORK_STATUSES,
@@ -46,11 +63,6 @@ def live_eval_work_index_predicate() -> str:
     return _status_in(LIVE_EVAL_WORK_STATUSES)
 
 
-def live_eval_session_work_index_predicate() -> str:
-    """SQL text selecting session work and decisions that hold their dedup key."""
-    return _status_in((*LIVE_EVAL_WORK_STATUSES, *SESSION_DECLINED_STATUSES))
-
-
 def terminal_eval_work_index_predicate() -> str:
     """SQL text selecting span work that reached an outcome."""
     return _status_in(TERMINAL_EVAL_WORK_STATUSES)
@@ -59,3 +71,8 @@ def terminal_eval_work_index_predicate() -> str:
 def terminal_eval_session_work_index_predicate() -> str:
     """SQL text selecting session work that reached an outcome."""
     return _status_in(TERMINAL_EVAL_SESSION_WORK_STATUSES)
+
+
+def failed_eval_work_index_predicate() -> str:
+    """SQL text selecting work that was given up on, for every evaluation target."""
+    return _status_in(FAILED_EVAL_WORK_STATUSES)

@@ -3,7 +3,7 @@ from importlib import import_module
 from secrets import token_hex
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.orm import selectinload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -49,14 +49,12 @@ async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, 
 
 
 async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         work_unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint="fp-1",
         )
         session.add(work_unit)
         await session.flush()
@@ -68,7 +66,6 @@ async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -
             .where(models.EvalWorkUnit.id == work_unit_id)
             .options(
                 selectinload(models.EvalWorkUnit.span),
-                selectinload(models.EvalWorkUnit.evaluator),
                 selectinload(models.EvalWorkUnit.project_evaluator),
             )
         )
@@ -79,48 +76,17 @@ async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -
         assert fetched.claimed_by is None
         assert fetched.cooldown_until is None
         assert fetched.span.id == span_rowid
-        assert fetched.evaluator.id == evaluator_id
         assert fetched.project_evaluator.id == project_evaluator_id
 
 
-async def test_eval_work_unit_distinct_fingerprints_coexist(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
-    async with db() as session:
-        session.add_all(
-            [
-                models.EvalWorkUnit(
-                    span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
-                    project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-a",
-                ),
-                models.EvalWorkUnit(
-                    span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
-                    project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-b",
-                ),
-            ]
-        )
-        await session.flush()
-        count = await session.scalar(
-            select(func.count())
-            .select_from(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.span_rowid == span_rowid)
-        )
-        assert count == 2
-
-
 async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         session.add(
             models.EvalWorkUnit(
                 span_rowid=span_rowid,
-                evaluator_id=evaluator_id,
                 project_evaluator_id=project_evaluator_id,
-                config_fingerprint="fp-dup",
             )
         )
         await session.flush()
@@ -130,25 +96,21 @@ async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
             session.add(
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
                     project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-dup",
                 )
             )
             await session.flush()
 
 
 async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
                     project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-bad-status",
                     status="BOGUS",
                 )
             )
@@ -156,14 +118,12 @@ async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> No
 
 
 async def test_eval_work_unit_accepts_expired_status(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         work_unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint="fp-expired",
             status="EXPIRED",
         )
         session.add(work_unit)
@@ -204,14 +164,11 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
         )
         session.add(project_evaluator)
         await session.flush()
-        evaluator_id = evaluator.id
         project_evaluator_id = project_evaluator.id
         session.add(
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session_id,
-                evaluator_id=evaluator_id,
                 project_evaluator_id=project_evaluator_id,
-                config_fingerprint="fp-session",
                 evaluated_through=evaluated_through,
             )
         )
@@ -224,13 +181,11 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
         work_unit = await session.scalar(
             select(models.EvalSessionWorkUnit).options(
                 selectinload(models.EvalSessionWorkUnit.project_session),
-                selectinload(models.EvalSessionWorkUnit.evaluator),
                 selectinload(models.EvalSessionWorkUnit.project_evaluator),
             )
         )
         assert work_unit is not None
         assert work_unit.project_session.id == project_session_id
-        assert work_unit.evaluator.id == evaluator_id
         assert work_unit.project_evaluator.id == project_evaluator_id
         assert work_unit.evaluated_through == evaluated_through
         assert work_unit.status == "PENDING"
@@ -256,7 +211,7 @@ async def test_project_evaluator_defaults_and_relationships(
         assert fetched.name.root.startswith("project-evaluator-name-")
         assert fetched.filter_condition == ""
         assert fetched.evaluation_target == "SPAN"
-        assert fetched.evaluation_delay_seconds == 300
+        assert fetched.evaluation_delay_seconds == 0
         assert fetched.input_mapping is None
         assert fetched.sampling_rate == 1.0
         assert fetched.evaluator.id == evaluator_id
@@ -368,44 +323,22 @@ async def test_project_evaluator_rejects_unknown_target(
             await session.flush()
 
 
-async def test_eval_work_cursor_defaults(db: DbSessionFactory) -> None:
+async def test_eval_span_cursor_defaults(db: DbSessionFactory) -> None:
     async with db() as session:
-        cursor = models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default")
-        session.add(cursor)
-        await session.flush()
-        cursor_id = cursor.id
+        session.add(models.EvalSpanCursor(id=1))
 
     async with db() as session:
-        fetched = await session.scalar(
-            select(models.EvalWorkCursor).where(models.EvalWorkCursor.id == cursor_id)
-        )
+        fetched = await session.get(models.EvalSpanCursor, 1)
         assert fetched is not None
         assert fetched.produced_through_id == 0
         assert fetched.observed_high_water_id is None
         assert fetched.observed_at is None
-        assert fetched.claimed_by is None
 
 
-async def test_eval_work_cursor_unique_target_group(db: DbSessionFactory) -> None:
-    async with db() as session:
-        session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
-        await session.flush()
-
+async def test_eval_span_cursor_holds_a_single_row(db: DbSessionFactory) -> None:
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
-            session.add(models.EvalWorkCursor(evaluation_target="SPAN", consumer_group="default"))
-            await session.flush()
-
-
-async def test_eval_work_cursor_rejects_unknown_evaluation_target(db: DbSessionFactory) -> None:
-    with pytest.raises(_INTEGRITY_ERRORS):
-        async with db() as session:
-            session.add(
-                models.EvalWorkCursor(
-                    evaluation_target="BOGUS",
-                    consumer_group="default",
-                )
-            )
+            session.add(models.EvalSpanCursor(id=2))
             await session.flush()
 
 
@@ -419,12 +352,83 @@ def test_migration_status_predicates_match_the_code_that_reads_them() -> None:
     assert migration._EVAL_WORK_STATUS_CHECK == eval_work.eval_work_status_check()
     assert migration._EVAL_SESSION_WORK_STATUS_CHECK == eval_work.eval_session_work_status_check()
     assert migration._LIVE_EVAL_WORK_PREDICATE == eval_work.live_eval_work_index_predicate()
-    assert (
-        migration._LIVE_EVAL_SESSION_WORK_PREDICATE
-        == eval_work.live_eval_session_work_index_predicate()
-    )
     assert migration._TERMINAL_EVAL_WORK_PREDICATE == eval_work.terminal_eval_work_index_predicate()
     assert (
         migration._TERMINAL_EVAL_SESSION_WORK_PREDICATE
         == eval_work.terminal_eval_session_work_index_predicate()
     )
+
+
+@pytest.mark.parametrize(
+    "evaluation_target,evaluation_delay_seconds",
+    [
+        pytest.param("SPAN", 300, id="span-with-delay"),
+        pytest.param("TRACE", 0, id="trace-without-delay"),
+        pytest.param("SESSION", 5, id="session-below-minimum"),
+    ],
+)
+async def test_evaluation_delay_constraint_is_target_aware(
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+    evaluation_delay_seconds: int,
+) -> None:
+    """Spans store exactly 0; every other target stores at least the minimum."""
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"eval-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target=evaluation_target,
+                evaluation_delay_seconds=evaluation_delay_seconds,
+            )
+        )
+        with pytest.raises((SQLAlchemyIntegrityError, SQLiteIntegrityError)):
+            await session.flush()
+
+
+async def test_omitted_evaluation_delay_defaults_by_target(db: DbSessionFactory) -> None:
+    """An omitted delay is 0 for spans and the default for every other target."""
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"eval-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        rows = {
+            target: models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target=target,
+            )
+            for target in ("SPAN", "TRACE", "SESSION")
+        }
+        session.add_all(rows.values())
+        await session.flush()
+        for row in rows.values():
+            await session.refresh(row, attribute_names=["evaluation_delay_seconds"])
+    assert rows["SPAN"].evaluation_delay_seconds == 0
+    assert rows["TRACE"].evaluation_delay_seconds == models.DEFAULT_EVALUATION_DELAY_SECONDS
+    assert rows["SESSION"].evaluation_delay_seconds == models.DEFAULT_EVALUATION_DELAY_SECONDS

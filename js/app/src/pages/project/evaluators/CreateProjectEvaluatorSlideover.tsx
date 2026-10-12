@@ -11,7 +11,6 @@ import invariant from "tiny-invariant";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
-import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -36,15 +35,16 @@ import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluato
 import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
-import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
+  isSameInputMapping,
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
   useEvaluatorFormDirtyCheck,
@@ -72,6 +72,10 @@ type SeededLlmEvaluatorInitialState = {
   includeExplanation: boolean;
 };
 
+type CopiedLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
+  copyName: string;
+};
+
 type TemplateLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
   targetType: ProjectEvaluatorTarget;
 };
@@ -92,7 +96,7 @@ export type ProjectEvaluatorCreationMode =
   | { kind: "newCode" }
   | {
       kind: "copyLlm";
-      initialState: SeededLlmEvaluatorInitialState;
+      initialState: CopiedLlmEvaluatorInitialState;
     }
   | {
       kind: "copyCode";
@@ -110,6 +114,8 @@ export type ProjectEvaluatorCreationMode =
       outputConfigs: AnnotationConfig[];
       variables: string[];
       requiredVariables: string[];
+      /** What the project reads through while it sets no mapping of its own. */
+      inputMapping: EvaluatorInputMapping;
     };
 
 /** The slideover heading: the flow, and the kind of evaluator it creates. */
@@ -241,7 +247,7 @@ const CreateProjectEvaluatorDialog = ({
           createDefaultFreeformOutputConfig(""),
         ],
         evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-          toEvaluatorMappingSourceGrain(scope.targetType)
+          toEvaluatorRecordKind(scope.targetType)
         ),
       } satisfies EvaluatorStoreProps;
     }
@@ -251,9 +257,7 @@ const CreateProjectEvaluatorDialog = ({
         : undefined;
     const defaultEvaluatorName =
       creationMode.kind === "copyLlm"
-        ? creationMode.initialState.name
-          ? `${creationMode.initialState.name} copy`
-          : DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName
+        ? creationMode.initialState.copyName
         : creationMode.kind === "template"
           ? creationMode.initialState.name
           : creationMode.kind === "code"
@@ -273,7 +277,10 @@ const CreateProjectEvaluatorDialog = ({
           creationMode.kind === "code"
             ? creationMode.description
             : (seededState?.description ?? ""),
-        inputMapping: { pathMapping: {}, literalMapping: {} },
+        inputMapping:
+          creationMode.kind === "code"
+            ? creationMode.inputMapping
+            : { pathMapping: {}, literalMapping: {} },
         kind: creationMode.kind === "code" ? "CODE" : "LLM",
         includeExplanation:
           seededState?.includeExplanation ??
@@ -286,7 +293,7 @@ const CreateProjectEvaluatorDialog = ({
             ? [{ ...outputConfigs[0], name: defaultEvaluatorName }]
             : [],
       evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-        toEvaluatorMappingSourceGrain(scope.targetType)
+        toEvaluatorRecordKind(scope.targetType)
       ),
     } satisfies EvaluatorStoreProps;
   })();
@@ -456,7 +463,14 @@ function AttachCodeProjectEvaluatorDialog({
               filterCondition: scope.filterCondition,
               ...toEvaluationDelayInput(scope),
               enabled: true,
-              inputMapping: null,
+              // Left as it was, the project keeps reading through the
+              // evaluator's own mapping, and follows it if that changes.
+              inputMapping: isSameInputMapping(
+                store.getState().evaluator.inputMapping,
+                creationMode.inputMapping
+              )
+                ? null
+                : store.getState().evaluator.inputMapping,
             },
           },
           onCompleted: (_response, errors) => {
@@ -631,18 +645,14 @@ const ScratchLlmDialogContent = ({
   isSubmitting: boolean;
   error?: string;
 }) => {
-  const submitHint = useProjectEvaluatorSubmitHint({
-    targetType: scope.targetType,
-    isFilterValid,
-  });
   return (
-    <EditLLMEvaluatorDialogContent
+    <ProjectLlmEvaluatorDialogContent
+      targetType={scope.targetType}
+      isFilterValid={isFilterValid}
       title={title}
       onClose={onClose}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
-      isSubmitDisabled={!isFilterValid}
-      submitHint={submitHint}
       mode="create"
       error={error}
       formLeftPanel={

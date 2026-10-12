@@ -287,4 +287,29 @@ describe("editableTableStore", () => {
     store.getState().deleteRow("row-1");
     expect(count([])).toBe(2);
   });
+
+  it("carries the cell a session was begun from until that cell opens", () => {
+    const store = createStore();
+
+    store
+      .getState()
+      .beginEditing({ cell: { rowId: "row-1", columnId: "input" } });
+
+    expect(store.getState().mode).toBe("editing");
+    expect(store.getState().pendingEditCell).toEqual({
+      rowId: "row-1",
+      columnId: "input",
+    });
+
+    store.getState().clearPendingEditCell();
+
+    expect(store.getState().pendingEditCell).toBeNull();
+    expect(store.getState().mode).toBe("editing");
+
+    // A session begun from the toolbar asks no cell to open, and ending a
+    // session drops any request still standing.
+    store.getState().cancelEditing();
+    store.getState().beginEditing();
+    expect(store.getState().pendingEditCell).toBeNull();
+  });
 });

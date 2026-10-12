@@ -1,5 +1,20 @@
 # @arizeai/phoenix-cli
 
+## 1.18.7
+
+### Patch Changes
+
+- Updated dependencies [f8ae2fc]
+  - @arizeai/phoenix-client@7.16.0
+
+## 1.18.6
+
+### Patch Changes
+
+- c72f77b: PXI slash-command hints now have a highlighted row: arrow keys move it (wrapping at either end), Tab completes it, and Enter runs it, so `/he` runs `/help`. A bare `/` lists every command, and `/help` is listed first so `/` + Enter is harmless.
+- Updated dependencies [5b37f12]
+  - @arizeai/phoenix-client@7.15.0
+
 ## 1.18.5
 
 ### Patch Changes

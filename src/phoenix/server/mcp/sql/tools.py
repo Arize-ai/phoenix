@@ -161,10 +161,12 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     """Register the analytics SQL tools against a database.
 
     Open to any caller who reaches the MCP mount, deliberately. These tools read
-    telemetry, datasets and experiments, and Phoenix already lets any
-    authenticated user read all of that: only `users`, `user_api_keys`,
+    telemetry, datasets, experiments, evaluators and prompts, and Phoenix already
+    lets any authenticated user read all of that: only `users`, `user_api_keys`,
     `oauth2_grants` and `system_api_keys` carry `IsAdmin`, and none of them is
-    allowlisted here. A role check would therefore have been stricter for this
+    allowlisted here. Nor is anything that stores credentials or configuration
+    for operators: `secrets`, the custom model providers, the sandbox providers
+    and `system_settings`. A role check would therefore have been stricter for this
     data than the API it sits beside, refusing in SQL what the same caller can
     fetch through GraphQL.
 
@@ -199,7 +201,8 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         detail: DetailLevel = "brief",
         search: Optional[str] = None,
     ) -> str:
-        """Return the allowlisted analytics SQL schema for telemetry, datasets, and experiments."""
+        """Return the allowlisted analytics SQL schema for telemetry, datasets, experiments,
+        evaluators, and prompts."""
         if detail not in {"brief", "detailed", "full"}:
             raise ToolError("detail must be one of: brief, detailed, full")
 

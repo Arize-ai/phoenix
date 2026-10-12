@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0e776f99ecb53dc70dfa480b2f27a36b>>
+ * @generated SignedSource<<9e71f6a324425bd348bce3f203494629>>
  * @lightSyntaxTransform
  */
 
@@ -55,12 +55,139 @@ v2 = [
   }
 ],
 v3 = {
+  "kind": "Literal",
+  "name": "first",
+  "value": 100
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "lowerBound",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "upperBound",
+  "storageKey": null
+},
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v10 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v9/*:: as any*/)
+  ],
+  "type": "Node",
+  "abstractKey": "__isNode"
+},
+v11 = [
+  (v5/*:: as any*/),
+  {
+    "kind": "InlineFragment",
+    "selections": [
+      (v4/*:: as any*/),
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "annotationType",
+        "storageKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v6/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "CategoricalAnnotationValue",
+            "kind": "LinkedField",
+            "name": "values",
+            "plural": true,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "label",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "score",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "type": "CategoricalAnnotationConfig",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v6/*:: as any*/),
+          (v7/*:: as any*/),
+          (v8/*:: as any*/)
+        ],
+        "type": "ContinuousAnnotationConfig",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v6/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "threshold",
+            "storageKey": null
+          },
+          (v7/*:: as any*/),
+          (v8/*:: as any*/)
+        ],
+        "type": "FreeformAnnotationConfig",
+        "abstractKey": null
+      }
+    ],
+    "type": "AnnotationConfigBase",
+    "abstractKey": "__isAnnotationConfigBase"
+  },
+  (v10/*:: as any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -129,6 +256,111 @@ return {
             "selections": [
               {
                 "alias": null,
+                "args": [
+                  {
+                    "fields": [
+                      {
+                        "kind": "Literal",
+                        "name": "annotationNames",
+                        "value": null
+                      }
+                    ],
+                    "kind": "ObjectValue",
+                    "name": "filter"
+                  },
+                  (v3/*:: as any*/)
+                ],
+                "concreteType": "ProjectEvaluatorConnection",
+                "kind": "LinkedField",
+                "name": "evaluators",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "ProjectEvaluatorEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "ProjectEvaluator",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v4/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "evaluator",
+                            "plural": false,
+                            "selections": [
+                              (v5/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "outputConfigs",
+                                "plural": true,
+                                "selections": (v11/*:: as any*/),
+                                "storageKey": null
+                              },
+                              (v9/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          (v9/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": "evaluators(filter:{\"annotationNames\":null},first:100)"
+              },
+              {
+                "alias": "configsByName",
+                "args": [
+                  (v3/*:: as any*/)
+                ],
+                "concreteType": "AnnotationConfigConnection",
+                "kind": "LinkedField",
+                "name": "annotationConfigs",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "AnnotationConfigEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "config",
+                        "args": null,
+                        "concreteType": null,
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": (v11/*:: as any*/),
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": "annotationConfigs(first:100)"
+              },
+              {
+                "alias": null,
                 "args": null,
                 "concreteType": "AnnotationConfigConnection",
                 "kind": "LinkedField",
@@ -151,35 +383,16 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "__typename",
-                            "storageKey": null
-                          },
+                          (v5/*:: as any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "name",
-                                "storageKey": null
-                              }
+                              (v4/*:: as any*/)
                             ],
                             "type": "AnnotationConfigBase",
                             "abstractKey": "__isAnnotationConfigBase"
                           },
-                          {
-                            "kind": "InlineFragment",
-                            "selections": [
-                              (v3/*:: as any*/)
-                            ],
-                            "type": "Node",
-                            "abstractKey": "__isNode"
-                          }
+                          (v10/*:: as any*/)
                         ],
                         "storageKey": null
                       }
@@ -189,7 +402,7 @@ return {
                 ],
                 "storageKey": null
               },
-              (v3/*:: as any*/)
+              (v9/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -199,12 +412,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e42b3ed6b172e28b34ecf4dd15c90da7",
+    "cacheID": "001e7d3a2c458b14c59039e3a97f5134",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  addAnnotationConfigToProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n      id\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
+    "text": "mutation ProjectAnnotationConfigCardContentAddAnnotationConfigToProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n) {\n  addAnnotationConfigToProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n      id\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  ...ProjectAnnotationConfigsByNameFragment\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

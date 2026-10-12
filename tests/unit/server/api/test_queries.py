@@ -29,6 +29,7 @@ from phoenix.server.encryption import EncryptionService
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
 
 # The in-process test app is constructed with no PHOENIX_SECRET, so the
@@ -536,6 +537,208 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> N
         assert {s["tableName"] for s in stats} >= {
             table.name for table in models.Base.metadata.tables.values()
         }
+
+
+async def test_evaluation_queue(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # One evaluation of each target, and a running span evaluation, fill the queue.
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "4")
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        running_span = await _add_span(session, trace)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        project_evaluator_ids: dict[str, int] = {}
+        for evaluation_target in ("SPAN", "TRACE", "SESSION"):
+            project_evaluator = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(f"project-evaluator-{uuid.uuid4().hex[:8]}"),
+                evaluation_target=evaluation_target,
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            session.add(project_evaluator)
+            await session.flush()
+            project_evaluator_ids[evaluation_target] = project_evaluator.id
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=span.id,
+                    project_evaluator_id=project_evaluator_ids["SPAN"],
+                    created_at=now - timedelta(minutes=5),
+                ),
+                # Running: queued, and not cleared by clearing the queue.
+                models.EvalWorkUnit(
+                    span_rowid=running_span.id,
+                    project_evaluator_id=project_evaluator_ids["SPAN"],
+                    status="RUNNING",
+                    created_at=now - timedelta(minutes=10),
+                ),
+                # Awaiting a retry: queued, but not waiting in line.
+                models.EvalTraceWorkUnit(
+                    trace_rowid=trace.id,
+                    project_evaluator_id=project_evaluator_ids["TRACE"],
+                    evaluated_through=now,
+                    status="ERROR",
+                    attempts=1,
+                    created_at=now - timedelta(minutes=30),
+                ),
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    project_evaluator_id=project_evaluator_ids["SESSION"],
+                    evaluated_through=now,
+                    created_at=now - timedelta(minutes=1),
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        """query {
+            evaluationQueue {
+                status
+                queuedCount
+                runningCount
+                queuedLimit
+                atCapacity
+                retryingCount
+                oldestQueuedAt
+                queuedPerMinute
+                evaluationsPerMinute
+                targets {
+                    evaluationTarget
+                    queuedCount
+                    runningCount
+                    retryingCount
+                    oldestQueuedAt
+                    queuedPerMinute
+                    evaluationsPerMinute
+                }
+            }
+        }"""
+    )
+
+    assert not response.errors and response.data
+    queue = response.data["evaluationQueue"]
+    targets = queue.pop("targets")
+    # Full: the queue is at capacity across every target, so it is degraded.
+    assert queue == {
+        "status": "DEGRADED",
+        "queuedCount": 4,
+        "runningCount": 1,
+        "queuedLimit": 4,
+        "atCapacity": True,
+        "retryingCount": 1,
+        "oldestQueuedAt": queue["oldestQueuedAt"],
+        "queuedPerMinute": pytest.approx(4 / 60),
+        "evaluationsPerMinute": 0,
+    }
+    assert datetime.fromisoformat(queue["oldestQueuedAt"]) == now - timedelta(minutes=5)
+    assert [target["evaluationTarget"] for target in targets] == ["SPAN", "TRACE", "SESSION"]
+    assert [
+        (
+            target["queuedCount"],
+            target["runningCount"],
+            target["retryingCount"],
+            target["queuedPerMinute"],
+        )
+        for target in targets
+    ] == [
+        (2, 1, 0, pytest.approx(2 / 60)),
+        (1, 0, 1, pytest.approx(1 / 60)),
+        (1, 0, 0, pytest.approx(1 / 60)),
+    ]
+    oldest = [target["oldestQueuedAt"] for target in targets]
+    assert oldest[1] is None
+    assert datetime.fromisoformat(oldest[2]) == now - timedelta(minutes=1)
+
+
+async def test_evaluation_queue_projects(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        units: list[Any] = []
+        project_names: list[str] = []
+        # One queued span evaluation and two finished ones; two queued span evaluations and
+        # a queued trace evaluation.
+        for queued_spans, finished_spans, queued_traces in ((1, 2, 0), (2, 0, 1)):
+            project = await _add_project(session)
+            project_names.append(project.name)
+            trace = await _add_trace(session, project)
+            project_evaluators: dict[str, models.ProjectEvaluator] = {}
+            for evaluation_target in ("SPAN", "TRACE"):
+                project_evaluators[evaluation_target] = models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
+                    project_id=project.id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(f"project-evaluator-{uuid.uuid4().hex[:8]}"),
+                    evaluation_target=evaluation_target,
+                    filter_condition="",
+                    sampling_rate=1.0,
+                )
+            session.add_all(project_evaluators.values())
+            await session.flush()
+            for status in ["PENDING"] * queued_spans + ["DONE"] * finished_spans:
+                span = await _add_span(session, trace)
+                units.append(
+                    models.EvalWorkUnit(
+                        span_rowid=span.id,
+                        project_evaluator_id=project_evaluators["SPAN"].id,
+                        status=status,
+                    )
+                )
+            if queued_traces:
+                units.append(
+                    models.EvalTraceWorkUnit(
+                        trace_rowid=trace.id,
+                        project_evaluator_id=project_evaluators["TRACE"].id,
+                        evaluated_through=datetime.now(timezone.utc),
+                    )
+                )
+        session.add_all(units)
+    fewer_queued, more_queued = project_names
+
+    response = await gql_client.execute(
+        """query {
+            evaluationQueue {
+                projects { project { name } queuedCount }
+                top: projects(first: 1) { project { name } queuedCount }
+            }
+        }"""
+    )
+
+    assert not response.errors and response.data
+    queue = response.data["evaluationQueue"]
+    assert queue["projects"] == [
+        {"project": {"name": more_queued}, "queuedCount": 3},
+        {"project": {"name": fewer_queued}, "queuedCount": 1},
+    ]
+    assert queue["top"] == [{"project": {"name": more_queued}, "queuedCount": 3}]
 
 
 async def test_agents_config_returns_env_values(
@@ -1323,6 +1526,167 @@ async def experiment_run_metric_comparison_experiments(
         await session.commit()
 
         return base_experiment, (compare_experiment_1, compare_experiment_2)
+
+
+@pytest.mark.parametrize("repetitions", [1, 2])
+async def test_experiment_run_metric_comparisons_identical_multi_span_experiments_are_equal(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    repetitions: int,
+) -> None:
+    """
+    Two experiments whose runs are identical must compare as equal on every metric.
+
+    Each run's trace has two LLM spans with 100 total tokens each, so every run costs
+    200 tokens in both experiments. With repetitions, the first repetition of each example takes
+    30 seconds and the second 10, in both experiments.
+    """
+    async with db() as session:
+        dataset = models.Dataset(name="identical-experiments-dataset", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(dataset_version)
+        await session.flush()
+        examples = [models.DatasetExample(dataset_id=dataset.id) for _ in range(3)]
+        session.add_all(examples)
+        await session.flush()
+        for i, example in enumerate(examples):
+            session.add(
+                models.DatasetExampleRevision(
+                    dataset_example_id=example.id,
+                    dataset_version_id=dataset_version.id,
+                    input={"i": i},
+                    output={},
+                    metadata_={},
+                    revision_kind="CREATE",
+                )
+            )
+        project = models.Project(name="identical-experiments-project")
+        session.add(project)
+        experiments = [
+            models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=name,
+                repetitions=repetitions,
+                metadata_={},
+                project_name=project.name,
+            )
+            for name in ("base", "compare")
+        ]
+        session.add_all(experiments)
+        await session.flush()
+
+        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        for experiment in experiments:
+            for i, example in enumerate(examples):
+                for repetition_number in range(1, repetitions + 1):
+                    # Repetitions run at different times, as they do in practice.
+                    start_time = base_time + timedelta(minutes=10 * i + repetition_number)
+                    end_time = start_time + timedelta(seconds=30 if repetition_number == 1 else 10)
+                    trace = models.Trace(
+                        project_rowid=project.id,
+                        trace_id=str(uuid.uuid4()),
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+                    session.add(trace)
+                    await session.flush()
+                    for j in range(2):
+                        span = models.Span(
+                            trace_rowid=trace.id,
+                            span_id=str(uuid.uuid4()),
+                            name=f"llm-{j}",
+                            span_kind="LLM",
+                            start_time=start_time,
+                            end_time=end_time,
+                            attributes={},
+                            events=[],
+                            status_code="OK",
+                            status_message="",
+                            cumulative_error_count=0,
+                            cumulative_llm_token_count_prompt=60,
+                            cumulative_llm_token_count_completion=40,
+                        )
+                        session.add(span)
+                        await session.flush()
+                        session.add(
+                            models.SpanCost(
+                                span_rowid=span.id,
+                                trace_rowid=trace.id,
+                                span_start_time=start_time,
+                                total_tokens=100,
+                                prompt_tokens=60,
+                                completion_tokens=40,
+                                total_cost=1.0,
+                                prompt_cost=0.6,
+                                completion_cost=0.4,
+                            )
+                        )
+                    session.add(
+                        models.ExperimentRun(
+                            experiment_id=experiment.id,
+                            dataset_example_id=example.id,
+                            repetition_number=repetition_number,
+                            output={},
+                            start_time=start_time,
+                            end_time=end_time,
+                            trace_id=trace.trace_id,
+                        )
+                    )
+        await session.commit()
+        base_experiment, compare_experiment = experiments
+
+    query = """
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!) {
+        experimentRunMetricComparisons(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          latency { ...counts }
+          totalTokenCount { ...counts }
+          promptTokenCount { ...counts }
+          completionTokenCount { ...counts }
+          totalCost { ...counts }
+          promptCost { ...counts }
+          completionCost { ...counts }
+        }
+      }
+      fragment counts on ExperimentRunMetricComparison {
+        numRunsImproved
+        numRunsRegressed
+        numRunsEqual
+        numRunsWithoutComparison
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "baseExperimentId": str(GlobalID("Experiment", str(base_experiment.id))),
+            "compareExperimentIds": [str(GlobalID("Experiment", str(compare_experiment.id)))],
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    all_equal = {
+        "numRunsImproved": 0,
+        "numRunsRegressed": 0,
+        "numRunsEqual": 3,
+        "numRunsWithoutComparison": 0,
+    }
+    assert response.data["experimentRunMetricComparisons"] == {
+        metric: all_equal
+        for metric in (
+            "latency",
+            "totalTokenCount",
+            "promptTokenCount",
+            "completionTokenCount",
+            "totalCost",
+            "promptCost",
+            "completionCost",
+        )
+    }
 
 
 async def test_secrets_pagination(

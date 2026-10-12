@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Protocol
+from typing import Any, Awaitable, Optional, Protocol
 from unittest.mock import Mock
 
 import pytest
@@ -14,6 +14,7 @@ from pydantic_ai.usage import RunUsage
 from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashToolResult,
     BashToolset,
+    get_bash_tool_error,
 )
 from phoenix.server.api.context import Context
 
@@ -769,3 +770,27 @@ def test_schema_flag_count_is_bounded() -> None:
 
     _, names = _parse_schema_args(["--names", "id"] * 1000)
     assert len(names) == _MAX_ARGS // 2
+
+
+@pytest.mark.parametrize(
+    "exit_code, expected",
+    [
+        pytest.param(0, None, id="zero-exit"),
+        pytest.param(2, "exit code 2", id="non-zero-exit"),
+    ],
+)
+def test_get_bash_tool_error(exit_code: int, expected: Optional[str]) -> None:
+    result: BashToolResult = {
+        "command": "ls /nope",
+        "stdout": "",
+        "stderr": "ls: /nope",
+        "exitCode": exit_code,
+        "durationMs": 0,
+        "startedAt": "2026-01-01T00:00:00+00:00",
+        "completedAt": "2026-01-01T00:00:00+00:00",
+        "stdoutBytes": 0,
+        "stderrBytes": 9,
+        "stdoutTruncated": False,
+        "stderrTruncated": False,
+    }
+    assert get_bash_tool_error(result) == expected

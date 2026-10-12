@@ -327,8 +327,8 @@
                 "group": "How-to: Experiments",
                 "pages": [
                   "docs/phoenix/datasets-and-experiments/how-to-experiments",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
@@ -912,13 +912,21 @@
             ]
           },
           {
+            "group": "Vector Databases",
+            "icon": "database",
+            "pages": [
+              "docs/phoenix/integrations/vector-databases/qdrant"
+            ]
+          },
+          {
             "group": "Sandboxes",
             "icon": "cube",
             "pages": [
               "docs/phoenix/integrations/sandboxes/e2b",
               "docs/phoenix/integrations/sandboxes/daytona",
               "docs/phoenix/integrations/sandboxes/vercel",
-              "docs/phoenix/integrations/sandboxes/modal"
+              "docs/phoenix/integrations/sandboxes/modal",
+              "docs/phoenix/integrations/sandboxes/docker"
             ]
           },
           {
@@ -985,6 +993,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/evaluators",
                   {
                     "group": "CI eval tests",
                     "pages": [
@@ -1372,10 +1381,7 @@
               "docs/phoenix/cookbook/evaluation/trace-level-evaluation",
               "docs/phoenix/cookbook/evaluation/session-level-evaluation",
               "docs/phoenix/cookbook/evaluation/evaluate-rag",
-              "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
-              "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
-              "docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
-              "docs/phoenix/cookbook/evaluation/cookbooks"
+              "docs/phoenix/cookbook/evaluation/code-readability-evaluation"
             ]
           },
           {
@@ -1409,6 +1415,7 @@
           {
             "group": "09.2026",
             "pages": [
+              "docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics",
               "docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis",
               "docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi",
               "docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates"
@@ -1735,6 +1742,18 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/cookbook/evaluation/cookbooks",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
+      "destination": "/docs/phoenix/integrations/evaluation-integrations/ragas"
+    },
     {
       "source": "/docs/phoenix/integrations/platforms/cloudflare-ai-gateway",
       "destination": "/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing"
@@ -2750,6 +2769,14 @@
     {
       "source": "/docs/phoenix/llm-evals/building-your-own-evals",
       "destination": "/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators"
+    },
+    {
+      "source": "/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
+      "destination": "/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments"
+    },
+    {
+      "source": "/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background",
+      "destination": "/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background"
     }
   ]
 }

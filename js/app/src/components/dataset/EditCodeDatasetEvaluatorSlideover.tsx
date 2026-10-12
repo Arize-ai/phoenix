@@ -19,7 +19,10 @@ import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutati
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { EditCodeEvaluatorDialogContent } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
-import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
+import {
+  buildOutputConfigsInput,
+  normalizeInputMapping,
+} from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import {
@@ -364,7 +367,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       selectedSplitIds: [],
     },
     evaluatorMappingSource: {
-      grain: "dataset",
+      recordKind: "dataset",
       source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
     },
     showPromptPreview: false,
@@ -380,12 +383,20 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
     const {
-      evaluator: { name, description, inputMapping, id: evaluatorId },
+      evaluator: {
+        name,
+        globalName,
+        description,
+        inputMapping,
+        id: evaluatorId,
+      },
       outputConfigs,
     } = store.getState();
     invariant(evaluatorId, "evaluator id is required");
     const normalizedName = name.trim();
+    const normalizedGlobalName = globalName.trim();
     const normalizedDescription = description.trim() || undefined;
+    const normalizedInputMapping = normalizeInputMapping(inputMapping);
 
     return new Promise<EvaluatorSubmitResult>((resolve) => {
       const fail = (mutationError: Error) => {
@@ -401,10 +412,10 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         variables: {
           input: {
             id: evaluatorId,
-            name: normalizedName,
+            name: normalizedGlobalName,
             description: normalizedDescription,
             outputConfigs: buildOutputConfigsInput(outputConfigs),
-            inputMapping,
+            inputMapping: normalizedInputMapping,
             ...(payload.sandboxConfigId !== undefined
               ? { sandboxConfigId: payload.sandboxConfigId }
               : {}),
@@ -426,7 +437,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                     name: normalizedName,
                     description: normalizedDescription,
                     outputConfigs: buildOutputConfigsInput(outputConfigs),
-                    inputMapping,
+                    inputMapping: normalizedInputMapping,
                   },
                   connectionIds: updateConnectionIds ?? [],
                 },

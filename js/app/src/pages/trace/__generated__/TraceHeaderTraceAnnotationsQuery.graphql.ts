@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dd0a6ee3e52091e7e8640f4a3a30d2d0>>
+ * @generated SignedSource<<185b2ee66e47852e71d354a6484a4304>>
  * @lightSyntaxTransform
  */
 
@@ -317,7 +317,7 @@ return {
                     "storageKey": "evaluators(filter:{\"annotationNames\":null},first:100)"
                   },
                   {
-                    "alias": null,
+                    "alias": "configsByName",
                     "args": [
                       (v3/*:: as any*/)
                     ],
@@ -493,12 +493,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9f8a42604f95ec805c6b717a20b025eb",
+    "cacheID": "720c117a073af07003a07f0cccb9824d",
     "id": null,
     "metadata": {},
     "name": "TraceHeaderTraceAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderTraceAnnotationsQuery(\n  $traceId: ID!\n) {\n  trace: node(id: $traceId) {\n    __typename\n    ... on Trace {\n      ...TraceHeaderTraceAnnotationsFragment\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderTraceAnnotationsFragment on Trace {\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  ...TraceAnnotationSummaryGroup\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query TraceHeaderTraceAnnotationsQuery(\n  $traceId: ID!\n) {\n  trace: node(id: $traceId) {\n    __typename\n    ... on Trace {\n      ...TraceHeaderTraceAnnotationsFragment\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderTraceAnnotationsFragment on Trace {\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  ...TraceAnnotationSummaryGroup\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

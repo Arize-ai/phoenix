@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<db7207bf8000a92e2288a501328fc95b>>
+ * @generated SignedSource<<038abc3e968315bb1b22e5e40f837374>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectAnnotationConfigsByNameFragment$data = {
-  readonly annotationConfigs: {
+  readonly configsByName: {
     readonly edges: ReadonlyArray<{
       readonly config: {
         readonly " $fragmentSpreads": FragmentRefs<"useProjectAnnotationConfigsByName_config">;
@@ -241,7 +241,7 @@ return {
       "storageKey": null
     },
     {
-      "alias": null,
+      "alias": "configsByName",
       "args": [
         (v0/*:: as any*/),
         {
@@ -285,6 +285,6 @@ return {
 };
 })();
 
-(node as any).hash = "7e7bbfe9d3cce51af7b79ce5b7a2c436";
+(node as any).hash = "722ed3193e42893f198bc07d20b37b9e";
 
 export default node;

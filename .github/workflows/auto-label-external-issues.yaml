@@ -49,6 +49,7 @@ jobs:
             const internalContributors = new Set([
               "anticorrelator",
               "axiomofjoy",
+              "blindmansion",
               "cephalization",
               "ehutt",
               "jimbobbennett",
@@ -58,6 +59,7 @@ jobs:
               "PatriciaArnedo",
               "rickarize",
               "RogerHYang",
+              "RogerHYang2",
               "seldo",
               "yfrigui2",
             ]);

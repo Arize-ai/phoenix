@@ -34,7 +34,11 @@ from phoenix.server.agents.capabilities.tools.internal import (
     CallSubAgentCapability,
     GetCurrentDatetimeCapability,
 )
-from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BASH_TOOL_NAME,
+    BashCapability,
+    get_bash_tool_error,
+)
 from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
 from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
@@ -197,6 +201,7 @@ def build_agent(
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
+        get_error_by_tool_name={BASH_TOOL_NAME: get_bash_tool_error},
     )
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(

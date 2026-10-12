@@ -2,6 +2,7 @@ import type { StoreApi } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { PROJECT_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import type {
   MetricChartTableView,
   ProjectMetricChartKey,
@@ -48,7 +49,7 @@ export interface ProjectStore {
 }
 
 const makeProjectStoreKey = (projectId: string) =>
-  `arize-phoenix-project-${projectId}`;
+  `${PROJECT_STORAGE_KEY_PREFIX}${projectId}`;
 
 export type CreateProjectStoreProps = {
   projectId: string;

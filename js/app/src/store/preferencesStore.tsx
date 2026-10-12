@@ -4,6 +4,7 @@ import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
+import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -323,13 +324,6 @@ export interface PreferencesState extends PreferencesProps {
     aiQueryModelConfig: AIQueryModelConfig | undefined
   ) => void;
 }
-
-/**
- * The local storage key the preferences persist to. Exported for code that
- * runs outside the provider tree (e.g. route loaders) and must read a stored
- * preference before React mounts.
- */
-export const PREFERENCES_STORAGE_KEY = "arize-phoenix-preferences";
 
 /**
  * The last-N range applied when no preference has been persisted. Route

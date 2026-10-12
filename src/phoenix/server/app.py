@@ -40,7 +40,6 @@ from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.authentication import UnauthenticatedUser
 from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -84,10 +83,7 @@ from phoenix.config import (
     get_env_online_eval_max_db_concurrency,
     get_env_online_eval_max_evaluator_concurrency,
     get_env_online_eval_max_llm_message_bytes,
-    get_env_online_eval_max_outstanding,
     get_env_online_eval_max_sandbox_payload_bytes,
-    get_env_online_eval_max_session_outstanding,
-    get_env_online_eval_pending_ttl_seconds,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -165,10 +161,7 @@ from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import (
-    TRACE_SWEEP_MAX_OUTSTANDING,
-    EvalSweeper,
-)
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
@@ -1116,25 +1109,6 @@ def create_app(
     if not read_only:
         claim_batch_size = get_env_online_eval_claim_batch_size()
         tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
-        pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
-        # Worst case, a full admission-gate backlog drains at claim_batch_size /
-        # tick_interval per replica; a smaller TTL sheds work during routine
-        # backpressure rather than only when consumers are down.
-        min_safe_ttl_seconds = (
-            get_env_online_eval_max_outstanding() * tick_interval_seconds / claim_batch_size
-        )
-        if 0 < pending_ttl_seconds < min_safe_ttl_seconds:
-            logger.warning(
-                "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS (%s) is below the time a full "
-                "online-eval backlog needs to drain on one replica (%s seconds at %s claims "
-                "per %s-second tick). Pending evaluations can expire unevaluated during "
-                "normal backpressure; raise the TTL, the claim batch size, or the replica "
-                "count, or set the TTL to 0 to disable shedding.",
-                pending_ttl_seconds,
-                round(min_safe_ttl_seconds),
-                claim_batch_size,
-                tick_interval_seconds,
-            )
         get_env_online_eval_max_llm_message_bytes()
         get_env_online_eval_max_sandbox_payload_bytes()
         evaluator_semaphore = asyncio.Semaphore(get_env_online_eval_max_evaluator_concurrency())
@@ -1178,16 +1152,8 @@ def create_app(
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
-        online_eval_session_sweeper = EvalSweeper(
-            db,
-            evaluation_target="SESSION",
-            max_outstanding=get_env_online_eval_max_session_outstanding(),
-        )
-        online_eval_trace_sweeper = EvalSweeper(
-            db,
-            evaluation_target="TRACE",
-            max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
-        )
+        online_eval_session_sweeper = EvalSweeper(db, evaluation_target="SESSION")
+        online_eval_trace_sweeper = EvalSweeper(db, evaluation_target="TRACE")
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1608,12 +1574,10 @@ def _get_build_graphql_context_function(
     """Factory for creating GraphQL context."""
 
     def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
-        request = Request(
-            {
-                "type": "http",
-                "user": user if user is not None else UnauthenticatedUser(),
-            }
-        )
+        scope: dict[str, Any] = {"type": "http"}
+        if user is not None:
+            scope["user"] = user
+        request = Request(scope)
         return build_context(
             db=db,
             settings=system_settings,

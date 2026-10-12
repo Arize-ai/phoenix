@@ -92,7 +92,7 @@ input AddProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -709,11 +709,26 @@ type ClassificationEvaluatorConfig {
   inputs: [EvaluatorInput!]
 }
 
+type ClearAllQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+}
+
 input ClearProjectInput {
   id: ID!
 
   """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
+}
+
+input ClearQueuedEvaluationsInput {
+  projectId: ID!
+}
+
+type ClearQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+  project: Project!
 }
 
 input ClonePromptInput {
@@ -1019,7 +1034,7 @@ input CreateProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1045,7 +1060,7 @@ input CreateProjectLLMEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1214,7 +1229,21 @@ type Dataset implements Node {
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experiments(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+    includeEphemeral: Boolean = false
+    filterCondition: String
+    filterIds: [ID!]
+
+    """
+    When provided, return only the experiments with the given 1-based per-dataset sequence numbers.
+    """
+    sequenceNumbers: [Int!]
+    sort: ExperimentSort
+  ): ExperimentConnection!
 
   """The experiment tagged as this dataset's baseline, if one is set."""
   baselineExperiment: Experiment
@@ -1604,7 +1633,11 @@ type DeleteApiKeyMutationPayload {
 
 input DeleteDatasetEvaluatorsInput {
   datasetEvaluatorIds: [ID!]!
-  deleteAssociatedPrompt: Boolean! = true
+
+  """
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  """
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteDatasetEvaluatorsPayload {
@@ -1688,7 +1721,11 @@ input DeleteProjectAnnotationsInput {
 
 input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
-  deleteAssociatedPrompt: Boolean! = true
+
+  """
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  """
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteProjectEvaluatorsPayload {
@@ -1743,6 +1780,13 @@ input DependenciesInput {
 
 type DismissExperimentPayload {
   experiment: Experiment!
+}
+
+input DockerConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
 }
 
 type DocumentAnnotation implements Node & Annotation {
@@ -1891,6 +1935,111 @@ type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   error: String
 }
 
+"""
+The online evaluation queue. Span, trace, and session evaluations of every project on the server share it and its limit. Rates are per minute over the last 60 minutes.
+"""
+type EvaluationQueue {
+  status: EvaluationQueueStatus!
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  How many evaluations the queue holds before new ones wait to be queued.
+  """
+  queuedLimit: Int!
+
+  """Whether the queue is full, so new evaluations are not being queued."""
+  atCapacity: Boolean!
+
+  """
+  Queued evaluations awaiting a retry after an attempt that did not finish.
+  """
+  retryingCount: Int!
+
+  """
+  When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
+  """
+  queuedPerMinute: Float!
+
+  """Evaluations completed per minute, whether evaluated or failed."""
+  evaluationsPerMinute: Float!
+
+  """
+  The queue's evaluations of each evaluation target: span, trace, session.
+  """
+  targets: [EvaluationQueueTarget!]!
+
+  """The projects with the most evaluations in the queue, most first."""
+  projects(
+    """How many projects to return."""
+    first: Int! = 5
+  ): [EvaluationQueueProject!]!
+}
+
+"""One project's evaluations in the online evaluation queue."""
+type EvaluationQueueProject {
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+  project: Project!
+}
+
+"""Whether queued evaluations are running without long waits."""
+enum EvaluationQueueStatus {
+  """
+  Evaluations not yet started have waited 10 minutes or less, and new ones are being queued.
+  """
+  HEALTHY
+
+  """
+  The oldest evaluation not yet started has waited over 10 minutes, or the queue is at capacity.
+  """
+  DEGRADED
+}
+
+"""
+The online evaluations of one evaluation target in the queue. Rates are per minute over the last 60 minutes.
+"""
+type EvaluationQueueTarget {
+  evaluationTarget: EvaluationTarget!
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  Queued evaluations awaiting a retry after an attempt that did not finish.
+  """
+  retryingCount: Int!
+
+  """
+  When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
+  """
+  queuedPerMinute: Float!
+
+  """Evaluations completed per minute, whether evaluated or failed."""
+  evaluationsPerMinute: Float!
+}
+
 type EvaluationResult {
   evaluatorName: String!
   annotation: ExperimentRunAnnotation
@@ -1970,7 +2119,7 @@ type EvaluatorComparisonCoverage {
   onlyB: Int!
 
   """
-  All entities of the compared evaluation target in the project and time range.
+  Traces in the project and time range for span and trace targets, or sessions for session targets. Span targets count traces rather than spans.
   """
   totalInRange: Int!
 }
@@ -2001,10 +2150,10 @@ type EvaluatorComparisonStatistics {
 }
 
 """
-One evaluator's numbers within a comparison. Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both.
+One evaluator's side of a comparison: the labels and threshold that bin its results into the confusion matrix, and its distribution over the entities both evaluators annotated.
 """
 type EvaluatorComparisonSummary {
-  """The project evaluator these numbers describe."""
+  """The project evaluator on this side of the comparison."""
   evaluator: ProjectEvaluator!
 
   """
@@ -2022,14 +2171,10 @@ type EvaluatorComparisonSummary {
   """
   threshold: Float
 
-  """Entities this evaluator flags, over the shared population."""
-  flaggedCount: Int
-
-  """flaggedCount over `populationSize`."""
-  flagRate: Float
-
-  """Mean of this evaluator's non-null scores over the shared population."""
-  meanScore: Float
+  """
+  Distribution of this evaluator's primary result over the entities in range that both evaluators annotated, whether or not both results are binnable.
+  """
+  sharedDistribution: EvaluatorDistribution!
 }
 
 """A connection to a list of items."""
@@ -2276,6 +2421,11 @@ type ExperimentAnnotationSummary {
   scoreCount: Int!
   labelCount: Int!
   labelFractions: [LabelFraction!]!
+}
+
+enum ExperimentColumn {
+  sequenceNumber
+  createdAt
 }
 
 type ExperimentComparison implements Node {
@@ -2579,6 +2729,12 @@ type ExperimentRunMetricComparisons {
 """The sort key and direction for experiment run connections"""
 input ExperimentRunSort {
   col: ExperimentRunColumn!
+  dir: SortDir!
+}
+
+"""The sort key and direction for experiment connections"""
+input ExperimentSort {
+  col: ExperimentColumn!
   dir: SortDir!
 }
 
@@ -3097,9 +3253,19 @@ type Mutation {
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Enable or disable a project evaluator. Flips only the enabled flag on the project binding, leaving the underlying evaluator untouched. Works for both LLM and CODE evaluators.
+  Enable or disable a project evaluator, leaving the underlying evaluator untouched. Changing the flag clears the evaluator's queued evaluations. Works for both LLM and CODE evaluators.
   """
   setProjectEvaluatorEnabled(input: SetProjectEvaluatorEnabledInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Clear the queued evaluations of every evaluator in a project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearQueuedEvaluations(input: ClearQueuedEvaluationsInput!): ClearQueuedEvaluationsPayload!
+
+  """
+  Clear the queued evaluations of every evaluator in every project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearAllQueuedEvaluations: ClearAllQueuedEvaluationsPayload!
   deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
@@ -3450,6 +3616,11 @@ type Project implements Node {
 
   """Number of evaluators attached to this project."""
   evaluatorCount: Int!
+
+  """
+  This project's part of the online evaluation queue, shared by every project.
+  """
+  evaluationQueue: ProjectEvaluationQueue!
   evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null, filter: ProjectEvaluatorFilter): ProjectEvaluatorConnection!
   gradientStartColor: String!
   gradientEndColor: String!
@@ -3680,6 +3851,45 @@ type ProjectEdge {
   node: Project!
 }
 
+"""
+One project's part of the online evaluation queue: the span, trace, and session evaluations of its evaluators. Rates are per minute over the last 60 minutes.
+"""
+type ProjectEvaluationQueue {
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
+  """
+  queuedPerMinute: Float!
+
+  """Evaluations completed per minute, whether evaluated or failed."""
+  evaluationsPerMinute: Float!
+
+  """
+  This project's evaluations of each evaluation target: span, trace, session.
+  """
+  targets: [ProjectEvaluationQueueTarget!]!
+}
+
+"""One project's evaluations of one evaluation target in the queue."""
+type ProjectEvaluationQueueTarget {
+  evaluationTarget: EvaluationTarget!
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+}
+
 type ProjectEvaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -3703,6 +3913,16 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
+  This evaluator's evaluation rate, mean evaluation time, and share of the server's evaluation time over the last 60 minutes.
+  """
+  evaluationLoad: ProjectEvaluatorEvaluationLoad!
+
+  """
+  Failures and completions within the time range, placed in time by when each evaluation finished or was given up on. Finished span evaluations can be deleted once they are older than the online evaluation retention period, so for span evaluators a longer range may count less than it covers.
+  """
+  failureSummary(timeRange: TimeRange!): ProjectEvaluatorFailureSummary!
+
+  """
   Distribution of this evaluator's primary output over all annotated targets in range. Spans and traces filter on trace start time; sessions on session start time. Uses the latest annotation per target and name across annotation identifiers.
   """
   distribution(timeRange: TimeRange!): EvaluatorDistribution!
@@ -3713,7 +3933,7 @@ type ProjectEvaluator implements Node {
   annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project evaluators store the default of 300 seconds when no value is provided. A trace or session is evaluated only once, and later activity does not schedule another evaluation. The delay applies to TRACE and SESSION targets and is rejected for SPAN.
+  Seconds a trace or session must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. When no value is provided, TRACE and SESSION evaluators store the default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation. The delay applies to TRACE and SESSION targets; SPAN evaluators store 0 because spans are evaluated as they arrive, and an explicit delay is rejected for them.
   """
   evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!
@@ -3764,6 +3984,45 @@ type ProjectEvaluatorEdge {
   node: ProjectEvaluator!
 }
 
+"""
+How much of the server's evaluation time a project evaluator used over the last 60 minutes.
+"""
+type ProjectEvaluatorEvaluationLoad {
+  """Evaluations started in the last 60 minutes."""
+  evaluationCount: Int!
+
+  """
+  Mean seconds an evaluation took, over those started in the last 60 minutes, or null if none started.
+  """
+  meanEvaluationSeconds: Float
+
+  """
+  Share, from 0 to 1, of the time every project evaluator on the server spent evaluating over the last 60 minutes. They share one concurrency limit. Null if none evaluated.
+  """
+  shareOfEvaluationTime: Float
+}
+
+type ProjectEvaluatorFailureSummary {
+  """Evaluations given up on within the range."""
+  failedCount: Int!
+
+  """Evaluations that produced an annotation within the range."""
+  evaluatedCount: Int!
+
+  """
+  When the newest failure in the range was given up on, or null if none was.
+  """
+  lastFailedAt: DateTime
+
+  """
+  The error of the newest failure in the range, or null if none was recorded.
+  """
+  lastError: String
+
+  """Share of completed evaluations that failed, or null if none completed."""
+  failureRate: Float
+}
+
 """A filter for project evaluator connections"""
 input ProjectEvaluatorFilter {
   col: ProjectEvaluatorFilterColumn = null
@@ -3785,10 +4044,10 @@ type ProjectEvaluatorMutationPayload {
 }
 
 """
-The state of a project evaluator's scheduled work: whether evaluation runs are completing. It says nothing about what those runs scored.
+The state of a project evaluator's scheduled work: whether its evaluation runs are completing. It reflects only this evaluator's own evaluations, not the shared queue's status, and says nothing about what those runs scored.
 """
 enum ProjectEvaluatorRunStatus {
-  """No evaluation has completed or is waiting within the retention window."""
+  """No evaluation on record has completed or is waiting to run."""
   NEVER_RUN
 
   """Evaluations are waiting to run and none has completed yet."""
@@ -3799,14 +4058,22 @@ enum ProjectEvaluatorRunStatus {
 
   """The most recent evaluation run failed and will not be retried."""
   ERROR
+
+  """
+  This evaluator's oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes.
+  """
+  DEGRADED
+
+  """Turned off. No new evaluations are scheduled."""
+  DISABLED
 }
 
 """
-The state of a project evaluator's scheduled work, derived from the evaluations it has produced within the online evaluation retention window. It describes whether runs are completing, not what they scored.
+The state of a project evaluator's scheduled work, derived from the evaluation records that still exist. A record is deleted with the span, trace, or session it evaluated, and a finished span record can be deleted once it is older than the online evaluation retention period. It describes whether runs are completing, not what they scored.
 """
 type ProjectEvaluatorRunSummary {
   """
-  ERROR when the newest completed run was given up on, RUNNING when it produced an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN otherwise.
+  From this evaluator's own evaluations only; the shared queue's status does not affect it. DISABLED when turned off. Otherwise ERROR when the newest completed run was given up on, DEGRADED when its oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes, RUNNING when the newest completed run produced an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN otherwise.
   """
   status: ProjectEvaluatorRunStatus!
 
@@ -3815,8 +4082,18 @@ type ProjectEvaluatorRunSummary {
   """
   lastRunAt: DateTime
 
-  """Evaluations waiting to run, including ones awaiting a retry."""
+  """Evaluations queued or running, including ones awaiting a retry."""
   queuedCount: Int!
+
+  """
+  This evaluator's evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  When this evaluator's longest-waiting evaluation, including ones awaiting a retry, was queued, or null if none is waiting. Running evaluations are not waiting.
+  """
+  oldestQueuedAt: DateTime
 
   """Evaluations that produced an annotation."""
   evaluatedCount: Int!
@@ -3825,7 +4102,7 @@ type ProjectEvaluatorRunSummary {
   failedCount: Int!
 
   """
-  Evaluations shed from the backlog before they ran, to keep up under load. They are not failures and do not affect the status.
+  Evaluations removed from the queue before they ran, because a user cleared the queue or turned the evaluator on or off. They are not failures and do not affect the status.
   """
   droppedCount: Int!
 
@@ -4593,6 +4870,11 @@ type Query {
   serverStatus: ServerStatus!
 
   """
+  The online evaluation queue, shared by every project on the server and by span, trace, and session evaluations.
+  """
+  evaluationQueue: EvaluationQueue!
+
+  """
   Persisted assistant chat sessions, most recently active first. By default, users see their own sessions. Admins can pass viewerOnly: false to see all sessions. When authentication is disabled, all sessions are returned.
   """
   agentSessions(first: Int = 20, after: String, viewerOnly: Boolean! = true): AgentSessionConnection!
@@ -4705,6 +4987,7 @@ enum SandboxBackendType {
   DENO
   MODAL
   MONTY
+  DOCKER
 }
 
 type SandboxConfig implements Node {
@@ -4753,6 +5036,7 @@ input SandboxConfigVariantInput @oneOf {
   wasm: WASMConfigInput
   modal: ModalConfigInput
   monty: MontyConfigInput
+  docker: DockerConfigInput
 }
 
 """
@@ -5242,6 +5526,7 @@ enum SpanKind {
   reranker
   evaluator
   guardrail
+  decision
   unknown
 }
 
@@ -5343,6 +5628,11 @@ input TimeBinConfig {
 
   """Offset in minutes from UTC for local time binning."""
   utcOffsetMinutes: Int! = 0
+
+  """
+  Number of scale units per bin, from 1 to 1000. Values above 1 are allowed for MINUTE, HOUR, DAY, and WEEK. Bins follow local clock time (for example, 5-minute bins start at :00, :05, ...), and week bins start on Monday.
+  """
+  unitsPerBin: Int! = 1
 }
 
 enum TimeBinScale {
@@ -5782,7 +6072,7 @@ input UpdateProjectCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
 }
@@ -5803,7 +6093,7 @@ input UpdateProjectLLMEvaluatorInput {
   promptVersionId: ID
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
 }

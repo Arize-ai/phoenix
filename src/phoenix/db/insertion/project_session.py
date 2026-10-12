@@ -18,7 +18,7 @@ async def advance_project_session_liveness(
     if not rowids:
         return
 
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         value = func.greatest(
             models.ProjectSession.last_span_ingested_at,

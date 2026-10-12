@@ -7,9 +7,6 @@ from __future__ import annotations
 import hashlib
 import json
 
-DEFAULT_EVALUATION_DELAY_SECONDS = 300
-MINIMUM_EVALUATION_DELAY_SECONDS = 10
-
 # What to do about an over-limit sandbox payload. Shared with the preview
 # mutation so a preview run under the online limits reports the rejection in the
 # same words the scheduled evaluation would.
@@ -25,8 +22,8 @@ MAX_SESSION_EVAL_TURNS = 1_000
 def session_policy_fingerprint() -> str:
     """Identity of the session policy in force, for the config fingerprint.
 
-    Bumping ``SESSION_POLICY_VERSION`` is what expires pending session work, so
-    old and new results never share an annotation identifier.
+    Bumping ``SESSION_POLICY_VERSION`` changes the annotation identifier, so results
+    under the old and new policies never share one.
     """
     payload = {
         "policy_version": SESSION_POLICY_VERSION,

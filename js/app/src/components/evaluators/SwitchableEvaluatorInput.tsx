@@ -1,11 +1,12 @@
 import { css } from "@emotion/react";
 import type { ReactElement } from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
 import type {
   Control,
   FieldValues,
   Path,
+  UseFormGetValues,
   UseFormSetValue,
 } from "react-hook-form";
 import { Controller } from "react-hook-form";
@@ -29,8 +30,35 @@ import {
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import type { SizingProps } from "@phoenix/components/core/types";
+import { hasMappingValue } from "@phoenix/components/evaluators/utils";
 
-type MappingMode = "path" | "literal";
+export type MappingMode = "path" | "literal";
+
+/**
+ * Infers the active mode from the current mapping values.
+ * @param params - Current mapping values and fallback mode.
+ * @param params.pathValue - Current path mapping value.
+ * @param params.literalValue - Current literal mapping value.
+ * @param params.fallbackMode - Mode used when both mappings are empty.
+ */
+export function resolveMappingMode({
+  pathValue,
+  literalValue,
+  fallbackMode,
+}: {
+  pathValue: unknown;
+  literalValue: unknown;
+  fallbackMode: MappingMode;
+}): MappingMode {
+  // Match server precedence if malformed data contains both mappings.
+  if (hasMappingValue(literalValue)) {
+    return "literal";
+  }
+  if (hasMappingValue(pathValue)) {
+    return "path";
+  }
+  return fallbackMode;
+}
 
 interface PathOption {
   id: string;
@@ -54,7 +82,7 @@ export interface SwitchableEvaluatorInputProps<
    */
   description?: string;
   /**
-   * The default mode for this field
+   * Fallback when neither mapping has a value.
    * @default "path"
    */
   defaultMode?: MappingMode;
@@ -62,6 +90,7 @@ export interface SwitchableEvaluatorInputProps<
    * react-hook-form control object
    */
   control: Control<TFieldValues>;
+  getValues: UseFormGetValues<TFieldValues>;
   /**
    * react-hook-form setValue function for clearing values on mode switch
    */
@@ -108,8 +137,8 @@ export interface SwitchableEvaluatorInputProps<
   /**
    * Renders the path control in place of the flat list of options.
    *
-   * A record's fields nest, so the project grains choose a path from a tree of
-   * the record rather than from a list of every leaf it has.
+   * A record's fields nest, so the project record kinds choose a path from a
+   * tree of the record rather than from a list of every leaf it has.
    */
   renderPathInput?: (props: {
     value: string;
@@ -171,6 +200,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   description,
   defaultMode = "path",
   control,
+  getValues,
   setValue,
   pathOptions,
   pathPlaceholder = "Select a field path",
@@ -183,31 +213,38 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   renderPathInput,
   size = "M",
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
-  const [mode, setMode] = useState<MappingMode>(
-    allowsLiteral ? defaultMode : "path"
-  );
-
   const pathFieldName = `pathMapping.${fieldName}` as Path<TFieldValues>;
   const literalFieldName = `literalMapping.${fieldName}` as Path<TFieldValues>;
+
+  // Derive the mode from form values so it survives field unmounts.
+  const [mode, setMode] = useState<MappingMode>(() =>
+    allowsLiteral
+      ? resolveMappingMode({
+          pathValue: getValues(pathFieldName),
+          literalValue: getValues(literalFieldName),
+          fallbackMode: defaultMode,
+        })
+      : "path"
+  );
+
+  // An empty string prevents react-hook-form from restoring defaultValues when
+  // the field remounts and is removed by compressObject before persistence.
+  const clearInactiveMapping = useCallback(
+    (activeMode: MappingMode) => {
+      if (activeMode === "path") {
+        setValue(literalFieldName, "" as TFieldValues[typeof literalFieldName]);
+      } else {
+        onPathInputChange?.("");
+        setValue(pathFieldName, "" as TFieldValues[typeof pathFieldName]);
+      }
+    },
+    [setValue, onPathInputChange, pathFieldName, literalFieldName]
+  );
 
   const handleModeChange = (key: Key | Key[] | null) => {
     if (key && (key === "path" || key === "literal")) {
       const newMode = key as MappingMode;
-      // Clear the previous mode's value before switching
-      if (newMode === "path") {
-        // Switching to path mode, clear the literal value
-        setValue(
-          literalFieldName,
-          undefined as TFieldValues[typeof literalFieldName]
-        );
-      } else {
-        // Switching to literal mode, clear the path value
-        onPathInputChange?.("");
-        setValue(
-          pathFieldName,
-          undefined as TFieldValues[typeof pathFieldName]
-        );
-      }
+      clearInactiveMapping(newMode);
       setMode(newMode);
     }
   };
@@ -222,7 +259,9 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     : undefined;
 
   const pathControl = (
+    // Do not reuse a control registered under the other field name.
     <Controller
+      key="path"
       name={pathFieldName}
       control={control}
       rules={requiredRules}
@@ -233,7 +272,8 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
           return renderPathInput({
             value: pathValue,
             onChange: (value) => {
-              field.onChange(value === "" ? undefined : value);
+              // Keep an explicit empty value across control remounts.
+              field.onChange(value);
               onPathInputChange?.(value);
             },
             isInvalid: !!error,
@@ -265,10 +305,10 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
               if (!key) {
                 return;
               }
-              // Toggle: if selecting the same value, clear it
+              // Keep an explicit empty value across control remounts.
               if (key === "__unset__") {
                 onPathInputChange?.("");
-                field.onChange(undefined);
+                field.onChange("");
               } else {
                 onPathInputChange?.(key as string);
                 field.onChange(key as string);
@@ -342,6 +382,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
             pathControl
           ) : (
             <Controller
+              key="literal"
               name={literalFieldName}
               control={control}
               rules={requiredRules}

@@ -18,21 +18,18 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
 _EVAL_WORK_STATUS_CHECK = (
-    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
-    "'DROPPED')"
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
 )
 _EVAL_SESSION_WORK_STATUS_CHECK = (
-    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED', "
     "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
 )
 _LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
-_LIVE_EVAL_SESSION_WORK_PREDICATE = (
-    "status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT')"
-)
-_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'DROPPED')"
+_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
 _TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
-    "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST')"
+    "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
 )
+_FAILED_EVAL_WORK_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -73,18 +70,11 @@ def _create_session_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "evaluator_id",
-            _Integer,
-            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
             "project_evaluator_id",
             _Integer,
             sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("config_fingerprint", sa.String(), nullable=False),
         sa.Column(
             "evaluated_through",
             sa.TIMESTAMP(timezone=True),
@@ -114,14 +104,7 @@ def _create_session_work_units_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-    )
-    op.create_index(
-        "uq_eval_session_work_units_live_key",
-        "eval_session_work_units",
-        ["project_session_rowid", "evaluator_id", "config_fingerprint"],
-        unique=True,
-        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
-        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sa.UniqueConstraint("project_session_rowid", "project_evaluator_id"),
     )
     op.create_index(
         "ix_eval_session_work_units_claimable",
@@ -138,19 +121,17 @@ def _create_session_work_units_table() -> None:
         sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
     )
     op.create_index(
-        "ix_eval_session_work_units_terminal_watermark",
-        "eval_session_work_units",
-        ["project_session_rowid", "evaluator_id", "config_fingerprint"],
-    )
-    op.create_index(
-        "ix_eval_session_work_units_evaluator_id",
-        "eval_session_work_units",
-        ["evaluator_id"],
-    )
-    op.create_index(
         "ix_eval_session_work_units_project_evaluator_id",
         "eval_session_work_units",
         ["project_evaluator_id"],
+    )
+    # The newest failure per evaluator, found without walking its successes.
+    op.create_index(
+        "ix_eval_session_work_units_project_evaluator_failed",
+        "eval_session_work_units",
+        ["project_evaluator_id", "updated_at"],
+        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
     )
 
 
@@ -165,18 +146,11 @@ def _create_trace_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "evaluator_id",
-            _Integer,
-            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
             "project_evaluator_id",
             _Integer,
             sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("config_fingerprint", sa.String(), nullable=False),
         sa.Column(
             "evaluated_through",
             sa.TIMESTAMP(timezone=True),
@@ -206,14 +180,7 @@ def _create_trace_work_units_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-    )
-    op.create_index(
-        "uq_eval_trace_work_units_live_key",
-        "eval_trace_work_units",
-        ["trace_rowid", "evaluator_id", "config_fingerprint"],
-        unique=True,
-        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
-        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sa.UniqueConstraint("trace_rowid", "project_evaluator_id"),
     )
     op.create_index(
         "ix_eval_trace_work_units_claimable",
@@ -230,19 +197,17 @@ def _create_trace_work_units_table() -> None:
         sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
     )
     op.create_index(
-        "ix_eval_trace_work_units_terminal_watermark",
-        "eval_trace_work_units",
-        ["trace_rowid", "evaluator_id", "config_fingerprint"],
-    )
-    op.create_index(
-        "ix_eval_trace_work_units_evaluator_id",
-        "eval_trace_work_units",
-        ["evaluator_id"],
-    )
-    op.create_index(
         "ix_eval_trace_work_units_project_evaluator_id",
         "eval_trace_work_units",
         ["project_evaluator_id"],
+    )
+    # The newest failure per evaluator, found without walking its successes.
+    op.create_index(
+        "ix_eval_trace_work_units_project_evaluator_failed",
+        "eval_trace_work_units",
+        ["project_evaluator_id", "updated_at"],
+        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
     )
 
 
@@ -281,21 +246,14 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "eval_work_cursors",
+        "eval_span_cursors",
         sa.Column(
             "id",
             _Integer,
+            sa.CheckConstraint("id = 1", name="single_row"),
             primary_key=True,
+            autoincrement=False,
         ),
-        sa.Column(
-            "evaluation_target",
-            sa.String(),
-            sa.CheckConstraint(
-                "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
-            ),
-            nullable=False,
-        ),
-        sa.Column("consumer_group", sa.String(), nullable=False),
         sa.Column(
             "produced_through_id",
             _Integer,
@@ -304,8 +262,6 @@ def upgrade() -> None:
         ),
         sa.Column("observed_high_water_id", _Integer, nullable=True),
         sa.Column("observed_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("claimed_by", sa.String(), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -318,7 +274,6 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("evaluation_target", "consumer_group"),
     )
     op.create_table(
         "eval_work_leases",
@@ -393,11 +348,11 @@ def upgrade() -> None:
             "evaluation_delay_seconds",
             sa.Integer(),
             sa.CheckConstraint(
-                "evaluation_delay_seconds >= 10",
+                "(evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0) OR "
+                "(evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= 10)",
                 name="valid_evaluation_delay_seconds",
             ),
             nullable=False,
-            server_default="300",
         ),
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
@@ -449,18 +404,11 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "evaluator_id",
-            _Integer,
-            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
             "project_evaluator_id",
             _Integer,
             sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("config_fingerprint", sa.String(), nullable=False),
         sa.Column(
             "status",
             sa.String(),
@@ -485,7 +433,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
+        sa.UniqueConstraint("span_rowid", "project_evaluator_id"),
     )
     op.create_index(
         "ix_eval_work_units_claimable",
@@ -502,14 +450,17 @@ def upgrade() -> None:
         sqlite_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
     )
     op.create_index(
-        "ix_eval_work_units_evaluator_id",
-        "eval_work_units",
-        ["evaluator_id"],
-    )
-    op.create_index(
         "ix_eval_work_units_project_evaluator_id",
         "eval_work_units",
         ["project_evaluator_id"],
+    )
+    # The newest failure per evaluator, found without walking its successes.
+    op.create_index(
+        "ix_eval_work_units_project_evaluator_failed",
+        "eval_work_units",
+        ["project_evaluator_id", "updated_at"],
+        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
     )
     _create_session_work_units_table()
     _create_trace_work_units_table()
@@ -582,31 +533,27 @@ def _drop_experiment_evaluator_tasks() -> None:
 def downgrade() -> None:
     _drop_experiment_evaluator_tasks()
     op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
+        "ix_eval_trace_work_units_project_evaluator_failed", table_name="eval_trace_work_units"
     )
-    op.drop_index("ix_eval_trace_work_units_evaluator_id", table_name="eval_trace_work_units")
     op.drop_index(
-        "ix_eval_trace_work_units_terminal_watermark",
-        table_name="eval_trace_work_units",
+        "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
     )
     op.drop_index("ix_eval_trace_work_units_terminal", table_name="eval_trace_work_units")
     op.drop_index("ix_eval_trace_work_units_claimable", table_name="eval_trace_work_units")
     op.drop_table("eval_trace_work_units")
 
     op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
+        "ix_eval_session_work_units_project_evaluator_failed", table_name="eval_session_work_units"
     )
-    op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
     op.drop_index(
-        "ix_eval_session_work_units_terminal_watermark",
-        table_name="eval_session_work_units",
+        "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
     )
     op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
     op.drop_table("eval_session_work_units")
 
+    op.drop_index("ix_eval_work_units_project_evaluator_failed", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
@@ -614,7 +561,7 @@ def downgrade() -> None:
     op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
     op.drop_table("project_evaluators")
     op.drop_table("eval_work_leases")
-    op.drop_table("eval_work_cursors")
+    op.drop_table("eval_span_cursors")
 
     op.drop_index(
         "ix_traces_project_rowid_last_span_ingested_at",

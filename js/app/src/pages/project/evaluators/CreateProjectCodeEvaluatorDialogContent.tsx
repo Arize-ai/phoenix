@@ -27,8 +27,12 @@ import type { CreateProjectCodeEvaluatorDialogContentQuery } from "@phoenix/page
 import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
+  formatUnboundVariablesHint,
+  useUnboundRequiredVariables,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
+import {
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
@@ -100,14 +104,14 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     data.sandboxBackends
   );
 
-  const grain = toEvaluatorMappingSourceGrain(scope.targetType);
+  const recordKind = toEvaluatorRecordKind(scope.targetType);
   const [language, setLanguage] = useState<CodeEvaluatorLanguage>(
     initialValues?.language ?? "PYTHON"
   );
   const [sourceCode, setSourceCode] = useState(
     () =>
       initialValues?.sourceCode ??
-      getDefaultCodeEvaluatorSource("PYTHON", grain)
+      getDefaultCodeEvaluatorSource("PYTHON", recordKind)
   );
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
     initialValues?.sandboxConfigId ?? null
@@ -122,6 +126,10 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   const requiredVariables = extractRequiredCodeEvaluatorVariables({
     language,
     sourceCode,
+  });
+  const unboundVariables = useUnboundRequiredVariables({
+    variables,
+    requiredVariables,
   });
 
   // A sandbox config is only valid for its own language.
@@ -238,7 +246,8 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
       submitLabel="Create"
       onSubmit={onSubmit}
       isSubmitting={isCreating}
-      isSubmitDisabled={!isFilterValid}
+      isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
+      submitHint={formatUnboundVariablesHint(unboundVariables, "create")}
       error={error}
       errorTitle="Failed to create evaluator"
       contentGap="var(--global-dimension-size-100)"
@@ -288,6 +297,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           onScopeChange={onScopeChange}
           onFilterValidityChange={setIsFilterValid}
           onFieldChange={clearValidationMessage}
+          requiredVariables={requiredVariables}
           codeDefinition={
             <CodeAuthoringFields
               language={language}
@@ -298,6 +308,15 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
               sourceCode={sourceCode}
               onSourceCodeChange={setSourceCode}
               onFieldChange={clearValidationMessage}
+              resetSource={
+                initialValues
+                  ? {
+                      language: initialValues.language,
+                      sourceCode: initialValues.sourceCode,
+                      kind: "copied",
+                    }
+                  : null
+              }
             />
           }
         />

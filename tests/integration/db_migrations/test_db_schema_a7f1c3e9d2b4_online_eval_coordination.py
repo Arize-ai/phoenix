@@ -142,39 +142,28 @@ class _OnlineEvalSchemaTest(ABC):
         assert (await _run_async(_engine, _get)) is None, "Table should not exist after downgrade"
 
 
-class TestEvalWorkCursors(_OnlineEvalSchemaTest):
-    table_name = "eval_work_cursors"
+class TestEvalSpanCursors(_OnlineEvalSchemaTest):
+    table_name = "eval_span_cursors"
 
     @override
     @classmethod
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
         column_names = {
             "id",
-            "evaluation_target",
-            "consumer_group",
             "produced_through_id",
             "observed_high_water_id",
             "observed_at",
-            "claimed_at",
-            "claimed_by",
             "created_at",
             "updated_at",
         }
-        index_names: set[str] = set()
         constraint_names = {
-            "pk_eval_work_cursors",
-            "uq_eval_work_cursors_evaluation_target_consumer_group",
-            "ck_eval_work_cursors_`valid_evaluation_target`",
+            "pk_eval_span_cursors",
+            "ck_eval_span_cursors_`single_row`",
         }
         if db_backend == "postgresql":
-            index_names.update(
-                {
-                    "pk_eval_work_cursors",
-                    "uq_eval_work_cursors_evaluation_target_consumer_group",
-                }
-            )
+            index_names = {"pk_eval_span_cursors"}
         elif db_backend == "sqlite":
-            index_names.update({"sqlite_autoindex_eval_work_cursors_1"})
+            index_names = {"sqlite_autoindex_eval_span_cursors_1"}
         else:
             assert_never(db_backend)
         return _TableSchemaInfo(
@@ -182,9 +171,7 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(
-                ["observed_high_water_id", "observed_at", "claimed_at", "claimed_by"]
-            ),
+            nullable_column_names=frozenset(["observed_high_water_id", "observed_at"]),
         )
 
 
@@ -288,9 +275,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         column_names = {
             "id",
             "span_rowid",
-            "evaluator_id",
             "project_evaluator_id",
-            "config_fingerprint",
             "status",
             "claimed_at",
             "claimed_by",
@@ -302,15 +287,14 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         }
         index_names = {
             "ix_eval_work_units_claimable",
-            "ix_eval_work_units_evaluator_id",
+            "ix_eval_work_units_project_evaluator_failed",
             "ix_eval_work_units_project_evaluator_id",
             "ix_eval_work_units_terminal",
         }
         constraint_names = {
             "pk_eval_work_units",
-            "uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint",
+            "uq_eval_work_units_span_rowid_project_evaluator_id",
             "fk_eval_work_units_span_rowid_spans",
-            "fk_eval_work_units_evaluator_id_evaluators",
             "fk_eval_work_units_project_evaluator_id_project_evaluators",
             "ck_eval_work_units_`valid_eval_work_status`",
         }
@@ -318,7 +302,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             index_names.update(
                 {
                     "pk_eval_work_units",
-                    "uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint",
+                    "uq_eval_work_units_span_rowid_project_evaluator_id",
                 }
             )
         elif db_backend == "sqlite":
@@ -344,20 +328,19 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_eval_session_work_units_claimable",
-            "ix_eval_session_work_units_evaluator_id",
+            "ix_eval_session_work_units_project_evaluator_failed",
             "ix_eval_session_work_units_project_evaluator_id",
             "ix_eval_session_work_units_terminal",
-            "ix_eval_session_work_units_terminal_watermark",
-            "uq_eval_session_work_units_live_key",
         }
+        unique_key = _constraint_name(
+            "uq_eval_session_work_units_project_session_rowid_project_evaluator_id",
+            db_backend,
+        )
         constraint_names = {
             "pk_eval_session_work_units",
+            unique_key,
             _constraint_name(
                 "fk_eval_session_work_units_project_session_rowid_project_sessions",
-                db_backend,
-            ),
-            _constraint_name(
-                "fk_eval_session_work_units_evaluator_id_evaluators",
                 db_backend,
             ),
             _constraint_name(
@@ -367,7 +350,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "ck_eval_session_work_units_`valid_eval_work_status`",
         }
         if db_backend == "postgresql":
-            index_names.add("pk_eval_session_work_units")
+            index_names.update({"pk_eval_session_work_units", unique_key})
         elif db_backend == "sqlite":
             index_names.add("sqlite_autoindex_eval_session_work_units_1")
         else:
@@ -378,9 +361,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "project_session_rowid",
-                    "evaluator_id",
                     "project_evaluator_id",
-                    "config_fingerprint",
                     "evaluated_through",
                     "status",
                     "claimed_at",
@@ -413,20 +394,19 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_eval_trace_work_units_claimable",
-            "ix_eval_trace_work_units_evaluator_id",
+            "ix_eval_trace_work_units_project_evaluator_failed",
             "ix_eval_trace_work_units_project_evaluator_id",
             "ix_eval_trace_work_units_terminal",
-            "ix_eval_trace_work_units_terminal_watermark",
-            "uq_eval_trace_work_units_live_key",
         }
+        unique_key = _constraint_name(
+            "uq_eval_trace_work_units_trace_rowid_project_evaluator_id",
+            db_backend,
+        )
         constraint_names = {
             "pk_eval_trace_work_units",
+            unique_key,
             _constraint_name(
                 "fk_eval_trace_work_units_trace_rowid_traces",
-                db_backend,
-            ),
-            _constraint_name(
-                "fk_eval_trace_work_units_evaluator_id_evaluators",
                 db_backend,
             ),
             _constraint_name(
@@ -436,7 +416,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
             "ck_eval_trace_work_units_`valid_eval_work_status`",
         }
         if db_backend == "postgresql":
-            index_names.add("pk_eval_trace_work_units")
+            index_names.update({"pk_eval_trace_work_units", unique_key})
         elif db_backend == "sqlite":
             index_names.add("sqlite_autoindex_eval_trace_work_units_1")
         else:
@@ -447,9 +427,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "trace_rowid",
-                    "evaluator_id",
                     "project_evaluator_id",
-                    "config_fingerprint",
                     "evaluated_through",
                     "status",
                     "claimed_at",
@@ -472,6 +450,27 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
                 }
             ),
         )
+
+
+@pytest.mark.parametrize(
+    "table_name", ["eval_work_units", "eval_session_work_units", "eval_trace_work_units"]
+)
+async def test_every_work_unit_table_admits_dropped_status(
+    table_name: str,
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    await _verify_clean_state(_engine, _schema)
+    await _up(_engine, _alembic_config, _UP, _schema)
+
+    def _get_status_checks(conn: Connection) -> list[str]:
+        checks = sa.inspect(conn).get_check_constraints(table_name, schema=_schema or None)
+        return [str(check["sqltext"]) for check in checks if "status" in str(check["sqltext"])]
+
+    status_checks = await _run_async(_engine, _get_status_checks)
+    assert len(status_checks) == 1
+    assert "'DROPPED'" in status_checks[0]
 
 
 @pytest.mark.parametrize("spec", _LIVENESS_TABLES.values(), ids=_LIVENESS_TABLES)

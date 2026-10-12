@@ -86,7 +86,7 @@ class SpanColumn(Enum):
             return CursorSortColumnDataType.DATETIME
         assert_never(self)
 
-    def join_tables(self, stmt: Select[Any]) -> tuple[Select[Any], Any]:
+    def join_tables(self, stmt: Select[*tuple[Any, ...]]) -> tuple[Select[*tuple[Any, ...]], Any]:
         """
         If needed, joins tables required for the sort column.
         """
@@ -151,7 +151,7 @@ class EvalResultKey:
 
 @dataclass(frozen=True)
 class SpanSortConfig:
-    stmt: Select[Any]
+    stmt: Select[*tuple[Any, ...]]
     orm_expression: Any
     dir: SortDir
     column_name: str
@@ -167,7 +167,7 @@ class SpanSort:
     eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
-    def update_orm_expr(self, stmt: Select[Any]) -> SpanSortConfig:
+    def update_orm_expr(self, stmt: Select[*tuple[Any, ...]]) -> SpanSortConfig:
         if (col := self.col) and not self.eval_result_key:
             stmt, joined_table = col.join_tables(stmt)
             expr = col.as_orm_expression(joined_table)

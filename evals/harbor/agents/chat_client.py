@@ -1,28 +1,43 @@
 #!/usr/bin/env python3
-"""Run one headless PXI turn against a Phoenix server and save the transcript and spans."""
+"""Run one PXI turn against a Phoenix server and save the transcript and spans."""
 
 import argparse
 import asyncio
 import json
 import sys
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from uuid import uuid4
 
 import httpx
+from pydantic import BaseModel
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, DataChunk
 
+from phoenix.db.types.data_stream_protocol.phoenix_types import (
+    PhoenixAssistantMessageMetadata,
+    PhoenixUIMessage,
+    TurnTraceContext,
+)
+from phoenix.db.types.data_stream_protocol.request_types import TextUIPart
+from phoenix.db.types.data_stream_protocol.ui_state_types import EditPermission
+from phoenix.server.agents.context import (
+    AppContext,
+    ChatContext,
+    GraphQLContext,
+    SubagentsContext,
+    WebAccessContext,
+)
+from phoenix.server.agents.model_selection import (
+    AgentModelSelection,
+    BuiltInProviderModelSelection,
+)
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
+from phoenix.server.api.routers.agents import ChatRequestBody, CreateAgentSessionRequestBody
 
-EditPermission = Literal["manual", "bypass"]
-Message = dict[str, Any]
-Part = dict[str, Any]
 TurnSpan = dict[str, Any]
-ApprovalPolicy = Callable[[Part], bool]
 
 _SSE_DATA_PREFIX = "data: "
 _SSE_DONE = "data: [DONE]"
@@ -62,9 +77,15 @@ async def iter_sse_chunks(lines: AsyncIterator[str]) -> AsyncIterator[BaseChunk]
             yield chunk
 
 
+def to_wire(model: BaseModel) -> dict[str, Any]:
+    """The JSON the server sends and accepts: camelCase where the model aliases."""
+    dumped: dict[str, Any] = model.model_dump(mode="json", by_alias=True, exclude_none=True)
+    return dumped
+
+
 async def accumulate_assistant_message(
     chunks: AsyncIterator[BaseChunk],
-) -> tuple[Message, list[str]]:
+) -> tuple[PhoenixUIMessage, list[str]]:
     errors: list[str] = []
     latest: Any = None
     async for message in read_ui_message_stream(
@@ -76,44 +97,31 @@ async def accumulate_assistant_message(
             "The chat stream ended without producing an assistant message"
             + (f": {'; '.join(errors)}" if errors else "")
         )
-    dumped: Message = latest.model_dump(mode="json", by_alias=True, exclude_none=True)
-    return dumped, errors
+    return PhoenixUIMessage.model_validate(to_wire(latest)), errors
 
 
-def builtin_model_selection(harbor_model_name: str) -> dict[str, Any]:
-    """The server, not this client, rejects providers Phoenix does not know."""
+def builtin_model_selection(harbor_model_name: str) -> BuiltInProviderModelSelection:
     provider, separator, model_name = harbor_model_name.partition("/")
     if not separator or not model_name:
         raise ValueError(
             f"Expected a Harbor model name of the form provider/model, got {harbor_model_name!r}"
         )
-    return {"provider_type": "builtin", "provider": provider.upper(), "model_name": model_name}
+    return BuiltInProviderModelSelection.model_validate(
+        {"provider_type": "builtin", "provider": provider.upper(), "model_name": model_name}
+    )
 
 
-def user_message(text: str) -> Message:
-    return {"id": str(uuid4()), "role": "user", "parts": [{"type": "text", "text": text}]}
+def user_message(text: str) -> PhoenixUIMessage:
+    return PhoenixUIMessage(id=str(uuid4()), role="user", parts=[TextUIPart(text=text)])
 
 
-def chat_contexts(*, mutations_enabled: bool, now: datetime | None = None) -> list[dict[str, Any]]:
+def chat_contexts(*, mutations_enabled: bool, now: datetime | None = None) -> list[ChatContext]:
     now = now or datetime.now(timezone.utc)
     return [
-        {"type": "app", "currentDateTime": now.isoformat(), "timeZone": "UTC"},
-        {"type": "graphql", "mutationsEnabled": mutations_enabled},
-        {"type": "web_access", "enabled": False},
-        {"type": "subagents", "enabled": False},
-    ]
-
-
-def _is_tool_part(part: Part) -> bool:
-    part_type = str(part.get("type", ""))
-    return part_type == "dynamic-tool" or part_type.startswith("tool-")
-
-
-def pending_approvals(message: Message) -> list[Part]:
-    return [
-        part
-        for part in message["parts"]
-        if _is_tool_part(part) and part.get("state") == "approval-requested"
+        ChatContext(AppContext(type="app", current_date_time=now.isoformat(), time_zone="UTC")),
+        ChatContext(GraphQLContext(type="graphql", mutations_enabled=mutations_enabled)),
+        ChatContext(WebAccessContext(type="web_access", enabled=False)),
+        ChatContext(SubagentsContext(type="subagents", enabled=False)),
     ]
 
 
@@ -123,39 +131,38 @@ class SessionConflict(Exception):
         self.code = code
 
 
+def _assistant_metadata(message: PhoenixUIMessage) -> PhoenixAssistantMessageMetadata | None:
+    phoenix = message.metadata.phoenix if message.metadata is not None else None
+    return phoenix if isinstance(phoenix, PhoenixAssistantMessageMetadata) else None
+
+
 @dataclass
 class Turn:
-    """Everything one user instruction produced, across approval continuations."""
+    """Everything one turn produced, across approval continuations.
 
-    user_message: Message
-    assistant_messages: list[Message] = field(default_factory=list)
+    A turn opened with tool outputs, the way the browser answers a client-executed
+    tool, has no user message of its own.
+    """
+
+    user_message: PhoenixUIMessage | None
+    assistant_messages: list[PhoenixUIMessage] = field(default_factory=list)
     stream_errors: list[str] = field(default_factory=list)
 
     @property
-    def messages(self) -> list[Message]:
-        return [self.user_message, *self.assistant_messages]
+    def messages(self) -> list[PhoenixUIMessage]:
+        prefix = [self.user_message] if self.user_message is not None else []
+        return [*prefix, *self.assistant_messages]
 
     @property
-    def final_message(self) -> Message:
-        return self.assistant_messages[-1]
-
-    @property
-    def usage(self) -> dict[str, Any] | None:
-        metadata = self.final_message.get("metadata") or {}
-        usage = (metadata.get("phoenix") or {}).get("usage")
-        return usage if isinstance(usage, dict) else None
-
-    @property
-    def trace_contexts(self) -> list[dict[str, Any]]:
+    def trace_contexts(self) -> list[TurnTraceContext]:
         """The ``turnTraceContext`` of each assistant message: the trace PXI's own
         instrumentation wrote for that continuation, with its root span."""
-        contexts: list[dict[str, Any]] = []
-        for message in self.assistant_messages:
-            metadata = message.get("metadata") or {}
-            context = (metadata.get("phoenix") or {}).get("turnTraceContext")
-            if isinstance(context, dict) and context.get("traceId"):
-                contexts.append(context)
-        return contexts
+        return [
+            metadata.turn_trace_context
+            for message in self.assistant_messages
+            if (metadata := _assistant_metadata(message)) is not None
+            and metadata.turn_trace_context is not None
+        ]
 
 
 class AgentSessionChatClient:
@@ -163,7 +170,7 @@ class AgentSessionChatClient:
         self,
         base_url: str,
         *,
-        model: dict[str, Any],
+        model: AgentModelSelection,
         transport: httpx.AsyncBaseTransport | None = None,
         turn_timeout_seconds: float = 900.0,
     ) -> None:
@@ -172,15 +179,14 @@ class AgentSessionChatClient:
             transport=transport,
             timeout=httpx.Timeout(turn_timeout_seconds, connect=30.0),
         )
-        self._model = model
+        self.model = model
 
     async def aclose(self) -> None:
         await self._http.aclose()
 
     async def create_session(self) -> str:
-        response = await self._http.post(
-            "/v1/agent_sessions", json={"model": self._model, "is_ephemeral": False}
-        )
+        body = CreateAgentSessionRequestBody(model=self.model, is_ephemeral=False)
+        response = await self._http.post("/v1/agent_sessions", json=to_wire(body))
         _raise_for_status(response)
         return str(response.json()["data"]["id"])
 
@@ -214,7 +220,7 @@ class AgentSessionChatClient:
             if not cursor:
                 return spans
 
-    async def fetch_turn_spans(self, trace_contexts: list[dict[str, Any]]) -> list[TurnSpan]:
+    async def fetch_turn_spans(self, trace_contexts: list[TurnTraceContext]) -> list[TurnSpan]:
         if not trace_contexts:
             return []
         deadline = asyncio.get_running_loop().time() + _SPAN_SETTLE_TIMEOUT_SECONDS
@@ -223,7 +229,7 @@ class AgentSessionChatClient:
             spans_by_trace = await self._spans_by_trace(trace_contexts)
             counts = {trace_id: len(spans) for trace_id, spans in spans_by_trace.items()}
             settled = counts == previous and all(
-                _root_finished(spans_by_trace.get(str(context["traceId"]), []), context)
+                _root_finished(spans_by_trace.get(context.trace_id, []), context)
                 for context in trace_contexts
             )
             if settled or asyncio.get_running_loop().time() >= deadline:
@@ -238,9 +244,9 @@ class AgentSessionChatClient:
             await asyncio.sleep(_SPAN_SETTLE_POLL_SECONDS)
 
     async def _spans_by_trace(
-        self, trace_contexts: list[dict[str, Any]]
+        self, trace_contexts: list[TurnTraceContext]
     ) -> dict[str, list[dict[str, Any]]]:
-        wanted = {str(context["traceId"]) for context in trace_contexts}
+        wanted = {context.trace_id for context in trace_contexts}
         found: dict[str, list[dict[str, Any]]] = {}
         for project in await self.list_projects():
             for trace_id in wanted - found.keys():
@@ -249,8 +255,8 @@ class AgentSessionChatClient:
                     found[trace_id] = spans
         return found
 
-    async def list_messages(self, session_id: str) -> list[Message]:
-        messages: list[Message] = []
+    async def list_messages(self, session_id: str) -> list[PhoenixUIMessage]:
+        messages: list[PhoenixUIMessage] = []
         cursor: str | None = None
         while True:
             params: dict[str, str | int] = {"limit": 1000}
@@ -261,72 +267,43 @@ class AgentSessionChatClient:
             )
             _raise_for_status(response)
             payload = response.json()
-            messages.extend(payload["data"])
+            messages.extend(PhoenixUIMessage.model_validate(m) for m in payload["data"])
             cursor = payload.get("next_cursor")
             if not cursor:
                 return messages
 
-    async def run_turn(
-        self,
-        session_id: str,
-        instruction: str,
-        *,
-        edit_permission: EditPermission,
-        mutations_enabled: bool,
-        approve: ApprovalPolicy,
-        record_local_traces: bool = False,
-    ) -> Turn:
-        transcript = await self.list_messages(session_id)
-        last_message_id = transcript[-1]["id"] if transcript else None
-        base_body = {
-            "id": session_id,
-            "trigger": "submit-message",
-            "headless": True,
-            "model": self._model,
-            "editPermission": edit_permission,
-            "contexts": chat_contexts(mutations_enabled=mutations_enabled),
-            "recordLocalTraces": record_local_traces,
-        }
-        turn = Turn(user_message=user_message(instruction))
-        message, errors = await self._chat(
-            session_id,
-            {**base_body, "message": turn.user_message, "lastMessageId": last_message_id},
-        )
-        turn.assistant_messages.append(message)
+    async def run_turn(self, request: ChatRequestBody) -> Turn:
+        """Post ``request`` to open a turn. The turn ends when the model finishes or when it
+        calls a client-executed tool or asks for approval, which the caller sees pending.
+
+        The server rejects a send whose ``lastMessageId`` is not the transcript's newest
+        message. A request without one is completed from the stored transcript.
+        """
+        if (request.message is None) == (not request.tool_outputs):
+            raise ValueError("A turn opens with either a user message or tool outputs")
+        if request.last_message_id is None and (transcript := await self.list_messages(request.id)):
+            request = request.model_copy(update={"last_message_id": transcript[-1].id})
+        turn = Turn(user_message=request.message)
+        reply, errors = await self._chat(request)
+        turn.assistant_messages.append(reply)
         turn.stream_errors.extend(errors)
-        while not errors and (approvals := pending_approvals(message)):
-            message, errors = await self._chat(
-                session_id,
-                {
-                    **base_body,
-                    "toolApprovals": [
-                        {"toolCallId": part["toolCallId"], "approved": approve(part)}
-                        for part in approvals
-                    ],
-                    "lastMessageId": message["id"],
-                },
-            )
-            turn.assistant_messages.append(message)
-            turn.stream_errors.extend(errors)
         return turn
 
-    async def _chat(self, session_id: str, body: dict[str, Any]) -> tuple[Message, list[str]]:
+    async def _chat(self, body: ChatRequestBody) -> tuple[PhoenixUIMessage, list[str]]:
         for attempt in range(_BUSY_RETRY_ATTEMPTS):
             try:
-                return await self._stream_chat(session_id, body)
+                return await self._stream_chat(body)
             except SessionConflict as conflict:
                 if conflict.code != "agent_session_busy" or attempt == _BUSY_RETRY_ATTEMPTS - 1:
                     raise
                 await asyncio.sleep(_BUSY_RETRY_DELAY_SECONDS)
         raise AssertionError("unreachable")
 
-    async def _stream_chat(
-        self, session_id: str, body: dict[str, Any]
-    ) -> tuple[Message, list[str]]:
+    async def _stream_chat(self, body: ChatRequestBody) -> tuple[PhoenixUIMessage, list[str]]:
         async with self._http.stream(
             "POST",
-            f"/v1/agent_sessions/{session_id}/chat",
-            json=body,
+            f"/v1/agent_sessions/{body.id}/chat",
+            json=to_wire(body),
             headers={"accept": "text/event-stream"},
         ) as response:
             if response.status_code >= 400:
@@ -364,10 +341,9 @@ def trim_span(span: dict[str, Any]) -> TurnSpan:
     }
 
 
-def _root_finished(spans: list[dict[str, Any]], context: dict[str, Any]) -> bool:
-    root_span_id = context.get("rootSpanId")
+def _root_finished(spans: list[dict[str, Any]], context: TurnTraceContext) -> bool:
     for span in spans:
-        if span["context"]["span_id"] == root_span_id:
+        if span["context"]["span_id"] == context.root_span_id:
             return bool(span.get("end_time"))
     return False
 
@@ -388,10 +364,6 @@ def _raise_for_status(response: httpx.Response) -> None:
     raise RuntimeError(message)
 
 
-def _dump_json(value: Any) -> str:
-    return json.dumps(value, indent=2) + "\n"
-
-
 async def run(args: argparse.Namespace) -> None:
     edit_permission: EditPermission = "bypass" if args.allow_mutations else "manual"
     client = AgentSessionChatClient(
@@ -400,42 +372,54 @@ async def run(args: argparse.Namespace) -> None:
         turn_timeout_seconds=args.turn_timeout_seconds,
     )
     try:
-        session_id = args.session_id or await client.create_session()
-        turn = await client.run_turn(
-            session_id,
-            args.instruction_file.read_text(),
-            edit_permission=edit_permission,
-            mutations_enabled=args.allow_mutations,
-            approve=lambda _part: args.approve_tool_calls,
-            record_local_traces=True,
-        )
-        transcript = await client.list_messages(session_id)
+        if args.request is not None:
+            request = ChatRequestBody.model_validate_json(args.request)
+        else:
+            if args.instruction is None:
+                raise ValueError("--instruction is required without --request")
+            session_id = args.session_id or await client.create_session()
+            request = ChatRequestBody(
+                id=session_id,
+                headless=True,
+                model=client.model,
+                edit_permission=edit_permission,
+                contexts=chat_contexts(mutations_enabled=args.allow_mutations),
+                record_local_traces=True,
+                message=user_message(args.instruction),
+            )
+        turn = await client.run_turn(request)
         turn_spans = await client.fetch_turn_spans(turn.trace_contexts)
     finally:
         await client.aclose()
 
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    args.out_dir.joinpath("session_id").write_text(session_id + "\n")
-    args.out_dir.joinpath("turn_messages.json").write_text(_dump_json(turn.messages))
-    args.out_dir.joinpath("messages.json").write_text(_dump_json(transcript))
-    args.out_dir.joinpath("usage.json").write_text(_dump_json(turn.usage))
-    args.out_dir.joinpath("turn_spans.json").write_text(_dump_json(turn_spans))
-    args.out_dir.joinpath("stream_errors.json").write_text(_dump_json(turn.stream_errors))
     for error in turn.stream_errors:
         print(f"warning: the server ended the turn with an error: {error}", file=sys.stderr)
+    print(
+        json.dumps(
+            {
+                "session_id": request.id,
+                "turn_messages": [to_wire(message) for message in turn.messages],
+                "turn_spans": turn_spans,
+                "stream_errors": turn.stream_errors,
+            }
+        )
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:6006")
     parser.add_argument("--model", required=True, help="Harbor provider/model name")
-    parser.add_argument("--instruction-file", type=Path, required=True)
-    parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument("--instruction", default=None, help="The user message that opens the turn")
+    parser.add_argument(
+        "--request",
+        default=None,
+        help="A ChatRequestBody JSON to post as the turn, leaving approval requests pending",
+    )
     parser.add_argument(
         "--session-id", default=None, help="Continue this session; omit to create one"
     )
     parser.add_argument("--allow-mutations", action="store_true")
-    parser.add_argument("--approve-tool-calls", action="store_true")
     parser.add_argument("--turn-timeout-seconds", type=float, default=900.0)
     asyncio.run(run(parser.parse_args()))
 

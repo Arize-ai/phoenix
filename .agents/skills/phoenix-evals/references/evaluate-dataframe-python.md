@@ -32,6 +32,10 @@ results_df = evaluate_dataframe(
 )
 ```
 
+## Errors and Retries
+
+Failing rows retry up to `max_retries`, except `PhoenixException`s, which fail immediately (`RateLimitError` still retries). `exit_on_error=True` (default) stops at the first exhausted row, leaving the rest unevaluated; `False` continues. Per-row `status`/`exceptions` are in `{name}_execution_details`.
+
 ## Result Column Format
 
 `async_evaluate_dataframe` / `evaluate_dataframe` returns a copy of the input DataFrame with added columns.

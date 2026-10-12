@@ -2,32 +2,52 @@ import { formatDistanceToNow } from "date-fns";
 
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import { isEvaluatorSlotName } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
+import type { ProjectEvaluatorRunStatus } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import {
-  EVALUATOR_MAPPING_SOURCE_GRAINS,
+  EVALUATOR_RECORD_KINDS,
   getEvaluatorMetadataEntryNames,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import type {
   EvaluatorInputMapping,
-  EvaluatorMappingSourceGrain,
+  EvaluatorRecordKind,
 } from "@phoenix/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+
+/**
+ * Drops each path whose variable also has a literal. The server applies the
+ * literal over the path, so the literal is what the variable reads; a form
+ * that shows the path would show a binding that never takes effect.
+ */
+export function dropPathsShadowedByLiterals(
+  inputMapping: EvaluatorInputMapping
+): EvaluatorInputMapping {
+  const pathMapping = Object.fromEntries(
+    Object.entries(inputMapping.pathMapping).filter(
+      ([variable]) => !Object.hasOwn(inputMapping.literalMapping, variable)
+    )
+  );
+  return { ...inputMapping, pathMapping };
+}
 
 /**
  * Drops paths rooted at a `metadata` name the new record kind does not carry —
  * a path that matches nothing fails the evaluation server-side.
  */
-export function dropOtherGrainEntityPathMappings(
+export function dropOtherRecordKindPathMappings(
   inputMapping: EvaluatorInputMapping,
-  grain: ProjectEvaluatorMappingSourceGrain
+  recordKind: ProjectEvaluatorRecordKind
 ): EvaluatorInputMapping {
-  const ownNames = getEvaluatorMetadataEntryNames(grain);
-  const staleNames = EVALUATOR_MAPPING_SOURCE_GRAINS.filter(
-    (otherGrain) => otherGrain !== grain
+  const ownNames = getEvaluatorMetadataEntryNames(recordKind);
+  const staleNames = EVALUATOR_RECORD_KINDS.filter(
+    (otherRecordKind) => otherRecordKind !== recordKind
   )
-    .flatMap((otherGrain) => [...getEvaluatorMetadataEntryNames(otherGrain)])
+    .flatMap((otherRecordKind) => [
+      ...getEvaluatorMetadataEntryNames(otherRecordKind),
+    ])
     .filter((name) => !ownNames.has(name));
   const pathMapping = Object.fromEntries(
     Object.entries(inputMapping.pathMapping).filter(
@@ -186,14 +206,14 @@ export const isProjectEvaluatorTarget = (
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
 
 /** A project evaluator runs on a record, never on a dataset example. */
-export type ProjectEvaluatorMappingSourceGrain = Exclude<
-  EvaluatorMappingSourceGrain,
+export type ProjectEvaluatorRecordKind = Exclude<
+  EvaluatorRecordKind,
   "dataset"
 >;
 
-export function toEvaluatorMappingSourceGrain(
+export function toEvaluatorRecordKind(
   target: ProjectEvaluatorTarget
-): ProjectEvaluatorMappingSourceGrain {
+): ProjectEvaluatorRecordKind {
   switch (target) {
     case "SESSION":
       return "session";
@@ -242,20 +262,21 @@ export function formatSamplingRate(samplingRate: number): string {
 }
 
 export type ProjectEvaluatorRunSummary = {
-  status: string;
+  status: ProjectEvaluatorRunStatus;
   lastRunAt: string | null;
   queuedCount: number;
   evaluatedCount: number;
   failedCount: number;
   droppedCount: number;
+  oldestQueuedAt?: string | null;
 };
 
 export type ProjectEvaluatorStatus = {
   label: string;
   color: string;
   variant: BadgeVariant;
-  /** Why the evaluator is in this state, shown on hover and on the details page. */
-  explanation: string;
+  /** Why the evaluator is in this state, for states whose label doesn't say. */
+  explanation: string | null;
 };
 
 /** `Badge` takes the variant; `Token` takes the color. One choice, two spellings. */
@@ -267,40 +288,50 @@ const STATUS_COLOR_BY_VARIANT: Record<BadgeVariant, string> = {
   default: "var(--global-color-gray-300)",
 };
 
-/** The one status a row reports, read from its most recent runs. */
+const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
+  ProjectEvaluatorRunStatus,
+  Omit<ProjectEvaluatorStatus, "color">
+> = {
+  DISABLED: {
+    label: "Disabled",
+    variant: "default",
+    explanation: null,
+  },
+  ERROR: {
+    label: "Error",
+    variant: "danger",
+    explanation: "Last evaluation failed",
+  },
+  DEGRADED: {
+    label: "Degraded",
+    variant: "warning",
+    explanation: "Its next evaluation has waited more than 10 minutes",
+  },
+  RUNNING: {
+    label: "Running",
+    variant: "success",
+    explanation: null,
+  },
+  QUEUED: {
+    label: "Queued",
+    variant: "info",
+    explanation: null,
+  },
+  NEVER_RUN: {
+    label: "Never ran",
+    variant: "default",
+    explanation: null,
+  },
+};
+
+/** The one status a row reports, as the server derives it. */
 export function getProjectEvaluatorStatus({
   runSummary,
 }: {
   // Narrowed so status cells can render without fetching run counts.
   runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
-  const status =
-    runSummary.status === "ERROR"
-      ? {
-          label: "Error",
-          variant: "danger" as const,
-          explanation:
-            "The most recent evaluation run failed and will not be retried.",
-        }
-      : runSummary.status === "RUNNING"
-        ? {
-            label: "Running",
-            variant: "success" as const,
-            explanation:
-              "Evaluation runs are completing and writing annotations.",
-          }
-        : runSummary.status === "QUEUED"
-          ? {
-              label: "Queued",
-              variant: "info" as const,
-              explanation: "Evaluations are waiting to run.",
-            }
-          : {
-              label: "Never ran",
-              variant: "default" as const,
-              explanation:
-                "No evaluations have been scheduled for this evaluator yet.",
-            };
+  const status = PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS[runSummary.status];
   return { ...status, color: STATUS_COLOR_BY_VARIANT[status.variant] };
 }
 
@@ -312,6 +343,33 @@ export function formatLastRun(lastRunAt: string | null): string {
 
 const countFormatter = new Intl.NumberFormat();
 
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+/** A duration in its largest whole unit: "<1m", "12m", "3h", "2d". */
+export function formatDurationShort(milliseconds: number): string {
+  const duration = Math.max(0, milliseconds);
+  if (duration >= DAY_MS) {
+    return `${Math.floor(duration / DAY_MS)}d`;
+  }
+  if (duration >= HOUR_MS) {
+    return `${Math.floor(duration / HOUR_MS)}h`;
+  }
+  if (duration >= MINUTE_MS) {
+    return `${Math.floor(duration / MINUTE_MS)}m`;
+  }
+  return "<1m";
+}
+
+/** Time elapsed since `since`, in its largest whole unit. */
+export function formatElapsedShort(
+  since: string,
+  now: number = Date.now()
+): string {
+  return formatDurationShort(now - new Date(since).getTime());
+}
+
 /** "118 evaluated · 2 failed · 3 queued", dropping the parts that are zero. */
 export function formatProjectEvaluatorRunCounts(
   runSummary: ProjectEvaluatorRunSummary
@@ -320,7 +378,7 @@ export function formatProjectEvaluatorRunCounts(
     [
       [runSummary.evaluatedCount, "evaluated"],
       [runSummary.failedCount, "failed"],
-      [runSummary.droppedCount, "dropped"],
+      [runSummary.droppedCount, "cleared"],
       [runSummary.queuedCount, "queued"],
     ] as const
   )
@@ -334,11 +392,11 @@ export type ProjectEvaluatorMappingDiagnostic = {
   path: string;
   status: "resolved" | "missing" | "optional-missing" | "unverified";
   /**
-   * Where the value comes from: a path the author wrote, or a field of the same
-   * name at the top of the evaluation context. Only `path` carries a path worth
-   * showing.
+   * Where the value comes from: a path the author wrote, text saved on the
+   * evaluator, or a field of the same name at the top of the evaluation
+   * context. Only `path` carries a path worth showing.
    */
-  source: "path" | "context";
+  source: "path" | "literal" | "context";
 };
 
 /**
@@ -348,21 +406,47 @@ export type ProjectEvaluatorMappingDiagnostic = {
  */
 export function formatMissingBindingMessage(
   diagnostic: ProjectEvaluatorMappingDiagnostic,
-  grain: ProjectEvaluatorMappingSourceGrain
+  recordKind: ProjectEvaluatorRecordKind
 ): string {
   const subject =
     diagnostic.source === "path" ? diagnostic.path : diagnostic.variable;
-  return `${subject} does not exist on this ${grain}, so evaluation fails`;
+  return `${subject} does not exist on this ${recordKind}, so evaluation fails`;
+}
+
+/**
+ * The required variables a mapping leaves with nothing to read on any record:
+ * no path or text of their own, and no field of the same name to fall back to.
+ * An evaluator saved like this fails every time it runs.
+ */
+export function getUnboundRequiredVariables({
+  variables,
+  requiredVariables = variables,
+  inputMapping,
+}: {
+  variables: readonly string[];
+  requiredVariables?: readonly string[];
+  inputMapping: EvaluatorInputMapping;
+}): string[] {
+  const required = new Set(requiredVariables);
+  return variables.filter(
+    (variable) =>
+      required.has(variable) &&
+      !isEvaluatorSlotName(variable) &&
+      !inputMapping.pathMapping[variable] &&
+      !Object.hasOwn(inputMapping.literalMapping, variable)
+  );
 }
 
 export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,
+  literalMapping = {},
   variables,
   requiredVariables = variables,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
+  literalMapping?: EvaluatorInputMapping["literalMapping"];
   variables: string[];
   requiredVariables?: string[];
 }): ProjectEvaluatorMappingDiagnostic[] {
@@ -377,16 +461,25 @@ export function getProjectEvaluatorMappingDiagnostics({
       // answer from here — a wildcard only the server resolves, a context
       // with nothing in it yet — is unverified rather than wrong.
       const resolution = resolveEvaluatorPath({ source, path: mappedPath });
+      const status =
+        resolution.status === "unverifiable"
+          ? "unverified"
+          : resolution.status === "unresolved"
+            ? missingStatus(variable)
+            : "resolved";
+      // The server still resolves the path, and fails on one that matches
+      // nothing, but then applies the literal over what it found.
+      if (status === "resolved" && Object.hasOwn(literalMapping, variable)) {
+        return { variable, path: variable, status, source: "literal" };
+      }
+      return { variable, path: mappedPath, status, source: "path" };
+    }
+    if (Object.hasOwn(literalMapping, variable)) {
       return {
         variable,
-        path: mappedPath,
-        status:
-          resolution.status === "unverifiable"
-            ? "unverified"
-            : resolution.status === "unresolved"
-              ? missingStatus(variable)
-              : "resolved",
-        source: "path",
+        path: variable,
+        status: "resolved",
+        source: "literal",
       };
     }
     // An unmapped variable binds only from a field of the same name at the top

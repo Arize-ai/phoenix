@@ -17,7 +17,11 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+import {
+  useNotifyError,
+  useNotifySuccess,
+} from "@phoenix/contexts/NotificationContext";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { DeletePromptVersionTagButtonMutation } from "./__generated__/DeletePromptVersionTagButtonMutation.graphql";
 
@@ -30,6 +34,7 @@ export function DeletePromptVersionTagButton({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
   const [commitDelete, isCommitting] =
     useMutation<DeletePromptVersionTagButtonMutation>(graphql`
       mutation DeletePromptVersionTagButtonMutation(
@@ -95,6 +100,16 @@ export function DeletePromptVersionTagButton({
                         notifySuccess({
                           title: "Tag Deleted",
                           message: "The tag has been deleted",
+                        });
+                      },
+                      onError: (error) => {
+                        setIsOpen(false);
+                        notifyError({
+                          title: "Failed to delete tag",
+                          message:
+                            getErrorMessagesFromRelayMutationError(
+                              error
+                            )?.[0] ?? error.message,
                         });
                       },
                     })

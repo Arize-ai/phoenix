@@ -71,20 +71,14 @@ export const JSONDistanceEvaluatorForm = () => {
     return unregister;
   }, [store, triggerValidation]);
 
-  // Determine initial mode based on existing values
-  const expectedDefaultMode =
-    getValues("literalMapping.expected") != null ? "literal" : "path";
-  const actualDefaultMode =
-    getValues("literalMapping.actual") != null ? "literal" : "path";
-
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
         <SwitchableEvaluatorInput
           fieldName="expected"
           label="Expected"
-          defaultMode={expectedDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Expected"
@@ -96,8 +90,8 @@ export const JSONDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="actual"
           label="Actual"
-          defaultMode={actualDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Actual"

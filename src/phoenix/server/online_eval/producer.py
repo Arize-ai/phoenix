@@ -1,13 +1,20 @@
 """Online-eval producer daemon.
 
 Materializes span-level eval work units from enabled project evaluators.
-The producer runs on every replica but self-elects each tick via the
-``eval_work_cursors`` CAS lease, so exactly one replica per evaluation target
-scans spans and writes work rows at a time. Each tick: renew the lease, reap
-expired/aged work rows, scan the lag-gated span id window per project evaluator, and
-idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
-backstop sweep re-covers a bounded id window behind the watermark to catch spans
-that became visible after their window was scanned.
+The producer runs on every replica. The ``span-producer`` lease is advisory: it keeps
+one replica scanning at a time so scans aren't repeated, but no write is fenced on it.
+The unique (span, project evaluator) work-unit key absorbs duplicate
+inserts. Each tick takes the lease and deletes aged terminal work rows. When a frontier
+is due and the queue has room, it also scans the lag-gated span id window per project
+evaluator and inserts surviving work units, as many as the room left under the admission
+lock allows. A slow-cadence backstop sweep re-covers a bounded id window behind the
+watermark to catch spans that became visible after their window was scanned.
+
+Every cursor write is compare-and-set on the position it read, and a scan (frontier or
+backstop) commits only if the cursor still holds the position it scanned against. The
+reaper deletes terminal span work below the cursor minus ``backstop_lookback_span_ids``,
+so no scan may commit against a position the cursor has left: its inserts could recreate
+work whose finished rows were already reaped.
 """
 
 from __future__ import annotations
@@ -16,11 +23,12 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Optional
 
-from sqlalchemy import Select, delete, exists, func, or_, select, update
+from sqlalchemy import Select, delete, exists, func, select, text, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
@@ -29,55 +37,41 @@ from phoenix.config import (
     get_env_online_eval_backstop_interval_seconds,
     get_env_online_eval_backstop_lookback_span_ids,
     get_env_online_eval_frontier_lag_seconds,
-    get_env_online_eval_max_outstanding,
     get_env_online_eval_max_span_ids_per_tick,
-    get_env_online_eval_pending_ttl_seconds,
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
-from phoenix.db.eval_work import LIVE_EVAL_WORK_STATUSES, TERMINAL_EVAL_WORK_STATUSES
+from phoenix.db.eval_work import terminal_eval_work_index_predicate
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
-from phoenix.server.online_eval.derivation import (
-    annotation_identifier,
-    config_fingerprint,
-    sample_key,
-)
+from phoenix.server.online_eval import admission
+from phoenix.server.online_eval.derivation import sample_key
+from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
+    ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
 
 logger = logging.getLogger(__name__)
 
-CURSOR_LEASE_TTL_SECONDS = 90.0
 TICK_INTERVAL_SECONDS = 10.0
 
 _INSERT_BATCH_SIZE = 1000
-_WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
-_CONSUMER_GROUP = "default"
-_PENDING_TTL_EXCEEDED_ERROR = "pending ttl exceeded"
-
-
-class _CursorLeaseLost(Exception):
-    pass
+_WORK_UNIT_UNIQUE_BY = ("span_rowid", "project_evaluator_id")
+_CURSOR_ID = 1
 
 
 @dataclass(frozen=True)
 class _ActiveProjectEvaluator:
     project_evaluator_id: int
     project_id: int
-    evaluator_id: int
-    name: str
     sampling_rate: float
-    fingerprint: str
-    identifier: str
     span_filter: SpanFilter
 
-    def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[tuple[int]]:
+    def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[int]:
         stmt = (
             select(models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
@@ -86,33 +80,13 @@ class _ActiveProjectEvaluator:
         )
         return self.span_filter(stmt)
 
-    def materializable_scan_stmt(
-        self, low_exclusive: int, high_inclusive: int
-    ) -> Select[tuple[int]]:
+    def materializable_scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[int]:
         return self.scan_stmt(low_exclusive, high_inclusive).where(
             ~exists(
                 select(1).where(
-                    models.SpanAnnotation.span_rowid == models.Span.id,
-                    models.SpanAnnotation.name == self.name,
-                    models.SpanAnnotation.identifier == self.identifier,
+                    models.EvalWorkUnit.span_rowid == models.Span.id,
+                    models.EvalWorkUnit.project_evaluator_id == self.project_evaluator_id,
                 )
-            ),
-            or_(
-                ~exists(
-                    select(1).where(
-                        models.EvalWorkUnit.span_rowid == models.Span.id,
-                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
-                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
-                    )
-                ),
-                exists(
-                    select(1).where(
-                        models.EvalWorkUnit.span_rowid == models.Span.id,
-                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
-                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
-                        models.EvalWorkUnit.status == "SUPERSEDED",
-                    )
-                ),
             ),
         )
 
@@ -123,10 +97,13 @@ class _ActiveProjectEvaluator:
 class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
-    ``produced_through_id`` is a position in that log: every span at or below it has
-    been offered to every enabled SPAN project evaluator. Session work is materialized from
-    entity state instead, by ``EvalSweeper`` — a session becomes eligible when it
-    goes quiet, which no position in an arrival log can express.
+    ``produced_through_id`` is a scan position in that log: spans above it are still to be
+    scanned, and spans at or below it were scanned for the SPAN project evaluators active
+    when the position passed them. It starts at the newest span, so older spans, and spans
+    an evaluator missed because it was enabled later, are reached only by the backstop's
+    lookback (``backstop_lookback_span_ids``). Session and trace work are
+    materialized from entity state instead, by ``EvalSweeper`` — a session or trace
+    becomes eligible when it goes quiet, which no position in an arrival log can express.
     """
 
     def __init__(
@@ -137,20 +114,16 @@ class OnlineEvalProducer(DaemonTask):
     ) -> None:
         super().__init__()
         self._db = db
-        self._evaluation_target: models.EvaluationTarget = "SPAN"
         self._tick_interval_seconds = tick_interval_seconds
-        self._producer_id = f"producer-{token_hex(8)}"
+        self._lease = MaterializerLease(db, name="span-producer", holder=f"producer-{token_hex(8)}")
         self._frontier_lag_seconds = get_env_online_eval_frontier_lag_seconds()
         self._backstop_interval_seconds = get_env_online_eval_backstop_interval_seconds()
         self._backstop_lookback_span_ids = get_env_online_eval_backstop_lookback_span_ids()
         self._max_span_ids_per_tick = get_env_online_eval_max_span_ids_per_tick()
-        # Disabled by default because expiry is terminal and blocks backstop re-materialization.
-        self._pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
         self._retention_seconds = get_env_online_eval_retention_seconds()
-        self._max_outstanding = get_env_online_eval_max_outstanding()
         self._last_backstop_at = time.monotonic()
-        self._lease_held = False
         self._publish_metrics = get_env_enable_prometheus()
+        ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(evaluation_target="SPAN")
         self._last_ingest_sample: Optional[tuple[int, datetime]] = None
 
     async def _run(self) -> None:
@@ -164,247 +137,140 @@ class OnlineEvalProducer(DaemonTask):
         finally:
             # A second cancellation while stop() drains would abort the release and leave the
             # lease held until its 90 s TTL expires; the shield keeps the release running.
-            await asyncio.shield(asyncio.ensure_future(self._release_lease()))
+            await asyncio.shield(asyncio.ensure_future(self._lease.release()))
 
     async def _tick(self) -> None:
-        try:
-            now = datetime.now(timezone.utc)
-            mutations_allowed = not self._db.should_not_insert_or_update
-            cursor = await self._acquire_cursor(now, allow_insert=mutations_allowed)
-            if cursor is None:
-                return
-            if not mutations_allowed:
-                await self._reap(now, cursor.produced_through_id, mutations_allowed=False)
-                await self._renew_lease(datetime.now(timezone.utc))
-                return
-            cursor = await self._clamp_cursor(cursor)
-            if cursor is None:
-                return
-            produced_through_id = cursor.produced_through_id
+        if not await self._lease.acquire():
+            return
+        async with self._db() as session:
+            now = await current_database_time(session, self._db.dialect)
+            cursor = await self._load_cursor(session)
+        if cursor is None:
+            return
+        if self._db.should_not_insert_or_update:
+            await self._reap(now)
+            return
+        cursor = await self._clamp_cursor(cursor)
+        if cursor is None:
+            return
+        produced_through_id = cursor.produced_through_id
 
-            await self._reap(now, produced_through_id, mutations_allowed=True)
-            await self._renew_lease(datetime.now(timezone.utc))
+        await self._reap(now)
 
-            observed_high_water_id = cursor.observed_high_water_id
-            pending_observation = (
-                observed_high_water_id is not None
-                and cursor.observed_at is not None
-                and observed_high_water_id > produced_through_id
+        observed_high_water_id = cursor.observed_high_water_id
+        pending_observation = (
+            observed_high_water_id is not None
+            and cursor.observed_at is not None
+            and observed_high_water_id > produced_through_id
+        )
+        frontier: Optional[int] = None
+        if (
+            pending_observation
+            and observed_high_water_id is not None
+            and cursor.observed_at is not None
+            and (now - cursor.observed_at).total_seconds() >= self._frontier_lag_seconds
+        ):
+            frontier = min(
+                observed_high_water_id,
+                produced_through_id + self._max_span_ids_per_tick,
             )
-            frontier: Optional[int] = None
-            if (
-                pending_observation
-                and observed_high_water_id is not None
-                and cursor.observed_at is not None
-                and (now - cursor.observed_at).total_seconds() >= self._frontier_lag_seconds
-            ):
-                frontier = min(
-                    observed_high_water_id,
-                    produced_through_id + self._max_span_ids_per_tick,
-                )
 
-            budget = await self._admission_budget()
-            active = await self._load_active_project_evaluators() if budget > 0 else []
+        budget = await self._admission_budget()
+        active = await self._load_active_project_evaluators() if budget > 0 else []
 
-            advanced = False
-            if budget > 0 and frontier is not None:
-                await self._renew_lease(datetime.now(timezone.utc))
-                advanced, budget = await self._materialize_and_advance(
-                    active,
-                    produced_through_id,
-                    frontier,
-                    budget,
-                )
-                if advanced:
-                    produced_through_id = frontier
+        advanced = False
+        if budget > 0 and frontier is not None:
+            if not await self._lease.renew():
+                return
+            advanced, budget = await self._materialize_and_advance(
+                active,
+                produced_through_id,
+                frontier,
+            )
+            if advanced:
+                produced_through_id = frontier
 
-            observation_consumed = advanced and frontier == observed_high_water_id
-            if not pending_observation or observation_consumed:
-                await self._record_observation(produced_through_id)
+        observation_consumed = advanced and frontier == observed_high_water_id
+        if not pending_observation or observation_consumed:
+            await self._record_observation(produced_through_id)
+        else:
+            await self._refresh_gauges(produced_through_id)
 
-            if budget > 0 and time.monotonic() - self._last_backstop_at >= (
-                self._backstop_interval_seconds
-            ):
-                await self._renew_lease(datetime.now(timezone.utc))
-                await self._backstop_sweep(active, produced_through_id, budget)
-                self._last_backstop_at = time.monotonic()
-        except _CursorLeaseLost:
-            logger.warning("Online-eval producer tick aborted after losing its lease")
+        if budget > 0 and time.monotonic() - self._last_backstop_at >= (
+            self._backstop_interval_seconds
+        ):
+            if not await self._lease.renew():
+                return
+            await self._backstop_sweep(active, produced_through_id)
+            self._last_backstop_at = time.monotonic()
 
-    async def _acquire_cursor(
-        self,
-        now: datetime,
-        *,
-        allow_insert: bool = True,
-    ) -> Optional[models.EvalWorkCursor]:
-        stale = now - timedelta(seconds=CURSOR_LEASE_TTL_SECONDS)
-        for _ in range(2):
-            async with self._db() as session:
-                cursor: Optional[models.EvalWorkCursor] = await session.scalar(
-                    update(models.EvalWorkCursor)
-                    .where(
-                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                        or_(
-                            models.EvalWorkCursor.claimed_by.is_(None),
-                            models.EvalWorkCursor.claimed_by == self._producer_id,
-                            models.EvalWorkCursor.claimed_at < stale,
-                        ),
-                    )
-                    .values(claimed_by=self._producer_id, claimed_at=now)
-                    .returning(models.EvalWorkCursor)
-                )
-            if cursor is not None:
-                self._lease_held = True
-                return cursor
-            async with self._db() as session:
-                row_exists = await session.scalar(
-                    select(models.EvalWorkCursor.id).where(
-                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    )
-                )
-                if row_exists is not None:
-                    break
-                if not allow_insert:
-                    break
-                produced_through_id = await session.scalar(select(func.max(models.Span.id))) or 0
-                await session.execute(
-                    insert_on_conflict(
-                        {
-                            "evaluation_target": self._evaluation_target,
-                            "consumer_group": _CONSUMER_GROUP,
-                            "produced_through_id": produced_through_id,
-                        },
-                        table=models.EvalWorkCursor,
-                        dialect=self._db.dialect,
-                        unique_by=("evaluation_target", "consumer_group"),
-                        on_conflict=OnConflict.DO_NOTHING,
-                    )
-                )
-        self._lease_held = False
-        return None
+    async def _load_cursor(self, session: AsyncSession) -> Optional[models.EvalSpanCursor]:
+        """Read the cursor, starting it at the current span high water on first use."""
+        cursor = await session.get(models.EvalSpanCursor, _CURSOR_ID)
+        if cursor is not None or self._db.should_not_insert_or_update:
+            return cursor
+        high_water = await session.scalar(select(func.max(models.Span.id))) or 0
+        await session.execute(
+            insert_on_conflict(
+                {"id": _CURSOR_ID, "produced_through_id": high_water},
+                table=models.EvalSpanCursor,
+                dialect=self._db.dialect,
+                unique_by=("id",),
+                on_conflict=OnConflict.DO_NOTHING,
+                constraint_name="pk_eval_span_cursors",
+            )
+        )
+        return await session.get(models.EvalSpanCursor, _CURSOR_ID)
 
-    async def _clamp_cursor(self, cursor: models.EvalWorkCursor) -> Optional[models.EvalWorkCursor]:
+    async def _clamp_cursor(self, cursor: models.EvalSpanCursor) -> Optional[models.EvalSpanCursor]:
+        """Lower the cursor to the live span high water, or return None if another
+        producer moved it since it was loaded."""
         async with self._db() as session:
             max_span_id = await session.scalar(select(func.max(models.Span.id))) or 0
             if max_span_id >= cursor.produced_through_id:
                 return cursor
-            clamped: Optional[models.EvalWorkCursor] = await session.scalar(
-                update(models.EvalWorkCursor)
+            return await session.scalar(
+                update(models.EvalSpanCursor)
                 .where(
-                    models.EvalWorkCursor.id == cursor.id,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
+                    models.EvalSpanCursor.id == _CURSOR_ID,
+                    models.EvalSpanCursor.produced_through_id == cursor.produced_through_id,
                 )
                 .values(
                     produced_through_id=max_span_id,
                     observed_high_water_id=None,
                     observed_at=None,
                 )
-                .returning(models.EvalWorkCursor)
+                .returning(models.EvalSpanCursor)
             )
-        if clamped is None:
-            self._lease_held = False
-            logger.warning("Online-eval producer lost its lease; cursor not clamped")
-        return clamped
 
-    async def _release_lease(self) -> None:
-        if not self._lease_held:
-            return
-        self._lease_held = False
-        try:
-            async with self._db() as session:
-                await session.execute(
-                    update(models.EvalWorkCursor)
-                    .where(
-                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                        models.EvalWorkCursor.claimed_by == self._producer_id,
-                    )
-                    .values(claimed_by=None, claimed_at=None)
-                )
-        except Exception:
-            logger.exception("Failed to release online-eval producer lease")
-
-    async def _renew_lease(self, now: datetime) -> None:
-        async with self._db() as session:
-            renewed = await session.scalar(
-                update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
-                )
-                .values(claimed_at=now)
-                .returning(models.EvalWorkCursor.id)
-            )
-        if renewed is None:
-            self._lease_held = False
-            raise _CursorLeaseLost
-
-    async def _reap(
-        self,
-        now: datetime,
-        produced_through_id: int,
-        *,
-        mutations_allowed: bool = True,
-    ) -> None:
+    async def _reap(self, now: datetime) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
         # regardless of age — they must remain to block backstop resurrection.
-        reap_floor = produced_through_id - self._backstop_lookback_span_ids
+        reap_floor = (
+            select(models.EvalSpanCursor.produced_through_id - self._backstop_lookback_span_ids)
+            .where(models.EvalSpanCursor.id == _CURSOR_ID)
+            .scalar_subquery()
+        )
         async with self._db() as session:
-            if mutations_allowed:
-                await reap_lapsed_leases(session, models.EvalWorkUnit)
-            if mutations_allowed and self._pending_ttl_seconds > 0:
-                pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
-                await session.execute(
-                    update(models.EvalWorkUnit)
-                    .where(
-                        models.EvalWorkUnit.status == "PENDING",
-                        models.EvalWorkUnit.created_at < pending_cutoff,
-                    )
-                    .values(
-                        status="DROPPED",
-                        error=func.coalesce(
-                            models.EvalWorkUnit.error,
-                            _PENDING_TTL_EXCEEDED_ERROR,
-                        ),
-                    )
-                )
             await session.execute(
                 delete(models.EvalWorkUnit).where(
-                    models.EvalWorkUnit.status.in_(TERMINAL_EVAL_WORK_STATUSES),
+                    # SQLite reads a partial index only when the query repeats its predicate.
+                    text(terminal_eval_work_index_predicate()),
                     models.EvalWorkUnit.updated_at < retention_cutoff,
                     models.EvalWorkUnit.span_rowid < reap_floor,
                 )
             )
 
     async def _admission_budget(self) -> int:
-        # The gate bounds the backlog that will eventually demand consumer
-        # capacity — every non-terminal row, not just PENDING: RUNNING rows are
-        # claimed but unfinished, and retryable ERROR rows return to the claim
-        # pool after cooldown. Under a provider outage the entire pending
-        # population migrates into retryable ERROR; a PENDING-only count would
-        # see an empty queue and keep materializing into the outage. FAILED rows
-        # are terminal (awaiting the reaper) and excluded.
+        """The room the queue has left, read without the admission lock: a full queue skips
+        this tick's scans, and admission reads the room again under the lock."""
         async with self._db() as session:
-            outstanding = (
-                select(1)
-                .select_from(models.EvalWorkUnit)
-                .where(models.EvalWorkUnit.status.in_(LIVE_EVAL_WORK_STATUSES))
-                .limit(self._max_outstanding)
-                .subquery()
-            )
-            outstanding_count = (
-                await session.scalar(select(func.count()).select_from(outstanding)) or 0
-            )
-        budget = max(0, self._max_outstanding - outstanding_count)
+            budget = await admission.room(session)
         if budget == 0:
             logger.warning(
-                f"Online-eval producer admission gate closed: "
-                f"{outstanding_count} outstanding work units reached "
-                f"{self._max_outstanding}"
+                f"Online-eval producer admission gate closed: the queue holds "
+                f"{admission.max_queued()} evaluations"
             )
         return budget
 
@@ -472,16 +338,11 @@ class OnlineEvalProducer(DaemonTask):
                         "filter_condition failed to compile"
                     )
                     continue
-                fingerprint = config_fingerprint(resolved)
                 active.append(
                     _ActiveProjectEvaluator(
                         project_evaluator_id=project_evaluator.id,
                         project_id=project_evaluator.project_id,
-                        evaluator_id=project_evaluator.evaluator_id,
-                        name=resolved.name,
                         sampling_rate=project_evaluator.sampling_rate,
-                        fingerprint=fingerprint,
-                        identifier=annotation_identifier(fingerprint),
                         span_filter=span_filter,
                     )
                 )
@@ -492,42 +353,39 @@ class OnlineEvalProducer(DaemonTask):
         active: list[_ActiveProjectEvaluator],
         low_exclusive: int,
         frontier: int,
-        budget: int,
     ) -> tuple[bool, int]:
+        """Queue the window's work, as much as the queue has room for, and advance past the
+        window only if all of it was queued. Returns whether the cursor advanced and the room
+        left in the queue."""
         async with self._db() as session:
-            for index, project_evaluator in enumerate(active):
-                span_ids = list(
-                    await session.scalars(
-                        project_evaluator.materializable_scan_stmt(low_exclusive, frontier)
-                    )
-                )
-                sampled_span_ids = project_evaluator.sampled(span_ids)
-                admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
-                budget -= len(admitted_span_ids)
-                if len(admitted_span_ids) < len(sampled_span_ids) or (
-                    budget == 0 and index < len(active) - 1
-                ):
-                    logger.warning(
-                        f"Online-eval producer frontier truncated at insertion budget; "
-                        f"{budget} budget remaining"
-                    )
-                    await self._fence_mutating_session(session)
-                    return False, budget
-            advanced = await session.scalar(
-                update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
-                )
-                .values(produced_through_id=frontier)
-                .returning(models.EvalWorkCursor.id)
+            budget, queued_count, truncated = await self._admit(
+                session, active, low_exclusive, frontier
             )
-            if advanced is None:
-                self._lease_held = False
-                raise _CursorLeaseLost
-        return True, budget
+            if truncated:
+                logger.warning(
+                    f"Online-eval producer frontier truncated at insertion budget; "
+                    f"{budget} budget remaining"
+                )
+                position_current = await self._cursor_is_at(session, low_exclusive)
+            else:
+                position_current = (
+                    await session.scalar(
+                        update(models.EvalSpanCursor)
+                        .where(
+                            models.EvalSpanCursor.id == _CURSOR_ID,
+                            models.EvalSpanCursor.produced_through_id == low_exclusive,
+                        )
+                        .values(produced_through_id=frontier)
+                        .returning(models.EvalSpanCursor.id)
+                    )
+                    is not None
+                )
+            if not position_current:
+                await session.rollback()
+                logger.warning("Online-eval producer frontier rolled back: the cursor moved")
+                return False, budget
+        self._count_queued(queued_count)
+        return not truncated, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
@@ -540,19 +398,35 @@ class OnlineEvalProducer(DaemonTask):
             # preceding this call can consume a large fraction of the frontier
             # lag (unboundedly so on a first-run backfill), and a stale stamp
             # makes the next tick over-age the observation — eroding the
-            # commit-visibility guard that is the only defense against the
-            # id-vs-commit-order race. A post-read stamp errs conservative.
-            observed_at = datetime.now(timezone.utc)
-            await session.execute(
-                update(models.EvalWorkCursor)
+            # commit-visibility guard against the id-vs-commit-order race and
+            # leaving late-visible spans to the slower backstop. A post-read
+            # stamp errs conservative.
+            observed_at = await current_database_time(session, self._db.dialect)
+            observed = await session.scalar(
+                update(models.EvalSpanCursor)
                 .where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
+                    models.EvalSpanCursor.id == _CURSOR_ID,
+                    models.EvalSpanCursor.produced_through_id == produced_through_id,
                 )
                 .values(observed_high_water_id=high_water, observed_at=observed_at)
+                .returning(models.EvalSpanCursor.id)
             )
+        if observed is None:
+            return
         self._publish_frontier_gap(high_water - produced_through_id)
+        self._publish_ingest_rate(high_water, observed_at)
+
+    async def _refresh_gauges(self, produced_through_id: int) -> None:
+        """Publish the frontier gap and ingest rate on a tick that leaves its pending
+        observation unconsumed, e.g. while the admission gate is closed."""
+        if not self._publish_metrics:
+            return
+        async with self._db() as session:
+            if not await self._cursor_is_at(session, produced_through_id):
+                return
+            high_water = await session.scalar(select(func.max(models.Span.id))) or 0
+            observed_at = await current_database_time(session, self._db.dialect)
+        self._publish_frontier_gap(max(high_water - produced_through_id, 0))
         self._publish_ingest_rate(high_water, observed_at)
 
     def _publish_frontier_gap(self, gap: int) -> None:
@@ -579,97 +453,133 @@ class OnlineEvalProducer(DaemonTask):
         self,
         active: list[_ActiveProjectEvaluator],
         watermark: int,
-        budget: int,
     ) -> int:
+        """Queue the work the lookback window still needs, as much as the queue has room
+        for, returning the room left in the queue."""
         if watermark <= 0:
-            return budget
+            return 0
         # Window is [watermark - lookback, watermark], matching the reaper's floor
         # exactly so every retained terminal row is inside the swept range.
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
-            for index, project_evaluator in enumerate(active):
-                stmt = project_evaluator.materializable_scan_stmt(low_exclusive, watermark)
-                span_ids = list(await session.scalars(stmt))
-                sampled_span_ids = project_evaluator.sampled(span_ids)
-                admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
-                budget -= len(admitted_span_ids)
-                if len(admitted_span_ids) < len(sampled_span_ids) or (
-                    budget == 0 and index < len(active) - 1
-                ):
-                    logger.warning(
-                        f"Online-eval producer backstop truncated at insertion budget; "
-                        f"{budget} budget remaining"
-                    )
-                    break
-            await self._fence_mutating_session(session)
+            budget, queued_count, truncated = await self._admit(
+                session, active, low_exclusive, watermark
+            )
+            if truncated:
+                logger.warning(
+                    f"Online-eval producer backstop truncated at insertion budget; "
+                    f"{budget} budget remaining"
+                )
+            if not await self._cursor_is_at(session, watermark):
+                await session.rollback()
+                logger.warning("Online-eval producer backstop rolled back: the cursor moved")
+                return budget
+        self._count_queued(queued_count)
         return budget
 
-    async def _fence_mutating_session(self, session: AsyncSession) -> None:
-        renewed = await session.scalar(
-            update(models.EvalWorkCursor)
-            .where(
-                models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                models.EvalWorkCursor.claimed_by == self._producer_id,
+    async def _admit(
+        self,
+        session: AsyncSession,
+        active: list[_ActiveProjectEvaluator],
+        low_exclusive: int,
+        high_inclusive: int,
+    ) -> tuple[int, int, bool]:
+        """Scan the window for every project evaluator, then queue the sampled spans in
+        evaluator order while the queue has room. Returns the room left, how many rows were
+        queued, and whether any sampled span was left unqueued.
+
+        The room is read under the admission lock, which holds until the session's
+        transaction ends, so the scans run first and outside it."""
+        sampled = [
+            (
+                project_evaluator,
+                project_evaluator.sampled(
+                    await self._scan(session, project_evaluator, low_exclusive, high_inclusive)
+                ),
             )
-            .values(claimed_at=datetime.now(timezone.utc))
-            .returning(models.EvalWorkCursor.id)
+            for project_evaluator in active
+        ]
+        budget = await admission.lock_room(session, self._db.dialect)
+        queued_count = 0
+        truncated = False
+        for project_evaluator, sampled_span_ids in sampled:
+            admitted_span_ids = sampled_span_ids[:budget]
+            queued_count += await self._insert_work_units(
+                session, project_evaluator, admitted_span_ids
+            )
+            budget -= len(admitted_span_ids)
+            truncated = truncated or len(admitted_span_ids) < len(sampled_span_ids)
+        return budget, queued_count, truncated
+
+    async def _scan(
+        self,
+        session: AsyncSession,
+        project_evaluator: _ActiveProjectEvaluator,
+        low_exclusive: int,
+        high_inclusive: int,
+    ) -> list[int]:
+        """Span ids in the window that still need work for this evaluator; none when its
+        filter fails when run, so one broken filter does not hold the cursor for the rest."""
+        try:
+            async with session.begin_nested():
+                return list(
+                    await session.scalars(
+                        project_evaluator.materializable_scan_stmt(low_exclusive, high_inclusive)
+                    )
+                )
+        except (DBAPIError, OverflowError) as error:
+            logger.warning(
+                f"Skipping project evaluator {project_evaluator.project_evaluator_id} for span "
+                f"ids {low_exclusive + 1} to {high_inclusive}: its filter condition failed when "
+                f"run: {error.orig if isinstance(error, DBAPIError) else error}"
+            )
+            return []
+
+    async def _cursor_is_at(self, session: AsyncSession, position: int) -> bool:
+        """Whether the cursor still holds the position a scan was taken against.
+
+        Once the cursor moves, its holder may reap terminal work in the scanned window
+        before a scan reads it, and committing that scan's inserts recreates the work.
+        """
+        produced_through_id = await session.scalar(
+            select(models.EvalSpanCursor.produced_through_id).where(
+                models.EvalSpanCursor.id == _CURSOR_ID
+            )
         )
-        if renewed is None:
-            self._lease_held = False
-            raise _CursorLeaseLost
+        return produced_through_id == position
 
     async def _insert_work_units(
         self,
         session: AsyncSession,
         project_evaluator: _ActiveProjectEvaluator,
         span_ids: list[int],
-    ) -> None:
+    ) -> int:
+        """Insert PENDING work for the spans that have none, returning how many rows."""
         if not span_ids:
-            return
+            return 0
+        inserted_count = 0
         records = [
             {
                 "span_rowid": span_rowid,
-                "evaluator_id": project_evaluator.evaluator_id,
                 "project_evaluator_id": project_evaluator.project_evaluator_id,
-                "config_fingerprint": project_evaluator.fingerprint,
             }
             for span_rowid in span_ids
         ]
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
             batch = records[start : start + _INSERT_BATCH_SIZE]
-            batch_span_ids = [record["span_rowid"] for record in batch]
-            await session.execute(
-                update(models.EvalWorkUnit)
-                .where(
-                    models.EvalWorkUnit.span_rowid.in_(batch_span_ids),
-                    models.EvalWorkUnit.evaluator_id == project_evaluator.evaluator_id,
-                    models.EvalWorkUnit.config_fingerprint == project_evaluator.fingerprint,
-                    models.EvalWorkUnit.status == "SUPERSEDED",
-                    ~exists(
-                        select(1).where(
-                            models.SpanAnnotation.span_rowid == models.EvalWorkUnit.span_rowid,
-                            models.SpanAnnotation.name == project_evaluator.name,
-                            models.SpanAnnotation.identifier == project_evaluator.identifier,
-                        )
-                    ),
-                )
-                .values(
-                    status="PENDING",
-                    attempts=0,
-                    error=None,
-                    claimed_by=None,
-                    claimed_at=None,
-                    cooldown_until=None,
-                )
-            )
-            await session.execute(
+            inserted_ids = await session.scalars(
                 insert_on_conflict(
                     *batch,
                     table=models.EvalWorkUnit,
                     dialect=self._db.dialect,
                     unique_by=_WORK_UNIT_UNIQUE_BY,
                     on_conflict=OnConflict.DO_NOTHING,
-                )
+                ).returning(models.EvalWorkUnit.id)
             )
+            inserted_count += len(inserted_ids.all())
+        return inserted_count
+
+    def _count_queued(self, queued_count: int) -> None:
+        """Count work queued by a scan whose transaction has committed."""
+        if self._publish_metrics and queued_count:
+            ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(evaluation_target="SPAN").inc(queued_count)

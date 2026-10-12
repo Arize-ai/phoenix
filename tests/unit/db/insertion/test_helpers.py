@@ -30,7 +30,7 @@ class Test_insert_on_conflict:
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             values = dict(
                 name="name",
                 description="description",
@@ -79,7 +79,7 @@ class Test_insert_on_conflict:
         assert project_record is not None
 
         async with db() as session:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             new_values = dict(name="abc", description="updated description")
             await sleep(1)
             await session.execute(

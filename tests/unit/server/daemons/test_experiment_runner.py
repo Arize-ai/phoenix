@@ -748,7 +748,7 @@ class TestRunningExperimentQueueLogic:
         result.all.return_value = [(run, 1, revision, "[]")]
         session = MagicMock()
         session.bind = MagicMock()
-        session.bind.dialect.name = "postgresql"
+        session.get_bind().dialect.name = "postgresql"
         session.execute = AsyncMock(return_value=result)
         exp._db = MagicMock(return_value=_AsyncSessionContext(session))
 
@@ -785,7 +785,7 @@ class TestRunningExperimentQueueLogic:
         result.all.return_value = [(run, 1, revision, "[]")]
         session = MagicMock()
         session.bind = MagicMock()
-        session.bind.dialect.name = "postgresql"
+        session.get_bind().dialect.name = "postgresql"
         session.execute = AsyncMock(return_value=result)
         exp._db = MagicMock(return_value=_AsyncSessionContext(session))
 
@@ -820,7 +820,7 @@ class TestRunningExperimentQueueLogic:
         result.all.return_value = [(run, 1, revision, "[]")]
         session = MagicMock()
         session.bind = MagicMock()
-        session.bind.dialect.name = "postgresql"
+        session.get_bind().dialect.name = "postgresql"
         session.execute = AsyncMock(return_value=result)
         exp._db = MagicMock(return_value=_AsyncSessionContext(session))
 
@@ -866,7 +866,7 @@ class TestRunningExperimentQueueLogic:
         result.all.return_value = [(run, 1, revision, "[]")]
         session = MagicMock()
         session.bind = MagicMock()
-        session.bind.dialect.name = "postgresql"
+        session.get_bind().dialect.name = "postgresql"
         session.execute = AsyncMock(return_value=result)
         exp._db = MagicMock(return_value=_AsyncSessionContext(session))
 
@@ -912,7 +912,7 @@ class TestRunningExperimentQueueLogic:
         result.all.return_value = [(run, 1, revision, "[]")]
         session = MagicMock()
         session.bind = MagicMock()
-        session.bind.dialect.name = "postgresql"
+        session.get_bind().dialect.name = "postgresql"
         session.execute = AsyncMock(return_value=result)
         exp._db = MagicMock(return_value=_AsyncSessionContext(session))
 
@@ -950,7 +950,7 @@ class TestRunningExperimentQueueLogic:
 
         session = MagicMock()
         session.bind = MagicMock()
-        session.bind.dialect.name = "postgresql"
+        session.get_bind().dialect.name = "postgresql"
         session.execute = AsyncMock(side_effect=TimeoutError())
         exp._db = MagicMock(return_value=_AsyncSessionContext(session))
 
@@ -971,7 +971,7 @@ class TestRunningExperimentQueueLogic:
 
         session = MagicMock()
         session.bind = MagicMock()
-        session.bind.dialect.name = "postgresql"
+        session.get_bind().dialect.name = "postgresql"
         session.execute = AsyncMock(side_effect=TimeoutError())
         exp._db = MagicMock(return_value=_AsyncSessionContext(session))
 

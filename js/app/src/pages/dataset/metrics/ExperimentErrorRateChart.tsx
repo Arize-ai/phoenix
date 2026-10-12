@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ChartEmptyStateOverlay,
   ChartResponsiveContainer,
+  ChartTooltipItem,
   InteractiveLegend,
   compactChartMargin,
   compactLegendProps,
@@ -11,13 +12,20 @@ import {
   useInteractiveLegend,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
-import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  intFormatter,
+  percentFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 
 import {
   ExperimentBaselineValueLine,
   getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
-import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
+import {
+  type ExperimentMetricsTooltipDatum,
+  makeExperimentMetricsTooltipContent,
+} from "./ExperimentMetricsTooltipContent";
+import { useExperimentChartDatum } from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -26,7 +34,19 @@ import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
-const TooltipContent = makeExperimentMetricsTooltipContent(percentFormatter);
+const TooltipContent = makeExperimentMetricsTooltipContent<
+  ExperimentMetricsTooltipDatum & { runCount: number }
+>({
+  valueFormatter: percentFormatter,
+  renderDetails: ({ runCount }) => (
+    <ChartTooltipItem
+      color="transparent"
+      shape="circle"
+      name="runs"
+      value={intFormatter(runCount)}
+    />
+  ),
+});
 const ERROR_RATE_DATA_KEY = "errorRate";
 
 /**
@@ -34,13 +54,17 @@ const ERROR_RATE_DATA_KEY = "errorRate";
  */
 export function ExperimentErrorRateChart({
   datasetId,
+  experimentSelection,
 }: ExperimentMetricViewProps) {
-  const { experiments, baselineExperiment } =
-    useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment } = useExperimentMetricsData({
+    datasetId,
+    experimentSelection,
+  });
+  const { referenceLabel, toExperimentChartDatum } =
+    useExperimentChartDatum(experimentSelection);
   const chartData = experiments.map((experiment) => ({
-    sequenceNumber: experiment.sequenceNumber,
-    experimentName: experiment.name,
-    isBaseline: experiment.isBaseline,
+    ...toExperimentChartDatum(experiment),
+    runCount: experiment.runCount,
     errorRate:
       typeof experiment.errorRate === "number"
         ? experiment.errorRate * 100
@@ -75,7 +99,10 @@ export function ExperimentErrorRateChart({
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis
-            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+            {...getExperimentXAxisProps({
+              baselineSequenceNumber: baselineExperiment?.sequenceNumber,
+              experiments: chartData,
+            })}
           />
           <YAxis
             {...experimentMetricsYAxisProps}
@@ -95,9 +122,10 @@ export function ExperimentErrorRateChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
-            additionalLegendItems={getExperimentBaselineLegendItems(
-              baselineErrorRate
-            )}
+            additionalLegendItems={getExperimentBaselineLegendItems({
+              value: baselineErrorRate,
+              label: referenceLabel,
+            })}
           />
         </BarChart>
       </ChartResponsiveContainer>

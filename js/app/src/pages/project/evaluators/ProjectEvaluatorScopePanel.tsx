@@ -88,9 +88,9 @@ import {
   formatEvaluationTargetPlural,
   formatMissingBindingMessage,
   getProjectEvaluatorMappingDiagnostics,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorMappingDiagnostic,
-  type ProjectEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
@@ -187,12 +187,12 @@ type RecordRunListProps = {
 };
 
 /**
- * What the matching-records half of the panel varies by grain: how it counts
- * the records in scope, how it lists them, and any note it opens with. The
- * prose around them names the grain directly.
+ * What the matching-records half of the panel varies by record kind: how it
+ * counts the records in scope, how it lists them, and any note it opens with.
+ * The prose around them names the record kind directly.
  */
-const MATCHING_RECORDS_BY_GRAIN: Record<
-  ProjectEvaluatorMappingSourceGrain,
+const MATCHING_RECORDS_BY_RECORD_KIND: Record<
+  ProjectEvaluatorRecordKind,
   {
     CountLine: ComponentType<MatchedCountLineProps>;
     RunList: ComponentType<RecordRunListProps>;
@@ -239,16 +239,14 @@ export const ProjectEvaluatorScopePanel = ({
   // target and condition together keeps the current count and rows visible
   // without sending one target's filter language to the other's queries.
   const filterCondition = deferredPreviewScope.filterCondition;
-  const mappingSourceGrain = toEvaluatorMappingSourceGrain(
-    deferredPreviewScope.targetType
-  );
+  const recordKind = toEvaluatorRecordKind(deferredPreviewScope.targetType);
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
   // closure through this ref and reports readiness through the state.
   const runAllRecordsRef = useRef<() => void>(() => {});
   const [canRunAllRecords, setCanRunAllRecords] = useState(false);
   const { CountLine, RunList, note } =
-    MATCHING_RECORDS_BY_GRAIN[mappingSourceGrain];
+    MATCHING_RECORDS_BY_RECORD_KIND[recordKind];
   const { targetType } = deferredPreviewScope;
   const records = formatEvaluationTargetPlural(targetType);
   const runListProps: RecordRunListProps = {
@@ -954,7 +952,7 @@ function RecordedRunList({
   onCanRunAllChange,
 }: {
   rows: RecordedRunListRow[];
-  recordNoun: ProjectEvaluatorMappingSourceGrain;
+  recordNoun: ProjectEvaluatorRecordKind;
   listLabel: string;
   hasMore: boolean;
   isLoadingMore: boolean;
@@ -983,7 +981,7 @@ function RecordedRunList({
     (state) => state.evaluator.inputMapping
   );
   useEvaluatorMappingSourceBoundToRow({
-    grain: recordNoun,
+    recordKind: recordNoun,
     rowKey: activeRow?.key ?? null,
     context: activeRow?.context,
   });
@@ -1084,6 +1082,7 @@ function useEvaluatorMappingDiagnostics({
   return getProjectEvaluatorMappingDiagnostics({
     context,
     pathMapping: inputMapping.pathMapping,
+    literalMapping: inputMapping.literalMapping,
     variables,
     requiredVariables,
   });
@@ -1102,7 +1101,7 @@ export function RecordedRunRow({
   requiredVariables,
 }: {
   row: RecordedRunListRow;
-  recordNoun: ProjectEvaluatorMappingSourceGrain;
+  recordNoun: ProjectEvaluatorRecordKind;
   isExpanded: boolean;
   onToggleExpanded: () => void;
   run: RecordedRun | undefined;
@@ -1228,7 +1227,7 @@ export function RecordedRunRow({
                     <Flex direction="column" gap="size-200">
                       <BindingPreview
                         context={row.context}
-                        grain={recordNoun}
+                        recordKind={recordNoun}
                         inputMapping={inputMapping}
                         requiredVariables={requiredVariables}
                         isSampleContext={row.isSample}
@@ -1348,6 +1347,8 @@ const contextViewerCSS = css`
 type BindingRowBase = {
   keyword: string;
   path?: string;
+  /** Bound to text saved on the evaluator rather than read off the record. */
+  isLiteral?: boolean;
   /** One line on the name, shown on hover. */
   description?: string;
 };
@@ -1381,14 +1382,14 @@ function isBindingMessageRow(row: BindingRow): row is BindingMessageRow {
  */
 export function BindingPreview({
   context,
-  grain,
+  recordKind,
   inputMapping,
   requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
   /** The kind of record the row holds; the same word its prose uses. */
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
   inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
@@ -1403,8 +1404,8 @@ export function BindingPreview({
   // `metadata` key, and the path resolver all live there, not here.
   const evaluationContext = hasEvaluatorMappingSourceShape(context)
     ? materializeEvaluatorContext({
-        grain,
-        evaluatorMappingSource: { grain, source: context },
+        recordKind,
+        evaluatorMappingSource: { recordKind, source: context },
         inputMapping,
       })
     : null;
@@ -1413,7 +1414,7 @@ export function BindingPreview({
       keyword: entry.name,
       ...(entry.provenance.kind === "path"
         ? { path: entry.provenance.path }
-        : {}),
+        : { isLiteral: true }),
       value: entry.value,
     })) ?? [];
   // A variable this side cannot check is a warning rather than an error — the
@@ -1429,7 +1430,7 @@ export function BindingPreview({
           ? {
               variant: "error",
               keyword: diagnostic.variable,
-              message: formatMissingBindingMessage(diagnostic, grain),
+              message: formatMissingBindingMessage(diagnostic, recordKind),
             }
           : {
               variant: "warning",
@@ -1457,10 +1458,19 @@ export function BindingPreview({
       }
       if (
         diagnostic.status !== "resolved" ||
-        diagnostic.source !== "path" ||
+        diagnostic.source === "context" ||
         EVALUATOR_SLOT_NAMES.includes(diagnostic.variable as EvaluatorSlotName)
       ) {
         return [];
+      }
+      if (diagnostic.source === "literal") {
+        return [
+          {
+            keyword: diagnostic.variable,
+            isLiteral: true,
+            value: inputMapping.literalMapping[diagnostic.variable],
+          },
+        ];
       }
       const resolution = resolveEvaluatorPath({
         source: isStringKeyedObject(context) ? context : {},
@@ -1482,8 +1492,8 @@ export function BindingPreview({
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        <Alert variant="info" title={`Standard ${grain} fields`}>
-          No matching {grain} yet; values are empty.
+        <Alert variant="info" title={`Standard ${recordKind} fields`}>
+          No matching {recordKind} yet; values are empty.
         </Alert>
       ) : null}
       {rows.map((row) =>
@@ -1522,9 +1532,9 @@ function MetadataBindingTree({
 }: {
   evaluationContext: MaterializedEvaluatorContext;
 }) {
-  const { grain, hasSampledRecord } = evaluationContext;
+  const { recordKind, hasSampledRecord } = evaluationContext;
   const definitionByName = new Map(
-    getEvaluatorMetadataEntries(grain).map((variable) => [
+    getEvaluatorMetadataEntries(recordKind).map((variable) => [
       variable.name,
       variable,
     ])
@@ -1688,10 +1698,11 @@ function BindingRowHead({
   const display = toBoundValueDisplay(row.value);
   // A row bound to the key it is already labeled with — a slot left on its
   // default — has no origin to point at, so the value stands alone.
-  const annotation =
-    row.path && row.path !== row.keyword ? (
-      <code className="binding-row__path">← {row.path}</code>
-    ) : null;
+  const annotation = row.isLiteral ? (
+    <span className="binding-row__origin">text</span>
+  ) : row.path && row.path !== row.keyword ? (
+    <code className="binding-row__path">← {row.path}</code>
+  ) : null;
   return (
     <>
       <code className="binding-row__keyword" title={row.description}>
@@ -1756,6 +1767,11 @@ const bindingRowCSS = css`
   .binding-row__path {
     flex: none;
     font-family: var(--global-font-family-code, monospace);
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-500);
+  }
+  .binding-row__origin {
+    flex: none;
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-500);
   }
@@ -1860,17 +1876,17 @@ function getLatestMessageText(value: unknown): string | null {
  * can all return a new transcript for the same row. Keying on what the context
  * says rather than on the row's identity follows the value, not the row.
  *
- * The grain comes from the list the row renders in and is bound with the
+ * The record kind comes from the list the row renders in and is bound with the
  * context, so a target switch that remounts a cached list binds a record the
- * store reads as what it is, whichever of this and the target's grain effect
- * runs first.
+ * store reads as what it is, whichever of this and the target's record kind
+ * effect runs first.
  */
 export function useEvaluatorMappingSourceBoundToRow({
-  grain,
+  recordKind,
   rowKey,
   context,
 }: {
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
   rowKey: string | null;
   context: unknown;
 }) {
@@ -1883,17 +1899,17 @@ export function useEvaluatorMappingSourceBoundToRow({
     if (hasEvaluatorMappingSourceShape(context)) {
       evaluatorStore
         .getState()
-        .setEvaluatorMappingSource({ grain, source: context });
+        .setEvaluatorMappingSource({ recordKind, source: context });
     }
   });
   useEffect(() => {
     syncMappingSource();
-  }, [grain, rowKey, contextIdentity]);
+  }, [recordKind, rowKey, contextIdentity]);
 }
 
 function hasEvaluatorMappingSourceShape(
   value: unknown
-): value is EvaluatorMappingSource<ProjectEvaluatorMappingSourceGrain> {
+): value is EvaluatorMappingSource<ProjectEvaluatorRecordKind> {
   return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
 }
 

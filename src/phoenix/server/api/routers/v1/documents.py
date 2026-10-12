@@ -116,7 +116,7 @@ async def annotate_span_documents(
                 )
 
         inserted_document_annotation_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for anno in precursors:
             span_rowid, _ = existing_spans[anno.span_id]
             values = dict(as_kv(anno.as_insertable(span_rowid).row))

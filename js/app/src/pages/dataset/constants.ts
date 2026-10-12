@@ -10,6 +10,8 @@ export const EXPERIMENT_METRIC_CHART_KEYS = [
   "latency",
   "cost",
   "tokens",
+  "prompt_token_details",
+  "completion_token_details",
   "error_rate",
 ] as const;
 
@@ -49,6 +51,23 @@ export const isExperimentMetricChartKey = (
   EXPERIMENT_METRIC_CHART_KEYS.includes(
     key as BuiltInExperimentMetricChartKey
   ) || getExperimentAnnotationName(key) != null;
+
+/**
+ * Drops persisted chart keys that are no longer in the chart catalog so stale
+ * keys don't render as empty panels. A value that is not a list falls back to
+ * `fallback`.
+ */
+export function sanitizeExperimentMetricChartKeys(
+  keys: unknown,
+  fallback: ExperimentMetricChartKey[]
+): ExperimentMetricChartKey[] {
+  return Array.isArray(keys)
+    ? keys.filter(
+        (key): key is ExperimentMetricChartKey =>
+          typeof key === "string" && isExperimentMetricChartKey(key)
+      )
+    : fallback;
+}
 
 /**
  * The default metric charts shown above the experiments table.

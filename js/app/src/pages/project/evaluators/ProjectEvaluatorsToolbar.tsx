@@ -2,15 +2,19 @@ import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { ColumnSelector, orderColumns } from "@phoenix/components/table";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { TableAsideToggleButton } from "@phoenix/pages/project/TableAside";
 
 /**
  * The selectable columns of {@link ProjectEvaluatorsTable}, in their natural
  * order. The pinned enabled and actions columns are excluded: they stay put
- * on the table's right edge.
+ * on the table's edges.
  */
 const PROJECT_EVALUATOR_COLUMNS = [
   { id: "name", label: "name", isVisibilityToggleDisabled: true },
   { id: "status", label: "status" },
+  { id: "queue", label: "queued" },
+  { id: "load", label: "load" },
+  { id: "failures", label: "failure rate" },
   { id: "kind", label: "kind" },
   { id: "meanScore", label: "mean score" },
   { id: "prompt", label: "prompt" },
@@ -53,9 +57,9 @@ function ProjectEvaluatorsColumnSelector() {
 }
 
 /**
- * The evaluators tab's own header: search on the left, table configuration
- * and creation on the right. All live in the tab's content rather than the
- * project tab bar, so the tab bar stays pure navigation.
+ * The evaluators tab's own header: search on the left, table configuration,
+ * creation and the aside toggle on the right. All live in the tab's content
+ * rather than the project tab bar, so the tab bar stays pure navigation.
  */
 export function ProjectEvaluatorsToolbar({
   filter,
@@ -86,6 +90,7 @@ export function ProjectEvaluatorsToolbar({
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <ProjectEvaluatorsColumnSelector />
           <AddProjectEvaluatorMenu size="M" />
+          <TableAsideToggleButton />
         </Flex>
       </Flex>
     </View>

@@ -1,7 +1,17 @@
 import json
+import os
 from pathlib import Path
 
-from evals.harbor.verifiers import verify
+import pytest
+from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
+
+from harbor_verifiers import verify
+from tests.unit.vcr import CustomVCR
+
+MOST_FAILING_TOOL_EXPECTED = (
+    Path(__file__).parents[3]
+    / "evals/harbor/tasks/trail-benchmark-dev/most-failing-tool/tests/expected.json"
+)
 
 TRAJECTORY = {
     "schema_version": "ATIF-v1.7",
@@ -27,7 +37,7 @@ TRAJECTORY = {
 
 
 def test_measurements_count_agent_steps_only() -> None:
-    assert verify.measurements(TRAJECTORY) == {"tool_call_count": 3.0, "agent_turn_count": 3.0}
+    assert verify.measurements(TRAJECTORY) == {"tool_count": 3.0, "turn_count": 3.0}
     assert verify.measurements(None) == {}
 
 
@@ -56,6 +66,33 @@ def test_exact_check_ignores_emphasis_case_and_end_punctuation() -> None:
     assert verify.check("", expected)[0] == 0.0
 
 
+def test_reference_check_grades_semantic_answers(
+    custom_vcr: CustomVCR,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY") or "sk-test")
+    expected = json.loads(MOST_FAILING_TOOL_EXPECTED.read_text())
+    cases = [
+        ("**page_down (PageDownTool)** — 109 failed spans...", 1.0),
+        (
+            "The page_down tool failed the most: **109 times** out of 174 failed tool spans.",
+            1.0,
+        ),
+        ("TextInspectorTool", 0.0),
+        ("Either page_down or TextInspectorTool; I cannot determine which.", 0.0),
+        ("PageDownTool appeared frequently, but TextInspectorTool failed the most.", 0.0),
+        ("TextInspectorTool, not page_down, had the most failures.", 0.0),
+    ]
+
+    custom_vcr.register_matcher(_json_bodies_match.__name__, _json_bodies_match)
+    with custom_vcr.use_cassette(
+        match_on=["method", "scheme", "host", "port", "path", "query", _json_bodies_match.__name__]
+    ):
+        scores = [verify.check(reply, expected)[0] for reply, _ in cases]
+
+    assert scores == [score for _, score in cases]
+
+
 def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
     trajectory = tmp_path / "trajectory.json"
     trajectory.write_text(json.dumps(TRAJECTORY))
@@ -65,8 +102,43 @@ def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
     )
     assert scores == {
         "reward": 1.0,
-        "tool_call_count": 3.0,
-        "agent_turn_count": 3.0,
+        "tool_count": 3.0,
+        "turn_count": 3.0,
         "extra": 0.5,
     }
     assert json.loads(reward_path.read_text()) == scores
+    assert not (tmp_path / "details.json").exists()
+
+
+def test_write_reward_keeps_non_numeric_components_out_of_the_reward(tmp_path: Path) -> None:
+    reward_path = tmp_path / "reward.json"
+    scores = verify.write_reward(
+        0.0,
+        {"count": 3},
+        trajectory_path=tmp_path / "none",
+        reward_path=reward_path,
+        linked=True,
+        judge={"verdict": "no"},
+    )
+    assert scores == {"reward": 0.0, "linked": 1.0}
+    assert json.loads((tmp_path / "details.json").read_text()) == {
+        "count": 3,
+        "judge": {"verdict": "no"},
+    }
+
+
+def test_started_at_ignores_copied_context() -> None:
+    steps = [
+        {"source": "user", "timestamp": "2026-09-16T00:10:00Z", "is_copied_context": True},
+        {"source": "agent", "timestamp": "2026-09-16T00:20:50.981841Z"},
+        {"source": "user", "timestamp": "2026-09-16T00:17:57Z"},
+    ]
+    started = verify.started_at({"steps": steps})
+    assert started is not None and started.isoformat() == "2026-09-16T00:17:57+00:00"
+    assert verify.started_at({"steps": [{"source": "user"}]}) is None
+
+
+def _json_bodies_match(request1: VCRRequest, request2: VCRRequest) -> None:
+    """The recorded cassette has no content-type header, so VCR's own body matcher
+    compares raw bytes and breaks whenever the OpenAI client reorders JSON keys."""
+    assert json.loads(request1.body) == json.loads(request2.body)

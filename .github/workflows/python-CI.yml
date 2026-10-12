@@ -39,6 +39,7 @@ jobs:
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
       mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
+      harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
       evaluator_bound_variables: ${{ steps.filter.outputs.evaluator_bound_variables }}
       prompt_compilers: ${{ steps.filter.outputs.prompt_compilers }}
     steps:
@@ -101,6 +102,10 @@ jobs:
               - "scripts/ci/skill_examples.py"
               - "scripts/ci/test_skill_graphql_examples.py"
               - "scripts/ci/test_skill_filter_dsl_examples.py"
+            harbor_graphql:
+              - "evals/harbor/verifiers/harbor_verifiers/graphql/**"
+              - "js/app/schema.graphql"
+              - "pyproject.toml"
             evaluator_bound_variables:
               - "js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts"
               - "src/phoenix/server/online_eval/bound_variables.py"
@@ -125,6 +130,7 @@ jobs:
           FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
           MCP_SKILLS: ${{ steps.filter.outputs.mcp_skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
+          HARBOR_GRAPHQL: ${{ steps.filter.outputs.harbor_graphql }}
           EVALUATOR_BOUND_VARIABLES: ${{ steps.filter.outputs.evaluator_bound_variables }}
           PROMPT_COMPILERS: ${{ steps.filter.outputs.prompt_compilers }}
         run: |
@@ -142,6 +148,7 @@ jobs:
           echo "filter_dsl: $FILTER_DSL"
           echo "mcp_skills: $MCP_SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
+          echo "harbor_graphql: $HARBOR_GRAPHQL"
           echo "evaluator_bound_variables: $EVALUATOR_BOUND_VARIABLES"
           echo "prompt_compilers: $PROMPT_COMPILERS"
 
@@ -152,7 +159,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.11", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -167,6 +174,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -177,7 +185,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.11", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -191,6 +199,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -200,7 +209,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -214,6 +223,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   test-json-canonicalization-schema:
@@ -225,7 +235,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - py: "3.10"
+          - py: "3.11"
             os: ubuntu-latest
           - py: "3.11"
             os: macos-latest
@@ -245,11 +255,13 @@ jobs:
             scripts/ci/json-canonicalization-schema/
             src/phoenix/
             packages/
+            evals/harbor/verifiers/
             .jcs-test-data/
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Install make (Windows)
         if: runner.os == 'Windows'
         run: choco install make --no-progress -y
@@ -284,6 +296,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -310,8 +323,35 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Build GraphQL schema
         run: make schema-graphql
+      - run: git diff --exit-code
+
+  codegen-harbor-graphql:
+    name: Compile Harbor GraphQL Queries
+    needs: changes
+    if: ${{ needs.changes.outputs.harbor_graphql == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+      - name: Compile the Harbor GraphQL queries against the exported schema
+        run: make codegen-harbor-graphql
       - run: git diff --exit-code
 
   check-filter-dsl-snippets:
@@ -334,6 +374,7 @@ jobs:
             requirements/
             src/phoenix/
             packages/
+            evals/harbor/verifiers/
             js/app/src/pages/project/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -343,6 +384,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Check UI filter DSL snippets against the Python filters
         run: make check-filter-dsl-snippets
 
@@ -368,6 +410,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Check skill GraphQL examples against the exported schema
         run: make check-skill-graphql-examples
       - name: Check skill filter conditions against the Python filters
@@ -459,6 +502,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Run doctests
         run: make doctest
 
@@ -484,6 +528,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Build OpenAPI schema
         run: make schema-openapi
       - run: git diff --exit-code
@@ -510,6 +555,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Create virtual environment
         # `make schema-ddl` installs its dependencies with `uv pip install`,
         # which requires an existing environment.
@@ -540,6 +586,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Compile Prompts
         run: make codegen-prompts
       - name: Check for changes
@@ -574,7 +621,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -589,6 +636,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -613,6 +661,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Run formatter and linter
         run: |
           make format-python
@@ -627,7 +676,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -650,6 +699,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -665,7 +715,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: ["3.11"]
         db: [sqlite, postgresql]
     steps:
       - name: Checkout repository
@@ -689,6 +739,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql'
         # The floor version from the PGDG repository, not whatever the
@@ -717,7 +768,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: ["3.11"]
         db: [sqlite, postgresql]
         os: [oss-4-core-runner]
     env:
@@ -763,6 +814,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --durations=20 --reruns 5 --timeout 360 -n 16
@@ -803,9 +855,9 @@ jobs:
         with:
           # Literal pin: this job installs Phoenix from PyPI and only checks out
           # the repository afterwards, so there is no pyproject.toml for setup-uv
-          # to read `required-version` from. Keep in sync with [tool.uv]
-          # required-version in pyproject.toml.
-          version: "0.12.17"
+          # to read. Keep equal to the lower bound of [tool.uv] required-version in
+          # pyproject.toml.
+          version: "0.12.19"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
@@ -860,7 +912,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: ["3.11"]
         pkg: [openai, anthropic, google_genai]
     steps:
       - name: Checkout repository
@@ -879,6 +931,7 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
 
@@ -892,6 +945,7 @@ jobs:
       - phoenix-otel
       - clean-jupyter-notebooks
       - build-graphql-schema
+      - codegen-harbor-graphql
       - check-filter-dsl-snippets
       - check-skill-graphql-examples
       - check-evaluator-bound-variables

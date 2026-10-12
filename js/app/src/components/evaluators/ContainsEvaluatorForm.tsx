@@ -68,20 +68,14 @@ export const ContainsEvaluatorForm = () => {
     return unregister;
   }, [store, triggerValidation]);
 
-  // Determine initial mode based on existing values
-  const textDefaultMode =
-    getValues("literalMapping.text") != null ? "literal" : "path";
-  const wordsDefaultMode =
-    getValues("pathMapping.words") != null ? "path" : "literal";
-
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
         <SwitchableEvaluatorInput
           fieldName="text"
           label="Text"
-          defaultMode={textDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Text"
@@ -93,8 +87,9 @@ export const ContainsEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="words"
           label="Words"
-          defaultMode={wordsDefaultMode}
+          defaultMode="literal"
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Words"

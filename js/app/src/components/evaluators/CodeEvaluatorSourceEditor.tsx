@@ -7,7 +7,7 @@ import CodeMirror, {
   type BasicSetupOptions,
   type EditorView,
 } from "@uiw/react-codemirror";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -16,8 +16,10 @@ import {
   Flex,
   Icon,
   Icons,
-  Switch,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
@@ -29,7 +31,10 @@ import {
 import { createEvaluatorAutocompletion } from "@phoenix/components/evaluators/codeEvaluatorAutocomplete";
 import { CODE_EVALUATOR_TEMPLATES } from "@phoenix/components/evaluators/codeEvaluatorTemplates";
 import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
-import { getDefaultCodeEvaluatorSource } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import {
+  type CodeEvaluatorResetSource,
+  getCodeEvaluatorResetTarget,
+} from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
@@ -39,18 +44,22 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
  * Editable source-code editor with a read-only auto-generated type footer.
- * Ships its own description line and Reset-to-default button.
+ * Ships its own description line and a Reset button, which restores
+ * `resetSource` when given and the language's default code otherwise.
  */
 export const CodeEvaluatorSourceEditor = ({
   language,
   sourceCode,
   onChange,
   hideDescription = false,
+  resetSource,
 }: {
   hideDescription?: boolean;
   language: CodeEvaluatorLanguage;
   sourceCode: string;
   onChange: (value: string) => void;
+  /** The saved code of an existing evaluator, or the code a copy began as. */
+  resetSource?: CodeEvaluatorResetSource | null;
 }) => {
   const { theme } = useTheme();
   // CodeMirror reconfigures the whole editor whenever its onChange identity
@@ -64,9 +73,6 @@ export const CodeEvaluatorSourceEditor = ({
     []
   );
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
-  // The auto-generated type footer is hidden by default.
-  const [showTypes, setShowTypes] = useState(false);
-
   const evaluatorMappingSourceState = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
@@ -74,19 +80,24 @@ export const CodeEvaluatorSourceEditor = ({
     (state) => state.evaluator.inputMapping
   );
   const evaluatorMappingSource = evaluatorMappingSourceState.source;
+  const resetTarget = getCodeEvaluatorResetTarget({
+    language,
+    recordKind: evaluatorMappingSourceState.recordKind,
+    resetSource,
+  });
   const evaluationContext = useMemo(() => {
-    const grain = evaluatorMappingSourceState.grain;
-    return grain === "dataset"
+    const recordKind = evaluatorMappingSourceState.recordKind;
+    return recordKind === "dataset"
       ? null
       : materializeEvaluatorContext({
-          grain,
+          recordKind,
           evaluatorMappingSource: evaluatorMappingSourceState,
           inputMapping,
         });
   }, [evaluatorMappingSourceState, inputMapping]);
 
-  // The footer names what `evaluate` receives, so for a project grain it reads
-  // the mapping applied rather than the record as it arrived — the same
+  // The footer names what `evaluate` receives, so for a project record kind it
+  // reads the mapping applied rather than the record as it arrived — the same
   // context the autocomplete offers from. A dataset example is bound by name
   // and has no such gap.
   const typeFooter = useMemo(
@@ -189,21 +200,21 @@ export const CodeEvaluatorSourceEditor = ({
               </Menu>
             </MenuContainer>
           </MenuTrigger>
-          <Button
-            size="S"
-            variant="quiet"
-            leadingVisual={<Icon svg={<Icons.Refresh />} />}
-            onPress={() =>
-              onChange(
-                getDefaultCodeEvaluatorSource(
-                  language,
-                  evaluatorMappingSourceState.grain
-                )
-              )
-            }
-          >
-            Reset
-          </Button>
+          <TooltipTrigger>
+            <Button
+              size="S"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.Refresh />} />}
+              isDisabled={sourceCode === resetTarget.sourceCode}
+              onPress={() => onChange(resetTarget.sourceCode)}
+            >
+              Reset
+            </Button>
+            <Tooltip>
+              <TooltipArrow />
+              {resetTarget.description}
+            </Tooltip>
+          </TooltipTrigger>
           <CopyToClipboardButton
             text={sourceCode}
             size="S"
@@ -212,15 +223,6 @@ export const CodeEvaluatorSourceEditor = ({
           >
             Copy
           </CopyToClipboardButton>
-          {typeFooter ? (
-            <Switch
-              isSelected={showTypes}
-              onChange={setShowTypes}
-              labelPlacement="start"
-            >
-              <Text size="S">Show types</Text>
-            </Switch>
-          ) : null}
         </Flex>
       </Flex>
 
@@ -254,8 +256,9 @@ export const CodeEvaluatorSourceEditor = ({
             </div>
           </Panel>
 
-          {/* Read-only type footer panel */}
-          {showTypes && typeFooter && (
+          {/* Read-only type footer: what `evaluate` receives, always in view
+              so the mapping and the code are read together. */}
+          {typeFooter && (
             <>
               <Separator css={compactResizeHandleCSS} />
               <Panel defaultSize="25%" minSize="10%" style={editorPanelStyle}>

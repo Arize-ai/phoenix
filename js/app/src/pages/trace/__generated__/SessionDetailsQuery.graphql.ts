@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<33b84bed1e00318aa651e49c38283c1b>>
+ * @generated SignedSource<<5f121542e557902596a9da6cebcecbc6>>
  * @lightSyntaxTransform
  */
 
@@ -453,7 +453,7 @@ return {
                     "storageKey": "evaluators(filter:{\"annotationNames\":null},first:100)"
                   },
                   {
-                    "alias": null,
+                    "alias": "configsByName",
                     "args": [
                       (v10/*:: as any*/)
                     ],
@@ -645,12 +645,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "56757eda0c6f9e94e3c6476a956dc253",
+    "cacheID": "396ec92fb700ffbc96c21cffa173be64",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationConfigsByNameFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationConfigsByNameFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

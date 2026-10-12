@@ -62,8 +62,11 @@ export function EvaluatorTaskSaveButton({
   validationError: string | null;
   /** The name lives on the Output tab; a save without one goes there. */
   onNameRequired: () => void;
-  /** The sandbox the save bound, which the next save diffs against. */
-  onSaved: (sandboxConfigId: string | null) => void;
+  /**
+   * The code the save wrote: its sandbox is what the next save diffs
+   * against, and its source is what Reset restores.
+   */
+  onSaved: (code: PlaygroundEvaluatorTaskCode) => void;
   /** Receives the save API on mount and null on unmount. */
   onSaveApiChange?: (saveApi: EvaluatorTaskSaveApi | null) => void;
 }) {
@@ -82,7 +85,7 @@ export function EvaluatorTaskSaveButton({
     throw new Error(`Playground instance ${instanceId} is not an evaluator`);
   }
 
-  const saveTarget = useEvaluatorTaskSaveTarget({
+  const { target: saveTarget, savedNames } = useEvaluatorTaskSaveTarget({
     source: evaluator.source,
     datasetId,
   });
@@ -92,8 +95,9 @@ export function EvaluatorTaskSaveButton({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   /**
-   * Saves the draft to `saveTarget`, or as a new evaluator named as a copy of
-   * the draft when the dialog's "Save as new" asks for one.
+   * Saves the draft to `saveTarget`, or as a new evaluator when the dialog's
+   * "Save as new" asks for one. A new evaluator keeps the name typed for it;
+   * only a draft still named like the loaded evaluator is named as its copy.
    */
   async function save({
     asNew = false,
@@ -125,11 +129,12 @@ export function EvaluatorTaskSaveButton({
     }
 
     try {
+      const isCopy = asNew && savedNames.includes(draftName);
       // The copy's name lands in the draft too, so the task shows what was
       // saved and the user can rename it afterwards.
-      const name = asNew ? await copyName(draftName, datasetId) : draftName;
+      const name = isCopy ? await copyName(draftName, datasetId) : draftName;
 
-      if (asNew) store.getState().setEvaluatorGlobalName(name);
+      if (isCopy) store.getState().setEvaluatorGlobalName(name);
 
       const saved = await saveTask({
         target: asNew ? { action: "create" } : saveTarget,
@@ -149,7 +154,7 @@ export function EvaluatorTaskSaveButton({
         initialSandboxConfigId: loadedSandboxConfigId,
       });
 
-      onSaved(code.sandboxConfigId);
+      onSaved(code);
 
       // The task now stands for what was saved: the next save updates it,
       // and the judge prompt diffs against the version the save produced.
@@ -253,6 +258,7 @@ export function EvaluatorTaskSaveButton({
       )}
       <SaveEvaluatorTaskDialog
         target={saveTarget}
+        savedNames={savedNames}
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         isSaving={isSaving}

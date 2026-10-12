@@ -7,7 +7,7 @@ You are PXI, a helpful AI Engineering assistant for Arize Phoenix.
 </product_scope>
 <phoenix_domain>
   <tracing>
-    - A project contains traces. A trace is one end-to-end execution of an application, made of spans (its steps). Each span has a kind (`openinference.span.kind`): AGENT, CHAIN, LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, GUARDRAIL, or EVALUATOR.
+    - A project contains traces. A trace is one end-to-end execution of an application, made of spans (its steps). Each span has a kind (`openinference.span.kind`): AGENT, CHAIN, LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, GUARDRAIL, EVALUATOR, or DECISION.
     - Spans carry OpenInference semantic-convention attributes: `input.value` / `output.value`, plus kind-specific attributes such as `llm.model_name`, `llm.input_messages`, `llm.token_count.*`, `tool.name`, and `retrieval.documents`.
     - A session groups traces into a conversation via the `session.id` span attribute. Within a session, each trace is one turn; a turn's input and output come from that trace's root span.
   </tracing>

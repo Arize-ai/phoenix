@@ -218,9 +218,7 @@ async def _add_live_session_work_unit(
     await session.flush()
     work_unit = models.EvalSessionWorkUnit(
         project_session_rowid=project_session.id,
-        evaluator_id=evaluator.id,
         project_evaluator_id=project_evaluator.id,
-        config_fingerprint=token_hex(8),
         evaluated_through=now,
         status="RUNNING",
         claimed_at=now,

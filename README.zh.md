@@ -242,6 +242,12 @@ Phoenix 基于 OpenTelemetry 深度打造，具备完全的供应商、语言与
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/nvidia-color.png" height="14"> | [NVIDIA NeMo](https://arize.com/docs/phoenix/integrations/python/nvidia) | 面向企业级智能体的 NVIDIA NeMo Agent Toolkit | [集成指南](https://arize.com/docs/phoenix/integrations/python/nvidia) |
 | | [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite) | 配备可视化构建器的多智能体 LLM 工作流框架 | [集成指南](https://arize.com/docs/phoenix/integrations/python/graphite) |
 
+### 向量数据库 (Vector Databases)
+
+| 集成提供商 | 平台描述 | 文档指引 |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [Qdrant](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant) | 追踪稠密、稀疏与 RRF 融合的分阶段混合检索 | [集成指南](https://arize.com/docs/phoenix/integrations/vector-databases/qdrant) |
+
 ## 安全沙箱环境 (Sandboxes)
 
 在云端托管沙箱服务中运行 Phoenix [代码评估器 (Code Evaluators)](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators)，实现内核级安全隔离与运行时依赖动态安装。
@@ -252,6 +258,7 @@ Phoenix 基于 OpenTelemetry 深度打造，具备完全的供应商、语言与
 | [Daytona](https://arize.com/docs/phoenix/integrations/sandboxes/daytona) | 支持快照秒级启动的托管开发沙箱环境 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/daytona) |
 | [Vercel Sandbox](https://arize.com/docs/phoenix/integrations/sandboxes/vercel) | 运行在 Vercel 底层基础设施上的按需瞬态计算沙箱 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/vercel) |
 | [Modal](https://arize.com/docs/phoenix/integrations/sandboxes/modal) | 无服务器（Serverless）、Python 原生的容器计算平台 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/modal) |
+| [Docker Sandboxes](https://arize.com/docs/phoenix/integrations/sandboxes/docker) | 由 Docker 托管的云端沙箱 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/docker) |
 
 ## 面向开发者与 AI 编程智能体
 

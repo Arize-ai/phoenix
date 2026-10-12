@@ -35,6 +35,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
+from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -49,14 +50,14 @@ from sqlalchemy.sql import Values, column, compiler, expression, literal, roles,
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.elements import Case
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self, TypeAlias, TypeAliasType
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
     eval_session_work_status_check,
     eval_work_status_check,
-    live_eval_session_work_index_predicate,
+    failed_eval_work_index_predicate,
     live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
     terminal_eval_work_index_predicate,
@@ -189,9 +190,9 @@ UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
 SandboxBackendType: TypeAlias = Literal[
-    "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY"
+    "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
-LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
+LanguageName = TypeAliasType("LanguageName", Literal["PYTHON", "TYPESCRIPT"])
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -201,7 +202,7 @@ GenerativeModelSDK: TypeAlias = Literal[
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
-    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "SUPERSEDED", "DROPPED"
+    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
 ]
 EvalSessionWorkStatus: TypeAlias = Literal[
     "PENDING",
@@ -210,12 +211,17 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "ERROR",
     "FAILED",
     "EXPIRED",
-    "SUPERSEDED",
+    "DROPPED",
     "CONTENT_LOST",
     "FILTERED_OUT",
     "SAMPLED_OUT",
 ]
-EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
+EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
+
+# Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
+# and store 0; the check constraint on project_evaluators enforces both rules.
+DEFAULT_EVALUATION_DELAY_SECONDS = 300
+MINIMUM_EVALUATION_DELAY_SECONDS = 10
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -250,6 +256,19 @@ JSON_ = (
     )
     .with_variant(
         JSONB(),
+        "sqlite",
+    )
+)
+
+# Stores Python None as SQL NULL instead of the JSON value null.
+_NullableJSON = (
+    JSON(none_as_null=True)
+    .with_variant(
+        postgresql.JSONB(none_as_null=True),
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(none_as_null=True),
         "sqlite",
     )
 )
@@ -560,6 +579,12 @@ class _OutputConfigList(TypeDecorator[list[OutputConfigType]]):
         return [OutputConfigModel.model_validate(config).root for config in value]
 
 
+class _OutputConfigOverrideList(_OutputConfigList):
+    # SQL NULL marks a dataset evaluator that inherits its evaluator's output configs.
+    cache_ok = True
+    impl = _NullableJSON
+
+
 class _CategoricalOutputConfigList(TypeDecorator[list[CategoricalOutputConfig]]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -857,10 +882,12 @@ class ProjectSession(HasId):
         UtcTimeStamp,
         nullable=True,
     )
+    # Deleting a session deletes its traces (ON DELETE CASCADE) rather than detaching them.
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
         uselist=True,
+        passive_deletes="all",
     )
     __table_args__ = (
         Index(
@@ -1109,10 +1136,16 @@ class Span(HasId):
         )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
-    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
-    document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
+    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
+    document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
-    span_cost: Mapped[Optional["SpanCost"]] = relationship(back_populates="span")
+    span_cost: Mapped[Optional["SpanCost"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1538,10 +1571,10 @@ class Dataset(HasId):
     )
     user: Mapped[Optional["User"]] = relationship("User")
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
-        "ExperimentTag", back_populates="dataset"
+        "ExperimentTag", back_populates="dataset", passive_deletes="all"
     )
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
-        "DatasetsDatasetLabel", back_populates="dataset"
+        "DatasetsDatasetLabel", back_populates="dataset", passive_deletes="all"
     )
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
         "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
@@ -1602,7 +1635,7 @@ class DatasetLabel(HasId):
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(_HexColor, nullable=False)
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
-        "DatasetsDatasetLabel", back_populates="dataset_label"
+        "DatasetsDatasetLabel", back_populates="dataset_label", passive_deletes="all"
     )
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -1674,10 +1707,12 @@ class DatasetExample(HasId):
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
         back_populates="dataset_example",
+        passive_deletes="all",
     )
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example",
+        passive_deletes="all",
     )
 
     __table_args__ = (UniqueConstraint("dataset_id", "external_id"),)
@@ -1707,6 +1742,7 @@ class DatasetExampleRevision(HasId):
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example_revision",
+        passive_deletes="all",
     )
 
     __table_args__ = (
@@ -1736,10 +1772,12 @@ class DatasetSplit(HasId):
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
         back_populates="dataset_split",
+        passive_deletes="all",
     )
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="dataset_split",
+        passive_deletes="all",
     )
 
 
@@ -1796,13 +1834,15 @@ class Experiment(HasId):
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="experiment",
+        passive_deletes="all",
     )
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="experiment",
+        passive_deletes="all",
     )
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
-        "ExperimentTag", back_populates="experiment"
+        "ExperimentTag", back_populates="experiment", passive_deletes="all"
     )
     __table_args__ = (
         Index(
@@ -1899,7 +1939,7 @@ class ExperimentRun(HasId):
         back_populates="experiment_runs",
     )
     annotations: Mapped[list["ExperimentRunAnnotation"]] = relationship(
-        back_populates="experiment_run"
+        back_populates="experiment_run", passive_deletes="all"
     )
 
     __table_args__ = (
@@ -1980,6 +2020,7 @@ class ExperimentJob(HasId):
 
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",
+        passive_deletes="all",
     )
 
     # Experiment lifecycle status
@@ -2007,7 +2048,7 @@ class ExperimentJob(HasId):
     experiment: Mapped["Experiment"] = relationship("Experiment")
     logs: WriteOnlyMapped[list["ExperimentLog"]] = relationship(
         back_populates="execution_config",
-        passive_deletes=True,
+        passive_deletes="all",
     )
 
     __mapper_args__ = {
@@ -2301,6 +2342,8 @@ class ExperimentJobLog(ExperimentLog):
 class UserRole(HasId):
     __tablename__ = "user_roles"
     name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
+    # Left at the ORM default on purpose: users.user_role_id is ON DELETE CASCADE, so deferring
+    # to the database would delete every user in a deleted role.
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
@@ -2333,12 +2376,17 @@ class User(HasId):
         "PasswordResetToken",
         back_populates="user",
         uselist=False,
+        passive_deletes="all",
     )
-    access_tokens: Mapped[list["AccessToken"]] = relationship("AccessToken", back_populates="user")
+    access_tokens: Mapped[list["AccessToken"]] = relationship(
+        "AccessToken", back_populates="user", passive_deletes="all"
+    )
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        "RefreshToken", back_populates="user"
+        "RefreshToken", back_populates="user", passive_deletes="all"
     )
-    api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
+    api_keys: Mapped[list["ApiKey"]] = relationship(
+        "ApiKey", back_populates="user", passive_deletes="all"
+    )
 
     __mapper_args__ = {
         "polymorphic_on": "auth_method",
@@ -2595,8 +2643,9 @@ class OAuth2Grant(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     last_used_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    # Deleting a grant deletes its refresh tokens, and through them their access tokens.
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        "RefreshToken", back_populates="oauth2_grant"
+        "RefreshToken", back_populates="oauth2_grant", passive_deletes="all"
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2823,10 +2872,12 @@ class Prompt(HasId):
         uselist=True,
     )
 
+    # Deleting a prompt an evaluator runs is refused by the database, not nulled by the ORM.
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt",
         uselist=True,
+        passive_deletes="all",
     )
 
 
@@ -2924,6 +2975,7 @@ class PromptVersion(HasId):
             and self.tools == other.tools
             and self.response_format == other.response_format
             and self.model_provider == other.model_provider
+            and self.custom_provider_id == other.custom_provider_id
             and self.model_name == other.model_name
             and self.metadata_ == other.metadata_
         )
@@ -2955,10 +3007,12 @@ class PromptVersionTag(HasId):
         "PromptVersion", back_populates="prompt_version_tags"
     )
 
+    # Deleting a tag an evaluator runs through is refused by the database, not nulled by the ORM.
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt_version_tag",
         uselist=True,
+        passive_deletes="all",
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
@@ -3166,7 +3220,7 @@ class LLMEvaluator(Evaluator):
         index=True,
     )
     prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
+        ForeignKey("prompt_version_tags.id", ondelete="RESTRICT"),
         index=True,
     )
     output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(
@@ -3391,7 +3445,7 @@ class DatasetEvaluators(HasId):
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
-        _OutputConfigList, nullable=True
+        _OutputConfigOverrideList, nullable=True
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
@@ -3555,6 +3609,7 @@ class AgentSession(HasId):
         "AgentSessionSnapshot",
         back_populates="agent_session",
         uselist=False,
+        passive_deletes="all",
     )
     messages: Mapped[list["AgentSessionMessage"]] = relationship(
         "AgentSessionMessage",
@@ -3652,12 +3707,18 @@ class AgentSessionSnapshot(HasId):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+def _default_evaluation_delay_seconds(context: DefaultExecutionContext) -> int:
+    """Spans have no quiet period; every other target starts at the default delay."""
+    target = context.get_current_parameters()["evaluation_target"]  # type: ignore[no-untyped-call]
+    return 0 if target == "SPAN" else DEFAULT_EVALUATION_DELAY_SECONDS
+
+
 class ProjectEvaluator(HasId):
-    """Attaches an evaluator to a project for online evaluation: which spans or
+    """Attaches an evaluator to a project for online evaluation: which spans, traces or
     sessions to match, how they are sampled, and the annotation name results are
-    written under. evaluation_target picks which of the two this row governs, and
-    the fields that apply differ with it — sampling and filter_condition shape span
-    selection, evaluation_delay_seconds shapes session selection."""
+    written under. filter_condition and sampling_rate apply to every evaluation_target;
+    evaluation_delay_seconds applies to TRACE and SESSION, which are evaluated once no
+    new span has arrived for that long."""
 
     __tablename__ = "project_evaluators"
     project_id: Mapped[int] = mapped_column(
@@ -3687,11 +3748,13 @@ class ProjectEvaluator(HasId):
     evaluation_delay_seconds: Mapped[int] = mapped_column(
         Integer,
         CheckConstraint(
-            "evaluation_delay_seconds >= 10",
+            "(evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0) OR "
+            "(evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS})",
             name="valid_evaluation_delay_seconds",
         ),
         nullable=False,
-        server_default="300",
+        default=_default_evaluation_delay_seconds,
     )
     input_mapping: Mapped[Optional[InputMapping]] = mapped_column(
         _OptionalInputMapping, nullable=True
@@ -3719,12 +3782,10 @@ class ProjectEvaluator(HasId):
 
 
 class EvalWorkLease(HasId):
-    """A named single-holder lease for a materializer that has no position to keep.
-
-    The session sweeper decides what to materialize from session state rather than from
-    the span arrival log, so it needs mutual exclusion and nothing else. A lease is
-    held while heartbeat_at stays fresh; once it goes stale another holder may take it.
-    """
+    """A named lease that normally keeps one replica at a time doing an online-eval
+    materializer's work, so replicas do not repeat each other's queries. It is held while
+    heartbeat_at stays fresh; once it goes stale another replica may take it. The lease is
+    advisory: no write is fenced on it."""
 
     __tablename__ = "eval_work_leases"
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -3739,35 +3800,25 @@ class EvalWorkLease(HasId):
     __table_args__ = (UniqueConstraint("name"),)
 
 
-class EvalWorkCursor(HasId):
-    """SPAN producer lease and position in the span arrival log, one row per
-    (evaluation_target, consumer_group). produced_through_id, observed_high_water_id and
-    observed_at are Span.id positions in that log, so only targets materialized by
-    scanning it keep a row here — targets that materialize from entity state take a
-    plain EvalWorkLease instead."""
+class EvalSpanCursor(Base):
+    """The span producer's position in the span arrival log, as Span.id values. The table
+    holds a single row."""
 
-    __tablename__ = "eval_work_cursors"
-    evaluation_target: Mapped[EvaluationTarget] = mapped_column(
-        CheckConstraint(
-            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
-        ),
-        nullable=False,
+    __tablename__ = "eval_span_cursors"
+    id: Mapped[int] = mapped_column(
+        _Integer,
+        CheckConstraint("id = 1", name="single_row"),
+        primary_key=True,
+        autoincrement=False,
     )
-    consumer_group: Mapped[str] = mapped_column(String, nullable=False)
-
     produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
     observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
     observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-
-    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    claimed_by: Mapped[Optional[str]] = mapped_column(String)
 
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-
-    __table_args__ = (UniqueConstraint("evaluation_target", "consumer_group"),)
 
 
 class EvalWorkUnit(HasId):
@@ -3779,17 +3830,11 @@ class EvalWorkUnit(HasId):
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     project_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
 
     status: Mapped[EvalWorkStatus] = mapped_column(
         CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
@@ -3810,11 +3855,10 @@ class EvalWorkUnit(HasId):
     )
 
     span: Mapped["Span"] = relationship("Span")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
-        UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
+        UniqueConstraint("span_rowid", "project_evaluator_id"),
         Index(
             "ix_eval_work_units_claimable",
             "status",
@@ -3828,6 +3872,14 @@ class EvalWorkUnit(HasId):
             postgresql_where=text(terminal_eval_work_index_predicate()),
             sqlite_where=text(terminal_eval_work_index_predicate()),
         ),
+        # The newest failure per evaluator, found without walking its successes.
+        Index(
+            "ix_eval_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
+        ),
     )
 
 
@@ -3837,17 +3889,11 @@ class EvalSessionWorkUnit(HasId):
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     project_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     status: Mapped[EvalSessionWorkStatus] = mapped_column(
         CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
@@ -3865,19 +3911,10 @@ class EvalSessionWorkUnit(HasId):
     )
 
     project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
-        Index(
-            "uq_eval_session_work_units_live_key",
-            "project_session_rowid",
-            "evaluator_id",
-            "config_fingerprint",
-            unique=True,
-            postgresql_where=text(live_eval_session_work_index_predicate()),
-            sqlite_where=text(live_eval_session_work_index_predicate()),
-        ),
+        UniqueConstraint("project_session_rowid", "project_evaluator_id"),
         Index(
             "ix_eval_session_work_units_claimable",
             "status",
@@ -3891,11 +3928,13 @@ class EvalSessionWorkUnit(HasId):
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
         ),
+        # The newest failure per evaluator, found without walking its successes.
         Index(
-            "ix_eval_session_work_units_terminal_watermark",
-            "project_session_rowid",
-            "evaluator_id",
-            "config_fingerprint",
+            "ix_eval_session_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
         ),
     )
 
@@ -3908,17 +3947,11 @@ class EvalTraceWorkUnit(HasId):
         ForeignKey("traces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
     project_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     status: Mapped[EvalSessionWorkStatus] = mapped_column(
         CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
@@ -3936,19 +3969,10 @@ class EvalTraceWorkUnit(HasId):
     )
 
     trace: Mapped["Trace"] = relationship("Trace")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
-        Index(
-            "uq_eval_trace_work_units_live_key",
-            "trace_rowid",
-            "evaluator_id",
-            "config_fingerprint",
-            unique=True,
-            postgresql_where=text(live_eval_session_work_index_predicate()),
-            sqlite_where=text(live_eval_session_work_index_predicate()),
-        ),
+        UniqueConstraint("trace_rowid", "project_evaluator_id"),
         Index(
             "ix_eval_trace_work_units_claimable",
             "status",
@@ -3962,10 +3986,12 @@ class EvalTraceWorkUnit(HasId):
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
         ),
+        # The newest failure per evaluator, found without walking its successes.
         Index(
-            "ix_eval_trace_work_units_terminal_watermark",
-            "trace_rowid",
-            "evaluator_id",
-            "config_fingerprint",
+            "ix_eval_trace_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
         ),
     )

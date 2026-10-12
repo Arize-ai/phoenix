@@ -20,7 +20,6 @@ import {
 } from "@phoenix/components";
 import { AnnotationTooltip } from "@phoenix/components/annotation";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { CellTop } from "@phoenix/components/table";
 import { PlaygroundErrorWrap } from "@phoenix/pages/playground/PlaygroundErrorWrap";
 
@@ -176,16 +175,14 @@ export function PlaygroundEvaluatorCell({
           ) : null}
         </Flex>
         {verdictValue?.explanation ? (
-          // Same treatment as the trace annotations list — muted, clamped,
-          // full text on hover — but clamped to the room this row gives it.
-          <Truncate
-            maxLines={EXPLANATION_MAX_LINES}
-            title={verdictValue.explanation}
-          >
+          // Same treatment as the trace annotations list — muted, full text
+          // on hover — but given all the room the row leaves it rather than
+          // a fixed number of lines, fading out where it runs past the cell.
+          <div css={explanationCSS} title={verdictValue.explanation}>
             <Text size="S" color="text-500">
               {verdictValue.explanation}
             </Text>
-          </Truncate>
+          </div>
         ) : null}
       </Flex>
       {/* Always present, like the annotation band under a prompt output: a
@@ -229,9 +226,12 @@ export function PlaygroundEvaluatorCell({
         </Pressable>
         <Popover placement="bottom start">
           <PopoverArrow />
+          {/* The popover caps its height at the room the viewport leaves on
+              its side of the band; the form scrolls within that rather than
+              being cut off when a row sits near the bottom of a short window. */}
           <Dialog
             aria-label={`Expected output for evaluator ${label}`}
-            style={{ width: 320 }}
+            style={{ width: 320, maxHeight: "inherit", overflow: "auto" }}
           >
             {isEditing ? (
               <ExpectedOutputForm
@@ -295,7 +295,20 @@ function ExpectedBandStatus({
 
 const resultRegionCSS = css`
   flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
   padding: var(--global-table-cell-padding-y) var(--global-table-cell-padding-x);
+`;
+
+// The explanation takes what the row leaves under the verdict and clips
+// there. The mask fades the last line out only when the text reaches the
+// bottom of that room; shorter text never gets near it. The title carries the
+// full text, as the line clamp it replaces did.
+const explanationCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.5em), transparent);
 `;
 
 // The band the experiment compare table draws under an output for its
@@ -356,12 +369,6 @@ const bandStatusCSS = css`
     }
   }
 `;
-
-// Lines of explanation that fit an evaluator cell at the table's row height:
-// the row is the example content plus its header strip; the evaluator cell
-// spends its own strip, the value row, padding, and the expected band, leaving
-// about six 20px lines. Clamping to that fills the cell without growing the row.
-const EXPLANATION_MAX_LINES = 6;
 
 /**
  * The strip above an evaluator verdict, the counterpart of the prompt cell's

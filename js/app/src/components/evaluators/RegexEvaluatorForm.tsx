@@ -82,10 +82,6 @@ export const RegexEvaluatorForm = () => {
     evaluatorMappingSource,
   });
 
-  // Determine initial mode based on existing values
-  const textDefaultMode =
-    getValues("literalMapping.text") != null ? "literal" : "path";
-
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
@@ -111,8 +107,8 @@ export const RegexEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="text"
           label="Text"
-          defaultMode={textDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Text"

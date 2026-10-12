@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dd6ae9e649aa3b0b54f3bbcfbf1da95c>>
+ * @generated SignedSource<<e7b3071d13d560df561b5986e2be70e0>>
  * @lightSyntaxTransform
  */
 
@@ -342,7 +342,7 @@ return {
                 "storageKey": null
               },
               {
-                "alias": null,
+                "alias": "configsByName",
                 "args": [
                   (v8/*:: as any*/),
                   {
@@ -455,12 +455,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "af87a73380753fdcfbda9b68c1847c0b",
+    "cacheID": "060ec93d1a5d7808ed0b6706572fd62f",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationSummaryQuery",
     "operationKind": "query",
-    "text": "query SessionAnnotationSummaryQuery(\n  $id: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $sessionFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionAnnotationSummaryValueFragment_3wOGsO\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment_3DyRD9 on Project {\n  evaluators(first: 1, filter: {annotationNames: [$annotationName]}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryValueFragment_3wOGsO on Project {\n  ...ProjectAnnotationConfigsByNameFragment_3DyRD9\n  sessionAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange, sessionFilterCondition: $sessionFilterCondition) {\n    name\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query SessionAnnotationSummaryQuery(\n  $id: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $sessionFilterCondition: String\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionAnnotationSummaryValueFragment_3wOGsO\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment_3DyRD9 on Project {\n  evaluators(first: 1, filter: {annotationNames: [$annotationName]}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryValueFragment_3wOGsO on Project {\n  ...ProjectAnnotationConfigsByNameFragment_3DyRD9\n  sessionAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange, sessionFilterCondition: $sessionFilterCondition) {\n    name\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

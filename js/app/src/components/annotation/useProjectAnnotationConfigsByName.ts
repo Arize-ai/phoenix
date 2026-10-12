@@ -60,7 +60,12 @@ export function useProjectAnnotationConfigsByName(
             }
           }
         }
-        annotationConfigs(first: $first, names: $annotationConfigNames) {
+        # Aliased: Relay rejects the same field with different arguments on
+        # one parent, and config mutations also select the unfiltered list
+        configsByName: annotationConfigs(
+          first: $first
+          names: $annotationConfigNames
+        ) {
           edges {
             config: node {
               ...useProjectAnnotationConfigsByName_config
@@ -88,7 +93,7 @@ export function useProjectAnnotationConfigsByName(
     }
   });
   // Explicit project configs take precedence over evaluator-derived defaults.
-  data?.annotationConfigs.edges.forEach(({ config: configRef }) => {
+  data?.configsByName.edges.forEach(({ config: configRef }) => {
     const config = readInlineData<useProjectAnnotationConfigsByName_config$key>(
       annotationConfigFragment,
       configRef

@@ -8,7 +8,6 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from importlib.metadata import version
 from math import isfinite
 from pathlib import Path
 from typing import (
@@ -157,8 +156,9 @@ individual environment variable settings. Defaults to True.
 """
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
-Allows calls to external resources, like Google Fonts in the web interface
-Defaults to True. Set to False in air-gapped environments to prevent external requests.
+When False, Phoenix makes no public-internet requests on its own initiative, such as web fonts,
+telemetry, or the WASM sandbox binary download. Services the operator configures, such as LLM
+providers and hosted sandboxes, are unaffected. Defaults to True.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -379,11 +379,6 @@ Defaults to 10000.
 Higher values increase catch-up throughput at the cost of larger per-tick transactions;
 lower values reduce transaction size but take longer to catch up to the observed frontier.
 """
-ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS = "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS"
-"""
-How long a PENDING online-eval work unit may wait before the reaper marks it EXPIRED.
-Defaults to 0 (disabled).
-"""
 ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
 """
 How long terminal online-eval work units are kept before the reaper deletes them.
@@ -391,35 +386,31 @@ Defaults to 604800 (7 days).
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 """
-The outstanding work-unit count above which the online-eval producer stops materializing
-new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
-"""
-ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING"
-"""
-The outstanding session work-unit count above which the session sweeper stops materializing
-new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+The most online evaluations queued at once, span, trace, and session evaluations together:
+PENDING + RUNNING + retryable ERROR (non-terminal work). New evaluations wait to be queued
+while the queue is full. Defaults to 10000.
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """
-The maximum number of work units each SPAN and SESSION online-eval consumer claims per
-tick. Both consumers deliberately read this one value: provider capacity and database
-connections are per-replica resources, not per-target resources. Each consumer runs its
-whole claimed batch at once and waits for it before claiming again; aggregate evaluator
-execution across both consumers is capped by
-PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY. Together with
-PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds each consumer's claim
-throughput at claim_batch_size / tick_interval work units per second. Defaults to 10.
+The maximum number of work units an online-eval consumer claims at once. Every consumer
+reads this one value: provider capacity and database connections are per-replica
+resources, not per-target resources. A consumer claims only as many units as it can start
+under PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, and claims again as soon as a running
+unit finishes, so this is an upper bound: under steady load, claims follow completions and
+often take one unit. Defaults to 10.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
-"""Maximum aggregate evaluator executions across online-eval consumers. Defaults to 10."""
+"""
+Maximum online-eval work units a replica evaluates at once, across all consumers.
+Defaults to 10.
+"""
 ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY"
 """Maximum aggregate online-eval consumer DB phases. Defaults to 5."""
 ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS = (
     "PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS"
 )
 """
-Seconds an online-eval consumer sleeps between claim cycles. Together with
-PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE this bounds per-replica evaluation throughput.
+Seconds an online-eval consumer waits before claiming again when it finds no work to start.
 Defaults to 5.0.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
@@ -954,7 +945,7 @@ The default retention policy for traces in days.
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
 A comma-separated list of sandbox providers to allow.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY. Case-insensitive.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY, DOCKER. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
@@ -962,8 +953,8 @@ ENV_PHOENIX_WASM_BINARY_PATH = "PHOENIX_WASM_BINARY_PATH"
 """
 Override path to a pre-downloaded CPython WASM binary used by the WASM sandbox
 provider. When set, the binary at this path is used as-is (no SHA verification,
-no download). When unset, the binary is downloaded on first use under
-PHOENIX_WORKING_DIR/wasm. Primarily used in CI to point at a cached binary.
+no download). When unset, the binary is downloaded under PHOENIX_WORKING_DIR/wasm
+unless PHOENIX_ALLOW_EXTERNAL_RESOURCES is False.
 """
 
 
@@ -3613,27 +3604,6 @@ def get_env_online_eval_max_span_ids_per_tick() -> int:
     return max_span_ids
 
 
-def get_env_online_eval_pending_ttl_seconds() -> float:
-    """
-    Gets the value of the PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS environment variable.
-
-    Defaults to 0, which disables TTL-based shedding: pending work units wait
-    until a consumer claims them, however long that takes (the admission gate
-    bounds queue growth). Setting a positive TTL opts into load shedding —
-    pending units older than the TTL are expired terminally and are NEVER
-    evaluated or re-materialized, so only set this if dropping evals on old
-    spans under sustained backlog is acceptable.
-    """
-    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
-    if not isfinite(seconds) or seconds < 0:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS}: "
-            f"{seconds}. Value must be a finite non-negative number."
-        )
-    return seconds
-
-
 def get_env_online_eval_retention_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_RETENTION_SECONDS environment variable.
@@ -3652,28 +3622,12 @@ def get_env_online_eval_max_outstanding() -> int:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING environment variable.
 
-    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
+    Counts PENDING + RUNNING + retryable ERROR (non-terminal work) of every evaluation target.
     """
     max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 10_000)
     if max_outstanding <= 0:
         raise ValueError(
             f"Invalid value for environment variable {ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING}: "
-            f"{max_outstanding}. Value must be a positive integer."
-        )
-    return max_outstanding
-
-
-def get_env_online_eval_max_session_outstanding() -> int:
-    """
-    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING environment variable.
-
-    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
-    """
-    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING, 10_000)
-    if max_outstanding <= 0:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING}: "
             f"{max_outstanding}. Value must be a positive integer."
         )
     return max_outstanding
@@ -4068,7 +4022,6 @@ def verify_server_environment_variables() -> None:
         )
 
 
-SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
 
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
@@ -4132,8 +4085,8 @@ def _validate_file_exists_and_is_readable(
 
 def get_env_allow_external_resources() -> bool:
     """
-    Gets the value of the PHOENIX_ALLOW_EXTERNAL_RESOURCES environment variable.
-    Defaults to True if not set.
+    Whether Phoenix may fetch public-internet resources on its own initiative. Services the
+    operator configures, such as LLM providers and hosted sandboxes, are unaffected by this flag.
     """
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
 

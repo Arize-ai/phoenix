@@ -74,6 +74,21 @@ async function createProject(
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+/**
+ * Gives each prompt variable beyond input, output and metadata a path. The
+ * record has no field of the same name for those, so Create waits on them.
+ */
+async function fillDeclaredVariablePaths(page: Page, dialog: Locator) {
+  const declaredVariablePaths = dialog.getByRole("textbox", {
+    name: /^(?!(input|output|metadata) ).+ path mapping$/,
+  });
+  await expect(declaredVariablePaths.first()).toBeVisible();
+  for (const pathField of await declaredVariablePaths.all()) {
+    await pathField.click();
+    await page.keyboard.insertText("input");
+  }
+}
+
 // The evaluator slideovers are routes, so the test asserts on them. Each ends
 // in `(\?|$)` because project pages always carry a time-range search param.
 const EVALUATORS_URL = /\/projects\/[^/]+\/evaluators(\?|$)/;
@@ -429,13 +444,20 @@ test.describe.serial("Projects", () => {
     await expect(gallery).not.toBeVisible();
     await expect(page).toHaveURL(EVALUATORS_URL);
 
-    // A category card opens the gallery on that category's first template.
-    // Deliberately not the default card: custom evaluators sort ahead of the
-    // templates, and other specs create them on the shared server, so the
-    // default card is not reliably a template.
+    // A category card opens the gallery on that category, with no card
+    // selected until one is chosen.
     await page.getByRole("link", { name: /^Agents/ }).click();
     await expect(page).toHaveURL(GALLERY_AGENTS_CATEGORY_URL);
     await expect(gallery).toBeVisible();
+    await expect(
+      gallery.getByText("Select an evaluator or template to see details.")
+    ).toBeVisible();
+    await gallery
+      .getByRole("listbox", { name: "Evaluators and templates" })
+      .getByRole("group", { name: "Agents", exact: true })
+      .getByRole("option")
+      .first()
+      .click();
 
     // Dismissing the creation slideover returns to the gallery it was
     // launched from, still on its category: the slideover nests under the
@@ -459,24 +481,46 @@ test.describe.serial("Projects", () => {
       .click();
     await expect(createDialog).toBeVisible();
     await createDialog.getByLabel("Name").first().fill(evaluatorName);
+    // Every template here declares such a variable.
+    await fillDeclaredVariablePaths(page, createDialog);
     await createDialog
       .getByRole("button", { name: "Create", exact: true })
       .click();
     await expect(createDialog).not.toBeVisible();
     await expect(gallery).not.toBeVisible();
     await expect(page).toHaveURL(EVALUATORS_URL);
+    const evaluatorRows = page
+      .getByRole("table", { name: "Project evaluators" })
+      .getByRole("row");
     await expect(
-      page
-        .getByRole("table", { name: "Project evaluators" })
-        .getByRole("row")
-        .filter({ hasText: evaluatorName })
+      evaluatorRows.filter({ hasText: evaluatorName })
     ).toBeVisible();
+
+    // A duplicate's default name is valid and unused, so it saves as is.
+    const copyName = `${evaluatorName}_copy`;
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Duplicate existing LLM evaluator" })
+      .click();
+    await page.getByRole("menuitem", { name: evaluatorName }).click();
+    const copyDialog = page.getByRole("dialog", {
+      name: /^Copy LLM evaluator/,
+    });
+    await expect(copyDialog).toBeVisible();
+    await expect(copyDialog.getByLabel("Name").first()).toHaveValue(copyName);
+    await fillDeclaredVariablePaths(page, copyDialog);
+    await copyDialog
+      .getByRole("button", { name: "Create", exact: true })
+      .click();
+    await expect(copyDialog).not.toBeVisible();
+    await expect(evaluatorRows.filter({ hasText: copyName })).toBeVisible();
 
     // Creating the same evaluator again fails on the server, and the banner
     // shows the server's message rather than Relay's raw error, which would
     // otherwise include the whole mutation input (the entire prompt template).
     // The list has an evaluator now, so the empty state's category cards are
     // gone; the gallery is a route, so open it on the category directly.
+    await expect(page).toHaveURL(EVALUATORS_URL);
     const agentsGalleryUrl = new URL(page.url());
     agentsGalleryUrl.pathname = `${agentsGalleryUrl.pathname}/gallery`;
     agentsGalleryUrl.searchParams.set("category", "AGENTS");
@@ -484,10 +528,17 @@ test.describe.serial("Projects", () => {
     await expect(page).toHaveURL(GALLERY_AGENTS_CATEGORY_URL);
     await expect(gallery).toBeVisible();
     await gallery
+      .getByRole("listbox", { name: "Evaluators and templates" })
+      .getByRole("group", { name: "Agents", exact: true })
+      .getByRole("option")
+      .first()
+      .click();
+    await gallery
       .getByRole("button", { name: "Customize this evaluator" })
       .click();
     await expect(createDialog).toBeVisible();
     await createDialog.getByLabel("Name").first().fill(evaluatorName);
+    await fillDeclaredVariablePaths(page, createDialog);
     await createDialog
       .getByRole("button", { name: "Create", exact: true })
       .click();

@@ -1,12 +1,15 @@
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 
 import {
-  dropOtherGrainEntityPathMappings,
+  dropOtherRecordKindPathMappings,
+  dropPathsShadowedByLiterals,
+  formatElapsedShort,
   formatMissingBindingMessage,
   formatProjectEvaluatorRunCounts,
   getDefaultProjectEvaluatorFilterCondition,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
+  getUnboundRequiredVariables,
   isSameInputMapping,
   PROJECT_EVALUATOR_TARGETS,
   toProjectEvaluatorSamplingFraction,
@@ -56,7 +59,7 @@ describe("withProjectEvaluatorTarget", () => {
 });
 
 const runSummary = {
-  status: "RUNNING",
+  status: "RUNNING" as const,
   lastRunAt: "2026-08-14T12:00:00Z",
   queuedCount: 3,
   evaluatedCount: 118,
@@ -65,8 +68,14 @@ const runSummary = {
 };
 
 describe("getProjectEvaluatorStatus", () => {
-  it("reports the run status of the evaluator's most recent runs", () => {
-    expect(getProjectEvaluatorStatus({ runSummary }).label).toBe("Running");
+  it.each([
+    ["RUNNING", "Running", "success"],
+    ["DISABLED", "Disabled", "default"],
+    ["DEGRADED", "Degraded", "warning"],
+  ] as const)("labels %s as %s", (status, label, variant) => {
+    expect(getProjectEvaluatorStatus({ runSummary: { status } })).toMatchObject(
+      { label, variant }
+    );
   });
 });
 
@@ -80,7 +89,17 @@ describe("formatProjectEvaluatorRunCounts", () => {
     ).toBe("118 evaluated · 3 queued");
     expect(
       formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
-    ).toBe("118 evaluated · 2 failed · 4 dropped · 3 queued");
+    ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
+  });
+});
+
+describe("formatElapsedShort", () => {
+  it("shows the largest whole unit elapsed", () => {
+    const now = Date.parse("2026-10-01T12:00:00Z");
+    expect(formatElapsedShort("2026-10-01T11:59:30Z", now)).toBe("<1m");
+    expect(formatElapsedShort("2026-10-01T11:48:00Z", now)).toBe("12m");
+    expect(formatElapsedShort("2026-10-01T09:00:00Z", now)).toBe("3h");
+    expect(formatElapsedShort("2026-09-29T11:00:00Z", now)).toBe("2d");
   });
 });
 
@@ -144,6 +163,56 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         variable: "complex",
         path: "metadata[*]",
         status: "unverified",
+        source: "path",
+      },
+    ]);
+  });
+
+  it("resolves a variable with saved text and no path from the text", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { output: "answer" },
+        pathMapping: { output: "output" },
+        literalMapping: { reference: "expected" },
+        variables: ["output", "reference"],
+      })
+    ).toEqual([
+      {
+        variable: "output",
+        path: "output",
+        status: "resolved",
+        source: "path",
+      },
+      {
+        variable: "reference",
+        path: "reference",
+        status: "resolved",
+        source: "literal",
+      },
+    ]);
+  });
+
+  it("reads a literal over a path that resolves, as the server does", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { metadata: { name: "rag" } },
+        pathMapping: { context: "metadata.name", reference: "metadata.nope" },
+        literalMapping: { context: "pinned", reference: "pinned" },
+        variables: ["context", "reference"],
+      })
+    ).toEqual([
+      {
+        variable: "context",
+        path: "context",
+        status: "resolved",
+        source: "literal",
+      },
+      // A path that matches nothing still fails the run before any literal
+      // is applied.
+      {
+        variable: "reference",
+        path: "metadata.nope",
+        status: "missing",
         source: "path",
       },
     ]);
@@ -227,10 +296,10 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
   });
 });
 
-describe("dropOtherGrainEntityPathMappings", () => {
+describe("dropOtherRecordKindPathMappings", () => {
   it("drops paths rooted at the record kind the evaluator no longer runs on", () => {
     expect(
-      dropOtherGrainEntityPathMappings(
+      dropOtherRecordKindPathMappings(
         {
           literalMapping: { rubric: "helpfulness" },
           pathMapping: {
@@ -259,7 +328,7 @@ describe("dropOtherGrainEntityPathMappings", () => {
 
   it("drops session-rooted paths when the evaluator moves to spans", () => {
     expect(
-      dropOtherGrainEntityPathMappings(
+      dropOtherRecordKindPathMappings(
         {
           literalMapping: {},
           pathMapping: {
@@ -299,6 +368,43 @@ describe("isSameInputMapping", () => {
   });
 });
 
+describe("getUnboundRequiredVariables", () => {
+  const unmapped = { pathMapping: {}, literalMapping: {} };
+
+  it("names a required variable with no path and no field of its name", () => {
+    // A gallery template's `{{context}}` reads nothing until it is mapped;
+    // `input` and `output` read the fields of the same name.
+    expect(
+      getUnboundRequiredVariables({
+        variables: ["input", "context", "output"],
+        inputMapping: unmapped,
+      })
+    ).toEqual(["context"]);
+  });
+
+  it("clears a variable once it has a path or text", () => {
+    expect(
+      getUnboundRequiredVariables({
+        variables: ["context", "tool_call"],
+        inputMapping: {
+          pathMapping: { context: "metadata.attributes.retrieval" },
+          literalMapping: { tool_call: "" },
+        },
+      })
+    ).toEqual([]);
+  });
+
+  it("leaves out a parameter the evaluator can run without", () => {
+    expect(
+      getUnboundRequiredVariables({
+        variables: ["output", "threshold"],
+        requiredVariables: ["output"],
+        inputMapping: unmapped,
+      })
+    ).toEqual([]);
+  });
+});
+
 describe("formatMissingBindingMessage", () => {
   it("names the path an authored mapping reads", () => {
     expect(
@@ -328,5 +434,19 @@ describe("formatMissingBindingMessage", () => {
         "span"
       )
     ).toBe("tool_call does not exist on this span, so evaluation fails");
+  });
+});
+
+describe("dropPathsShadowedByLiterals", () => {
+  it("drops only the paths a literal overrides", () => {
+    expect(
+      dropPathsShadowedByLiterals({
+        pathMapping: { context: "metadata.name", input: "metadata.attributes" },
+        literalMapping: { context: "pinned" },
+      })
+    ).toEqual({
+      pathMapping: { input: "metadata.attributes" },
+      literalMapping: { context: "pinned" },
+    });
   });
 });

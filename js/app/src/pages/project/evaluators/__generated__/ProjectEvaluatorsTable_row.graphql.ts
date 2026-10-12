@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7348ac9787c3fa0f78ab680bcb7c7708>>
+ * @generated SignedSource<<04427d67e77fc991502f981ae91d86e8>>
  * @lightSyntaxTransform
  */
 
@@ -14,11 +14,16 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type ProjectEvaluatorRunStatus = "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_row$data = {
   readonly enabled: boolean;
+  readonly evaluationLoad: {
+    readonly evaluationCount: number;
+    readonly meanEvaluationSeconds: number | null;
+    readonly shareOfEvaluationTime: number | null;
+  };
   readonly evaluationTarget: EvaluationTarget;
   readonly evaluator: {
     readonly id: string;
@@ -63,7 +68,9 @@ export type ProjectEvaluatorsTable_row$data = {
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastRunAt: string | null;
+    readonly oldestQueuedAt: string | null;
     readonly queuedCount: number;
+    readonly runningCount: number;
     readonly status: ProjectEvaluatorRunStatus;
   };
   readonly samplingRate: number;
@@ -80,6 +87,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "59c1291da76c538e8fc6ca162c55b56f";
+(node as any).hash = "41650685b08cc176bd207dec6312da7c";
 
 export default node;

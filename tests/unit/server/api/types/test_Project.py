@@ -195,6 +195,175 @@ class TestProjectEvaluatorAnnotationNameFilter:
         ] == expected
 
 
+async def test_evaluation_queue(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Every evaluator of the project counts, across span, trace, and session evaluations;
+    another project's evaluations do not."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        other_project = await _add_project(session)
+        idle_project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+        other_spans = [
+            await _add_span(session, await _add_trace(session, other_project)) for _ in range(2)
+        ]
+        evaluator = models.BuiltinEvaluator(
+            name=DbIdentifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+
+        async def project_evaluator(
+            project_id: int, evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+        ) -> int:
+            record = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"runs-{token_hex(8)}"),
+                project_id=project_id,
+                evaluator_id=evaluator.id,
+                name=DbIdentifier(f"project-evaluator-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target=evaluation_target,
+            )
+            session.add(record)
+            await session.flush()
+            return record.id
+
+        span_evaluator = await project_evaluator(project.id, "SPAN")
+        another_span_evaluator = await project_evaluator(project.id, "SPAN")
+        trace_evaluator = await project_evaluator(project.id, "TRACE")
+        session_evaluator = await project_evaluator(project.id, "SESSION")
+        other_project_evaluator = await project_evaluator(other_project.id, "SPAN")
+
+        def span_unit(
+            span: models.Span,
+            project_evaluator_id: int,
+            status: str,
+            *,
+            queued_ago: timedelta,
+            updated_ago: Optional[timedelta] = None,
+        ) -> models.EvalWorkUnit:
+            return models.EvalWorkUnit(
+                span_rowid=span.id,
+                project_evaluator_id=project_evaluator_id,
+                status=status,
+                attempts=1 if status == "ERROR" else 0,
+                created_at=now - queued_ago,
+                updated_at=now - (updated_ago or queued_ago),
+            )
+
+        session.add_all(
+            [
+                span_unit(spans[0], span_evaluator, "PENDING", queued_ago=timedelta(minutes=5)),
+                # Running, and awaiting a retry: queued, but neither is waiting to start.
+                span_unit(spans[1], span_evaluator, "RUNNING", queued_ago=timedelta(minutes=20)),
+                span_unit(
+                    spans[0], another_span_evaluator, "ERROR", queued_ago=timedelta(minutes=30)
+                ),
+                # Completed within the rate window: one queued within it, one before.
+                span_unit(
+                    spans[1],
+                    another_span_evaluator,
+                    "DONE",
+                    queued_ago=timedelta(minutes=10),
+                    updated_ago=timedelta(minutes=2),
+                ),
+                span_unit(
+                    spans[2],
+                    another_span_evaluator,
+                    "DONE",
+                    queued_ago=timedelta(minutes=90),
+                    updated_ago=timedelta(minutes=30),
+                ),
+                models.EvalTraceWorkUnit(
+                    trace_rowid=trace.id,
+                    project_evaluator_id=trace_evaluator,
+                    evaluated_through=now,
+                    status="RUNNING",
+                    created_at=now - timedelta(minutes=1),
+                ),
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    project_evaluator_id=session_evaluator,
+                    evaluated_through=now,
+                    status="PENDING",
+                    created_at=now - timedelta(minutes=2),
+                ),
+                span_unit(
+                    other_spans[0],
+                    other_project_evaluator,
+                    "PENDING",
+                    queued_ago=timedelta(minutes=40),
+                ),
+                span_unit(
+                    other_spans[1],
+                    other_project_evaluator,
+                    "DONE",
+                    queued_ago=timedelta(minutes=10),
+                    updated_ago=timedelta(minutes=2),
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        """query ($project: ID!, $idle: ID!) {
+            project: node(id: $project) { ...EvaluationQueue }
+            idle: node(id: $idle) { ...EvaluationQueue }
+        }
+        fragment EvaluationQueue on Project {
+            evaluationQueue {
+                queuedCount
+                runningCount
+                oldestQueuedAt
+                queuedPerMinute
+                evaluationsPerMinute
+                targets { evaluationTarget queuedCount }
+            }
+        }""",
+        variables={
+            "project": str(GlobalID("Project", str(project.id))),
+            "idle": str(GlobalID("Project", str(idle_project.id))),
+        },
+    )
+
+    assert not response.errors and response.data
+    queue = response.data["project"]["evaluationQueue"]
+    assert datetime.fromisoformat(queue.pop("oldestQueuedAt")) == now - timedelta(minutes=5)
+    assert queue == {
+        "queuedCount": 5,
+        "runningCount": 2,
+        # Five queued evaluations and one completed were queued within the window.
+        "queuedPerMinute": pytest.approx(6 / 60),
+        "evaluationsPerMinute": pytest.approx(2 / 60),
+        "targets": [
+            {"evaluationTarget": "SPAN", "queuedCount": 3},
+            {"evaluationTarget": "TRACE", "queuedCount": 1},
+            {"evaluationTarget": "SESSION", "queuedCount": 1},
+        ],
+    }
+    assert response.data["idle"]["evaluationQueue"] == {
+        "queuedCount": 0,
+        "runningCount": 0,
+        "oldestQueuedAt": None,
+        "queuedPerMinute": 0,
+        "evaluationsPerMinute": 0,
+        "targets": [
+            {"evaluationTarget": "SPAN", "queuedCount": 0},
+            {"evaluationTarget": "TRACE", "queuedCount": 0},
+            {"evaluationTarget": "SESSION", "queuedCount": 0},
+        ],
+    }
+
+
 async def _add_generative_model(
     session: AsyncSession,
     name: Optional[str] = None,
@@ -6754,6 +6923,146 @@ class TestAnnotationMetricsTimeSeries:
         assert third_summary["scoreCount"] == 1
         assert third_summary["labelFractions"] == []
 
+    async def test_multi_unit_bins_summarize_entities_per_bin(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # Two passing spans at 10:01 and one failing span at 10:03 share the 10:00
+        # bin. Summarizing per entity gives pass 2/3 and a mean score of 0.6;
+        # merging the 10:01 and 10:03 minute bins would give 1/2 and 0.45.
+        annotated_spans = (
+            ("2024-01-01T10:01:00+00:00", "pass", 1.0),
+            ("2024-01-01T10:01:30+00:00", "pass", 0.8),
+            ("2024-01-01T10:03:00+00:00", "fail", 0.0),
+            ("2024-01-01T10:12:00+00:00", "fail", 0.2),
+        )
+        async with db() as session:
+            project = await _add_project(session)
+            for index, (start_time, label, score) in enumerate(annotated_spans):
+                timestamp = datetime.fromisoformat(start_time)
+                trace = await _add_trace(session, project, start_time=timestamp)
+                span = await _add_span(session, trace, start_time=timestamp)
+                session.add(
+                    models.SpanAnnotation(
+                        span_rowid=span.id,
+                        name="quality",
+                        label=label,
+                        score=score,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="CODE",
+                        identifier=str(index),
+                        source="APP",
+                        user_id=None,
+                    )
+                )
+
+        query = """
+          query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+            node(id: $id) {
+              ... on Project {
+                spanAnnotationMetricsTimeSeries(
+                  timeRange: $timeRange
+                  timeBinConfig: $timeBinConfig
+                ) {
+                  data {
+                    timestamp
+                    annotationSummaries {
+                      name
+                      count
+                      meanScore
+                      labelFractions { label fraction }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T10:00:00+00:00",
+                    "end": "2024-01-01T10:20:00+00:00",
+                },
+                "timeBinConfig": {"scale": "MINUTE", "utcOffsetMinutes": 0, "unitsPerBin": 5},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        data = response.data["node"]["spanAnnotationMetricsTimeSeries"]["data"]
+        assert [point["timestamp"] for point in data] == [
+            "2024-01-01T10:00:00+00:00",
+            "2024-01-01T10:05:00+00:00",
+            "2024-01-01T10:10:00+00:00",
+            "2024-01-01T10:15:00+00:00",
+        ]
+        assert data[0]["annotationSummaries"] == [
+            {
+                "name": "quality",
+                "count": 3,
+                "meanScore": pytest.approx(0.6),
+                "labelFractions": [
+                    {"label": "fail", "fraction": pytest.approx(1 / 3)},
+                    {"label": "pass", "fraction": pytest.approx(2 / 3)},
+                ],
+            }
+        ]
+        assert data[1]["annotationSummaries"] == []
+        assert data[2]["annotationSummaries"] == [
+            {
+                "name": "quality",
+                "count": 1,
+                "meanScore": pytest.approx(0.2),
+                "labelFractions": [{"label": "fail", "fraction": pytest.approx(1.0)}],
+            }
+        ]
+        assert data[3]["annotationSummaries"] == []
+
+    @pytest.mark.parametrize(
+        "time_bin_config",
+        [
+            pytest.param({"scale": "MONTH", "unitsPerBin": 2}, id="calendar_scale"),
+            pytest.param({"scale": "MINUTE", "unitsPerBin": 0}, id="zero_units_per_bin"),
+        ],
+    )
+    async def test_rejects_unsupported_units_per_bin(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        time_bin_config: dict[str, Any],
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+        response = await gql_client.execute(
+            query="""
+              query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                  ... on Project {
+                    spanAnnotationMetricsTimeSeries(
+                      timeRange: $timeRange
+                      timeBinConfig: $timeBinConfig
+                    ) { data { timestamp } }
+                  }
+                }
+              }
+            """,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T00:00:00+00:00",
+                    "end": "2024-06-01T00:00:00+00:00",
+                },
+                "timeBinConfig": time_bin_config,
+            },
+        )
+        assert response.errors
+        assert "unitsPerBin" in response.errors[0].message
+
 
 async def test_trace_resolves_by_otel_id_and_global_node_id(
     db: DbSessionFactory,
@@ -7326,9 +7635,7 @@ class TestEvaluatorComparison:
                             annotationName
                             labels
                             threshold
-                            flaggedCount
-                            flagRate
-                            meanScore
+                            sharedDistribution { ...DistributionFields }
                         }
                         b {
                             evaluator {
@@ -7338,9 +7645,7 @@ class TestEvaluatorComparison:
                             annotationName
                             labels
                             threshold
-                            flaggedCount
-                            flagRate
-                            meanScore
+                            sharedDistribution { ...DistributionFields }
                         }
                         confusionMatrix
                         statistics {
@@ -7618,7 +7923,8 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 5,
             "onlyA": 1,
             "onlyB": 1,
-            "totalInRange": 7,
+            # Span targets count traces: the in-range spans share one trace.
+            "totalInRange": 1,
         }
         assert comparison["populationSize"] == 4
         side_a = comparison["a"]
@@ -7629,16 +7935,11 @@ class TestEvaluatorComparison:
         assert side_a["annotationName"] == "correctness"
         assert side_a["labels"] == ["pass", "fail"]
         assert side_a["threshold"] is None
-        assert side_a["flaggedCount"] == 2
-        assert side_a["flagRate"] == pytest.approx(0.5)
-        assert side_a["meanScore"] == pytest.approx(0.5)
         side_b = comparison["b"]
         assert side_b["evaluator"]["name"] == "toxicity"
         assert side_b["annotationName"] == "toxicity"
         assert side_b["labels"] == ["flagged", "not flagged"]
         assert side_b["threshold"] == pytest.approx(0.5)
-        assert side_b["flaggedCount"] == 2
-        assert side_b["meanScore"] == pytest.approx(0.5)
         assert comparison["confusionMatrix"] == [[1, 1], [1, 1]]
         statistics = comparison["statistics"]
         assert statistics["agreement"] == pytest.approx(0.5)
@@ -7654,7 +7955,7 @@ class TestEvaluatorComparison:
             "evaluatedByBoth": 4,
             "onlyA": 2,
             "onlyB": 0,
-            "totalInRange": 7,
+            "totalInRange": 1,
         }
         assert comparison["populationSize"] == 4
         assert comparison["confusionMatrix"] == [[2, 0], [0, 2]]
@@ -7671,7 +7972,6 @@ class TestEvaluatorComparison:
             gql_client, _comparison_data, "correctness", "toxicity", threshold_b=0.85
         )
         assert comparison["b"]["threshold"] == pytest.approx(0.85)
-        assert comparison["b"]["flaggedCount"] == 1
         assert comparison["confusionMatrix"] == [[0, 2], [1, 1]]
         statistics = comparison["statistics"]
         assert statistics["agreement"] == pytest.approx(0.75)
@@ -7728,10 +8028,31 @@ class TestEvaluatorComparison:
         assert distribution_b["evaluatedCount"] == coverage["evaluatedByBoth"] + coverage["onlyB"]
         assert distribution_b["scoreBinCounts"] == [0, 1, 1, 0, 0, 1, 0, 0, 1, 1]
         assert sum(distribution_b["scoreBinCounts"]) == distribution_b["evaluatedCount"] - 1
-        # The comparison's mean covers only the shared population; the
-        # distribution's mean covers every in-range result.
-        assert comparison["a"]["meanScore"] == pytest.approx(0.5)
+        # The distribution's mean covers every in-range result.
         assert distribution_a["meanScore"] == pytest.approx(4 / 6)
+
+    async def test_shared_distributions_cover_only_entities_evaluated_by_both(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(_comparison_data, "correctness", "toxicity"),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison = data["node"]["evaluatorComparison"]
+        evaluated_by_both = comparison["coverage"]["evaluatedByBoth"]
+        shared_a = comparison["a"]["sharedDistribution"]
+        shared_b = comparison["b"]["sharedDistribution"]
+        # The exclusive results the independent distributions include drop out.
+        assert shared_a["evaluatedCount"] == evaluated_by_both
+        assert shared_b["evaluatedCount"] == evaluated_by_both
+        assert shared_a["evaluatedCount"] < data["evaluatorA"]["distribution"]["evaluatedCount"]
+        assert shared_b["evaluatedCount"] < data["evaluatorB"]["distribution"]["evaluatedCount"]
+        assert sum(point["count"] for point in shared_a["labelCounts"]) == evaluated_by_both
+        # A shared result with a null score is evaluated but not binnable.
+        assert sum(shared_b["scoreBinCounts"]) == evaluated_by_both - 1
+        assert shared_a["threshold"] == data["evaluatorA"]["distribution"]["threshold"]
 
     @pytest.mark.parametrize("target", ["SPAN", "TRACE", "SESSION"])
     async def test_distribution_membership_is_independent_of_value_eligibility(
@@ -7750,6 +8071,9 @@ class TestEvaluatorComparison:
                 evaluator = await session.get(models.ProjectEvaluator, ids[name])
                 assert evaluator is not None
                 evaluator.evaluation_target = target
+                evaluator.evaluation_delay_seconds = (
+                    0 if target == "SPAN" else models.DEFAULT_EVALUATION_DELAY_SECONDS
+                )
             results_by_target: list[list[tuple[str, Optional[float]]]] = [
                 [("toxicity", 0.1), ("harm", None)],
                 [("toxicity", 0.2)],
@@ -7809,8 +8133,6 @@ class TestEvaluatorComparison:
             assert sum(distribution["scoreBinCounts"]) == 3
             assert distribution["evaluatedCount"] == 4
         assert sum(map(sum, comparison["confusionMatrix"])) == 1
-        assert comparison["a"]["meanScore"] == pytest.approx(0.9)
-        assert comparison["b"]["meanScore"] == pytest.approx(0.8)
         assert data["evaluatorA"]["distribution"]["meanScore"] == pytest.approx(0.4)
 
     async def test_same_evaluator_twice_is_rejected(

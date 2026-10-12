@@ -104,6 +104,18 @@ def _provider_global_id(kind: str) -> str:
     return str(GlobalID("SandboxProvider", kind))
 
 
+_SCORE_OUTPUT_CONFIGS: list[dict[str, object]] = [
+    {
+        "continuous": {
+            "name": "score",
+            "optimizationDirection": "NONE",
+            "lowerBound": 0,
+            "upperBound": 1,
+        }
+    }
+]
+
+
 def _create_code_evaluator_input(
     *,
     sandbox_config_id: int,
@@ -118,16 +130,7 @@ def _create_code_evaluator_input(
         "sourceCode": source_code,
         "sandboxConfigId": _config_global_id(sandbox_config_id),
         "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-        "outputConfigs": [
-            {
-                "continuous": {
-                    "name": "score",
-                    "optimizationDirection": "NONE",
-                    "lowerBound": 0,
-                    "upperBound": 1,
-                }
-            }
-        ],
+        "outputConfigs": _SCORE_OUTPUT_CONFIGS,
     }
 
 
@@ -139,6 +142,7 @@ _KIND_TO_VARIANT: dict[str, str] = {
     "WASM": "wasm",
     "MODAL": "modal",
     "MONTY": "monty",
+    "DOCKER": "docker",
 }
 
 
@@ -424,6 +428,10 @@ mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
         results {
             evaluatorName
             error
+            annotation {
+                label
+                score
+            }
         }
     }
 }
@@ -449,6 +457,7 @@ mutation PatchCodeEvaluator($input: PatchCodeEvaluatorInput!) {
     patchCodeEvaluator(input: $input) {
         evaluator {
             id
+            updatedAt
             ... on CodeEvaluator {
                 name
                 description
@@ -636,7 +645,7 @@ class TestCodeEvaluatorSandboxMutationIds:
     ) -> None:
         """Sandboxed validation must run outside the metadata transaction.
 
-        `_validate_code_evaluator_sandbox_config` reads the config in a short
+        `validate_code_evaluator_sandbox_config` reads the config in a short
         `async with db()` block, closes it, and only then calls the adapter.
         Validation waits on sandbox worker capacity, and SQLite serves every
         writer from one connection, so holding the session across that call
@@ -814,6 +823,43 @@ class TestCodeEvaluatorSandboxMutationIds:
             row = await session.get(models.CodeEvaluator, int(evaluator_id.node_id))
         assert row is not None
         assert row.sandbox_config_id == sandbox_config.id
+
+    async def test_create_code_evaluator_reports_a_clean_conflict_on_duplicate_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        name = f"duplicate-code-evaluator-{token_hex(4)}"
+        first = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": _create_code_evaluator_input(
+                    sandbox_config_id=sandbox_config.id, name=name
+                )
+            },
+        )
+        assert first.data and not first.errors
+
+        second = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": _create_code_evaluator_input(
+                    sandbox_config_id=sandbox_config.id, name=name
+                )
+            },
+        )
+        assert second.errors
+        assert second.errors[0].message == f"An evaluator named '{name}' already exists"
+        assert "UNIQUE constraint" not in second.errors[0].message
+        assert "IntegrityError" not in second.errors[0].message
+        async with db() as session:
+            count = await session.scalar(
+                select(sa.func.count(models.CodeEvaluator.id)).where(
+                    models.CodeEvaluator.name == Identifier(name)
+                )
+            )
+        assert count == 1
 
     async def test_create_code_evaluator_rejects_disabled_sandbox_config(
         self,
@@ -1489,6 +1535,7 @@ class TestCreateCodeEvaluatorSandboxStrictness:
                     "language": "PYTHON",
                     "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
                     "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": _SCORE_OUTPUT_CONFIGS,
                 }
             },
         )
@@ -1516,6 +1563,7 @@ class TestCreateCodeEvaluatorSandboxStrictness:
                     "sourceCode": ("function evaluate({ output }) { return { score: 1.0 }; }"),
                     "sandboxConfigId": _config_global_id(sandbox_config.id),
                     "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": _SCORE_OUTPUT_CONFIGS,
                 }
             },
         )
@@ -1523,13 +1571,13 @@ class TestCreateCodeEvaluatorSandboxStrictness:
         joined = "\n".join(err.message for err in result.errors)
         assert "Evaluator language does not match sandbox config language" in joined
 
-    async def test_missing_sandbox_config_row_returns_bad_request_with_id(
+    async def test_missing_sandbox_config_row_returns_not_found_with_id(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
         # Reference an id that no row exists for; the resolver raises
-        # BadRequest("Sandbox config not found: <id>") — stricter than patch's
+        # NotFound("Sandbox config not found: <id>") — stricter than patch's
         # silent no-op, matching evaluators.py:853 runtime semantics.
         absent_id = str(GlobalID("SandboxConfig", "999999"))
         result = await gql_client.execute(
@@ -1541,9 +1589,303 @@ class TestCreateCodeEvaluatorSandboxStrictness:
                     "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
                     "sandboxConfigId": absent_id,
                     "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": _SCORE_OUTPUT_CONFIGS,
                 }
             },
         )
-        assert result.errors, "Expected BadRequest when sandbox config row is missing"
+        assert result.errors, "Expected NotFound when sandbox config row is missing"
         joined = "\n".join(err.message for err in result.errors)
         assert "Sandbox config not found" in joined
+
+
+class TestCodeEvaluatorOutputConfigsRequired:
+    """A code evaluator definition keeps at least one output config."""
+
+    @pytest.mark.parametrize("output_configs", [[], None], ids=["empty", "omitted"])
+    async def test_create_rejects_missing_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+        output_configs: list[Any] | None,
+    ) -> None:
+        name = f"no-outputs-{token_hex(4)}"
+        create_input = _create_code_evaluator_input(sandbox_config_id=sandbox_config.id, name=name)
+        create_input["outputConfigs"] = output_configs
+
+        result = await gql_client.execute(_CREATE_CODE_EVALUATOR, variables={"input": create_input})
+
+        assert result.errors
+        assert result.errors[0].message == "At least one output config is required."
+        async with db() as session:
+            created = await session.scalar(
+                select(models.CodeEvaluator).where(models.CodeEvaluator.name == Identifier(name))
+            )
+        assert created is None
+
+    async def test_patch_rejects_empty_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        created = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={"input": _create_code_evaluator_input(sandbox_config_id=sandbox_config.id)},
+        )
+        assert created.data and not created.errors
+        evaluator_gid = created.data["createCodeEvaluator"]["evaluator"]["id"]
+
+        result = await gql_client.execute(
+            _PATCH_CODE_EVALUATOR,
+            variables={"input": {"id": evaluator_gid, "outputConfigs": []}},
+        )
+
+        assert result.errors
+        assert result.errors[0].message == "At least one output config is required."
+        async with db() as session:
+            row = await session.get(
+                models.CodeEvaluator, int(GlobalID.from_id(evaluator_gid).node_id)
+            )
+        assert row is not None
+        assert [config.name for config in row.output_configs] == ["score"]
+
+
+_CODE_EVALUATOR_OUTPUT_CONFIGS = """
+query CodeEvaluatorOutputConfigs($id: ID!) {
+    node(id: $id) {
+        ... on CodeEvaluator {
+            outputConfigs {
+                ... on CategoricalAnnotationConfig {
+                    name
+                    values {
+                        label
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+_CURSE_WORDS_SOURCE = """
+CURSE_WORDS = {"darn", "heck", "frak"}
+
+
+def _collect(value, out):
+    if isinstance(value, str):
+        out.append(value)
+    elif isinstance(value, dict):
+        for v in value.values():
+            _collect(v, out)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            _collect(v, out)
+    return out
+
+
+def evaluate(output):
+    texts = _collect(output, [])
+    cleaned = []
+    for text in texts:
+        buf = ""
+        for ch in text.lower():
+            buf += ch if ch.isalnum() else " "
+        cleaned.append(buf)
+    tokens = set(" ".join(cleaned).split())
+    matched = sorted(tokens & CURSE_WORDS)
+    if matched:
+        return {
+            "label": "contains_curse_word",
+            "score": 0.0,
+            "explanation": "Detected curse word(s): " + ", ".join(matched),
+        }
+    return {"label": "clean", "score": 1.0, "explanation": "No configured curse words detected."}
+"""
+
+_OUTPUT_MAPPING = {"literalMapping": {}, "pathMapping": {"output": "output"}}
+
+
+def _categorical_output_config(name: str, values: list[dict[str, object]]) -> dict[str, object]:
+    return {"categorical": {"name": name, "optimizationDirection": "MAXIMIZE", "values": values}}
+
+
+class TestMontyCodeEvaluatorPersistence:
+    async def test_evaluator_that_passes_inline_preview_can_be_created(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        config = await _create_monty_config(db)
+        definition = {
+            "name": "curse_words",
+            "language": "PYTHON",
+            "sourceCode": _CURSE_WORDS_SOURCE,
+            "sandboxConfigId": _config_global_id(config.id),
+            "outputConfigs": [
+                _categorical_output_config(
+                    "curse_words",
+                    [
+                        {"label": "clean", "score": 1.0},
+                        {"label": "contains_curse_word", "score": 0.0},
+                    ],
+                )
+            ],
+        }
+        preview = await gql_client.execute(
+            _EVALUATOR_PREVIEWS,
+            variables={
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {"inlineCodeEvaluator": definition},
+                            "context": {"output": "well darn it"},
+                            "inputMapping": _OUTPUT_MAPPING,
+                        }
+                    ]
+                }
+            },
+        )
+        assert preview.data and not preview.errors, preview.errors
+        (preview_result,) = preview.data["evaluatorPreviews"]["results"]
+        assert preview_result["annotation"]["label"] == "contains_curse_word"
+
+        created = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={"input": {**definition, "inputMapping": _OUTPUT_MAPPING}},
+        )
+        assert created.data and not created.errors, created.errors
+
+    @pytest.mark.parametrize(
+        "input_override, stored_config, expected_error",
+        [
+            pytest.param(
+                {"sandboxConfigId": _provider_global_id("MONTY")},
+                None,
+                f"Invalid sandbox config id: {_provider_global_id('MONTY')}",
+                id="wrong-typed-sandbox-config-id",
+            ),
+            pytest.param(
+                {},
+                {"backend_type": "MONTY", "language": "PYTHON", "unexpected": True},
+                "Invalid sandbox config 'broken-monty': Extra inputs are not permitted",
+                id="invalid-stored-sandbox-config",
+            ),
+            pytest.param(
+                {
+                    "outputConfigs": [
+                        _categorical_output_config(
+                            "verdict", [{"label": "pass"}, {"label": "pass"}]
+                        )
+                    ]
+                },
+                None,
+                "Invalid output config 'verdict': Value error, "
+                'Values for categorical annotation config has duplicate label: "pass"',
+                id="duplicate-categorical-labels",
+            ),
+            pytest.param(
+                {"outputConfigs": [_categorical_output_config("verdict", [{"label": ""}])]},
+                None,
+                "Invalid output config 'verdict': Value error, Label must be non-empty",
+                id="empty-categorical-label",
+            ),
+            pytest.param(
+                {
+                    "outputConfigs": [
+                        {
+                            "continuous": {
+                                "name": "score",
+                                "optimizationDirection": "NONE",
+                                "lowerBound": 1,
+                                "upperBound": 0,
+                            }
+                        }
+                    ]
+                },
+                None,
+                "Invalid output config 'score': Value error, "
+                "Lower bound must be strictly less than upper bound",
+                id="lower-bound-not-below-upper-bound",
+            ),
+        ],
+    )
+    async def test_create_reports_invalid_input(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+        input_override: dict[str, object],
+        stored_config: dict[str, object] | None,
+        expected_error: str,
+    ) -> None:
+        config = await _create_monty_config(db)
+        if stored_config is not None:
+            async with db() as session:
+                await session.execute(
+                    sa.update(models.SandboxConfig)
+                    .where(models.SandboxConfig.id == config.id)
+                    .values(name=Identifier("broken-monty"), config=stored_config)
+                )
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    **_create_code_evaluator_input(sandbox_config_id=config.id),
+                    **input_override,
+                }
+            },
+        )
+        assert [error.message for error in result.errors] == [expected_error]
+
+    async def test_output_configs_survive_a_separate_read(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        config = await _create_monty_config(db)
+        created = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    **_create_code_evaluator_input(
+                        sandbox_config_id=config.id,
+                        source_code='def evaluate(output):\n    return "pass"',
+                    ),
+                    "outputConfigs": [
+                        _categorical_output_config(
+                            "verdict",
+                            [{"label": "pass", "score": 1.0}, {"label": "fail", "score": 0.0}],
+                        )
+                    ],
+                }
+            },
+        )
+        assert created.data and not created.errors, created.errors
+        evaluator_gid = created.data["createCodeEvaluator"]["evaluator"]["id"]
+
+        read = await gql_client.execute(_CODE_EVALUATOR_OUTPUT_CONFIGS, {"id": evaluator_gid})
+        assert read.data and not read.errors, read.errors
+        assert read.data["node"]["outputConfigs"] == [
+            {"name": "verdict", "values": [{"label": "pass"}, {"label": "fail"}]}
+        ]
+
+        preview = await gql_client.execute(
+            _EVALUATOR_PREVIEWS,
+            variables={
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {"codeEvaluatorId": evaluator_gid},
+                            "context": {"output": "anything"},
+                            "inputMapping": _OUTPUT_MAPPING,
+                        }
+                    ]
+                }
+            },
+        )
+        assert preview.data and not preview.errors, preview.errors
+        (preview_result,) = preview.data["evaluatorPreviews"]["results"]
+        assert preview_result["annotation"] == {"label": "pass", "score": 1.0}

@@ -326,7 +326,7 @@ export const EditCodeEvaluatorDialogContent = ({
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
         state.setEvaluatorMappingSource({
-          grain: state.evaluatorMappingSource.grain,
+          recordKind: state.evaluatorMappingSource.recordKind,
           source: next.testPayload,
         });
       }
@@ -539,6 +539,15 @@ export const EditCodeEvaluatorDialogContent = ({
                   onSourceCodeChange={setSourceCode}
                   isLanguageDisabled={mode !== "create"}
                   isSandboxRequired={mode === "create"}
+                  resetSource={
+                    mode === "update"
+                      ? {
+                          language: initialLanguage,
+                          sourceCode: initialSourceCode,
+                          kind: "saved",
+                        }
+                      : null
+                  }
                 />
                 <InputMappingSection />
               </div>

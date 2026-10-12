@@ -64,17 +64,21 @@ import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectE
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
+import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
+import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
   EvaluatorScoreWindowProvider,
   ProjectEvaluatorMeanScoreCell,
   ProjectEvaluatorMeanScoreHeader,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
@@ -107,6 +111,7 @@ const scrollableAreaCSS = css`
 const readRow = (
   row: ProjectEvaluatorsTable_row$key &
     ProjectEvaluatorsTable_costs$key &
+    ProjectEvaluatorsTable_failures$key &
     ProjectEvaluatorsTable_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
@@ -123,9 +128,16 @@ const readRow = (
           status
           lastRunAt
           queuedCount
+          runningCount
           evaluatedCount
           failedCount
           droppedCount
+          oldestQueuedAt
+        }
+        evaluationLoad {
+          evaluationCount
+          meanEvaluationSeconds
+          shareOfEvaluationTime
         }
         evaluator {
           id
@@ -211,6 +223,22 @@ const readRow = (
     `,
     row
   );
+  const failuresData = readInlineData<ProjectEvaluatorsTable_failures$key>(
+    graphql`
+      fragment ProjectEvaluatorsTable_failures on ProjectEvaluator
+      @inline
+      @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
+        failureSummary(timeRange: $timeRange) {
+          failedCount
+          evaluatedCount
+          failureRate
+          lastFailedAt
+          lastError
+        }
+      }
+    `,
+    row
+  );
   const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
     graphql`
       fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
@@ -248,7 +276,7 @@ const readRow = (
     `,
     row
   );
-  return { ...rowData, ...costData, ...scoresData };
+  return { ...rowData, ...costData, ...failuresData, ...scoresData };
 };
 
 type TableRow = ReturnType<typeof readRow>;
@@ -269,7 +297,7 @@ export function ProjectEvaluatorsTable({
   projectId: string;
   /** Free-text name search from the toolbar; empty means unfiltered. */
   filter: string;
-  /** Selected project time range used by the cost aggregates. */
+  /** Selected project time range used by the cost and failure aggregates. */
   timeRange: TimeRangeISOStrings;
   /** Normalized filter used to fetch the rows supplied by the owner query. */
   initialFilter: string;
@@ -308,6 +336,8 @@ export function ProjectEvaluatorsTable({
             node {
               ...ProjectEvaluatorsTable_row
               ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorsTable_failures
+                @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_scores
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
@@ -447,6 +477,24 @@ export function ProjectEvaluatorsTable({
         size: 40,
       }),
       {
+        id: "enabled",
+        header: "enabled",
+        size: 90,
+        cell: ({ row }) => (
+          <StopPropagation>
+            <ProjectEvaluatorEnabledSwitch
+              projectEvaluatorId={row.original.id}
+              name={row.original.name}
+              enabled={row.original.enabled}
+              clearableCount={
+                row.original.runSummary.queuedCount -
+                row.original.runSummary.runningCount
+              }
+            />
+          </StopPropagation>
+        ),
+      },
+      {
         header: "name",
         size: 200,
         accessorKey: "name",
@@ -462,6 +510,37 @@ export function ProjectEvaluatorsTable({
         size: 130,
         cell: ({ row }) => (
           <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
+        ),
+      },
+      {
+        id: "queue",
+        header: "queued",
+        size: 96,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <ProjectEvaluatorQueueCell queuedWork={row.original.runSummary} />
+        ),
+      },
+      {
+        id: "load",
+        header: "load",
+        size: 72,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <ProjectEvaluatorLoadCell
+            evaluationLoad={row.original.evaluationLoad}
+          />
+        ),
+      },
+      {
+        id: "failures",
+        header: "failure rate",
+        size: 110,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <ProjectEvaluatorFailuresCell
+            failureSummary={row.original.failureSummary}
+          />
         ),
       },
       {
@@ -627,20 +706,6 @@ export function ProjectEvaluatorsTable({
         cell: TimestampCell,
       },
       {
-        id: "enabled",
-        header: "enabled",
-        size: 90,
-        cell: ({ row }) => (
-          <StopPropagation>
-            <ProjectEvaluatorEnabledSwitch
-              projectEvaluatorId={row.original.id}
-              name={row.original.name}
-              enabled={row.original.enabled}
-            />
-          </StopPropagation>
-        ),
-      },
-      {
         id: ACTIONS_COLUMN_ID,
         header: "actions",
         size: 150,
@@ -718,8 +783,8 @@ export function ProjectEvaluatorsTable({
     data: tableData,
     state: {
       columnPinning: {
-        ...CHECKBOX_COLUMN_PINNING,
-        right: ["enabled", ACTIONS_COLUMN_ID],
+        left: [...CHECKBOX_COLUMN_PINNING.left, "enabled"],
+        right: [ACTIONS_COLUMN_ID],
       },
       columnSizing,
       columnVisibility,

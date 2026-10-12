@@ -61,7 +61,6 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, Sp
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
-from opentelemetry.util.types import AttributeValue
 from psutil import STATUS_ZOMBIE, Popen
 from sqlalchemy import URL, text
 from sqlalchemy.exc import OperationalError
@@ -93,6 +92,7 @@ from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.routers.v1 import create_v1_router
 from phoenix.server.thread_server import ThreadServer
+from phoenix.trace.attributes import AttributeValue
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
@@ -2192,6 +2192,14 @@ def _randomize_casing(email: str) -> str:
 
 # GET endpoints that all roles can read with expected status codes
 _COMMON_RESOURCE_ENDPOINTS = (
+    (404, "GET", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "GET", "v1/dataset_evaluators/fake-id-{}"),
+    (404, "GET", "v1/projects/fake-id-{}/evaluators"),
+    (422, "GET", "v1/project_evaluators/fake-id-{}"),
+    (422, "GET", "v1/evaluators/fake-id-{}"),
+    (200, "GET", "v1/evaluators"),
+    (422, "GET", "v1/evaluators/fake-id-{}/versions"),
+    (200, "GET", "v1/sandbox_configs"),
     # Projects
     (404, "GET", "v1/projects/fake-id-{}"),
     (200, "GET", "v1/projects"),
@@ -2272,6 +2280,18 @@ _ADMIN_ONLY_ENDPOINTS = (
 # Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
+    (422, "POST", "v1/evaluators"),
+    (422, "POST", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/dataset_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/dataset_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "POST", "v1/projects/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/project_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/project_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/projects/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/evaluators/fake-id-{}"),
+    (422, "POST", "v1/evaluators/fake-id-{}/versions"),
     # POST routes
     (422, "POST", "v1/annotation_configs"),
     (422, "POST", "v1/dataset_labels"),

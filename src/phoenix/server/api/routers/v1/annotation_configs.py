@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, List, Literal, Optional, Union
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, RootModel
@@ -9,13 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     AnnotationType,
-    OptimizationDirection,
 )
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
@@ -29,21 +28,20 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
+from phoenix.server.api.routers.v1.annotation_config_models import (
+    AnnotationConfig,
+    AnnotationConfigData,
+    CategoricalAnnotationConfigData,
+    ContinuousAnnotationConfigData,
+    FreeformAnnotationConfigData,
+    db_to_api_annotation_config,
+)
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
     get_project_by_identifier,
-)
-from phoenix.server.api.types.AnnotationConfig import (
-    CategoricalAnnotationConfig as CategoricalAnnotationConfigType,
-)
-from phoenix.server.api.types.AnnotationConfig import (
-    ContinuousAnnotationConfig as ContinuousAnnotationConfigType,
-)
-from phoenix.server.api.types.AnnotationConfig import (
-    FreeformAnnotationConfig as FreeformAnnotationConfigType,
 )
 from phoenix.server.authorization import is_not_locked
 
@@ -52,121 +50,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["annotation_configs"])
 
 
-class CategoricalAnnotationValue(V1RoutesBaseModel):
-    label: str
-    score: Optional[float] = None
-
-
-class CategoricalAnnotationConfigData(V1RoutesBaseModel):
-    name: str
-    type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
-    description: Optional[str] = None
-    optimization_direction: OptimizationDirection
-    values: List[CategoricalAnnotationValue]
-
-
-class ContinuousAnnotationConfigData(V1RoutesBaseModel):
-    name: str
-    type: Literal[AnnotationType.CONTINUOUS.value]  # type: ignore[name-defined]
-    description: Optional[str] = None
-    optimization_direction: OptimizationDirection
-    lower_bound: Optional[float] = None
-    upper_bound: Optional[float] = None
-
-
-class FreeformAnnotationConfigData(V1RoutesBaseModel):
-    name: str
-    type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
-    description: Optional[str] = None
-    optimization_direction: Optional[OptimizationDirection] = None
-    threshold: Optional[float] = None
-    lower_bound: Optional[float] = None
-    upper_bound: Optional[float] = None
-
-
-AnnotationConfigData: TypeAlias = Annotated[
-    Union[
-        CategoricalAnnotationConfigData,
-        ContinuousAnnotationConfigData,
-        FreeformAnnotationConfigData,
-    ],
-    Field(..., discriminator="type"),
-]
-
-
-class CategoricalAnnotationConfig(CategoricalAnnotationConfigData):
-    id: str
-
-
-class ContinuousAnnotationConfig(ContinuousAnnotationConfigData):
-    id: str
-
-
-class FreeformAnnotationConfig(FreeformAnnotationConfigData):
-    id: str
-
-
-AnnotationConfig: TypeAlias = Annotated[
-    Union[
-        CategoricalAnnotationConfig,
-        ContinuousAnnotationConfig,
-        FreeformAnnotationConfig,
-    ],
-    Field(..., discriminator="type"),
-]
-
-
-def db_to_api_annotation_config(
-    annotation_config: models.AnnotationConfig,
-) -> AnnotationConfig:
-    config = annotation_config.config
-    name = annotation_config.name
-    type_ = config.type
-    description = config.description
-    if isinstance(config, ContinuousAnnotationConfigModel):
-        return ContinuousAnnotationConfig(
-            id=str(GlobalID(ContinuousAnnotationConfigType.__name__, str(annotation_config.id))),
-            name=name,
-            type=type_,
-            description=description,
-            optimization_direction=config.optimization_direction,
-            lower_bound=config.lower_bound,
-            upper_bound=config.upper_bound,
-        )
-    if isinstance(config, CategoricalAnnotationConfigModel):
-        return CategoricalAnnotationConfig(
-            id=str(GlobalID(CategoricalAnnotationConfigType.__name__, str(annotation_config.id))),
-            name=name,
-            type=type_,
-            description=description,
-            optimization_direction=config.optimization_direction,
-            values=[
-                CategoricalAnnotationValue(label=val.label, score=val.score)
-                for val in config.values
-            ],
-        )
-    if isinstance(config, FreeformAnnotationConfigModel):
-        return FreeformAnnotationConfig(
-            id=str(GlobalID(FreeformAnnotationConfigType.__name__, str(annotation_config.id))),
-            name=name,
-            type=type_,
-            description=description,
-            optimization_direction=config.optimization_direction,
-            threshold=(config.thresholds[0] if config.thresholds else None),
-            lower_bound=config.lower_bound,
-            upper_bound=config.upper_bound,
-        )
-    assert_never(config)
-
-
 def _get_annotation_global_id(annotation_config: models.AnnotationConfig) -> GlobalID:
     config = annotation_config.config
     if isinstance(config, ContinuousAnnotationConfigModel):
-        return GlobalID(ContinuousAnnotationConfigType.__name__, str(annotation_config.id))
+        return GlobalID("ContinuousAnnotationConfig", str(annotation_config.id))
     if isinstance(config, CategoricalAnnotationConfigModel):
-        return GlobalID(CategoricalAnnotationConfigType.__name__, str(annotation_config.id))
+        return GlobalID("CategoricalAnnotationConfig", str(annotation_config.id))
     if isinstance(config, FreeformAnnotationConfigModel):
-        return GlobalID(FreeformAnnotationConfigType.__name__, str(annotation_config.id))
+        return GlobalID("FreeformAnnotationConfig", str(annotation_config.id))
     assert_never(config)
 
 
@@ -242,9 +133,9 @@ async def list_annotation_configs(
                 status_code=400,
             )
         if cursor_gid.type_name not in (
-            CategoricalAnnotationConfigType.__name__,
-            ContinuousAnnotationConfigType.__name__,
-            FreeformAnnotationConfigType.__name__,
+            "CategoricalAnnotationConfig",
+            "ContinuousAnnotationConfig",
+            "FreeformAnnotationConfig",
         ):
             raise HTTPException(
                 detail=f"Invalid cursor: {cursor}",
@@ -351,9 +242,9 @@ async def update_annotation_config(
 
     config_gid = GlobalID.from_id(config_id)
     if config_gid.type_name not in (
-        CategoricalAnnotationConfigType.__name__,
-        ContinuousAnnotationConfigType.__name__,
-        FreeformAnnotationConfigType.__name__,
+        "CategoricalAnnotationConfig",
+        "ContinuousAnnotationConfig",
+        "FreeformAnnotationConfig",
     ):
         raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
     config_rowid = int(config_gid.node_id)
@@ -399,9 +290,9 @@ async def delete_annotation_config(
             detail=f"Invalid annotation configuration ID format: {config_id}",
         )
     if config_gid.type_name not in (
-        CategoricalAnnotationConfigType.__name__,
-        ContinuousAnnotationConfigType.__name__,
-        FreeformAnnotationConfigType.__name__,
+        "CategoricalAnnotationConfig",
+        "ContinuousAnnotationConfig",
+        "FreeformAnnotationConfig",
     ):
         raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
     config_rowid = int(config_gid.node_id)
@@ -463,9 +354,9 @@ async def list_project_annotation_configs(
         except ValueError:
             raise HTTPException(detail=f"Invalid cursor: {cursor}", status_code=400)
         if cursor_gid.type_name not in (
-            CategoricalAnnotationConfigType.__name__,
-            ContinuousAnnotationConfigType.__name__,
-            FreeformAnnotationConfigType.__name__,
+            "CategoricalAnnotationConfig",
+            "ContinuousAnnotationConfig",
+            "FreeformAnnotationConfig",
         ):
             raise HTTPException(detail=f"Invalid cursor: {cursor}", status_code=400)
         cursor_id = int(cursor_gid.node_id)
@@ -739,9 +630,9 @@ def _get_annotation_config_db_id(config_gid: str) -> int:
     gid = GlobalID.from_id(config_gid)
     type_name, node_id = gid.type_name, int(gid.node_id)
     if type_name not in (
-        CategoricalAnnotationConfigType.__name__,
-        ContinuousAnnotationConfigType.__name__,
-        FreeformAnnotationConfigType.__name__,
+        "CategoricalAnnotationConfig",
+        "ContinuousAnnotationConfig",
+        "FreeformAnnotationConfig",
     ):
         raise ValueError(f"Invalid annotation configuration ID: {config_gid}")
     return node_id

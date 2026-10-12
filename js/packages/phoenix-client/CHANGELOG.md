@@ -1,5 +1,17 @@
 # @arizeai/phoenix-client
 
+## 7.16.0
+
+### Minor Changes
+
+- f8ae2fc: Add `listProjectAnnotationConfigs`, `assignProjectAnnotationConfig`, `unassignProjectAnnotationConfig`, and `setProjectAnnotationConfigs` helpers to the `projects` subpath for managing which annotation configs a project uses.
+
+## 7.15.0
+
+### Minor Changes
+
+- 5b37f12: Add `upsertPromptVersionTag` and `deletePromptVersionTag` helpers to the `prompts` subpath for creating, moving, and deleting prompt-scoped version tags.
+
 ## 7.14.0
 
 ### Minor Changes

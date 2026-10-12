@@ -2,6 +2,7 @@
 export { useLocale } from "react-aria-components";
 
 // Custom hooks
+export { useAgentDataChangeFetchKey } from "@phoenix/agent/shared/useAgentDataChangeFetchKey";
 export * from "./useDebouncedChange";
 export * from "./useDeferredVisibility";
 export * from "./useFrozenWhileHidden";
