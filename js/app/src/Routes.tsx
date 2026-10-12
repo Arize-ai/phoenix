@@ -1195,7 +1195,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Settings",
               description:
-                "Open Phoenix instance settings, configuration, and admin settings.",
+                "Open Phoenix instance settings, saved credential encryption status, configuration, and admin settings.",
             },
           }}
         >

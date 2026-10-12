@@ -14,7 +14,6 @@ import {
   AgentSubagentsSettings,
   AgentWebAccessSettings,
 } from "@phoenix/components/agent";
-import { PublicEncryptionKeyWarning } from "@phoenix/components/settings/PublicEncryptionKeyWarning";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
@@ -100,7 +99,6 @@ function AdminGithubWorkspaceTokenSetting() {
               ? "A workspace token is configured. Users without a personal token file issues under its identity. Paste a new token to replace it; the stored token is never displayed."
               : "Optional fallback for users without a personal token. Use a fine-grained personal access token with Issues read/write access to the target repositories. Stored encrypted and never displayed."}
           </Text>
-          <PublicEncryptionKeyWarning />
           <Controller
             name="token"
             control={control}

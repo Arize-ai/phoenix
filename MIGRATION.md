@@ -30,7 +30,7 @@ The upgrade from v20.x to v21.0.0 changes the default bind address and how authe
   random per-deployment value stored in the database, and each token must also match a hash stored when it was
   issued, so database readers cannot forge tokens. Saved credentials (provider API keys, workspace secrets,
   GitHub tokens) are then encrypted with a publicly known key: anyone with a copy of the database can decrypt
-  them, and the UI warns wherever credentials are saved. Set `PHOENIX_SECRET` to protect them.
+  them, and the Settings page warns administrators. Set `PHOENIX_SECRET` to protect them.
 
 ### `--host` is removed from `phoenix serve`
 

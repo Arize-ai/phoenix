@@ -37,7 +37,6 @@ import {
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper } from "@phoenix/components/code";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
-import { PublicEncryptionKeyWarning } from "@phoenix/components/settings/PublicEncryptionKeyWarning";
 import {
   AWS_AUTH_METHOD_OPTIONS,
   type AWSAuthMethod,
@@ -1003,7 +1002,6 @@ export const ProviderForm = ({
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
       <Flex direction="column" gap="size-100">
-        <PublicEncryptionKeyWarning />
         <Controller
           name="name"
           control={control}

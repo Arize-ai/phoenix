@@ -70,7 +70,7 @@ token lifecycle.
 Saved provider API keys and workspace secrets, including the shared GitHub personal access
 token (`GITHUB_PERSONAL_ACCESS_TOKEN`), retain PBKDF2/Fernet encryption.
 Without `PHOENIX_SECRET`, the key is publicly known and anyone with a database copy can
-decrypt them. Forms that save these values display a warning recommending that the operator
+decrypt them. The Settings page displays a warning recommending that the operator
 set `PHOENIX_SECRET` on the server. User login passwords use separate salted hashes.
 Personal GitHub tokens supplied with chat requests are not persisted server-side.
 
