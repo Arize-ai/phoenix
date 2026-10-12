@@ -5,12 +5,10 @@
  * object itself can't catch those.
  */
 import { createOpenAI } from "@ai-sdk/openai";
+import { Experimental_DecisionRefusalError } from "ai";
 import { describe, expect, it } from "vitest";
 
-import {
-  ClassificationRefusalError,
-  createCorrectnessEvaluator,
-} from "../../src";
+import { createCorrectnessEvaluator } from "../../src";
 
 type CapturedRequest = { url: string; body: Record<string, unknown> };
 
@@ -79,15 +77,16 @@ describe("phoenix-evals with @ai-sdk/openai decision models", () => {
     ]);
   });
 
-  it("surfaces a refusal as a ClassificationRefusalError", async () => {
+  it("surfaces a refusal as the AI SDK's refusal error", async () => {
     const { model } = createDecisionModel({ type: "refusal", name: "label" });
     const evaluator = createCorrectnessEvaluator({
       model,
       telemetry: { isEnabled: false },
     });
 
-    await expect(
-      evaluator.evaluate({ input: "", output: "" })
-    ).rejects.toBeInstanceOf(ClassificationRefusalError);
+    const error = await evaluator
+      .evaluate({ input: "", output: "" })
+      .catch((error: unknown) => error);
+    expect(Experimental_DecisionRefusalError.isInstance(error)).toBe(true);
   });
 });
