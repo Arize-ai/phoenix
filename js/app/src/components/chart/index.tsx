@@ -22,3 +22,7 @@ export * from "./confusionMatrix";
 export * from "./binning";
 export * from "./timeTicks";
 export * from "./useTimeAxisTicks";
+export * from "./breakdown";
+export * from "./MetricChartsPanel";
+export * from "./types";
+export * from "./metricChartsViewSetting";

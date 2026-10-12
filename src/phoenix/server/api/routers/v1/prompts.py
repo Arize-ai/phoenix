@@ -61,6 +61,10 @@ class Prompt(PromptData):
 
 class PromptVersionData(V1RoutesBaseModel):
     description: Optional[str] = None
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Arbitrary JSON metadata for the prompt version.",
+    )
     model_provider: ModelProvider
     model_name: str
     template: PromptTemplate
@@ -514,6 +518,7 @@ async def create_prompt(
             invocation_parameters=version.invocation_parameters,
             tools=version.tools,
             response_format=version.response_format,
+            metadata_=version.metadata,
         )
         session.add(version_orm)
     data = _prompt_version_from_orm_version(version_orm)
@@ -616,6 +621,7 @@ async def create_prompt_version(
             invocation_parameters=version.invocation_parameters,
             tools=version.tools,
             response_format=version.response_format,
+            metadata_=version.metadata,
         )
         session.add(version_orm)
         try:
@@ -806,7 +812,7 @@ async def create_prompt_version_tag(
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
             raise HTTPException(404)
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         values = dict(
             name=request_body.name,
             description=request_body.description,
@@ -981,7 +987,7 @@ def _parse_prompt_identifier(
 
 
 def _filter_by_prompt_identifier(
-    stmt: Select[tuple[models.PromptVersion]],
+    stmt: Select[models.PromptVersion],
     prompt_identifier: str,
 ) -> Any:
     identifier = _parse_prompt_identifier(prompt_identifier)
@@ -1013,6 +1019,7 @@ def _prompt_version_from_orm_version(
         invocation_parameters=prompt_version.invocation_parameters,
         tools=prompt_version.tools,
         response_format=prompt_version.response_format,
+        metadata=prompt_version.metadata_,
     )
 
 

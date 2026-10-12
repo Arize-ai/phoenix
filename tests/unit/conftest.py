@@ -63,10 +63,11 @@ from phoenix.server import app as server_app
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
+from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.redaction import Redactor
-from phoenix.server.types import BatchedCaller, DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
@@ -953,7 +954,7 @@ async def app(
     db: DbSessionFactory,
 ) -> AsyncIterator[FastAPI]:
     async with contextlib.AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         yield create_app(
             db=db,
@@ -1036,14 +1037,33 @@ class TestBulkInserter(BulkInserter):
 
 
 @contextlib.asynccontextmanager
-async def patch_batched_caller() -> AsyncIterator[None]:
-    cls = BatchedCaller
-    original = cls.__init__
-    name = original.__name__
-    changes = {"sleep_seconds": 0.001}
-    setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
-    yield
-    setattr(cls, name, original)
+async def patch_dml_event_handler() -> AsyncIterator[None]:
+    """Run the app without the DML event daemon or the caches it invalidates.
+
+    The daemon answers writes by querying the database from a background task.
+    Tests bind every session to one connection under a savepoint, so a query
+    cancelled at shutdown invalidates the connection the test still needs.
+    Events still reach ``put`` for tests that assert on them. Without the
+    daemon the summary caches would never invalidate, so they are dropped and
+    every read goes to the database.
+    """
+    cls = DmlEventHandler
+    originals = {name: getattr(cls, name) for name in ("__aenter__", "__aexit__")}
+    for name in originals:
+        setattr(cls, name, _no_op)
+    cache_name = "CacheForDataLoaders"
+    cache_factory = getattr(server_app, cache_name)
+    setattr(server_app, cache_name, lambda: None)
+    try:
+        yield
+    finally:
+        for name, original in originals.items():
+            setattr(cls, name, original)
+        setattr(server_app, cache_name, cache_factory)
+
+
+async def _no_op(*_: Any, **__: Any) -> None:
+    pass
 
 
 @pytest.fixture

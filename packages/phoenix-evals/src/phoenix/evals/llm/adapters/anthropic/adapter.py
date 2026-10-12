@@ -289,8 +289,10 @@ class AnthropicAdapter(BaseLLMAdapter):
             role = msg["role"]
             content = msg["content"]
 
-            # Skip system messages - they should be handled separately
-            if role == MessageRole.SYSTEM:
+            # Skip system messages - they should be handled separately.
+            # Anthropic has no "developer" role, so DEVELOPER folds into the
+            # same system-extraction path as SYSTEM.
+            if role in (MessageRole.SYSTEM, MessageRole.DEVELOPER):
                 continue
 
             # Map MessageRole enum to Anthropic role strings
@@ -345,8 +347,13 @@ class AnthropicAdapter(BaseLLMAdapter):
                         {k: v for k, v in msg.items() if k not in ("role", "content")}
                     )
 
-            # Extract system messages first
-            system_messages = [msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM]
+            # Extract system messages first (DEVELOPER folds into SYSTEM here —
+            # Anthropic has no separate wire role for it).
+            system_messages = [
+                msg
+                for msg in messages_typed
+                if msg["role"] in (MessageRole.SYSTEM, MessageRole.DEVELOPER)
+            ]
             system_content = "\n".join(
                 self._extract_text_from_content(msg["content"]) for msg in system_messages
             )
@@ -358,7 +365,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             non_system_extras = [
                 extras
                 for extras, msg in zip(extras_per_msg, messages_typed)
-                if msg["role"] != MessageRole.SYSTEM
+                if msg["role"] not in (MessageRole.SYSTEM, MessageRole.DEVELOPER)
             ]
             anthropic_messages = [
                 {**extras, **out} for extras, out in zip(non_system_extras, anthropic_messages)

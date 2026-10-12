@@ -58,11 +58,55 @@ export type TraceDetailsProps = {
 };
 
 /**
- * A component that shows the details of a trace (e.g. a collection of spans)
+ * A component that shows the details of a trace (e.g. a collection of spans).
+ * The selected span lives in the `selectedSpanNodeId` URL search param so it
+ * survives reloads and is shareable.
  */
-export function TraceDetails(props: TraceDetailsProps) {
-  const { traceId, projectId } = props;
+export function TraceDetails({ traceId, projectId }: TraceDetailsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  return (
+    <TraceDetailsView
+      traceId={traceId}
+      projectId={projectId}
+      selectedSpanNodeId={searchParams.get(SELECTED_SPAN_NODE_ID_PARAM)}
+      onSpanSelectionChange={(spanNodeId) => {
+        setSearchParams(
+          (searchParams) => {
+            searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+            return searchParams;
+          },
+          { replace: true }
+        );
+      }}
+    />
+  );
+}
+
+export type TraceDetailsViewProps = TraceDetailsProps & {
+  /** The Relay node ID of the span to show, or null to show the root span */
+  selectedSpanNodeId: string | null;
+  /** Called with the Relay node ID of the span picked in the trace tree */
+  onSpanSelectionChange: (spanNodeId: string) => void;
+  /**
+   * The storage key under which the tree/details split is remembered. Views
+   * that mount several traces at once give each its own so they do not
+   * overwrite one another.
+   * @default "trace-details-layout"
+   */
+  layoutId?: string;
+};
+
+/**
+ * The trace details with the span selection controlled by the caller, for
+ * views that own the selection themselves (such as the compare view).
+ */
+export function TraceDetailsView({
+  traceId,
+  projectId,
+  selectedSpanNodeId: requestedSpanNodeId,
+  onSpanSelectionChange,
+  layoutId = "trace-details-layout",
+}: TraceDetailsViewProps) {
   const data = useLazyLoadQuery<TraceDetailsQuery>(
     graphql`
       query TraceDetailsQuery($traceId: ID!, $id: ID!) {
@@ -74,8 +118,7 @@ export function TraceDetails(props: TraceDetailsProps) {
               ...ConnectedTraceTree
               rootSpans: spans(
                 first: 1
-                rootSpansOnly: true
-                orphanSpanAsRootSpan: true
+                filterCondition: "parent_span is None"
               ) {
                 edges {
                   span: node {
@@ -116,13 +159,12 @@ export function TraceDetails(props: TraceDetailsProps) {
     const gqlSpans = data.project.trace?.rootSpans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
-  const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   invariant(rootSpans.length > 0, "At least one root must be resolvable");
   const rootSpan = rootSpans[0];
-  const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
+  const selectedSpanNodeId = requestedSpanNodeId ?? rootSpan.id;
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "trace-details-layout",
+    id: layoutId,
     storage: localStorage,
   });
 
@@ -160,13 +202,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                 trace={data.project.trace}
                 selectedSpanNodeId={selectedSpanNodeId}
                 onSpanClick={(span) => {
-                  setSearchParams(
-                    (searchParams) => {
-                      searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
-                      return searchParams;
-                    },
-                    { replace: true }
-                  );
+                  onSpanSelectionChange(span.id);
                 }}
               />
             </ScrollingPanelContent>
@@ -249,7 +285,10 @@ function TraceHeader({
           <Text elementType="h3" size="S" color="text-700">
             Total Cost
           </Text>
-          <TooltipTrigger delay={0}>
+          <TooltipTrigger
+            delay={0}
+            isDisabled={(costSummary?.total?.cost ?? 0) === 0}
+          >
             <Focusable>
               <Text size="L" role="button">
                 {costFormatter(costSummary?.total?.cost ?? 0)}

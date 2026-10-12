@@ -1,0 +1,37 @@
+<svg viewBox="24 44 1152 460" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How a Harbor trial runs"><style>:root{--paper:#ffffff;--node:#f4f4f5;--ink:#18181b;--muted:#52525b;--soft:#71717a;--rule:rgba(0,0,0,.14);--accent:#0080b3;--accent-tint:rgba(0,128,179,.10);--accent-zone:rgba(0,128,179,.04);--accent-line:rgba(0,128,179,.6);--store:rgba(0,0,0,.035);--ext-line:rgba(0,0,0,.3);--fs:system-ui,-apple-system,"Segoe UI",sans-serif;--fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.bg{fill:var(--paper)}.bgmask,.mask{fill:var(--paper)}
+.box{stroke-width:1}.box.n{fill:var(--node);stroke:var(--soft)}.box.f{fill:var(--accent-tint);stroke:var(--accent);stroke-width:1.2}.box.s{fill:var(--store);stroke:var(--muted)}
+.zone{fill:var(--accent-zone);stroke:var(--accent-line);stroke-dasharray:4 4}
+.wire{fill:none;stroke:var(--muted);stroke-width:1.2}.wire.wire-a{stroke:var(--accent)}.guide{fill:none;stroke:var(--soft)}.hair{stroke:var(--rule);stroke-width:.8}
+.mk{fill:var(--muted)}.mk-a{fill:var(--accent)}
+text{fill:var(--ink)}.name{font:600 17px var(--fs)}.mname{font:500 16px var(--fm)}.head{font:600 14px var(--fs)}
+.sub{font:400 13px var(--fm);fill:var(--muted)}.code{font:400 13px var(--fm)}.code.c{fill:var(--soft)}
+.tag{font:500 12px var(--fm);letter-spacing:.14em;fill:var(--soft)}.tag.a,.alab.a,.acc{fill:var(--accent)}
+.alab{font:400 12px var(--fm);letter-spacing:.06em;fill:var(--muted)}
+.sub,.code{font-size:15px}.tag,.alab{font-size:14px}.name{font-size:20px}</style><rect class="bg" x="24" y="44" width="1152" height="460"/>
+
+
+<defs>
+  <marker id="harbor-trial-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+  <marker id="harbor-trial-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk-a" points="0 0, 8 3, 0 6"/></marker>
+</defs>
+<rect class="bg" width="1200" height="592"/>
+<g>
+<rect class="bgmask" x="40" y="172" width="216" height="248" rx="6"/><rect class="box s" x="40" y="172" width="216" height="248" rx="6"/><text class="tag" x="56" y="200">TASK</text><text class="name" x="56" y="226">Task directory</text><rect class="box n" x="56" y="244" width="184" height="40" rx="4"/><text class="code" x="72" y="269">environment/</text><rect class="box n" x="56" y="300" width="184" height="40" rx="4"/><text class="code" x="72" y="325">instruction.md</text><g class="sub-item"><rect class="bgmask" x="56" y="356" width="184" height="40" rx="4"/><rect class="box f" x="56" y="356" width="184" height="40" rx="4"/><text class="code" x="72" y="381">tests/</text></g>
+</g>
+<g>
+<rect class="zone" x="360" y="56" width="600" height="392" rx="8"/><text class="tag a" x="384" y="84">PER-TRIAL SANDBOX CONTAINER</text><path class="wire" d="M240 264 H356" marker-end="url(#harbor-trial-arrow)"/><rect class="mask" x="278" y="240" width="60" height="16" rx="2"/><text class="alab" x="308" y="252" text-anchor="middle">BUILDS</text>
+</g>
+<g>
+<path class="wire" d="M240 320 H396" marker-end="url(#harbor-trial-arrow)"/><rect class="mask" x="274" y="296" width="68" height="16" rx="2"/><text class="alab" x="308" y="308" text-anchor="middle">READ BY</text><path class="wire" d="M520 296 V228" marker-end="url(#harbor-trial-arrow)"/><rect class="mask" x="528" y="252" width="68" height="16" rx="2"/><text class="alab" x="536" y="264">CHANGES</text><rect class="bgmask" x="400" y="112" width="520" height="112" rx="6"/><rect class="box s" x="400" y="112" width="520" height="112" rx="6"/><text class="tag" x="416" y="140">WORKSPACE</text><text class="name" x="416" y="166">Sandbox filesystem</text><text class="sub" x="416" y="188">code, files and services for the agent to work with</text><rect class="box n" x="400" y="296" width="240" height="120" rx="6"/><text class="tag" x="416" y="324">RUNS FIRST</text><text class="name" x="416" y="350">Agent</text><text class="sub" x="416" y="372">any harness + model</text><text class="sub" x="416" y="390">reads instruction.md</text>
+</g>
+<g>
+<path class="wire wire-a" d="M240 376 L300 376 Q308 376 308 384 L308 480 Q308 488 316 488 L792 488 Q800 488 800 480 L800 420" marker-end="url(#harbor-trial-arrow-accent)"/><rect class="mask" x="442" y="462" width="236" height="20" rx="2"/><text class="alab a" x="560" y="476" text-anchor="middle">INSERTED AFTER AGENT RUNS</text>
+</g>
+<g>
+<path class="wire wire-a" d="M800 224 V292" marker-end="url(#harbor-trial-arrow-accent)"/><rect class="mask" x="808" y="252" width="112" height="16" rx="2"/><text class="alab a" x="816" y="264">INSPECTED BY</text><rect class="bgmask" x="680" y="296" width="240" height="120" rx="6"/><rect class="box f" x="680" y="296" width="240" height="120" rx="6"/><text class="tag a" x="696" y="324">RUNS SECOND</text><text class="name" x="696" y="350">Verifier</text><text class="sub" x="696" y="372">runs tests/test.sh</text><text class="sub" x="696" y="390">sees the full sandbox</text>
+</g>
+<g>
+<path class="wire wire-a" d="M920 356 H996" marker-end="url(#harbor-trial-arrow-accent)"/><rect class="bgmask" x="1000" y="296" width="160" height="120" rx="6"/><rect class="box f" x="1000" y="296" width="160" height="120" rx="6"/><text class="tag a" x="1016" y="324">RESULT</text><text class="name" x="1016" y="350">Rewards</text><text class="sub" x="1016" y="372">reward.json</text><text class="sub" x="1016" y="390">1 or more keys</text>
+</g>
+</svg>

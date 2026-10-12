@@ -225,6 +225,7 @@ class PromptMutationMixin:
                     model_provider=version.model_provider,
                     model_name=version.model_name,
                     custom_provider_id=version.custom_provider_id,
+                    metadata_=version.metadata_,
                 )
                 for version in prompt.prompt_versions
             ]

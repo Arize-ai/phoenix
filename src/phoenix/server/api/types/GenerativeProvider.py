@@ -33,6 +33,7 @@ class GenerativeProviderKey(Enum):
     PERPLEXITY = "Perplexity"
     TOGETHER = "Together"
     ZAI = "Z.ai"
+    META = "Meta"
 
     @classmethod
     def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
@@ -70,6 +71,8 @@ class GenerativeProviderKey(Enum):
             return cls.TOGETHER
         elif model_provider is ModelProvider.ZAI:
             return cls.ZAI
+        elif model_provider is ModelProvider.META:
+            return cls.META
         assert_never(model_provider)
 
     def to_model_provider(self) -> "ModelProvider":
@@ -105,6 +108,8 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.TOGETHER
         if self is GenerativeProviderKey.ZAI:
             return ModelProvider.ZAI
+        if self is GenerativeProviderKey.META:
+            return ModelProvider.META
         assert_never(self)
 
 
@@ -128,6 +133,9 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         # OpenInference semconv has no `zai` provider value yet; ship a plain
         # string literal until an upstream semconv PR lands.
         GenerativeProviderKey.ZAI: "zai",
+        # OpenInference semconv has no `meta` provider value yet; ship a plain
+        # string literal until an upstream semconv PR lands.
+        GenerativeProviderKey.META: "meta",
     }
 )
 
@@ -172,6 +180,7 @@ class GenerativeProvider:
         GenerativeProviderKey.PERPLEXITY: ["sonar"],
         GenerativeProviderKey.TOGETHER: [],
         GenerativeProviderKey.ZAI: ["glm"],
+        GenerativeProviderKey.META: ["muse"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -239,6 +248,9 @@ class GenerativeProvider:
         ],
         GenerativeProviderKey.ZAI: [
             GenerativeProviderCredentialConfig(env_var_name="ZAI_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.META: [
+            GenerativeProviderCredentialConfig(env_var_name="META_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.AWS: [
             GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),

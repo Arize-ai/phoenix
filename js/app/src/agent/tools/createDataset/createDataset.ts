@@ -1,17 +1,49 @@
 import { commitMutation, graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import { commitAddDatasetExamples } from "@phoenix/agent/tools/datasetExamples";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { createDatasetToolMutation } from "./__generated__/createDatasetToolMutation.graphql";
 import type { CreateDatasetInput, CreateDatasetResult } from "./types";
 
+/**
+ * Returns every field a mounted surface renders for a dataset so the new
+ * record is complete in the Relay store. Mounted dataset lists refetch through
+ * the agent data-change bridge after creation.
+ */
 const mutation = graphql`
   mutation createDatasetToolMutation($input: CreateDatasetInput!) {
     createDataset(input: $input) {
       dataset {
         id
         name
+        description
+        metadata
+        createdAt
+        updatedAt
+        createdBy {
+          username
+          profilePictureUrl
+        }
+        updatedBy {
+          username
+          profilePictureUrl
+        }
+        exampleCount
+        experimentCount
+        evaluatorCount
+        labels {
+          id
+          name
+          color
+        }
+        splits {
+          id
+          name
+          color
+        }
+        ...DatasetSelect_dataset
       }
     }
   }
@@ -26,7 +58,9 @@ function commitCreate(
   return new Promise((resolve) => {
     commitMutation<createDatasetToolMutation>(RelayEnvironment, {
       mutation,
-      variables: { input: { name, description, metadata: {} } },
+      variables: {
+        input: { name, description, metadata: {} },
+      },
       onCompleted: (response, errors) => {
         const message = errors?.find((error) => error.message)?.message;
         if (message) {
@@ -34,6 +68,7 @@ function commitCreate(
           return;
         }
         const dataset = response.createDataset.dataset;
+        emitAgentDataChange({ entity: "datasets" });
         resolve({ datasetId: dataset.id, name: dataset.name });
       },
       onError: (error) => resolve({ error: error.message }),

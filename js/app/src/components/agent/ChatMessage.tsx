@@ -89,7 +89,7 @@ export function UserMessage({
   const hasText = text.trim().length > 0;
 
   return (
-    <Message from="user">
+    <Message from="user" data-chat-message-role="user">
       <MessageContent>{text}</MessageContent>
       {hasText || onRewindRequest ? (
         <MessageToolbar>
@@ -118,6 +118,9 @@ export function UserMessage({
  * it to `false` while this particular message is still streaming so users
  * don't interact with incomplete content.
  *
+ * `isStreaming` lets the markdown renderer animate only newly appended words
+ * and recognize incomplete fenced code without affecting settled messages.
+ *
  * `pinToolbar` keeps the toolbar always visible instead of revealing it on
  * hover/focus. Callers use it for the most recent assistant turn, whose actions
  * (copy, feedback, trace) are the ones users reach for most often.
@@ -128,12 +131,14 @@ export function UserMessage({
  */
 export function AssistantMessage({
   message,
+  isStreaming = false,
   showActions = true,
   pinToolbar = false,
   onRewindRequest,
   allowRewind = true,
 }: {
   message: AgentUIMessage;
+  isStreaming?: boolean;
   showActions?: boolean;
   pinToolbar?: boolean;
   onRewindRequest?: MessageRewindRequest;
@@ -153,6 +158,7 @@ export function AssistantMessage({
                 return (
                   <MarkdownBlock
                     key={`text-${segment.index}`}
+                    isAnimating={isStreaming}
                     mode="markdown"
                     renderMode="streaming"
                     margin="none"

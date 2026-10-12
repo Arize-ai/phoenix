@@ -19,7 +19,7 @@ from anyio import to_thread
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import Field
-from sqlalchemy import and_, case, delete, func, insert, select
+from sqlalchemy import and_, case, delete, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -65,6 +65,7 @@ from .utils import (
     add_errors_to_responses,
     add_text_csv_content_to_responses,
     get_dataset_by_identifier,
+    parse_cursor_rowid,
 )
 
 csv.field_size_limit(
@@ -78,6 +79,7 @@ DATASET_NODE_NAME = DatasetNodeType.__name__
 DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 DATASET_SPLIT_NODE_NAME = DatasetSplitNodeType.__name__
 DATASET_EXAMPLE_NODE_NAME = DatasetExampleNodeType.__name__
+
 
 # Matches the dataset-split form's default color (app NewDatasetSplitForm).
 DEFAULT_DATASET_SPLIT_COLOR = "#33c5e8"
@@ -132,14 +134,7 @@ async def list_datasets(
         )
 
         if cursor:
-            try:
-                cursor_id = GlobalID.from_id(cursor).node_id
-                query = query.filter(models.Dataset.id <= int(cursor_id))
-            except ValueError:
-                raise HTTPException(
-                    detail=f"Invalid cursor format: {cursor}",
-                    status_code=422,
-                )
+            query = query.filter(models.Dataset.id <= parse_cursor_rowid(cursor, DATASET_NODE_NAME))
         if name:
             query = query.filter(models.Dataset.name == name)
 
@@ -315,15 +310,7 @@ async def list_dataset_versions(
         .limit(limit + 1)
     )
     if cursor:
-        try:
-            dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(cursor), DATASET_VERSION_NODE_NAME
-            )
-        except ValueError:
-            raise HTTPException(
-                detail=f"Invalid cursor: {cursor}",
-                status_code=422,
-            )
+        dataset_version_id = parse_cursor_rowid(cursor, DATASET_VERSION_NODE_NAME)
         max_dataset_version_id = (
             select(models.DatasetVersion.id)
             .where(models.DatasetVersion.id == dataset_version_id)
@@ -1528,10 +1515,14 @@ class CreateDatasetSplitRequestBody(V1RoutesBaseModel):
     example_ids: list[str] = Field(
         default_factory=list,
         description=(
-            "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must "
-            "belong to this dataset. Omit to create an empty split."
+            "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the "
+            "split with. Each example must belong to this dataset. Omit to create an empty split."
         ),
     )
+
+
+class ListDatasetSplitsResponseBody(PaginatedResponseBody[DatasetSplit]):
+    pass
 
 
 class CreateDatasetSplitResponseBody(ResponseBody[DatasetSplit]):
@@ -1550,13 +1541,16 @@ class UpdateDatasetSplitRequestBody(V1RoutesBaseModel):
     add_example_ids: list[str] = Field(
         default_factory=list,
         description=(
-            "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to "
-            "this dataset. Adding an example already in the split is a no-op."
+            "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. "
+            "Each example must belong to this dataset. Adding an example already in the split "
+            "is a no-op."
         ),
     )
     remove_example_ids: list[str] = Field(
         default_factory=list,
-        description="Dataset example IDs (GlobalIDs) to remove from the split.",
+        description=(
+            "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
+        ),
     )
 
 
@@ -1569,46 +1563,111 @@ async def _resolve_dataset_example_rowids(
     dataset_id: int,
     example_ids: list[str],
 ) -> list[int]:
-    """Parse dataset example GlobalIDs and confirm each belongs to the dataset.
+    """Resolve dataset example GlobalIDs or user-provided IDs within a dataset.
 
     Returns the unique example row IDs, preserving the order in which they were
-    first seen. Raises 422 for malformed IDs and 404 if any example does not
-    exist in the dataset.
+    first seen. Valid DatasetExample GlobalIDs take precedence over matching
+    user-provided IDs. Raises 404 if any example does not exist in the dataset.
     """
     if not example_ids:
         return []
-    unique_rowids: dict[int, None] = {}
-    for example_gid in example_ids:
+
+    global_rowids_by_identifier: dict[str, int] = {}
+    external_identifiers: set[str] = set()
+    for example_identifier in example_ids:
         try:
             rowid = from_global_id_with_expected_type(
-                GlobalID.from_id(example_gid),
+                GlobalID.from_id(example_identifier),
                 DATASET_EXAMPLE_NODE_NAME,
             )
         except Exception:
-            raise HTTPException(
-                detail=f"Invalid dataset example ID: {example_gid}",
-                status_code=422,
-            )
-        unique_rowids[rowid] = None
-    rowids = list(unique_rowids)
-    found = set(
+            external_identifiers.add(example_identifier)
+        else:
+            global_rowids_by_identifier[example_identifier] = rowid
+
+    lookup_conditions = []
+    if global_rowids_by_identifier:
+        lookup_conditions.append(models.DatasetExample.id.in_(global_rowids_by_identifier.values()))
+    if external_identifiers:
+        lookup_conditions.append(models.DatasetExample.external_id.in_(external_identifiers))
+
+    examples = list(
         await session.scalars(
-            select(models.DatasetExample.id).where(
-                models.DatasetExample.id.in_(rowids),
+            select(models.DatasetExample).where(
                 models.DatasetExample.dataset_id == dataset_id,
+                or_(*lookup_conditions),
             )
         )
     )
-    missing = [rowid for rowid in rowids if rowid not in found]
-    if missing:
-        missing_gids = ", ".join(
-            str(GlobalID(DATASET_EXAMPLE_NODE_NAME, str(rowid))) for rowid in missing
-        )
+    found_rowids = {example.id for example in examples}
+    rowids_by_external_identifier = {
+        example.external_id: example.id for example in examples if example.external_id is not None
+    }
+
+    resolved_rowids: dict[int, None] = {}
+    missing_identifiers: dict[str, None] = {}
+    for example_identifier in example_ids:
+        if example_identifier in global_rowids_by_identifier:
+            global_rowid = global_rowids_by_identifier[example_identifier]
+            if global_rowid not in found_rowids:
+                missing_identifiers[example_identifier] = None
+                continue
+            resolved_rowids[global_rowid] = None
+            continue
+
+        external_rowid = rowids_by_external_identifier.get(example_identifier)
+        if external_rowid is None:
+            missing_identifiers[example_identifier] = None
+        else:
+            resolved_rowids[external_rowid] = None
+
+    if missing_identifiers:
         raise HTTPException(
-            detail=f"Dataset examples not found in this dataset: {missing_gids}",
+            detail=(
+                f"Dataset examples not found in this dataset: {', '.join(missing_identifiers)}"
+            ),
             status_code=404,
         )
-    return rowids
+    return list(resolved_rowids)
+
+
+async def _dataset_scoped_example_counts(
+    session: AsyncSession,
+    dataset_split_ids: Sequence[int],
+    dataset_id: int,
+) -> dict[int, int]:
+    """Per-split count of the dataset's live examples (latest revision not DELETE).
+
+    Splits with no live examples in the dataset are absent from the result.
+    """
+    if not dataset_split_ids:
+        return {}
+    member_example_ids = select(models.DatasetSplitDatasetExample.dataset_example_id).where(
+        models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
+    )
+    latest_revision_ids = (
+        select(func.max(models.DatasetExampleRevision.id))
+        .where(models.DatasetExampleRevision.dataset_example_id.in_(member_example_ids))
+        .group_by(models.DatasetExampleRevision.dataset_example_id)
+    )
+    rows = await session.execute(
+        select(models.DatasetSplitDatasetExample.dataset_split_id, func.count())
+        .select_from(models.DatasetSplitDatasetExample)
+        .join(
+            models.DatasetExample,
+            models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
+        )
+        .join(
+            models.DatasetExampleRevision,
+            models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+        )
+        .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids))
+        .where(models.DatasetExample.dataset_id == dataset_id)
+        .where(models.DatasetExampleRevision.id.in_(latest_revision_ids))
+        .where(models.DatasetExampleRevision.revision_kind != "DELETE")
+        .group_by(models.DatasetSplitDatasetExample.dataset_split_id)
+    )
+    return {split_id: example_count for split_id, example_count in rows}
 
 
 async def _dataset_scoped_example_count(
@@ -1616,18 +1675,9 @@ async def _dataset_scoped_example_count(
     dataset_split_id: int,
     dataset_id: int,
 ) -> int:
-    """Count the split's examples that belong to the given dataset."""
-    count = await session.scalar(
-        select(func.count())
-        .select_from(models.DatasetSplitDatasetExample)
-        .join(
-            models.DatasetExample,
-            models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
-        )
-        .where(models.DatasetSplitDatasetExample.dataset_split_id == dataset_split_id)
-        .where(models.DatasetExample.dataset_id == dataset_id)
-    )
-    return count or 0
+    """Count the split's live (not soft-deleted) examples in the given dataset."""
+    counts = await _dataset_scoped_example_counts(session, [dataset_split_id], dataset_id)
+    return counts.get(dataset_split_id, 0)
 
 
 def _to_dataset_split(split: models.DatasetSplit, *, example_count: int) -> DatasetSplit:
@@ -1641,6 +1691,67 @@ def _to_dataset_split(split: models.DatasetSplit, *, example_count: int) -> Data
         created_at=split.created_at,
         updated_at=split.updated_at,
     )
+
+
+@router.get(
+    "/datasets/{dataset_identifier}/splits",
+    operation_id="listDatasetSplits",
+    summary="List dataset splits",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset not found"},
+            {"status_code": 422, "description": "Invalid request"},
+        ]
+    ),
+)
+async def list_dataset_splits(
+    request: Request,
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination",
+    ),
+    limit: int = Query(
+        default=10,
+        description="The max number of dataset splits to return at a time.",
+        gt=0,
+        le=1000,
+    ),
+) -> ListDatasetSplitsResponseBody:
+    async with request.app.state.db.read() as session:
+        dataset = await get_dataset_by_identifier(session, dataset_identifier)
+        # A split belongs to a dataset through its examples: it is listed when at
+        # least one of its examples is in the dataset, matching GraphQL Dataset.splits.
+        split_ids_in_dataset = (
+            select(models.DatasetSplitDatasetExample.dataset_split_id)
+            .join(
+                models.DatasetExample,
+                models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
+            )
+            .where(models.DatasetExample.dataset_id == dataset.id)
+        )
+        query = (
+            select(models.DatasetSplit)
+            .where(models.DatasetSplit.id.in_(split_ids_in_dataset))
+            .order_by(models.DatasetSplit.id.desc())
+        )
+        if cursor:
+            query = query.where(
+                models.DatasetSplit.id <= parse_cursor_rowid(cursor, DATASET_SPLIT_NODE_NAME)
+            )
+        splits = list(await session.scalars(query.limit(limit + 1)))
+
+        next_cursor = None
+        if len(splits) == limit + 1:
+            next_cursor = str(GlobalID(DATASET_SPLIT_NODE_NAME, str(splits[-1].id)))
+            splits = splits[:-1]
+        counts = await _dataset_scoped_example_counts(
+            session, [split.id for split in splits], dataset.id
+        )
+    data = [_to_dataset_split(split, example_count=counts.get(split.id, 0)) for split in splits]
+    return ListDatasetSplitsResponseBody(next_cursor=next_cursor, data=data)
 
 
 @router.post(
@@ -1706,7 +1817,8 @@ async def create_dataset_split(
                 ],
             )
         await session.refresh(split)
-        data = _to_dataset_split(split, example_count=len(example_rowids))
+        example_count = await _dataset_scoped_example_count(session, split.id, dataset.id)
+        data = _to_dataset_split(split, example_count=example_count)
     return CreateDatasetSplitResponseBody(data=data)
 
 

@@ -116,7 +116,7 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
         <Text elementType="h3" size="S" color="text-700">
           Total Cost
         </Text>
-        <TooltipTrigger delay={0}>
+        <TooltipTrigger delay={0} isDisabled={totalCost === 0}>
           <Focusable>
             <Text size="L" role="button" fontFamily="mono">
               {costFormatter(totalCost)}

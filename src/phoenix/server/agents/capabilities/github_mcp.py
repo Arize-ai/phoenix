@@ -16,7 +16,7 @@ from typing import Any
 
 import httpx
 from pydantic_ai.capabilities import AbstractCapability
-from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.exceptions import ModelRetry, ToolFailed
 from pydantic_ai.mcp import CallToolFunc, MCPToolset, ToolResult
 from pydantic_ai.tools import AgentDepsT, RunContext
 from pydantic_ai.toolsets import (
@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 # entry points; writes are approval-gated below.
 GITHUB_READ_TOOLS = frozenset({"issue_read", "list_issues", "search_issues"})
 GITHUB_WRITE_TOOLS = frozenset({"issue_write"})
+_NON_RETRYABLE_STATUS_CODES = frozenset({401, 403})
 GITHUB_TOOL_ALLOWLIST = GITHUB_READ_TOOLS | GITHUB_WRITE_TOOLS
 
 # Appended when the write tools are filtered out, so the model knows the
@@ -118,9 +119,14 @@ async def _call_tool_with_sanitized_errors(
     except ModelRetry:
         raise
     except httpx.HTTPStatusError as exc:
-        raise ModelRetry(
-            f"GitHub MCP request failed with HTTP {exc.response.status_code}"
-        ) from None
+        status_code = exc.response.status_code
+        if status_code in _NON_RETRYABLE_STATUS_CODES:
+            raise ToolFailed(
+                f"GitHub MCP request failed with HTTP {status_code}: the credential in "
+                "use is not authorized for this operation. The user may need to check that "
+                "their GitHub token is valid and has the required scope and repository access."
+            ) from None
+        raise ModelRetry(f"GitHub MCP request failed with HTTP {status_code}") from None
     except httpx.HTTPError as exc:
         raise ModelRetry(f"GitHub MCP request failed: {type(exc).__name__}") from None
 

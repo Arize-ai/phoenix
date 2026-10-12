@@ -66,6 +66,26 @@ export function createFullTimeFormatter(
 }
 
 /**
+ * Creates a time-of-day formatter with seconds, for placing one moment
+ * against another within a trace. Carries no date: the surface that shows
+ * it says the day.
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A time-of-day formatter
+ */
+export function createTimeOfDayFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone,
+  });
+}
+
+/**
  * Creates a short time formatter
  * @param displayOptions - The display options to use for the formatter
  * @returns A short time formatter

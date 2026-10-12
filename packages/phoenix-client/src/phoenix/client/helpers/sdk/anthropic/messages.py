@@ -122,6 +122,7 @@ def create_prompt_version_from_anthropic(
     /,
     *,
     description: Optional[str] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
 ) -> v1.PromptVersionData:
@@ -159,6 +160,8 @@ def create_prompt_version_from_anthropic(
         ans["tools"] = tools
     if description:
         ans["description"] = description
+    if metadata:
+        ans["metadata"] = dict(metadata)
     return ans
 
 
@@ -178,7 +181,9 @@ def to_chat_messages_and_kwargs(
         for message in template["messages"]:
             if message["role"] == "system":
                 if isinstance(message["content"], str):
-                    system_messages.append(message["content"])
+                    system_messages.append(
+                        formatter.format(message["content"], variables=variables)
+                    )
                     continue
                 for block in _ContentConversion.to_anthropic(
                     message["content"], variables, formatter
@@ -245,6 +250,7 @@ class _InvocationParametersConversion:
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
             v1.PromptZAIInvocationParameters,
+            v1.PromptMetaInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -420,6 +426,15 @@ class _InvocationParametersConversion:
                 sampling["temperature"] = zai_params["temperature"]
             if "top_p" in zai_params:
                 sampling["top_p"] = zai_params["top_p"]
+        elif obj["type"] == "meta":
+            meta_params: v1.PromptMetaInvocationParametersContent
+            meta_params = obj["meta"]
+            if "max_tokens" in meta_params:
+                ans["max_tokens"] = meta_params["max_tokens"]
+            if "temperature" in meta_params:
+                sampling["temperature"] = meta_params["temperature"]
+            if "top_p" in meta_params:
+                sampling["top_p"] = meta_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         if sampling:
@@ -476,6 +491,8 @@ class _InvocationParametersConversion:
                 if display_adaptive is not None:
                     adaptive_content["display"] = display_adaptive
                 content["thinking"] = adaptive_content
+            elif thinking["type"] == "between_tools":
+                raise NotImplementedError("between_tools thinking is not supported")
             elif TYPE_CHECKING:
                 assert_never(thinking["type"])
         return v1.PromptAnthropicInvocationParameters(
@@ -497,8 +514,6 @@ class _ToolKwargsConversion:
             return ans
         ans["tools"] = tools
         if "tool_choice" in obj:
-            if obj["tool_choice"]["type"] == "none":
-                return {}
             disable_parallel_tool_use: Optional[bool] = (
                 obj["disable_parallel_tool_calls"] if "disable_parallel_tool_calls" in obj else None
             )

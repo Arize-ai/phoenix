@@ -1,0 +1,5 @@
+{
+  "reference": "47 traces",
+  "notes": "The number of traces must be 47 (out of 117). Extra context is fine, including the total number of ToolCallingAgent.run spans (60) across those traces. A reply that gives 60, or any number other than 47, as the number of traces does not match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the fixture database; traces with at least one ToolCallingAgent.run span"
+}

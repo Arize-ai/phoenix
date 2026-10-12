@@ -1,5 +1,6 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
@@ -16,6 +17,8 @@ const mutation = graphql`
       dataset {
         id
         name
+        exampleCount
+        updatedAt
       }
     }
   }
@@ -45,6 +48,12 @@ export function commitDeleteDatasetExamples({
           : {}),
       },
     },
-    onSuccess: () => `Removed ${exampleIds.length} row(s).`,
+    onSuccess: (response) => {
+      emitAgentDataChange({
+        entity: "datasetExamples",
+        datasetId: response.deleteDatasetExamples.dataset.id,
+      });
+      return `Removed ${exampleIds.length} row(s).`;
+    },
   });
 }

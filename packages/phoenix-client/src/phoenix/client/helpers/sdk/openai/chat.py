@@ -112,6 +112,7 @@ def create_prompt_version_from_openai(
     /,
     *,
     description: Optional[str] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
 ) -> v1.PromptVersionData:
@@ -145,6 +146,8 @@ def create_prompt_version_from_openai(
         ans["response_format"] = _ResponseFormatConversion.from_openai(obj["response_format"])
     if description:
         ans["description"] = description
+    if metadata:
+        ans["metadata"] = dict(metadata)
     return ans
 
 
@@ -207,6 +210,7 @@ class _InvocationParametersConversion:
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
             v1.PromptZAIInvocationParameters,
+            v1.PromptMetaInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -526,6 +530,29 @@ class _InvocationParametersConversion:
                 ans["stop"] = list(zai_params["stop"])
             if "extra_body" in zai_params:
                 ans["extra_body"] = dict(zai_params["extra_body"])
+        elif obj["type"] == "meta":
+            meta_params: v1.PromptMetaInvocationParametersContent
+            meta_params = obj["meta"]
+            if "max_completion_tokens" in meta_params:
+                ans["max_completion_tokens"] = meta_params["max_completion_tokens"]
+            if "max_tokens" in meta_params:
+                ans["max_tokens"] = meta_params["max_tokens"]
+            if "temperature" in meta_params:
+                ans["temperature"] = meta_params["temperature"]
+            if "top_p" in meta_params:
+                ans["top_p"] = meta_params["top_p"]
+            if "presence_penalty" in meta_params:
+                ans["presence_penalty"] = meta_params["presence_penalty"]
+            if "frequency_penalty" in meta_params:
+                ans["frequency_penalty"] = meta_params["frequency_penalty"]
+            if "seed" in meta_params:
+                ans["seed"] = meta_params["seed"]
+            if "reasoning_effort" in meta_params:
+                ans["reasoning_effort"] = meta_params["reasoning_effort"]
+            if "stop" in meta_params:
+                ans["stop"] = list(meta_params["stop"])
+            if "extra_body" in meta_params:
+                ans["extra_body"] = dict(meta_params["extra_body"])
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans

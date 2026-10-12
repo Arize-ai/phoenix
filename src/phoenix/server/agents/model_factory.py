@@ -10,7 +10,6 @@ from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic import ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
-from pydantic_ai.settings import ModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import assert_never
 
@@ -39,20 +38,6 @@ from phoenix.utilities.env_vars import without_env_vars
 
 class _EncryptedProviderRecord(Protocol):
     config: bytes
-
-
-# Output-token cap policy: a cap that binds mid-tool-call truncates the streamed
-# argument JSON, and the turn dies (reproduced identically on Anthropic, OpenAI, and
-# Google). Per provider:
-#   - Anthropic: the API requires max_tokens and pydantic-ai defaults it to 4096, which
-#     Opus-class models exhaust mid-tool-call (adaptive thinking counts against it) when
-#     emitting bulk tool arguments, e.g. create_dataset examples. All Anthropic models
-#     offered for the assistant support >=64k output, so set the cap well clear of
-#     realistic single-response payloads.
-#   - OpenAI and Google: max_tokens is deliberately left unset. pydantic-ai omits the
-#     field, and both APIs then default to the model's maximum output — any explicit
-#     value could only introduce truncation.
-_ANTHROPIC_MAX_TOKENS = 32_000
 
 
 def _build_openai_model(
@@ -147,6 +132,8 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("TOGETHER_API_KEY",)
     if provider is ModelProvider.ZAI:
         return ("ZAI_API_KEY",)
+    if provider is ModelProvider.META:
+        return ("META_API_KEY",)
     assert_never(provider)
 
 
@@ -324,7 +311,6 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
         return AnthropicModel(
             model_name,
             provider=anthropic_provider,
-            settings=ModelSettings(max_tokens=_ANTHROPIC_MAX_TOKENS),
         )
     if config.type == "google_genai":
         google_kwargs = config.google_genai_client_kwargs
@@ -443,7 +429,6 @@ def _get_pydantic_ai_model_from_builtin_provider(
         return AnthropicModel(
             params.model_name,
             provider=anthropic_provider,
-            settings=ModelSettings(max_tokens=_ANTHROPIC_MAX_TOKENS),
         )
     if params.provider == ModelProvider.GOOGLE:
         api_key = _first_credential(credentials, "GEMINI_API_KEY", "GOOGLE_API_KEY")
@@ -474,6 +459,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
         ModelProvider.PERPLEXITY,
         ModelProvider.TOGETHER,
         ModelProvider.ZAI,
+        ModelProvider.META,
     }:
         provider_settings: dict[
             ModelProvider,
@@ -554,6 +540,13 @@ def _get_pydantic_ai_model_from_builtin_provider(
                 "https://api.z.ai/api/paas/v4",
                 "An API key is required for Z.ai models. "
                 "Set ZAI_API_KEY in the environment or Phoenix secrets.",
+            ),
+            ModelProvider.META: (
+                "META_API_KEY",
+                getenv("META_BASE_URL") or "https://api.meta.ai/v1",
+                "https://api.meta.ai/v1",
+                "An API key is required for Meta models. "
+                "Set META_API_KEY in the environment or Phoenix secrets.",
             ),
         }
         credential_key, base_url, default_base_url, missing_credential_message = provider_settings[

@@ -59,9 +59,33 @@ export type AttributeMessage = {
 
 export type AttributeMessageContent = {
   [SemanticAttributePrefixes.message_content]: {
+    /**
+     * The kind of content part, e.g. "text", "image", or "reasoning"
+     */
     [MessageContentsAttributePostfixes.type]?: string;
+    /**
+     * The text of a text part, or the visible summary of a reasoning part
+     */
     [MessageContentsAttributePostfixes.text]?: string;
     [MessageContentsAttributePostfixes.image]?: AttributeImage;
+    /**
+     * Provider-assigned id of the part (e.g. an OpenAI Responses reasoning
+     * item id) that has to be echoed back to the provider on replay
+     */
+    [MessageContentsAttributePostfixes.id]?: string;
+    /**
+     * Opaque vendor signature (Anthropic thinking signature, Gemini
+     * thoughtSignature) captured verbatim
+     */
+    [MessageContentsAttributePostfixes.signature]?: string;
+    /**
+     * Opaque vendor data captured verbatim (Anthropic redacted_thinking.data)
+     */
+    [MessageContentsAttributePostfixes.data]?: string;
+    /**
+     * OpenAI encrypted reasoning captured verbatim
+     */
+    [MessageContentsAttributePostfixes.encrypted_content]?: string;
   };
 };
 

@@ -98,6 +98,32 @@ export const LIST_PROJECT_TRACES: RouteRequirement = {
   minServerVersion: [13, 15, 0],
 };
 
+export const GET_TRACES_FILTERS: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "error",
+  parameterLocation: "query",
+  route: "GET /v1/projects/{id}/traces",
+  minServerVersion: [20, 8, 0],
+  description:
+    "The 'error', 'min_latency_ms', and 'max_latency_ms' query parameters on GET /v1/projects/{id}/traces",
+};
+
+export const GET_TRACES_FILTER_EXPRESSION: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "filter",
+  parameterLocation: "query",
+  route: "GET /v1/projects/{id}/traces",
+  minServerVersion: [20, 12, 0],
+};
+
+export const LIST_SESSIONS_FILTER_EXPRESSION: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "filter",
+  parameterLocation: "query",
+  route: "GET /v1/projects/{id}/sessions",
+  minServerVersion: [20, 12, 0],
+};
+
 export const TRANSFER_TRACES: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -119,6 +145,27 @@ export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
   parameterLocation: "body",
   route: "POST /v1/datasets/upload",
   minServerVersion: [15, 0, 0],
+};
+
+export const CREATE_DATASET_SPLIT: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/datasets/{dataset_identifier}/splits",
+  minServerVersion: [19, 20, 0],
+};
+
+export const UPDATE_DATASET_SPLIT: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+  minServerVersion: [19, 20, 0],
+};
+
+export const DELETE_DATASET_SPLIT: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+  minServerVersion: [19, 20, 0],
 };
 
 export const ADD_TRACE_NOTE_IDENTIFIER: ParameterRequirement = {
@@ -152,11 +199,53 @@ export const DELETE_PROMPT: RouteRequirement = {
   minServerVersion: [13, 20, 0],
 };
 
+export const UPSERT_PROMPT_VERSION_TAG: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/prompt_versions/{prompt_version_id}/tags",
+  minServerVersion: [8, 22, 0],
+};
+
+export const DELETE_PROMPT_VERSION_TAG: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}",
+  minServerVersion: [13, 20, 0],
+};
+
 export const PATCH_PROMPT: RouteRequirement = {
   kind: "route",
   method: "PATCH",
   path: "/v1/prompts/{prompt_identifier}",
   minServerVersion: [19, 18, 0],
+};
+
+export const LIST_PROJECT_ANNOTATION_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/projects/{project_identifier}/annotation_configs",
+  minServerVersion: [17, 16, 0],
+};
+
+export const SET_PROJECT_ANNOTATION_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/projects/{project_identifier}/annotation_configs",
+  minServerVersion: [17, 16, 0],
+};
+
+export const ASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const UNASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
+  minServerVersion: [17, 16, 0],
 };
 
 export const AGENT_SESSION_CREATE: RouteRequirement = {
@@ -234,13 +323,25 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SPANS_FILTERS,
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
+  GET_TRACES_FILTERS,
+  GET_TRACES_FILTER_EXPRESSION,
+  LIST_SESSIONS_FILTER_EXPRESSION,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
+  CREATE_DATASET_SPLIT,
+  UPDATE_DATASET_SPLIT,
+  DELETE_DATASET_SPLIT,
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
   DELETE_PROMPT,
+  UPSERT_PROMPT_VERSION_TAG,
+  DELETE_PROMPT_VERSION_TAG,
   PATCH_PROMPT,
+  LIST_PROJECT_ANNOTATION_CONFIGS,
+  SET_PROJECT_ANNOTATION_CONFIGS,
+  ASSIGN_PROJECT_ANNOTATION_CONFIG,
+  UNASSIGN_PROJECT_ANNOTATION_CONFIG,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
   AGENT_SESSION_GET,

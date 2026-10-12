@@ -238,7 +238,7 @@ async def bulk_insert_dataset_examples(
         result = await session.execute(
             insert(models.DatasetExample).values(records).returning(models.DatasetExample.id)
         )
-        batch_ids = [cast(DatasetExampleId, row[0]) for row in result.fetchall()]
+        batch_ids = [row[0] for row in result.fetchall()]
         all_ids.extend(batch_ids)
 
     return all_ids
@@ -302,7 +302,7 @@ async def bulk_insert_dataset_example_revisions(
             .values(records)
             .returning(models.DatasetExampleRevision.id)
         )
-        batch_ids = [cast(DatasetExampleRevisionId, row[0]) for row in result.fetchall()]
+        batch_ids = [row[0] for row in result.fetchall()]
         all_ids.extend(batch_ids)
 
     return all_ids
@@ -371,7 +371,7 @@ async def bulk_create_dataset_splits(
     if not split_names:
         return {}
 
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     records: list[dict[str, Any]] = [
         {
             "name": name,
@@ -422,7 +422,7 @@ async def bulk_assign_examples_to_splits(
     from sqlalchemy.dialects.sqlite import insert as sqlite_insert
     from typing_extensions import assert_never
 
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
 
     # Process in batches to avoid exceeding database parameter limits
     # (e.g., SQLite's 32,767 limit, PostgreSQL's similar constraints)

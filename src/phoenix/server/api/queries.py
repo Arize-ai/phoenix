@@ -153,7 +153,6 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -743,11 +742,17 @@ class Query:
             except ValueError:
                 raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
 
-        base_experiment_runs = (
+        # Each run's tokens and cost are the sum over the spans of its trace. Both sides are then
+        # reduced to their best run per example in the same way, so identical experiments compare
+        # as equal however many spans a trace has and however many repetitions were run.
+        run_metrics = (
             select(
-                models.ExperimentRun.dataset_example_id,
-                func.min(models.ExperimentRun.start_time).label("start_time"),
-                func.min(models.ExperimentRun.end_time).label("end_time"),
+                models.ExperimentRun.id.label("run_id"),
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
+                LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time).label(
+                    "latency_ms"
+                ),
                 func.sum(models.SpanCost.total_tokens).label("total_tokens"),
                 func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
                 func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
@@ -766,46 +771,42 @@ class Query:
                 onclause=models.Trace.id == models.SpanCost.trace_rowid,
                 isouter=True,
             )
-            .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
-            .group_by(models.ExperimentRun.dataset_example_id)
-            .subquery()
-            .alias("base_experiment_runs")
-        )
-        compare_experiment_runs = (
-            select(
-                models.ExperimentRun.dataset_example_id,
-                func.min(
-                    LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time)
-                ).label("min_latency_ms"),
-                func.min(models.SpanCost.total_tokens).label("min_total_tokens"),
-                func.min(models.SpanCost.prompt_tokens).label("min_prompt_tokens"),
-                func.min(models.SpanCost.completion_tokens).label("min_completion_tokens"),
-                func.min(models.SpanCost.total_cost).label("min_total_cost"),
-                func.min(models.SpanCost.prompt_cost).label("min_prompt_cost"),
-                func.min(models.SpanCost.completion_cost).label("min_completion_cost"),
-            )
-            .select_from(models.ExperimentRun)
-            .join(
-                models.Trace,
-                onclause=models.ExperimentRun.trace_id == models.Trace.trace_id,
-                isouter=True,
-            )
-            .join(
-                models.SpanCost,
-                onclause=models.Trace.id == models.SpanCost.trace_rowid,
-                isouter=True,
-            )
             .where(
-                models.ExperimentRun.experiment_id.in_(compare_experiment_rowids),
+                models.ExperimentRun.experiment_id.in_(
+                    [base_experiment_rowid, *compare_experiment_rowids]
+                )
             )
-            .group_by(models.ExperimentRun.dataset_example_id)
+            .group_by(models.ExperimentRun.id)
             .subquery()
-            .alias("comp_exp_run_mins")
+            .alias("run_metrics")
         )
 
-        base_experiment_run_latency = LatencyMs(
-            base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
-        ).label("base_experiment_run_latency_ms")
+        def best_run_per_example(*, compare: bool, alias: str) -> Any:
+            experiment_filter = (
+                run_metrics.c.experiment_id.in_(compare_experiment_rowids)
+                if compare
+                else run_metrics.c.experiment_id == base_experiment_rowid
+            )
+            return (
+                select(
+                    run_metrics.c.dataset_example_id,
+                    func.min(run_metrics.c.latency_ms).label("min_latency_ms"),
+                    func.min(run_metrics.c.total_tokens).label("min_total_tokens"),
+                    func.min(run_metrics.c.prompt_tokens).label("min_prompt_tokens"),
+                    func.min(run_metrics.c.completion_tokens).label("min_completion_tokens"),
+                    func.min(run_metrics.c.total_cost).label("min_total_cost"),
+                    func.min(run_metrics.c.prompt_cost).label("min_prompt_cost"),
+                    func.min(run_metrics.c.completion_cost).label("min_completion_cost"),
+                )
+                .where(experiment_filter)
+                .group_by(run_metrics.c.dataset_example_id)
+                .subquery()
+                .alias(alias)
+            )
+
+        base_experiment_runs = best_run_per_example(compare=False, alias="base_experiment_runs")
+        compare_experiment_runs = best_run_per_example(compare=True, alias="comp_exp_run_mins")
+        base_experiment_run_latency = base_experiment_runs.c.min_latency_ms
 
         comparisons_query = (
             select(
@@ -829,109 +830,109 @@ class Query:
                     comparison_type="equality",
                 ).label("num_latency_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_total_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_total_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_total_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_prompt_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_prompt_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_prompt_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_completion_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_completion_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_completion_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_total_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_total_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_total_cost_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_prompt_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_prompt_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_prompt_cost_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_completion_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_completion_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
@@ -1734,7 +1735,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[AgentSkill]:
-        skills = load_skills(PXI_SKILLS_ROOTS)
+        skills = info.context.get_request().app.state.agent_skills
         return [
             AgentSkill(
                 name=skill.name,

@@ -430,7 +430,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List dataset splits */
+        get: operations["listDatasetSplits"];
         put?: never;
         /** Create a dataset split */
         post: operations["createDatasetSplit"];
@@ -1572,7 +1573,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions
-         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
          *
          *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
          */
@@ -2592,7 +2593,7 @@ export interface components {
         CreateChatCompletionRequestBody: {
             /**
              * Model
-             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
              */
             model: string;
             /** Messages */
@@ -2678,7 +2679,7 @@ export interface components {
             };
             /**
              * Example Ids
-             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             * @description Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
              */
             example_ids?: string[];
         };
@@ -3980,6 +3981,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["DatasetLabel"][];
         };
+        /** ListDatasetSplitsResponseBody */
+        ListDatasetSplitsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetSplit"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** ListDatasetVersionsResponseBody */
         ListDatasetVersionsResponseBody: {
             /** Data */
@@ -4088,7 +4096,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -4936,6 +4944,43 @@ export interface components {
             /** Content */
             content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
         };
+        /** PromptMetaInvocationParameters */
+        PromptMetaInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "meta";
+            meta: components["schemas"]["PromptMetaInvocationParametersContent"];
+        };
+        /** PromptMetaInvocationParametersContent */
+        PromptMetaInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /** Stop */
+            stop?: string[];
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
         /** PromptMoonshotInvocationParameters */
         PromptMoonshotInvocationParameters: {
             /**
@@ -5259,6 +5304,13 @@ export interface components {
         PromptVersion: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5267,7 +5319,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"] | components["schemas"]["PromptMetaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -5278,6 +5330,13 @@ export interface components {
         PromptVersionData: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5286,7 +5345,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"] | components["schemas"]["PromptMetaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -6657,12 +6716,12 @@ export interface components {
             } | null;
             /**
              * Add Example Ids
-             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
              */
             add_example_ids?: string[];
             /**
              * Remove Example Ids
-             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split.
              */
             remove_example_ids?: string[];
         };
@@ -8908,6 +8967,61 @@ export interface operations {
             };
         };
     };
+    listDatasetSplits: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination */
+                cursor?: string | null;
+                /** @description The max number of dataset splits to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDatasetSplitsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     createDatasetSplit: {
         parameters: {
             query?: never;
@@ -10061,12 +10175,23 @@ export interface operations {
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
-                /** @description Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI. */
+                /**
+                 * @deprecated
+                 * @description Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.
+                 */
                 error?: boolean | null;
-                /** @description Inclusive lower bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.
+                 */
                 min_latency_ms?: number | null;
-                /** @description Inclusive upper bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.
+                 */
                 max_latency_ms?: number | null;
+                /** @description Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -10084,6 +10209,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
@@ -10446,10 +10580,14 @@ export interface operations {
     getSpans: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Span Global ID) */
+                /** @description Pagination cursor: the next_cursor of a previous response with the same sort */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
+                /** @description Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id. */
+                sort?: "id" | "start_time";
+                /** @description Sort direction */
+                order?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
@@ -10462,7 +10600,7 @@ export interface operations {
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
                 name?: string[] | null;
-                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN */
+                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN */
                 span_kind?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;
@@ -11853,6 +11991,8 @@ export interface operations {
                 limit?: number;
                 /** @description Sort order by ID: 'asc' (ascending) or 'desc' (descending). */
                 order?: "asc" | "desc";
+                /** @description Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -11870,6 +12010,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetSessionsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */

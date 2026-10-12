@@ -9,14 +9,14 @@ from fastapi.routing import _IncludedRouter
 
 from phoenix.server.app import create_app
 from phoenix.server.types import DbSessionFactory
-from tests.unit.conftest import TestBulkInserter, patch_batched_caller, patch_grpc_server
+from tests.unit.conftest import TestBulkInserter, patch_dml_event_handler, patch_grpc_server
 
 
 @pytest.fixture
 async def second_app(db: DbSessionFactory) -> AsyncIterator[FastAPI]:
     """A second app built the way the ``app`` fixture builds its own."""
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         yield create_app(
             db=db,

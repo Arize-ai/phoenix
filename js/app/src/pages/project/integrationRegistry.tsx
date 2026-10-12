@@ -908,6 +908,17 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     },
   },
   {
+    id: "cloudflare-ai-gateway",
+    name: "Cloudflare AI Gateway",
+    icon: <CloudflareSVG />,
+    configs: {
+      Platform: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway",
+      },
+    },
+  },
+  {
     id: "dify",
     name: "Dify",
     icon: <DifySVG />,

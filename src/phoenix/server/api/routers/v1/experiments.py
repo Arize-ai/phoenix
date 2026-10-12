@@ -230,7 +230,7 @@ async def create_experiment(
         # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
 
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         project_rowid = await session.scalar(
             insert_on_conflict(
                 dict(
@@ -1044,7 +1044,7 @@ async def get_experiment_json(
                 "repetition_number": run.repetition_number,
                 "input": revision.input,
                 "reference_output": revision.output,
-                "output": run.output["task_output"],
+                "output": run.output.get("task_output"),
                 "error": run.error,
                 "latency_ms": run.latency_ms,
                 "start_time": run.start_time.isoformat(),
@@ -1094,10 +1094,9 @@ async def get_experiment_csv(
         )
         records = []
         for run, revision in zip(runs, revisions):
+            task_output = run.output.get("task_output")
             serialized_run_output = (
-                json.dumps(run.output["task_output"])
-                if isinstance(run.output["task_output"], dict)
-                else run.output["task_output"]
+                json.dumps(task_output) if isinstance(task_output, dict) else task_output
             )
             record = {
                 "example_id": str(GlobalID("DatasetExample", str(run.dataset_example_id))),
