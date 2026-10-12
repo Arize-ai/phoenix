@@ -6,6 +6,7 @@ from collections import deque
 from datetime import datetime
 from typing import Any, Mapping, NamedTuple, Optional
 
+from sqlalchemy.exc import IntegrityError
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
@@ -68,6 +69,21 @@ class SpanCostCalculator(DaemonTask):
         try:
             async with self._db() as session:
                 session.add_all(costs)
+        except IntegrityError:
+            # `span_costs.span_rowid` is unique, so this batch has a span that
+            # already has a cost row -- a re-queued item after a prior partial
+            # failure, or another writer racing to insert the same span. A
+            # single conflict must not also drop every other span's
+            # legitimate cost in the same batch, so retry one row at a time
+            # and skip (not fail) just the conflicting ones.
+            for cost in costs:
+                try:
+                    async with self._db() as session:
+                        session.add(cost)
+                except IntegrityError:
+                    logger.debug(f"Span {cost.span_rowid} already has a cost row; skipping")
+                except Exception as e:
+                    logger.exception(f"Failed to insert cost for span {cost.span_rowid}: {e}")
         except Exception as e:
             logger.exception(f"Failed to insert costs: {e}")
 

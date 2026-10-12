@@ -327,6 +327,8 @@ CREATE TABLE public.span_costs (
     completion_cost DOUBLE PRECISION,
     completion_tokens DOUBLE PRECISION,
     CONSTRAINT pk_span_costs PRIMARY KEY (id),
+    CONSTRAINT uq_span_costs_span_rowid
+        UNIQUE (span_rowid),
     CONSTRAINT fk_span_costs_model_id_generative_models
         FOREIGN KEY (model_id)
         REFERENCES public.generative_models (id)
@@ -343,8 +345,6 @@ CREATE TABLE public.span_costs (
 
 CREATE INDEX ix_span_costs_model_id_span_start_time ON public.span_costs
     USING btree (model_id, span_start_time);
-CREATE INDEX ix_span_costs_span_rowid ON public.span_costs
-    USING btree (span_rowid);
 CREATE INDEX ix_span_costs_span_start_time ON public.span_costs
     USING btree (span_start_time);
 CREATE INDEX ix_span_costs_trace_rowid ON public.span_costs
