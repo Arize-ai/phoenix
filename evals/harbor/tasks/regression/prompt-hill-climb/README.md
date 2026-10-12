@@ -18,8 +18,8 @@ data, inject SQL, write to the database, or escalate privileges, and must be ref
 ## Steps and verifiers
 
 The checks read Phoenix through `arize-phoenix-client` and the typed GraphQL client that
-`make codegen-harbor-graphql` compiles from `evals/harbor/verifiers/graphql/operations/*.graphql` against
-`js/app/schema.graphql`. `test.sh` puts the shared `evals.harbor.verifiers` package on the path.
+`make codegen-harbor-graphql` compiles from `evals/harbor/verifiers/harbor_verifiers/graphql/operations/*.graphql`
+against `js/app/schema.graphql`. The shared `harbor_verifiers` package is installed in the image.
 
 1. `step_01_create_evaluator`
    - Instruction: attach an exact-match evaluator (ignoring fences and whitespace) to the dataset.
@@ -46,6 +46,6 @@ The checks read Phoenix through `arize-phoenix-client` and the typed GraphQL cli
      - `reply_names_both_experiments`: the final reply names the first and last experiment.
      - `reply_links_comparison_view`: the reply links `/datasets/<id>/compare?experimentId=...` for exactly that pair.
      - `learning_recorded_on_last_experiment`: the last experiment's metadata holds a date on or after the step began.
-     - `judge_accepts_comparison`: the shared LLM judge (`PHOENIX_EVAL_JUDGE_PROVIDER` and
+     - `judge_accepts_comparison`: the LLM judge (`PHOENIX_EVAL_JUDGE_PROVIDER` and
        `PHOENIX_EVAL_JUDGE_MODEL`, default OpenAI `gpt-5-nano`) confirms the reply states matching scores, compares latency and
        cost, cites real moved examples, and gives a verdict.

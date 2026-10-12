@@ -34,23 +34,28 @@ The fastest path from a fresh clone to a running Phoenix dev server. See the sec
 
 ```bash
 # 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
-uv sync --all-extras
+uv sync --all-extras --all-packages
 
 # 2. Install the pinned Node.js and pnpm versions
 nvm install
 npm i -g pnpm@12.0.0
 
-# 3. Install the JavaScript workspace and build the web app
+# 3. Install dekit, the process manager that `pnpm dev` uses to run the API and UI together
+curl -fsSL https://dekit.run/install.sh | sh
+
+# 4. Install the JavaScript workspace and build the web app
 cd js
 pnpm install
 pnpm build
 cp app/.env.example app/.env
 # Set PHOENIX_ENABLE_AUTH=False in app/.env to disable authentication locally
 
-# 4. Start the dev server (Python API + frontend with hot reload)
+# 5. Start the dev server (Python API + frontend with hot reload)
 cd app
 pnpm dev
 ```
+
+`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `dekit help` documents the rest of the CLI.
 
 Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `js/app/.env` to bypass it.
 
@@ -78,7 +83,7 @@ pnpm --dir js/app uv lock     # the same wrapper, from pnpm
 The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the default development Python version. CI still tests the lowest supported version.
 
 ```bash
-uv sync --python 3.11
+uv sync --python 3.11 --all-packages
 ```
 
 The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located under the packages/ directory are automatically installed in editable mode via the `uv` workspace configuration.
@@ -394,7 +399,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
  pnpm dev
 ```
 
-This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
+This launches both the Python server and the frontend UI simultaneously using [dekit](https://dekit.run) (see `js/app/dekit.yaml`). The server will start with debugpy listening on port 5678.
 
 > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
 >
@@ -407,6 +412,8 @@ This launches both the Python server and the frontend UI simultaneously using `m
 > ```bash
 > VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
 > ```
+>
+> Environment variables apply when the dekit runner starts. If a runner is already up, run `dekit down` first so the new values take effect.
 >
 > Or add to `js/app/.env`:
 >

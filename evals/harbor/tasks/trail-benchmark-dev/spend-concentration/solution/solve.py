@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """Share of total cost in the most expensive tenth of traces."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 import math
 
-from evals.harbor.verifiers.phoenix_api import (
+from harbor_verifiers.phoenix_api import (
     project_spans,
     span_costs,
     spans_by_trace,

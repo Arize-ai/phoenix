@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
-from evals.harbor.verifiers import verify
+from harbor_verifiers import verify
 from tests.unit.vcr import CustomVCR
 
 MOST_FAILING_TOOL_EXPECTED = (
@@ -37,7 +37,7 @@ TRAJECTORY = {
 
 
 def test_measurements_count_agent_steps_only() -> None:
-    assert verify.measurements(TRAJECTORY) == {"tool_call_count": 3.0, "agent_turn_count": 3.0}
+    assert verify.measurements(TRAJECTORY) == {"tool_count": 3.0, "turn_count": 3.0}
     assert verify.measurements(None) == {}
 
 
@@ -84,10 +84,9 @@ def test_reference_check_grades_semantic_answers(
         ("TextInspectorTool, not page_down, had the most failures.", 0.0),
     ]
 
-    # The OpenAI SDK's key order varies across versions, so match the parsed body.
-    custom_vcr.register_matcher(_json_body.__name__, _json_body)
+    custom_vcr.register_matcher(_json_bodies_match.__name__, _json_bodies_match)
     with custom_vcr.use_cassette(
-        match_on=["method", "scheme", "host", "port", "path", "query", _json_body.__name__]
+        match_on=["method", "scheme", "host", "port", "path", "query", _json_bodies_match.__name__]
     ):
         scores = [verify.check(reply, expected)[0] for reply, _ in cases]
 
@@ -103,8 +102,8 @@ def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
     )
     assert scores == {
         "reward": 1.0,
-        "tool_call_count": 3.0,
-        "agent_turn_count": 3.0,
+        "tool_count": 3.0,
+        "turn_count": 3.0,
         "extra": 0.5,
     }
     assert json.loads(reward_path.read_text()) == scores
@@ -139,5 +138,7 @@ def test_started_at_ignores_copied_context() -> None:
     assert verify.started_at({"steps": [{"source": "user"}]}) is None
 
 
-def _json_body(request1: VCRRequest, request2: VCRRequest) -> None:
+def _json_bodies_match(request1: VCRRequest, request2: VCRRequest) -> None:
+    """The recorded cassette has no content-type header, so VCR's own body matcher
+    compares raw bytes and breaks whenever the OpenAI client reorders JSON keys."""
     assert json.loads(request1.body) == json.loads(request2.body)

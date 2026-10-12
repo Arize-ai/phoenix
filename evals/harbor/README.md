@@ -19,7 +19,7 @@ compare the conditions in the Phoenix UI.
 | `environments/` | The shared Dockerfile and the fixture script for each database |
 | `jobs/` | One configuration file for each benchmark |
 | `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
-| `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
+| `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
 ## Prerequisites
@@ -42,8 +42,8 @@ compare the conditions in the Phoenix UI.
 ### 1. Stage the tasks
 
 From the repository root, stage the tasks before you run a benchmark. Staging builds the
-Phoenix wheel, creates the fixture databases and task build contexts, and builds the px
-archive for the CLI agents:
+Phoenix wheel, creates the fixture databases and task build contexts, builds the px
+archive for the CLI agents, and builds the client wheel that provides the Harbor plugin:
 
 ```bash
 # Stage the regression tasks only.
@@ -102,7 +102,7 @@ or full, records to the same dataset. Set `HARBOR_DATASET=<name>` to select anot
 `HARBOR_PLUGIN=` to run without recording results in Phoenix.
 
 Each run includes `reward` and the other verifier measurements. The TRAIL verifier
-adds `tool_call_count` and `agent_turn_count`, which do not affect the reward. The plugin
+adds `tool_count` and `turn_count`, which do not affect the reward. The plugin
 adds Harbor's token counts, cost, and latency, an `infra_ok` score that is `0` when
 Harbor reports an exception, and the agent's full trace. Run `make harbor-view` to open
 Harbor's results viewer.
@@ -167,7 +167,7 @@ and `expected.json`. A unit test checks that the shared files stay identical and
 `expected.json` is well formed.
 
 Write a solution that calculates the reference value from the running Phoenix instance.
-Use `evals.harbor.verifiers.phoenix_api` to read spans and annotations through the Phoenix
+Use `harbor_verifiers.phoenix_api` to read spans and annotations through the Phoenix
 client and per-span costs through GraphQL. Stage the task, run the oracle, and copy its
 answer into `expected.json`. Use `source` to describe how the solution calculated the
 answer.
@@ -175,7 +175,7 @@ answer.
 For a task that changes Phoenix state instead of answering a question, write a custom
 `test.sh`. Query Phoenix at `http://127.0.0.1:6006` or read `/data/phoenix.db`. The
 verifier runs as root. Calculate the reward, and call
-`evals.harbor.verifiers.verify.write_reward(reward, **extra)` to include the trajectory
+`harbor_verifiers.verify.write_reward(reward, **extra)` to include the trajectory
 measurements.
 
 ### Add a condition
@@ -195,7 +195,7 @@ so both experiments use the same dataset version.
 ### Run the tests
 
 ```bash
-uv run pytest tests/unit/harbor
+uv run --all-packages pytest tests/unit/harbor
 ```
 
 Use an oracle run to test the task environment, reference solutions, and verifiers
@@ -229,16 +229,19 @@ the two experiments named, the examples that moved, the compare link, and a meta
 that preserves what was there. Its fixture lives at
 `gs://arize-phoenix-assets/evals/harbor/prompt-hill-climb/phoenix.db`.
 
-## Test an unreleased client plugin
+## Choose the client plugin version
 
-Build the client wheel and use it in the Harbor environment instead of the pinned release:
+The `arize-phoenix` Harbor plugin ships in `arize-phoenix-client`. By default, `make
+harbor-stage` builds that package from this checkout into `dist/phoenix-client`, and `make
+harbor-run` loads the plugin from that wheel. A job therefore records with the plugin in
+the tree, including changes that are not released yet. Restage after changing
+`packages/phoenix-client`.
+
+To record with a released plugin, set `HARBOR_CLIENT_VERSION` on both targets:
 
 ```bash
-uv build --wheel packages/phoenix-client
-CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
-PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -c evals/harbor/jobs/regression.yaml -e docker -k 1 \
-  --plugin arize-phoenix --yes
+make harbor-stage HARBOR_CLIENT_VERSION=3.5.0
+make harbor-run HARBOR_CLIENT_VERSION=3.5.0
 ```
 
 ## Name experiments
