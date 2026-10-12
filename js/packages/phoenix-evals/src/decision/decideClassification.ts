@@ -5,7 +5,7 @@
  */
 import { experimental_decide, Experimental_DecisionRefusalError } from "ai";
 
-import { getTelemetryIntegrations, tracer } from "../telemetry";
+import { getTelemetryOptions } from "../telemetry";
 import type { ClassificationResult } from "../types/evals";
 import type { TelemetryConfig } from "../types/otel";
 import type { DecisionModel } from "../utils/isDecisionModel";
@@ -69,11 +69,10 @@ export async function decideClassification(args: {
           criteria: Object.fromEntries(labels.map((label) => [label, null])),
         },
       },
-      telemetry: {
-        isEnabled: telemetry?.isEnabled ?? true,
+      telemetry: getTelemetryOptions({
         functionId: "decideClassification",
-        integrations: getTelemetryIntegrations(telemetry?.tracer ?? tracer),
-      },
+        telemetry,
+      }),
     });
   } catch (error) {
     if (Experimental_DecisionRefusalError.isInstance(error)) {

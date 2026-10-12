@@ -50,7 +50,7 @@ export interface EvaluationResult {
   explanation?: string;
   /**
    * Additional information about how the result was produced, e.g. the
-   * label probabilities reported by an evaluation model.
+   * label probabilities reported by a decision model.
    */
   metadata?: Record<string, unknown>;
 }

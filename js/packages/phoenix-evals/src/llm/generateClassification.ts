@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { decideClassification } from "../decision/decideClassification";
 import { renderedPromptToDecisionPrompt } from "../decision/decisionPrompt";
-import { getTelemetryIntegrations, tracer } from "../telemetry";
+import { getTelemetryOptions } from "../telemetry";
 import type { ClassificationResult, WithLLM } from "../types/evals";
 import type { WithTelemetry } from "../types/otel";
 import type { WithPrompt } from "../types/prompts";
@@ -49,12 +49,6 @@ export async function generateClassification(
     });
   }
 
-  const telemetryOptions = {
-    isEnabled: telemetry?.isEnabled ?? true,
-    functionId: "generateClassification",
-    integrations: getTelemetryIntegrations(telemetry?.tracer ?? tracer),
-  };
-
   const result = await generateObject({
     model,
     schemaName,
@@ -63,7 +57,10 @@ export async function generateClassification(
       explanation: z.string(), // We place the explanation in hopes it uses reasoning to explain the label.
       label: z.enum(labels),
     }),
-    telemetry: telemetryOptions,
+    telemetry: getTelemetryOptions({
+      functionId: "generateClassification",
+      telemetry,
+    }),
     // AI SDK 7 rejects system messages inside `messages` by default; keep
     // accepting them since prompt templates may include system messages.
     allowSystemInMessages: true,
