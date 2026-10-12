@@ -181,9 +181,18 @@ func main() {
 				Name:         openai.String("department"),
 				Instructions: "Which department should handle this complaint?",
 				Choices: []openai.DecisionNewParamsQuestionChoiceChoice{
-					{Value: openai.DecisionNewParamsQuestionChoiceChoiceValueUnion{OfString: openai.String("billing")}, Description: openai.String("Payments, invoices, and refunds.")},
-					{Value: openai.DecisionNewParamsQuestionChoiceChoiceValueUnion{OfString: openai.String("technical")}, Description: openai.String("Problems using the product.")},
-					{Value: openai.DecisionNewParamsQuestionChoiceChoiceValueUnion{OfString: openai.String("shipping")}, Description: openai.String("Delivery and tracking.")},
+					{
+						Value:       openai.DecisionNewParamsQuestionChoiceChoiceValueUnion{OfString: openai.String("billing")},
+						Description: openai.String("Payments, invoices, and refunds."),
+					},
+					{
+						Value:       openai.DecisionNewParamsQuestionChoiceChoiceValueUnion{OfString: openai.String("technical")},
+						Description: openai.String("Problems using the product."),
+					},
+					{
+						Value:       openai.DecisionNewParamsQuestionChoiceChoiceValueUnion{OfString: openai.String("shipping")},
+						Description: openai.String("Delivery and tracking."),
+					},
 				},
 			}},
 			{OfScore: &openai.DecisionNewParamsQuestionScore{
