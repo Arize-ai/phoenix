@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.1...arize-phoenix-evals-v3.9.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **evals:** reject non-finite precision recall beta ([#16226](https://github.com/Arize-ai/phoenix/issues/16226)) ([a944a14](https://github.com/Arize-ai/phoenix/commit/a944a14963cde37f6b9e6d75612f331d5506ad3e))
+
+## [3.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.0...arize-phoenix-evals-v3.9.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **evals:** retry RateLimitError in SyncExecutor instead of failing the whole run ([#16376](https://github.com/Arize-ai/phoenix/issues/16376)) ([56e9a89](https://github.com/Arize-ai/phoenix/commit/56e9a8994e9074eb9958dfe77e4552e7a8b6d38c))
+
 ## [3.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.8.0...arize-phoenix-evals-v3.9.0) (2026-09-21)
 
 

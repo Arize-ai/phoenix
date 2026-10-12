@@ -220,6 +220,34 @@ export const PATCH_PROMPT: RouteRequirement = {
   minServerVersion: [19, 18, 0],
 };
 
+export const LIST_PROJECT_ANNOTATION_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/projects/{project_identifier}/annotation_configs",
+  minServerVersion: [17, 16, 0],
+};
+
+export const SET_PROJECT_ANNOTATION_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/projects/{project_identifier}/annotation_configs",
+  minServerVersion: [17, 16, 0],
+};
+
+export const ASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const UNASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
+  minServerVersion: [17, 16, 0],
+};
+
 export const AGENT_SESSION_CREATE: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -310,6 +338,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   UPSERT_PROMPT_VERSION_TAG,
   DELETE_PROMPT_VERSION_TAG,
   PATCH_PROMPT,
+  LIST_PROJECT_ANNOTATION_CONFIGS,
+  SET_PROJECT_ANNOTATION_CONFIGS,
+  ASSIGN_PROJECT_ANNOTATION_CONFIG,
+  UNASSIGN_PROJECT_ANNOTATION_CONFIG,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
   AGENT_SESSION_GET,

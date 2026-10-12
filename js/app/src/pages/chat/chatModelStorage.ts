@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { CHAT_MODEL_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { modelProviderSchema } from "@phoenix/utils/generativeUtils";
 import { createScopedStorageItem } from "@phoenix/utils/storageUtils";
 
@@ -28,7 +29,7 @@ export const {
   get: getStoredChatModel,
   set: storeChatModel,
 } = createScopedStorageItem({
-  baseKey: "arize-phoenix-chat-model",
+  baseKey: CHAT_MODEL_STORAGE_BASE_KEY,
   schema: CHAT_MODEL_SELECTION_SCHEMA,
   fallback: null,
 });

@@ -46,5 +46,8 @@ If you are running Phoenix in an air-gapped environment, set `PHOENIX_ALLOW_EXTE
 
 - Automatically disable all telemetry
 - Disable external Google Fonts (the UI will fall back to system fonts)
+- Disable PXI's documentation lookups, web access, and GitHub access
+- Skip the WebAssembly sandbox runtime download
+- Hide the GitHub star count and skip the update check in the web interface
 
-This prevents any external network requests from the Phoenix web interface, avoiding connection timeouts and UI loading delays in environments without internet access.
+Phoenix then makes no public-internet requests of its own, avoiding connection timeouts and UI loading delays in environments without internet access. Services you configure yourself, such as LLM providers and hosted sandboxes, aren't affected.

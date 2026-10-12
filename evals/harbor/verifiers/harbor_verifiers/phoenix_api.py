@@ -1,0 +1,166 @@
+"""Phoenix query helpers for reference solutions in task images.
+
+Use the typed Phoenix client for spans and span annotations. The client cannot read
+trace annotations, so :func:`trace_annotation_scores` uses the REST API. Per-span cost
+requires GraphQL, so :func:`span_costs` uses the GraphQL API.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import urllib.parse
+import urllib.request
+from collections import defaultdict
+from typing import Any, Sequence
+
+from phoenix.client import Client
+from phoenix.client.__generated__ import v1
+from strawberry.relay import GlobalID
+
+from harbor_verifiers.graphql.__generated__ import Client as GraphQLClient
+from harbor_verifiers.graphql.__generated__ import (
+    DatasetEvaluatorFields,
+    DatasetEvaluatorsNodeDataset,
+    DatasetExperimentsNodeDataset,
+    ExperimentFields,
+)
+from phoenix.server.api.types.node import from_global_id
+
+PHOENIX_URL = os.environ.get("PHOENIX_EVAL_URL", "http://127.0.0.1:6006")
+ANSWER_PATH = "/app/answer.txt"
+SPAN_LIMIT = 1_000_000  # The client fetches 100 spans per page up to this limit.
+
+
+def client() -> Client:
+    return Client(base_url=PHOENIX_URL)
+
+
+def dataset_examples(dataset: str) -> tuple[str, list[v1.DatasetExample]]:
+    """The dataset's node id and its current examples."""
+    result = client().datasets.get_dataset(dataset=dataset)
+    return result.id, result.examples
+
+
+def project_spans(project: str) -> list[v1.Span]:
+    return client().spans.get_spans(project_identifier=project, limit=SPAN_LIMIT)
+
+
+TraceId = str
+SpanId = str
+
+
+def spans_by_trace(spans: list[v1.Span]) -> dict[TraceId, list[v1.Span]]:
+    traces: dict[TraceId, list[v1.Span]] = defaultdict(list)
+    for span in spans:
+        traces[span["context"]["trace_id"]].append(span)
+    return traces
+
+
+def annotation_labels(project: str, name: str) -> list[str]:
+    annotations = client().spans.get_span_annotations(
+        spans=project_spans(project), project_identifier=project, include_annotation_names=[name]
+    )
+    return [
+        str(annotation["result"]["label"])
+        for annotation in annotations
+        if annotation.get("result") and annotation["result"].get("label")
+    ]
+
+
+def trace_annotation_scores(
+    project: str, name: str, trace_ids: Sequence[TraceId]
+) -> dict[TraceId, float]:
+    """Return the score of each trace's ``name`` annotation, omitting unscored traces."""
+    scores: dict[TraceId, float] = {}
+    for start in range(0, len(trace_ids), 50):
+        cursor: str | None = None
+        while True:
+            params: dict[str, Any] = {"trace_ids": trace_ids[start : start + 50], "limit": 1000}
+            if cursor:
+                params["cursor"] = cursor
+            url = (
+                f"{PHOENIX_URL}/v1/projects/{urllib.parse.quote(project)}/trace_annotations?"
+                + urllib.parse.urlencode(params, doseq=True)
+            )
+            with urllib.request.urlopen(url, timeout=60) as response:
+                page: v1.TraceAnnotationsResponseBody = json.load(response)
+            for annotation in page["data"]:
+                result = annotation.get("result")
+                score = result.get("score") if result else None
+                if annotation["name"] == name and score is not None:
+                    scores[annotation["trace_id"]] = float(score)
+            cursor = page.get("next_cursor")
+            if not cursor:
+                break
+    return scores
+
+
+def graphql_client() -> GraphQLClient:
+    """The typed client that ``make codegen-harbor-graphql`` compiles from verifiers/graphql/operations."""
+    return GraphQLClient(url=f"{PHOENIX_URL}/graphql")
+
+
+def rowid(node_id: str) -> int:
+    return from_global_id(GlobalID.from_id(node_id))[1]
+
+
+def dataset_evaluators(dataset_id: str) -> list[DatasetEvaluatorFields]:
+    node = graphql_client().dataset_evaluators(dataset_id, timeout=60.0).node
+    if not isinstance(node, DatasetEvaluatorsNodeDataset):
+        raise ValueError(f"{dataset_id} is not a dataset")
+    return [edge.node for edge in node.dataset_evaluators.edges]
+
+
+def dataset_experiments(dataset_id: str) -> list[ExperimentFields]:
+    """Every experiment run on the dataset, oldest first."""
+    node = graphql_client().dataset_experiments(dataset_id, timeout=60.0).node
+    if not isinstance(node, DatasetExperimentsNodeDataset):
+        raise ValueError(f"{dataset_id} is not a dataset")
+    return sorted((edge.node for edge in node.experiments.edges), key=lambda x: x.created_at)
+
+
+def graphql(
+    query: str, variables: dict[str, Any] | None = None, timeout: float = 60.0
+) -> dict[str, Any]:
+    """Return the ``data`` object from a local Phoenix GraphQL query."""
+    request = urllib.request.Request(
+        f"{PHOENIX_URL}/graphql",
+        data=json.dumps({"query": query, "variables": variables or {}}).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        payload = json.load(response)
+    if payload.get("errors"):
+        raise SystemExit(payload["errors"])
+    data: dict[str, Any] = payload["data"]
+    return data
+
+
+def span_costs(project: str) -> dict[SpanId, float]:
+    """Spans without cost data are omitted."""
+    edges = graphql("{ projects(first: 100) { edges { node { id name } } } }")["projects"]["edges"]
+    project_id = json.dumps(next(e["node"]["id"] for e in edges if e["node"]["name"] == project))
+    costs: dict[SpanId, float] = {}
+    cursor: str | None = None
+    while True:
+        after = ", after: " + json.dumps(cursor) if cursor else ""
+        page = graphql(
+            "{ node(id: " + project_id + ") { ... on Project { spans(first: 500" + after + ") {"
+            " edges { node { spanId costSummary { total { cost } } } }"
+            " pageInfo { hasNextPage endCursor } } } } }"
+        )["node"]["spans"]
+        for edge in page["edges"]:
+            cost = ((edge["node"].get("costSummary") or {}).get("total") or {}).get("cost")
+            if cost:
+                costs[edge["node"]["spanId"]] = float(cost)
+        if not page["pageInfo"]["hasNextPage"]:
+            return costs
+        cursor = page["pageInfo"]["endCursor"]
+
+
+def write_answer(answer: str) -> None:
+    """Write the answer for grading and print it to the task log."""
+    with open(ANSWER_PATH, "w") as handle:
+        handle.write(answer + "\n")
+    print(answer)

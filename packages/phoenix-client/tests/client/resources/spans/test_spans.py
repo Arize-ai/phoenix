@@ -56,6 +56,47 @@ def test_log_document_annotations_dataframe_rejects_invalid_identifiers(
         client.spans.log_document_annotations_dataframe(dataframe=dataframe)
 
 
+@pytest.mark.parametrize("missing", [None, float("nan"), pd.NA, pd.NaT])
+@pytest.mark.parametrize("column", ["label", "score", "explanation", "metadata", "identifier"])
+def test_log_span_annotations_dataframe_omits_missing_cells(column: str, missing: object) -> None:
+    values: dict[str, object] = {
+        "span_id": "span1",
+        "label": "good",
+        "score": 0.0,
+        "explanation": "details",
+        "metadata": {"tags": ["reviewed"]},
+        "identifier": "evaluation-1",
+    }
+    dataframe = pd.DataFrame([{**values, column: missing}])
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    with httpx.Client(transport=httpx.MockTransport(handle), base_url="http://test") as http_client:
+        client = Client(http_client=http_client)
+        client.spans.log_span_annotations_dataframe(
+            dataframe=dataframe, annotation_name="quality", annotator_kind="HUMAN"
+        )
+
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.method == "POST"
+    assert request.url.path == "/v1/span_annotations"
+    assert json.loads(request.content)["data"] == [
+        {
+            "name": "quality",
+            "annotator_kind": "HUMAN",
+            "span_id": "span1",
+            "result": {
+                key: values[key] for key in ("label", "score", "explanation") if key != column
+            },
+            **{key: values[key] for key in ("metadata", "identifier") if key != column},
+        }
+    ]
+
+
 def _make_span(
     *,
     name: str = "test-span",
