@@ -189,7 +189,7 @@ def _sort_token_count_details(details: list["TraceTokenCountDetailsTimeSeriesEnt
 
 
 async def _annotation_name_counts(
-    info: Info[Context, None], stmt: Select[Any]
+    info: Info[Context, None], stmt: Select[*tuple[Any, ...]]
 ) -> list[AnnotationNameCount]:
     """Run a ``(name, count)`` aggregation query and map it to ``AnnotationNameCount``."""
     async with info.context.db.read() as session:
@@ -198,11 +198,11 @@ async def _annotation_name_counts(
 
 
 def _apply_project_session_filters(
-    stmt: Select[Any],
+    stmt: Select[*tuple[Any, ...]],
     project_rowid: int,
     time_range: Optional[TimeRange],
     session_filter_condition: Optional[str] = None,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     """Restrict a ``ProjectSession`` aggregation to the project, time range, and session filter.
 
     The time range uses interval-overlap semantics: a session is included iff
@@ -275,7 +275,7 @@ def _referenced_subscript_names(condition: str, subscript_names: frozenset[str])
     return names
 
 
-def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
+def _session_annotation_names_stmt(project_rowid: int) -> Select[*tuple[Any, ...]]:
     return (
         select(distinct(models.ProjectSessionAnnotation.name))
         .join(models.ProjectSession)
@@ -283,7 +283,7 @@ def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
     )
 
 
-def _trace_annotation_names_stmt(project_rowid: int) -> Select[Any]:
+def _trace_annotation_names_stmt(project_rowid: int) -> Select[*tuple[Any, ...]]:
     return (
         select(distinct(models.TraceAnnotation.name))
         .join(models.Trace)
@@ -624,7 +624,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        stmt = (
+        stmt: Select[int, *tuple[Any, ...]] = (
             select(models.Span.id)
             .select_from(models.Span)
             .join(models.Trace)
@@ -1436,7 +1436,7 @@ class Project(Node):
                     keys=session_rowids,
                     project_rowids=[self.id],
                 ).subquery()
-                root_span_attributes_stmt = (
+                root_span_attributes_stmt: Select[dict[str, Any]] = (
                     select(models.Span.attributes)
                     .select_from(models.Span)
                     .join(root_spans, models.Span.id == root_spans.c[SPAN_ROWID])
@@ -1516,7 +1516,7 @@ class Project(Node):
                     start_time=time_range.start if time_range else None,
                     end_time=time_range.end if time_range else None,
                 ).subquery()
-                root_span_attributes_stmt = (
+                root_span_attributes_stmt: Select[dict[str, Any]] = (
                     select(models.Span.attributes)
                     .select_from(models.Span)
                     .join(root_spans, models.Span.id == root_spans.c[TRACE_SPAN_ROWID])
@@ -1881,7 +1881,7 @@ class Project(Node):
                 field = "year"
         bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
 
-        stmt = select(bucket).where(models.Trace.project_rowid == self.id)
+        stmt: Select[*tuple[Any, ...]] = select(bucket).where(models.Trace.project_rowid == self.id)
         if time_range.start:
             stmt = stmt.where(time_range.start <= models.Trace.start_time)
         if time_range.end:
@@ -2308,7 +2308,7 @@ class Project(Node):
         bucket = date_trunc(
             info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
         )
-        stmt: Select[Any] = (
+        stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
                 models.Span.id.label("entity_id"),
@@ -2357,7 +2357,7 @@ class Project(Node):
         bucket = date_trunc(
             info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
         )
-        stmt: Select[Any] = (
+        stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
                 models.Trace.id.label("entity_id"),
@@ -2403,7 +2403,7 @@ class Project(Node):
         bucket = date_trunc(
             info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
         )
-        stmt: Select[Any] = (
+        stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
                 models.ProjectSession.id.label("entity_id"),
@@ -2685,7 +2685,7 @@ def _time_bin_stride(time_bin_config: Optional[TimeBinConfig]) -> tuple[_TimeBin
 
 async def _annotation_score_time_series(
     db: DbSessionFactory,
-    stmt: Select[Any],
+    stmt: Select[*tuple[Any, ...]],
     time_range: TimeRange,
     start_time_col: InstrumentedAttribute[datetime],
     stride: _TimeBinStride,
@@ -2750,7 +2750,7 @@ async def _annotation_score_time_series(
 
 async def _annotation_metric_names(
     db: DbSessionFactory,
-    stmt: Select[Any],
+    stmt: Select[*tuple[Any, ...]],
     time_range: TimeRange,
     start_time_col: InstrumentedAttribute[datetime],
 ) -> list[str]:
@@ -2765,7 +2765,7 @@ async def _annotation_metric_names(
 
 async def _annotation_metrics_time_series(
     db: DbSessionFactory,
-    stmt: Select[Any],
+    stmt: Select[*tuple[Any, ...]],
     time_range: TimeRange,
     start_time_col: InstrumentedAttribute[datetime],
     stride: _TimeBinStride,

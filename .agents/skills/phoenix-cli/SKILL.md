@@ -262,7 +262,7 @@ Trace
     name="note", result { explanation }
   rootSpan  — top-level span (parent_id: null)
   spans[]
-    name, span_kind ("LLM"|"CHAIN"|"TOOL"|"RETRIEVER"|"EMBEDDING"|"AGENT"|"RERANKER"|"GUARDRAIL"|"EVALUATOR"|"UNKNOWN")
+    name, span_kind ("LLM"|"CHAIN"|"TOOL"|"RETRIEVER"|"EMBEDDING"|"AGENT"|"RERANKER"|"GUARDRAIL"|"EVALUATOR"|"DECISION"|"UNKNOWN")
     status_code ("OK"|"ERROR"|"UNSET"), parent_id, context.span_id
     notes[] (with --include-notes)
       name="note", result { explanation }
@@ -320,7 +320,7 @@ curl -s -H "Authorization: Bearer $PHOENIX_API_KEY" \
 
 ```
 Span
-  name, span_kind ("LLM"|"CHAIN"|"TOOL"|"RETRIEVER"|"EMBEDDING"|"AGENT"|"RERANKER"|"GUARDRAIL"|"EVALUATOR"|"UNKNOWN")
+  name, span_kind ("LLM"|"CHAIN"|"TOOL"|"RETRIEVER"|"EMBEDDING"|"AGENT"|"RERANKER"|"GUARDRAIL"|"EVALUATOR"|"DECISION"|"UNKNOWN")
   status_code ("OK"|"ERROR"|"UNSET"), status_message
   context.span_id, context.trace_id, parent_id
   start_time, end_time

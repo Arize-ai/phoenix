@@ -134,6 +134,14 @@ These are UI-based platforms, not code libraries. They cannot be auto-detected f
 | LangFlow | https://arize.com/docs/phoenix/integrations/platforms/langflow |
 | Prompt flow | https://arize.com/docs/phoenix/integrations/platforms/prompt-flow |
 
+### Vector Databases
+
+These integrations use manual spans around retrieval calls rather than an auto-instrumentor.
+
+| Detection signal | Integration | Doc URL |
+|---|---|---|
+| `qdrant_client` | Qdrant | https://arize.com/docs/phoenix/integrations/vector-databases/qdrant |
+
 ### Fallback
 
 If no integration matches, or for advanced use cases:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<30ca003002a202f5601e71540e8ebe33>>
+ * @generated SignedSource<<9d2ef163a79712b1bf3e807d7c0e9a36>>
  * @lightSyntaxTransform
  */
 
@@ -8,12 +8,15 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "decision" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type ConnectedTraceTree$data = {
   readonly id: string;
   readonly numSpans: number;
+  readonly project: {
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
+  };
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -29,15 +32,12 @@ export type ConnectedTraceTree$data = {
         readonly parentId: string | null;
         readonly spanAnnotationSummaries: ReadonlyArray<{
           readonly count: number;
-          readonly labelCount: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
-          readonly labels: ReadonlyArray<string>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly spanId: string;
         readonly spanKind: SpanKind;
@@ -123,6 +123,22 @@ return {
       "args": null,
       "kind": "ScalarField",
       "name": "numSpans",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Project",
+      "kind": "LinkedField",
+      "name": "project",
+      "plural": false,
+      "selections": [
+        {
+          "args": null,
+          "kind": "FragmentSpread",
+          "name": "ProjectAnnotationConfigsByNameFragment"
+        }
+      ],
       "storageKey": null
     },
     {
@@ -238,19 +254,25 @@ return {
                 },
                 {
                   "alias": null,
-                  "args": null,
+                  "args": [
+                    {
+                      "kind": "Literal",
+                      "name": "filter",
+                      "value": {
+                        "exclude": {
+                          "names": [
+                            "note"
+                          ]
+                        }
+                      }
+                    }
+                  ],
                   "concreteType": "AnnotationSummary",
                   "kind": "LinkedField",
                   "name": "spanAnnotationSummaries",
                   "plural": true,
                   "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "labels",
-                      "storageKey": null
-                    },
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -262,7 +284,7 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "labelCount",
+                      "name": "meanScore",
                       "storageKey": null
                     },
                     {
@@ -289,24 +311,9 @@ return {
                         }
                       ],
                       "storageKey": null
-                    },
-                    (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "scoreCount",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "meanScore",
-                      "storageKey": null
                     }
                   ],
-                  "storageKey": null
+                  "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                 }
               ],
               "storageKey": null
@@ -374,6 +381,6 @@ return {
 };
 })();
 
-(node as any).hash = "8cda30a5e8ca13e30f6cc7fa3a44d238";
+(node as any).hash = "7f91cb9e2eae85cd9f94e7d82e5cedab";
 
 export default node;

@@ -789,8 +789,7 @@ async def two_projects_with_annotations(db: DbSessionFactory) -> dict[str, Any]:
 
 async def _count(db: DbSessionFactory, model: Any, **filters: Any) -> int:
     async with db() as session:
-        rows = (await session.scalars(select(model).filter_by(**filters))).all()
-        return len(list(rows))
+        return len((await session.scalars(select(model).filter_by(**filters))).all())
 
 
 async def test_delete_span_annotations_happy_path(

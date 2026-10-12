@@ -45,7 +45,7 @@ export const setSpansFilterOperation = defineUIOperation({
     "ingested trace can have several, so do not treat the row count as a " +
     "trace count. Do NOT restrict to root spans when narrowing to a " +
     "`span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, " +
-    "EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost " +
+    "EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL, DECISION) — those kinds are almost " +
     "always nested under a CHAIN/AGENT root, so combining them with a root " +
     "predicate yields zero results even when matching spans exist. The same " +
     "applies to anything that targets nested spans (specific tool names, " +
@@ -96,7 +96,7 @@ export const setSpansFilterOperation = defineUIOperation({
     "VALUE CONVENTIONS:\n" +
     "  - `span_kind` values are UPPERCASE string literals: 'LLM', " +
     "'TOOL', 'CHAIN', 'AGENT', 'RETRIEVER', 'EMBEDDING', 'RERANKER', " +
-    "'EVALUATOR', 'GUARDRAIL', 'UNKNOWN'. Lowercase ('llm') will not " +
+    "'EVALUATOR', 'GUARDRAIL', 'DECISION', 'UNKNOWN'. Lowercase ('llm') will not " +
     "match.\n" +
     "  - `status_code` values are UPPERCASE: 'OK', 'ERROR', 'UNSET'.\n" +
     "  - Always wrap string literals in single or double quotes." +
