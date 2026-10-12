@@ -31,6 +31,7 @@ def test_task_layout_matches_the_shared_files(task: Path) -> None:
     assert f'name = "arize/trail-benchmark-{task.name}"' in metadata
     assert "keywords" not in metadata
     assert 'fixture = "trail"' in shared
+    assert '[metadata.arize-phoenix]\nreference_output_path = "tests/expected.json"' in shared
     assert 'user = "agent"' in shared
     for name in ("tests/test.sh", "solution/solve.sh"):
         assert os.access(task / name, os.X_OK), f"{name} is not executable"

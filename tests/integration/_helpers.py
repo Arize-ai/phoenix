@@ -61,7 +61,6 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, Sp
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
-from opentelemetry.util.types import AttributeValue
 from psutil import STATUS_ZOMBIE, Popen
 from sqlalchemy import URL, text
 from sqlalchemy.exc import OperationalError
@@ -93,6 +92,7 @@ from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.routers.v1 import create_v1_router
 from phoenix.server.thread_server import ThreadServer
+from phoenix.trace.attributes import AttributeValue
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 

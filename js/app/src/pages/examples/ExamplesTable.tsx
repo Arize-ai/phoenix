@@ -299,6 +299,11 @@ export function ExamplesTable({
   const navigate = useNavigate();
   const { exampleId: selectedExampleId } = useParams();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
+  // Bumped by the dataset store when rows must be re-read without a version
+  // change (a PXI script deleted a split the rows were tagged with).
+  const examplesRefreshToken = useDatasetContext(
+    (state) => state.examplesRefreshToken
+  );
   const tableContainerRef = useRef<HTMLDivElement>(null);
   // The virtualizer reads its scroll element during render, so the ref is
   // attached through state to force a re-render once the element exists. The
@@ -367,7 +372,7 @@ export function ExamplesTable({
   // rendered yet.
   const isAwaitingSavedRows = useRef(false);
 
-  // Refetch when the dataset version or the filter changes.
+  // Refetch when the dataset version, the filter, or the refresh token changes.
   useEffect(() => {
     const dataBeforeRefetch = renderedData.current;
     startTransition(() => {
@@ -396,7 +401,14 @@ export function ExamplesTable({
         }
       );
     });
-  }, [editStore, latestVersion, filter, refetch, selectedSplitIds]);
+  }, [
+    editStore,
+    latestVersion,
+    filter,
+    refetch,
+    selectedSplitIds,
+    examplesRefreshToken,
+  ]);
   // Ends the session in the same frame the saved rows render.
   useLayoutEffect(() => {
     if (!isAwaitingSavedRows.current) {

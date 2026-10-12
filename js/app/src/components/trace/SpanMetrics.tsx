@@ -1,12 +1,7 @@
 import { Suspense } from "react";
 import { Focusable } from "react-aria";
 
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SpanMetricsDetailsById } from "./SpanMetricsDetails";
 import type { SpanMetricsRowProps } from "./SpanMetricsRow";
@@ -15,6 +10,10 @@ import {
   hasSpanMetricsDetails,
   SpanMetricsRow,
 } from "./SpanMetricsRow";
+import {
+  TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
+  TokenDetailsBreakdownSkeleton,
+} from "./TokenDetailsBreakdown";
 
 export type SpanMetricsProps = SpanMetricsRowProps & {
   /** The node id of the span whose details the tooltip loads. */
@@ -45,9 +44,19 @@ export function SpanMetrics({ spanNodeId, ...rowProps }: SpanMetricsProps) {
       <Focusable>
         <SpanMetricsRow {...rowProps} aria-label="Span metrics" />
       </Focusable>
-      <RichTooltip placement="bottom start">
+      <RichTooltip
+        placement="bottom start"
+        width={TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}
+      >
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton
+              tokens={{ total: rowProps.tokenCountTotal }}
+              costs={{ total: rowProps.costTotal }}
+            />
+          }
+        >
           <SpanMetricsDetailsById spanNodeId={spanNodeId} />
         </Suspense>
       </RichTooltip>

@@ -1526,8 +1526,7 @@ class RunningExperiment:
             with anyio.fail_after(5, shield=True):
                 async with self._db() as session:
                     # Determine SQL dialect
-                    assert session.bind is not None
-                    dialect = SupportedSQLDialect(session.bind.dialect.name)
+                    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
 
                     # Get project_id from cache or DB
                     if self._project_id is None:
@@ -1658,8 +1657,7 @@ class RunningExperiment:
         try:
             with anyio.fail_after(5, shield=True):
                 async with self._db() as session:
-                    assert session.bind is not None
-                    dialect = SupportedSQLDialect(session.bind.dialect.name)
+                    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
                     stmt = get_runs_with_incomplete_evaluations_query(
                         self._experiment.id,
                         eval_names,

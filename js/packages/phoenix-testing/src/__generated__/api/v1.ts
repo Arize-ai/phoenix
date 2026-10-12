@@ -10580,10 +10580,14 @@ export interface operations {
     getSpans: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Span Global ID) */
+                /** @description Pagination cursor: the next_cursor of a previous response with the same sort */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
+                /** @description Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id. */
+                sort?: "id" | "start_time";
+                /** @description Sort direction */
+                order?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
@@ -10596,7 +10600,7 @@ export interface operations {
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
                 name?: string[] | null;
-                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN */
+                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN */
                 span_kind?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;

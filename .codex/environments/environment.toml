@@ -4,7 +4,7 @@ name = "phoenix"
 
 [setup]
 script = '''
-uv sync --python 3.10
+uv sync --python 3.11
 WORKTREE_PATH="$(pwd)"
 WORKTREE_ID="$(basename "$(dirname "${WORKTREE_PATH}")")"
 PORT_OFFSET="$(printf '%s' "${WORKTREE_PATH}" | cksum | awk '{print $1 % 1000}')"

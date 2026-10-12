@@ -72,6 +72,7 @@ import {
   examplesLoader,
   ExamplesPage,
   ChatPage,
+  CompareTracesPage,
   ExperimentComparePage,
   ExperimentDetailPage,
   ExperimentsPage,
@@ -171,6 +172,15 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
   return currentParams.projectId !== nextParams.projectId;
 };
 
+// Shared by the traces and spans tabs, which both host the compare drawer
+const compareTracesRouteHandle = {
+  agentRoute: {
+    label: "Compare Traces",
+    description:
+      "Compare two traces side by side, each with its own span tree and span details, to diff their trajectories. The compared traces are the repeated traceId search param (the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id) in left-to-right order; each one's selected span is the repeated selectedSpanNodeId search param at the same position.",
+  },
+};
+
 export const appRouteObjects = createRoutesFromElements(
   <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
     {/*
@@ -219,7 +229,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Profile",
               description:
-                "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
+                "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and local storage.",
             },
           }}
           element={<ProfilePage />}
@@ -289,12 +299,13 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Profile Preferences",
                 description:
-                  "Choose your theme, timezone, code language, and package manager defaults.",
+                  "Choose your theme, timezone, code language, and package manager defaults, and see or clear what Phoenix keeps in this browser's local storage.",
               },
               navigation: {
                 section: "Profile",
                 label: "Preferences",
-                description: "Theme, timezone, and code defaults",
+                description:
+                  "Theme, timezone, code defaults, and local storage",
                 icon: "Options",
               },
             }}
@@ -397,6 +408,11 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               >
                 <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
+                <Route
                   path=":traceId"
                   element={<TracePage />}
                   handle={{
@@ -419,6 +435,11 @@ export const appRouteObjects = createRoutesFromElements(
                   },
                 }}
               >
+                <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
                 <Route
                   path=":traceId"
                   element={<TracePage />}

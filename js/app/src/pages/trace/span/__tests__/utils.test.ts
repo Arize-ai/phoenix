@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { DocumentEvaluation } from "../types";
 import {
   countToolCalls,
+  getDecisionAttributes,
   getEmbeddingAttributes,
   getLLMAttributes,
   getMessagePreview,
@@ -516,5 +517,43 @@ describe("getReasoningPreview", () => {
     expect(getReasoningPreview("So _t_ is 6 and 60*t = 90*(t-2).")).toBe(
       "So t is 6 and 60*t = 90*(t-2)."
     );
+  });
+});
+
+describe("getDecisionAttributes", () => {
+  it("prefers decision.model_name over the response and request models", () => {
+    expect(
+      getDecisionAttributes({
+        decision: {
+          model_name: "jev-1",
+          provider: "typesafe",
+          request: { model_name: "jev-latest" },
+          response: { model_name: "jev-1.13.0" },
+        },
+      })
+    ).toEqual({ modelName: "jev-1", provider: "typesafe" });
+  });
+
+  it("falls back to the response model, then the requested model", () => {
+    expect(
+      getDecisionAttributes({
+        decision: {
+          request: { model_name: "jev-latest" },
+          response: { model_name: "jev-1.13.0" },
+        },
+      }).modelName
+    ).toBe("jev-1.13.0");
+    expect(
+      getDecisionAttributes({
+        decision: { request: { model_name: "jev-latest" } },
+      }).modelName
+    ).toBe("jev-latest");
+  });
+
+  it("returns nulls when the span has no decision attributes", () => {
+    expect(getDecisionAttributes({})).toEqual({
+      modelName: null,
+      provider: null,
+    });
   });
 });

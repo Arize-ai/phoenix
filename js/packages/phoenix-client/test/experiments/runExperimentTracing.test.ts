@@ -196,6 +196,50 @@ describe("runExperiment tracing", () => {
     }
   });
 
+  it("posts evaluator metadata at top level of request body", async () => {
+    let resolveEvaluation: (body: unknown) => void;
+    const evaluationPromise = new Promise((resolve) => {
+      resolveEvaluation = resolve;
+    });
+    server.use(
+      http.post("/v1/experiment_evaluations", async ({ request, response }) => {
+        const body = await request.json();
+        resolveEvaluation(body);
+        return response(200).json({ data: { id: "eval-1" } });
+      })
+    );
+
+    const evaluator = asEvaluator({
+      name: "length",
+      kind: "CODE",
+      evaluate: async () => ({
+        score: 1,
+        label: "valid",
+        explanation: "good length",
+        metadata: { min: 10, max: 100 },
+      }),
+    });
+
+    await runExperiment({
+      client: createTestClient(),
+      dataset: { datasetId: mockDataset.id },
+      task: async ({ input }) => input,
+      evaluators: [evaluator],
+    });
+
+    const evaluationBody = await evaluationPromise;
+    expect(evaluationBody).toEqual(
+      expect.objectContaining({
+        metadata: { min: 10, max: 100 },
+        result: {
+          score: 1,
+          label: "valid",
+          explanation: "good length",
+        },
+      })
+    );
+  });
+
   // Explicit code-level configuration outranks the ambient environment, and an
   // environment-derived base URL hands trace export back to `register()` — the
   // same chain a standalone `register()` call reads, so experiments and

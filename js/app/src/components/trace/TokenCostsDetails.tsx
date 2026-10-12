@@ -1,17 +1,12 @@
-import { costFormatter } from "@phoenix/utils/numberFormatUtils";
-
-import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
+import type { TokenDetailTotals } from "./TokenDetailsBreakdown";
 import {
   getTokenDetails,
   TokenDetailsBreakdown,
 } from "./TokenDetailsBreakdown";
 
-export type TokenCostsDetailsProps = Omit<
-  TokenDetailsBreakdownProps,
-  "valueLabel" | "totalLabel" | "formatter"
-> & {
+export type TokenCostsDetailsProps = TokenDetailTotals & {
   /**
-   * The label for the cost details. Defaults to "Total".
+   * Qualifies the cost in the heading, e.g. "Average". Omit for a plain total.
    */
   label?: string;
 };
@@ -45,24 +40,10 @@ export function getTokenCostDetailsFromCostDetails(
   };
 }
 
-export function TokenCostsDetails({
-  total,
-  prompt,
-  completion,
-  promptDetails,
-  completionDetails,
-  label = "Total",
-}: TokenCostsDetailsProps) {
-  return (
-    <TokenDetailsBreakdown
-      valueLabel="cost"
-      totalLabel={label}
-      formatter={costFormatter}
-      total={total}
-      prompt={prompt}
-      completion={completion}
-      promptDetails={promptDetails}
-      completionDetails={completionDetails}
-    />
-  );
+/**
+ * The cost side of {@link TokenDetailsBreakdown} on its own, for surfaces
+ * that show a cost without its token count.
+ */
+export function TokenCostsDetails({ label, ...costs }: TokenCostsDetailsProps) {
+  return <TokenDetailsBreakdown costs={costs} totalLabel={label} />;
 }

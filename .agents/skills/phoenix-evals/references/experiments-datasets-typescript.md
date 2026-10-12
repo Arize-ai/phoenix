@@ -77,13 +77,33 @@ await createDataset({ client, name: "production-sample", examples });
 ```typescript
 import { getDataset, listDatasets } from "@arizeai/phoenix-client/datasets";
 
-const dataset = await getDataset({ client, datasetId: "..." });
+// `dataset` is `{ datasetId }` or `{ datasetName }` in every helper
+const dataset = await getDataset({ client, dataset: { datasetName: "qa-test-v1" } });
 const all = await listDatasets({ client });
 ```
 
+## Managing Splits
+
+`createDataset()` assigns splits per example via `splits`; these helpers edit splits on an existing dataset (server >= 19.20.0):
+
+```typescript
+import {
+  createDatasetSplit,
+  deleteDatasetSplit,
+  updateDatasetSplit,
+} from "@arizeai/phoenix-client/datasets";
+
+const dataset = { datasetName: "qa-test-v1" };
+const split = await createDatasetSplit({ client, dataset, name: "test", exampleIds: ["ex-1", "ex-2"] });
+await updateDatasetSplit({ client, dataset, splitId: split.id, addExampleIds: ["ex-3"], removeExampleIds: ["ex-1"] }); // idempotent
+await deleteDatasetSplit({ client, dataset, splitId: split.id }); // keeps the examples
+```
+
+Split names are unique instance-wide (409 on conflict). Before server 20.16.0, `exampleIds` must be example `nodeId`s, not user-provided `id`s.
+
 ## Best Practices
 
-- **Upsert by default**: Re-upload to the same name to update in-place; use `id` on examples so the server targets specific rows instead of treating every upload as new data
+- **Upsert by default**: Re-upload to the same name to update in-place; set a unique-per-dataset `id` on examples so the server targets specific rows instead of treating every upload as new data
 - **Versioning**: Version with new names (e.g., `qa-test-v2`) when you want a clean snapshot, not just incremental edits
 - **Metadata**: Track source, category, provenance
-- **Type safety**: Use the `Example` type from `@arizeai/phoenix-client/datasets`
+- **Type safety**: Use the `Example` type from `@arizeai/phoenix-client/types/datasets`
