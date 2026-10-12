@@ -27,7 +27,7 @@ const result = await classify({
 
 ## Decision Models
 
-Any classification evaluator, including every built-in, can run on an AI SDK decision model such as OpenAI's `gpt-6-luna` ([Decisions API](https://developers.openai.com/api/docs/guides/decisions)). Decision models pick one of the labels directly and return a probability for each, instead of generating text. They are much faster and cheaper than a chat model judge. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later.
+Any classification evaluator, including every built-in, can run on an AI SDK decision model such as OpenAI's `gpt-6-luna` ([Decisions API](https://developers.openai.com/api/docs/guides/decisions)) or TypeSafe's Jev. Decision models pick one of the labels directly and return a probability for each, instead of generating text. They are much faster and cheaper than a chat model judge. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later.
 
 ```ts
 import { openai } from "@ai-sdk/openai";
