@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import * as builtInConfigs from "../../src/__generated__/default_templates";
 import {
   GENERIC_DECISION_INSTRUCTIONS,
   renderedPromptToDecisionPrompt,
@@ -144,6 +145,24 @@ describe("templateToDecisionPrompt", () => {
       state: "You are a judge.\n\nIs hello correct?",
     });
   });
+});
+
+describe("built-in evaluator templates", () => {
+  // The decision path relies on each built-in template having exactly one
+  // `<data>` block it can split at; otherwise it quietly falls back to the
+  // generic instructions.
+  it.each(Object.values(builtInConfigs).map((config) => [config.name, config]))(
+    "%s splits into a rubric and a data block",
+    (_name, config) => {
+      const result = templateToDecisionPrompt({
+        template: config.template,
+        variables: {},
+      });
+
+      expect(result.instructions).not.toBe(GENERIC_DECISION_INSTRUCTIONS);
+      expect(result.state).toMatch(/^<data>[\s\S]*<\/data>$/);
+    }
+  );
 });
 
 describe("renderedPromptToDecisionPrompt", () => {
