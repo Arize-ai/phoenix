@@ -71,6 +71,7 @@ export type AgentChatInputProps = {
   value: string;
   onValueChange: (value: string) => void;
   onSubmit: (submit: AgentChatInputSubmit) => void;
+  promptHistory: string[];
   textareaRef?: React.Ref<HTMLTextAreaElement>;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
@@ -124,6 +125,7 @@ export function AgentChatInput({
   value,
   onValueChange,
   onSubmit,
+  promptHistory,
   textareaRef,
   modelMenuValue,
   onModelChange,
@@ -191,6 +193,7 @@ export function AgentChatInput({
             <SkillPromptInputBoundary
               placeholder={placeholder}
               commands={PROMPT_COMMANDS}
+              promptHistory={promptHistory}
               onSkillsChange={setAvailableSkills}
               textareaRef={textareaRef}
               menuPortalTarget={slashMenuLayer}
