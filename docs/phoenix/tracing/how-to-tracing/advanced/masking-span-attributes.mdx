@@ -228,4 +228,31 @@ Add more patterns to `PATTERNS` for your own data. If regex is not enough, call 
 
 Masking changes span attributes before export. It does not change the request your app sends to the model provider.
 
-For code that should not be traced at all, use [suppression](/docs/phoenix/tracing/how-to-tracing/advanced#suppress-tracing).
+For code that should not be traced at all, suppress tracing instead.
+
+## Suppress tracing
+
+Use suppression when a specific block of code should not create spans. Use it for health checks, internal logging, setup work, or model calls that should stay out of traces.
+
+### Pause tracing for a block of code
+
+```python
+from phoenix.otel import suppress_tracing
+
+with suppress_tracing():
+    # Code running inside this block does not generate traces.
+    ...
+# Tracing resumes outside the block.
+...
+```
+
+### Disable an auto-instrumentor
+
+Call `.uninstrument()` to stop tracing for a whole instrumented library.
+
+```python
+from openinference.instrumentation.openai import OpenAIInstrumentor
+
+OpenAIInstrumentor().instrument()
+OpenAIInstrumentor().uninstrument()
+```

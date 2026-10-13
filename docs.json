@@ -1746,7 +1746,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing",
-      "destination": "/docs/phoenix/tracing/how-to-tracing/advanced#suppress-tracing"
+      "destination": "/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes#suppress-tracing"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans",
