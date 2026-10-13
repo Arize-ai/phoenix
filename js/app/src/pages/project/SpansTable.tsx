@@ -21,7 +21,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -154,6 +154,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
@@ -166,6 +167,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             onClick={() =>
               navigate(
                 getTraceDetailsPath({
+                  basePath,
                   traceId: row.original.trace.traceId,
                   spanNodeId: row.original.id,
                   searchParams,
@@ -227,6 +229,7 @@ const MetadataCell = <TData extends { metadata: unknown }, TValue>({
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -612,6 +615,7 @@ export function SpansTable(props: SpansTableProps) {
         return (
           <Link
             to={getTraceDetailsPath({
+              basePath,
               traceId,
               spanNodeId: span.id,
               searchParams,

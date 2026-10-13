@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -170,6 +170,7 @@ const TableBody = <
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
@@ -184,6 +185,7 @@ const TableBody = <
             onClick={() =>
               navigate(
                 getTraceDetailsPath({
+                  basePath,
                   traceId: row.original.trace.traceId,
                   searchParams,
                 })
@@ -270,6 +272,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 
 export function TracesTable(props: TracesTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
@@ -751,6 +754,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <Link
               to={getTraceDetailsPath({
+                basePath,
                 traceId,
                 spanNodeId: spanId,
                 searchParams,
@@ -918,7 +922,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns, searchParams, selectRow]
+    [annotationColumns, basePath, searchParams, selectRow]
   );
 
   useEffect(() => {
