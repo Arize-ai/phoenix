@@ -493,10 +493,8 @@ def _element_access_path(node: ast.expr) -> tuple[typing.Optional[str], list[typ
 
 
 def _scope_of(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optional[_ElementScope]:
-    for scope in reversed(scopes):
-        if scope.variable == name:
-            return scope
-    return None
+    index = _scope_index(name, scopes)
+    return scopes[index] if index is not None else None
 
 
 def _scope_index(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optional[int]:

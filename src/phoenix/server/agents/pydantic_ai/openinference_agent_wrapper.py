@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Iterator, Sequence
+from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from inspect import Signature, signature
@@ -183,7 +183,7 @@ def _get_message_io_attributes(
     *,
     message: ModelMessage,
     role: Literal["input", "output"],
-) -> dict[str, AttributeValue]:
+) -> Mapping[str, AttributeValue]:
     value, mime_type = _get_message_io_value(message)
     if role == "input":
         return get_input_attributes(value, mime_type=mime_type)

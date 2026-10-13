@@ -30,7 +30,7 @@ resolves #<issue>            <- only when an issue exists
 
 ## What
 <one sentence: the change, ticket, dependency such as "Stacked on #16660">
-<optional media: one video or screenshot>
+<media: one video or screenshot; required when the PR changes rendered UI>
 <optional: up to 4 bullets, one sentence each, behavior not files>
 
 ## Try it                    <- only when a reviewer can exercise the change in under a minute
@@ -57,7 +57,9 @@ Limits, all hard:
 - Bold only on-screen control names. Code font for identifiers. No nested bullets, no file lists,
   no "Summary" or "Changes" headings, no closing paragraph.
 - Each provenance line is one line of at most 12 words. Steering names categories, not details.
-- Media: one item, bold caption above it stating what to notice.
+- Media: one item, bold caption above it stating what to notice. Required when the PR changes what
+  a user sees (components, styles, layout, motion); capture it with the `phoenix-pr-screenshot`
+  skill. When it cannot be captured, say why in What instead.
 - Total body above the provenance section fits on one screen without scrolling.
 
 Reference: Arize-ai/phoenix#16662 is the upper bound for a large change. Most PRs should be far
@@ -103,6 +105,7 @@ with the commit the stats cover. Reviewer-driven turns are user turns and usuall
 
 - [ ] Body above the provenance section fits on one screen
 - [ ] What is one sentence plus at most 4 one-sentence bullets
+- [ ] A UI change carries media, or What says why it has none
 - [ ] Every provenance line is present, one line, 12 words or fewer
 - [ ] Counts came from a record, or every number carries `approx.`
 - [ ] Stamp names the current head commit

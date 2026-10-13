@@ -16,7 +16,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useResolvedPath } from "react-router";
 import { useStore } from "zustand";
 
 import {
@@ -297,6 +297,7 @@ export function ExamplesTable({
     setExamplesCache,
   } = useExamplesFilterContext();
   const navigate = useNavigate();
+  const basePath = useResolvedPath(".").pathname;
   const { exampleId: selectedExampleId } = useParams();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   // Bumped by the dataset store when rows must be re-read without a version
@@ -543,7 +544,7 @@ export function ExamplesTable({
               controls={<CopyToClipboardButton text={displayId} />}
             >
               <Link
-                to={`${exampleId}`}
+                to={`${basePath}/${exampleId}`}
                 css={css`
                   width: 100%;
                 `}
@@ -599,7 +600,7 @@ export function ExamplesTable({
       });
     }
     return cols;
-  }, [editStore, isEditing, selectRow]);
+  }, [basePath, editStore, isEditing, selectRow]);
 
   const table = useReactTable<DatasetExampleTableRow>({
     columns,
@@ -793,7 +794,9 @@ export function ExamplesTable({
                     }px)`,
                   }}
                   onClick={
-                    isEditing ? undefined : () => navigate(`${row.original.id}`)
+                    isEditing
+                      ? undefined
+                      : () => navigate(`${basePath}/${row.original.id}`)
                   }
                 >
                   {row.getVisibleCells().map((cell) => {

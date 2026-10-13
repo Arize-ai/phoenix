@@ -1,26 +1,30 @@
 # Read by .github/workflows/phoenix-sqlean-build.yml, which publish.yaml and
-# phoenix-sqlean-ci.yml both call. CIBW_* env vars still win; that is how CI
-# narrows the matrix.
+# phoenix-sqlean-ci.yml both call. CIBW_* env vars would override it; neither
+# caller sets any.
 
 [tool.cibuildwheel]
-# Anything not listed installs from the sdist, which needs a C toolchain --
-# currently musllinux and PyPy, and whatever gets dropped from here.
-build = "cp311-macosx* cp312-macosx* cp313-macosx* cp314-macosx* cp311-manylinux* cp312-manylinux* cp313-manylinux* cp314-manylinux* cp311-win* cp312-win* cp313-win* cp314-win*"
+# Platforms only: cibuildwheel takes the CPython versions from python_requires
+# in setup.py. Unbuilt targets (musllinux, PyPy, free-threaded) install from
+# the sdist, which needs a C toolchain.
+build = "cp*-macosx* cp*-manylinux* cp*-win*"
+skip = "cp3??t-*"
 
 # test-sources must carry everything the suite reads from cwd:
 # tests/extensions.py imports SQLEAN_VERSION from setup.py, which reads README.md
 # at import (hence setuptools). These resolve against cibuildwheel's cwd, not
-# package-dir. Cross-compiled wheels (macOS x86_64, win_arm64) go untested;
-# phoenix-sqlean-ci.yml's native ARM legs cover them.
+# package-dir.
 test-sources = ["tests", "setup.py", "README.md"]
 test-requires = ["setuptools==83.0.0"]
 test-command = "python -m tests"
 
+# native, not auto: each Linux and Windows arch builds on its own runner so
+# cibuildwheel can test it, and auto on Windows AMD64 adds 32-bit x86. macOS
+# builds both arches on arm64 and tests x86_64 under Rosetta.
 [tool.cibuildwheel.linux]
-archs = ["auto"]
+archs = ["native"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
 
 [tool.cibuildwheel.windows]
-archs = ["AMD64", "ARM64"]
+archs = ["native"]

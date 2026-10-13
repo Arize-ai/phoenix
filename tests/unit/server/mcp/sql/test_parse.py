@@ -323,7 +323,7 @@ class TestUnquotedPhysicalColumnsUsePostgresqlFolding:
         """DDL references can explain storage without widening what SQL may read."""
         with pytest.raises(AnalyticsSqlError) as caught:
             admit_sql(
-                "SELECT id FROM project_trace_retention_policies",
+                "SELECT id FROM users",
                 allowlist=load_allowlist("sqlite"),
                 dialect="sqlite",
             )

@@ -20,7 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "3.9.0"
+version = "3.9.2"
 dependencies = [
   "pandas",
   "tqdm",
@@ -100,6 +100,14 @@ exclude = [
   "dist/",
   "tests/",
 ]
+
+[[tool.mypy.overrides]]
+# Follow imports when py.typed is present.
+module = [
+  "jsonpath_ng",
+  "jsonpath_ng.*",
+]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [

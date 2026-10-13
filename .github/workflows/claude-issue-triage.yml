@@ -58,7 +58,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
+        uses: anthropics/claude-code-action@ed670b4cf9de2a5a570d130d2f6197b9e543cd64 # v1.0.240
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -97,4 +97,4 @@ jobs:
           # not survive shell quoting. `gh issue edit` covers labels, titles and bodies and
           # cannot distinguish them, so the skill's Hard limits are the boundary there.
           # `gh api` is deliberately NOT allowed — it would permit arbitrary writes.
-          claude_args: '--model claude-opus-4-8 --allowedTools Skill,Read,Grep,Glob,Write,"Bash(gh label list:*)","Bash(gh issue list:*)","Bash(gh issue view:*)","Bash(gh issue edit:*)","Bash(gh issue comment:*)"'
+          claude_args: '--allowedTools Skill,Read,Grep,Glob,Write,"Bash(gh label list:*)","Bash(gh issue list:*)","Bash(gh issue view:*)","Bash(gh issue edit:*)","Bash(gh issue comment:*)"'

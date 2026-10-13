@@ -81,13 +81,38 @@ Use this mapping when explaining a job or checking its results:
 | Trial or step exception | Run error and `infra_ok=0` |
 | Saved ATIF trajectories | One trace linked to the run, with one step span per attempted step in a multi-step task |
 
-Each single-step or multi-step Harbor task becomes one Phoenix dataset example. A multi-step example input includes its ordered step names and instructions. Phoenix examples keep `output` empty because Harbor verifies the environment state rather than a single reference response.
+Each single-step or multi-step Harbor task becomes one Phoenix dataset example. A multi-step example input includes its ordered step names and instructions. Phoenix examples keep `output` empty unless the task declares a reference file.
 
 The plugin records only the terminal physical attempt for a logical trial. An attempt that Harbor will retry does not create a Phoenix run. Completion order does not define repetition numbers.
 
 When a saved terminal ATIF trajectory ends with a user-facing textual agent turn, the plugin records it in chat-message format so Phoenix experiment comparisons render it as Markdown. Structured messages contribute their text parts in order; media parts are omitted. The output stays empty for missing or invalid trajectories, terminal tool calls, media-only turns, and state-only tasks. Multi-step tasks use the last attempted step, and continued trajectories use the terminal continuation. Output extraction still runs with `trace_mode=null`; that setting disables trace creation, not result display.
 
 Successful runs written by older plugin versions keep their legacy Harbor metadata output because Phoenix runs are immutable. Resume recognizes that exact legacy shape and reuses the run.
+
+## Add optional reference outputs
+
+A task can declare a checked-in reference file in its root `task.toml`:
+
+```toml
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+```
+
+The plugin reads this UTF-8 JSON file during setup. A JSON string becomes
+`{"messages": [{"role": "assistant", "content": "the reference text"}]}`.
+A JSON object is stored unchanged as the example output. Other top-level types
+must be wrapped in an object. No setting means an empty output, even if an
+`expected.json` file exists.
+
+Paths are relative to the downloaded task root on the Harbor host. Absolute
+paths, `..` components, and symlinks escaping that root are rejected. Missing,
+unreadable, or invalid configured files fail setup before trials run. Keep
+references beside verifier assets, out of the agent workspace.
+
+This works for local datasets, direct tasks, and published tasks. Multi-step
+tasks have one reference for the whole task, usually its expected final result.
+Reference-content changes create a dataset version; existing experiments keep
+their original version. References do not change Harbor's grading.
 
 ## Name the dataset
 

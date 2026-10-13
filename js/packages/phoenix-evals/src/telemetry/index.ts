@@ -2,6 +2,8 @@ import { OpenTelemetry } from "@ai-sdk/otel";
 import { trace, type Tracer } from "@opentelemetry/api";
 import type { Telemetry } from "ai";
 
+import type { TelemetryConfig } from "../types/otel";
+
 const DEFAULT_TRACER_NAME = "phoenix-evals";
 
 /**
@@ -55,6 +57,25 @@ export function getTelemetryIntegrations(
       usage: true,
       providerMetadata: true,
       schema: true,
+      // Record the state, questions and answers of decision model calls.
+      experimental_decision: true,
     }),
   ];
+}
+
+/**
+ * Builds the AI SDK `telemetry` call option for an evaluator call. Telemetry
+ * is on unless explicitly disabled, and spans go to the configured tracer or
+ * the default Phoenix tracer.
+ */
+export function getTelemetryOptions(args: {
+  functionId: string;
+  telemetry?: TelemetryConfig;
+}) {
+  const { functionId, telemetry } = args;
+  return {
+    isEnabled: telemetry?.isEnabled ?? true,
+    functionId,
+    integrations: getTelemetryIntegrations(telemetry?.tracer ?? tracer),
+  };
 }

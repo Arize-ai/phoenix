@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -117,6 +117,7 @@ import {
 import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
+import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -168,18 +169,23 @@ const TableBody = <
 }) => {
   "use no memo";
   const navigate = useNavigate();
-  const { traceId } = useParams();
   const [searchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
+  const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === traceId;
+        // every row of a viewed trace is highlighted, whichever span is shown
+        const isSelected = selectedTraceSlots.some(
+          (slot) => slot.traceId === row.original.trace.traceId
+        );
         return (
           <tr
             key={row.id}
             onClick={() =>
               navigate(
                 getTraceDetailsPath({
+                  basePath,
                   traceId: row.original.trace.traceId,
                   searchParams,
                 })
@@ -266,6 +272,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 
 export function TracesTable(props: TracesTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
@@ -747,6 +754,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <Link
               to={getTraceDetailsPath({
+                basePath,
                 traceId,
                 spanNodeId: spanId,
                 searchParams,
@@ -914,7 +922,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns, searchParams, selectRow]
+    [annotationColumns, basePath, searchParams, selectRow]
   );
 
   useEffect(() => {

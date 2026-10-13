@@ -44,7 +44,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.trace.attributes import (
     AttributeValue,

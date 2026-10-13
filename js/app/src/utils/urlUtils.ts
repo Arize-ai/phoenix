@@ -46,9 +46,14 @@ export function clearSelectionScopedParams(
 }
 
 /**
- * Build a relative path to a trace's details, preserving recreatable URL state
- * (such as the selected time range) while setting or clearing the selected
- * span.
+ * Build the absolute path to a trace's details under `basePath`, preserving
+ * recreatable URL state (such as the selected time range) while setting or
+ * clearing the selected span.
+ *
+ * The path is absolute because React Router resolves a relative navigation
+ * against the router's current matches, not the route that rendered the
+ * caller. A click on a table still on screen while a transition to another
+ * tab is pending would otherwise land under that tab's route.
  *
  * The trace ID is URL-encoded because it originates from ingested span data
  * and is not guaranteed to be a path-safe value. Encoding collapses it into a
@@ -57,15 +62,17 @@ export function clearSelectionScopedParams(
  * `href`.
  */
 export function getTraceDetailsPath({
+  basePath,
   traceId,
   spanNodeId,
   searchParams,
 }: {
+  basePath: string;
   traceId: string;
   spanNodeId?: string | null;
   searchParams: URLSearchParams;
 }): string {
-  return `${encodeURIComponent(traceId)}${withSearchParams(
+  return `${basePath}/${encodeURIComponent(traceId)}${withSearchParams(
     clearSelectionScopedParams(searchParams),
     (params) => {
       if (spanNodeId) {
@@ -76,17 +83,20 @@ export function getTraceDetailsPath({
 }
 
 /**
- * Build a relative path to a session's details, preserving recreatable URL
- * state while clearing the selection-scoped params.
+ * Build the absolute path to a session's details under `basePath`, preserving
+ * recreatable URL state while clearing the selection-scoped params. See
+ * {@link getTraceDetailsPath} for why the path is absolute.
  */
 export function getSessionDetailsPath({
+  basePath,
   sessionId,
   searchParams,
 }: {
+  basePath: string;
   sessionId: string;
   searchParams: URLSearchParams;
 }): string {
-  return `${encodeURIComponent(sessionId)}${clearSelectionScopedParams(
+  return `${basePath}/${encodeURIComponent(sessionId)}${clearSelectionScopedParams(
     searchParams
   )}`;
 }
