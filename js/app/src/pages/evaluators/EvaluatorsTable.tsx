@@ -438,6 +438,8 @@ export const EvaluatorsTable = ({
     columnResizeMode: "onChange",
     onSortingChange: setSorting,
     onExpandedChange: setExpanded,
+    // v9 resets expansion whenever `data` changes (search, sort, refetch)
+    autoResetExpanded: false,
     onColumnSizingChange: setColumnSizing,
     getRowId: (row) => row.data.id,
   });

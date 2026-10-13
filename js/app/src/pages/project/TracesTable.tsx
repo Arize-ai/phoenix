@@ -1022,6 +1022,8 @@ export function TracesTable(props: TracesTableProps) {
     columns,
     data: tableData,
     onExpandedChange: setExpanded,
+    // v9 resets expansion whenever `data` changes (load-more, sort, refetch)
+    autoResetExpanded: false,
     manualSorting: true,
     getSubRows: (row) => row.children,
     state: {
