@@ -885,6 +885,16 @@ class PromptTemplate:
             ValueError: If the template is empty or messages are invalid.
             TypeError: If template is not a valid type.
         """
+        # A format override can't reuse the copied internals: the copied
+        # messages were built for the original ``template_format``, so fall
+        # through to the raw-template construction paths and rebuild them.
+        if (
+            isinstance(template, PromptTemplate)
+            and template_format is not None
+            and template_format != template.template_format
+        ):
+            template = template.template
+
         # Handle PromptTemplate instances by copying their internal state
         if isinstance(template, PromptTemplate):
             self._template = template._template
