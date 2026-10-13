@@ -4,56 +4,28 @@ sidebarTitle: "Overview"
 description: "Learn how traces and spans work in Phoenix."
 ---
 
-Tracing shows what happened while your AI application handled a request. Phoenix receives traces over OTLP and shows them as trace trees.
+Tracing shows what happened while your AI application handled a request. Phoenix receives spans over OTLP, groups them into traces, and shows them as trace trees you can read in Observe.
 
-## How Tracing Works
-
-Under the hood, Phoenix tracing uses two open standards:
-
-* [OpenTelemetry](https://opentelemetry.io/), or OTel, is the open framework for creating and exporting telemetry data. Phoenix accepts OTel spans over OTLP, so the same instrumentation can be exported to other OTel-compatible backends.
-* [OpenInference](https://github.com/Arize-ai/openinference) is a set of AI semantic conventions built on top of OTel. It defines the attributes that make traces meaningful for AI applications, such as span kinds, messages, token counts, retrieved documents, tool calls, and cost.
-
-Together, OpenTelemetry and OpenInference give Phoenix [30+ tracing integrations](/docs/phoenix/integrations), portability across OTel-compatible backends, and a standard format for AI trace data. The flow is:
-
-1. **Instrumentation** captures work in your application as spans. You can use an OpenInference integration or add spans manually.
-2. **An exporter** sends those spans to Phoenix over OTLP. In Python, Phoenix OTEL's `register()` configures the exporter, and `auto_instrument=True` turns on installed OpenInference instrumentors.
-3. **The Phoenix collector** receives the spans, groups them into traces, and shows them in Observe. Use [Explore traces](/docs/phoenix/observe/explore-traces) to inspect, filter, and debug them.
-
-## What's Inside a Trace
-
-A trace contains spans, and each span should have a span kind. The span kind tells Phoenix what operation the span represents. Phoenix falls back to `UNKNOWN` when the value is missing or not recognized.
-
-| Span kind | What it represents |
-| :--- | :--- |
-| `LLM` | A model call for chat or completion |
-| `TOOL` | A tool or function call |
-| `AGENT` | An agent run that may contain model, tool, and retrieval spans |
-| `RETRIEVER` | A retrieval call that returns documents |
-| `CHAIN` | A step that groups related application work |
-| `EMBEDDING` | An embedding model call |
-| `RERANKER` | A reranking step for retrieved documents |
-| `GUARDRAIL` | A safety or policy check on input or output |
-| `EVALUATOR` | An evaluation run that scores a model response |
-| `PROMPT` | A prompt template rendered with variables |
-| `UNKNOWN` | The fallback when no span kind is set or the value is not recognized |
-
-### Span Attributes
-
-Span attributes are key-value pairs that describe a span. Common examples include `llm.model_name`, `llm.input_messages`, `input.value`, and `output.value`.
-
-Attributes can also carry multimodal content, such as image URLs, base64 images, audio URLs, and transcripts. See [Capture multimodal traces](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing).
-
-Phoenix uses these attributes to show inputs, outputs, tool calls, retrieval details, latency, cost, and errors. Auto-instrumentation sets many attributes for you. Add your own attributes with [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans). For the full reference, see [Span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) and [Semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions).
+Pick how you want to add tracing.
 
 <CardGroup cols={2}>
-  <Card title="Python Semantic Conventions" icon="python" href="https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py" />
-  <Card title="TS Semantic Conventions" icon="js" href="https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-semantic-conventions/src/trace/SemanticConventions.ts" />
+  <Card title="Auto-instrumentation" icon="bolt" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+    Install the OpenInference instrumentor for your model client or framework, attach it once, and calls are traced.
+  </Card>
+
+  <Card title="Manual instrumentation" icon="code" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Wrap your own functions, tools, and agent steps in spans when auto-instrumentation does not cover them.
+  </Card>
 </CardGroup>
 
-## Next Step
+To let a coding agent do it for you, run [`px setup`](/docs/phoenix/integrations/developer-tools/cli#connect-a-project-with-px-setup).
 
-Next, add tracing to your app.
+## How it fits together
 
-<Card title="Next: Auto-instrumentation" icon="arrow-right" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel" />
+Phoenix builds on two open standards. [OpenTelemetry](/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview) creates and exports the telemetry, and [OpenInference](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions) defines the AI attributes that make a trace readable. Because both are open, the same instrumentation also works with any OTel-compatible backend, and it gives Phoenix [30+ tracing integrations](/docs/phoenix/integrations).
 
-Use [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) when you need custom spans. Use [Agent-assisted setup](/docs/phoenix/integrations/developer-tools/cli#connect-a-project-with-px-setup) when you want `px setup` to have a supported coding agent add tracing.
+Every span carries a span kind that tells Phoenix what operation it represents, such as `LLM`, `TOOL`, `AGENT`, or `RETRIEVER`. See [Span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for all twelve and the attributes each one expects, and [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans) to add your own.
+
+## Next step
+
+Once traces arrive, use [Explore traces](/docs/phoenix/observe/explore-traces) to read, filter, and debug them.

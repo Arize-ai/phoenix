@@ -237,6 +237,92 @@ Use this path when you want to write the spans yourself. First, register tracing
 If your process exits right after creating spans, flush the tracer provider before exit. In Python, call `tracer_provider.shutdown()`. In JS/TS, call `provider.shutdown()`. In Go, call `tp.Shutdown(ctx)`.
 </Note>
 
+## LLM spans
+
+LLM spans are the most common manual span. Use an [OpenInference auto-instrumentor](/docs/phoenix/integrations) when one exists for your client, and use these patterns when none does.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    `@tracer.llm` traces a function that calls a model. It works on sync functions, async coroutines, and sync or async generator functions.
+
+    ```python
+    from openai import OpenAI
+    from openai.types.chat import ChatCompletionMessageParam
+
+    openai_client = OpenAI()
+
+
+    @tracer.llm
+    def invoke_llm(messages: list[ChatCompletionMessageParam]) -> str:
+        response = openai_client.chat.completions.create(
+            model="gpt-5-mini",
+            messages=messages,
+        )
+        return response.choices[0].message.content or ""
+
+
+    invoke_llm([{"role": "user", "content": "Hello, world!"}])
+    ```
+
+    Use a span block when you want to set the input, output, and status yourself:
+
+    ```python
+    from opentelemetry.trace import Status, StatusCode
+
+    messages = [{"role": "user", "content": "Hello, world!"}]
+
+    with tracer.start_as_current_span("llm_span", openinference_span_kind="llm") as span:
+        span.set_input(messages)
+        try:
+            response = openai_client.chat.completions.create(
+                model="gpt-5-mini",
+                messages=messages,
+            )
+        except Exception as error:
+            span.record_exception(error)
+            span.set_status(Status(StatusCode.ERROR))
+        else:
+            span.set_output(response)
+            span.set_status(Status(StatusCode.OK))
+    ```
+
+    You can also patch a client method, so the instrumentation lives in one place and the rest of your code calls the client normally:
+
+    ```python
+    wrapper = tracer.llm
+    openai_client.chat.completions.create = wrapper(
+        openai_client.chat.completions.create
+    )
+    ```
+  </Tab>
+
+  <Tab title="JS/TS" icon="js">
+    Wrap the function that calls the model with `withSpan` and the `LLM` kind:
+
+    ```typescript
+    import { withSpan } from "@arizeai/phoenix-otel";
+    import OpenAI from "openai";
+
+    const openai = new OpenAI();
+
+    const invokeLlm = withSpan(
+      async (messages: OpenAI.ChatCompletionMessageParam[]): Promise<string> => {
+        const response = await openai.chat.completions.create({
+          model: "gpt-5-mini",
+          messages,
+        });
+        return response.choices[0]?.message.content ?? "";
+      },
+      { name: "invoke-llm", kind: "LLM" }
+    );
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Phoenix reads model name, messages, token counts, and cost from the OpenInference LLM attributes. See [Span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for the full list.
+</Tip>
+
 ## What to instrument
 
 Manual spans work best when they explain the custom parts of your application.
