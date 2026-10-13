@@ -21,13 +21,6 @@
 
 - [Tracing Concepts](https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces): Understand traces, spans, span kinds, attributes, setup options, and common trace inspection workflows
 
-### Tutorial
-
-- [Tracing Tutorial](https://arize.com/docs/phoenix/tracing/tutorial): Build a fully observable AI agent from scratch
-- [Your First Traces](https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces): Instrument and view your first traces
-- [Annotations and Evaluations](https://arize.com/docs/phoenix/tracing/tutorial/annotations-and-evaluations): Add quality signals to traces
-- [Sessions Tutorial](https://arize.com/docs/phoenix/tracing/tutorial/sessions): Track multi-turn conversations
-
 ### Core Concepts
 
 - [Annotating Traces](https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces): Attach feedback, labels, and scores to traces for quality tracking
