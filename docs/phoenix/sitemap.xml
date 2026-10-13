@@ -1257,6 +1257,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/scalekit</loc>
+    <lastmod>2026-10-12T20:11:40+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/scalekit/scalekit-tracing</loc>
+    <lastmod>2026-10-12T20:11:40+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/vector-databases/qdrant</loc>
     <lastmod>2026-10-02T18:30:25+00:00</lastmod>
   </url>

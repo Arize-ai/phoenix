@@ -45,7 +45,6 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
-from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.trace_filters import TraceFilterConditionError, apply_trace_filter_to_page
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
@@ -57,6 +56,7 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     get_project_by_identifier,
+    is_not_at_capacity,
 )
 
 router = APIRouter(tags=["traces"])
@@ -426,15 +426,6 @@ async def delete_project_traces(
     if deleted_trace_count:
         request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
     return None
-
-
-def is_not_at_capacity(request: Request) -> None:
-    if request.app.state.span_queue_is_full():
-        SPAN_QUEUE_REJECTIONS.inc()
-        raise HTTPException(
-            detail="Server is at capacity and cannot process more requests",
-            status_code=503,
-        )
 
 
 @router.post(
