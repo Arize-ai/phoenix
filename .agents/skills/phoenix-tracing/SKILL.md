@@ -128,8 +128,8 @@ references/*-typescript.md      # TypeScript implementations
 
 **Python API Documentation:**
 
-- [Python OTEL Package](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/) - `arize-phoenix-otel` API reference
-- [Python Client Package](https://arize-phoenix.readthedocs.io/projects/client/en/latest/) - `arize-phoenix-client` API reference
+- [Python OTEL Package](https://arize-phoenix.readthedocs.io/projects/otel/) - `arize-phoenix-otel` API reference
+- [Python Client Package](https://arize-phoenix.readthedocs.io/projects/client/) - `arize-phoenix-client` API reference
 
 **TypeScript API Documentation:**
 
