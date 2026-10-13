@@ -1928,9 +1928,19 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                     )
                 )
             elif role == ChatCompletionMessageRole.TOOL:
+                tool_result_content: ToolResultContentBlockTypeDef
+                try:
+                    parsed_json = json.loads(content)
+                    if isinstance(parsed_json, Mapping):
+                        tool_result_content = ToolResultContentBlockTypeDef(json=parsed_json)
+                    else:
+                        tool_result_content = ToolResultContentBlockTypeDef(text=content)
+                except Exception:
+                    tool_result_content = ToolResultContentBlockTypeDef(text=content)
+
                 tool_result = ToolResultBlockTypeDef(
                     toolUseId=tool_call_id or "",
-                    content=[ToolResultContentBlockTypeDef(json=json.loads(content))],
+                    content=[tool_result_content],
                 )
                 converse_messages.append(
                     MessageTypeDef(
