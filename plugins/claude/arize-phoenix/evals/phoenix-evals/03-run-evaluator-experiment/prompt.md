@@ -1,7 +1,7 @@
 ---
 max_turns: 8
 timeout_seconds: 300
-allowed_tools: [Skill, Write]
+allowed_tools: [Skill, Read, Write]
 runs: 3
 tags: [phoenix-evals]
 ---
