@@ -6,4 +6,4 @@ Classification evaluators, including every built-in, can now run on AI SDK decis
 
 This replaces the evaluation model support from the previous release, and changes what evaluation models such as TypeSafe's Jev are sent. They now go through `experimental_decide` too. Message prompts are joined into plain text instead of being serialized as JSON state.
 
-`ai` is pinned to `7.0.133` and `@ai-sdk/otel` to `1.0.133`, because the decision API is experimental and has changed in patch releases, and `@ai-sdk/otel` depends on one exact `ai` version. Use `@ai-sdk/openai` 4.0.89 or later with OpenAI decision models. Earlier versions receive the state as JSON-encoded text instead of plain text.
+`ai` is pinned to `7.0.137` and `@ai-sdk/otel` to `1.0.137`, because the decision API is experimental and has changed in patch releases, and `@ai-sdk/otel` depends on one exact `ai` version. Use `@ai-sdk/openai` 4.0.89 or later with OpenAI decision models. Earlier versions receive the state as JSON-encoded text instead of plain text.
