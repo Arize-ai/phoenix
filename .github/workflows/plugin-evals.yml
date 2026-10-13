@@ -43,19 +43,27 @@ jobs:
         # cases; `gate: block` reds the matrix on a miss, `gate: warn` only
         # warns (use while a skill's Δ is still uncalibrated). Calibrate from a
         # 3-run `--ablation with-without` pass and record it in that skill's
-        # evals README before switching a leg to `block`.
+        # evals README before switching a leg to `block`. `model` is the
+        # agent-under-test model for that leg (the judge stays fixed); keep it
+        # pinned so scores stay comparable, and bump deliberately.
         include:
           # phoenix-cli: 0.15 headroom under its measured +0.25 baseline.
           - skill: phoenix-cli
+            model: claude-sonnet-5
             min_delta: "0.15"
             gate: block
-          # phoenix-evals: 0.10 headroom under its measured +0.22 baseline (3-run
-          # with-without pass; see evals/phoenix-evals/README.md).
+          # phoenix-evals: held to Opus on purpose. Eval authoring (LLM-judge
+          # code, pytest CI gates) is a harder task class where sonnet-5 is both
+          # noisy and unreliable at a 0.8-per-case bar; Opus is stable. min_delta
+          # is 0.10 headroom under the measured +0.22 Opus baseline (see
+          # evals/phoenix-evals/README.md).
           - skill: phoenix-evals
+            model: claude-opus-4-8
             min_delta: "0.12"
             gate: block
           # phoenix-tracing: no cases yet, so the leg skips before the gate.
           - skill: phoenix-tracing
+            model: claude-sonnet-5
             min_delta: "0.15"
             gate: block
     name: evals (${{ matrix.skill }})
@@ -106,6 +114,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           WORKSPACE: ${{ github.workspace }}
           SKILL: ${{ matrix.skill }}
+          MODEL: ${{ matrix.model }}
         # --tag selects this skill's cases. --threshold gates each with-plugin
         # score; Δ is gated in the next step. --allow-tools: Write lets a
         # file-writing case create its file; the Read grants let the skill open
@@ -119,7 +128,7 @@ jobs:
             --ablation with-without \
             --json evals/results/ci-results.json \
             --threshold 0.8 \
-            --model claude-sonnet-5 \
+            --model "${MODEL}" \
             --judge-model claude-sonnet-5 \
             --allow-tools Write \
               "Read(//${WORKSPACE}/plugins/claude/arize-phoenix/**)" \
