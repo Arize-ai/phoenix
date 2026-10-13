@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 from pydantic import BaseModel, Field
 
@@ -6,7 +6,7 @@ from ..__generated__.classification_evaluator_configs import (
     TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG,
 )
 from ..evaluators import ClassificationEvaluator
-from ..llm import LLM
+from ..llm import LLM, Decision
 from ..llm.prompts import PromptTemplate
 
 
@@ -98,7 +98,7 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: LLM,
+        llm: Union[LLM, Decision],
         **kwargs: Any,
     ):
         super().__init__(
