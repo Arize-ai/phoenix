@@ -53,10 +53,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions</loc>
-    <lastmod>2026-10-12T03:48:44+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -65,15 +61,19 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces</loc>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions</loc>
+    <lastmod>2026-10-12T03:48:44+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions</loc>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced</loc>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
@@ -85,7 +85,15 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking</loc>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
@@ -137,15 +145,7 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>

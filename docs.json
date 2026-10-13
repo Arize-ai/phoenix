@@ -91,15 +91,27 @@
                 "pages": [
                   "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
                   "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
-                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions",
                   "docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument",
                   "docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
-                  "docs/phoenix/tracing/concepts-tracing/translating-conventions",
-                  "docs/phoenix/tracing/how-to-tracing/advanced",
+                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions"
+                ]
+              },
+              {
+                "group": "User feedback",
+                "pages": [
+                  "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback",
+                  "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations"
+                ]
+              },
+              {
+                "group": "Advanced",
+                "pages": [
+                  "docs/phoenix/tracing/how-to-tracing/cost-tracking",
                   "docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes",
                   "docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing",
-                  "docs/phoenix/tracing/how-to-tracing/cost-tracking"
+                  "docs/phoenix/tracing/how-to-tracing/advanced",
+                  "docs/phoenix/tracing/concepts-tracing/translating-conventions",
+                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces"
                 ]
               }
             ]
@@ -109,7 +121,12 @@
             "icon": "chart-line",
             "pages": [
               "docs/phoenix/observe/explore-traces",
-              "docs/phoenix/tracing/how-to-tracing/filter-expressions",
+              {
+                "group": "Trace data",
+                "pages": [
+                  "docs/phoenix/tracing/how-to-tracing/filter-expressions"
+                ]
+              },
               "docs/phoenix/observe/view-metrics-and-dashboards",
               "docs/phoenix/observe/export-trace-data",
               {
@@ -138,9 +155,7 @@
                 "pages": [
                   "docs/phoenix/tracing/concepts-tracing/annotations-concepts",
                   "docs/phoenix/tracing/llm-traces/how-to-annotate-traces",
-                  "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations",
                   "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui",
-                  "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback",
                   "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans",
                   "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces",
                   "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations"
