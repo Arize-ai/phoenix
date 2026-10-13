@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3cdf51f9ffd5d31732a274da87a0f7e6>>
+ * @generated SignedSource<<72578b1d14e21e2d248875672fc11b93>>
  * @lightSyntaxTransform
  */
 
@@ -107,6 +107,9 @@ export type ExperimentsTableFragment$data = {
         readonly isBaseline: boolean;
         readonly job: {
           readonly status: ExperimentJobStatus;
+          readonly taskConfig: {
+            readonly __typename: string;
+          } | null;
         } | null;
         readonly metadata: any;
         readonly name: string;
@@ -239,7 +242,10 @@ v13 = {
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
-};
+},
+v14 = [
+  (v10/*:: as any*/)
+];
 return {
   "argumentDefinitions": [
     {
@@ -696,6 +702,16 @@ return {
                       "kind": "ScalarField",
                       "name": "status",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": null,
+                      "kind": "LinkedField",
+                      "name": "taskConfig",
+                      "plural": false,
+                      "selections": (v14/*:: as any*/),
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -717,9 +733,7 @@ return {
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
-              "selections": [
-                (v10/*:: as any*/)
-              ],
+              "selections": (v14/*:: as any*/),
               "storageKey": null
             }
           ],
@@ -759,6 +773,6 @@ return {
 };
 })();
 
-(node as any).hash = "1f43803ba5c929080ce7453a214b11cf";
+(node as any).hash = "97ba85a997a67b4d800f340f91f146c8";
 
 export default node;
