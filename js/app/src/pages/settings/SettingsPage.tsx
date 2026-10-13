@@ -18,7 +18,7 @@ import { PxiGlyphOutline } from "@phoenix/components/agent";
 import { McpSVG } from "@phoenix/components/project/IntegrationIcons";
 import {
   useIsAuthenticatedAdmin,
-  useViewerCanManageSandboxes,
+  useViewerCanViewSandboxes,
   useViewerCanManageSecrets,
 } from "@phoenix/contexts";
 import { useMediaQuery } from "@phoenix/hooks";
@@ -110,14 +110,14 @@ export function SettingsPage() {
   };
   const isAuthenticatedAdmin = useIsAuthenticatedAdmin();
   const canManageSecrets = useViewerCanManageSecrets();
-  const canManageSandboxes = useViewerCanManageSandboxes();
+  const canViewSandboxes = useViewerCanViewSandboxes();
   // Tabs absent from this map are visible to everyone.
   const tabVisibility: Partial<Record<SettingsTabId, boolean>> = {
     agents: !window.Config.agentAssistantDisabled,
     users: isAuthenticatedAdmin,
     "api-keys": isAuthenticatedAdmin,
     secrets: canManageSecrets,
-    sandboxes: canManageSandboxes,
+    sandboxes: canViewSandboxes,
   };
   const tabs = TABS.filter((tab) => tabVisibility[tab.id] ?? true);
   if (!isSettingsTabId(tab) || !tabs.some((item) => item.id === tab)) {
