@@ -39,6 +39,7 @@ from tests.integration._helpers import (
 
 from .conftest import (
     _assert_issued_token_verifies_with_secret_configuration,
+    _isolated_database,
     _OAuthPublicClient,
 )
 
@@ -444,6 +445,7 @@ def _app_mcp_code_mode(
     _env_database: Mapping[str, str],
     _env_auth: Mapping[str, str],
     _ports: Iterator[int],
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[_AppInfo]:
     """A server with auth, the /mcp mount, and PHOENIX_ENABLE_MCP_CODE_MODE all enabled.
 
@@ -460,8 +462,9 @@ def _app_mcp_code_mode(
         "PHOENIX_ENABLE_MCP_CODE_MODE": "true",
         "PHOENIX_DISABLE_RATE_LIMIT": "true",
     }
-    with _server(_AppInfo(env)) as app:
-        yield app
+    with _isolated_database(env, tmp_path_factory, "mcp-code-mode") as env:
+        with _server(_AppInfo(env)) as app:
+            yield app
 
 
 class TestMcpCodeMode:

@@ -287,11 +287,11 @@ async def insert_span(
         or cumulative_llm_token_count_completion
     ):
         return SpanInsertionEvent(
-        trace.project_rowid,
-        span_rowid,
-        trace.id,
-        project_session.id if project_session is not None else None,
-    )
+            trace.project_rowid,
+            span_rowid,
+            trace.id,
+            project_session.id if project_session is not None else None,
+        )
     # Propagate cumulative values to ancestors. This is usually a no-op, since
     # the parent usually arrives after the child. But in the event that a
     # child arrives after its parent, we need to make sure that all the

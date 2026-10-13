@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from graphql import (
     ExecutionResult as GraphQLExecutionResult,

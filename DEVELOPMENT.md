@@ -92,7 +92,7 @@ pnpm dev:datagen   # from js/app
 
 It sources `js/app/.env` and sends traces to `http://localhost:${PHOENIX_PORT:-6006}`. It starts at the same time as the server; exports that fail while the server is still booting are logged as `OTLP export failed` warnings and that trace is skipped, so a few warnings at startup are expected; traffic flows once the server is up.
 
-- **Stop or restart it** from the `dekit` console. Run `dekit help` for task controls.
+- **Stop or restart it** from the `dekit` console: select the `datagen` task and press `x` to stop, `s` to start, or `r` to restart.
 - **Authentication:** if `PHOENIX_ENABLE_AUTH` is on, create a system API key in the Phoenix UI and add `PHOENIX_API_KEY=<key>` to `js/app/.env`. Without it every export fails with `401 Unauthorized`.
 - **Configure it** by adding the environment variables below to `js/app/.env` (for example `PHOENIX_PROJECT_NAME=my-project`).
 
