@@ -1096,7 +1096,7 @@ importers:
   packages/phoenix-evals:
     dependencies:
       '@ai-sdk/otel':
-        specifier: ^1.0.137
+        specifier: 1.0.137
         version: 1.0.137(zod@4.6.5)
       '@arizeai/openinference-core':
         specifier: ^2.8.0
@@ -1105,7 +1105,7 @@ importers:
         specifier: ^1.9.1
         version: 1.9.1
       ai:
-        specifier: ^7.0.137
+        specifier: 7.0.137
         version: 7.0.137(zod@4.6.5)
       jsonpath-plus:
         specifier: ^10.4.0

@@ -79,10 +79,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/otel": "^1.0.137",
+    "@ai-sdk/otel": "1.0.137",
     "@arizeai/openinference-core": "^2.8.0",
     "@opentelemetry/api": "^1.9.1",
-    "ai": "^7.0.137",
+    "ai": "7.0.137",
     "jsonpath-plus": "^10.4.0",
     "mustache": "^4.2.0",
     "zod": "^4.6.5"

@@ -72,6 +72,7 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { isVisibleMessagePart } from "./partitionMessageParts";
+import { getPromptHistory } from "./promptHistory";
 import { PxiGlyph } from "./PxiGlyph";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
@@ -610,6 +611,7 @@ export function ChatView({
 
   const showsEmptyState = messages.length === 0 && !isBusyElsewhere;
   const conversationUsage = getConversationUsage({ messages });
+  const promptHistory = getPromptHistory(messages);
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
@@ -1058,6 +1060,7 @@ export function ChatView({
                     : undefined
                 );
               }}
+              promptHistory={promptHistory}
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}
