@@ -1,6 +1,6 @@
 ---
 name: phoenix-evals
-description: Build and run evaluators for AI/LLM applications using Phoenix.
+description: Build, run, and validate evaluators for AI/LLM applications with Phoenix — code-based checks and LLM-as-a-judge, run over dataframes or as Phoenix experiments, gate them in CI, and validate judges against human-labeled data.
 license: Apache-2.0
 compatibility: Requires Phoenix server. Python skills need phoenix and openai packages; TypeScript skills need @arizeai/phoenix-client.
 metadata:
