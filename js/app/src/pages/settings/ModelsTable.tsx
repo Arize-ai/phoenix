@@ -373,6 +373,9 @@ export function ModelsTable({
         header: "last used at",
         accessorFn: (row) => filterableDateAccessorFn(row.lastUsedAt),
         sortUndefined: "last",
+        // most recently used first; TanStack's guess at a first direction
+        // depends on which rows come first
+        sortDescFirst: true,
         cell: TimestampCell,
       },
       {
