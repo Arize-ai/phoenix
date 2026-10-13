@@ -23,10 +23,6 @@ Together, OpenTelemetry and OpenInference give Phoenix [30+ tracing integrations
 2. **An exporter** sends those spans to Phoenix over OTLP. In Python, Phoenix OTEL's `register()` configures the exporter, and `auto_instrument=True` turns on installed OpenInference instrumentors.
 3. **The Phoenix collector** receives the spans, groups them into traces, and shows them in Observe. Use [Explore traces](/docs/phoenix/observe/explore-traces) to inspect, filter, and debug them.
 
-<Frame caption="Phoenix receives traces over OTLP">
-  <img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" alt="Applications export traces over OTLP to the Phoenix server." />
-</Frame>
-
 ## What's Inside a Trace
 
 A trace contains spans, and each span should have a span kind. The span kind tells Phoenix what operation the span represents. Phoenix falls back to `UNKNOWN` when the value is missing or not recognized.
