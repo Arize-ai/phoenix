@@ -8,48 +8,6 @@ Use manual instrumentation when you need spans around code that auto-instrumenta
 
 If a supported model client or framework already has an OpenInference integration, start with [Auto-instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel). Then add manual spans around your own code.
 
-## Add spans with a coding agent
-
-`px setup` can connect your app to Phoenix and hand tracing work to a supported coding agent. Ask the agent to add manual spans, then verify that the custom span appears in Phoenix.
-
-<Steps>
-  <Step title="Start Phoenix">
-    If you already have a Phoenix deployment, skip this step.
-
-    ```bash
-    uvx arize-phoenix serve
-    ```
-  </Step>
-
-  <Step title="Run setup from your app">
-    In a new terminal, run one of these from your app's root directory:
-
-    <CodeGroup>
-    ```bash npx
-    npx -y @arizeai/phoenix-cli setup
-    ```
-
-    ```bash Install
-    npm i -g @arizeai/phoenix-cli && px setup
-    ```
-    </CodeGroup>
-  </Step>
-
-  <Step title="Ask the agent to add manual spans">
-    Ask your coding agent to wrap custom logic with Phoenix manual spans:
-
-    ```text
-    Add manual spans around my custom tool functions and agent steps using Phoenix and OpenInference conventions. Verify that traces arrive in Phoenix.
-    ```
-  </Step>
-
-  <Step title="Verify the custom span">
-    Run the app path that uses the custom tool or agent step. Open the project in Phoenix, then look for a new span with the name your agent added. A tool span should use `openinference.span.kind: TOOL`; a broader app step usually uses `openinference.span.kind: CHAIN`.
-  </Step>
-</Steps>
-
-During setup, choose Claude Code, Codex, Cursor, or OpenCode. When prompted to install agent skills, answer yes. You can also run `px setup skills` later. For CI, unsupported agents, and setup flags, see [Agent-Assisted Setup](/docs/phoenix/integrations/developer-tools/cli#connect-a-project-with-px-setup).
-
 ## Add spans with code
 
 Use this path when you want to write the spans yourself. First, register tracing. Then wrap the code you want to see in Phoenix.
