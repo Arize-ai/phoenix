@@ -1,5 +1,13 @@
 # Changelog
 
+## [20.21.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.1...arize-phoenix-v20.21.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **experiments:** coerce average repeated-run latency to float on PostgreSQL ([#16957](https://github.com/Arize-ai/phoenix/issues/16957)) ([c05a170](https://github.com/Arize-ai/phoenix/commit/c05a1708b3d13c18600f71e4dd0c1a620df310d2))
+* **graphql:** normalize retrieval summary counts to int ([#16960](https://github.com/Arize-ai/phoenix/issues/16960)) ([9735fc9](https://github.com/Arize-ai/phoenix/commit/9735fc97b0a337521c06f8638f3657a52efc8320))
+
 ## [20.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.0...arize-phoenix-v20.21.1) (2026-10-12)
 
 
