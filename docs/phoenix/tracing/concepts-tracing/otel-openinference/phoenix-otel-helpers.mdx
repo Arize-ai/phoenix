@@ -64,7 +64,7 @@ The convenience function handles four things for you. Each one has additional ca
 This works because `register()` never calls a version-gated server endpoint. Everything it wires up rests on two backward-compatible contracts:
 
 - **OTLP transport** — the exporter sends spans over the OpenTelemetry Protocol, which every Phoenix server version accepts.
-- **[OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference)** — the attribute names both sides agree on, tracked in the `openinference-semantic-conventions` package and evolved additively.
+- **[OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions)** — the attribute names both sides agree on, tracked in the `openinference-semantic-conventions` package and evolved additively.
 
 Because compatibility rests on these stable layers rather than matched version pairs, there is no `arize-phoenix-otel` × Phoenix server version table to consult. (Individual *features* — not the SDK as a whole — may carry a minimum server version; those are noted on the relevant feature pages.)
 
