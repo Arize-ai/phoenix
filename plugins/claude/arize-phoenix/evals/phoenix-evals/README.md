@@ -11,6 +11,14 @@ These cases live in their own group directory so they can be selected apart from
 `phoenix-cli` cases in the sibling flat directories. Every input runs with the plugin and
 without it, so the headline number is Δ (with-plugin minus without-plugin), not raw pass rate.
 
+## Baseline
+
+Measured mean Δ over the fire cases (`-neg-` excluded) on a 3-run `--ablation with-without`
+pass with `--judge-model claude-sonnet-5`: **+0.22**. The CI gate in
+`.github/workflows/plugin-evals.yml` is set to `min_delta: 0.12` (≈0.10 headroom for
+run-to-run noise), `gate: block`. Re-measure and update both this number and the gate when
+cases or the skill change materially.
+
 ## Cases
 
 

@@ -49,10 +49,11 @@ jobs:
           - skill: phoenix-cli
             min_delta: "0.15"
             gate: block
-          # phoenix-evals: no baseline yet. Set min_delta from the 3-run pass, then flip to block.
+          # phoenix-evals: 0.10 headroom under its measured +0.22 baseline (3-run
+          # with-without pass; see evals/phoenix-evals/README.md).
           - skill: phoenix-evals
-            min_delta: "0.10"
-            gate: warn
+            min_delta: "0.12"
+            gate: block
           # phoenix-tracing: no cases yet, so the leg skips before the gate.
           - skill: phoenix-tracing
             min_delta: "0.15"
