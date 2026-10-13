@@ -1189,6 +1189,13 @@ export function ExperimentCompareListPage({
     getExperimentColor,
   ]);
 
+  // This component isn't compiled (it calls `useVirtualizer`), so memoize by
+  // hand: TanStack v9 compares state slices by reference, and a new object on
+  // every render makes each render a real table update
+  const columnVisibility = useMemo(
+    () => ({ repetitionNumber: baseExperiment.repetitions > 1 }),
+    [baseExperiment.repetitions]
+  );
   const table = useTable({
     features: appTableFeatures,
     data: tableData,
@@ -1197,9 +1204,7 @@ export function ExperimentCompareListPage({
     columnResizeMode: "onChange",
     state: {
       sorting,
-      columnVisibility: {
-        repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
-      },
+      columnVisibility,
     },
     manualSorting: true,
   });
