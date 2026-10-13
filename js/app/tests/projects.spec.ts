@@ -514,6 +514,41 @@ test.describe.serial("Projects", () => {
       .click();
     await expect(copyDialog).not.toBeVisible();
     await expect(evaluatorRows.filter({ hasText: copyName })).toBeVisible();
+
+    // Creating the same evaluator again fails on the server, and the banner
+    // shows the server's message rather than Relay's raw error, which would
+    // otherwise include the whole mutation input (the entire prompt template).
+    // The list has an evaluator now, so the empty state's category cards are
+    // gone; the gallery is a route, so open it on the category directly.
+    await expect(page).toHaveURL(EVALUATORS_URL);
+    const agentsGalleryUrl = new URL(page.url());
+    agentsGalleryUrl.pathname = `${agentsGalleryUrl.pathname}/gallery`;
+    agentsGalleryUrl.searchParams.set("category", "AGENTS");
+    await page.goto(agentsGalleryUrl.toString());
+    await expect(page).toHaveURL(GALLERY_AGENTS_CATEGORY_URL);
+    await expect(gallery).toBeVisible();
+    await gallery
+      .getByRole("listbox", { name: "Evaluators and templates" })
+      .getByRole("group", { name: "Agents", exact: true })
+      .getByRole("option")
+      .first()
+      .click();
+    await gallery
+      .getByRole("button", { name: "Customize this evaluator" })
+      .click();
+    await expect(createDialog).toBeVisible();
+    await createDialog.getByLabel("Name").first().fill(evaluatorName);
+    await fillDeclaredVariablePaths(page, createDialog);
+    await createDialog
+      .getByRole("button", { name: "Create", exact: true })
+      .click();
+    const duplicateNameError = createDialog.getByText(
+      `A project evaluator named '${evaluatorName}' already exists for this project`,
+      { exact: true }
+    );
+    await expect(duplicateNameError).toBeVisible();
+    await expect(createDialog).not.toContainText("with variables");
+    await expect(createDialog).toBeVisible();
   });
 
   test("project table remains usable after mutation workflows", async ({
