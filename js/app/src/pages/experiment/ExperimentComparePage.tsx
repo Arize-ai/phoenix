@@ -17,7 +17,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
-import { Alert, Flex, Loading, View } from "@phoenix/components";
+import { Alert, Flex, Loading, OverflowRow, View } from "@phoenix/components";
 import {
   ExperimentNameWithColorSwatch,
   useExperimentColors,
@@ -223,7 +223,7 @@ export function ExperimentComparePage() {
               });
             }}
           />
-          <View flex="1" paddingBottom={5}>
+          <View flex="1" minWidth={0} paddingBottom={5}>
             <Suspense>
               {selectedCompareExperimentsQueryReference && (
                 <SelectedCompareExperiments
@@ -300,6 +300,11 @@ function ExperimentComparePageContent({
   );
 }
 
+/** Caps each name so one long name cannot crowd out the rest of the row */
+const compareExperimentNameCSS = css`
+  max-width: 280px;
+`;
+
 export function SelectedCompareExperiments({
   queryRef,
 }: {
@@ -350,21 +355,24 @@ export function SelectedCompareExperiments({
   if (compareExperimentIds.length === 0) {
     return null;
   }
-  const compareExperiments = compareExperimentIds
-    .map((experimentId) => idToExperiment[experimentId])
-    // if a new experiment was just added, data may not be fully loaded yet
-    .filter((experiment) => experiment != null);
-
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      {compareExperiments.map((experiment, experimentIndex) => (
-        <ExperimentNameWithColorSwatch
-          key={experiment.id}
-          color={getExperimentColor(experimentIndex)}
-          name={experiment.name}
-          isBaseline={experiment.isBaseline}
-        />
-      ))}
-    </Flex>
+    <OverflowRow>
+      {compareExperimentIds.map((experimentId, experimentIndex) => {
+        const experiment = idToExperiment[experimentId];
+        // if a new experiment was just added, data may not be fully loaded yet
+        if (experiment == null) {
+          return null;
+        }
+        return (
+          <div key={experiment.id} css={compareExperimentNameCSS}>
+            <ExperimentNameWithColorSwatch
+              color={getExperimentColor(experimentIndex)}
+              name={experiment.name}
+              isBaseline={experiment.isBaseline}
+            />
+          </div>
+        );
+      })}
+    </OverflowRow>
   );
 }

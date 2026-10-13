@@ -139,6 +139,7 @@ _KIND_TO_VARIANT: dict[str, str] = {
     "WASM": "wasm",
     "MODAL": "modal",
     "MONTY": "monty",
+    "DOCKER": "docker",
 }
 
 

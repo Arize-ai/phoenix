@@ -70,8 +70,8 @@ from phoenix.server.api.helpers.evaluators import (
 )
 from phoenix.server.api.helpers.playground_clients import OpenAIChatCompletionsClient
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
@@ -822,6 +822,54 @@ class TestApplyInputMapping:
                 input_mapping=input_mapping.to_orm(),
                 context=context,
             )
+
+    def test_ignores_mapping_keys_not_declared_in_schema(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"output": {"type": "string"}},
+            "required": ["output"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping=JSON({"output": "$.response", "removed": "$.nonexistent.path"}),
+            literal_mapping=JSON({"also_removed": "literal"}),
+        )
+        context = {"response": "Hello, world!"}
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping.to_orm(),
+            context=context,
+        )
+        assert result == {"output": "Hello, world!"}
+
+    @pytest.mark.parametrize(
+        "input_schema",
+        [
+            pytest.param({"type": "object"}, id="no-properties"),
+            pytest.param({"type": "object", "properties": {}}, id="empty-properties"),
+            pytest.param(
+                {
+                    "type": "object",
+                    "properties": {"output": {"type": "string"}},
+                    "additionalProperties": True,
+                },
+                id="additional-properties",
+            ),
+        ],
+    )
+    def test_schema_open_to_any_key_keeps_every_mapping_key(
+        self, input_schema: dict[str, Any]
+    ) -> None:
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping=JSON({"output": "$.response", "extra": "$.detail"}),
+            literal_mapping=JSON({"label": "literal"}),
+        )
+        context = {"response": "Hello, world!", "detail": "more"}
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping.to_orm(),
+            context=context,
+        )
+        assert result == {"output": "Hello, world!", "extra": "more", "label": "literal"}
 
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
@@ -2303,10 +2351,9 @@ class TestLLMEvaluator:
     @pytest.fixture
     def span_cost_calculator(
         self,
-        db: DbSessionFactory,
         generative_model_store: GenerativeModelStore,
     ) -> SpanCostCalculator:
-        return SpanCostCalculator(db=db, model_store=generative_model_store)
+        return SpanCostCalculator(model_store=generative_model_store)
 
     @pytest.fixture
     def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:

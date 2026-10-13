@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
+import { useParams } from "react-router";
 
 import {
   ConnectedTimeRangeControls,
@@ -8,6 +9,7 @@ import {
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { useSelectedTraceSlots } from "@phoenix/pages/project/useSelectedTraceSlots";
 
 import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectTimeRangeControls_data.graphql";
 
@@ -26,6 +28,8 @@ const STREAMING_ENABLED_TABS = ["spans", "traces", "sessions"];
  * live streaming toggle, rendered beside the time range selector. While
  * streaming is playing on a streamable tab, polls the project's
  * last-updated timestamp and bumps the shared fetch key when new data lands.
+ * Streaming pauses while a trace or session drawer is open so the tables
+ * behind it don't refetch.
  */
 export function ProjectTimeRangeControls(props: {
   project: ProjectTimeRangeControls_data$key;
@@ -37,8 +41,12 @@ export function ProjectTimeRangeControls(props: {
   } = useStreamState();
   const { refreshLiveTimeRange } = useTimeRange();
   const { tab } = useProjectRootPath();
+  // Parent routes see child params, so this is set while the session drawer
+  // is open; the trace and compare drawers are known from the selected traces
+  const { sessionId } = useParams();
+  const isDetailOpen = useSelectedTraceSlots().length > 0 || sessionId != null;
   const isStreamingTab = STREAMING_ENABLED_TABS.includes(tab);
-  const isLiveStreaming = isStreamingTab && isStreamingState;
+  const isLiveStreaming = isStreamingTab && !isDetailOpen && isStreamingState;
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
@@ -84,6 +92,7 @@ export function ProjectTimeRangeControls(props: {
     <ConnectedTimeRangeControls
       isLive={isLiveStreaming}
       onIsLiveChange={isStreamingTab ? setIsStreaming : undefined}
+      isLiveToggleDisabled={isDetailOpen}
     />
   );
 }

@@ -18,6 +18,7 @@ export * from "./useUnnestedValue";
 export * from "./useLatestPhoenixVersion";
 export * from "./usePersistedState";
 export * from "./useOwnedPreloadedQuery";
+export * from "./useScopedHotkeys";
 export * from "./useLabelFilterSearchParams";
 export * from "./useMediaQuery";
 export * from "./useUnsavedChangesBlocker";

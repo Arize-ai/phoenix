@@ -11,8 +11,11 @@ from pathlib import Path
 from typing import Optional
 
 from phoenix.config import (
+    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
     ENV_PHOENIX_WASM_BINARY_PATH,
     _no_local_storage,
+    get_env_allow_external_resources,
+    get_env_allowed_sandbox_providers,
     get_env_wasm_binary_path,
     get_working_dir,
 )
@@ -46,6 +49,27 @@ _NO_LOCAL_STORAGE_SHORT_FORM = "No-local-storage mode: set PHOENIX_WORKING_DIR t
 def no_local_storage_message(*, short: bool = False) -> str:
     """Canonical user-facing wording for the no-local-storage state."""
     return _NO_LOCAL_STORAGE_SHORT_FORM if short else _NO_LOCAL_STORAGE_LONG_FORM
+
+
+_EXTERNAL_RESOURCES_DISALLOWED_LONG_FORM = (
+    f"WASM sandbox binary unavailable: {ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES}=false, "
+    f"so Phoenix does not download the runtime. To enable the WASM provider, set "
+    f"{ENV_PHOENIX_WASM_BINARY_PATH} to a local copy of the CPython WASM binary."
+)
+
+_EXTERNAL_RESOURCES_DISALLOWED_SHORT_FORM = (
+    f"{ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES}=false: "
+    f"set {ENV_PHOENIX_WASM_BINARY_PATH} to a local copy to enable WASM."
+)
+
+
+def external_resources_disallowed_message(*, short: bool = False) -> str:
+    """Canonical user-facing wording for when external resources are disallowed."""
+    return (
+        _EXTERNAL_RESOURCES_DISALLOWED_SHORT_FORM
+        if short
+        else _EXTERNAL_RESOURCES_DISALLOWED_LONG_FORM
+    )
 
 
 class WASMBinaryUnavailable(RuntimeError):
@@ -121,6 +145,9 @@ def ensure_wasm_binary(
         else:
             return dest
 
+    if not get_env_allow_external_resources():
+        raise WASMBinaryUnavailable(external_resources_disallowed_message())
+
     resolved_wasm_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Downloading WASM binary from {url} → {dest}")
@@ -165,6 +192,8 @@ def ensure_wasm_binary(
 
 async def prefetch_wasm_binary_if_needed() -> None:
     """Fail-soft server-startup pre-fetch for the CPython WASM binary."""
+    if "WASM" not in get_env_allowed_sandbox_providers() or not get_env_allow_external_resources():
+        return
     try:
         await asyncio.to_thread(ensure_wasm_binary)
     except WASMBinaryUnavailable as exc:

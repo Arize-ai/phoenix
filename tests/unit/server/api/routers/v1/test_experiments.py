@@ -145,8 +145,8 @@ async def test_experiments_api(
             "label": "some label",
             "score": 0.5,
             "explanation": "some explanation",
-            "metadata": {"some": "metadata"},
         },
+        "metadata": {"some": "metadata"},
         "error": "an error message, if applicable",
         "start_time": datetime.now(timezone.utc).isoformat(),
         "end_time": datetime.now(timezone.utc).isoformat(),
@@ -167,7 +167,7 @@ async def test_experiments_api(
     assert annotation.pop("label") == "some label"
     assert annotation.pop("score") == 0.5
     assert annotation.pop("explanation") == "some explanation"
-    assert annotation.pop("metadata") == {}
+    assert annotation.pop("metadata") == {"some": "metadata"}
     assert annotation.pop("annotator_kind") == "LLM"
     assert annotation.pop("trace_id") == "placeholder-id"
     assert annotation.pop("error") == "an error message, if applicable"
@@ -207,7 +207,7 @@ async def test_experiments_api(
     assert row.pop(f"{annotation_prefix}_label") == "some label"
     assert row.pop(f"{annotation_prefix}_score") == 0.5
     assert row.pop(f"{annotation_prefix}_explanation") == "some explanation"
-    assert json.loads(row.pop(f"{annotation_prefix}_metadata")) == {}
+    assert json.loads(row.pop(f"{annotation_prefix}_metadata")) == {"some": "metadata"}
     assert row.pop(f"{annotation_prefix}_annotator_kind") == "LLM"
     assert row.pop(f"{annotation_prefix}_trace_id") == "placeholder-id"
     assert row.pop(f"{annotation_prefix}_error") == "an error message, if applicable"
@@ -264,6 +264,80 @@ async def test_experiment_json_and_csv_export_with_errored_run(
     assert len(df) == 1
     assert pd.isna(df.iloc[0]["output"])
     assert df.iloc[0]["error"] == "Missing template variable(s): text"
+
+
+@pytest.mark.parametrize(
+    "extra_payload, expected_metadata",
+    [
+        pytest.param(
+            {"result": {"score": 1.0, "metadata": {"nested": 1}}},
+            {"nested": 1},
+            id="legacy-nested-metadata-is-recovered",
+        ),
+        pytest.param(
+            {
+                "result": {"score": 1.0, "metadata": {"a": "nested", "b": "nested"}},
+                "metadata": {"a": "top"},
+            },
+            {"a": "top", "b": "nested"},
+            id="top-level-metadata-takes-precedence",
+        ),
+        pytest.param(
+            {"result": {"score": 1.0, "metadata": "not-a-dict"}},
+            {},
+            id="non-dict-nested-metadata-is-ignored",
+        ),
+    ],
+)
+async def test_experiment_evaluation_recovers_metadata_nested_under_result(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+    extra_payload: dict[str, Any],
+    expected_metadata: dict[str, Any],
+) -> None:
+    """
+    Older clients sent evaluator metadata under ``result.metadata`` instead of at
+    the top level. The server must keep that metadata rather than dropping it.
+    """
+    dataset_gid = GlobalID("Dataset", "0")
+    experiment_gid = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]["id"]
+    run_id = (
+        await httpx_client.post(
+            f"v1/experiments/{experiment_gid}/runs",
+            json={
+                "dataset_example_id": str(GlobalID("DatasetExample", "0")),
+                "output": "output",
+                "repetition_number": 1,
+                "start_time": datetime.now(timezone.utc).isoformat(),
+                "end_time": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    ).json()["data"]["id"]
+
+    response = await httpx_client.post(
+        "v1/experiment_evaluations",
+        json={
+            "experiment_run_id": run_id,
+            "name": "evaluation",
+            "annotator_kind": "CODE",
+            "start_time": datetime.now(timezone.utc).isoformat(),
+            "end_time": datetime.now(timezone.utc).isoformat(),
+            **extra_payload,
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        annotation = await session.scalar(select(models.ExperimentRunAnnotation))
+    assert annotation is not None
+    assert annotation.score == 1.0
+    assert annotation.metadata_ == expected_metadata
 
 
 async def test_experiment_404s_with_missing_dataset(
@@ -339,50 +413,6 @@ async def test_listing_experiments_by_dataset(
     assert len(experiments) == 2
     assert str(experiment_gid_1) == experiment_gids[0], "experiments are listed newest first"
     assert str(experiment_gid_0) == experiment_gids[1], "experiments are listed newest first"
-
-
-async def test_listing_experiments_includes_sequence_number(
-    httpx_client: httpx.AsyncClient,
-    dataset_with_experiments_without_runs: Any,
-) -> None:
-    dataset_gid = GlobalID("Dataset", "1")
-    response = await httpx_client.get(f"v1/datasets/{dataset_gid}/experiments")
-    assert response.status_code == 200
-    experiments = response.json()["data"]
-    sequence_number_by_id = {exp["id"]: exp["sequence_number"] for exp in experiments}
-    assert sequence_number_by_id[str(GlobalID("Experiment", "0"))] == 1
-    assert sequence_number_by_id[str(GlobalID("Experiment", "1"))] == 2
-
-
-async def test_listing_experiments_sort_dir_asc_returns_oldest_first(
-    httpx_client: httpx.AsyncClient,
-    dataset_with_experiments_without_runs: Any,
-) -> None:
-    dataset_gid = GlobalID("Dataset", "1")
-    response = await httpx_client.get(
-        f"v1/datasets/{dataset_gid}/experiments", params={"sort_dir": "asc"}
-    )
-    assert response.status_code == 200
-    experiments = response.json()["data"]
-    assert [exp["sequence_number"] for exp in experiments] == [1, 2]
-    assert experiments[0]["id"] == str(GlobalID("Experiment", "0"))
-    assert experiments[1]["id"] == str(GlobalID("Experiment", "1"))
-
-
-async def test_listing_experiments_filtered_by_sequence_numbers(
-    httpx_client: httpx.AsyncClient,
-    dataset_with_experiments_without_runs: Any,
-) -> None:
-    dataset_gid = GlobalID("Dataset", "1")
-    response = await httpx_client.get(
-        f"v1/datasets/{dataset_gid}/experiments",
-        params={"sequence_numbers": [1]},
-    )
-    assert response.status_code == 200
-    experiments = response.json()["data"]
-    assert len(experiments) == 1
-    assert experiments[0]["id"] == str(GlobalID("Experiment", "0"))
-    assert experiments[0]["sequence_number"] == 1
 
 
 async def test_deleting_dataset_also_deletes_experiments(

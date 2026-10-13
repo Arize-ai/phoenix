@@ -22,7 +22,7 @@ const ToolSVG = () => (
       stroke="currentColor"
       strokeOpacity="0.9"
     />
-    <mask id="path-2-inside-1_33_16916" fill="currentColor">
+    <mask id="path-2-inside-1_33_16916" fill="white">
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -555,6 +555,50 @@ const GuardrailFilledSVG = () => (
   </svg>
 );
 
+const DecisionSVG = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect
+      x="0.5"
+      y="0.5"
+      width="19"
+      height="19"
+      rx="3.5"
+      stroke="currentColor"
+      strokeOpacity="0.9"
+    />
+    <circle cx="10" cy="10" r="6" stroke="currentColor" strokeOpacity="0.9" />
+    <circle cx="10" cy="10" r="2.25" fill="currentColor" fillOpacity="0.9" />
+  </svg>
+);
+
+const DecisionFilledSVG = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect
+      x="0.5"
+      y="0.5"
+      width="19"
+      height="19"
+      rx="3.5"
+      fill="var(--span-kind-icon-background-color)"
+      stroke="var(--span-kind-icon-border-color)"
+    />
+    <circle cx="10" cy="10" r="6" stroke="currentColor" />
+    <circle cx="10" cy="10" r="2.25" fill="currentColor" />
+  </svg>
+);
+
 const PromptSVG = () => (
   <svg
     width="20"
@@ -654,6 +698,7 @@ const SPAN_KIND_ICONS: Record<
   reranker: { fill: <RerankerFilledSVG />, outline: <RerankerSVG /> },
   evaluator: { fill: <EvaluatorFilledSVG />, outline: <EvaluatorSVG /> },
   guardrail: { fill: <GuardrailFilledSVG />, outline: <GuardrailSVG /> },
+  decision: { fill: <DecisionFilledSVG />, outline: <DecisionSVG /> },
   prompt: { fill: <PromptFilledSVG />, outline: <PromptSVG /> },
 };
 

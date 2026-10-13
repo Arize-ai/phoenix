@@ -55,7 +55,10 @@ describe("generateClassification with an evaluation model", () => {
     expect(result.explanation).toBeUndefined();
     expect(doEvaluate).toHaveBeenCalledTimes(1);
     const call = doEvaluate.mock.calls[0]![0];
-    expect(call.state).toBe("Is 2 + 2 = 5 correct?");
+    // experimental_evaluate normalizes state into content parts before doEvaluate.
+    expect(call.state).toEqual([
+      { type: "text", text: "Is 2 + 2 = 5 correct?" },
+    ]);
     expect(call.questions).toEqual({
       label: {
         type: "choice",
@@ -75,10 +78,15 @@ describe("generateClassification with an evaluation model", () => {
       messages: [{ role: "user", content: "Is the sky blue?" }],
     });
 
-    expect(doEvaluate.mock.calls[0]![0].state).toEqual({
-      system: "You are a strict grader.",
-      messages: [{ role: "user", content: "Is the sky blue?" }],
-    });
+    expect(doEvaluate.mock.calls[0]![0].state).toEqual([
+      {
+        type: "json",
+        value: {
+          system: "You are a strict grader.",
+          messages: [{ role: "user", content: "Is the sky blue?" }],
+        },
+      },
+    ]);
   });
 
   it("keeps instructions in the state instead of dropping them", async () => {
@@ -91,10 +99,15 @@ describe("generateClassification with an evaluation model", () => {
       prompt: "Is the sky blue?",
     });
 
-    expect(doEvaluate.mock.calls[0]![0].state).toEqual({
-      instructions: "You are a strict grader.",
-      prompt: "Is the sky blue?",
-    });
+    expect(doEvaluate.mock.calls[0]![0].state).toEqual([
+      {
+        type: "json",
+        value: {
+          instructions: "You are a strict grader.",
+          prompt: "Is the sky blue?",
+        },
+      },
+    ]);
   });
 
   it("surfaces answers outside the label set as an error", async () => {
@@ -137,12 +150,20 @@ describe("createClassificationEvaluator with an evaluation model", () => {
       },
     });
     expect(doEvaluate).toHaveBeenCalledTimes(1);
-    expect(doEvaluate.mock.calls[0]![0].state).toEqual({
-      prompt: [
-        { role: "system", content: "You judge questions." },
-        { role: "user", content: "is the following question valid: asdf" },
-      ],
-    });
+    expect(doEvaluate.mock.calls[0]![0].state).toEqual([
+      {
+        type: "json",
+        value: {
+          prompt: [
+            { role: "system", content: "You judge questions." },
+            {
+              role: "user",
+              content: "is the following question valid: asdf",
+            },
+          ],
+        },
+      },
+    ]);
   });
 });
 

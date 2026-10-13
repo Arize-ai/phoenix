@@ -173,6 +173,7 @@ export function ExperimentCompareDetails({
                 node {
                   name
                   outputConfigs {
+                    __typename
                     ... on CategoricalAnnotationConfig {
                       name
                       optimizationDirection

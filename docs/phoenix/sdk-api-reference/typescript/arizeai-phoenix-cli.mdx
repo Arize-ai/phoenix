@@ -231,7 +231,7 @@ px setup mcp --agent claude         # Register the Phoenix MCP server with an ag
 
 ### `px setup mcp`
 
-Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/mcp#remote-mcp-server) for what the server exposes.
 
 ```bash
 px setup mcp                        # Pick scope + agent interactively
@@ -465,7 +465,7 @@ px span list --format raw --no-progress | jq               # Pipe to jq
 | `-n, --limit <number>` | Maximum spans to fetch (newest first) | 100 |
 | `--last-n-minutes <number>` | Only fetch spans from the last N minutes | — |
 | `--since <timestamp>` | Fetch spans since ISO timestamp | — |
-| `--span-kind <kinds...>` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | — |
+| `--span-kind <kinds...>` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `DECISION`, `UNKNOWN`) | — |
 | `--status-code <codes...>` | Filter by status code (`OK`, `ERROR`, `UNSET`) | — |
 | `--name <names...>` | Filter by span name(s) | — |
 | `--trace-id <ids...>` | Filter by trace ID(s) | — |
