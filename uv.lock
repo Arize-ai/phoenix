@@ -924,6 +924,7 @@ dev = [
     { name = "boto3" },
     { name = "litellm", marker = "python_full_version < '3.14'" },
     { name = "openai" },
+    { name = "typesafe-sdk" },
 ]
 test = [
     { name = "anthropic" },
@@ -936,6 +937,7 @@ test = [
     { name = "pandas-stubs" },
     { name = "tqdm" },
     { name = "types-tqdm" },
+    { name = "typesafe-sdk" },
     { name = "typing-extensions" },
 ]
 
@@ -963,6 +965,8 @@ requires-dist = [
     { name = "tqdm" },
     { name = "tqdm", marker = "extra == 'test'" },
     { name = "types-tqdm", marker = "extra == 'test'" },
+    { name = "typesafe-sdk", marker = "extra == 'dev'" },
+    { name = "typesafe-sdk", marker = "extra == 'test'" },
     { name = "typing-extensions", specifier = ">=4.5,<5" },
     { name = "typing-extensions", marker = "extra == 'test'", specifier = ">=4.5,<5" },
 ]
@@ -7897,6 +7901,24 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/74/b83cf1d523516bc818ffe6fa7c2f5504e0eeee7c5c394ecc1b404f95fe92/types_webencodings-0.6.0.20260907.tar.gz", hash = "sha256:efa85bc5114419ed45aec227ca5051cca63fa3e2bd13fcf79017ee4107603efc", size = 7748, upload-time = "2026-09-07T06:43:22.142Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/42/e7/dc1ea506e123c437c4551c35498eaade289f52d7f7ddf3f77cf94f0675dc/types_webencodings-0.6.0.20260907-py3-none-any.whl", hash = "sha256:86dc9b5a14665b24d5d7d061149c8c3f50355243df5ef285bf816c2e2cc093d5", size = 8584, upload-time = "2026-09-07T06:43:21.177Z" },
+]
+
+[[package]]
+name = "typesafe-sdk"
+version = "0.7.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx2" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "tenacity" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/94/12/3a897e9f424be6f4db0648a955f8fadbe62149d118a03614df897b5a2ec9/typesafe_sdk-0.7.4.tar.gz", hash = "sha256:a20dca217a746db1ac5534ac502de16e1f86a400b4ec09f8594e6221c2bc9558", size = 24388, upload-time = "2026-10-09T15:47:14.978Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/49/6cd65684e41e25069f4d12c09cd7e1e3f81477f06acb29bf0d1815e27d1e/typesafe_sdk-0.7.4-py3-none-any.whl", hash = "sha256:61cf3f2fe9da20b68c3d3fe2fb76bbb2f35f8c4a9a65a6b81c43a535d2a53210", size = 37700, upload-time = "2026-10-09T15:47:12.418Z" },
 ]
 
 [[package]]

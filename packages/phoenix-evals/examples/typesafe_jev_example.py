@@ -27,8 +27,10 @@ gpt_evaluator = HallucinationEvaluator(llm=gpt)
 
 # The hallucination evaluator reads `input` (everything the assistant had
 # available, treated as the source of truth) and `output` (the response).
-phoenix_context = ("Retrieved document: Arize Phoenix is an open-source"
- "platform for tracing and evaluating AI applications.");
+phoenix_context = (
+    "Retrieved document: Arize Phoenix is an open-source platform for tracing "
+    "and evaluating AI applications."
+)
 eiffel_context = "Retrieved document: The Eiffel Tower was completed in 1889 for the World's Fair."
 
 examples: List[Dict[str, str]] = [
