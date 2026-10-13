@@ -16,7 +16,7 @@ in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answe
 State verifiers can call :func:`write_reward` to record their own reward and include the
 trajectory measurements.
 
-Add ``skills_loaded`` or ``skills_not_loaded`` to ``expected.json`` to also score which
+Add ``skills_expected`` or ``skills_unexpected`` to ``expected.json`` to also score which
 skills the agent loaded. See :func:`harbor_verifiers.skills.skill_scores`.
 """
 

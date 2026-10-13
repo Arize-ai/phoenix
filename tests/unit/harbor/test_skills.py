@@ -88,38 +88,42 @@ def test_loaded_skills_ignores_copied_context() -> None:
     "loaded, expected, scores",
     [
         pytest.param(["a"], {}, {}, id="no-keys-no-scores"),
-        pytest.param(["a", "b"], {"skills_loaded": ["a"]}, {"skill_loaded": 1.0}, id="loaded"),
-        pytest.param([], {"skills_loaded": ["a"]}, {"skill_loaded": 0.0}, id="missed"),
         pytest.param(
-            ["b"], {"skills_not_loaded": ["a"]}, {"skill_not_loaded": 1.0}, id="extras-allowed"
+            ["a", "b"], {"skills_expected": ["a"]}, {"expected_skills_loaded": 1.0}, id="loaded"
+        ),
+        pytest.param([], {"skills_expected": ["a"]}, {"expected_skills_loaded": 0.0}, id="missed"),
+        pytest.param(
+            ["b"], {"skills_unexpected": ["a"]}, {"no_unexpected_skills": 1.0}, id="extras-allowed"
         ),
         pytest.param(
-            ["a", "b"], {"skills_not_loaded": ["a"]}, {"skill_not_loaded": 0.0}, id="forbidden"
+            ["a", "b"], {"skills_unexpected": ["a"]}, {"no_unexpected_skills": 0.0}, id="forbidden"
         ),
-        pytest.param([], {"skills_not_loaded": "any"}, {"skill_not_loaded": 1.0}, id="any-none"),
+        pytest.param(
+            [], {"skills_unexpected": "others"}, {"no_unexpected_skills": 1.0}, id="others-none"
+        ),
         pytest.param(
             ["phoenix-cli", "phoenix-graphql"],
-            {"skills_not_loaded": "any"},
-            {"skill_not_loaded": 1.0},
-            id="any-allows-interface-skills",
+            {"skills_unexpected": "others"},
+            {"no_unexpected_skills": 1.0},
+            id="others-allows-interface-skills",
         ),
         pytest.param(
             ["phoenix-cli", "phoenix-error-analysis"],
-            {"skills_not_loaded": "any"},
-            {"skill_not_loaded": 0.0},
-            id="any-forbids-workflow-skills",
+            {"skills_unexpected": "others"},
+            {"no_unexpected_skills": 0.0},
+            id="others-forbids-workflow-skills",
         ),
         pytest.param(
             ["a"],
-            {"skills_loaded": ["a"], "skills_not_loaded": "any"},
-            {"skill_loaded": 1.0, "skill_not_loaded": 1.0},
-            id="any-allows-the-required-skill",
+            {"skills_expected": ["a"], "skills_unexpected": "others"},
+            {"expected_skills_loaded": 1.0, "no_unexpected_skills": 1.0},
+            id="others-allows-the-required-skill",
         ),
         pytest.param(
             ["a", "b"],
-            {"skills_loaded": ["a"], "skills_not_loaded": "any"},
-            {"skill_loaded": 1.0, "skill_not_loaded": 0.0},
-            id="any-forbids-a-sibling-skill",
+            {"skills_expected": ["a"], "skills_unexpected": "others"},
+            {"expected_skills_loaded": 1.0, "no_unexpected_skills": 0.0},
+            id="others-forbids-a-sibling-skill",
         ),
     ],
 )
@@ -132,7 +136,9 @@ def test_skill_scores(
 def test_verify_writes_skill_scores_and_loaded_skills(tmp_path: Path) -> None:
     trajectory = _trajectory(("load_skill", {"skill_name": "phoenix-error-analysis"}))
     (tmp_path / "trajectory.json").write_text(json.dumps(trajectory))
-    (tmp_path / "expected.json").write_text(json.dumps({"exact": "ok", "skills_not_loaded": "any"}))
+    (tmp_path / "expected.json").write_text(
+        json.dumps({"exact": "ok", "skills_unexpected": "others"})
+    )
     verify.main(
         [
             "--expected",
@@ -145,7 +151,7 @@ def test_verify_writes_skill_scores_and_loaded_skills(tmp_path: Path) -> None:
     )
     scores = json.loads((tmp_path / "reward.json").read_text())
     assert scores["reward"] == 1.0
-    assert scores["skill_not_loaded"] == 0.0
-    assert "skill_loaded" not in scores
+    assert scores["no_unexpected_skills"] == 0.0
+    assert "expected_skills_loaded" not in scores
     details = json.loads((tmp_path / "details.json").read_text())
     assert details == {"loaded_skills": ["phoenix-error-analysis"]}

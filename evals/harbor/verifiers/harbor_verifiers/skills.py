@@ -20,7 +20,7 @@ from harbor_verifiers.verify import agent_steps
 _SKILL_FILE = re.compile(r"([\w.-]+)/SKILL\.md\b")
 
 # Skills that describe how to reach Phoenix. Whether an agent loads one depends on the
-# agent's tools, not on the task, so ``"skills_not_loaded": "any"`` allows them.
+# agent's tools, not on the task, so ``"skills_unexpected": "others"`` allows them.
 INTERFACE_SKILLS = frozenset({"phoenix-cli", "phoenix-graphql", "phoenix-tracing"})
 
 
@@ -61,24 +61,25 @@ def loaded_skills(trajectory: dict[str, Any] | None) -> list[str]:
 def skill_scores(loaded: list[str], expected: dict[str, Any]) -> dict[str, float]:
     """Scores the loaded skills against a task's ``expected.json``.
 
-    ``skills_loaded`` is a list of skills the agent must load. It produces ``skill_loaded``.
+    ``skills_expected`` lists the skills the agent must load. It produces
+    ``expected_skills_loaded``.
 
-    ``skills_not_loaded`` produces ``skill_not_loaded``. It is a list of skills the agent
-    must not load, or ``"any"`` to forbid every skill except those in ``skills_loaded``
-    and :data:`INTERFACE_SKILLS`.
+    ``skills_unexpected`` lists the skills the agent must not load. It produces
+    ``no_unexpected_skills``. Set it to ``"others"`` to treat every skill as unexpected
+    except those in ``skills_expected`` and :data:`INTERFACE_SKILLS`.
 
     Each score is 1.0 on a pass and 0.0 otherwise. A key that ``expected`` omits produces
     no score.
     """
     scores: dict[str, float] = {}
-    required = set(expected.get("skills_loaded", []))
-    if "skills_loaded" in expected:
-        scores["skill_loaded"] = float(required <= set(loaded))
-    if "skills_not_loaded" in expected:
-        forbidden = expected["skills_not_loaded"]
-        if forbidden == "any":
+    required = set(expected.get("skills_expected", []))
+    if "skills_expected" in expected:
+        scores["expected_skills_loaded"] = float(required <= set(loaded))
+    if "skills_unexpected" in expected:
+        unexpected = expected["skills_unexpected"]
+        if unexpected == "others":
             wrong = set(loaded) - required - INTERFACE_SKILLS
         else:
-            wrong = set(loaded) & set(forbidden)
-        scores["skill_not_loaded"] = float(not wrong)
+            wrong = set(loaded) & set(unexpected)
+        scores["no_unexpected_skills"] = float(not wrong)
     return scores
