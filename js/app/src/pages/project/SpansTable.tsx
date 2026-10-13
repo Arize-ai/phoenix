@@ -80,7 +80,10 @@ import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { ModelNameTableCell } from "@phoenix/pages/project/ModelNameTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
-import { isSpanRowSelected } from "@phoenix/utils/traceSelectionUtils";
+import {
+  getTraceSelectionSlots,
+  isSpanRowSelected,
+} from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -118,7 +121,6 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
-import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type SpansTableProps = {
   selectedRowId?: string;
@@ -173,13 +175,15 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const basePath = useResolvedPath(".").pathname;
-  const selectedTraceSlots = useSelectedTraceSlots();
+  // the caller passes the viewed trace, since its route param name varies
+  const selectedTraceSlots = getTraceSelectionSlots({
+    routeTraceId: selectedRowId,
+    searchParams,
+  });
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected =
-          isSpanRowSelected(selectedTraceSlots, row.original) ||
-          row.original.trace.traceId === selectedRowId;
+        const isSelected = isSpanRowSelected(selectedTraceSlots, row.original);
         return (
           <tr
             key={row.id}
