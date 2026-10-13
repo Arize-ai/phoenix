@@ -16,8 +16,8 @@ in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answe
 State verifiers can call :func:`write_reward` to record their own reward and include the
 trajectory measurements.
 
-Add ``"skills_expected": [...]`` or ``"skills_unexpected": [...]`` to ``expected.json`` to
-also write a ``skill_match`` score. See :mod:`harbor_verifiers.skills`.
+Add ``skills_loaded`` or ``skills_not_loaded`` to ``expected.json`` to also score which
+skills the agent loaded. See :func:`harbor_verifiers.skills.skill_scores`.
 """
 
 from __future__ import annotations
@@ -180,11 +180,9 @@ def main(argv: list[str] | None = None) -> None:
     reward, reason = check(reply, expected)
     from harbor_verifiers import skills
 
-    loaded = skills.skills_loaded(read_trajectory(args.trajectory))
-    components: dict[str, Any] = {"skills_loaded": loaded}
-    match = skills.skill_match(loaded, expected)
-    if match is not None:
-        components["skill_match"] = match
+    loaded = skills.loaded_skills(read_trajectory(args.trajectory))
+    components: dict[str, Any] = {"loaded_skills": loaded}
+    components.update(skills.skill_scores(loaded, expected))
     scores = write_reward(
         reward, trajectory_path=args.trajectory, reward_path=args.reward_file, **components
     )
@@ -195,7 +193,7 @@ def main(argv: list[str] | None = None) -> None:
                 "reply_source": source,
                 "expected": expected,
                 "reason": reason,
-                "skills_loaded": loaded,
+                "loaded_skills": loaded,
                 "scores": scores,
             }
         )

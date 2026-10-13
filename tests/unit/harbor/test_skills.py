@@ -62,50 +62,77 @@ def _trajectory(*tool_calls: tuple[str, dict[str, Any]]) -> dict[str, Any]:
         pytest.param(("execute", {"code": "print('skill')"}), [], id="other-tool"),
     ],
 )
-def test_skills_loaded_reads_each_agent_format(
+def test_loaded_skills_reads_each_agent_format(
     tool_call: tuple[str, dict[str, Any]], expected: list[str]
 ) -> None:
-    assert skills.skills_loaded(_trajectory(tool_call)) == expected
+    assert skills.loaded_skills(_trajectory(tool_call)) == expected
 
 
-def test_skills_loaded_keeps_first_load_order_without_duplicates() -> None:
+def test_loaded_skills_keeps_first_load_order_without_duplicates() -> None:
     trajectory = _trajectory(
         ("load_skill", {"skill_name": "b"}),
         ("load_skill", {"skill_name": "a"}),
         ("load_skill", {"skill_name": "b"}),
     )
-    assert skills.skills_loaded(trajectory) == ["b", "a"]
-    assert skills.skills_loaded(None) == []
+    assert skills.loaded_skills(trajectory) == ["b", "a"]
+    assert skills.loaded_skills(None) == []
 
 
-def test_skills_loaded_ignores_copied_context() -> None:
+def test_loaded_skills_ignores_copied_context() -> None:
     trajectory = _trajectory(("load_skill", {"skill_name": "a"}))
     trajectory["steps"][1]["is_copied_context"] = True
-    assert skills.skills_loaded(trajectory) == []
+    assert skills.loaded_skills(trajectory) == []
 
 
 @pytest.mark.parametrize(
-    "loaded, expected, score",
+    "loaded, expected, scores",
     [
-        (["a"], {}, None),
-        (["a", "b"], {"skills_expected": ["a"]}, 1.0),
-        ([], {"skills_expected": ["a"]}, 0.0),
-        ([], {"skills_unexpected": ["a"]}, 1.0),
-        (["b"], {"skills_unexpected": ["a"]}, 1.0),
-        (["a"], {"skills_unexpected": ["a"]}, 0.0),
-        (["a", "b"], {"skills_expected": ["a"], "skills_unexpected": ["b"]}, 0.0),
+        pytest.param(["a"], {}, {}, id="no-keys-no-scores"),
+        pytest.param(["a", "b"], {"skills_loaded": ["a"]}, {"skill_loaded": 1.0}, id="loaded"),
+        pytest.param([], {"skills_loaded": ["a"]}, {"skill_loaded": 0.0}, id="missed"),
+        pytest.param(
+            ["b"], {"skills_not_loaded": ["a"]}, {"skill_not_loaded": 1.0}, id="extras-allowed"
+        ),
+        pytest.param(
+            ["a", "b"], {"skills_not_loaded": ["a"]}, {"skill_not_loaded": 0.0}, id="forbidden"
+        ),
+        pytest.param([], {"skills_not_loaded": "any"}, {"skill_not_loaded": 1.0}, id="any-none"),
+        pytest.param(
+            ["phoenix-cli", "phoenix-graphql"],
+            {"skills_not_loaded": "any"},
+            {"skill_not_loaded": 1.0},
+            id="any-allows-interface-skills",
+        ),
+        pytest.param(
+            ["phoenix-cli", "phoenix-error-analysis"],
+            {"skills_not_loaded": "any"},
+            {"skill_not_loaded": 0.0},
+            id="any-forbids-workflow-skills",
+        ),
+        pytest.param(
+            ["a"],
+            {"skills_loaded": ["a"], "skills_not_loaded": "any"},
+            {"skill_loaded": 1.0, "skill_not_loaded": 1.0},
+            id="any-allows-the-required-skill",
+        ),
+        pytest.param(
+            ["a", "b"],
+            {"skills_loaded": ["a"], "skills_not_loaded": "any"},
+            {"skill_loaded": 1.0, "skill_not_loaded": 0.0},
+            id="any-forbids-a-sibling-skill",
+        ),
     ],
 )
-def test_skill_match(loaded: list[str], expected: dict[str, Any], score: float | None) -> None:
-    assert skills.skill_match(loaded, expected) == score
+def test_skill_scores(
+    loaded: list[str], expected: dict[str, Any], scores: dict[str, float]
+) -> None:
+    assert skills.skill_scores(loaded, expected) == scores
 
 
-def test_verify_writes_skill_match_and_loaded_skills(tmp_path: Path) -> None:
+def test_verify_writes_skill_scores_and_loaded_skills(tmp_path: Path) -> None:
     trajectory = _trajectory(("load_skill", {"skill_name": "phoenix-error-analysis"}))
     (tmp_path / "trajectory.json").write_text(json.dumps(trajectory))
-    (tmp_path / "expected.json").write_text(
-        json.dumps({"exact": "ok", "skills_unexpected": ["phoenix-error-analysis"]})
-    )
+    (tmp_path / "expected.json").write_text(json.dumps({"exact": "ok", "skills_not_loaded": "any"}))
     verify.main(
         [
             "--expected",
@@ -118,6 +145,7 @@ def test_verify_writes_skill_match_and_loaded_skills(tmp_path: Path) -> None:
     )
     scores = json.loads((tmp_path / "reward.json").read_text())
     assert scores["reward"] == 1.0
-    assert scores["skill_match"] == 0.0
+    assert scores["skill_not_loaded"] == 0.0
+    assert "skill_loaded" not in scores
     details = json.loads((tmp_path / "details.json").read_text())
-    assert details == {"skills_loaded": ["phoenix-error-analysis"]}
+    assert details == {"loaded_skills": ["phoenix-error-analysis"]}

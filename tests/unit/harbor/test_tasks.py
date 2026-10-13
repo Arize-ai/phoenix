@@ -57,8 +57,7 @@ def test_expected_answer_is_well_formed(task: Path) -> None:
         "reference",
         "notes",
         "source",
-        "skills_expected",
-        "skills_unexpected",
+        "skills_loaded",
+        "skills_not_loaded",
     }, "unknown keys"
-    for key in ("skills_expected", "skills_unexpected"):
-        assert all(isinstance(name, str) and name for name in spec.get(key, []))
+    assert spec.get("skills_not_loaded") == "any", "a TRAIL question needs no workflow skill"

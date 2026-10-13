@@ -19,6 +19,10 @@ from harbor_verifiers.verify import agent_steps
 
 _SKILL_FILE = re.compile(r"([\w.-]+)/SKILL\.md\b")
 
+# Skills that describe how to reach Phoenix. Whether an agent loads one depends on the
+# agent's tools, not on the task, so ``"skills_not_loaded": "any"`` allows them.
+INTERFACE_SKILLS = frozenset({"phoenix-cli", "phoenix-graphql", "phoenix-tracing"})
+
 
 def _strings(value: Any) -> Iterator[str]:
     if isinstance(value, str):
@@ -44,7 +48,7 @@ def _skills_in_call(tool_call: dict[str, Any]) -> list[str]:
     return [match for text in _strings(arguments) for match in _SKILL_FILE.findall(text)]
 
 
-def skills_loaded(trajectory: dict[str, Any] | None) -> list[str]:
+def loaded_skills(trajectory: dict[str, Any] | None) -> list[str]:
     """Returns the names of the skills the agent loaded, in first-load order."""
     loaded: dict[str, None] = {}
     for step in agent_steps(trajectory):
@@ -54,11 +58,27 @@ def skills_loaded(trajectory: dict[str, Any] | None) -> list[str]:
     return list(loaded)
 
 
-def skill_match(loaded: list[str], expected: dict[str, Any]) -> float | None:
-    """Returns 1.0 if the agent loaded every ``skills_expected`` skill and no
-    ``skills_unexpected`` skill, 0.0 otherwise, and None if ``expected`` names neither."""
-    if "skills_expected" not in expected and "skills_unexpected" not in expected:
-        return None
-    wanted = set(expected.get("skills_expected", []))
-    unwanted = set(expected.get("skills_unexpected", []))
-    return float(wanted <= set(loaded) and unwanted.isdisjoint(loaded))
+def skill_scores(loaded: list[str], expected: dict[str, Any]) -> dict[str, float]:
+    """Scores the loaded skills against a task's ``expected.json``.
+
+    ``skills_loaded`` is a list of skills the agent must load. It produces ``skill_loaded``.
+
+    ``skills_not_loaded`` produces ``skill_not_loaded``. It is a list of skills the agent
+    must not load, or ``"any"`` to forbid every skill except those in ``skills_loaded``
+    and :data:`INTERFACE_SKILLS`.
+
+    Each score is 1.0 on a pass and 0.0 otherwise. A key that ``expected`` omits produces
+    no score.
+    """
+    scores: dict[str, float] = {}
+    required = set(expected.get("skills_loaded", []))
+    if "skills_loaded" in expected:
+        scores["skill_loaded"] = float(required <= set(loaded))
+    if "skills_not_loaded" in expected:
+        forbidden = expected["skills_not_loaded"]
+        if forbidden == "any":
+            wrong = set(loaded) - required - INTERFACE_SKILLS
+        else:
+            wrong = set(loaded) & set(forbidden)
+        scores["skill_not_loaded"] = float(not wrong)
+    return scores
