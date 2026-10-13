@@ -16,11 +16,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import {
-  useNavigate,
-  useResolvedPath,
-  useSearchParams,
-} from "react-router";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   ContextualHelp,
