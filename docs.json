@@ -83,7 +83,6 @@
           },
           {
             "group": "Instrument",
-            "icon": "telescope",
             "pages": [
               "docs/phoenix/tracing/concepts-tracing/what-are-traces",
               {
@@ -118,7 +117,6 @@
           },
           {
             "group": "Observe",
-            "icon": "chart-line",
             "pages": [
               "docs/phoenix/observe/explore-traces",
               {
@@ -1131,7 +1129,6 @@
       },
       {
         "tab": "Concepts",
-        "icon": "lightbulb",
         "groups": [
           {
             "group": "Telemetry",
