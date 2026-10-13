@@ -70,8 +70,8 @@ from phoenix.db import bulk_inserter as bulk_inserter_module
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import aio_postgresql_engine, aio_sqlite_engine
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
@@ -398,7 +398,7 @@ async def run(args: argparse.Namespace) -> str:
         inserter = BulkInserter(
             db,
             event_queue=SimpleQueue[DmlEvent](),
-            span_cost_calculator=SpanCostCalculator(db, GenerativeModelStore(db)),
+            span_cost_calculator=SpanCostCalculator(GenerativeModelStore(db)),
         )
         factory = SpanFactory()
         timer = StampTimer(engine)

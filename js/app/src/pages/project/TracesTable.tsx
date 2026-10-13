@@ -80,6 +80,7 @@ import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceSelectionSlots } from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -112,7 +113,6 @@ import {
 import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
-import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type TracesTableProps = {
   selectedRowId?: string;
@@ -179,14 +179,18 @@ const TableBody = <
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const basePath = useResolvedPath(".").pathname;
-  const selectedTraceSlots = useSelectedTraceSlots();
+  // the caller passes the viewed trace, since its route param name varies
+  const selectedTraceSlots = getTraceSelectionSlots({
+    routeTraceId: selectedRowId,
+    searchParams,
+  });
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
         // every row of a viewed trace is highlighted, whichever span is shown
         const isSelected = selectedTraceSlots.some(
           (slot) => slot.traceId === row.original.trace.traceId
-        ) || row.original.trace.traceId === selectedRowId;
+        );
         return (
           <tr
             key={row.id}
