@@ -52,4 +52,13 @@ def test_expected_answer_is_well_formed(task: Path) -> None:
     kinds = [key for key in ("exact", "reference") if key in spec]
     assert len(kinds) == 1, "expected.json needs exactly one of 'exact' or 'reference'"
     assert isinstance(spec[kinds[0]], str) and spec[kinds[0]].strip()
-    assert set(spec) <= {"exact", "reference", "notes", "source"}, "unknown keys"
+    assert set(spec) <= {
+        "exact",
+        "reference",
+        "notes",
+        "source",
+        "skills_expected",
+        "skills_unexpected",
+    }, "unknown keys"
+    for key in ("skills_expected", "skills_unexpected"):
+        assert all(isinstance(name, str) and name for name in spec.get(key, []))

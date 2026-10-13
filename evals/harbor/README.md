@@ -143,6 +143,18 @@ or an answer to a different question fails. `notes` provides extra guidance to t
 such as "page_down is the same tool." `source` records how the reference value was
 derived.
 
+To score which skills the agent loads, add either of these optional keys:
+
+```json
+{"skills_expected": ["phoenix-error-analysis"], "skills_unexpected": ["phoenix-evals"]}
+```
+
+The verifier then writes a `skill_match` score. The score is `1` if the agent loaded
+every expected skill and no unexpected skill, and `0` otherwise. It does not affect the
+reward. A skill counts as loaded if the agent called Claude Code's `Skill` tool, called
+`load_skill`, or read the skill's `SKILL.md` file. The names of all loaded skills are in
+`details.json` under `skills_loaded`.
+
 The judge uses a `phoenix.evals` classifier with `gpt-5-nano`. Set
 `PHOENIX_EVAL_JUDGE_MODEL` and `PHOENIX_EVAL_JUDGE_PROVIDER` to use another model. Add
 the provider host to the task's `[verifier]` table.
