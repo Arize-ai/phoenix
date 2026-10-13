@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
 
+import { PrettyText } from "@phoenix/components/utility/PrettyText";
+
 const MAX_LENGTH = 100;
 
 /**
@@ -44,4 +46,22 @@ export function PreformattedTextCell<TData extends object, TValue>({
   const value = getValue();
   const str = value != null && typeof value === "string" ? value : "--";
   return <pre css={preformattedTextCellCSS}>{str}</pre>;
+}
+
+/**
+ * JSON-aware text for expanded table rows. Collapsed rows retain the compact
+ * plain-text preview rather than mounting a multiline JSON editor.
+ */
+export function PrettyTextCell<TData extends object, TValue>({
+  isExpanded = true,
+  ...context
+}: CellContext<TData, TValue> & { isExpanded?: boolean }) {
+  if (!isExpanded) {
+    return <PreformattedTextCell {...context} />;
+  }
+  const value = context.getValue();
+  if (typeof value !== "string") {
+    return <span>--</span>;
+  }
+  return <PrettyText variant="compact">{value}</PrettyText>;
 }
