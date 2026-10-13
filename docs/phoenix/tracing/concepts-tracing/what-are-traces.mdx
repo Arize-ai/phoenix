@@ -41,10 +41,6 @@ A trace contains spans, and each span should have a span kind. The span kind tel
 | `PROMPT` | A prompt template rendered with variables |
 | `UNKNOWN` | The fallback when no span kind is set or the value is not recognized |
 
-<Frame caption="A Phoenix trace showing nested spans and span attributes">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/trace-span-attributes-20260924.png" alt="Phoenix trace detail view showing nested spans for retrieval, embedding, reranking, and response generation, with span attributes for the selected embedding span." />
-</Frame>
-
 ### Span Attributes
 
 Span attributes are key-value pairs that describe a span. Common examples include `llm.model_name`, `llm.input_messages`, `input.value`, and `output.value`.
