@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.21.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.2...arize-phoenix-v20.21.3) (2026-10-13)
+
+
+### Documentation
+
+* fix dead Read the Docs links ([#16967](https://github.com/Arize-ai/phoenix/issues/16967)) ([0fed1f4](https://github.com/Arize-ai/phoenix/commit/0fed1f431c65cf24f52ca8153d5ffd63ce04a1b2))
+
 ## [20.21.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.1...arize-phoenix-v20.21.2) (2026-10-13)
 
 
