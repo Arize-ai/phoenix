@@ -176,7 +176,6 @@ Then update:
 
 1. **`docs.json`**: add the page to the Client-Side Evals (SDK) > Pre-Built Metrics group.
 2. **`docs/phoenix/evaluation/pre-built-metrics.mdx`**: add a card to the landing page grid.
-3. **`docs/phoenix/sitemap.xml`**: add the URL.
 
 ### 8b. Server-side page (promoted evaluators only)
 
@@ -188,9 +187,10 @@ Then update:
 
 1. **`docs.json`**: add the page to the Server-Side Evals (UI) > Pre-Built Metrics > LLM Evaluators group.
 2. **`docs/phoenix/evaluation/server-evals/pre-built-metrics.mdx`**: add a card under "LLM Evaluators".
-3. **`docs/phoenix/sitemap.xml`**: add the URL.
 
 Read each file to see the existing pattern before editing.
+
+Don't edit `sitemap.xml`. It is regenerated from `docs.json` after merge to `main`.
 
 ## Checklist
 
@@ -208,8 +208,8 @@ Before calling it done, verify:
 - [ ] Benchmark with 30-50 examples, category breakdown, failed examples printer
 - [ ] Benchmark accuracy >80%
 - [ ] Promotion decided; `promoted_dataset_evaluator` label (and any `substitutions`) set only if promoted
-- [ ] Client-side docs page, `docs.json` (Client-Side Evals group), landing card, sitemap
-- [ ] If promoted: server-side docs page, `docs.json` (Server-Side Evals > LLM Evaluators), server landing card, sitemap, and cross-links between the two pages
+- [ ] Client-side docs page, `docs.json` (Client-Side Evals group), and landing card
+- [ ] If promoted: server-side docs page, `docs.json` (Server-Side Evals > LLM Evaluators), server landing card and cross-links between the two pages
 - [ ] If promoted: added from the dataset Evaluators tab in a running Phoenix and run on an experiment
 
 ## Retrospection
