@@ -159,7 +159,7 @@ Set `skills_unexpected` to `"any_other"` for a task that needs no workflow skill
 treats every skill as unexpected except the ones in `skills_expected` and the interface skills in
 `harbor_verifiers.skills.INTERFACE_SKILLS`, such as `phoenix-cli`. Every TRAIL task uses
 it, so a new skill is checked without a change to the tasks. If you add a skill that
-describes how to reach Phoenix, add its name to `INTERFACE_SKILLS`.
+describes how to read and write Phoenix data, add its name to `INTERFACE_SKILLS`.
 
 Neither score affects the reward. A skill counts as loaded if the agent called Claude
 Code's `Skill` tool, called `load_skill`, or read the skill's `SKILL.md` file. The names

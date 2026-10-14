@@ -19,9 +19,10 @@ from harbor_verifiers.verify import agent_steps
 
 _SKILL_FILE = re.compile(r"([\w.-]+)/SKILL\.md\b")
 
-# Skills that describe how to reach Phoenix. Whether an agent loads one depends on the
-# agent's tools, not on the task, so ``"skills_unexpected": "any_other"`` allows them.
-INTERFACE_SKILLS = frozenset({"phoenix-cli", "phoenix-graphql", "phoenix-tracing"})
+# Skills that describe how to read and write Phoenix data. Whether an agent loads one
+# depends on the agent's tools, not on the task, so ``"skills_unexpected": "any_other"``
+# allows them.
+INTERFACE_SKILLS = frozenset({"phoenix-cli", "phoenix-graphql"})
 
 
 def _strings(value: Any) -> Iterator[str]:
