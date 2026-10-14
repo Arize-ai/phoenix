@@ -16,11 +16,11 @@ GitHub
 <ReleaseUpdate label="10.13.2026" href="/docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools" title="Docker Sandboxes and MCP GraphQL Tools">
 **Available in arize-phoenix 20.20.0–20.21.3, arize-phoenix-evals 3.9.1+, and @arizeai/phoenix-client 7.16.1+**
 
-Use Docker's hosted sandboxes for code evaluators, try Claude Haiku 5.5 in the playground, and let MCP clients query Phoenix through GraphQL.
+Run Python and TypeScript code evaluators in Docker's hosted sandbox environment, test Claude Haiku 5.5 in the playground, and let MCP clients inspect Phoenix data through GraphQL.
 
-- **Docker Sandboxes** for Python and TypeScript code evaluators, with optional outbound network blocking
-- **Claude Haiku 5.5** in the playground, plus automatic cost tracking for Mistral AI calls
-- **MCP GraphQL tools**: `describeGraphqlSchema`, `executeGraphqlQuery`, and `executeGraphqlMutation`
+- **Docker Sandboxes** run code evaluators in Docker's hosted sandbox environment, with optional outbound network blocking
+- **Claude Haiku 5.5 and Mistral pricing** keep the playground and trace cost view current
+- **MCP GraphQL tools** let agents inspect the schema, run read-only queries, and run permitted mutations on write-enabled deployments
 - **Analytics SQL** over evaluators, prompts, trace annotations, experiment jobs, and more tables
 - **Evaluator fixes**: metadata stays attached, and stale input mappings no longer fail runs
 </ReleaseUpdate>
