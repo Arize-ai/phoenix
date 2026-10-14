@@ -96,7 +96,7 @@
                 ]
               },
               {
-                "group": "User feedback",
+                "group": "Annotations",
                 "pages": [
                   "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback",
                   "docs/phoenix/tracing/how-to-tracing/feedback-and-annotations"
