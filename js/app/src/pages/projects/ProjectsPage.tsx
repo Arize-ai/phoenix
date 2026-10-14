@@ -603,19 +603,19 @@ function ProjectMetricsLoadingSkeleton() {
         <Text elementType="h3" size="S" color="text-700">
           Traces
         </Text>
-        <Skeleton width={60} height={20} animation="wave" />
+        <Skeleton width={60} height={20} />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Sessions
         </Text>
-        <Skeleton width={60} height={20} animation="wave" />
+        <Skeleton width={60} height={20} />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Latency P50
         </Text>
-        <Skeleton width={60} height={20} animation="wave" />
+        <Skeleton width={60} height={20} />
       </Flex>
     </Flex>
   );

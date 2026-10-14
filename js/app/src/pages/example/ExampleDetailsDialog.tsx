@@ -116,13 +116,13 @@ function ExampleDetailsDialogSkeleton() {
             <View width="900px" padding="size-200">
               <Flex direction="column" gap="size-200">
                 <Card title="Input" {...defaultCardProps}>
-                  <Skeleton height={100} animation="wave" />
+                  <Skeleton height={100} />
                 </Card>
                 <Card title="Output" {...defaultCardProps}>
-                  <Skeleton height={100} animation="wave" />
+                  <Skeleton height={100} />
                 </Card>
                 <Card title="Metadata" {...defaultCardProps}>
-                  <Skeleton height={60} animation="wave" />
+                  <Skeleton height={60} />
                 </Card>
               </Flex>
             </View>
@@ -145,9 +145,9 @@ function ExampleDetailsDialogSkeleton() {
           </View>
           <View padding="size-200" flex="1 1 auto">
             <Flex direction="column" gap="size-100">
-              <Skeleton height={40} animation="wave" />
-              <Skeleton height={40} animation="wave" />
-              <Skeleton height={40} animation="wave" />
+              <Skeleton height={40} />
+              <Skeleton height={40} />
+              <Skeleton height={40} />
             </Flex>
           </View>
         </Flex>
@@ -400,7 +400,7 @@ function ExampleDetailsHeaderSkeleton({ exampleId }: { exampleId: string }) {
           <TitleWithID title="Example" id={exampleId} />
         </Flex>
         <DialogTitleExtra>
-          <Skeleton width={60} height={24} animation="wave" />
+          <Skeleton width={60} height={24} />
         </DialogTitleExtra>
       </DialogHeader>
       <ExampleDetailsDialogSkeleton />

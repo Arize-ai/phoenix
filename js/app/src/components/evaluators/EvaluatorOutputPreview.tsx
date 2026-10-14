@@ -305,8 +305,8 @@ export const EvaluatorOutputPreview = () => {
               <Card title="Evaluator Annotation Preview">
                 <View padding="size-100">
                   <Flex direction="column" gap="size-100">
-                    <Skeleton height={144} borderRadius={8} animation="wave" />
-                    <Skeleton height={44} width="80%" animation="wave" />
+                    <Skeleton height={144} borderRadius="medium" />
+                    <Skeleton height={44} width="80%" />
                   </Flex>
                 </View>
               </Card>

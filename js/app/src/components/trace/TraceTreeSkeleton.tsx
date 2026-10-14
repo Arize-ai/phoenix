@@ -146,36 +146,23 @@ function SpanNodeRowSkeleton({
       {nestingLevel > 0 ? <SpanTreeEdge /> : null}
       {hasChildren ? <SpanTreeDrop /> : null}
       <div css={spanNodeIconCSS}>
-        <Skeleton width={20} height={20} borderRadius="S" animation="wave" />
+        <Skeleton width={20} height={20} />
       </div>
       <div css={spanNodeContentCSS}>
         <div css={headingLineCSS}>
-          <Skeleton
-            width={nameWidth}
-            height={14}
-            borderRadius="S"
-            animation="wave"
-          />
+          <Skeleton width={nameWidth} height={14} />
         </div>
         {showMetricsInTraceTree ? (
-          <Skeleton
-            width={72}
-            height={10}
-            borderRadius="S"
-            animation="wave"
-            className="span-metrics"
-          />
+          <Skeleton width={72} height={10} className="span-metrics" />
         ) : null}
       </div>
       {showMetricsInTraceTree ? (
         <div css={spanTimingCSS} className="span-tree-timing">
-          <Skeleton width="100%" height={6} borderRadius={3} animation="wave" />
+          <Skeleton width="100%" height={6} />
         </div>
       ) : null}
       <div css={spanControlsCSS} className="span-controls">
-        {hasChildren ? (
-          <Skeleton width={20} height={20} borderRadius="S" animation="wave" />
-        ) : null}
+        {hasChildren ? <Skeleton width={20} height={20} /> : null}
       </div>
     </div>
   );

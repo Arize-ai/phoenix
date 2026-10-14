@@ -3,10 +3,7 @@ import type { HTMLAttributes, Ref } from "react";
 
 import { classNames } from "@phoenix/utils/classNames";
 
-import type { BorderRadiusToken } from "../types/sizing";
-
-// Export the AnimationType so it can be used in stories
-export type AnimationType = "pulse" | "wave" | false;
+import type { BorderRadiusValue } from "../types/style";
 
 export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
   /**
@@ -18,35 +15,15 @@ export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
    */
   height?: number | string;
   /**
-   * Border radius of the skeleton
-   * - number (converted to px)
-   * - string (used as-is)
-   * - design token ('none' | 'S' | 'M' | 'L' | 'circle')
-   * @default 'M'
+   * Border radius of the skeleton, from the global rounding scale
+   * @default 'small'
    */
-  borderRadius?: number | string | BorderRadiusToken;
-  /**
-   * The animation effect. If false, no animation is applied.
-   * @default 'pulse'
-   */
-  animation?: AnimationType;
+  borderRadius?: BorderRadiusValue;
   /**
    * Optional className for custom styling
    */
   className?: string;
 }
-
-const pulseKeyframes = keyframes`
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-  }
-`;
 
 const waveKeyframes = keyframes`
   0% {
@@ -72,16 +49,6 @@ export const skeletonFillCSS = css`
 const skeletonStyles = css`
   display: block;
   ${skeletonFillCSS}
-`;
-
-/**
- * Exported so skeleton-style placeholders elsewhere pulse in unison.
- */
-export const pulseAnimation = css`
-  animation: ${pulseKeyframes} 2s ease-in-out 0.5s infinite;
-`;
-
-const waveAnimation = css`
   position: relative;
   overflow: hidden;
   /* Fix bug in Safari https://bugs.webkit.org/show_bug.cgi?id=68196 */
@@ -104,51 +71,28 @@ const waveAnimation = css`
     right: 0;
     top: 0;
   }
-`;
 
-const getBorderRadius = (radius: SkeletonProps["borderRadius"]) => {
-  if (typeof radius === "number") {
-    return `${radius}px`;
-  }
-
-  if (typeof radius === "string") {
-    switch (radius) {
-      case "none":
-        return "0";
-      case "XS":
-        return "var(--global-rounding-xsmall)";
-      case "S":
-        return "var(--global-rounding-small)";
-      case "M":
-        return "var(--global-rounding-medium)";
-      case "L":
-        return "var(--global-rounding-large)";
-      case "circle":
-        return "50%";
-      default:
-        return radius;
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      animation: none;
     }
   }
-
-  return "var(--global-rounding-medium)";
-};
+`;
 
 /**
  * A skeleton loading component that shows a placeholder while content is loading.
- * Supports different animations, sizes, and border radius options.
+ * A wave sweeps across it unless the user prefers reduced motion.
  */
 export function Skeleton({
   ref,
   width = "100%",
   height = "1.2em",
-  borderRadius = "S",
-  animation = "pulse",
+  borderRadius = "small",
   className,
   ...restProps
 }: SkeletonProps & { ref?: Ref<HTMLSpanElement> }) {
   const finalWidth = typeof width === "number" ? `${width}px` : width;
   const finalHeight = typeof height === "number" ? `${height}px` : height;
-  const finalRadius = getBorderRadius(borderRadius);
 
   return (
     <span
@@ -156,12 +100,10 @@ export function Skeleton({
       className={classNames(className, "skeleton")}
       css={[
         skeletonStyles,
-        animation === "pulse" && pulseAnimation,
-        animation === "wave" && waveAnimation,
         css`
           width: ${finalWidth};
           height: ${finalHeight};
-          border-radius: ${finalRadius};
+          border-radius: var(--global-rounding-${borderRadius});
         `,
       ]}
       {...restProps}

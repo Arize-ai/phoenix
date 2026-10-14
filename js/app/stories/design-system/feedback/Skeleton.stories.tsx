@@ -9,10 +9,9 @@ import {
   TextSkeleton,
 } from "@phoenix/components";
 import type {
-  AnimationType,
-  SkeletonProps,
-} from "@phoenix/components/core/loading/Skeleton";
-import type { TextSize } from "@phoenix/components/core/types";
+  BorderRadiusValue,
+  TextSize,
+} from "@phoenix/components/core/types";
 
 import { OptionGrid } from "../../utils/OptionGrid";
 
@@ -21,7 +20,13 @@ import { OptionGrid } from "../../utils/OptionGrid";
  * does not move when the content arrives. Reach for a prebuilt shape before
  * sizing a `Skeleton` by hand: `TextSkeleton` for one line of text,
  * `ParagraphSkeleton` for several, and `ContentSkeleton` for the body of a
- * card.
+ * card. A wave sweeps across every skeleton, and stops when the user prefers
+ * reduced motion.
+ *
+ * A line of text is one continuous bar, never a row of word-sized pieces. Put
+ * several skeletons on one line only when that line holds separate
+ * components, such as three metrics, and space them with the layout the
+ * loaded components sit in.
  */
 const meta: Meta = {
   title: "Design System/Feedback/Skeleton",
@@ -36,24 +41,9 @@ const meta: Meta = {
 
 export default meta;
 
-const RADII: {
-  label: string;
-  code: true;
-  value: SkeletonProps["borderRadius"];
-}[] = [
-  { label: "none", code: true, value: "none" },
-  { label: "XS", code: true, value: "XS" },
-  { label: "S", code: true, value: "S" },
-  { label: "M", code: true, value: "M" },
-  { label: "L", code: true, value: "L" },
-  { label: "circle", code: true, value: "circle" },
-];
-
-const ANIMATIONS: { label: string; code: true; value: AnimationType }[] = [
-  { label: "pulse", code: true, value: "pulse" },
-  { label: "wave", code: true, value: "wave" },
-  { label: "false", code: true, value: false },
-];
+const RADII: { label: BorderRadiusValue; code: true }[] = (
+  ["xsmall", "small", "medium", "large", "full"] as const
+).map((radius) => ({ label: radius, code: true }));
 
 const TEXT_SIZES: { label: TextSize; code: true }[] = (
   ["XS", "S", "M", "L", "XL", "XXL"] as const
@@ -75,13 +65,7 @@ const TEXT = "Latency";
 const LINES: { label: string; code: true; lines: number }[] = [
   { label: "1", code: true, lines: 1 },
   { label: "3", code: true, lines: 3 },
-  { label: "5", code: true, lines: 5 },
-];
-
-const GAPS: { label: string; code: true; gap: number }[] = [
-  { label: "4", code: true, gap: 4 },
-  { label: "8", code: true, gap: 8 },
-  { label: "16", code: true, gap: 16 },
+  { label: "4", code: true, lines: 4 },
 ];
 
 export const Default: StoryFn = () => <Skeleton width={200} height={20} />;
@@ -92,23 +76,12 @@ export const Radii: StoryFn = () => (
     columns={RADII}
     justifyCells="center"
     renderCell={(_row, radius) => (
-      <Skeleton width={48} height={48} borderRadius={radius?.value} />
+      <Skeleton width={48} height={48} borderRadius={radius?.label} />
     )}
   />
 );
 Radii.tags = ["!dev"];
 Radii.parameters = { themeLayout: "column" };
-
-export const Animations: StoryFn = () => (
-  <OptionGrid
-    rows={ANIMATIONS}
-    renderCell={(animation) => (
-      <Skeleton width={200} height={20} animation={animation.value} />
-    )}
-  />
-);
-Animations.tags = ["!dev"];
-Animations.parameters = { themeLayout: "row" };
 
 /**
  * `TextSkeleton` takes the line height of the text size it stands in for, and
@@ -139,20 +112,17 @@ TextSkeletonSizes.storyName = "Text Skeleton: Sizes";
 TextSkeletonSizes.tags = ["!dev"];
 TextSkeletonSizes.parameters = { themeLayout: "column" };
 
-export const ParagraphSkeletonLinesAndGaps: StoryFn = () => (
+export const ParagraphSkeletonLineCount: StoryFn = () => (
   <OptionGrid
     rows={LINES}
-    columns={GAPS}
     cellWidth="200px"
     alignRows="start"
-    renderCell={(lines, gap) => (
-      <ParagraphSkeleton lines={lines.lines} gap={gap?.gap} />
-    )}
+    renderCell={(lines) => <ParagraphSkeleton lines={lines.lines} />}
   />
 );
-ParagraphSkeletonLinesAndGaps.storyName = "Paragraph Skeleton: Lines and Gaps";
-ParagraphSkeletonLinesAndGaps.tags = ["!dev"];
-ParagraphSkeletonLinesAndGaps.parameters = { themeLayout: "column" };
+ParagraphSkeletonLineCount.storyName = "Paragraph Skeleton: Line Count";
+ParagraphSkeletonLineCount.tags = ["!dev"];
+ParagraphSkeletonLineCount.parameters = { themeLayout: "row" };
 
 export const ContentSkeletonDefault: StoryFn = () => (
   <Flex width="300px">
@@ -166,7 +136,7 @@ ContentSkeletonDefault.parameters = { themeLayout: "row" };
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryFn = () => (
   <Flex direction="column" gap="size-100" width="240px">
-    <Skeleton height={80} borderRadius={8} />
+    <Skeleton height={80} borderRadius="medium" />
     <Skeleton height={20} width="80%" />
     <Skeleton height={14} width="60%" />
   </Flex>

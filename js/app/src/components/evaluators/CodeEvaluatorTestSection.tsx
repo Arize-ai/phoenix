@@ -317,8 +317,8 @@ export const CodeEvaluatorTestSection = ({
             <Card title="Evaluator Result">
               <View padding="size-100">
                 <Flex direction="column" gap="size-100">
-                  <Skeleton height={100} borderRadius={8} animation="wave" />
-                  <Skeleton height={32} width="60%" animation="wave" />
+                  <Skeleton height={100} borderRadius="medium" />
+                  <Skeleton height={32} width="60%" />
                 </Flex>
               </View>
             </Card>

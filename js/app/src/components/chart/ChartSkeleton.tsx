@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import type { HTMLAttributes, Ref } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { pulseAnimation } from "@phoenix/components/core/loading";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { ChartResponsiveContainer } from "./ChartResponsiveContainer";
@@ -140,9 +139,6 @@ const chartSkeletonCSS = css`
   width: 100%;
   height: 100%;
   min-width: 0;
-  /* Pulse only the painted shapes (bars, ticks, grid); the panel chrome
-     around the skeleton stays steady */
-  ${pulseAnimation}
   /* Quiet only the placeholder shapes; the grid keeps a loaded chart's
      contrast */
   .recharts-bar-rectangles,
