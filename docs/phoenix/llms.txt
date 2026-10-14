@@ -178,6 +178,7 @@
 ### Experiments
 
 - [Run Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments): Run task functions against datasets with evaluators
+- [Evaluate a Prompt Change in Code](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change): Compare a baseline and edited prompt in an SDK experiment scored by a deterministic code evaluator
 - [Using Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators): Configure code and LLM evaluators for experiments
 - [Dataset Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators): Attach evaluators to datasets for automatic scoring
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
@@ -854,6 +855,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [09.08.2026: New Model Providers, Trace Filters, and PXI Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi): Run Z.ai, MiniMax, and Meta models in the Playground and PXI; filter traces by error status and latency
 - [09.14.2026: Coding Agent Plugins and Error Analysis](https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis): Install Phoenix as a Claude Code, Cursor, or Codex plugin; run error analysis over MCP; score completeness
 - [09.29.2026: Editable Dataset Examples, Trace Metrics, and Custom Skills](https://arize.com/docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics): Edit dataset examples in the table, see latency and cost per trace row, and mount custom skills into MCP and PXI
+- [10.01.2026: Trace Tree Evals and Decision Spans](https://arize.com/docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans): Scan eval badges in the trace tree, trace decision-model calls as DECISION spans; Python 3.11+ now required
 
 ### 2025
 
