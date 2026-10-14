@@ -169,3 +169,9 @@ jobs:
             --label "documentation"
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "$AUDIT_BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $AUDIT_BRANCH"
+      - name: Approve pull request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ steps.branch.outputs.branch }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}
