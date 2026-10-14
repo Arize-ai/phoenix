@@ -170,7 +170,8 @@ providers and hosted sandboxes, are unaffected. Defaults to True.
 ENV_PHOENIX_MODEL_COST_MANIFEST_URL = "PHOENIX_MODEL_COST_MANIFEST_URL"
 """
 URL of the model cost manifest that Phoenix fetches to keep built-in model prices current
-without an upgrade. Defaults to the manifest on Phoenix's GitHub main branch. Accepts http(s)
+without an upgrade. Defaults to the manifest for this version's schema on Phoenix's GitHub
+main branch. Accepts http(s)
 and file:// URLs, so it can point at an internal mirror. Because the operator configures it,
 an explicit URL is fetched even when PHOENIX_ALLOW_EXTERNAL_RESOURCES is False.
 """
@@ -3887,12 +3888,6 @@ def get_env_allow_external_resources() -> bool:
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
 
 
-DEFAULT_MODEL_COST_MANIFEST_URL = (
-    "https://raw.githubusercontent.com/Arize-ai/phoenix/main/"
-    "src/phoenix/server/cost_tracking/model_cost_manifest.json"
-)
-
-
 def get_env_model_cost_manifest_url() -> Optional[str]:
     """
     The URL to fetch the model cost manifest from, or None if it shouldn't be fetched.
@@ -3915,7 +3910,9 @@ def get_env_model_cost_manifest_url() -> Optional[str]:
         return url
     if not get_env_allow_external_resources():
         return None
-    return DEFAULT_MODEL_COST_MANIFEST_URL
+    from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
+
+    return DEFAULT_MANIFEST_URL
 
 
 def get_env_postgres_use_aws_iam_auth() -> bool:

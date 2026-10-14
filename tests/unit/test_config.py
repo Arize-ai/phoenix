@@ -10,7 +10,6 @@ from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
 from phoenix.config import (
-    DEFAULT_MODEL_COST_MANIFEST_URL,
     AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
@@ -27,6 +26,7 @@ from phoenix.config import (
     get_env_tls_enabled_for_http,
 )
 from phoenix.db.models import UserRoleName
+from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
 
 
 class TestPostgresConnectionString:
@@ -2678,7 +2678,7 @@ class TestGetEnvModelCostManifestUrl:
             monkeypatch.delenv(env_var, raising=False)
 
     def test_defaults_to_github(self) -> None:
-        assert get_env_model_cost_manifest_url() == DEFAULT_MODEL_COST_MANIFEST_URL
+        assert get_env_model_cost_manifest_url() == DEFAULT_MANIFEST_URL
 
     def test_default_is_not_fetched_without_external_resources(
         self, monkeypatch: MonkeyPatch
@@ -2711,7 +2711,7 @@ class TestGetEnvModelCostManifestUrl:
 
     def test_blank_override_uses_the_default(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_MODEL_COST_MANIFEST_URL", "  ")
-        assert get_env_model_cost_manifest_url() == DEFAULT_MODEL_COST_MANIFEST_URL
+        assert get_env_model_cost_manifest_url() == DEFAULT_MANIFEST_URL
 
     @pytest.mark.parametrize(
         "url", ["ftp://mirror.internal/manifest.json", "/srv/manifest.json", "https://"]
