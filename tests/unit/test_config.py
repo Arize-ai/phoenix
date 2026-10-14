@@ -10,12 +10,14 @@ from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
 from phoenix.config import (
+    DEFAULT_MODEL_COST_MANIFEST_URL,
     AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
     get_env_database_schema,
+    get_env_model_cost_manifest_url,
     get_env_phoenix_admin_secret,
     get_env_postgres_azure_scope,
     get_env_postgres_connection_str,
@@ -2663,3 +2665,58 @@ class TestClientAssertionJWTFromEnv:
         )
         config = OAuth2ClientConfig.from_env("google")
         assert config.client_assertion_file is None
+
+
+class TestGetEnvModelCostManifestUrl:
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch: MonkeyPatch) -> None:
+        for env_var in (
+            "PHOENIX_MODEL_COST_MANIFEST_URL",
+            "PHOENIX_DISABLE_MODEL_COST_FETCH",
+            "PHOENIX_ALLOW_EXTERNAL_RESOURCES",
+        ):
+            monkeypatch.delenv(env_var, raising=False)
+
+    def test_defaults_to_github(self) -> None:
+        assert get_env_model_cost_manifest_url() == DEFAULT_MODEL_COST_MANIFEST_URL
+
+    def test_default_is_not_fetched_without_external_resources(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+        assert get_env_model_cost_manifest_url() is None
+
+    @pytest.mark.parametrize("allow_external_resources", ["true", "false"])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://mirror.internal/model_cost_manifest.json",
+            "http://localhost:8000/model_cost_manifest.json",
+            "file:///srv/phoenix/model_cost_manifest.json",
+        ],
+    )
+    def test_override_is_fetched_even_without_external_resources(
+        self, monkeypatch: MonkeyPatch, url: str, allow_external_resources: str
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", allow_external_resources)
+        monkeypatch.setenv("PHOENIX_MODEL_COST_MANIFEST_URL", f" {url} ")
+        assert get_env_model_cost_manifest_url() == url
+
+    @pytest.mark.parametrize("url", [None, "https://mirror.internal/manifest.json"])
+    def test_disable_wins(self, monkeypatch: MonkeyPatch, url: Optional[str]) -> None:
+        monkeypatch.setenv("PHOENIX_DISABLE_MODEL_COST_FETCH", "true")
+        if url:
+            monkeypatch.setenv("PHOENIX_MODEL_COST_MANIFEST_URL", url)
+        assert get_env_model_cost_manifest_url() is None
+
+    def test_blank_override_uses_the_default(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_MODEL_COST_MANIFEST_URL", "  ")
+        assert get_env_model_cost_manifest_url() == DEFAULT_MODEL_COST_MANIFEST_URL
+
+    @pytest.mark.parametrize(
+        "url", ["ftp://mirror.internal/manifest.json", "/srv/manifest.json", "https://"]
+    )
+    def test_invalid_override_raises(self, monkeypatch: MonkeyPatch, url: str) -> None:
+        monkeypatch.setenv("PHOENIX_MODEL_COST_MANIFEST_URL", url)
+        with pytest.raises(ValueError, match="PHOENIX_MODEL_COST_MANIFEST_URL"):
+            get_env_model_cost_manifest_url()
