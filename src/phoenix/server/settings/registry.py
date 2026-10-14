@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Mapping
+from typing import Literal, Mapping, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from phoenix.db.models import SystemSettingKey
 
@@ -60,12 +60,34 @@ class AgentSessionRetentionSetting(BaseModel):
     max_count_per_user: int = Field(default=DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER, ge=0)
 
 
+ManifestSource = Literal["bundled", "remote"]
+
+
+class ModelCostManifestVersionSetting(BaseModel):
+    """Which model cost manifest the built-in models and token prices were last synced from.
+
+    Written by the server, not by admins: the bundled manifest is applied at boot and a
+    fetched one at runtime, each only if it is newer than the one recorded here.
+    """
+
+    # Unknown fields are ignored so that replicas running an older Phoenix can still read a
+    # marker written by a newer one.
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    schema_version: int
+    generated_at: AwareDatetime
+    source: ManifestSource
+    url: Optional[str] = None
+    applied_at: AwareDatetime
+
+
 SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType(
     {
         "agent.assistant.trace_recording": AgentTraceRecordingSetting,
         "agent.assistant.enabled": AgentAssistantEnabledSetting,
         "agent.assistant.session_retention": AgentSessionRetentionSetting,
         "agent.assistant.github": AgentGitHubSetting,
+        "cost_tracking.model_cost_manifest": ModelCostManifestVersionSetting,
     }
 )
 

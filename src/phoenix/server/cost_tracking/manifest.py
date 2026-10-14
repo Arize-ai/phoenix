@@ -78,6 +78,9 @@ class ModelCostManifest(_ManifestBaseModel):
     schema_version: int
     generated_at: Annotated[AwareDatetime, AfterValidator(_to_utc)]
     models: list[ManifestModel]
+    # Names of entries that were skipped as invalid and have no valid entry. Their models
+    # are not gone upstream, so applying the manifest leaves them as they are.
+    skipped_model_names: frozenset[str] = Field(default_factory=frozenset, exclude=True)
 
 
 def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
@@ -87,7 +90,8 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
     Raises:
         ManifestError: If the manifest is not valid JSON, has a missing or unsupported
             ``schema_version``, or a missing or invalid ``generated_at``. Invalid model
-            entries are logged and skipped instead.
+            entries are logged and skipped instead, and their names are recorded in
+            ``skipped_model_names``.
     """
     try:
         raw = json.loads(data)
@@ -121,14 +125,22 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
         raise ManifestError(f"Invalid model cost manifest: {_summarize(error)}") from error
 
     models: list[ManifestModel] = []
+    skipped_names: set[str] = set()
     for index, model_data in enumerate(raw_models):
         try:
             models.append(ManifestModel.model_validate(model_data))
         except ValidationError as error:
             name = model_data.get("name") if isinstance(model_data, dict) else None
-            label = f"'{name}'" if isinstance(name, str) and name.strip() else f"at index {index}"
+            if isinstance(name, str) and name.strip():
+                label = f"'{name}'"
+                skipped_names.add(name.strip())
+            else:
+                label = f"at index {index}"
             logger.warning(f"Skipping model {label} in model cost manifest: {_summarize(error)}")
-    return manifest.model_copy(update={"models": models})
+    skipped_names -= {model.name for model in models}
+    return manifest.model_copy(
+        update={"models": models, "skipped_model_names": frozenset(skipped_names)}
+    )
 
 
 def _summarize(error: ValidationError) -> str:

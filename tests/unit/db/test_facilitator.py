@@ -1,3 +1,7 @@
+import asyncio
+import json
+import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from secrets import token_bytes, token_hex
 from typing import Any
@@ -20,6 +24,7 @@ from phoenix.db.facilitator import (
     _ensure_model_costs,
     _ensure_oauth2_clients,
 )
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.token_price_customization import (
     ThresholdBasedTokenPriceCustomization,
 )
@@ -28,6 +33,17 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.cost_tracking.apply_manifest import (
+    MANIFEST_VERSION_SETTING_KEY,
+    apply_manifest_if_newer,
+    get_applied_manifest_version,
+)
+from phoenix.server.cost_tracking.manifest import (
+    SUPPORTED_SCHEMA_VERSION,
+    ModelCostManifest,
+    parse_manifest,
+)
+from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.types import DbSessionFactory
 
 # These tests exercise seeding from an empty database, so they opt out of the
@@ -307,6 +323,29 @@ class TestEnsureDefaultProjectTraceRetentionPolicy:
         assert policy.id == 1
 
 
+def _manifest_date(day: int) -> datetime:
+    return datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(days=day)
+
+
+def _write_manifest(
+    path: Path,
+    models: list[dict[str, Any]],
+    *,
+    generated_at: datetime,
+    schema_version: int = SUPPORTED_SCHEMA_VERSION,
+) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": schema_version,
+                "generated_at": generated_at.isoformat(),
+                "models": models,
+            },
+            indent=2,
+        )
+    )
+
+
 class TestEnsureModelCosts:
     @pytest.fixture
     def _patch_manifest(
@@ -315,10 +354,8 @@ class TestEnsureModelCosts:
         monkeypatch: MonkeyPatch,
     ) -> Path:
         """Create empty manifest file and patch the global variable."""
-        import json
-
         manifest_file = tmp_path / "test_model_cost_manifest.json"
-        manifest_file.write_text(json.dumps({"models": []}))
+        self._update_manifest(manifest_file, [])
 
         # Monkey patch the global variable to point to our test file
         from phoenix.db import facilitator
@@ -356,10 +393,9 @@ class TestEnsureModelCosts:
             return {model.name for model in deleted_models}
 
     def _update_manifest(self, manifest_path: Path, models: list[dict[str, Any]]) -> None:
-        """Update manifest file with new data."""
-        import json
-
-        manifest_path.write_text(json.dumps({"models": models}, indent=2))
+        """Write a manifest that is newer than the last one written, so that it gets applied."""
+        self._manifest_count = getattr(self, "_manifest_count", 0) + 1
+        _write_manifest(manifest_path, models, generated_at=_manifest_date(self._manifest_count))
 
     async def test_ensure_model_costs(
         self,
@@ -754,6 +790,299 @@ class TestEnsureModelCosts:
         await _ensure_model_costs(db)
         input_price = await _get_input_price(db)
         assert input_price.customization is None
+
+
+def _manifest_model(name: str, input_rate: float = 1e-6) -> dict[str, Any]:
+    return {
+        "name": name,
+        "name_pattern": f"(?i)^({name})$",
+        "token_prices": [
+            {"base_rate": input_rate, "is_prompt": True, "token_type": "input"},
+            {"base_rate": 2 * input_rate, "is_prompt": False, "token_type": "output"},
+        ],
+    }
+
+
+def _manifest(
+    *names: str,
+    day: int,
+    input_rate: float = 1e-6,
+    schema_version: int = SUPPORTED_SCHEMA_VERSION,
+) -> ModelCostManifest:
+    manifest = parse_manifest(
+        json.dumps(
+            {
+                "schema_version": SUPPORTED_SCHEMA_VERSION,
+                "generated_at": _manifest_date(day).isoformat(),
+                "models": [_manifest_model(name, input_rate) for name in names],
+            }
+        )
+    )
+    # parse_manifest only accepts the supported version; set others directly.
+    return manifest.model_copy(update={"schema_version": schema_version})
+
+
+async def _apply(
+    db: DbSessionFactory,
+    manifest: ModelCostManifest,
+    source: Any = "remote",
+) -> bool:
+    async with db() as session:
+        return await apply_manifest_if_newer(
+            session, manifest, dialect=db.dialect, source=source, url="file:///test.json"
+        )
+
+
+async def _active_built_in_prices(db: DbSessionFactory) -> dict[str, float]:
+    """Maps each active built-in model's name to its input rate."""
+    async with db() as session:
+        result = await session.scalars(
+            select(models.GenerativeModel)
+            .where(models.GenerativeModel.deleted_at.is_(None))
+            .where(models.GenerativeModel.is_built_in.is_(True))
+            .options(joinedload(models.GenerativeModel.token_prices))
+        )
+        return {
+            model.name: next(tp.base_rate for tp in model.token_prices if tp.token_type == "input")
+            for model in result.unique()
+        }
+
+
+async def _built_in_updated_at(db: DbSessionFactory) -> dict[str, datetime]:
+    async with db() as session:
+        result = await session.execute(
+            select(models.GenerativeModel.name, models.GenerativeModel.updated_at).where(
+                models.GenerativeModel.is_built_in.is_(True)
+            )
+        )
+        return {name: updated_at for name, updated_at in result}
+
+
+async def _add_span_cost(db: DbSessionFactory, model_name: str) -> int:
+    """Adds a span cost referencing the active built-in model and returns the model's id."""
+    async with db() as session:
+        model_id = await session.scalar(
+            select(models.GenerativeModel.id)
+            .where(models.GenerativeModel.name == model_name)
+            .where(models.GenerativeModel.deleted_at.is_(None))
+        )
+        assert model_id is not None
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        now = datetime.now(timezone.utc)
+        trace = models.Trace(
+            trace_id=token_hex(16), project_rowid=project.id, start_time=now, end_time=now
+        )
+        session.add(trace)
+        await session.flush()
+        span = models.Span(
+            trace_rowid=trace.id,
+            span_id=token_hex(8),
+            parent_id=None,
+            name=token_hex(8),
+            span_kind="LLM",
+            start_time=now,
+            end_time=now,
+            attributes={},
+            events=[],
+            status_code="OK",
+            status_message="",
+            cumulative_error_count=0,
+            cumulative_llm_token_count_prompt=0,
+            cumulative_llm_token_count_completion=0,
+        )
+        session.add(span)
+        await session.flush()
+        session.add(
+            models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=now,
+                model_id=model_id,
+            )
+        )
+    return model_id
+
+
+class TestApplyManifestIfNewer:
+    async def test_newer_manifest_is_applied_and_recorded(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", day=1))
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6}
+
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker is not None
+        assert marker.schema_version == SUPPORTED_SCHEMA_VERSION
+        assert marker.generated_at == _manifest_date(1)
+        assert marker.source == "remote"
+        assert marker.url == "file:///test.json"
+
+        assert await _apply(db, _manifest("model-a", "model-b", day=2, input_rate=3e-6))
+        assert await _active_built_in_prices(db) == {"model-a": 3e-6, "model-b": 3e-6}
+
+    @pytest.mark.parametrize("day", [1, 0], ids=["same-date", "older"])
+    async def test_manifest_not_newer_is_not_applied(
+        self,
+        db: DbSessionFactory,
+        day: int,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", day=1))
+        assert not await _apply(db, _manifest("model-b", day=day, input_rate=5e-6))
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6}
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker is not None and marker.generated_at == _manifest_date(1)
+
+    async def test_newer_schema_is_applied_even_if_older(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", day=5))
+        newer_schema = _manifest("model-b", day=1, schema_version=SUPPORTED_SCHEMA_VERSION + 1)
+        assert await _apply(db, newer_schema)
+        assert await _active_built_in_prices(db) == {"model-b": 1e-6}
+
+    async def test_renamed_model_replaces_its_old_row(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("old-name", day=1))
+        renamed = _manifest("old-name", day=2).models[0].model_copy(update={"name": "new-name"})
+        manifest = _manifest(day=2).model_copy(update={"models": [renamed]})
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices(db) == {"new-name": 1e-6}
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({"bad": 1}, id="wrong-shape"),
+            pytest.param(
+                {
+                    "schema_version": SUPPORTED_SCHEMA_VERSION,
+                    "generated_at": "2026-01-05T00:00:00",
+                    "source": "remote",
+                    "applied_at": "2026-01-05T00:00:00",
+                },
+                id="naive-datetimes",
+            ),
+        ],
+    )
+    async def test_invalid_marker_is_treated_as_missing(
+        self,
+        db: DbSessionFactory,
+        value: dict[str, Any],
+    ) -> None:
+        await _ensure_enums(db)
+        async with db() as session:
+            session.add(models.SystemSetting(key=MANIFEST_VERSION_SETTING_KEY, value=value))
+        assert await _apply(db, _manifest("model-a", day=1))
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6}
+
+    async def test_model_with_span_costs_is_not_soft_deleted(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("used-model", "unused-model", day=1))
+        await _add_span_cost(db, "used-model")
+        assert await _apply(db, _manifest(day=2))
+        assert await _active_built_in_prices(db) == {"used-model": 1e-6}
+
+    async def test_renamed_model_with_span_costs_replaces_its_old_row(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("old-name", day=1))
+        old_id = await _add_span_cost(db, "old-name")
+        renamed = _manifest("old-name", day=2).models[0].model_copy(update={"name": "new-name"})
+        manifest = _manifest(day=2).model_copy(update={"models": [renamed]})
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices(db) == {"new-name": 1e-6}
+        async with db() as session:
+            old_model = await session.get(models.GenerativeModel, old_id)
+            assert old_model is not None and old_model.deleted_at is not None
+            assert await session.scalar(select(models.SpanCost.model_id)) == old_id
+
+    async def test_model_with_invalid_entry_is_left_as_is(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", "model-b", day=1))
+        invalid = _manifest_model("model-a", input_rate=3e-6)
+        invalid["token_prices"][0]["base_rate"] = -1
+        manifest = parse_manifest(
+            json.dumps(
+                {
+                    "schema_version": SUPPORTED_SCHEMA_VERSION,
+                    "generated_at": _manifest_date(2).isoformat(),
+                    "models": [invalid, _manifest_model("model-b", input_rate=3e-6)],
+                }
+            )
+        )
+        assert manifest.skipped_model_names == {"model-a"}
+        assert await _apply(db, manifest)
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 3e-6}
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker is not None and marker.generated_at == _manifest_date(2)
+
+    async def test_unchanged_manifest_does_not_touch_models(
+        self,
+        db: DbSessionFactory,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", "model-b", day=1))
+        updated_at = await _built_in_updated_at(db)
+        with caplog.at_level(logging.INFO, logger="phoenix.server.cost_tracking.apply_manifest"):
+            assert await _apply(db, _manifest("model-a", "model-b", day=2))
+        assert await _built_in_updated_at(db) == updated_at
+        assert "0 models added, 0 updated, 0 removed" in caplog.text
+
+    async def test_marker_loads_into_system_settings_without_warnings(
+        self,
+        db: DbSessionFactory,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        await _ensure_enums(db)
+        assert await _apply(db, _manifest("model-a", day=1))
+        with caplog.at_level(logging.WARNING):
+            await SystemSettings(db=db).bootstrap()
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+    async def test_concurrent_applies_apply_once(self, db: DbSessionFactory) -> None:
+        if db.dialect is not SupportedSQLDialect.POSTGRESQL:
+            pytest.skip("SQLite allows one writer at a time")
+        await _ensure_enums(db)
+        manifest = _manifest("model-a", "model-b", day=1)
+        results = await asyncio.gather(*(_apply(db, manifest) for _ in range(4)))
+        assert sorted(results) == [False, False, False, True]
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6, "model-b": 1e-6}
+
+
+class TestEnsureModelCostsAgainstFetchedManifests:
+    async def test_boot_keeps_a_newer_fetched_manifest(
+        self,
+        tmp_path: Path,
+        monkeypatch: MonkeyPatch,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.db import facilitator
+
+        bundled = tmp_path / "bundled.json"
+        _write_manifest(bundled, [_manifest_model("bundled-model")], generated_at=_manifest_date(1))
+        monkeypatch.setattr(facilitator, "_COST_MODEL_MANIFEST", bundled)
+        await _ensure_enums(db)
+
+        await _ensure_model_costs(db)
+        assert await _active_built_in_prices(db) == {"bundled-model": 1e-6}
+
+        assert await _apply(db, _manifest("bundled-model", "fetched-model", day=2, input_rate=4e-6))
+        await _ensure_model_costs(db)
+        assert await _active_built_in_prices(db) == {"bundled-model": 4e-6, "fetched-model": 4e-6}
+
+        # An upgrade bundles a newer manifest, which takes over again.
+        _write_manifest(bundled, [_manifest_model("bundled-model")], generated_at=_manifest_date(3))
+        await _ensure_model_costs(db)
+        assert await _active_built_in_prices(db) == {"bundled-model": 1e-6}
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker is not None and marker.source == "bundled"
 
 
 async def _count_built_in_models(db: DbSessionFactory) -> int:

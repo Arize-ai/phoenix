@@ -183,6 +183,25 @@ def test_skips_invalid_entry_and_keeps_the_rest(
     assert f"Skipping model {expected_label}" in warnings[0]
 
 
+def test_reports_names_of_skipped_entries() -> None:
+    invalid_rate = [{"base_rate": -1, "is_prompt": True, "token_type": "input"}]
+    data = _manifest(
+        models=[
+            _model("model-a"),
+            _model(" bad ", token_prices=invalid_rate),
+            _model("model-b", token_prices=invalid_rate),
+            _model("model-b"),
+            _model("   ", token_prices=invalid_rate),
+            "not an object",
+        ]
+    )
+    manifest = parse_manifest(json.dumps(data))
+    assert [model.name for model in manifest.models] == ["model-a", "model-b"]
+    # model-b also has a valid entry, so it isn't reported; blank names can't be.
+    assert manifest.skipped_model_names == {"bad"}
+    assert "skipped_model_names" not in manifest.model_dump()
+
+
 def test_ignores_unknown_fields() -> None:
     data = _manifest(
         future_top_level_field={"anything": True},

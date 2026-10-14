@@ -195,6 +195,7 @@ SystemSettingKey: TypeAlias = Literal[
     "agent.assistant.enabled",
     "agent.assistant.session_retention",
     "agent.assistant.github",
+    "cost_tracking.model_cost_manifest",
 ]
 
 
