@@ -72,7 +72,7 @@ plugin = PhoenixJobPlugin(
 
 - **Experiment names follow a template.** `experiment_name_template` accepts fields like
   `{job.name}`, `{agent.name}`, `{agent.model}`, and `{agent.short_digest}`, and
-  `EXPERIMENT_NAME_TEMPLATE_FIELDS` publishes the full set.
+- **Resuming the same Harbor job** reuses its experiments without duplicating recorded runs.
 - **Resuming is idempotent**, so a re-run adds to the same experiment instead of duplicating it.
 
 The plugin requires Harbor 0.21.0+ on Python 3.12+. Endpoint and API key fall back to
