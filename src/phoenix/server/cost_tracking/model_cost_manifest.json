@@ -1729,14 +1729,24 @@
       "source": "manual",
       "token_prices": [
         {
-          "base_rate": 4e-6,
+          "base_rate": 2e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 2e-5,
+          "base_rate": 1e-5,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-5,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -6795,7 +6805,7 @@
     {
       "name": "meta/muse-wonder-1.0",
       "name_pattern": "muse-wonder-1\\.0",
-      "source": "manual",
+      "source": "litellm",
       "provider": "meta",
       "token_prices": [
         {
@@ -6807,6 +6817,11 @@
           "base_rate": 2e-5,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
