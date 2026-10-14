@@ -897,6 +897,38 @@ def _to_gql_output_config(
         )
 
 
+def get_effective_output_configs(
+    record: models.DatasetEvaluators,
+    evaluator: Optional[models.Evaluator],
+) -> list[OutputConfigType]:
+    """
+    Returns the output configs a dataset evaluator's annotations follow: its own override when
+    set, otherwise the configs of its base evaluator, which is only read when there is no
+    override.
+    """
+    from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+
+    if record.output_configs is not None:
+        return list(record.output_configs)
+    if isinstance(evaluator, models.LLMEvaluator):
+        return list(evaluator.output_configs)
+    if isinstance(evaluator, models.CodeEvaluator):
+        return [
+            config
+            for config in evaluator.output_configs
+            if isinstance(
+                config,
+                (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+            )
+        ]
+    if isinstance(evaluator, models.BuiltinEvaluator):
+        builtin = get_builtin_evaluator_by_key(evaluator.key)
+        if builtin is None:
+            return []
+        return list(builtin().output_configs)
+    return []
+
+
 @strawberry.type
 class DatasetEvaluator(Node):
     """
@@ -991,34 +1023,13 @@ class DatasetEvaluator(Node):
         Returns the effective output_configs for this dataset evaluator.
         If an override is set, returns that. Otherwise, falls back to the base evaluator's configs.
         """
-        from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-
         record = await self._get_record(info)
-        configs = record.output_configs
-        if configs is None:
-            # Fall back to the base evaluator's stored configs
-            evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
-            if evaluator is None:
-                return []
-            if isinstance(evaluator, models.LLMEvaluator):
-                configs = list(evaluator.output_configs)
-            elif isinstance(evaluator, models.CodeEvaluator):
-                configs = [
-                    config
-                    for config in evaluator.output_configs
-                    if isinstance(
-                        config,
-                        (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                    )
-                ]
-            elif isinstance(evaluator, models.BuiltinEvaluator):
-                builtin = get_builtin_evaluator_by_key(evaluator.key)
-                if builtin is None:
-                    return []
-                configs = list(builtin().output_configs)
-            else:
-                return []
-        configs_list: list[OutputConfigType] = configs if configs is not None else []
+        evaluator = (
+            await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+            if record.output_configs is None
+            else None
+        )
+        configs_list = get_effective_output_configs(record, evaluator)
         return [
             _to_gql_output_config(
                 config,
