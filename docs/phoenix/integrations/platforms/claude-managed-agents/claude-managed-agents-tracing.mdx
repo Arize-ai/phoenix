@@ -24,7 +24,7 @@ There are two complementary ways to send spans to Phoenix, and most applications
 
 - Python 3.10+, Node.js 18.19+, Go 1.26+, or Java 11+ and Gradle for the application-side example
 - A running Phoenix instance with an OTLP/HTTP endpoint that Claude Platform can reach
-- A Claude Console organization with OpenTelemetry export enabled, and an **admin** role in it to add a destination
+- The **admin** role in a Claude Console organization, to add a destination. With the developer role, you can view destinations
 - An `ANTHROPIC_API_KEY` from the [Claude Console](https://platform.claude.com/), in a workspace that sends spans to Phoenix
 
 ## Launch Phoenix
@@ -49,14 +49,21 @@ A *destination* tells the Claude API where to send the spans it creates. Use the
 1. Set **Phoenix URL** to your Phoenix base URL, for example `https://phoenix.example.com`. Do not include `/v1/traces`; Claude Platform appends the per-signal path automatically.
 1. Set **API key** to a Phoenix API key for Phoenix Cloud or an authenticated self-hosted instance.
 1. Set **Project name** to the Phoenix project name, for example `claude-managed-agents-example`. The Console sends this as the destination's `x-project-name` header.
-1. Set **Content mode** to **Full content**, so spans carry the system prompt, messages, and tool arguments as well as token counts. The default, **Metadata only**, sends only identifiers, timing, status, and token counts.
+1. Set **Content mode** to **Full content**, so spans carry the system prompt, messages, and tool arguments as well as token counts. The default, **Metadata only**, sends only identifiers, timing, status, token counts, and the names and descriptions of your agents, tools, and MCP servers.
 1. Set **Workspaces** to the workspaces whose spans you want in Phoenix. **All**, the default, exports from every workspace in your organization. **Selected** exports from only the workspaces you choose, and **All except** exports from every workspace except the ones you choose. Then click **Add destination**.
+1. In the destination's **More actions** menu, click **Test**. The Console shows whether the test span was delivered. In Phoenix, check that an `anthropic.test` span arrived in the project.
+
+<Frame caption="The destination's More actions menu in the Claude Console, with Test highlighted">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-test-destination-menu.png" alt="Claude Console destination details panel for Phoenix showing endpoint, Full content mode, Healthy delivery, one workspace, and the More actions menu with Test highlighted" />
+</Frame>
 
 <Warning>
 A destination exports every request made with its workspaces' API keys, not just Managed Agents sessions. That includes Messages API requests from any other application or tool that uses those keys, with their prompts and responses in **Full content** mode. To send only your agent's traffic, give it a workspace and API keys of its own. **Workspaces** defaults to **All**, so choose **Selected** unless you want spans from every workspace in your organization in Phoenix.
 </Warning>
 
-Each destination sends to one Phoenix project. To keep workspaces apart, for example production and staging, add one destination per project and select each destination's workspaces.
+Each destination sends to one Phoenix project. To keep workspaces apart, for example production and staging, add one destination per project and select each destination's workspaces. An organization can have up to 10 destinations, including disabled ones.
+
+An admin can also add a destination with Anthropic's [Admin API or CLI](https://platform.claude.com/docs/en/manage-claude/opentelemetry/api#admin-api-and-cli). The Admin API has no Arize Phoenix provider, so enter the endpoint and headers yourself: the endpoint is your Phoenix base URL, such as `https://phoenix.example.com`, and the headers are `Authorization: Bearer <your-phoenix-api-key>` and `x-project-name: <your-project-name>`.
 
 ## Install
 
@@ -90,7 +97,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.anthropic:anthropic-java:2.68.0'
+    implementation 'com.anthropic:anthropic-java:2.72.0'
     implementation 'io.opentelemetry:opentelemetry-sdk:1.66.0'
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.66.0'
 }
@@ -732,7 +739,7 @@ Phoenix tracing initialized for Claude Managed Agents.
 ## Verify in Phoenix
 
 1. Open Phoenix and select project **`claude-managed-agents-example`**.
-1. You should see a new trace within a minute or two. The Claude API delivers its spans in batches, so the API's spans can arrive after yours. The trace has a `fibonacci-agent` root span, the SDK's client spans for each Sessions API request, and the API's spans under them: an `anthropic.session.turn` span with `anthropic.model_request` and tool spans inside it.
+1. You should see a new trace within about a minute. The API's spans can arrive after yours. The trace has a `fibonacci-agent` root span, the SDK's client spans for each Sessions API request, and the API's spans under them: an `anthropic.session.turn` span with `anthropic.model_request` and tool spans inside it.
 
 <Frame caption="A Claude Managed Agents session in Phoenix, with the trace tree expanded">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-fibonacci-trace.png" alt="Phoenix trace view of a fibonacci-agent trace with status OK. The trace tree shows the fibonacci-agent root span, Sessions API request spans, an anthropic.session.turn span, anthropic.model_request spans, and an anthropic.tool_use bash span." />
@@ -753,31 +760,36 @@ The SDK and the API mark their spans with `gen_ai.*` attributes, and Phoenix con
 | `anthropic.sessions.*` | API (`SERVER`) | Each Sessions API request, as the API handled it, nested under the SDK's span with the same name. Turns that the request starts are its children |
 | `anthropic.session.turn` | API | An `AGENT` span for one agent turn: the system prompt, the turn's input and output messages, its stop reason, and its child spans |
 | `anthropic.model_request` | API | An `LLM` span for one model request, with the model and token usage. The messages are on the turn span |
-| `anthropic.tool_use <tool>`, `anthropic.mcp_tool_use <tool>` | API | A `TOOL` span for a built-in or MCP tool that the API ran, such as `anthropic.tool_use bash`, with its arguments as the input |
+| `anthropic.tool_use <tool>`, `anthropic.mcp_tool_use <tool>` | API, or SDK | A `TOOL` span for a built-in or MCP tool, such as `anthropic.tool_use bash`, with its arguments as the input. The API emits it for tools in its sandbox, and the SDK for tools in a self-hosted sandbox and for MCP tools that a tool runner runs |
 | `anthropic.custom_tool_use <tool>` | SDK | A `TOOL` span for a custom tool that your application ran, when you use the SDK's session tool runner, with the tool's name, description, and arguments as the input |
 | `anthropic.session.outcome_evaluation` | API | A grader evaluation of an [outcome](https://platform.claude.com/docs/en/managed-agents/outcomes) |
+| `anthropic.environment.work` | SDK | One work item that a [self-hosted sandbox](https://platform.claude.com/docs/en/manage-claude/opentelemetry/sdk#trace-a-self-hosted-sandbox)'s worker ran, with the worker's tool spans and requests inside it |
 
-Phoenix groups a session's spans into a [session](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions) by `gen_ai.conversation.id`, which holds the session thread ID, so each Managed Agents thread is one session in the **Sessions** tab. Select it to read the thread as a conversation. To find every span of a multiagent session across all its threads, filter on `anthropic.session.id`.
+No span shows a custom tool that your application runs without a tool runner, a multiagent or advisor tool, or a tool use that the permission policy or your application denied. Add your own `TOOL` span for a custom tool, as in the [cookbook](/docs/phoenix/cookbook/tracing/claude-managed-agents-guide).
+
+Phoenix groups a session's spans into a [session](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions) by `gen_ai.conversation.id`, which holds the session thread ID, so each Managed Agents thread is one session in the **Sessions** tab. Select it to read the thread as a conversation. If you set the SDK's `conversation_id` option, the SDK's spans carry your ID in `gen_ai.conversation.id`, so they form a session of their own, apart from the API's spans. To find every span of a multiagent session across all its threads, filter on `anthropic.session.id`. A turn that starts because an agent on another thread replied or finished has no parent, so it's the root of a trace of its own.
 
 ### Known limitations
 
 - **Some Sessions API spans can show an unknown kind.** The `anthropic.agents.create`, `anthropic.environments.create`, `anthropic.sessions.events.send`, and `anthropic.sessions.events.stream` spans don't say what kind of operation they are, so Phoenix shows their kind as unknown. Your own spans don't have this problem as long as they set a span kind.
 - **Cache token counts aren't shown.** The spans report cache reads and writes as `gen_ai.usage.cache_read.input_tokens` and `gen_ai.usage.cache_write.input_tokens`, which Phoenix doesn't map yet. Phoenix counts all of a request's input tokens as regular prompt tokens, so cost estimates for requests that read from the prompt cache can be higher than what you were billed. The raw attributes stay on the span.
 - **Session requests appear as LLM spans.** The `anthropic.sessions.create` spans carry the agent's model, so Phoenix classifies them as `LLM` spans, with zero tokens. They aren't model calls. The model calls are the `anthropic.model_request` spans.
-- **Messages API requests count tokens more than once.** For a Managed Agents session, only the `anthropic.model_request` and `anthropic.session.outcome_evaluation` spans carry token usage, so trace totals are correct. For a Messages API request, the usage is on both its `anthropic.messages.create` span and its `anthropic.model_request` children, so trace totals are higher than the request used. See Anthropic's guidance on [counting tokens](https://platform.claude.com/docs/en/manage-claude/opentelemetry#count-tokens).
-- **The Sessions list doesn't summarize these sessions.** Only the API's spans carry the session ID, and they aren't the roots of their traces, so the Sessions list shows no first message, last message, duration, or tokens, and a session shows zero traces. Select the session to read its conversation.
+- **Messages API requests count tokens more than once.** For a Managed Agents session, only the `anthropic.model_request` and `anthropic.session.outcome_evaluation` spans carry token usage, so trace totals are correct. For a Messages API request, the usage is on the SDK's `anthropic.messages.create` span, the API's span of the same name, and the API's `anthropic.model_request` children, so trace totals are higher than the request used. See Anthropic's guidance on [counting tokens](https://platform.claude.com/docs/en/manage-claude/opentelemetry#count-tokens).
+- **The Sessions list doesn't summarize these sessions.** The session ID is on the SDK's and the API's spans, not on the root span of each trace, so the Sessions list shows no first message, last message, duration, or tokens, and a session shows zero traces. Select the session to read its conversation.
 - **Tool spans don't show an output.** Tool results are in the `anthropic.tool_result.content` attribute, which Phoenix doesn't map to the span output yet. Read it from the span's attributes. On the SDK's `anthropic.custom_tool_use` spans, `tool.parameters` also holds the call's arguments rather than the tool's JSON schema.
 - **Images and documents aren't included.** Spans record only the type of an image or document in a prompt or response, not its data.
+- **Long content is shortened.** Each span holds a limited amount of content, by default 0.75 MB. When content is over the limit, the SDK or the API shortens it and sets `anthropic.content.truncated` to `true`. Change the destination's limit under **Advanced settings**, and the SDK's with `ANTHROPIC_OPEN_TELEMETRY_TRACES_MAX_CONTENT_BYTES`. See Anthropic's [Content limits](https://platform.claude.com/docs/en/manage-claude/opentelemetry#content-limits).
 
 ## Troubleshooting
 
-- **No traces at all.** Check that `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_PROJECT_NAME` are set in the shell that runs the example. Set `OTEL_LOG_LEVEL=debug` to see export errors.
-- **The destination shows Failing.** Hold the pointer over **Failing** to see the error. A `401` or `403` usually means the API key is missing or wrong. A `404` usually means the destination was pointed at `/v1/traces`; use the Phoenix base URL because Claude Platform appends the OTLP signal path itself. A rejection that mentions project routing means the destination has no project name.
-- **Only your own spans appear, with no API spans.** Check that the destination's **Workspaces** include the workspace of your `ANTHROPIC_API_KEY`, and that the destination's **Project name** matches `PHOENIX_PROJECT_NAME`. The API's spans can take a minute or two to arrive.
-- **The API's spans are in a separate trace.** The SDK didn't send the trace context. Check that you [installed or upgraded the Claude SDK](https://platform.claude.com/docs/en/manage-claude/opentelemetry/sdk#install-the-sdk) to a version that emits spans. In TypeScript, import your `instrumentation.ts` before creating the Claude client, and don't pass `global: false` to `register()`. In Go and Java, register the W3C trace context propagator as the examples do. In Java, also build the OpenTelemetry SDK with `buildAndRegisterGlobal()`.
+- **No traces at all.** Check that `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_PROJECT_NAME` are set in the shell that runs the example. Register the tracer provider before the first Claude SDK call, and check that `ANTHROPIC_OPEN_TELEMETRY` isn't `false`. Set `OTEL_LOG_LEVEL=debug` to see export errors.
+- **The destination shows Failing.** Hold the pointer over **Failing** to see the error. A `401` or `403` usually means the API key is missing or wrong. A `404` usually means the destination was pointed at `/v1/traces`; use the Phoenix base URL because Claude Platform appends the OTLP signal path itself. A rejection that mentions project routing means the destination has no project name. If you change the destination's Phoenix URL or authentication, enter the **API key** again.
+- **The destination shows Disabled.** Hold the pointer over **Disabled** to see why. The API disables a destination after 24 hours of failed deliveries, or when the endpoint redirects or resolves to an IP address that isn't public. Fix the cause, then click **Enable** in the destination's **More actions** menu, with the **Workspace** filter set to **All**.
+- **Only your own spans appear, with no API spans.** Check that the destination's **Workspaces** include the workspace of your `ANTHROPIC_API_KEY`, and that the destination's **Project name** matches `PHOENIX_PROJECT_NAME`. The API's spans can take about a minute to arrive.
+- **The API's spans are in a separate trace.** The SDK didn't send the trace context. Check that you [installed or upgraded the Claude SDK](https://platform.claude.com/docs/en/manage-claude/opentelemetry/sdk#install-the-sdk) to a version that emits spans. In TypeScript, import your `instrumentation.ts` before creating the Claude client, and don't pass `global: false` to `register()`. If you also use `@opentelemetry/instrumentation-undici`, which `@opentelemetry/auto-instrumentations-node` includes, create the client with `openTelemetry: { propagation: false }`: that package adds a second `traceparent` header, which makes the trace context invalid. In Go and Java, register the W3C trace context propagator as the examples do. If your application uses another propagator, such as B3, add the W3C trace context propagator too. In Java, also build the OpenTelemetry SDK with `buildAndRegisterGlobal()`, and check that no other dependency pins `opentelemetry-api` below 1.57.0. Requests to Claude Platform on AWS always start traces of their own.
 - **Java spans are missing when the program exits.** The `BatchSpanProcessor` exports in the background. Keep the `forceFlush` and `shutdown` calls at the end of `main`, or the JVM can exit before it delivers them.
-- **Each request appears twice.** Another library also traces the Claude SDK, for example the OpenInference Anthropic instrumentor. Remove one of the two, or turn the SDK's spans off with `ANTHROPIC_OPEN_TELEMETRY=false`.
-- **Spans have no prompts or responses.** Set the destination's content mode to **Full content** and `ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE=content` for the SDK. If your organization has a data-handling restriction, such as under HIPAA, destinations export only metadata.
+- **Each request appears twice.** Each request has an SDK span and, inside it, an API span with the same name, as listed in [What Phoenix captures](#what-phoenix-captures). That's expected. If a request has three spans of that name, another library also traces the Claude SDK, for example the OpenInference Anthropic instrumentor. Remove one of the two, or turn the SDK's spans off with `ANTHROPIC_OPEN_TELEMETRY=false`.
+- **Spans have no prompts or responses.** Set the destination's content mode to **Full content** and `ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE=content` for the SDK. If your organization has a HIPAA, FERPA, or K-12 data-handling restriction with Anthropic, destinations export only metadata, whatever their content mode. The SDK's spans still carry content.
 
 ## Resources
 

@@ -33,7 +33,7 @@ You need:
 
 - Python 3.10+, Node.js 18.19+, Go 1.26+, or Java 17+
 - A running Phoenix instance with an OTLP/HTTP endpoint that Claude Platform can reach. If your instance requires authentication, create a Phoenix API key.
-- A Claude Console organization with OpenTelemetry export enabled, and an **admin** role in it to add a destination
+- The **admin** role in a Claude Console organization, to add a destination
 - An `ANTHROPIC_API_KEY` from the [Claude Console](https://platform.claude.com/)
 
 Claude Platform sends its spans from Anthropic's infrastructure. A Phoenix server on plain `localhost` can receive your application's SDK spans, but it will not receive the Console-exported API spans unless you expose it with a public HTTPS tunnel or use Phoenix Cloud.
@@ -54,6 +54,11 @@ The Claude API exports its spans to *destinations* that you add in the Claude Co
 1. Set **Project name** to `claude-managed-agents-triage`. The Console sends this as the destination's `x-project-name` header.
 1. Set **Content mode** to **Full content**. The default, **Metadata only**, leaves out the prompts, messages, and tool arguments that this guide reads and evaluates.
 1. Set **Workspaces** to the workspaces whose spans you want in Phoenix. Use **Selected** and choose the workspace for your `ANTHROPIC_API_KEY` if you want only this guide's traffic. Then click **Add destination**.
+1. In the destination's **More actions** menu, click **Test**. In Phoenix, check that an `anthropic.test` span arrived in the `claude-managed-agents-triage` project.
+
+<Frame caption="The destination's More actions menu in the Claude Console, with Test highlighted">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-test-destination-menu.png" alt="Claude Console destination details panel for Phoenix showing endpoint, Full content mode, Healthy delivery, one workspace, and the More actions menu with Test highlighted" />
+</Frame>
 
 A destination exports every request made with its workspaces' API keys, including Messages API requests from other tools, so use a workspace that runs only this guide's agent if you want a clean project. The destination's **Project name** decides which Phoenix project the spans land in. For the details of each field, see the [Claude Managed Agents integration](/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing#export-spans-from-the-claude-console).
 
@@ -91,7 +96,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.anthropic:anthropic-java:2.68.0'
+    implementation 'com.anthropic:anthropic-java:2.72.0'
     implementation 'io.opentelemetry:opentelemetry-sdk:1.66.0'
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.66.0'
 }
@@ -1112,7 +1117,7 @@ The totals add up to more than 4 because #101 and #103 each have two labels.
 
 ## Step 5: Explore the trace
 
-Open your Phoenix instance and select the **`claude-managed-agents-triage`** project. A new trace appears within a minute or two. The Claude API delivers its spans in batches, so they can arrive after yours. Open the trace to see the session from both sides:
+Open your Phoenix instance and select the **`claude-managed-agents-triage`** project. A new trace appears within about a minute. The API's spans can arrive after yours. Open the trace to see the session from both sides:
 
 <Frame caption="A Claude Managed Agents trace in Phoenix, with your application span joined to the spans exported by Claude Platform">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-triage-trace-tree.png" alt="Phoenix trace view showing a triage-request root span, nested Claude Sessions API spans, agent turn spans, model request spans, a list_issues tool span, and an anthropic.tool_use bash span" />
@@ -1163,7 +1168,7 @@ Open an `anthropic.model_request` span to see the model and the token usage of o
 The command's result is in the span's `anthropic.tool_result.content` attribute, on the **Attributes** tab.
 
 
-The API's spans also carry the session thread ID in `gen_ai.conversation.id`, which Phoenix uses as the session ID. Open **Sessions** in the project and select the session to read the thread as a conversation. The Sessions list itself shows no first message, last message, or duration for these sessions, because only the API's spans carry the session ID. For a session with several threads, filter spans on `anthropic.session.id`.
+The API's spans also carry the session thread ID in `gen_ai.conversation.id`, which Phoenix uses as the session ID. Open **Sessions** in the project and select the session to read the thread as a conversation. The Sessions list itself shows no first message, last message, or duration for these sessions, because the session ID is only on the SDK's and the API's spans further down the trace. For a session with several threads, filter spans on `anthropic.session.id`. A turn that starts because an agent on another thread replied or finished has no parent, so it's the root of a trace of its own.
 
 
 ## Step 6: Evaluate the triage
