@@ -1,0 +1,106 @@
+---
+title: "10.13.2026: Docker Sandboxes and MCP GraphQL Tools"
+description: "Use Docker Sandboxes for code evaluators, try Claude Haiku 5.5 in the playground, and let MCP clients query Phoenix through GraphQL."
+---
+
+Teams that already use Docker can now run Python and TypeScript code evaluators in Docker
+Sandboxes, instead of adding another sandbox provider. This release also adds Claude Haiku 5.5,
+Mistral cost tracking, and GraphQL tools for MCP clients.
+
+# Docker Sandboxes for Code Evaluators
+
+October 8, 2026
+
+**Available in arize-phoenix 20.20.0+**
+
+Choose **Docker Sandboxes** when you create a sandbox configuration in **Settings → Sandboxes**.
+Phoenix sends each evaluator run to Docker's hosted cloud sandboxes, then cleans up the sandbox when
+the run finishes.
+
+- **Python and TypeScript evaluators.** Python runs on `python:3.13-slim` and TypeScript on
+  `node:24-slim`.
+- **Use your Docker credentials.** Add your Docker ID as `DOCKER_ID` and a personal access token
+  with the `sandbox:use` permission as `DOCKER_PAT`, either in Settings or as server environment
+  variables.
+- **Block outbound network access.** **Deny** attaches a `phoenix-deny-all-egress` network policy
+  that stops sandbox traffic from leaving the environment.
+- **Keep cleanup automatic.** Phoenix deletes each sandbox when the evaluator finishes. Docker also
+  expires every sandbox after 10 minutes.
+
+<CardGroup cols={2}>
+  <Card title="Docker Sandboxes" icon="box" href="/docs/phoenix/integrations/sandboxes/docker">
+    Requirements, setup, and sandbox behavior
+  </Card>
+  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/evaluation/server-evals/code-evaluators">
+    Write Python and TypeScript evaluators that run on the server
+  </Card>
+</CardGroup>
+
+# Claude Haiku 5.5 and Mistral Cost Tracking
+
+October 8 to 11, 2026
+
+**Available in arize-phoenix 20.20.0+ (Claude Haiku 5.5) and 20.21.0+ (Mistral pricing)**
+
+Playground users get a new Claude option, and traces from Mistral API calls now include token cost.
+
+- **Claude Haiku 5.5 is in the playground** for the Anthropic and Amazon Bedrock providers, with
+  adaptive thinking support.
+- **Retired Anthropic models no longer appear in model lists.** Phoenix removes Claude Opus 4.1,
+  Sonnet 3.7, Sonnet 3.5, Haiku 3.5, and Haiku 3.
+- **Mistral AI calls now show a cost.** Phoenix prices Mistral spans from the built-in model price
+  list, the same way it handles other providers.
+
+<CardGroup cols={2}>
+  <Card title="Cost Tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
+    How Phoenix prices tokens on your spans
+  </Card>
+</CardGroup>
+
+# MCP Server: GraphQL Tools and More SQL Tables
+
+October 8, 2026
+
+**Available in arize-phoenix 20.20.0+**
+
+Agents connected to Phoenix's built-in MCP server can now use GraphQL when REST does not cover the
+data they need. The MCP client can inspect the schema and run the query without asking someone to
+open a shell.
+
+- **`describeGraphqlSchema` and `executeGraphqlQuery`.** Search the schema by free text or exact type
+  names, then run a read-only query. Each query runs with the caller's permissions.
+- **`executeGraphqlMutation` is available on write-enabled deployments.** Run any mutation the
+  caller's role allows. Phoenix does not expose this tool on read-only deployments.
+- **Analytics SQL covers more tables.** `executeSql` can query trace annotations, evaluators,
+  prompts and prompt versions, dataset splits and labels, experiment tags, jobs and logs, sandbox
+  configs, and trace retention policies.
+- **PXI uses analytics SQL for data questions**, so it spends fewer turns answering aggregate
+  questions about your traces.
+
+<CardGroup cols={2}>
+  <Card title="MCP Server" icon="plug" href="/docs/phoenix/integrations/mcp">
+    Connect an MCP client and see the full tool list
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+October 8 to 13, 2026
+
+**Available in arize-phoenix 20.20.0–20.21.3, arize-phoenix-evals 3.9.1+, and @arizeai/phoenix-client 7.16.1+**
+
+- **Evaluator metadata stays attached.** The server keeps metadata nested under `result`, and the
+  TypeScript client sends metadata at the top level.
+- **Stale input mappings no longer break evaluator runs** when you remove a variable from the
+  template or `evaluate()` signature.
+- **Experiment resume cleans up replaced runs** by dropping evaluations from an errored run when a
+  new run takes its place.
+- **Experiment metric comparisons are consistent** because Phoenix measures the base experiment and
+  compare experiment the same way.
+- **Span ingestion recovers from database failures more reliably** and reports failed spans and the
+  last successful insert as Prometheus metrics.
+- **Projects from span ingestion are easier to scan** because Phoenix gives each new project a random
+  gradient.
+- **`arize-phoenix` installs fewer heavy dependencies** because SciPy and scikit-learn are no longer
+  included by default.
+- **Synchronous eval runs retry rate-limit errors** instead of failing the whole run on the first 429.
