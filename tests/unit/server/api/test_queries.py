@@ -28,6 +28,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+from phoenix.server.settings.registry import ManifestSource, ModelCostManifestVersionSetting
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -574,6 +575,73 @@ async def test_agents_config_web_access_respects_env_flags(
     assert not response.errors
     assert (data := response.data) is not None
     assert data["agentsConfig"] == {"webAccessEnabled": expected}
+
+
+_MODEL_COST_MANIFEST_QUERY = """
+  query {
+    modelCostManifest {
+      generatedAt
+      source
+      appliedAt
+    }
+  }
+"""
+
+
+async def test_model_cost_manifest_is_null_without_a_marker(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {"modelCostManifest": None}
+
+
+@pytest.fixture
+async def model_cost_manifest_marker(
+    db: DbSessionFactory,
+    request: pytest.FixtureRequest,
+) -> None:
+    source: ManifestSource = request.param
+    marker = ModelCostManifestVersionSetting(
+        schema_version=1,
+        generated_at=datetime(2099, 1, 1, tzinfo=timezone.utc),
+        source=source,
+        url="https://mirror.internal/v1.json" if source == "remote" else None,
+        applied_at=datetime(2099, 1, 2, tzinfo=timezone.utc),
+    )
+    async with db() as session:
+        session.add(
+            models.SystemSetting(
+                key="cost_tracking.model_cost_manifest",
+                value=marker.model_dump(mode="json"),
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("model_cost_manifest_marker", "expected_source"),
+    [
+        ("bundled", "BUNDLED"),
+        ("remote", "REMOTE"),
+    ],
+    indirect=["model_cost_manifest_marker"],
+)
+async def test_model_cost_manifest_returns_the_marker(
+    # Comes before gql_client, so the marker is written before the settings cache reads it
+    # at boot.
+    model_cost_manifest_marker: None,
+    gql_client: AsyncGraphQLClient,
+    expected_source: str,
+) -> None:
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {
+        "modelCostManifest": {
+            "generatedAt": "2099-01-01T00:00:00+00:00",
+            "source": expected_source,
+            "appliedAt": "2099-01-02T00:00:00+00:00",
+        }
+    }
 
 
 @pytest.fixture

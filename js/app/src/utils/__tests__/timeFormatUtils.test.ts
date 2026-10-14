@@ -7,6 +7,7 @@ import {
 } from "@phoenix/constants/timeConstants";
 
 import {
+  createDateFormatter,
   createFullTimeFormatter,
   createShortTimeFormatter,
   createTimeRangeFormatter,
@@ -145,6 +146,34 @@ describe("timeFormatUtils", () => {
 
       expect(utcFormatter(date)).toBe("03:30 PM");
       expect(estFormatter(date)).toBe("11:30 AM");
+    });
+  });
+
+  describe("createDateFormatter", () => {
+    it.each([
+      {
+        date: new Date("2099-01-01T00:00:00Z"),
+        expected: "Jan 1, 2099",
+      },
+      {
+        date: new Date("2023-09-04T23:59:59Z"),
+        expected: "Sep 4, 2023",
+      },
+    ])("should format $date as $expected", ({ date, expected }) => {
+      const formatter = createDateFormatter({
+        locale: LOCALE,
+        timeZone: TIMEZONE,
+      });
+      expect(formatter(date)).toBe(expected);
+    });
+
+    it("should respect different timezones", () => {
+      const date = new Date("2099-01-01T00:00:00Z");
+      const estFormatter = createDateFormatter({
+        locale: LOCALE,
+        timeZone: "America/New_York",
+      });
+      expect(estFormatter(date)).toBe("Dec 31, 2098");
     });
   });
 
