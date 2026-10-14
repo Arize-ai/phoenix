@@ -1229,6 +1229,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents</loc>
+    <lastmod>2026-10-07T00:00:00+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing</loc>
+    <lastmod>2026-10-07T00:00:00+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2087,6 +2095,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/claude-managed-agents-guide</loc>
+    <lastmod>2026-10-07T00:00:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents</loc>

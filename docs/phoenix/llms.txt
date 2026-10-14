@@ -317,6 +317,8 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 
 ### Platforms
 
+- [Claude Managed Agents](https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents): Connect Anthropic's hosted managed-agent platform to Phoenix
+- [Claude Managed Agents Tracing](https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing): Send Claude Platform OTLP traces and SDK spans to Phoenix
 - [Dify Tracing](https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing): Send traces from Dify workflows
 - [Flowise Tracing](https://arize.com/docs/phoenix/integrations/platforms/flowise/flowise-tracing): Send traces from Flowise flows
 - [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
@@ -774,6 +776,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Prompt Optimization Techniques](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-optimization): Benchmark meta-prompting, few-shot, and gradient-style prompt optimizers side by side
 - [ReAct Prompting](https://arize.com/docs/phoenix/cookbook/prompt-engineering/react-prompting): Build and evaluate a reason-then-act prompting loop with tool calls
 - [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): Build and trace an agentic RAG system using LlamaIndex's ReAct agent with vector and SQL query tools
+- [Trace and Evaluate Claude Managed Agents](https://arize.com/docs/phoenix/cookbook/tracing/claude-managed-agents-guide): Trace and evaluate a Claude Managed Agents issue-triage workflow
 - [Identifying High-Signal Traces](https://arize.com/docs/phoenix/cookbook/tracing/identify-high-signal-traces): Surface anomalies, latency outliers, and failure clusters worth investigating across millions of production traces
 - [OpenInference Best Practices](https://arize.com/docs/phoenix/cookbook/tracing/openinference-best-practices): Enrich auto-instrumented traces with LLM, tool, agent, chain, and session attributes using OpenInference span kinds
 - [More Tracing Cookbooks](https://arize.com/docs/phoenix/cookbook/tracing/cookbooks): Index of notebook examples for instrumenting and troubleshooting LLM applications
