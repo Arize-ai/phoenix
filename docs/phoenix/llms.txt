@@ -28,6 +28,7 @@
 ### Observe
 
 - [Explore traces](https://arize.com/docs/phoenix/observe/explore-traces): Use PXI, the UI, code, or coding agents to investigate Phoenix trace data
+- [Investigate a failure](https://arize.com/docs/phoenix/observe/investigate-a-failure): Work from a metrics spike to the traces behind it, then confirm the fix
 - [Filter trace data](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions): Filter spans, traces, and sessions with Python-style expressions
 - [View metrics and dashboards](https://arize.com/docs/phoenix/observe/view-metrics-and-dashboards): Monitor latency, token usage, cost, errors, and annotation scores for a project
 - [Export trace data](https://arize.com/docs/phoenix/observe/export-trace-data): Export spans, query attributes, include annotations, and retrieve traces with the CLI

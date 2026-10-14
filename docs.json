@@ -119,6 +119,7 @@
             "group": "Observe",
             "pages": [
               "docs/phoenix/observe/explore-traces",
+              "docs/phoenix/observe/investigate-a-failure",
               "docs/phoenix/tracing/how-to-tracing/filter-expressions",
               "docs/phoenix/observe/view-metrics-and-dashboards",
               "docs/phoenix/observe/export-trace-data"

@@ -1,0 +1,37 @@
+---
+title: "Investigate a failure"
+sidebarTitle: "Investigate a failure"
+description: "Work from a metrics spike to the traces behind it, then confirm that a fix improved production behavior."
+---
+
+Use this workflow when something has gone wrong in production and you need the evidence behind it: a latency or cost spike, a rise in errors, or eval scores that dropped.
+
+## Work from a spike to the cause
+
+1. Start in **Metrics** if you see a spike in latency, cost, errors, or low annotation scores.
+2. Filter the **Traces** or **Sessions** table to find examples from that time period.
+3. Open a row and check the root span, failed child spans, slow spans, tool calls, and annotations.
+4. Ask PXI a focused question, or export the trace data when you need notebook analysis, CI checks, or a coding-agent handoff.
+5. Save useful failures as dataset examples when you want to run experiments or regression tests.
+
+When the same failure pattern repeats, save examples to a [dataset](/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets) or add an [evaluator](/docs/phoenix/evaluation/llm-evals) so Phoenix can track it over time.
+
+## Prove the fix worked
+
+Use this workflow after you find a failure pattern and want to confirm that a prompt or app change improved production behavior.
+
+<iframe
+  className="w-full aspect-video rounded-xl"
+  src="https://www.youtube.com/embed/biMD5LHdXQk"
+  title="Proving a Prompt Fix Works in Production with Phoenix's PXI"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin"
+  allowfullscreen
+></iframe>
+
+## Related workflows
+
+- [Filter and search](/docs/phoenix/tracing/how-to-tracing/filter-expressions) for the full field list and filter syntax.
+- [Create datasets](/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets) from important examples for evals, experiments, and regression tests.
+- [Export trace data](/docs/phoenix/observe/export-trace-data) when you need spans, traces, sessions, and annotations in code or the terminal.
