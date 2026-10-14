@@ -3,27 +3,24 @@ import { Suspense, useCallback, useMemo } from "react";
 
 import {
   Button,
-  CompositeField,
   DialogTrigger,
   Flex,
   Icon,
   Icons,
-  Loading,
   ViewportModal,
   ViewportModalOverlay,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import { InvocationParameterSpecsSync } from "@phoenix/components/playground/model/InvocationParameterSpecsSync";
-import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
-import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
+import {
+  PlaygroundInstanceDeleteButton,
+  PlaygroundInstanceModelControls,
+} from "@phoenix/pages/playground/PlaygroundInstanceControls";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
+import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
 import type { PlaygroundInstanceProps } from "./types";
@@ -31,13 +28,17 @@ import type { PlaygroundInstanceProps } from "./types";
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
+  /**
+   * Pick the task with the playground page's task menu (prompts, evaluators,
+   * new drafts) instead of the prompt-only menu the evaluator dialogs use.
+   */
+  taskMenu?: boolean;
 }
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const addMessage = usePlaygroundContext((state) => state.addMessage);
-  const setDirty = usePlaygroundContext((state) => state.setDirty);
+  const loadInstance = usePlaygroundContext((state) => state.loadInstance);
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
@@ -71,29 +72,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         tagName: promptTagName,
       });
       if (response) {
-        // delete all message references from the instance
-        updateInstance({
-          instanceId,
-          patch: {
-            ...response.instance,
-            template: {
-              __type: "chat",
-              messageIds: [],
-            },
-          },
-          dirty: false,
-        });
-        // normalize messages and add their references to the instance
-        addMessage({
-          playgroundInstanceId: instanceId,
-          messages: response.instance.template.messages,
-        });
-        // force reset the dirty state of the instance, unfortunately the addMessage
-        // will set it to true again
-        setDirty(instanceId, false);
+        loadInstance({ instanceId, instance: response.instance });
       }
     },
-    [instanceId, updateInstance, addMessage, setDirty]
+    [instanceId, updateInstance, loadInstance]
   );
 
   if (!instance) {
@@ -133,33 +115,23 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <AlphabeticIndexIcon index={index} />
             </View>
           ) : null}
-          {!disablePromptMenu ? (
+          {disablePromptMenu ? null : props.taskMenu ? (
+            <TaskMenu instanceId={instanceId} />
+          ) : (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
-          ) : null}
+          )}
           {!disablePromptSave ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}
         </Flex>
         <Flex direction="row" gap="size-100" flex="none">
-          <Suspense
-            fallback={
-              <div>
-                <Loading size="S" />
-              </div>
-            }
-          >
-            {/* Keeps instance invocation parameters aligned with the frontend
-              spec table when model metadata or saved defaults change. */}
-            <InvocationParameterSpecsSync instanceId={instanceId} />
-          </Suspense>
-          <CompositeField>
-            <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-            <ModelParametersConfigButton
-              playgroundInstanceId={instanceId}
-              disableEphemeralRouting={props.disableEphemeralRouting}
-            />
-          </CompositeField>
-          {instances.length > 1 ? <DeleteButton {...props} /> : null}
+          <PlaygroundInstanceModelControls
+            instanceId={instanceId}
+            disableEphemeralRouting={props.disableEphemeralRouting}
+          />
+          {instances.length > 1 ? (
+            <PlaygroundInstanceDeleteButton instanceId={instanceId} />
+          ) : null}
         </Flex>
       </Flex>
       <View paddingY="size-100">
@@ -172,26 +144,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         )}
       </View>
     </>
-  );
-}
-
-function DeleteButton(props: PlaygroundInstanceProps) {
-  const deleteInstance = usePlaygroundContext((state) => state.deleteInstance);
-  return (
-    <TooltipTrigger>
-      <Button
-        size="S"
-        aria-label="Delete this instance of the playground"
-        leadingVisual={<Icon svg={<Icons.Trash />} />}
-        onPress={() => {
-          deleteInstance(props.playgroundInstanceId);
-        }}
-      />
-      <Tooltip>
-        <TooltipArrow />
-        Delete this instance of the playground
-      </Tooltip>
-    </TooltipTrigger>
   );
 }
 

@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { ExpandableContent, Flex, Text } from "@phoenix/components";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
@@ -20,6 +21,13 @@ export interface ExperimentReferenceOutputCellProps {
    * The height of the content area in pixels
    */
   height: number;
+  /**
+   * The caption above the content. Defaults to "reference output"; the
+   * playground passes "output" when an evaluator task judges this value.
+   */
+  label?: string;
+  /** Controls at the right of the cell's header strip */
+  extra?: ReactNode;
 }
 
 /**
@@ -32,12 +40,14 @@ export interface ExperimentReferenceOutputCellProps {
 export function ExperimentReferenceOutputCell({
   value,
   height,
+  label = "reference output",
+  extra,
 }: ExperimentReferenceOutputCellProps) {
   const result = useExtractedOutputContent(value);
   return (
     <Flex direction="column" height="100%">
-      <CellTop>
-        <Text color="text-500">reference output</Text>
+      <CellTop extra={extra}>
+        <Text color="text-500">{label}</Text>
       </CellTop>
       <ExpandableContent height={height}>
         <div css={contentCSS}>

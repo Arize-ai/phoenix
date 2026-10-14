@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useLoaderData } from "react-router";
 
 import { Playground } from "./Playground";
@@ -8,9 +7,8 @@ import { buildPlaygroundPropsFromLoaderData } from "./playgroundPageLoader";
 export function PlaygroundPage() {
   const loaderData = useLoaderData<PlaygroundPageLoaderData>();
 
-  const playgroundProps = useMemo(
-    () => buildPlaygroundPropsFromLoaderData(loaderData ?? null),
-    [loaderData]
+  const playgroundProps = buildPlaygroundPropsFromLoaderData(
+    loaderData ?? null
   );
 
   return <Playground {...playgroundProps} />;

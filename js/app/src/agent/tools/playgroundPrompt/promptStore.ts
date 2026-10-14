@@ -1,13 +1,15 @@
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
 import {
   type ChatMessage,
-  type PlaygroundNormalizedInstance,
-  createNormalizedPlaygroundInstance,
   generateInstanceId,
   generateMessageId,
+  getPlaygroundTaskKind,
+  type PlaygroundInstanceSource,
+  type PlaygroundNormalizedInstance,
   type PlaygroundStore,
 } from "@phoenix/store/playground";
 
+import { getTaskSourceKind } from "../playgroundTask/selectTask";
 import { parsePromptMessageRole } from "./roles";
 import type {
   EditPromptOperation,
@@ -198,75 +200,64 @@ export function clonePromptInstance({
 }
 
 /**
- * Adds a fresh default chat prompt instance while inheriting runnable
- * playground configuration from the first mounted instance.
+ * Adds a comparison instance built from `source` the way Compare does: by
+ * default a new task of the page's kind, so a prompt page gets a prompt and
+ * an evaluator page an LLM evaluator. A source of the other kind is refused,
+ * as the page already has a kind. A saved source leaves the instance
+ * loading; the caller awaits its content.
  */
 export function addPromptInstance({
   playgroundStore,
+  source,
 }: {
   playgroundStore: PlaygroundStore;
+  source?: PlaygroundInstanceSource;
 }): PromptActionResult<{
-  status: "added";
-  addedInstance: PromptSnapshot;
-  message: string;
+  instanceId: number;
+  source: PlaygroundInstanceSource;
 }> {
   const state = playgroundStore.getState();
   if (state.instances.length >= NUM_MAX_PLAYGROUND_INSTANCES) {
     return {
       ok: false,
-      error: `Cannot add prompt instance: the playground supports at most ${NUM_MAX_PLAYGROUND_INSTANCES} comparison instances. Delete an existing instance before adding another.`,
+      error: `Cannot add an instance: the playground supports at most ${NUM_MAX_PLAYGROUND_INSTANCES} comparison instances. Remove an instance before adding another.`,
     };
   }
   if (state.instances.some((instance) => instance.activeRunId != null)) {
     return {
       ok: false,
-      error: "Cannot add prompt instance while the playground is running.",
+      error: "Cannot add an instance while the playground is running.",
     };
   }
-  const firstInstance = state.instances[0];
-  if (!firstInstance) {
+
+  const pageKind = getPlaygroundTaskKind(state.instances);
+
+  const resolvedSource: PlaygroundInstanceSource = source ?? {
+    type: "new",
+    kind: pageKind === "evaluator" ? "LLM" : "prompt",
+  };
+
+  if (
+    resolvedSource.type !== "duplicate" &&
+    getTaskSourceKind(resolvedSource) !== pageKind
+  ) {
+    return {
+      ok: false,
+      error: `This page holds ${pageKind} tasks, so a comparison instance must be a ${pageKind} task too. To switch kinds, remove the other instances and call playground.task.select on the one that remains.`,
+    };
+  }
+
+  const instanceId = state.addInstance(resolvedSource);
+
+  if (instanceId == null) {
     return {
       ok: false,
       error:
-        "Cannot add prompt instance because the playground has no source configuration.",
+        "Cannot add an instance because the playground has no source configuration.",
     };
   }
 
-  const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
-  const addedInstance = {
-    ...instance,
-    model: firstInstance.model,
-    tools: firstInstance.tools,
-    toolChoice: firstInstance.toolChoice,
-    prompt: null,
-  };
-  playgroundStore.setState(
-    (currentState) => ({
-      ...currentState,
-      allInstanceMessages: {
-        ...currentState.allInstanceMessages,
-        ...instanceMessages,
-      },
-      instances: [...currentState.instances, addedInstance],
-    }),
-    false,
-    { type: "addPromptInstance/agent" }
-  );
-
-  const snapshot = getPromptSnapshot({
-    playgroundStore,
-    instanceId: addedInstance.id,
-  });
-  if (!snapshot.ok) return snapshot;
-
-  return {
-    ok: true,
-    output: {
-      status: "added",
-      addedInstance: snapshot.output,
-      message: "Default prompt instance added for comparison.",
-    },
-  };
+  return { ok: true, output: { instanceId, source: resolvedSource } };
 }
 
 /**

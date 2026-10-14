@@ -9,11 +9,13 @@ Security:
   the secret's entropy (~2^165 bits). The KDF parameters (600K iterations, fixed salt)
   provide domain separation and meet OWASP guidelines, but don't meaningfully strengthen
   security against brute force given the high-entropy input.
-- When PHOENIX_SECRET is absent (installations without authentication), encryption uses
-  a deterministic key from empty password. Suitable for development/trusted environments.
+- When PHOENIX_SECRET is absent, encryption uses a deterministic key from an empty
+  password, so the key is publicly known. This applies even when authentication is
+  enabled, since authentication no longer requires PHOENIX_SECRET.
 
 Threat model:
 - Protects: Database backups/dumps when PHOENIX_SECRET is properly set
+- Does not protect: Database copies when PHOENIX_SECRET is absent
 - Does not protect: Compromise of both database and PHOENIX_SECRET
 
 Limitations:

@@ -1,7 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Optional, get_args
+from typing import Any, Callable, Optional, get_args
 from unittest.mock import MagicMock
 from urllib.parse import quote, unquote, urlparse
 
@@ -9,6 +9,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
+import phoenix.config as phoenix_config
 from phoenix.config import (
     AssignableUserRoleName,
     OAuth2ClientConfig,
@@ -25,6 +26,240 @@ from phoenix.config import (
     get_env_tls_enabled_for_http,
 )
 from phoenix.db.models import UserRoleName
+
+
+class TestGetEnvOnlineEval:
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value", "expected"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
+                phoenix_config.get_env_online_eval_frontier_lag_seconds,
+                "0",
+                0.0,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+                "0.001",
+                0.001,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+                "0.001",
+                0.001,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_consumer_tick_interval_seconds,
+                "0.001",
+                0.001,
+            ),
+        ],
+    )
+    def test_float_boundaries(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], float],
+        value: str,
+        expected: float,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        assert getter() == expected
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
+                phoenix_config.get_env_online_eval_frontier_lag_seconds,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+                "0",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+                "0",
+            ),
+        ],
+    )
+    def test_float_domains(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], float],
+        value: str,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        with pytest.raises(ValueError, match=env_name):
+            getter()
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
+                phoenix_config.get_env_online_eval_frontier_lag_seconds,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
+                phoenix_config.get_env_online_eval_backstop_interval_seconds,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
+                phoenix_config.get_env_online_eval_retention_seconds,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+    def test_float_domains_reject_non_finite_values(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], float],
+        value: str,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        with pytest.raises(ValueError, match=env_name):
+            getter()
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value", "expected"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS,
+                phoenix_config.get_env_online_eval_backstop_lookback_span_ids,
+                "0",
+                0,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_outstanding,
+                "1",
+                1,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
+                phoenix_config.get_env_online_eval_claim_batch_size,
+                "1",
+                1,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
+                phoenix_config.get_env_online_eval_max_evaluator_concurrency,
+                "1",
+                1,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
+                phoenix_config.get_env_online_eval_max_db_concurrency,
+                "1",
+                1,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
+                phoenix_config.get_env_online_eval_max_llm_message_bytes,
+                "1024",
+                1024,
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
+                "1024",
+                1024,
+            ),
+        ],
+    )
+    def test_integer_boundaries(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], int],
+        value: str,
+        expected: int,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        assert getter() == expected
+
+    @pytest.mark.parametrize(
+        ("env_name", "getter", "value"),
+        [
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS,
+                phoenix_config.get_env_online_eval_backstop_lookback_span_ids,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_outstanding,
+                "0",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_outstanding,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
+                phoenix_config.get_env_online_eval_max_evaluator_concurrency,
+                "0",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
+                phoenix_config.get_env_online_eval_max_db_concurrency,
+                "0",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
+                phoenix_config.get_env_online_eval_max_llm_message_bytes,
+                "1023",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
+                "1023",
+            ),
+        ],
+    )
+    def test_integer_domains(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_name: str,
+        getter: Callable[[], int],
+        value: str,
+    ) -> None:
+        monkeypatch.setenv(env_name, value)
+        with pytest.raises(ValueError, match=env_name):
+            getter()
+
+    def test_session_size_defaults(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv(
+            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
+            raising=False,
+        )
+        monkeypatch.delenv(
+            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
+            raising=False,
+        )
+
+        assert phoenix_config.get_env_online_eval_max_llm_message_bytes() == 65_536
+        assert phoenix_config.get_env_online_eval_max_sandbox_payload_bytes() == 65_536
 
 
 class TestPostgresConnectionString:
@@ -349,6 +584,24 @@ class TestGetEnvRootUrl:
             ),
             pytest.param(
                 {
+                    "PHOENIX_HOST": "::",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "",
+                },
+                URL("http://[::1]:6006"),
+                id="constructed_url_with_ipv6_unspecified_host",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_HOST": "fd00::5",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "",
+                },
+                URL("http://[fd00::5]:6006"),
+                id="constructed_url_with_ipv6_host",
+            ),
+            pytest.param(
+                {
                     "PHOENIX_HOST": "example.com",
                     "PHOENIX_PORT": "443",
                     "PHOENIX_HOST_ROOT_PATH": "/app",
@@ -577,7 +830,7 @@ class TestGetEnvTlsEnabled:
 
 class TestGetEnvAuthSettings:
     @pytest.mark.parametrize(
-        "env_vars, expected_result",
+        "env_vars, expected_result, host",
         [
             pytest.param(
                 {},  # No environment variables set
@@ -588,6 +841,7 @@ class TestGetEnvAuthSettings:
                     "phoenix_admin_secret": "",
                     "oauth2_clients": [],
                 },
+                "127.0.0.1",
                 id="default_values",
             ),
             pytest.param(
@@ -602,7 +856,20 @@ class TestGetEnvAuthSettings:
                     "phoenix_admin_secret": "",
                     "oauth2_clients": [],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_secret",
+            ),
+            pytest.param(
+                {"PHOENIX_ENABLE_AUTH": "true"},
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                "127.0.0.1",
+                id="auth_enabled_without_secret",
             ),
             pytest.param(
                 {
@@ -617,6 +884,7 @@ class TestGetEnvAuthSettings:
                     "phoenix_admin_secret": "validadminsecret123456789012345678901234567890",
                     "oauth2_clients": [],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_both_secrets",
             ),
             pytest.param(
@@ -645,6 +913,7 @@ class TestGetEnvAuthSettings:
                         }
                     ],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_oauth2",
             ),
             pytest.param(
@@ -685,6 +954,7 @@ class TestGetEnvAuthSettings:
                         },
                     ],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_multiple_oauth2",
             ),
             pytest.param(
@@ -716,7 +986,20 @@ class TestGetEnvAuthSettings:
                         }
                     ],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_custom_oauth2_settings",
+            ),
+            pytest.param(
+                {},
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                "0.0.0.0",
+                id="unset_auth_on_network_bind",
             ),
         ],
     )
@@ -725,6 +1008,7 @@ class TestGetEnvAuthSettings:
         monkeypatch: MonkeyPatch,
         env_vars: dict[str, str],
         expected_result: dict[str, Any],
+        host: str,
     ) -> None:
         # Clear all auth-related environment variables first
         monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
@@ -744,6 +1028,7 @@ class TestGetEnvAuthSettings:
         # Set the test environment variables
         for key, value in env_vars.items():
             monkeypatch.setenv(key, value)
+        monkeypatch.setenv("PHOENIX_HOST", host)
 
         result = get_env_auth_settings()
         assert result.enable_auth == expected_result["enable_auth"]
@@ -774,13 +1059,6 @@ class TestGetEnvAuthSettings:
     @pytest.mark.parametrize(
         "env_vars, expected_error_msg",
         [
-            pytest.param(
-                {
-                    "PHOENIX_ENABLE_AUTH": "true",
-                },
-                "`PHOENIX_SECRET` must be set when auth is enabled with `PHOENIX_ENABLE_AUTH`",
-                id="auth_enabled_without_secret",
-            ),
             pytest.param(
                 {
                     "PHOENIX_ENABLE_AUTH": "true",
@@ -815,6 +1093,8 @@ class TestGetEnvAuthSettings:
         monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL", raising=False)
         monkeypatch.delenv("PHOENIX_LDAP_HOST", raising=False)
 
+        monkeypatch.delenv("PHOENIX_HOST", raising=False)
+
         # Set the test environment variables
         for key, value in env_vars.items():
             monkeypatch.setenv(key, value)
@@ -822,6 +1102,156 @@ class TestGetEnvAuthSettings:
         with pytest.raises(ValueError) as e:
             get_env_auth_settings()
         assert expected_error_msg in str(e.value)
+
+
+class TestLoopbackBindRule:
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("127.0.0.1", True, id="ipv4_loopback"),
+            pytest.param("127.8.9.10", True, id="ipv4_loopback_range"),
+            pytest.param("::1", True, id="ipv6_loopback"),
+            pytest.param("[::1]", True, id="bracketed_ipv6_loopback"),
+            pytest.param("::ffff:127.0.0.1", True, id="ipv4_mapped_loopback"),
+            pytest.param("127.1", False, id="unparsed_ipv4_abbreviation"),
+            pytest.param("localhost", True, id="localhost"),
+            pytest.param("LOCALHOST", True, id="localhost_case_insensitive"),
+            pytest.param("0.0.0.0", False, id="ipv4_unspecified"),
+            pytest.param("::", False, id="ipv6_unspecified"),
+            pytest.param(None, False, id="none_means_all_interfaces"),
+            pytest.param("", False, id="empty"),
+            pytest.param("192.168.1.5", False, id="private_address"),
+            pytest.param("example.com", False, id="hostname"),
+        ],
+    )
+    def test_is_loopback_host(self, host: Optional[str], expected: bool) -> None:
+        assert phoenix_config.is_loopback_host(host) is expected
+
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("0.0.0.0", "127.0.0.1", id="ipv4_unspecified"),
+            pytest.param("::", "[::1]", id="ipv6_unspecified"),
+            pytest.param("::1", "[::1]", id="ipv6_loopback"),
+            pytest.param("fd00::5", "[fd00::5]", id="ipv6_address"),
+            pytest.param("192.168.1.5", "192.168.1.5", id="ipv4_address"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_local_url_host(self, host: str, expected: str) -> None:
+        assert phoenix_config.local_url_host(host) == expected
+
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("::", "[::]", id="ipv6_unspecified"),
+            pytest.param("0.0.0.0", "0.0.0.0", id="ipv4_unspecified"),
+            pytest.param("fd00::5", "[fd00::5]", id="ipv6_address"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_url_host(self, host: str, expected: str) -> None:
+        assert phoenix_config.url_host(host) == expected
+
+    def test_ipv4_mapped_loopback_is_loopback(self) -> None:
+        assert phoenix_config.is_loopback_host("::ffff:127.0.0.1") is True
+
+    @pytest.mark.parametrize(
+        "env_value, host, expected",
+        [
+            pytest.param("true", "127.0.0.1", True, id="explicit_true_wins"),
+            pytest.param("false", "0.0.0.0", False, id="explicit_false_wins"),
+            pytest.param(None, "127.0.0.1", False, id="unset_loopback"),
+            pytest.param(None, "::ffff:127.0.0.1", False, id="unset_ipv4_mapped_loopback"),
+            pytest.param(None, "0.0.0.0", True, id="unset_non_loopback"),
+            pytest.param(None, "127.1", True, id="unset_unparsed_spelling"),
+            pytest.param(None, None, True, id="unset_none"),
+        ],
+    )
+    def test_auth_enabled_for_host(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_value: Optional[str],
+        host: Optional[str],
+        expected: bool,
+    ) -> None:
+        if env_value is None:
+            monkeypatch.delenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, raising=False)
+        else:
+            monkeypatch.setenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, env_value)
+        assert phoenix_config.auth_enabled_for_host(host) is expected
+
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            pytest.param("127.1", "127.0.0.1", id="ipv4_abbreviation"),
+            pytest.param("  127.1  ", "127.0.0.1", id="abbreviation_whitespace"),
+            pytest.param("localhost", "localhost", id="localhost"),
+            pytest.param("::1", "::1", id="ipv6_loopback"),
+            pytest.param("[::1]", "::1", id="bracketed_ipv6_loopback"),
+            pytest.param("0.0.0.0", "0.0.0.0", id="ipv4_unspecified"),
+            pytest.param("::", "::", id="ipv6_unspecified"),
+            pytest.param("[::]", "::", id="bracketed_ipv6_unspecified"),
+            pytest.param(" [::] ", "::", id="bracketed_ipv6_whitespace"),
+            pytest.param("0:0:0:0:0:0:0:0", "::", id="expanded_ipv6_unspecified"),
+            pytest.param("0:0:0:0:0:0:0:1", "::1", id="expanded_ipv6_loopback"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_get_env_host_canonicalizes(
+        self, monkeypatch: MonkeyPatch, raw: str, expected: str
+    ) -> None:
+        monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, raw)
+        assert phoenix_config.get_env_host() == expected
+
+    def test_abbreviated_loopback_is_loopback(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, "127.1")
+        assert phoenix_config.is_loopback_host(phoenix_config.get_env_host())
+
+    def test_default_host_is_loopback(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv(phoenix_config.ENV_PHOENIX_HOST, raising=False)
+        assert phoenix_config.is_loopback_host(phoenix_config.get_env_host())
+
+    @pytest.mark.parametrize(
+        "env_value, host, expected",
+        [
+            pytest.param("true", "127.0.0.1", True, id="explicit_true_ipv4_loopback"),
+            pytest.param("true", "::1", True, id="explicit_true_ipv6_loopback"),
+            pytest.param("true", "localhost", True, id="explicit_true_localhost"),
+            pytest.param("true", "0.0.0.0", True, id="explicit_true_ipv4_unspecified"),
+            pytest.param("true", "::", True, id="explicit_true_ipv6_unspecified"),
+            pytest.param("true", None, True, id="explicit_true_unset_host"),
+            pytest.param("false", "127.0.0.1", False, id="explicit_false_ipv4_loopback"),
+            pytest.param("false", "::1", False, id="explicit_false_ipv6_loopback"),
+            pytest.param("false", "localhost", False, id="explicit_false_localhost"),
+            pytest.param("false", "0.0.0.0", False, id="explicit_false_ipv4_unspecified"),
+            pytest.param("false", "::", False, id="explicit_false_ipv6_unspecified"),
+            pytest.param("false", None, False, id="explicit_false_unset_host"),
+            pytest.param(None, "127.0.0.1", False, id="unset_ipv4_loopback"),
+            pytest.param(None, "::1", False, id="unset_ipv6_loopback"),
+            pytest.param(None, "localhost", False, id="unset_localhost"),
+            pytest.param(None, None, False, id="unset_default_host"),
+            pytest.param(None, "0.0.0.0", True, id="unset_ipv4_unspecified"),
+            pytest.param(None, "::", True, id="unset_ipv6_unspecified"),
+        ],
+    )
+    def test_auth_default_follows_env_host(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_value: Optional[str],
+        host: Optional[str],
+        expected: bool,
+    ) -> None:
+        if env_value is None:
+            monkeypatch.delenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, raising=False)
+        else:
+            monkeypatch.setenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, env_value)
+        if host is None:
+            monkeypatch.delenv(phoenix_config.ENV_PHOENIX_HOST, raising=False)
+        else:
+            monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, host)
+        host = phoenix_config.get_env_host()
+        assert phoenix_config.auth_enabled_for_host(host) is expected
 
 
 def test_ensure_working_dir_if_needed_skips_when_no_local_storage(

@@ -2,7 +2,12 @@ import { css } from "@emotion/react";
 import { Fragment } from "react";
 import type { ReactNode } from "react";
 
-import { Button, ExternalLinkButton } from "@phoenix/components/core/button";
+import {
+  Button,
+  ExternalLinkButton,
+  LinkButton,
+  type LinkButtonProps,
+} from "@phoenix/components/core/button";
 import type { ButtonProps } from "@phoenix/components/core/button/types";
 import { Text } from "@phoenix/components/core/content";
 import { Flex } from "@phoenix/components/core/layout";
@@ -14,8 +19,8 @@ export type EmptyStateCardItem = LinkCardProps;
 
 /**
  * A single item in an action strip. Convention: use `link` for external
- * destinations (rendered as an `ExternalLink`) and `button` for in-product
- * behaviors — navigation, opening a dialog, etc. (rendered as a `Button`).
+ * destinations, `internal-link` for in-product navigation, and `button` for
+ * behaviors such as opening a dialog.
  *
  * `node` is the escape hatch for a self-contained interactive control the
  * `link`/`button` kinds can't express — e.g. a button that opens a popover menu
@@ -24,6 +29,7 @@ export type EmptyStateCardItem = LinkCardProps;
  */
 export type EmptyStateActionItem =
   | { kind: "link"; label: string; href: string }
+  | ({ kind: "internal-link" } & Omit<LinkButtonProps, "size">)
   | { kind: "node"; node: ReactNode }
   | ({ kind: "button" } & Omit<ButtonProps, "size">);
 
@@ -105,6 +111,10 @@ function ActionArea({ action }: { action: EmptyStateAction }) {
                 {item.label}
               </ExternalLinkButton>
             );
+          }
+          if (item.kind === "internal-link") {
+            const { kind: _kind, ...linkButtonProps } = item;
+            return <LinkButton key={i} size="S" {...linkButtonProps} />;
           }
           if (item.kind === "node") {
             return <Fragment key={i}>{item.node}</Fragment>;

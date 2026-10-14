@@ -79,6 +79,12 @@ from phoenix.config import (
     get_env_host_root_path,
     get_env_max_spans_queue_size,
     get_env_mcp_code_mode,
+    get_env_online_eval_claim_batch_size,
+    get_env_online_eval_consumer_tick_interval_seconds,
+    get_env_online_eval_max_db_concurrency,
+    get_env_online_eval_max_evaluator_concurrency,
+    get_env_online_eval_max_llm_message_bytes,
+    get_env_online_eval_max_sandbox_payload_bytes,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -125,6 +131,12 @@ from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.system_settings import SystemSettings
+from phoenix.server.deployment_secret import (
+    REDACTION_KEY_PURPOSE,
+    TOKEN_SIGNING_KEY_PURPOSE,
+    derive_deployment_key,
+    load_deployment_seed,
+)
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
@@ -154,6 +166,9 @@ from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMi
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer
+from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
@@ -652,6 +667,12 @@ def _lifespan(
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
     sandbox_runtime: SandboxRuntimeContext,
+    online_eval_producer: Optional[OnlineEvalProducer] = None,
+    online_eval_consumer: Optional[OnlineEvalConsumer] = None,
+    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None,
+    online_eval_trace_consumer: Optional[OnlineEvalConsumer] = None,
+    online_eval_session_sweeper: Optional[EvalSweeper] = None,
+    online_eval_trace_sweeper: Optional[EvalSweeper] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -659,14 +680,34 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    grpc_host: str,
     initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: Optional[_WelcomeMessage] = None,
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
+    secret: Optional[SecretStr] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
+        seed = await load_deployment_seed(db)
+        app.state.redactor = Redactor(
+            derive_deployment_key(
+                seed=seed,
+                secret=secret or SecretStr(""),
+                purpose=REDACTION_KEY_PURPOSE,
+            )
+        )
+        if isinstance(token_store, JwtStore):
+            if secret:
+                token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
+            else:
+                token_store.set_signing_key(
+                    derive_deployment_key(
+                        seed=seed, secret=SecretStr(""), purpose=TOKEN_SIGNING_KEY_PURPOSE
+                    ),
+                    require_stored_hash=True,
+                )
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -686,6 +727,7 @@ def _lifespan(
             grpc_server = GrpcServer(
                 enqueue_span,
                 port=resolved_grpc_port,
+                host=grpc_host,
                 disabled=read_only,
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
@@ -711,6 +753,18 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
+            if online_eval_consumer is not None:
+                await stack.enter_async_context(online_eval_consumer)
+            if online_eval_session_consumer is not None:
+                await stack.enter_async_context(online_eval_session_consumer)
+            if online_eval_trace_consumer is not None:
+                await stack.enter_async_context(online_eval_trace_consumer)
+            if online_eval_producer is not None:
+                await stack.enter_async_context(online_eval_producer)
+            if online_eval_session_sweeper is not None:
+                await stack.enter_async_context(online_eval_session_sweeper)
+            if online_eval_trace_sweeper is not None:
+                await stack.enter_async_context(online_eval_trace_sweeper)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during
                 # startup. Never let its initialization (which can hang until a
@@ -936,6 +990,7 @@ def create_app(
     dev_vite_port: int = 5173,
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    grpc_host: Optional[str] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
     initial_annotation_precursors: Optional[Iterable[AnnotationPrecursor]] = None,
@@ -956,6 +1011,8 @@ def create_app(
     management_url: Optional[str] = None,
     welcome_message: Optional[_WelcomeMessage] = None,
 ) -> FastAPI:
+    if grpc_host is None:
+        grpc_host = get_env_host()
     verify_server_environment_variables()
     _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
@@ -1007,8 +1064,8 @@ def create_app(
             "This is recommended when setting up OAuth2 clients or sending "
             "password reset emails."
         )
-    if authentication_enabled and secret:
-        token_store = JwtStore(db, secret)
+    if authentication_enabled:
+        token_store = JwtStore(db)
         middlewares.append(
             Middleware(
                 AuthenticationMiddleware,
@@ -1064,7 +1121,6 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
-    redactor = Redactor(secret=secret or SecretStr(""))
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
     sandbox_session_manager = SandboxSessionManager()
     experiment_runner = ExperimentRunner(
@@ -1074,6 +1130,60 @@ def create_app(
         sandbox_session_manager=sandbox_session_manager,
         sandbox_runtime=sandbox_runtime,
     )
+    online_eval_producer: Optional[OnlineEvalProducer] = None
+    online_eval_consumer: Optional[OnlineEvalConsumer] = None
+    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None
+    online_eval_trace_consumer: Optional[OnlineEvalConsumer] = None
+    online_eval_session_sweeper: Optional[EvalSweeper] = None
+    online_eval_trace_sweeper: Optional[EvalSweeper] = None
+    if not read_only:
+        claim_batch_size = get_env_online_eval_claim_batch_size()
+        tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
+        get_env_online_eval_max_llm_message_bytes()
+        get_env_online_eval_max_sandbox_payload_bytes()
+        evaluator_semaphore = asyncio.Semaphore(get_env_online_eval_max_evaluator_concurrency())
+        db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())
+        online_eval_producer = OnlineEvalProducer(db)
+        online_eval_consumer = OnlineEvalConsumer(
+            db,
+            decrypt=encryption_service.decrypt,
+            sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
+            event_queue=dml_event_handler,
+            tick_interval_seconds=tick_interval_seconds,
+            claim_batch_size=claim_batch_size,
+            evaluator_semaphore=evaluator_semaphore,
+            db_semaphore=db_semaphore,
+            tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        )
+        online_eval_session_consumer = OnlineEvalConsumer(
+            db,
+            decrypt=encryption_service.decrypt,
+            sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
+            event_queue=dml_event_handler,
+            evaluation_target="SESSION",
+            tick_interval_seconds=tick_interval_seconds,
+            claim_batch_size=claim_batch_size,
+            evaluator_semaphore=evaluator_semaphore,
+            db_semaphore=db_semaphore,
+            tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        )
+        online_eval_trace_consumer = OnlineEvalConsumer(
+            db,
+            decrypt=encryption_service.decrypt,
+            sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
+            event_queue=dml_event_handler,
+            evaluation_target="TRACE",
+            tick_interval_seconds=tick_interval_seconds,
+            claim_batch_size=claim_batch_size,
+            evaluator_semaphore=evaluator_semaphore,
+            db_semaphore=db_semaphore,
+            tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        )
+        online_eval_session_sweeper = EvalSweeper(db, evaluation_target="SESSION")
+        online_eval_trace_sweeper = EvalSweeper(db, evaluation_target="TRACE")
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1112,6 +1222,7 @@ def create_app(
             db=db,
             read_only=read_only,
             grpc_port=grpc_port,
+            grpc_host=grpc_host,
             initial_annotation_precursors=startup_annotation_precursors,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
@@ -1124,6 +1235,12 @@ def create_app(
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
+            online_eval_producer=online_eval_producer,
+            online_eval_consumer=online_eval_consumer,
+            online_eval_session_consumer=online_eval_session_consumer,
+            online_eval_trace_consumer=online_eval_trace_consumer,
+            online_eval_session_sweeper=online_eval_session_sweeper,
+            online_eval_trace_sweeper=online_eval_trace_sweeper,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1133,6 +1250,7 @@ def create_app(
             scaffolder_config=scaffolder_config,
             welcome_message=welcome_message,
             docs_mcp_server=docs_mcp_server,
+            secret=secret,
         ),
         middleware=middlewares,
         exception_handlers={
@@ -1350,11 +1468,16 @@ def create_app(
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
     app.state.decrypt = encryption_service.decrypt
-    app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
+    app.state.online_eval_producer = online_eval_producer
+    app.state.online_eval_consumer = online_eval_consumer
+    app.state.online_eval_session_consumer = online_eval_session_consumer
+    app.state.online_eval_trace_consumer = online_eval_trace_consumer
+    app.state.online_eval_session_sweeper = online_eval_session_sweeper
+    app.state.online_eval_trace_sweeper = online_eval_trace_sweeper
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and
     # GraphQL surfaces answer from the same (startup-validated) value.
@@ -1379,7 +1502,6 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
     )
-    app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -1432,22 +1554,6 @@ def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfi
             f"OAuth2 identity provider names cannot use reserved authorization server paths: "
             f"{names}. Reserved names: {reserved}."
         )
-
-
-def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:
-    """
-    Dynamically adds a `get_secret` method to the app's `state`.
-    """
-    app.state._secret = secret
-
-    def get_secret(self: StarletteState) -> SecretStr:
-        if (secret := self._secret) is None:
-            raise ValueError("app secret is not set")
-        assert isinstance(secret, SecretStr)
-        return secret
-
-    app.state.get_secret = MethodType(get_secret, app.state)
-    return app
 
 
 def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]) -> FastAPI:

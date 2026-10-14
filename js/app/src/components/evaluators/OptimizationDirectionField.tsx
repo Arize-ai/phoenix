@@ -45,6 +45,7 @@ export type OptimizationDirectionFieldProps = {
    * shown beneath the field when editable.
    */
   description?: string;
+  onChange?: () => void;
 };
 
 /**
@@ -57,6 +58,7 @@ export const OptimizationDirectionField = ({
   isReadOnly,
   isDisabled,
   description,
+  onChange,
 }: OptimizationDirectionFieldProps) => {
   const { optimizationDirection, setOutputConfigOptimizationDirectionAtIndex } =
     useEvaluatorStore(
@@ -80,12 +82,13 @@ export const OptimizationDirectionField = ({
   return (
     <Select
       value={optimizationDirection}
-      onChange={(e) =>
+      onChange={(e) => {
+        onChange?.();
         setOutputConfigOptimizationDirectionAtIndex(
           0,
           e as EvaluatorOptimizationDirection
-        )
-      }
+        );
+      }}
       isDisabled={isDisabled}
       aria-label="Optimization direction"
       data-testid="optimization-direction-picker"

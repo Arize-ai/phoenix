@@ -1,4 +1,5 @@
 import json
+from collections.abc import Iterable
 from enum import Enum
 from typing import Annotated, Literal, Optional, Union
 
@@ -183,6 +184,30 @@ OutputConfigType: TypeAlias = Annotated[
 
 class OutputConfig(RootModel[OutputConfigType]):
     root: OutputConfigType
+
+
+def as_output_configs(
+    configs: Optional[Iterable[AnnotationConfigType]],
+) -> list[OutputConfigType]:
+    """Re-validate stored annotation configs into output configs.
+
+    Columns typed ``_AnnotationConfigList`` deserialize stored configs as the
+    base annotation-config models, so ``isinstance`` checks against the
+    OutputConfig subclasses silently drop every stored config. Nameless
+    configs are skipped: output configs require a name.
+    """
+    output_configs: list[OutputConfigType] = []
+    for config in configs or []:
+        if isinstance(
+            config,
+            (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+        ):
+            output_configs.append(config)
+            continue
+        if config.name is None:
+            continue
+        output_configs.append(OutputConfig.model_validate(config.model_dump()).root)
+    return output_configs
 
 
 def bare_shape_examples(language: str = _PYTHON, mode: str = "full") -> list[str]:

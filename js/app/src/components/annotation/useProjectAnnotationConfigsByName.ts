@@ -1,7 +1,39 @@
-import { graphql, useFragment } from "react-relay";
+import { graphql, readInlineData, useFragment } from "react-relay";
+
+import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 
 import type { ProjectAnnotationConfigsByNameFragment$key } from "./__generated__/ProjectAnnotationConfigsByNameFragment.graphql";
-import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import type { useProjectAnnotationConfigsByName_config$key } from "./__generated__/useProjectAnnotationConfigsByName_config.graphql";
+import {
+  type AnnotationOptimizationConfig,
+  toAnnotationOptimizationConfig,
+} from "./optimizationUtils";
+
+const annotationConfigFragment = graphql`
+  fragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase
+  @inline {
+    name
+    annotationType
+    ... on CategoricalAnnotationConfig {
+      optimizationDirection
+      values {
+        label
+        score
+      }
+    }
+    ... on ContinuousAnnotationConfig {
+      optimizationDirection
+      lowerBound
+      upperBound
+    }
+    ... on FreeformAnnotationConfig {
+      optimizationDirection
+      threshold
+      lowerBound
+      upperBound
+    }
+  }
+`;
 
 export function useProjectAnnotationConfigsByName(
   project: ProjectAnnotationConfigsByNameFragment$key | null | undefined
@@ -13,6 +45,21 @@ export function useProjectAnnotationConfigsByName(
         annotationConfigNames: { type: "[String!]" }
         first: { type: "Int", defaultValue: 100 }
       ) {
+        evaluators(
+          first: $first
+          filter: { annotationNames: $annotationConfigNames }
+        ) {
+          edges {
+            node {
+              name
+              evaluator {
+                outputConfigs {
+                  ...useProjectAnnotationConfigsByName_config
+                }
+              }
+            }
+          }
+        }
         # Aliased: Relay rejects the same field with different arguments on
         # one parent, and config mutations also select the unfiltered list
         configsByName: annotationConfigs(
@@ -21,28 +68,7 @@ export function useProjectAnnotationConfigsByName(
         ) {
           edges {
             config: node {
-              ... on AnnotationConfigBase {
-                name
-                annotationType
-              }
-              ... on CategoricalAnnotationConfig {
-                optimizationDirection
-                values {
-                  label
-                  score
-                }
-              }
-              ... on ContinuousAnnotationConfig {
-                optimizationDirection
-                lowerBound
-                upperBound
-              }
-              ... on FreeformAnnotationConfig {
-                optimizationDirection
-                threshold
-                lowerBound
-                upperBound
-              }
+              ...useProjectAnnotationConfigsByName_config
             }
           }
         }
@@ -51,18 +77,35 @@ export function useProjectAnnotationConfigsByName(
     project
   );
   const configsByName = new Map<string, AnnotationOptimizationConfig>();
-  data?.configsByName.edges.forEach(({ config }) => {
-    if (config.name == null || config.annotationType == null) {
+  data?.evaluators.edges.forEach(({ node: { name, evaluator } }) => {
+    for (const result of getProjectEvaluatorResultAnnotations({
+      name,
+      outputConfigs: evaluator.outputConfigs.map((config) =>
+        readInlineData<useProjectAnnotationConfigsByName_config$key>(
+          annotationConfigFragment,
+          config
+        )
+      ),
+    })) {
+      if (result.config != null) {
+        configsByName.set(result.name, result.config);
+      }
+    }
+  });
+  // Explicit project configs take precedence over evaluator-derived defaults.
+  data?.configsByName.edges.forEach(({ config: configRef }) => {
+    const config = readInlineData<useProjectAnnotationConfigsByName_config$key>(
+      annotationConfigFragment,
+      configRef
+    );
+    if (config.name == null) {
       return;
     }
-    configsByName.set(config.name, {
-      annotationType: config.annotationType,
-      optimizationDirection: config.optimizationDirection,
-      lowerBound: config.lowerBound,
-      upperBound: config.upperBound,
-      threshold: config.threshold,
-      values: config.values,
-    });
+    const optimizationConfig = toAnnotationOptimizationConfig(config);
+    if (optimizationConfig == null) {
+      return;
+    }
+    configsByName.set(config.name, optimizationConfig);
   });
   return configsByName;
 }

@@ -10,7 +10,7 @@ from deepdiff.diff import DeepDiff
 from sqlalchemy import select
 from sqlalchemy.dialects import postgresql as postgresql_dialect
 from sqlalchemy.dialects import sqlite as sqlite_dialect
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import RelationshipDirection, selectinload
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -23,6 +23,7 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
     OutputConfigType,
 )
+from phoenix.db.types.evaluator_definition import InlineCodeEvaluatorDefinition
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -1137,7 +1138,7 @@ class TestEvaluatorPolymorphism:
 
         # ===== RESTRICT: Cannot delete prompt in use by evaluators =====
         # Attempt to delete prompt that is being used by eval_1
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match=r"(?i)foreign key"):
             async with db() as session:
                 prompt_to_delete = await session.get(models.Prompt, new_prompt.id)
                 assert prompt_to_delete is not None
@@ -1175,6 +1176,7 @@ class TestPromptVersion:
             "tools": None,
             "response_format": None,
             "model_provider": ModelProvider.OPENAI,
+            "custom_provider_id": None,
             "model_name": "gpt-4",
             "metadata_": {"key": "value"},
         }
@@ -1221,6 +1223,10 @@ class TestPromptVersion:
                 id="model-provider-differs",
             ),
             pytest.param(
+                {"custom_provider_id": 7},
+                id="custom-provider-differs",
+            ),
+            pytest.param(
                 {"model_name": "gpt-3.5-turbo"},
                 id="model-name-differs",
             ),
@@ -1251,6 +1257,7 @@ class TestPromptVersion:
             "tools": None,
             "response_format": None,
             "model_provider": ModelProvider.OPENAI,
+            "custom_provider_id": None,
             "model_name": "gpt-4",
             "metadata_": {"key": "value"},
         }
@@ -1774,7 +1781,14 @@ class TestExperimentJobPolymorphism:
                 repetitions=1,
                 metadata_={},
             )
-            session.add_all([exp1, exp2])
+            exp3 = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name=f"evaluator-exp-{token_hex(6)}",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add_all([exp1, exp2, exp3])
             await session.flush()
 
             session.add(
@@ -1791,13 +1805,42 @@ class TestExperimentJobPolymorphism:
                 )
             )
             session.add(models.ExperimentEvalOnlyConfig(id=exp2.id))
+            length_config = ContinuousOutputConfig(
+                type="CONTINUOUS",
+                name="length",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description=None,
+                lower_bound=0.0,
+                upper_bound=None,
+            )
+            definition = InlineCodeEvaluatorDefinition(
+                type="inline_code_evaluator",
+                name="answer-length",
+                description=None,
+                language="PYTHON",
+                source_code="def evaluate(output):\n    return len(output)",
+                sandbox_config_id=1,
+                output_configs=[length_config],
+            )
+            session.add(
+                models.ExperimentEvaluatorTask(
+                    id=exp3.id,
+                    name=Identifier("answer-length"),
+                    evaluator_kind="CODE",
+                    definition=definition,
+                    input_mapping=InputMapping(
+                        literal_mapping={}, path_mapping={"output": "$.output"}
+                    ),
+                    output_configs=[length_config],
+                )
+            )
             await session.flush()
-            exp1_id, exp2_id = exp1.id, exp2.id
+            exp1_id, exp2_id, exp3_id = exp1.id, exp2.id, exp3.id
 
         # Query base class returns correct subclass types
         async with db() as session:
             configs = (await session.scalars(select(models.ExperimentJob))).all()
-            assert len(configs) == 2
+            assert len(configs) == 3
             by_id = {c.id: c for c in configs}
 
             prompt_config = by_id[exp1_id]
@@ -1810,6 +1853,17 @@ class TestExperimentJobPolymorphism:
             assert isinstance(eval_config, models.ExperimentEvalOnlyConfig)
             assert not isinstance(eval_config, models.ExperimentPromptTask)
             assert eval_config.type == "EVAL_ONLY"
+
+            evaluator_task = by_id[exp3_id]
+            assert isinstance(evaluator_task, models.ExperimentEvaluatorTask)
+            assert not isinstance(evaluator_task, models.ExperimentPromptTask)
+            assert evaluator_task.type == "EVALUATOR"
+            await session.refresh(evaluator_task)
+            assert evaluator_task.name == Identifier("answer-length")
+            assert evaluator_task.evaluator_kind == "CODE"
+            assert evaluator_task.definition == definition
+            assert evaluator_task.input_mapping.path_mapping == {"output": "$.output"}
+            assert evaluator_task.output_configs == [length_config]
 
 
 class TestJSONBReflection:
@@ -1846,3 +1900,36 @@ class TestJSONBReflection:
             column = models.Base.metadata.tables[table_name].columns[column_name]
             actual = column.type.compile(dialect)
             assert actual == expected, f"{table_name}.{column_name} -> {actual}"
+
+
+# Relationships where the ORM deliberately does not follow the FK rule.
+# users.user_role_id is ON DELETE CASCADE; following it would delete every user in a deleted role.
+_ORM_DELETE_EXCEPTIONS = {("UserRole", "users")}
+
+
+def test_orm_delete_behavior_agrees_with_foreign_keys() -> None:
+    """`session.delete(parent)` must do what the FK's ON DELETE rule says.
+
+    A one-to-many relationship left at SQLAlchemy's defaults loads its children and nulls
+    their foreign keys before deleting the parent, so the database's CASCADE or RESTRICT
+    never runs. A relationship either matches the FK (delete cascade for CASCADE, nulling
+    for SET NULL) or sets passive_deletes="all" and leaves the children to the database.
+    """
+    mismatches = []
+    for mapper in models.Base.registry.mappers:
+        for rel in mapper.relationships:
+            if rel.parent is not mapper or rel.direction is not RelationshipDirection.ONETOMANY:
+                continue  # inherited properties are checked on the mapper that defines them
+            if (mapper.class_.__name__, rel.key) in _ORM_DELETE_EXCEPTIONS:
+                continue
+            if rel.passive_deletes == "all":
+                continue
+            orm = "CASCADE" if rel.cascade.delete else "SET NULL"
+            for col in rel.remote_side:
+                for fk in col.foreign_keys:
+                    if fk.column.table not in mapper.tables:
+                        continue  # an FK to some other table, not this relationship's parent
+                    db = (fk.ondelete or "NO ACTION").upper()
+                    if db != orm:
+                        mismatches.append(f"{mapper.class_.__name__}.{rel.key}: FK {db}, ORM {orm}")
+    assert not mismatches, "\n".join(sorted(mismatches))

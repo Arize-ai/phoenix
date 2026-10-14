@@ -5,17 +5,12 @@ from secrets import token_hex
 import httpx
 import pytest
 import sqlalchemy as sa
-from pydantic import SecretStr
 
 from phoenix.db import models
 from phoenix.server.api.openapi.schema import get_openapi_schema
 from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
-
-# The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off SecretStr("").
-_REDACTOR = Redactor(secret=SecretStr(""))
 
 SECRETS_QUERY = """
 query SecretsQuery($keys: [String!]) {
@@ -40,6 +35,7 @@ class TestUpsertOrDeleteSecrets:
         self,
         httpx_client: httpx.AsyncClient,
         gql_client: AsyncGraphQLClient,
+        redactor: Redactor,
     ) -> None:
         """Secrets created via REST PUT can be fetched and decrypted via GraphQL."""
         key = f"REST_GQL_ROUNDTRIP_{token_hex(4)}"
@@ -61,7 +57,7 @@ class TestUpsertOrDeleteSecrets:
         edges = result.data["secrets"]["edges"]
         assert len(edges) == 1
         assert edges[0]["node"]["key"] == key
-        assert _REDACTOR.unredact(edges[0]["node"]["value"]["value"]) == value
+        assert redactor.unredact(edges[0]["node"]["value"]["value"]) == value
 
     async def test_missing_value_field_returns_422_without_deleting_existing_secret(
         self,

@@ -67,6 +67,9 @@ from phoenix.server.app import _db, create_app
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer
+from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span
@@ -103,7 +106,7 @@ def pytest_configure(config: Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "real_key_derivation: derive the encryption and redaction keys with the real PBKDF2 "
+        "real_key_derivation: derive the encryption key with the real PBKDF2 "
         "rounds instead of the memoized ones",
     )
     config.addinivalue_line(
@@ -249,9 +252,7 @@ def _stub_model_cost_seeding(request: FixtureRequest, monkeypatch: pytest.Monkey
 
 
 _DERIVE_ENCRYPTION_KEY = EncryptionService._derive_encryption_key
-_DERIVE_REDACTION_KEY = Redactor._derive_key
 _MEMOIZED_ENCRYPTION_KEYS: dict[str, bytes] = {}
-_MEMOIZED_REDACTION_KEYS: dict[str, bytes] = {}
 
 
 def _memoized_encryption_key(secret: Optional[SecretStr]) -> bytes:
@@ -261,30 +262,18 @@ def _memoized_encryption_key(secret: Optional[SecretStr]) -> bytes:
     return _MEMOIZED_ENCRYPTION_KEYS[plaintext]
 
 
-def _memoized_redaction_key(secret: SecretStr) -> bytes:
-    plaintext = secret.get_secret_value()
-    if plaintext not in _MEMOIZED_REDACTION_KEYS:
-        _MEMOIZED_REDACTION_KEYS[plaintext] = _DERIVE_REDACTION_KEY(secret)
-    return _MEMOIZED_REDACTION_KEYS[plaintext]
-
-
 @pytest.fixture(autouse=True)
 def _memoized_key_derivation(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``EncryptionService`` and ``Redactor`` each derive a Fernet key from the
-    secret with 600,000 PBKDF2 rounds, a deliberately slow key stretch that
-    every app pays twice at construction. Each derivation is a pure function
-    of the secret, so the worker memoizes
-    it per secret value: every app after the worker's first gets its keys for
-    free, and the keys are identical to the ones the real derivation returns.
-    A test that asserts on the derivation itself opts out with
-    ``@pytest.mark.real_key_derivation``."""
+    """Memoize deterministic PBKDF2 derivation per worker to avoid repeated key stretching.
+
+    Tests of key derivation must opt out with ``@pytest.mark.real_key_derivation``.
+    """
     if request.node.get_closest_marker("real_key_derivation"):
         return
 
     monkeypatch.setattr(
         EncryptionService, "_derive_encryption_key", staticmethod(_memoized_encryption_key)
     )
-    monkeypatch.setattr(Redactor, "_derive_key", staticmethod(_memoized_redaction_key))
 
 
 _GraphQLExtensions = Iterable[Union[type[SchemaExtension], Callable[[], SchemaExtension]]]
@@ -957,6 +946,7 @@ async def app(
 ) -> AsyncIterator[FastAPI]:
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_online_eval_daemons())
         await stack.enter_async_context(patch_grpc_server())
         yield create_app(
             db=db,
@@ -970,6 +960,14 @@ async def app(
 async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
     async with LifespanManager(app) as manager:
         yield manager.app
+
+
+@pytest.fixture
+def redactor(app: FastAPI, asgi_app: ASGIApp) -> Redactor:
+    assert asgi_app is not None
+    redactor = getattr(app.state, "redactor", None)
+    assert isinstance(redactor, Redactor)
+    return redactor
 
 
 @pytest.fixture
@@ -1066,6 +1064,29 @@ async def patch_dml_event_handler() -> AsyncIterator[None]:
 
 async def _no_op(*_: Any, **__: Any) -> None:
     pass
+
+
+@contextlib.asynccontextmanager
+async def patch_online_eval_daemons() -> AsyncIterator[None]:
+    """Run the app without its online-evaluation producer, consumers, and sweepers.
+
+    Like the DML event daemon, they query the database from background tasks, and a
+    query cancelled at shutdown invalidates the one connection a test's sessions
+    share. Tests of the daemons themselves drive them directly instead.
+    """
+    classes = (OnlineEvalProducer, OnlineEvalConsumer, EvalSweeper)
+    names = ("__aenter__", "__aexit__")
+    # All three inherit both methods from DaemonTask; shadowing them per class
+    # leaves every other daemon running as before.
+    for cls in classes:
+        for name in names:
+            setattr(cls, name, _no_op)
+    try:
+        yield
+    finally:
+        for cls in classes:
+            for name in names:
+                delattr(cls, name)
 
 
 @pytest.fixture

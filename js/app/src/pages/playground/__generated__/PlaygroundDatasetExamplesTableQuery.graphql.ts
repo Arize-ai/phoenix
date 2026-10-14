@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<13c08f624a3c9cdcef7f2d9fef2157a3>>
+ * @generated SignedSource<<c86a38d0ac5911f56229b0b564550818>>
  * @lightSyntaxTransform
  */
 
@@ -23,7 +23,7 @@ export type PlaygroundDatasetExamplesTableQuery$data = {
         };
       }>;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"PlaygroundDatasetExamplesTableFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"PlaygroundDatasetExamplesTableExpectedOutputsFragment" | "PlaygroundDatasetExamplesTableFragment">;
   };
 };
 export type PlaygroundDatasetExamplesTableQuery = {
@@ -135,7 +135,53 @@ v8 = [
     "value": 20
   },
   (v2/*:: as any*/)
-];
+],
+v9 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DatasetExampleExpectedOutput",
+  "kind": "LinkedField",
+  "name": "expectedOutputs",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotationName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "score",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "explanation",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "hasNextPage",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -155,6 +201,11 @@ return {
             "args": (v3/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "PlaygroundDatasetExamplesTableFragment"
+          },
+          {
+            "args": (v3/*:: as any*/),
+            "kind": "FragmentSpread",
+            "name": "PlaygroundDatasetExamplesTableExpectedOutputsFragment"
           },
           {
             "kind": "InlineFragment",
@@ -251,7 +302,15 @@ return {
                                 "kind": "ScalarField",
                                 "name": "metadata",
                                 "storageKey": null
-                              }
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "revisionId",
+                                "storageKey": null
+                              },
+                              (v9/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -296,13 +355,7 @@ return {
                         "name": "endCursor",
                         "storageKey": null
                       },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "hasNextPage",
-                        "storageKey": null
-                      }
+                      (v10/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -322,6 +375,71 @@ return {
                 "name": "examples"
               },
               (v4/*:: as any*/),
+              {
+                "alias": "allExamples",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "first",
+                    "value": 1000
+                  },
+                  (v2/*:: as any*/)
+                ],
+                "concreteType": "DatasetExampleConnection",
+                "kind": "LinkedField",
+                "name": "examples",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PageInfo",
+                    "kind": "LinkedField",
+                    "name": "pageInfo",
+                    "plural": false,
+                    "selections": [
+                      (v10/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "DatasetExampleEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "example",
+                        "args": null,
+                        "concreteType": "DatasetExample",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v5/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "DatasetExampleRevision",
+                            "kind": "LinkedField",
+                            "name": "revision",
+                            "plural": false,
+                            "selections": [
+                              (v9/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
               (v6/*:: as any*/)
             ],
             "type": "Dataset",
@@ -333,16 +451,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "92394a59267d13dac8d885c239415583",
+    "cacheID": "6e80dd06cbe740152565ed5f4b76b135",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1Csera\n    ...PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera\n    ... on Dataset {\n      exampleCount(splitIds: $splitIds)\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableExpectedOutputsFragment_1Csera on Dataset {\n  exampleCount(splitIds: $splitIds)\n  allExamples: examples(splitIds: $splitIds, first: 1000) {\n    pageInfo {\n      hasNextPage\n    }\n    edges {\n      example: node {\n        id\n        revision {\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n    }\n  }\n  id\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1Csera on Dataset {\n  examples(splitIds: $splitIds, first: 20) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "44d9415e3e26d5a2f4e279aa9c6c4730";
+(node as any).hash = "dfc712c9bd67a66a18dfa149d2c2a35b";
 
 export default node;

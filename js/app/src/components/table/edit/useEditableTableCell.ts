@@ -46,6 +46,13 @@ export function useEditableTableCell<
   const canRevert = useStore(editing.store, (state) =>
     Object.hasOwn(state.updatedRows[rowId] ?? {}, columnId)
   );
+  // The session was begun from this cell, which should open its editor at once.
+  const isPendingOpen = useStore(
+    editing.store,
+    (state) =>
+      state.pendingEditCell?.rowId === rowId &&
+      state.pendingEditCell.columnId === columnId
+  );
   // Every cell of a new row is dirty: the whole row is pending.
   const isDirty = isAddedRow || canRevert;
   const isEditable =
@@ -64,6 +71,8 @@ export function useEditableTableCell<
     isEditable,
     isEditing: mode !== "read",
     isSaving: mode === "saving",
+    isPendingOpen,
+    clearPendingOpen: () => editing.store.getState().clearPendingEditCell(),
     updateValue: (nextValue: Row[ColumnId]) => {
       editing.store.getState().updateCell({
         rowId,

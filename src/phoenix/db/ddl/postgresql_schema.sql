@@ -20,6 +20,45 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: deployment_secret
+-- ------------------------
+CREATE TABLE public.deployment_secret (
+    id serial NOT NULL,
+    seed BYTEA NOT NULL,
+    CONSTRAINT pk_deployment_secret PRIMARY KEY (id),
+    CONSTRAINT "ck_deployment_secret_`singleton`" CHECK ((id = 1))
+);
+
+
+-- Table: eval_span_cursors
+-- ------------------------
+CREATE TABLE public.eval_span_cursors (
+    id BIGINT NOT NULL,
+    produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
+    observed_high_water_id BIGINT,
+    observed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_span_cursors PRIMARY KEY (id),
+    CONSTRAINT "ck_eval_span_cursors_`single_row`" CHECK ((id = 1))
+);
+
+
+-- Table: eval_work_leases
+-- -----------------------
+CREATE TABLE public.eval_work_leases (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    holder VARCHAR,
+    heartbeat_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_work_leases PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_leases_name
+        UNIQUE (name)
+);
+
+
 -- Table: generative_models
 -- ------------------------
 CREATE TABLE public.generative_models (
@@ -141,6 +180,7 @@ CREATE TABLE public.project_sessions (
     project_id INTEGER NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    last_span_ingested_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id
         UNIQUE (session_id),
@@ -152,6 +192,8 @@ CREATE TABLE public.project_sessions (
 
 CREATE INDEX ix_project_sessions_project_id_end_time ON public.project_sessions
     USING btree (project_id, end_time DESC);
+CREATE INDEX ix_project_sessions_project_id_last_span_ingested_at ON public.project_sessions
+    USING btree (project_id, last_span_ingested_at) WHERE (last_span_ingested_at IS NOT NULL);
 CREATE INDEX ix_project_sessions_project_id_start_time ON public.project_sessions
     USING btree (project_id, start_time DESC);
 
@@ -244,6 +286,7 @@ CREATE TABLE public.traces (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     project_session_rowid INTEGER,
+    last_span_ingested_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_traces PRIMARY KEY (id),
     CONSTRAINT uq_traces_trace_id
         UNIQUE (trace_id),
@@ -257,6 +300,8 @@ CREATE TABLE public.traces (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_traces_project_rowid_last_span_ingested_at ON public.traces
+    USING btree (project_rowid, last_span_ingested_at) WHERE (last_span_ingested_at IS NOT NULL);
 CREATE INDEX ix_traces_project_rowid_start_time ON public.traces
     USING btree (project_rowid, start_time DESC);
 CREATE INDEX ix_traces_project_session_rowid ON public.traces
@@ -437,13 +482,14 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
 -- ---------------
 CREATE TABLE public.api_keys (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE,
     scopes JSONB,
     audience JSONB,
+    token_hash BYTEA,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users
         FOREIGN KEY (user_id)
@@ -759,7 +805,7 @@ CREATE TABLE public.dataset_evaluators (
     evaluator_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    output_configs JSONB NOT NULL,
+    output_configs JSONB,
     input_mapping JSONB NOT NULL,
     user_id BIGINT,
     project_id BIGINT NOT NULL,
@@ -860,7 +906,8 @@ CREATE TABLE public.experiment_jobs (
     CONSTRAINT "ck_experiment_jobs_`valid_type`"
         CHECK (((type)::text = ANY ((ARRAY[
             'PROMPT'::character varying,
-            'EVAL_ONLY'::character varying
+            'EVAL_ONLY'::character varying,
+            'EVALUATOR'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_jobs_id_experiments
         FOREIGN KEY (id)
@@ -887,6 +934,31 @@ CREATE TABLE public.experiment_dataset_evaluators (
 
 CREATE INDEX ix_experiment_dataset_evaluators_dataset_evaluator_id ON public.experiment_dataset_evaluators
     USING btree (dataset_evaluator_id);
+
+
+-- Table: experiment_evaluator_tasks
+-- ---------------------------------
+CREATE TABLE public.experiment_evaluator_tasks (
+    id BIGINT NOT NULL,
+    type VARCHAR NOT NULL DEFAULT 'EVALUATOR'::character varying,
+    name VARCHAR NOT NULL,
+    evaluator_kind VARCHAR NOT NULL,
+    definition JSONB NOT NULL,
+    input_mapping JSONB NOT NULL,
+    output_configs JSONB NOT NULL,
+    CONSTRAINT pk_experiment_evaluator_tasks PRIMARY KEY (id),
+    CONSTRAINT "ck_experiment_evaluator_tasks_`valid_evaluator_kind`"
+        CHECK (((evaluator_kind)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'CODE'::character varying,
+            'BUILTIN'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_experiment_evaluator_tasks_`valid_type`" CHECK (((type)::text = 'EVALUATOR'::text)),
+    CONSTRAINT fk_experiment_evaluator_tasks_type_experiment_jobs
+        FOREIGN KEY (type, id)
+        REFERENCES public.experiment_jobs (type, id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: experiment_logs
@@ -1288,9 +1360,10 @@ CREATE INDEX ix_oauth2_grants_user_id ON public.oauth2_grants
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    token_hash BYTEA,
     CONSTRAINT pk_password_reset_tokens PRIMARY KEY (id),
     CONSTRAINT fk_password_reset_tokens_user_id_users
         FOREIGN KEY (user_id)
@@ -1302,6 +1375,205 @@ CREATE INDEX ix_password_reset_tokens_expires_at ON public.password_reset_tokens
     USING btree (expires_at);
 CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON public.password_reset_tokens
     USING btree (user_id);
+
+
+-- Table: project_evaluators
+-- -------------------------
+CREATE TABLE public.project_evaluators (
+    id bigserial NOT NULL,
+    project_id BIGINT NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    trace_project_id BIGINT NOT NULL,
+    name VARCHAR NOT NULL,
+    filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
+    sampling_rate DOUBLE PRECISION NOT NULL,
+    evaluation_target VARCHAR NOT NULL,
+    evaluation_delay_seconds INTEGER NOT NULL,
+    input_mapping JSONB,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    swept_through_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
+    CONSTRAINT uq_project_evaluators_project_id_name
+        UNIQUE (project_id, name),
+    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
+    CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
+        CHECK (((evaluation_target)::text = ANY ((ARRAY[
+            'SPAN'::character varying,
+            'TRACE'::character varying,
+            'SESSION'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`" CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
+    CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluators_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluators_trace_project_id_projects
+        FOREIGN KEY (trace_project_id)
+        REFERENCES public.projects (id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_project_evaluators_evaluator_id ON public.project_evaluators
+    USING btree (evaluator_id);
+CREATE INDEX ix_project_evaluators_project_id ON public.project_evaluators
+    USING btree (project_id);
+CREATE INDEX ix_project_evaluators_trace_project_id ON public.project_evaluators
+    USING btree (trace_project_id);
+
+
+-- Table: eval_session_work_units
+-- ------------------------------
+CREATE TABLE public.eval_session_work_units (
+    id bigserial NOT NULL,
+    project_session_rowid BIGINT NOT NULL,
+    project_evaluator_id BIGINT NOT NULL,
+    evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_session_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_session_work_units_project_session_rowid_projec_ac67
+        UNIQUE (project_session_rowid, project_evaluator_id),
+    CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
+        CHECK (((status)::text = ANY ((ARRAY[
+            'PENDING'::character varying,
+            'RUNNING'::character varying,
+            'ERROR'::character varying,
+            'DONE'::character varying,
+            'FAILED'::character varying,
+            'EXPIRED'::character varying,
+            'DROPPED'::character varying,
+            'CONTENT_LOST'::character varying,
+            'FILTERED_OUT'::character varying,
+            'SAMPLED_OUT'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_eval_session_work_units_project_evaluator_id_project_4b8e
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_session_work_units_project_session_rowid_projec_ed73
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES public.project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_session_work_units_claimable ON public.eval_session_work_units
+    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
+CREATE INDEX ix_eval_session_work_units_project_evaluator_failed ON public.eval_session_work_units
+    USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON public.eval_session_work_units
+    USING btree (project_evaluator_id);
+CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
+
+
+-- Table: eval_trace_work_units
+-- ----------------------------
+CREATE TABLE public.eval_trace_work_units (
+    id bigserial NOT NULL,
+    trace_rowid BIGINT NOT NULL,
+    project_evaluator_id BIGINT NOT NULL,
+    evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_trace_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_trace_work_units_trace_rowid_project_evaluator_id
+        UNIQUE (trace_rowid, project_evaluator_id),
+    CONSTRAINT "ck_eval_trace_work_units_`valid_eval_work_status`"
+        CHECK (((status)::text = ANY ((ARRAY[
+            'PENDING'::character varying,
+            'RUNNING'::character varying,
+            'ERROR'::character varying,
+            'DONE'::character varying,
+            'FAILED'::character varying,
+            'EXPIRED'::character varying,
+            'DROPPED'::character varying,
+            'CONTENT_LOST'::character varying,
+            'FILTERED_OUT'::character varying,
+            'SAMPLED_OUT'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_eval_trace_work_units_project_evaluator_id_project_e_3bcd
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_trace_work_units_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
+        REFERENCES public.traces (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_trace_work_units_claimable ON public.eval_trace_work_units
+    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_failed ON public.eval_trace_work_units
+    USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON public.eval_trace_work_units
+    USING btree (project_evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_terminal ON public.eval_trace_work_units
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
+
+
+-- Table: eval_work_units
+-- ----------------------
+CREATE TABLE public.eval_work_units (
+    id bigserial NOT NULL,
+    span_rowid BIGINT NOT NULL,
+    project_evaluator_id BIGINT NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_units_span_rowid_project_evaluator_id
+        UNIQUE (span_rowid, project_evaluator_id),
+    CONSTRAINT "ck_eval_work_units_`valid_eval_work_status`"
+        CHECK (((status)::text = ANY ((ARRAY[
+            'PENDING'::character varying,
+            'RUNNING'::character varying,
+            'ERROR'::character varying,
+            'DONE'::character varying,
+            'FAILED'::character varying,
+            'EXPIRED'::character varying,
+            'DROPPED'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_eval_work_units_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_work_units_span_rowid_spans
+        FOREIGN KEY (span_rowid)
+        REFERENCES public.spans (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_work_units_claimable ON public.eval_work_units
+    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
+CREATE INDEX ix_eval_work_units_project_evaluator_failed ON public.eval_work_units
+    USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE INDEX ix_eval_work_units_project_evaluator_id ON public.eval_work_units
+    USING btree (project_evaluator_id);
+CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying])::text[]));
 
 
 -- Table: project_session_annotations
@@ -1499,7 +1771,7 @@ CREATE TABLE public.llm_evaluators (
     CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
         FOREIGN KEY (prompt_version_tag_id)
         REFERENCES public.prompt_version_tags (id)
-        ON DELETE SET NULL
+        ON DELETE RESTRICT
 );
 
 CREATE INDEX ix_llm_evaluators_prompt_id ON public.llm_evaluators
@@ -1519,6 +1791,7 @@ CREATE TABLE public.refresh_tokens (
     scopes JSONB,
     audience JSONB,
     consumed_at TIMESTAMP WITH TIME ZONE,
+    token_hash BYTEA,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
     CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants
         FOREIGN KEY (oauth2_grant_id)
@@ -1548,6 +1821,7 @@ CREATE TABLE public.access_tokens (
     refresh_token_id INTEGER NOT NULL,
     scopes JSONB,
     audience JSONB,
+    token_hash BYTEA,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
         FOREIGN KEY (refresh_token_id)

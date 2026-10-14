@@ -129,11 +129,46 @@ export const confusionMatrixCSS = css`
 
   .confusion-matrix__cell {
     min-height: var(--confusion-matrix-cell-min-height);
+    background-color: var(--confusion-matrix-cell-background-color);
+    color: var(--confusion-matrix-cell-color);
+  }
+
+  /* With a selection, the other cells fade by mixing their fill toward
+   * transparent rather than by opacity, which would also fade the focus ring.
+   * Their text switches to muted ink: the density ink is picked for the full
+   * fill and can vanish against the faded one. */
+  .confusion-matrix__grid[data-has-selection]
+    .confusion-matrix__cell:not(.confusion-matrix__cell--selected) {
+    background-color: color-mix(
+      in srgb,
+      var(--confusion-matrix-cell-background-color) 40%,
+      transparent
+    );
+    color: var(--global-text-color-500);
+  }
+
+  button.confusion-matrix__cell {
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  /* Selection is a blue ring drawn with a shadow rather than an outline, so
+   * it sits flush against the cell and can coexist with the neutral focus
+   * outline, which is offset beyond it */
+  .confusion-matrix__cell--selected {
+    box-shadow: 0 0 0 var(--global-border-size-thick)
+      var(--global-color-blue-900);
+  }
+
+  button.confusion-matrix__cell:focus-visible {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   .confusion-matrix__cell--empty {
-    background-color: var(--global-color-gray-100);
-    color: var(--global-text-color-300);
+    --confusion-matrix-cell-background-color: var(--global-color-gray-100);
+    --confusion-matrix-cell-color: var(--global-text-color-300);
   }
 
   .confusion-matrix__total {
