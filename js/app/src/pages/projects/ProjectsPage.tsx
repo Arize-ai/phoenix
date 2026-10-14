@@ -768,6 +768,9 @@ function ProjectsTable({
         header: "last updated at",
         accessorKey: "endTime",
         maxSize: 30,
+        // most recently updated first; TanStack's guess at a first direction
+        // depends on which rows come first
+        sortDescFirst: true,
         cell: TimestampCell,
       },
       {
