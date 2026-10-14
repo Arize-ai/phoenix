@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Loading,
   TitleWithID,
 } from "@phoenix/components";
 import {
@@ -32,7 +31,7 @@ import {
 } from "@phoenix/pages/trace/sessionLoader";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
-import { SessionDetails } from "./SessionDetails";
+import { SessionDetails, SessionDetailsSkeleton } from "./SessionDetails";
 
 /**
  * A component that shows the details of a session
@@ -82,7 +81,7 @@ export function SessionPage() {
             <ErrorBoundary>
               {/* A new key shows the drawer-local fallback instead of retaining
                   the previous session during React Router's transition. */}
-              <Suspense key={sessionId} fallback={<Loading />}>
+              <Suspense key={sessionId} fallback={<SessionDetailsSkeleton />}>
                 <SessionDetails sessionId={sessionId as string} />
               </Suspense>
             </ErrorBoundary>

@@ -17,6 +17,7 @@ import type { To } from "react-router";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
+  EdgeFade,
   Flex,
   ExpandableContent,
   Icon,
@@ -25,7 +26,9 @@ import {
   LinkButton,
   ListBox,
   ListBoxItem,
+  ListSkeleton,
   Loading,
+  Skeleton,
   Text,
   Truncate,
   View,
@@ -608,6 +611,12 @@ const panelContentCSS = css`
   overflow: hidden;
 `;
 
+const SESSION_TURNS_LAYOUT_OPTIONS = {
+  id: "session-details-layout",
+  panelIds: ["session-turns", "session-turn-details"],
+  storage: localStorage,
+};
+
 export function SessionDetailsTraceList({
   queryRef,
 }: {
@@ -717,11 +726,9 @@ export function SessionDetailsTraceList({
   );
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "session-details-layout",
-    panelIds: ["session-turns", "session-turn-details"],
-    storage: localStorage,
-  });
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout(
+    SESSION_TURNS_LAYOUT_OPTIONS
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -880,6 +887,42 @@ export function SessionDetailsTraceList({
             </View>
           )}
         </div>
+      </Panel>
+    </Group>
+  );
+}
+
+const turnListSkeletonPanelCSS = css`
+  box-sizing: border-box;
+  height: 100%;
+  padding: var(--global-dimension-size-100);
+`;
+
+/**
+ * A loading placeholder for `SessionDetailsTraceList`: the turn list beside a
+ * block for the turns' messages, split as the loaded list is.
+ */
+export function SessionDetailsTraceListSkeleton() {
+  const { defaultLayout } = useDefaultLayout(SESSION_TURNS_LAYOUT_OPTIONS);
+  return (
+    <Group
+      orientation="horizontal"
+      defaultLayout={defaultLayout}
+      aria-busy="true"
+      css={css`
+        flex: 1 1 auto;
+        overflow: hidden;
+      `}
+    >
+      <Panel id="session-turns" defaultSize="20%" minSize="10%">
+        <div css={turnListSkeletonPanelCSS}>
+          <ListSkeleton itemCount={3} size="L" fadeEdge="bottom" aria-hidden />
+        </div>
+      </Panel>
+      <Panel id="session-turn-details">
+        <EdgeFade edge="bottom" css={turnListSkeletonPanelCSS}>
+          <Skeleton height="100%" borderRadius="medium" aria-hidden />
+        </EdgeFade>
       </Panel>
     </Group>
   );

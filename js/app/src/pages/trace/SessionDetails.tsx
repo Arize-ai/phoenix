@@ -22,6 +22,7 @@ import {
   Icons,
   Loading,
   RichTooltip,
+  Skeleton,
   Text,
   ToggleButton,
   TooltipTrigger,
@@ -32,6 +33,7 @@ import type { AnnotationOptimizationConfig } from "@phoenix/components/annotatio
 import { SessionAnnotationSummaryGroupStacks } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { TableSkeleton } from "@phoenix/components/table";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionAnnotationsEditor } from "@phoenix/components/trace/SessionAnnotationsEditor";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
@@ -49,10 +51,12 @@ import { SessionAnnotationsTable } from "./SessionAnnotationsTable";
 import {
   SessionDetailsTraceList,
   sessionDetailsTraceListQuery,
+  SessionDetailsTraceListSkeleton,
 } from "./SessionDetailsTraceList";
 import {
   SessionDetailsTracesView,
   sessionDetailsTracesViewQuery,
+  SessionDetailsTracesViewSkeleton,
 } from "./SessionDetailsTracesView";
 import type { SessionView } from "./SessionViewTabs";
 import { isSessionView, SessionViewTabs } from "./SessionViewTabs";
@@ -173,6 +177,55 @@ function SessionDetailsHeader({
       </Flex>
     </View>
   );
+}
+
+const sessionDetailsCSS = css`
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+`;
+
+/**
+ * The loaded header (metrics padded by size-200) and tab row (tabs padded by
+ * size-100), less the size-100 inset the skeleton shares with the view
+ * skeletons below it.
+ */
+const sessionHeaderSkeletonHeight = `calc(
+  var(--global-dimension-size-200) * 2 + var(--global-line-height-s) +
+    var(--global-line-height-l) + var(--global-dimension-size-100) * 2 +
+    var(--global-line-height-s) - var(--global-dimension-size-100) * 2
+)`;
+
+/**
+ * A loading placeholder for `SessionDetails`: one bar spanning the session's
+ * metrics and its view tabs, and the view the URL selects.
+ */
+export function SessionDetailsSkeleton() {
+  const [searchParams] = useSearchParams();
+  const sessionViewParam = searchParams.get(SESSION_VIEW_PARAM);
+  const sessionView: SessionView = isSessionView(sessionViewParam)
+    ? sessionViewParam
+    : DEFAULT_SESSION_VIEW;
+  return (
+    <main css={sessionDetailsCSS} aria-busy="true">
+      <View padding="size-100" flex="none">
+        <Skeleton height={sessionHeaderSkeletonHeight} />
+      </View>
+      <SessionViewSkeleton view={sessionView} />
+    </main>
+  );
+}
+
+function SessionViewSkeleton({ view }: { view: SessionView }) {
+  if (view === "traces") {
+    return <SessionDetailsTracesViewSkeleton />;
+  }
+  if (view === "annotations") {
+    return <TableSkeleton rowCount="fill" />;
+  }
+  return <SessionDetailsTraceListSkeleton />;
 }
 
 export type SessionDetailsProps = {
@@ -348,15 +401,7 @@ export function SessionDetails(props: SessionDetailsProps) {
   };
 
   return (
-    <main
-      css={css`
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow: hidden;
-      `}
-    >
+    <main css={sessionDetailsCSS}>
       <Group
         orientation="horizontal"
         id="session-details-layout"
@@ -383,7 +428,7 @@ export function SessionDetails(props: SessionDetailsProps) {
               onSessionViewChange={handleSessionViewChange}
               traceCount={traceCount}
             >
-              <Suspense fallback={<Loading />}>
+              <Suspense fallback={<SessionViewSkeleton view={sessionView} />}>
                 {sessionView === "annotations" ? (
                   <SessionAnnotationsTable sessionId={sessionId} />
                 ) : sessionView === "traces" ? (
