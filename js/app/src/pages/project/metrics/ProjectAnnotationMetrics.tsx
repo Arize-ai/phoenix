@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Loading, Text } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 import {
   type AnnotationOptimizationConfig,
   getPositiveOptimizationFromConfig,
@@ -14,6 +14,7 @@ import {
   type AnnotationMetricsSeries,
   AnnotationMetricsViewMenu,
   ChartPanel,
+  ChartPanelSkeleton,
   ChartSkeleton,
   DeferredChartPanel,
   TimeRangeChartBrush,
@@ -300,7 +301,7 @@ export function ProjectAnnotationMetricsGrid({
 }: ProjectMetricViewProps & { annotationLevel: MetricChartTableView }) {
   return (
     <ErrorBoundary>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<ProjectAnnotationMetricsGridSkeleton />}>
         <ProjectAnnotationMetricNamesLoader
           {...props}
           annotationLevel={annotationLevel}
@@ -315,6 +316,19 @@ export function ProjectAnnotationMetricsGrid({
         </ProjectAnnotationMetricNamesLoader>
       </Suspense>
     </ErrorBoundary>
+  );
+}
+
+/**
+ * One row of panel skeletons while the annotation names load; how many panels
+ * follow is not known until they arrive.
+ */
+function ProjectAnnotationMetricsGridSkeleton() {
+  return (
+    <div css={annotationGridCSS}>
+      <ChartPanelSkeleton />
+      <ChartPanelSkeleton />
+    </div>
   );
 }
 

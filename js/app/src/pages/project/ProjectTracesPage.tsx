@@ -6,6 +6,7 @@ import { Outlet } from "react-router";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { TableSkeleton } from "@phoenix/components/table";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
@@ -77,7 +78,9 @@ export const ProjectTracesPage = () => {
           <ErrorBoundary fallback={TracesFilterErrorFallback}>
             <Suspense
               fallback={
-                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               }
             >
               {hasTracesQuery ? (
@@ -88,20 +91,26 @@ export const ProjectTracesPage = () => {
               ) : tracesFilterSeed === null ? (
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
-                <PendingDSLFilter
-                  isSelectable={true}
-                  onValidCondition={({ condition }: { condition: string }) =>
-                    resolveTracesSeed(condition)
-                  }
-                  onRejected={() => resolveTracesSeed("", false)}
-                  renderField={(fieldProps) => (
-                    <TraceFilterConditionFieldWithVocabulary {...fieldProps} />
-                  )}
-                />
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <PendingDSLFilter
+                    isSelectable={true}
+                    onValidCondition={({ condition }: { condition: string }) =>
+                      resolveTracesSeed(condition)
+                    }
+                    onRejected={() => resolveTracesSeed("", false)}
+                    renderField={(fieldProps) => (
+                      <TraceFilterConditionFieldWithVocabulary
+                        {...fieldProps}
+                      />
+                    )}
+                  />
+                </TableMetricsChartsPanelGroup>
               ) : (
                 // Showing the field here would mount it twice: once now and
                 // again inside the table.
-                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                <TableMetricsChartsPanelGroup view="traces" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               )}
             </Suspense>
           </ErrorBoundary>

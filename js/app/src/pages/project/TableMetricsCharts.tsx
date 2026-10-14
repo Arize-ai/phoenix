@@ -4,6 +4,7 @@ import { Group, Panel } from "react-resizable-panels";
 import { useTimeRange } from "@phoenix/components";
 import {
   ChartPanelStrip,
+  ChartPanelStripSkeleton,
   METRIC_CHARTS_CONTENT_PANEL_ID,
   MetricChartsPanel,
   useMetricChartsLayout,
@@ -67,9 +68,16 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
  */
 export function TableMetricsChartsPanelGroup({
   view,
+  isSkeleton = false,
   children,
 }: {
   view: MetricChartTableView;
+  /**
+   * Show a skeleton of the charts in place of the charts, for a table view
+   * that is still loading.
+   * @default false
+   */
+  isSkeleton?: boolean;
   children: ReactNode;
 }) {
   // The store guarantees keys are valid catalog keys, so any selection means
@@ -85,7 +93,11 @@ export function TableMetricsChartsPanelGroup({
     <Group orientation="vertical" {...chartsLayout}>
       {hasCharts && (
         <MetricChartsPanel>
-          <TableMetricsCharts view={view} />
+          {isSkeleton ? (
+            <ChartPanelStripSkeleton />
+          ) : (
+            <TableMetricsCharts view={view} />
+          )}
         </MetricChartsPanel>
       )}
       <Panel id={METRIC_CHARTS_CONTENT_PANEL_ID}>{children}</Panel>

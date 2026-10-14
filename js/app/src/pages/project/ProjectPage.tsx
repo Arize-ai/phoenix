@@ -18,7 +18,15 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
+import {
+  EdgeFade,
+  LazyTabPanel,
+  Skeleton,
+  Tab,
+  TabList,
+  Tabs,
+} from "@phoenix/components";
+import { CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS } from "@phoenix/components/chart";
 import {
   ConnectedTimeRangeSelector,
   type TimeRangeISOStrings,
@@ -83,6 +91,43 @@ const mainCSS = css`
   }
 `;
 
+const projectPageSkeletonCSS = css`
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
+    var(--global-dimension-size-200);
+  .project-page-skeleton__strip {
+    flex: none;
+    box-sizing: border-box;
+    height: ${CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}px;
+    padding-bottom: var(--global-dimension-size-200);
+  }
+  .project-page-skeleton__body {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+`;
+
+/**
+ * A loading placeholder for the project page: a block where the metric charts
+ * strip stands on the table tabs, and one filling the rest of the page, which
+ * stands in for a tab's table or the metrics page's charts alike.
+ */
+function ProjectPageSkeleton() {
+  return (
+    <div css={projectPageSkeletonCSS} className="project-page-skeleton">
+      <div className="project-page-skeleton__strip">
+        <Skeleton height="100%" borderRadius="medium" />
+      </div>
+      <EdgeFade edge="bottom" className="project-page-skeleton__body">
+        <Skeleton height="100%" borderRadius="medium" />
+      </EdgeFade>
+    </div>
+  );
+}
+
 export function ProjectPage() {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
@@ -92,7 +137,7 @@ export function ProjectPage() {
       <TopNavActions>
         <ConnectedTimeRangeSelector size="S" />
       </TopNavActions>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<ProjectPageSkeleton />}>
         <ProjectPageContent
           key={projectId}
           projectId={projectId as string}

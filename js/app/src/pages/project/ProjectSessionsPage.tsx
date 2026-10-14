@@ -11,6 +11,7 @@ import {
   useProjectPageQueryReferenceContext,
 } from "@phoenix/pages/project/ProjectPageQueries";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 import { SessionPaginationProvider } from "@phoenix/pages/trace/SessionPaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
@@ -67,7 +68,13 @@ export const ProjectSessionsPage = () => {
         <SessionFiltersProvider key={seedKey}>
           {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={SessionsFilterErrorFallback}>
-            <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
+            <Suspense
+              fallback={
+                <TableMetricsChartsPanelGroup view="sessions" isSkeleton>
+                  <TableSkeleton hasToolbar rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
+              }
+            >
               {hasSessionsQuery ? (
                 <SessionsTabContent
                   queryReference={sessionsQueryReference}
@@ -76,22 +83,26 @@ export const ProjectSessionsPage = () => {
               ) : sessionsFilterSeed === null ? (
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
-                <PendingDSLFilter
-                  isSelectable={false}
-                  onValidCondition={({ condition }: { condition: string }) =>
-                    resolveSessionsSeed(condition)
-                  }
-                  onRejected={() => resolveSessionsSeed("", false)}
-                  renderField={(fieldProps) => (
-                    <SessionFilterConditionFieldWithVocabulary
-                      {...fieldProps}
-                    />
-                  )}
-                />
+                <TableMetricsChartsPanelGroup view="sessions" isSkeleton>
+                  <PendingDSLFilter
+                    isSelectable={false}
+                    onValidCondition={({ condition }: { condition: string }) =>
+                      resolveSessionsSeed(condition)
+                    }
+                    onRejected={() => resolveSessionsSeed("", false)}
+                    renderField={(fieldProps) => (
+                      <SessionFilterConditionFieldWithVocabulary
+                        {...fieldProps}
+                      />
+                    )}
+                  />
+                </TableMetricsChartsPanelGroup>
               ) : (
                 // Showing the field here would mount it twice: once now and
                 // again inside the table.
-                <TableSkeleton hasToolbar rowCount="fill" />
+                <TableMetricsChartsPanelGroup view="sessions" isSkeleton>
+                  <TableSkeleton hasToolbar rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               )}
             </Suspense>
           </ErrorBoundary>

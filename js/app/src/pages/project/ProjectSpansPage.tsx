@@ -10,6 +10,7 @@ import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorF
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
@@ -76,7 +77,9 @@ export const ProjectSpansPage = () => {
           <ErrorBoundary fallback={SpansFilterErrorFallback}>
             <Suspense
               fallback={
-                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                <TableMetricsChartsPanelGroup view="spans" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               }
             >
               {hasSpansQuery ? (
@@ -87,11 +90,15 @@ export const ProjectSpansPage = () => {
               ) : spansFilterSeed === null ? (
                 // Waiting on validation: the field has to be on screen, because
                 // it is what validates.
-                <PendingSpanFilter onResolved={resolveSpansSeed} />
+                <TableMetricsChartsPanelGroup view="spans" isSkeleton>
+                  <PendingSpanFilter onResolved={resolveSpansSeed} />
+                </TableMetricsChartsPanelGroup>
               ) : (
                 // Waiting only on the query. Showing the field here would mount
                 // the toolbar, tear it down, and rebuild it inside the table.
-                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                <TableMetricsChartsPanelGroup view="spans" isSkeleton>
+                  <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+                </TableMetricsChartsPanelGroup>
               )}
             </Suspense>
           </ErrorBoundary>
