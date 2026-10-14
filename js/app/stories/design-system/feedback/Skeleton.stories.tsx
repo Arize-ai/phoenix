@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 
 import {
@@ -14,6 +15,7 @@ import type {
   ComponentSize,
   TextSize,
 } from "@phoenix/components/core/types";
+import { ExampleDetailsDialogSkeleton } from "@phoenix/pages/example/ExampleDetailsDialog";
 
 import { OptionGrid } from "../../utils/OptionGrid";
 
@@ -239,6 +241,51 @@ export const ListSkeletonFadeEdge: StoryFn = () => (
 ListSkeletonFadeEdge.storyName = "List Skeleton: Fade Edge";
 ListSkeletonFadeEdge.tags = ["!dev"];
 ListSkeletonFadeEdge.parameters = { layout: "padded", themeLayout: "column" };
+
+/**
+ * A page or panel that is loading shows a skeleton of each of its major
+ * layout areas — its panels, cards, headers, toolbars and lists — rather
+ * than one spinning `Loading` indicator in place of the whole page. Each
+ * skeleton stands where its area will appear, so the reader sees the shape
+ * of the page before its content arrives.
+ *
+ * A skeleton is made of skeleton components, and nothing else. It draws no
+ * borders, dividers or separators, no backgrounds or fills, no card frames,
+ * and no titles, headings or other text. An area that will be a titled card
+ * is one skeleton block; a toolbar is one skeleton bar. Layout that only
+ * places the skeletons — padding, gaps, widths — is allowed, because it
+ * draws nothing.
+ *
+ * Prefer to tie each major layout area's skeleton to the data for that
+ * area, not to the page as a whole. When the page waits on a single query
+ * or a single `Suspense` boundary, nothing renders until the slowest area
+ * has finished fetching. Give each area that fetches its own data its own
+ * `Suspense` boundary and skeleton instead, so each skeleton is replaced
+ * with content as soon as that area's data is available, regardless of the
+ * other areas. Keep a lone spinner for content whose shape cannot be known
+ * before it loads.
+ *
+ * The dataset example slide-over shows the composition: one block each for
+ * its input, output and metadata cards, and a heading bar and rows for its
+ * experiment runs. All of its areas come from one query, so they all appear
+ * together.
+ */
+export const PageSkeletonComposition: StoryFn = () => (
+  <div
+    css={css`
+      width: 100%;
+      height: 480px;
+    `}
+  >
+    <ExampleDetailsDialogSkeleton />
+  </div>
+);
+PageSkeletonComposition.storyName = "Page Skeleton Composition";
+PageSkeletonComposition.tags = ["!dev"];
+PageSkeletonComposition.parameters = {
+  layout: "padded",
+  themeLayout: "column",
+};
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryFn = () => (
