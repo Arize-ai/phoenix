@@ -21,6 +21,7 @@ import pytest
 
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
+from phoenix.server.cost_tracking.manifest import SUPPORTED_SCHEMA_VERSION, parse_manifest
 
 MANIFEST_PATH = (
     Path(__file__).resolve().parents[4]
@@ -293,3 +294,40 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     )
     assert model is not None, f"no built-in model priced {span_model_name}"
     assert model.name == expected_entry
+
+
+def test_checked_in_manifest_parses_without_skipping_entries(
+    manifest: dict[str, Any],
+) -> None:
+    # Servers fetch this file from GitHub, so anything parse_manifest rejects or skips here
+    # would be rejected or skipped by every running server too.
+    parsed = parse_manifest(MANIFEST_PATH.read_bytes())
+    assert parsed.schema_version == SUPPORTED_SCHEMA_VERSION
+    assert [model.name for model in parsed.models] == [
+        model["name"] for model in manifest["models"]
+    ]
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    ["typesafe/jev-1.13.0", "typesafe/jev-latest", "typesafe/jev-preview"],
+)
+def test_typesafe_evaluation_models_are_priced_by_input_only(
+    models_by_name: dict[str, dict[str, Any]],
+    built_in_lookup: CostModelLookup,
+    model_name: str,
+) -> None:
+    # LiteLLM prices Jev evaluations by input tokens only, with an output rate of 0.
+    assert model_name in models_by_name, f"missing model entry: {model_name}"
+    model = models_by_name[model_name]
+    assert model.get("provider") == "typesafe"
+    prices = {price["token_type"]: price for price in model["token_prices"]}
+    assert set(prices) == {"input"}
+    assert prices["input"]["base_rate"] == pytest.approx(4.2e-8, rel=1e-9)
+    span_model_name = model_name.removeprefix("typesafe/")
+    found = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes={"llm": {"model_name": span_model_name}},
+    )
+    assert found is not None, f"no built-in model priced {span_model_name}"
+    assert found.name == model_name

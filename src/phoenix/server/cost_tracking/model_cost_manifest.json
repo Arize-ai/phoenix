@@ -1,4 +1,6 @@
 {
+  "schema_version": 1,
+  "generated_at": "2026-10-14T20:14:18Z",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -9897,6 +9899,45 @@
           "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-1.13.0",
+      "name_pattern": "jev-1\\.13\\.0",
+      "source": "litellm",
+      "provider": "typesafe",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-latest",
+      "name_pattern": "jev-latest",
+      "source": "litellm",
+      "provider": "typesafe",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-preview",
+      "name_pattern": "jev-preview",
+      "source": "litellm",
+      "provider": "typesafe",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
         }
       ]
     },
