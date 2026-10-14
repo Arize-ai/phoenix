@@ -1,17 +1,11 @@
 import { css } from "@emotion/react";
 import type {
-  ColumnDef,
   ColumnSizingState,
   SortingState,
   Updater,
 } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import React, {
   startTransition,
   useCallback,
   useEffect,
@@ -36,6 +30,8 @@ import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLab
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import type { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
@@ -303,7 +299,6 @@ export const DatasetEvaluatorsTable = ({
   onSelectLLMEvaluatorTemplate,
   onSelectCodeEvaluator,
 }: DatasetEvaluatorsTableProps) => {
-  "use no memo";
   const { sort, setSort, filter } = useDatasetEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const sorting = useMemo(
@@ -480,11 +475,10 @@ export const DatasetEvaluatorsTable = ({
     return cols;
   }, [datasetId, updateConnectionIds]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     state: {
       sorting,
       columnSizing,
@@ -495,27 +489,17 @@ export const DatasetEvaluatorsTable = ({
     getRowId: (row) => row.id,
   });
 
-  const { columnSizingInfo } = table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
   /**
    * Calculate all column sizes at once at the root table level
    * and pass them down as CSS variables to the <table> element.
    * This avoids calling `column.getSize()` on every render for every cell.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizing]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   const fetchMoreOnBottomReached = (
     containerRefElement?: HTMLDivElement | null

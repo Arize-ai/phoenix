@@ -1,18 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  CellContext,
-  ColumnDef,
-  ExpandedState,
-  SortingState,
-  Table,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { ExpandedState, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
 import type { ComponentProps } from "react";
 import React, {
@@ -69,6 +57,12 @@ import {
   getCommonPinningStyles,
 } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
+import type {
+  CellContext,
+  ColumnDef,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -167,7 +161,6 @@ const TableBody = <
 }: {
   table: Table<T>;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const basePath = useResolvedPath(".").pathname;
@@ -1024,10 +1017,13 @@ export function TracesTable(props: TracesTableProps) {
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],
   });
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     onExpandedChange: setExpanded,
+    // v9 resets expansion whenever `data` changes (load-more, sort, refetch)
+    autoResetExpanded: false,
     manualSorting: true,
     getSubRows: (row) => row.children,
     state: {
@@ -1045,9 +1041,6 @@ export function TracesTable(props: TracesTableProps) {
     enableSubRowSelection: false,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().flatRows;
@@ -1063,34 +1056,19 @@ export function TracesTable(props: TracesTableProps) {
     setRowSelection({});
   }, [setRowSelection]);
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = computedColumns.length;
+  const { columnResizing } = table.state;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   return (
     <TableMetricsChartsPanelGroup view="traces">
@@ -1227,7 +1205,7 @@ export function TracesTable(props: TracesTableProps) {
               </thead>
               {isEmpty ? (
                 <ProjectTableEmpty />
-              ) : columnSizingInfo.isResizingColumn ? (
+              ) : columnResizing.isResizingColumn ? (
                 <MemoizedTableBody
                   table={
                     // We can't access the internal TableRowType in the TableBody component

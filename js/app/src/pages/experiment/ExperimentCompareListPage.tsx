@@ -2,17 +2,15 @@ import { css } from "@emotion/react";
 import type {
   AccessorFnColumnDef,
   AccessorKeyColumnDef,
-  HeaderContext,
+  RowData,
   SortingState,
-  Table,
 } from "@tanstack/react-table";
 import {
   createColumnHelper,
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
+import type { VirtualItem } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   memo,
@@ -62,6 +60,12 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import type {
+  AppTableFeatures,
+  HeaderContext,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
@@ -510,7 +514,10 @@ export function ExperimentCompareListPage({
   }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
-  const columnHelper = useMemo(() => createColumnHelper<TableRow>(), []);
+  const columnHelper = useMemo(
+    () => createColumnHelper<AppTableFeatures, TableRow>(),
+    []
+  );
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -531,7 +538,11 @@ export function ExperimentCompareListPage({
 
   const columns = useMemo(() => {
     // getting the column types right here is challenging, so we type hint each column individually and allow typescript to infer the list type
-    const exampleColumn: AccessorKeyColumnDef<TableRow, TableRow["example"]> = {
+    const exampleColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["example"]
+    > = {
       header: "example",
       accessorKey: "example",
       size: 110,
@@ -566,6 +577,7 @@ export function ExperimentCompareListPage({
       },
     };
     const repetitionNumberColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
       TableRow,
       TableRow["repetitionNumber"]
     > = {
@@ -581,7 +593,11 @@ export function ExperimentCompareListPage({
         );
       },
     };
-    const inputColumn: AccessorKeyColumnDef<TableRow, TableRow["input"]> = {
+    const inputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["input"]
+    > = {
       header: "input",
       accessorKey: "input",
       cell: ({ getValue }) => {
@@ -596,6 +612,7 @@ export function ExperimentCompareListPage({
       },
     };
     const referenceOutputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
       TableRow,
       TableRow["referenceOutput"]
     > = {
@@ -612,7 +629,11 @@ export function ExperimentCompareListPage({
         );
       },
     };
-    const outputColumn: AccessorKeyColumnDef<TableRow, TableRow["outputs"]> = {
+    const outputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["outputs"]
+    > = {
       header: "output",
       accessorKey: "outputs",
       cell: ({ getValue }) => {
@@ -680,7 +701,11 @@ export function ExperimentCompareListPage({
         );
       },
     };
-    const tokensColumn: AccessorKeyColumnDef<TableRow, TableRow["tokens"]> = {
+    const tokensColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["tokens"]
+    > = {
       header: () => (
         <Flex direction="column" gap="size-100">
           <Text size="S" weight="heavy">
@@ -753,6 +778,7 @@ export function ExperimentCompareListPage({
       },
     };
     const latencyMsColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
       TableRow,
       TableRow["latencyMs"]
     > = columnHelper.accessor("latencyMs", {
@@ -845,7 +871,11 @@ export function ExperimentCompareListPage({
         );
       },
     });
-    const costColumn: AccessorKeyColumnDef<TableRow, TableRow["cost"]> = {
+    const costColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["cost"]
+    > = {
       header: () => (
         <Flex direction="column" gap="size-100">
           <Text size="S" weight="heavy">
@@ -925,6 +955,7 @@ export function ExperimentCompareListPage({
       )[];
     };
     const annotationColumns: AccessorFnColumnDef<
+      AppTableFeatures,
       TableRow,
       AnnotationColumnGetValueReturnType
     >[] =
@@ -1137,7 +1168,7 @@ export function ExperimentCompareListPage({
           }
         )
       ) ?? [];
-    const columns = [
+    const columns = columnHelper.columns([
       exampleColumn,
       repetitionNumberColumn,
       inputColumn,
@@ -1147,7 +1178,7 @@ export function ExperimentCompareListPage({
       latencyMsColumn,
       costColumn,
       ...annotationColumns,
-    ];
+    ]);
     return columns;
   }, [
     annotationConfigsByName,
@@ -1158,18 +1189,22 @@ export function ExperimentCompareListPage({
     getExperimentColor,
   ]);
 
-  const table = useReactTable({
+  // This component isn't compiled (it calls `useVirtualizer`), so memoize by
+  // hand: TanStack v9 compares state slices by reference, and a new object on
+  // every render makes each render a real table update
+  const columnVisibility = useMemo(
+    () => ({ repetitionNumber: baseExperiment.repetitions > 1 }),
+    [baseExperiment.repetitions]
+  );
+  const table = useTable({
+    features: appTableFeatures,
     data: tableData,
     columns,
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     columnResizeMode: "onChange",
     state: {
       sorting,
-      columnVisibility: {
-        repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
-      },
+      columnVisibility,
     },
     manualSorting: true,
   });
@@ -1206,6 +1241,7 @@ export function ExperimentCompareListPage({
   }, [sorting, refetch]);
 
   const rows = table.getRowModel().rows;
+  // eslint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
@@ -1222,28 +1258,16 @@ export function ExperimentCompareListPage({
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
    */
-  const tableState = table.getState();
-  const columnSizeVars = useMemo(() => {
-    const headers = table.getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return colSizes;
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    tableState.columnSizingInfo,
-    tableState.columnSizing,
-    tableState.columnVisibility,
-  ]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
 
   const exampleIds = useMemo(() => {
     return rows.map((row) => row.original.example);
@@ -1304,11 +1328,19 @@ export function ExperimentCompareListPage({
                 </tr>
               ))}
             </thead>
-            {table.getState().columnSizingInfo.isResizingColumn ? (
+            {table.state.columnResizing.isResizingColumn ? (
               /* When resizing any column we will render this special memoized version of our table body */
-              <MemoizedTableBody table={table} virtualizer={virtualizer} />
+              <MemoizedTableBody
+                table={table}
+                virtualRows={virtualizer.getVirtualItems()}
+                totalHeight={virtualizer.getTotalSize()}
+              />
             ) : (
-              <TableBody table={table} virtualizer={virtualizer} />
+              <TableBody
+                table={table}
+                virtualRows={virtualizer.getVirtualItems()}
+                totalHeight={virtualizer.getTotalSize()}
+              />
             )}
           </table>
         </div>
@@ -1465,17 +1497,20 @@ function AnnotationValueItem({
 }
 
 //un-memoized normal table body component - see memoized version below
-function TableBody<T>({
+function TableBody<T extends RowData>({
   table,
-  virtualizer,
+  virtualRows,
+  totalHeight,
 }: {
   table: Table<T>;
-  virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
+  /**
+   * Read from the virtualizer by the caller: the virtualizer is a stable
+   * object, so a compiled body reading it directly would never see new rows.
+   */
+  virtualRows: VirtualItem[];
+  totalHeight: number;
 }) {
-  "use no memo";
   const rows = table.getRowModel().rows;
-  const virtualRows = virtualizer.getVirtualItems();
-  const totalHeight = virtualizer.getTotalSize();
   const spacerRowHeight = useMemo(() => {
     return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
   }, [totalHeight, virtualRows]);
