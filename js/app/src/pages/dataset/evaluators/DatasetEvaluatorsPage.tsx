@@ -6,7 +6,6 @@ import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 import z from "zod";
 
-import { Loading } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
 import {
   type CreateLLMDatasetEvaluatorInitialState,
@@ -29,7 +28,7 @@ import { DatasetEvaluatorsFilterProvider } from "@phoenix/pages/evaluators/Datas
 export function DatasetEvaluatorsPage() {
   return (
     <DatasetEvaluatorsFilterProvider>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
         <DatasetEvaluatorsPageContent />
       </Suspense>
     </DatasetEvaluatorsFilterProvider>
