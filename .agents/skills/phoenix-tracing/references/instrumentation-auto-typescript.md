@@ -81,6 +81,9 @@ const result = await generateText({
 Import the instrumentation module *first* so the telemetry registration happens
 before any AI SDK call.
 
+Decision model calls (`experimental_decide`) are recorded as DECISION spans; this
+requires `@arizeai/openinference-vercel` >= 3.3.0. See `span-decision.md`.
+
 **Version constraint:** `@arizeai/phoenix-otel` 2.x translates AI SDK v7
 (`@ai-sdk/otel`) spans. AI SDK v6 and older emit a different span shape that 2.x
 does **not** translate — stay on `@arizeai/phoenix-otel` 1.x (with
