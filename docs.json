@@ -119,20 +119,10 @@
             "group": "Observe",
             "pages": [
               "docs/phoenix/observe/explore-traces",
-              {
-                "group": "Trace data",
-                "pages": [
-                  "docs/phoenix/tracing/how-to-tracing/filter-expressions"
-                ]
-              },
+              "docs/phoenix/tracing/how-to-tracing/filter-expressions",
               "docs/phoenix/observe/view-metrics-and-dashboards",
               "docs/phoenix/observe/export-trace-data",
-              {
-                "group": "Advanced",
-                "pages": [
-                  "docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls"
-                ]
-              }
+              "docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls"
             ]
           },
           {
