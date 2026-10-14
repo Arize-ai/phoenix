@@ -1225,6 +1225,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents</loc>
+    <lastmod>2026-10-14T23:25:08+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing</loc>
+    <lastmod>2026-10-14T23:25:08+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/platforms/dify</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2089,6 +2097,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/claude-managed-agents-guide</loc>
+    <lastmod>2026-10-14T23:25:08+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2215,6 +2227,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis</loc>
     <lastmod>2026-09-21T22:56:24+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-harbor-plugin-for-agent-benchmarks</loc>
+    <lastmod>2026-10-14T23:25:08+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi</loc>
