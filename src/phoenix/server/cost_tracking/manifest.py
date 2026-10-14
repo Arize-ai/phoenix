@@ -1,5 +1,5 @@
 """
-Loader for the model cost manifest (``model_cost_manifest.json``).
+Loader for the model cost manifest (``manifests/v<schema_version>.json``).
 
 The manifest is generated from LiteLLM's price list by ``scripts/cost_tracking/sync_models.py``.
 A copy ships with Phoenix, and newer copies can be fetched at runtime, so this loader is
@@ -12,6 +12,7 @@ import json
 import logging
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated, Any, Optional, Union
 
 from pydantic import (
@@ -27,6 +28,14 @@ from pydantic import (
 logger = logging.getLogger(__name__)
 
 SUPPORTED_SCHEMA_VERSION = 1
+
+# The schema version is in the path so that servers fetching from GitHub only ever get a
+# manifest they can read, even after a newer schema ships next to it.
+BUNDLED_MANIFEST_PATH = Path(__file__).parent / "manifests" / f"v{SUPPORTED_SCHEMA_VERSION}.json"
+DEFAULT_MANIFEST_URL = (
+    "https://raw.githubusercontent.com/Arize-ai/phoenix/main/"
+    f"src/phoenix/server/cost_tracking/manifests/v{SUPPORTED_SCHEMA_VERSION}.json"
+)
 
 
 class ManifestError(ValueError):

@@ -45,7 +45,7 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionRule,
 )
 from phoenix.server.cost_tracking.apply_manifest import apply_manifest_if_newer
-from phoenix.server.cost_tracking.manifest import parse_manifest
+from phoenix.server.cost_tracking.manifest import BUNDLED_MANIFEST_PATH, parse_manifest
 from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
@@ -460,9 +460,7 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
         )
 
 
-_COST_MODEL_MANIFEST: Path = (
-    Path(__file__).parent.parent / "server" / "cost_tracking" / "model_cost_manifest.json"
-)
+_COST_MODEL_MANIFEST: Path = BUNDLED_MANIFEST_PATH
 
 
 async def _ensure_model_costs(db: DbSessionFactory) -> None:

@@ -1,5 +1,5 @@
 """
-Regression tests for src/phoenix/server/cost_tracking/model_cost_manifest.json.
+Regression tests for src/phoenix/server/cost_tracking/manifests/v1.json.
 
 Guards that LiteLLM whole-prompt tier rates (``*_above_NNNk_tokens``) survive the
 sync from LiteLLM through ``scripts/cost_tracking/sync_models.py`` and land in the
@@ -21,7 +21,12 @@ import pytest
 
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
-from phoenix.server.cost_tracking.manifest import SUPPORTED_SCHEMA_VERSION, parse_manifest
+from phoenix.server.cost_tracking.manifest import (
+    BUNDLED_MANIFEST_PATH,
+    DEFAULT_MANIFEST_URL,
+    SUPPORTED_SCHEMA_VERSION,
+    parse_manifest,
+)
 
 MANIFEST_PATH = (
     Path(__file__).resolve().parents[4]
@@ -29,7 +34,8 @@ MANIFEST_PATH = (
     / "phoenix"
     / "server"
     / "cost_tracking"
-    / "model_cost_manifest.json"
+    / "manifests"
+    / "v1.json"
 )
 
 
@@ -331,3 +337,11 @@ def test_typesafe_evaluation_models_are_priced_by_input_only(
     )
     assert found is not None, f"no built-in model priced {span_model_name}"
     assert found.name == model_name
+
+
+def test_bundled_manifest_is_the_one_servers_fetch() -> None:
+    # Servers fetch the bundled file from GitHub, and the sync script writes it, so all
+    # three must agree on its path.
+    assert BUNDLED_MANIFEST_PATH == MANIFEST_PATH
+    repo_root = MANIFEST_PATH.parents[5]
+    assert DEFAULT_MANIFEST_URL.endswith("/main/" + MANIFEST_PATH.relative_to(repo_root).as_posix())
