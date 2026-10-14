@@ -1,6 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Any, Literal, Optional
@@ -9,6 +10,9 @@ from urllib.request import urlopen
 from pydantic import AfterValidator, BaseModel
 
 PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
+
+# Keep in sync with SUPPORTED_SCHEMA_VERSION in src/phoenix/server/cost_tracking/manifest.py.
+SCHEMA_VERSION = 1
 
 
 class ThresholdBasedTokenPriceCustomization(BaseModel):
@@ -52,6 +56,8 @@ class ModelConfig(BaseModel):
 
 
 class ModelCostManifest(BaseModel):
+    schema_version: int = SCHEMA_VERSION
+    generated_at: Optional[datetime] = None
     models: list[ModelConfig]
 
 
@@ -65,6 +71,7 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "together_ai/": "together",
     "zai/": "zai",
     "meta/": "meta",
+    "typesafe/": "typesafe",
 }
 
 
@@ -213,11 +220,47 @@ def _is_positive_number(value: Any) -> bool:
         return False
 
 
+def _has_pricing(model_info: dict[str, Any]) -> bool:
+    """
+    Both an input and an output rate are required for pricing, except for evaluation models
+    (such as Typesafe's Jev), which LiteLLM prices by input tokens only, with an output rate of 0.
+    """
+    if "input_cost_per_token" not in model_info:
+        return False
+    if _output_rate_field(model_info) is not None:
+        return True
+    return model_info.get("mode") == "evaluation" and _is_positive_number(
+        model_info["input_cost_per_token"]
+    )
+
+
+def next_generated_at(
+    previous: ModelCostManifest,
+    updated: ModelCostManifest,
+    now: Optional[datetime] = None,
+) -> datetime:
+    """
+    Keeps the previous ``generated_at`` unless the models changed, so that a sync with no price
+    changes leaves the manifest untouched.
+    """
+    if previous.generated_at is not None and _dump_models(previous) == _dump_models(updated):
+        return previous.generated_at
+    return (now or datetime.now(timezone.utc)).replace(microsecond=0)
+
+
+def _dump_models(manifest: ModelCostManifest) -> list[dict[str, Any]]:
+    models: list[dict[str, Any]] = manifest.model_dump(mode="json", exclude_none=True)["models"]
+    return models
+
+
+def serialize_manifest(manifest: ModelCostManifest) -> str:
+    return manifest.model_dump_json(indent=2, exclude_none=True)
+
+
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
-        # Both an input and an output rate are required for pricing.
-        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
+        if _has_pricing(model_info):
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -390,17 +433,21 @@ def main() -> int:
         return 1
 
     with open(local_file_path, "r") as file:
-        manifest_json = json.load(file)
-    manifest = ModelCostManifest.model_validate(manifest_json)
+        manifest_text = file.read()
+    manifest = ModelCostManifest.model_validate_json(manifest_text)
+    previous_manifest = manifest.model_copy(deep=True)
 
     litellm_entries = extract_litellm_entries(remote_data)
     print(f"Found {len(litellm_entries)} models with pricing from LiteLLM")
 
     updated_manifest = update_manifest(manifest, litellm_entries)
+    updated_manifest.schema_version = SCHEMA_VERSION
+    updated_manifest.generated_at = next_generated_at(previous_manifest, updated_manifest)
 
-    if manifest_json != updated_manifest:
+    updated_text = serialize_manifest(updated_manifest)
+    if updated_text != manifest_text:
         with open(local_file_path, "w") as file:
-            file.write(updated_manifest.model_dump_json(indent=2, exclude_none=True))
+            file.write(updated_text)
         print("Model data updated successfully")
     else:
         print("No changes detected")
