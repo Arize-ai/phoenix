@@ -86,8 +86,13 @@ const overlayCSS = css`
  * Metrics) show their content, since Config is useful before the first trace.
  *
  * Whether to show is decided once, on mount, from `hasTraces` in the store.
- * The project route loader fetches that field on every visit, so the store is
- * fresh here and a project that already has traces never renders the guide.
+ * The project route loader fetches that field on every visit, so a project
+ * that already has traces when it is opened never renders the guide. Within a
+ * visit the store is kept fresh by this guide's own poll, which runs only on
+ * the tabs that mount it: traces that land while the user is on Config or
+ * Metrics are not seen until they return, so the guide shows again for about
+ * one poll interval before it leaves.
+ *
  * While shown, the guide polls `hasTraces` itself, so it leaves even when live
  * streaming is paused, and it advances the stream fetch key as it goes so the
  * tables underneath refetch on the same beat.
@@ -123,15 +128,18 @@ export function ProjectOnboardingOverlay({
     isShowing && !data.hasTraces ? POLL_INTERVAL_MS : null
   );
 
-  // The tables refetch when the stream fetch key changes. Streaming advances it
-  // on its own when it is on; when it is paused, the guide's own poll is the
-  // only thing that knows the first traces have landed.
-  const { isStreaming, setFetchKey } = useStreamState();
+  // The tables refetch when the stream fetch key changes. Advance it as the
+  // guide starts to leave, whatever the streaming setting: when streaming is
+  // paused nothing else knows the first traces have landed, and when it is on
+  // its poll runs on its own clock and may be up to a tick behind this one.
+  // The table then fills in under the exit animation instead of after it, at
+  // the cost of at most one duplicate refetch when the two polls agree.
+  const { setFetchKey } = useStreamState();
   useEffect(() => {
-    if (isExiting && !isStreaming) {
+    if (isExiting) {
       setFetchKey(`onboarding-traces-${Date.now()}`);
     }
-  }, [isExiting, isStreaming, setFetchKey]);
+  }, [isExiting, setFetchKey]);
 
   // Take focus only when nothing has it. The overlay remounts on every tab
   // switch of an empty project, and stealing focus from the tab strip would
