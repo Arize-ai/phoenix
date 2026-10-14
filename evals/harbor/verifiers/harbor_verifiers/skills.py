@@ -20,7 +20,7 @@ from harbor_verifiers.verify import agent_steps
 _SKILL_FILE = re.compile(r"([\w.-]+)/SKILL\.md\b")
 
 # Skills that describe how to reach Phoenix. Whether an agent loads one depends on the
-# agent's tools, not on the task, so ``"skills_unexpected": "others"`` allows them.
+# agent's tools, not on the task, so ``"skills_unexpected": "any_other"`` allows them.
 INTERFACE_SKILLS = frozenset({"phoenix-cli", "phoenix-graphql", "phoenix-tracing"})
 
 
@@ -65,7 +65,7 @@ def skill_scores(loaded: list[str], expected: dict[str, Any]) -> dict[str, float
     ``expected_skills_loaded``.
 
     ``skills_unexpected`` lists the skills the agent must not load. It produces
-    ``no_unexpected_skills``. Set it to ``"others"`` to treat every skill as unexpected
+    ``no_unexpected_skills``. Set it to ``"any_other"`` to treat every skill as unexpected
     except those in ``skills_expected`` and :data:`INTERFACE_SKILLS`.
 
     Each score is 1.0 on a pass and 0.0 otherwise. A key that ``expected`` omits produces
@@ -77,7 +77,7 @@ def skill_scores(loaded: list[str], expected: dict[str, Any]) -> dict[str, float
         scores["expected_skills_loaded"] = float(required <= set(loaded))
     if "skills_unexpected" in expected:
         unexpected = expected["skills_unexpected"]
-        if unexpected == "others":
+        if unexpected == "any_other":
             wrong = set(loaded) - required - INTERFACE_SKILLS
         else:
             wrong = set(loaded) & set(unexpected)

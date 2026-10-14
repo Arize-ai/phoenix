@@ -60,4 +60,4 @@ def test_expected_answer_is_well_formed(task: Path) -> None:
         "skills_expected",
         "skills_unexpected",
     }, "unknown keys"
-    assert spec.get("skills_unexpected") == "others", "a TRAIL question needs no workflow skill"
+    assert spec.get("skills_unexpected") == "any_other", "a TRAIL question needs no workflow skill"

@@ -147,7 +147,7 @@ To score which skills the agent loads, add either of these optional keys:
 
 ```json
 {"skills_expected": ["phoenix-error-analysis"], "skills_unexpected": ["phoenix-evals"]}
-{"skills_unexpected": "others"}
+{"skills_unexpected": "any_other"}
 ```
 
 | Key | Score | The score is `1` if |
@@ -155,7 +155,7 @@ To score which skills the agent loads, add either of these optional keys:
 | `skills_expected` | `expected_skills_loaded` | The agent loaded every skill in the list. |
 | `skills_unexpected` | `no_unexpected_skills` | The agent loaded no skill in the list. |
 
-Set `skills_unexpected` to `"others"` for a task that needs no workflow skill. This value
+Set `skills_unexpected` to `"any_other"` for a task that needs no workflow skill. This value
 treats every skill as unexpected except the ones in `skills_expected` and the interface skills in
 `harbor_verifiers.skills.INTERFACE_SKILLS`, such as `phoenix-cli`. Every TRAIL task uses
 it, so a new skill is checked without a change to the tasks. If you add a skill that

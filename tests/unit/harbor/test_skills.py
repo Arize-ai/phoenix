@@ -99,31 +99,34 @@ def test_loaded_skills_ignores_copied_context() -> None:
             ["a", "b"], {"skills_unexpected": ["a"]}, {"no_unexpected_skills": 0.0}, id="forbidden"
         ),
         pytest.param(
-            [], {"skills_unexpected": "others"}, {"no_unexpected_skills": 1.0}, id="others-none"
+            [],
+            {"skills_unexpected": "any_other"},
+            {"no_unexpected_skills": 1.0},
+            id="any-other-none",
         ),
         pytest.param(
             ["phoenix-cli", "phoenix-graphql"],
-            {"skills_unexpected": "others"},
+            {"skills_unexpected": "any_other"},
             {"no_unexpected_skills": 1.0},
-            id="others-allows-interface-skills",
+            id="any-other-allows-interface-skills",
         ),
         pytest.param(
             ["phoenix-cli", "phoenix-error-analysis"],
-            {"skills_unexpected": "others"},
+            {"skills_unexpected": "any_other"},
             {"no_unexpected_skills": 0.0},
-            id="others-forbids-workflow-skills",
+            id="any-other-forbids-workflow-skills",
         ),
         pytest.param(
             ["a"],
-            {"skills_expected": ["a"], "skills_unexpected": "others"},
+            {"skills_expected": ["a"], "skills_unexpected": "any_other"},
             {"expected_skills_loaded": 1.0, "no_unexpected_skills": 1.0},
-            id="others-allows-the-required-skill",
+            id="any-other-allows-the-required-skill",
         ),
         pytest.param(
             ["a", "b"],
-            {"skills_expected": ["a"], "skills_unexpected": "others"},
+            {"skills_expected": ["a"], "skills_unexpected": "any_other"},
             {"expected_skills_loaded": 1.0, "no_unexpected_skills": 0.0},
-            id="others-forbids-a-sibling-skill",
+            id="any-other-forbids-a-sibling-skill",
         ),
     ],
 )
@@ -137,7 +140,7 @@ def test_verify_writes_skill_scores_and_loaded_skills(tmp_path: Path) -> None:
     trajectory = _trajectory(("load_skill", {"skill_name": "phoenix-error-analysis"}))
     (tmp_path / "trajectory.json").write_text(json.dumps(trajectory))
     (tmp_path / "expected.json").write_text(
-        json.dumps({"exact": "ok", "skills_unexpected": "others"})
+        json.dumps({"exact": "ok", "skills_unexpected": "any_other"})
     )
     verify.main(
         [
