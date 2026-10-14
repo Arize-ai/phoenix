@@ -283,6 +283,22 @@ const ZAISVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+
+const MistralSVG = ({ height }: { height: number }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Mistral AI</title>
+    <path
+      fill="#FF7000"
+      d="M1.143 7.429V4.286h3.286zm6.571 0L4.429 4.286h3.285L11 7.429zm6.572 0L11 4.286h3.286L17.571 7.429zm6.571 0L17.571 4.286h3.286L24 7.429zM1.143 12.714V9.571h21.714v3.143zM1.143 18v-3.143h3.286zm6.571 0l-3.285-3.143h6.571L14.285 18zm6.572 0l-3.286-3.143h6.572L20.857 18zm6.571 0l-3.286-3.143H24L20.857 18z"
+    />
+  </svg>
+);
+
 const MetaSVG = ({ height }: { height: number }) => (
   <svg
     viewBox="0 0 24 24"
@@ -506,6 +522,7 @@ const PROVIDER_ICONS: Record<
   MINIMAX: MiniMaxSVG,
   PERPLEXITY: PerplexitySVG,
   TOGETHER: TogetherSVG,
+  MISTRAL: MistralSVG,
   ZAI: ZAISVG,
   META: MetaSVG,
 };

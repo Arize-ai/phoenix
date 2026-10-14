@@ -32,6 +32,7 @@ class GenerativeProviderKey(Enum):
     MINIMAX = "MiniMax"
     PERPLEXITY = "Perplexity"
     TOGETHER = "Together"
+    MISTRAL = "Mistral AI"
     ZAI = "Z.ai"
     META = "Meta"
 
@@ -69,6 +70,8 @@ class GenerativeProviderKey(Enum):
             return cls.PERPLEXITY
         elif model_provider is ModelProvider.TOGETHER:
             return cls.TOGETHER
+        elif model_provider is ModelProvider.MISTRAL:
+            return cls.MISTRAL
         elif model_provider is ModelProvider.ZAI:
             return cls.ZAI
         elif model_provider is ModelProvider.META:
@@ -106,6 +109,8 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.PERPLEXITY
         if self is GenerativeProviderKey.TOGETHER:
             return ModelProvider.TOGETHER
+        if self is GenerativeProviderKey.MISTRAL:
+            return ModelProvider.MISTRAL
         if self is GenerativeProviderKey.ZAI:
             return ModelProvider.ZAI
         if self is GenerativeProviderKey.META:
@@ -130,6 +135,7 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         GenerativeProviderKey.MINIMAX: "minimax",
         GenerativeProviderKey.PERPLEXITY: "perplexity",
         GenerativeProviderKey.TOGETHER: "together",
+        GenerativeProviderKey.MISTRAL: OpenInferenceLLMProviderValues.MISTRALAI.value,
         # OpenInference semconv has no `zai` provider value yet; ship a plain
         # string literal until an upstream semconv PR lands.
         GenerativeProviderKey.ZAI: "zai",
@@ -170,7 +176,7 @@ class GenerativeProvider:
         GenerativeProviderKey.GOOGLE: ["gemini"],
         GenerativeProviderKey.DEEPSEEK: ["deepseek"],
         GenerativeProviderKey.XAI: ["grok"],
-        GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
+        GenerativeProviderKey.OLLAMA: ["llama", "codellama", "phi", "qwen", "gemma"],
         GenerativeProviderKey.AWS: ["nova", "titan"],
         GenerativeProviderKey.CEREBRAS: [],
         GenerativeProviderKey.FIREWORKS: ["accounts/fireworks"],
@@ -179,6 +185,19 @@ class GenerativeProvider:
         GenerativeProviderKey.MINIMAX: ["minimax"],
         GenerativeProviderKey.PERPLEXITY: ["sonar"],
         GenerativeProviderKey.TOGETHER: [],
+        # Prefer Mistral API IDs over Ollama's bare "mistral" tag via specific prefixes.
+        GenerativeProviderKey.MISTRAL: [
+            "mistral-",
+            "codestral",
+            "ministral",
+            "pixtral",
+            "magistral",
+            "devstral",
+            "voxtral",
+            "open-mistral",
+            "open-mixtral",
+            "open-codestral",
+        ],
         GenerativeProviderKey.ZAI: ["glm"],
         GenerativeProviderKey.META: ["muse"],
     }
@@ -189,6 +208,7 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
         OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.AWS,
+        OpenInferenceLLMProviderValues.MISTRALAI.value: GenerativeProviderKey.MISTRAL,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
@@ -245,6 +265,9 @@ class GenerativeProvider:
         ],
         GenerativeProviderKey.TOGETHER: [
             GenerativeProviderCredentialConfig(env_var_name="TOGETHER_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.MISTRAL: [
+            GenerativeProviderCredentialConfig(env_var_name="MISTRAL_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.ZAI: [
             GenerativeProviderCredentialConfig(env_var_name="ZAI_API_KEY", is_required=True)

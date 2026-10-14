@@ -40,6 +40,18 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   MINIMAX: ["minimax"],
   PERPLEXITY: ["sonar"],
   TOGETHER: [],
+  MISTRAL: [
+    "mistral-",
+    "codestral",
+    "ministral",
+    "pixtral",
+    "magistral",
+    "devstral",
+    "voxtral",
+    "open-mistral",
+    "open-mixtral",
+    "open-codestral",
+  ],
   ZAI: ["glm"],
   META: ["muse"],
 };

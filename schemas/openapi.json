@@ -8839,7 +8839,7 @@
           "chat_completions"
         ],
         "summary": "OpenAI-compatible chat completions",
-        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, mistral, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
         "operationId": "createChatCompletion",
         "requestBody": {
           "content": {
@@ -11819,7 +11819,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, mistral, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
           },
           "messages": {
             "items": {
@@ -15608,6 +15608,7 @@
           "MINIMAX",
           "PERPLEXITY",
           "TOGETHER",
+          "MISTRAL",
           "ZAI",
           "META"
         ],
@@ -17770,6 +17771,84 @@
         "type": "object",
         "title": "PromptMetaInvocationParametersContent"
       },
+      "PromptMistralInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "mistral",
+            "title": "Type"
+          },
+          "mistral": {
+            "$ref": "#/components/schemas/PromptMistralInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "mistral"
+        ],
+        "title": "PromptMistralInvocationParameters"
+      },
+      "PromptMistralInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptMistralInvocationParametersContent"
+      },
       "PromptMoonshotInvocationParameters": {
         "properties": {
           "type": {
@@ -18558,6 +18637,9 @@
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
               },
               {
+                "$ref": "#/components/schemas/PromptMistralInvocationParameters"
+              },
+              {
                 "$ref": "#/components/schemas/PromptZAIInvocationParameters"
               },
               {
@@ -18577,6 +18659,7 @@
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "groq": "#/components/schemas/PromptGroqInvocationParameters",
                 "meta": "#/components/schemas/PromptMetaInvocationParameters",
+                "mistral": "#/components/schemas/PromptMistralInvocationParameters",
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
@@ -18730,6 +18813,9 @@
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
               },
               {
+                "$ref": "#/components/schemas/PromptMistralInvocationParameters"
+              },
+              {
                 "$ref": "#/components/schemas/PromptZAIInvocationParameters"
               },
               {
@@ -18749,6 +18835,7 @@
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "groq": "#/components/schemas/PromptGroqInvocationParameters",
                 "meta": "#/components/schemas/PromptMetaInvocationParameters",
+                "mistral": "#/components/schemas/PromptMistralInvocationParameters",
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",

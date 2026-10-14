@@ -1412,6 +1412,28 @@ class TogetherClient(OpenAICompatibleClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.MISTRAL,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "mistral-large-latest",
+        "mistral-medium-latest",
+        "mistral-small-latest",
+        "codestral-latest",
+        "pixtral-large-latest",
+        "ministral-8b-latest",
+        "ministral-3b-latest",
+        "magistral-medium-latest",
+        "magistral-small-latest",
+        "devstral-medium-latest",
+        "devstral-small-latest",
+        "open-mistral-nemo",
+    ],
+)
+class MistralClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.ZAI,
     model_names=[
         PROVIDER_DEFAULT,
@@ -3968,6 +3990,46 @@ async def _get_builtin_provider_client(
 
         client_factory = LLMClientFactory(
             create_together_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.MISTRAL:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="MISTRAL_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Mistral AI",
+        )
+        base_url = base_url or getenv("MISTRAL_BASE_URL") or "https://api.mistral.ai/v1"
+
+        if not api_key:
+            if base_url.startswith("https://api.mistral.ai/"):
+                raise BadRequest(
+                    "An API key is required for Mistral AI models. "
+                    "Set the MISTRAL_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_mistral_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_mistral_client, openai_rate_limit_key(api_key, base_url)
         )
         return OpenAIChatCompletionsClient(
             client_factory=client_factory,
