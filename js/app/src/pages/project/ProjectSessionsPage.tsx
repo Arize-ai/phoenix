@@ -3,9 +3,9 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
 import {
   ProjectPageQueriesSessionsQuery,
   useProjectPageQueryReferenceContext,
@@ -67,7 +67,7 @@ export const ProjectSessionsPage = () => {
         <SessionFiltersProvider key={seedKey}>
           {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={SessionsFilterErrorFallback}>
-            <Suspense fallback={<Loading />}>
+            <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
               {hasSessionsQuery ? (
                 <SessionsTabContent
                   queryReference={sessionsQueryReference}
@@ -77,6 +77,7 @@ export const ProjectSessionsPage = () => {
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
                 <PendingDSLFilter
+                  isSelectable={false}
                   onValidCondition={({ condition }: { condition: string }) =>
                     resolveSessionsSeed(condition)
                   }
@@ -90,7 +91,7 @@ export const ProjectSessionsPage = () => {
               ) : (
                 // Showing the field here would mount it twice: once now and
                 // again inside the table.
-                <Loading />
+                <TableSkeleton hasToolbar rowCount="fill" />
               )}
             </Suspense>
           </ErrorBoundary>

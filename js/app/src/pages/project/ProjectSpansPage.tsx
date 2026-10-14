@@ -3,9 +3,9 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
 import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
@@ -74,7 +74,11 @@ export const ProjectSpansPage = () => {
         >
           {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={SpansFilterErrorFallback}>
-            <Suspense fallback={<Loading />}>
+            <Suspense
+              fallback={
+                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+              }
+            >
               {hasSpansQuery ? (
                 <SpansTabContent
                   queryReference={spansQueryReference}
@@ -87,7 +91,7 @@ export const ProjectSpansPage = () => {
               ) : (
                 // Waiting only on the query. Showing the field here would mount
                 // the toolbar, tear it down, and rebuild it inside the table.
-                <Loading />
+                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
               )}
             </Suspense>
           </ErrorBoundary>

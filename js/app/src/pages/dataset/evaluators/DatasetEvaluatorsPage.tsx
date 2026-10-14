@@ -13,6 +13,7 @@ import {
   CreateLLMDatasetEvaluatorSlideover,
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
+import { TableSkeleton } from "@phoenix/components/table";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorsLoaderQuery.graphql";
 import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
@@ -150,7 +151,7 @@ export function DatasetEvaluatorsPageContent() {
             min-height: 0;
           `}
         >
-          <Suspense fallback={<Loading />}>
+          <Suspense fallback={<TableSkeleton rowCount="fill" />}>
             <DatasetEvaluatorsTable
               {...evaluatorsTableProps}
               builtInEvaluators={builtInEvaluators}

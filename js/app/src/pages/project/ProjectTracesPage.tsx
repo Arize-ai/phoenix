@@ -3,9 +3,9 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
+import { TableSkeleton } from "@phoenix/components/table";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
@@ -75,7 +75,11 @@ export const ProjectTracesPage = () => {
         <TraceFiltersProvider key={seedKey}>
           {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
           <ErrorBoundary fallback={TracesFilterErrorFallback}>
-            <Suspense fallback={<Loading />}>
+            <Suspense
+              fallback={
+                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+              }
+            >
               {hasTracesQuery ? (
                 <TracesTabContent
                   tracesQueryReference={tracesQueryReference}
@@ -85,6 +89,7 @@ export const ProjectTracesPage = () => {
                 // A rejected condition falls back to no filter; the URL keeps
                 // the rejected text.
                 <PendingDSLFilter
+                  isSelectable={true}
                   onValidCondition={({ condition }: { condition: string }) =>
                     resolveTracesSeed(condition)
                   }
@@ -96,7 +101,7 @@ export const ProjectTracesPage = () => {
               ) : (
                 // Showing the field here would mount it twice: once now and
                 // again inside the table.
-                <Loading />
+                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
               )}
             </Suspense>
           </ErrorBoundary>
