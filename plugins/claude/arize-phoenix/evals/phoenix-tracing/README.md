@@ -11,6 +11,17 @@ Cases live in this group directory (tagged `phoenix-tracing`) so they run apart 
 `phoenix-cli` and `phoenix-evals` cases. Every input runs with the plugin and without it, so the
 headline number is Δ (with-plugin minus without-plugin).
 
+## Baseline
+
+Measured mean Δ over the fire cases (`-neg-` excluded) on a 3-run `--ablation with-without`
+pass with `--model claude-sonnet-5 --judge-model claude-sonnet-5`: **+0.25** (all cases at 1.00
+with-plugin, so the per-case `--threshold 0.8` has ample headroom). The uplift comes from the
+Phoenix-specific cases (manual LLM spans, ESM load order, custom span kinds, Vercel AI SDK v7);
+basic auto-instrumentation (cases 01–02) the base model already does, so their Δ is ~0. The CI
+gate in `.github/workflows/plugin-evals.yml` is `min_delta: 0.15`, `gate: block`, agent model
+`claude-sonnet-5`. Re-measure and update both this number and the gate when cases or the skill
+change materially.
+
 ## Cases
 
 | Case | Fire? | Lang | What it checks |

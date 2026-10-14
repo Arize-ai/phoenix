@@ -61,7 +61,8 @@ jobs:
             model: claude-opus-4-8
             min_delta: "0.12"
             gate: block
-          # phoenix-tracing: no cases yet, so the leg skips before the gate.
+          # phoenix-tracing: 0.10 headroom under its measured +0.25 baseline (3-run
+          # with-without pass on sonnet-5; see evals/phoenix-tracing/README.md).
           - skill: phoenix-tracing
             model: claude-sonnet-5
             min_delta: "0.15"
