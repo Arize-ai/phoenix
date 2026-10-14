@@ -24,6 +24,7 @@ import { settingsModelsLoaderGql } from "@phoenix/pages/settings/settingsModelsL
 
 import { ModelsTable } from "./ModelsTable";
 import { NewModelButton } from "./NewModelButton";
+import { useModelCostManifestDescription } from "./useModelCostManifestDescription";
 
 const ModelKindFilterOptions = [
   { label: "All", id: "ALL" },
@@ -42,6 +43,7 @@ export function SettingsModelsPage() {
     settingsModelsLoaderGql,
     loaderData
   );
+  const modelCostManifestDescription = useModelCostManifestDescription(data);
 
   return (
     <Flex direction="column" gap="size-200" flex="1 1 auto" minHeight={0}>
@@ -81,6 +83,7 @@ export function SettingsModelsPage() {
       </Flex>
       <Card
         title="Models"
+        subTitle={modelCostManifestDescription}
         titleExtra={
           <DocumentationHelp topic="modelPricing">
             Manage the model matching rules and token prices Phoenix uses to
