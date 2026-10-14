@@ -47,7 +47,7 @@ claude plugin eval . \
   --allow-tools Write "Read(//$(git rev-parse --show-toplevel)/.agents/skills/**)"
 ```
 
-Iterate on one case with `--case 03-custom-tool-span-python --runs 1`. The fire cases write a
+Iterate on one case with `--case 03-manual-llm-span-python --runs 1`. The fire cases write a
 file (`--allow-tools Write`) and the graders read it back via `target: {source: file, path: ...}`;
 no case runs the file or reaches a live Phoenix, so no mock is needed.
 
