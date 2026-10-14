@@ -1,11 +1,13 @@
 import asyncio
+import re
 from asyncio import Event, wait_for
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 from unittest.mock import patch
 
 import pytest
 
+from phoenix.db import models
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -251,5 +253,51 @@ class TestGenerativeModelStore:
 
             assert store._last_fetch_time is not None
             assert store._last_fetch_time > third_fetch_time
+        finally:
+            await store.stop()
+
+    async def test_full_refetch_picks_up_rows_stamped_before_the_cursor(
+        self,
+        db: DbSessionFactory,
+        daemon_cycles: _DaemonCycleController,
+    ) -> None:
+        """A row committed with an updated_at older than the cursor (as a slow PostgreSQL
+        transaction leaves, since now() is its start) is missed until a full refetch."""
+        store = GenerativeModelStore(
+            db=db,
+            refresh_interval_seconds=daemon_cycles.refresh_interval_seconds,
+        )
+        await store.start()
+        try:
+            await daemon_cycles.wait_for_cycle("initial fetch")
+            stamped = datetime.now(timezone.utc) - timedelta(hours=1)
+            async with db() as session:
+                session.add(
+                    models.GenerativeModel(
+                        name="late-model",
+                        provider="",
+                        name_pattern=re.compile("late-model"),
+                        is_built_in=True,
+                        created_at=stamped,
+                        updated_at=stamped,
+                        token_prices=[
+                            models.TokenPrice(
+                                token_type="input",
+                                is_prompt=True,
+                                base_rate=1.0,
+                                customization=None,
+                            )
+                        ],
+                    )
+                )
+            attributes = {"llm": {"model_name": "late-model"}}
+
+            await daemon_cycles.run_cycle("incremental fetch")
+            assert store.find_model(datetime.now(timezone.utc), attributes) is None
+
+            store.request_full_refetch()
+            await daemon_cycles.run_cycle("full refetch")
+            found = store.find_model(datetime.now(timezone.utc), attributes)
+            assert found is not None and found.name == "late-model"
         finally:
             await store.stop()

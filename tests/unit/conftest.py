@@ -103,6 +103,11 @@ def pytest_configure(config: Config) -> None:
     )
     config.addinivalue_line(
         "markers",
+        "real_model_cost_fetcher: run the app's model cost manifest fetcher loop, which "
+        "downloads the manifest from GitHub unless the test sets the URL",
+    )
+    config.addinivalue_line(
+        "markers",
         "real_key_derivation: derive the encryption and redaction keys with the real PBKDF2 "
         "rounds instead of the memoized ones",
     )
@@ -246,6 +251,24 @@ def _stub_model_cost_seeding(request: FixtureRequest, monkeypatch: pytest.Monkey
         return None
 
     monkeypatch.setattr("phoenix.db.facilitator._ensure_model_costs", _skip)
+
+
+@pytest.fixture(autouse=True)
+def _model_cost_fetcher_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's model cost manifest fetcher downloads the manifest from GitHub
+    after startup. Off suite-wide so tests make no network calls; the fetcher
+    tests drive it on their own instance, and a test that needs the loop opts
+    in with ``@pytest.mark.real_model_cost_fetcher``."""
+    if request.node.get_closest_marker("real_model_cost_fetcher"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.model_cost_manifest_fetcher.ModelCostManifestFetcher._run",
+        _idle,
+    )
 
 
 _DERIVE_ENCRYPTION_KEY = EncryptionService._derive_encryption_key

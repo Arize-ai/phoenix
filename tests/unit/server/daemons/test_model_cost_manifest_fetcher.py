@@ -1,0 +1,363 @@
+from __future__ import annotations
+
+import asyncio
+import http.client
+import io
+import json
+import logging
+import threading
+import urllib.error
+import urllib.request
+from contextlib import AsyncExitStack
+from email.message import Message
+from typing import Any, Optional
+from unittest.mock import MagicMock, patch
+
+import pytest
+from asgi_lifespan import LifespanManager
+from sqlalchemy import select
+
+from phoenix.db import models
+from phoenix.db.facilitator import _ensure_enums
+from phoenix.server.app import create_app
+from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
+from phoenix.server.cost_tracking.manifest import (
+    DEFAULT_MANIFEST_URL,
+    SUPPORTED_SCHEMA_VERSION,
+    ManifestError,
+)
+from phoenix.server.daemons import model_cost_manifest_fetcher as fetcher_module
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.model_cost_manifest_fetcher import (
+    _JITTER_SECONDS,
+    _MAX_MANIFEST_BYTES,
+    _SLEEP_SECONDS,
+    ModelCostManifestFetcher,
+    _download,
+)
+from phoenix.server.types import DbSessionFactory
+from tests.unit.conftest import TestBulkInserter, patch_dml_event_handler, patch_grpc_server
+
+# The suite stubs the fetcher's loop; these tests drive the real one.
+pytestmark = pytest.mark.real_model_cost_fetcher
+
+_URLOPEN = "phoenix.server.daemons.model_cost_manifest_fetcher.urllib.request.urlopen"
+_SLEEP = "phoenix.server.daemons.model_cost_manifest_fetcher.sleep"
+_URL = "https://example.com/manifests/v1.json"
+
+
+def _manifest_body(generated_at: str = "2026-10-01T00:00:00Z") -> bytes:
+    return json.dumps(
+        {
+            "schema_version": SUPPORTED_SCHEMA_VERSION,
+            "generated_at": generated_at,
+            "models": [
+                {
+                    "name": "test-model",
+                    "name_pattern": "(?i)^(test-model)$",
+                    "token_prices": [
+                        {"base_rate": 1.0, "is_prompt": True, "token_type": "input"},
+                    ],
+                }
+            ],
+        }
+    ).encode()
+
+
+class _Response(io.BytesIO):
+    """A urlopen response: a context manager that read() drains, with headers."""
+
+    def __init__(self, body: bytes, etag: Optional[str] = None) -> None:
+        super().__init__(body)
+        self.headers = Message()
+        if etag:
+            self.headers["ETag"] = etag
+
+
+def _http_error(code: int) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError(_URL, code, "error", Message(), None)
+
+
+def _fetcher(db: DbSessionFactory, url: str = _URL) -> tuple[ModelCostManifestFetcher, MagicMock]:
+    store = MagicMock(spec=GenerativeModelStore)
+    return ModelCostManifestFetcher(db, url, store), store
+
+
+async def _built_in_model_names(db: DbSessionFactory) -> set[str]:
+    async with db() as session:
+        return set(
+            await session.scalars(
+                select(models.GenerativeModel.name)
+                .where(models.GenerativeModel.is_built_in.is_(True))
+                .where(models.GenerativeModel.deleted_at.is_(None))
+            )
+        )
+
+
+class TestDownload:
+    def test_returns_body_and_etag(self) -> None:
+        with patch(_URLOPEN, return_value=_Response(b"body", etag='"abc"')) as urlopen:
+            download = _download(_URL, None)
+        assert download is not None
+        assert download.body == b"body"
+        assert download.etag == '"abc"'
+        request = urlopen.call_args.args[0]
+        assert request.full_url == _URL
+        assert request.get_header("If-none-match") is None
+        assert urlopen.call_args.kwargs["timeout"] == fetcher_module._TIMEOUT_SECONDS
+
+    def test_sends_the_etag_and_returns_none_when_not_modified(self) -> None:
+        with patch(_URLOPEN, side_effect=_http_error(304)) as urlopen:
+            assert _download(_URL, '"abc"') is None
+        assert urlopen.call_args.args[0].get_header("If-none-match") == '"abc"'
+
+    def test_oversized_body_raises(self) -> None:
+        with patch(_URLOPEN, return_value=_Response(b"x" * (_MAX_MANIFEST_BYTES + 1))):
+            with pytest.raises(ManifestError, match="larger than"):
+                _download(_URL, None)
+
+    def test_reads_a_file_url(self, tmp_path: Any) -> None:
+        path = tmp_path / "v1.json"
+        path.write_bytes(_manifest_body())
+        download = _download(path.as_uri(), None)
+        assert download is not None
+        assert download.body == _manifest_body()
+        assert download.etag is None
+
+
+class TestFetchAndApply:
+    async def test_applies_a_newer_manifest_and_refreshes_the_store(
+        self, db: DbSessionFactory
+    ) -> None:
+        await _ensure_enums(db)
+        fetcher, store = _fetcher(db)
+        with patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v1"')):
+            await fetcher._fetch_and_apply()
+
+        assert await _built_in_model_names(db) == {"test-model"}
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker is not None
+        assert marker.source == "remote"
+        assert marker.url == _URL
+        store.request_full_refetch.assert_called_once()
+        assert fetcher._etag == '"v1"'
+
+    async def test_manifest_not_newer_still_refreshes_the_store(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        fetcher, store = _fetcher(db)
+        with patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v1"')):
+            await fetcher._fetch_and_apply()
+        store.reset_mock()
+        with patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v2"')):
+            await fetcher._fetch_and_apply()
+        # Another replica may have applied it with rows stamped before the store's cursor.
+        store.request_full_refetch.assert_called_once()
+        assert fetcher._etag == '"v2"'
+
+    async def test_not_modified_skips_the_database(self, db: DbSessionFactory) -> None:
+        fetcher, store = _fetcher(db)
+        fetcher._etag = '"v1"'
+        with (
+            patch(_URLOPEN, side_effect=_http_error(304)),
+            patch.object(fetcher_module, "apply_manifest_if_newer") as apply,
+        ):
+            await fetcher._fetch_and_apply()
+        apply.assert_not_called()
+        store.request_full_refetch.assert_not_called()
+        assert fetcher._etag == '"v1"'
+
+    async def test_failed_apply_keeps_the_old_etag(self, db: DbSessionFactory) -> None:
+        fetcher, _ = _fetcher(db)
+        fetcher._etag = '"v1"'
+        with (
+            patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v2"')),
+            patch.object(fetcher_module, "apply_manifest_if_newer", side_effect=RuntimeError),
+        ):
+            with pytest.raises(RuntimeError):
+                await fetcher._fetch_and_apply()
+        # So the next fetch downloads the manifest again instead of getting a 304.
+        assert fetcher._etag == '"v1"'
+
+
+class TestRun:
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            pytest.param(urllib.error.URLError("unreachable"), id="url-error"),
+            pytest.param(_http_error(500), id="http-error"),
+            pytest.param(http.client.IncompleteRead(b""), id="incomplete-read"),
+            pytest.param(_Response(b"not json"), id="bad-json"),
+        ],
+    )
+    async def test_failures_are_logged_and_the_loop_carries_on(
+        self,
+        db: DbSessionFactory,
+        failure: Any,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        await _ensure_enums(db)
+        fetcher, store = _fetcher(db)
+        responses = [failure, _Response(_manifest_body())]
+
+        def urlopen(*_: Any, **__: Any) -> Any:
+            response = responses.pop(0)
+            if isinstance(response, BaseException):
+                raise response
+            return response
+
+        sleeps: list[float] = []
+
+        async def sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            fetcher._running = len(sleeps) < 2
+
+        fetcher._running = True
+        with (
+            patch(_URLOPEN, side_effect=urlopen),
+            patch(_SLEEP, sleep),
+            caplog.at_level(logging.WARNING, logger=fetcher_module.__name__),
+        ):
+            await fetcher._run()
+
+        warnings = [r for r in caplog.records if r.name == fetcher_module.__name__]
+        assert len(warnings) == 1
+        assert warnings[0].levelno == logging.WARNING
+        assert warnings[0].exc_info is None
+        assert _URL in warnings[0].getMessage()
+        # The second fetch still ran and applied.
+        assert await _built_in_model_names(db) == {"test-model"}
+        store.request_full_refetch.assert_called_once()
+
+    async def test_unexpected_errors_are_logged_and_the_loop_carries_on(
+        self,
+        db: DbSessionFactory,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        await _ensure_enums(db)
+        fetcher, store = _fetcher(db)
+        sleeps: list[float] = []
+
+        async def sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            fetcher._running = len(sleeps) < 2
+
+        fetcher._running = True
+        with (
+            patch(_URLOPEN, side_effect=lambda *_, **__: _Response(_manifest_body())),
+            patch.object(
+                fetcher_module,
+                "apply_manifest_if_newer",
+                side_effect=[RuntimeError("boom"), True],
+            ) as apply,
+            patch(_SLEEP, sleep),
+            caplog.at_level(logging.WARNING, logger=fetcher_module.__name__),
+        ):
+            await fetcher._run()
+
+        (record,) = [r for r in caplog.records if r.name == fetcher_module.__name__]
+        assert record.levelno == logging.ERROR
+        assert record.exc_info is not None
+        assert _URL in record.getMessage()
+        # The second fetch still ran.
+        assert apply.await_count == 2
+        store.request_full_refetch.assert_called_once()
+
+    async def test_sleeps_about_a_day_between_fetches(self, db: DbSessionFactory) -> None:
+        fetcher, _ = _fetcher(db)
+        sleeps: list[float] = []
+
+        async def sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            fetcher._running = len(sleeps) < 3
+
+        fetcher._running = True
+        with (
+            patch(_URLOPEN, side_effect=_http_error(304)) as urlopen,
+            patch(_SLEEP, sleep),
+        ):
+            await fetcher._run()
+        assert urlopen.call_count == 3
+        assert all(
+            _SLEEP_SECONDS - _JITTER_SECONDS <= s <= _SLEEP_SECONDS + _JITTER_SECONDS
+            for s in sleeps
+        )
+
+
+class TestAppWiring:
+    @pytest.mark.parametrize(
+        "env, read_only, expected_url",
+        [
+            pytest.param({}, False, DEFAULT_MANIFEST_URL, id="default"),
+            pytest.param(
+                {
+                    "PHOENIX_DISABLE_MODEL_COST_FETCH": "true",
+                    "PHOENIX_MODEL_COST_MANIFEST_URL": _URL,
+                },
+                False,
+                None,
+                id="disabled",
+            ),
+            pytest.param({"PHOENIX_MODEL_COST_MANIFEST_URL": _URL}, True, None, id="read-only"),
+        ],
+    )
+    async def test_fetcher_is_built_only_when_there_is_a_url_to_fetch(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        env: dict[str, str],
+        read_only: bool,
+        expected_url: Optional[str],
+    ) -> None:
+        for name in (
+            "PHOENIX_ALLOW_EXTERNAL_RESOURCES",
+            "PHOENIX_MODEL_COST_MANIFEST_URL",
+            "PHOENIX_DISABLE_MODEL_COST_FETCH",
+        ):
+            monkeypatch.delenv(name, raising=False)
+        for name, value in env.items():
+            monkeypatch.setenv(name, value)
+        with patch("phoenix.server.app.ModelCostManifestFetcher") as fetcher_cls:
+            create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                read_only=read_only,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+        if expected_url is None:
+            fetcher_cls.assert_not_called()
+        else:
+            fetcher_cls.assert_called_once()
+            assert fetcher_cls.call_args.args[1] == expected_url
+
+    async def test_lifespan_starts_and_stops_while_the_fetch_hangs(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_MODEL_COST_MANIFEST_URL", _URL)
+        monkeypatch.delenv("PHOENIX_DISABLE_MODEL_COST_FETCH", raising=False)
+        fetch_started = threading.Event()
+        release = threading.Event()
+
+        def urlopen(*_: Any, **__: Any) -> Any:
+            fetch_started.set()
+            release.wait(timeout=30)
+            raise TimeoutError("timed out")
+
+        try:
+            with patch(_URLOPEN, side_effect=urlopen):
+                async with AsyncExitStack() as stack:
+                    await stack.enter_async_context(patch_dml_event_handler())
+                    await stack.enter_async_context(patch_grpc_server())
+                    app = create_app(
+                        db=db,
+                        authentication_enabled=False,
+                        serve_ui=False,
+                        bulk_inserter_factory=TestBulkInserter,
+                    )
+                    async with LifespanManager(app):
+                        assert await asyncio.to_thread(fetch_started.wait, 10)
+        finally:
+            release.set()

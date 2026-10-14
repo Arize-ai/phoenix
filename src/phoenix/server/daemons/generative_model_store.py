@@ -49,6 +49,7 @@ class GenerativeModelStore(DaemonTask):
         self._db = db
         self._lookup = CostModelLookup()
         self._last_fetch_time: Optional[datetime] = None
+        self._full_refetch_requested = False
         self._refresh_interval_seconds = refresh_interval_seconds
 
     def find_model(
@@ -58,8 +59,22 @@ class GenerativeModelStore(DaemonTask):
     ) -> Optional[models.GenerativeModel]:
         return self._lookup.find_model(start_time, attributes)
 
+    def request_full_refetch(self) -> None:
+        """
+        Makes the next refresh fetch all models instead of only those changed since the last.
+
+        For writers whose rows can be stamped earlier than the refresh cursor: PostgreSQL's
+        now() is the transaction start, so a transaction that commits later than the clock
+        skew buffer leaves rows the incremental fetch never sees.
+        """
+        self._full_refetch_requested = True
+
     async def _run(self) -> None:
         while self._running:
+            if self._full_refetch_requested:
+                # Cleared before the fetch, so a request made during it takes effect next time.
+                self._full_refetch_requested = False
+                self._last_fetch_time = None
             # Capture time before query with a 10-second buffer for clock skew tolerance
             fetch_start_time = datetime.now(timezone.utc) - _FETCH_CLOCK_SKEW_BUFFER
             try:

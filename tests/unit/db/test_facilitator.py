@@ -927,10 +927,13 @@ class TestApplyManifestIfNewer:
         self,
         db: DbSessionFactory,
         day: int,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         await _ensure_enums(db)
         assert await _apply(db, _manifest("model-a", day=1))
-        assert not await _apply(db, _manifest("model-b", day=day, input_rate=5e-6))
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.cost_tracking.apply_manifest"):
+            assert not await _apply(db, _manifest("model-b", day=day, input_rate=5e-6))
+        assert "newer than this Phoenix supports" not in caplog.text
         assert await _active_built_in_prices(db) == {"model-a": 1e-6}
         async with db() as session:
             marker = await get_applied_manifest_version(session)
@@ -942,6 +945,19 @@ class TestApplyManifestIfNewer:
         newer_schema = _manifest("model-b", day=1, schema_version=SUPPORTED_SCHEMA_VERSION + 1)
         assert await _apply(db, newer_schema)
         assert await _active_built_in_prices(db) == {"model-b": 1e-6}
+
+    async def test_older_schema_is_not_applied_even_if_newer(
+        self,
+        db: DbSessionFactory,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        await _ensure_enums(db)
+        newer_schema = _manifest("model-a", day=1, schema_version=SUPPORTED_SCHEMA_VERSION + 1)
+        assert await _apply(db, newer_schema)
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.cost_tracking.apply_manifest"):
+            assert not await _apply(db, _manifest("model-b", day=5))
+        assert await _active_built_in_prices(db) == {"model-a": 1e-6}
+        assert f"schema {SUPPORTED_SCHEMA_VERSION + 1}, newer than" in caplog.text
 
     async def test_renamed_model_replaces_its_old_row(self, db: DbSessionFactory) -> None:
         await _ensure_enums(db)
