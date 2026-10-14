@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.21.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.3...arize-phoenix-v20.21.4) (2026-10-14)
+
+
+### Bug Fixes
+
+* **ui:** keep labels on Escape and fix table sort, a11y and accessor warnings ([#16980](https://github.com/Arize-ai/phoenix/issues/16980)) ([53a1735](https://github.com/Arize-ai/phoenix/commit/53a173532c18ac0fd04370cdfcd1ea4cfefdd706))
+
 ## [20.21.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.2...arize-phoenix-v20.21.3) (2026-10-13)
 
 
