@@ -15,8 +15,8 @@ trial, and every verifier reward as a named evaluation. No tracing code goes ins
 
 ## Rewards Become Scores
 
-Phoenix records each verifier reward as a named evaluation on its run, so per-task pass rates and
-reward distributions show up in experiment comparison. It adds an `infra_ok` evaluation for execution
+reward distributions show up in experiment comparison. An `infra_ok` evaluation helps distinguish
+low task scores from execution errors.
 health, which tells a failed agent apart from a broken sandbox.
 
 <Frame caption="One trial in experiment comparison: the task instruction, the optional reference output, and the agent's final response, with the verifier's rewards recorded as evaluations.">
