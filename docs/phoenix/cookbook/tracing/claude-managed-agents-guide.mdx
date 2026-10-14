@@ -1,0 +1,1234 @@
+---
+title: "Trace and Evaluate Claude Managed Agents"
+description: "Build an issue-triage agent on Claude Managed Agents, trace each session in Phoenix with OpenTelemetry, and evaluate the agent's triage decisions."
+keywords: ['claude managed agents', 'claude platform', 'anthropic', 'claude', 'agents', 'opentelemetry', 'tracing', 'evaluation', 'custom tools', 'python', 'typescript', 'go', 'java']
+---
+
+[Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview) runs your agent loop on Anthropic's servers and executes its tools in a sandbox that Anthropic hosts. Your application starts a session, sends it messages, and answers the custom tools that only your application can run. Most of the work happens where your own tracing can't see it. You need traces from both sides to see what the agent did and why.
+
+The Claude Platform exports OpenTelemetry spans for the work it does, and the Claude SDK emits spans for the requests your application sends. In this guide you send both to Phoenix, join them into a single trace, and then evaluate the agent's answers.
+
+OpenTelemetry export from the Claude API is now in public beta. Span names and attributes can change during the beta.
+
+## Overview
+
+You will build a small issue-triage agent. It reads a project's open issues through a custom `list_issues` tool that your application runs, counts them by label with bash in its sandbox, and names the most urgent one. You trace a session from end to end and read the trace in Phoenix. Then you add an evaluator that checks whether the agent picked the right issue.
+
+This guide is for developers who build agents on Claude Managed Agents and want to observe and evaluate them in Phoenix. You should be comfortable with:
+
+- Python, TypeScript, Go, or Java
+- The Managed Agents concepts of agents, environments, sessions, and events. The [Managed Agents quickstart](https://platform.claude.com/docs/en/managed-agents/quickstart) covers them.
+- Reading traces in Phoenix
+
+By the end, you will be able to:
+
+- Send the spans that the Claude Platform creates to a Phoenix project
+- Join those spans with your application's spans into one trace
+- Trace the custom tools that your application runs for the agent
+- Evaluate the agent's answers with an LLM-as-a-judge task
+
+## Before you start
+
+You need:
+
+- Python 3.10+, Node.js 18.19+, Go 1.26+, or Java 17+
+- A running Phoenix instance with an OTLP/HTTP endpoint that Claude Platform can reach. If your instance requires authentication, create a Phoenix API key.
+- A Claude Console organization with OpenTelemetry export enabled, and an **admin** role in it to add a destination
+- An `ANTHROPIC_API_KEY` from the [Claude Console](https://platform.claude.com/)
+
+Claude Platform sends its spans from Anthropic's infrastructure. A Phoenix server on plain `localhost` can receive your application's SDK spans, but it will not receive the Console-exported API spans unless you expose it with a public HTTPS tunnel or use Phoenix Cloud.
+
+## Step 1: Send Claude Platform spans to Phoenix
+
+The Claude API exports its spans to *destinations* that you add in the Claude Console. Add an **Arize Phoenix** destination that points at the Phoenix project for this guide:
+
+<Frame caption="Claude Console destination configured to export Claude Platform spans to Phoenix">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-add-destination-modal.png" alt="Claude Console Add destination modal with Arize Phoenix selected, Phoenix URL, API key, project name, Full content mode, and Workspaces setting" />
+</Frame>
+
+1. In the Claude Console, open the [OpenTelemetry settings page](https://platform.claude.com/settings/telemetry-destinations) and click **Add destination**.
+1. Set **Provider** to **Arize**.
+1. Set **Product** to **Arize Phoenix**.
+1. Set **Phoenix URL** to your Phoenix base URL, such as `https://phoenix.example.com`. Do not include `/v1/traces`; Claude Platform appends the per-signal path automatically.
+1. Set **API key** to a Phoenix API key for Phoenix Cloud or an authenticated self-hosted instance.
+1. Set **Project name** to `claude-managed-agents-triage`. The Console sends this as the destination's `x-project-name` header.
+1. Set **Content mode** to **Full content**. The default, **Metadata only**, leaves out the prompts, messages, and tool arguments that this guide reads and evaluates.
+1. Set **Workspaces** to the workspaces whose spans you want in Phoenix. Use **Selected** and choose the workspace for your `ANTHROPIC_API_KEY` if you want only this guide's traffic. Then click **Add destination**.
+
+A destination exports every request made with its workspaces' API keys, including Messages API requests from other tools, so use a workspace that runs only this guide's agent if you want a clean project. The destination's **Project name** decides which Phoenix project the spans land in. For the details of each field, see the [Claude Managed Agents integration](/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing#export-spans-from-the-claude-console).
+
+## Step 2: Set up tracing in your application
+
+Your application needs an OpenTelemetry tracer provider that exports to the same Phoenix project. The Claude SDK uses the tracer provider that your application registers, so you don't pass it to the client.
+
+Install the Claude SDK and the tracing packages for your language:
+
+<CodeGroup>
+
+```bash Python
+pip install arize-phoenix-otel anthropic
+```
+
+```bash TypeScript
+npm install @anthropic-ai/sdk @arizeai/openinference-core @arizeai/phoenix-otel tsx
+```
+
+```bash Go
+go get github.com/anthropics/anthropic-sdk-go
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+go get go.opentelemetry.io/otel/sdk
+```
+
+```groovy Java
+// build.gradle
+plugins {
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.anthropic:anthropic-java:2.68.0'
+    implementation 'io.opentelemetry:opentelemetry-sdk:1.66.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.66.0'
+}
+
+application {
+    mainClass = 'example.Main'
+}
+```
+
+</CodeGroup>
+
+[Install or upgrade the Claude SDK](https://platform.claude.com/docs/en/manage-claude/opentelemetry/sdk#install-the-sdk) to a version that emits spans. The SDK emits a span for each request and sends the trace context that joins the API's spans to yours.
+
+Set your credentials. `PHOENIX_PROJECT_NAME` must match the destination's **Project name** from Step 1, so the two sources of spans meet in one project:
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com/v1/traces"
+export PHOENIX_API_KEY="<your-phoenix-api-key>"
+export PHOENIX_PROJECT_NAME="claude-managed-agents-triage"
+export ANTHROPIC_API_KEY="<your-anthropic-api-key>"
+export ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE="content"
+```
+
+`ANTHROPIC_OPEN_TELEMETRY_TRACES_CONTENT_MODE=content` makes the SDK's spans carry prompts and responses, matching the **Full content** mode of the destination.
+
+For Python and TypeScript, register the tracer provider in its own module, so that it runs before the Claude SDK makes its first request:
+
+<CodeGroup>
+
+```python Python
+# instrumentation.py
+import os
+
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name=os.environ.get(
+        "PHOENIX_PROJECT_NAME",
+        "claude-managed-agents-triage",
+    ),
+    endpoint=os.environ.get("PHOENIX_COLLECTOR_ENDPOINT"),
+)
+
+print("Phoenix tracing initialized for Claude Managed Agents.")
+```
+
+```typescript TypeScript
+// instrumentation.ts
+import { register } from "@arizeai/phoenix-otel";
+
+export const provider = register({
+  projectName:
+    process.env.PHOENIX_PROJECT_NAME ?? "claude-managed-agents-triage",
+  url: process.env.PHOENIX_COLLECTOR_ENDPOINT,
+  apiKey: process.env.PHOENIX_API_KEY,
+});
+
+console.log("Phoenix tracing initialized for Claude Managed Agents.");
+```
+
+</CodeGroup>
+
+For Go and Java, the same setup is at the top of `main` in the next step. It also registers the W3C trace context propagator, which neither language registers by default. The SDK uses the propagator to send each span's trace context to the Claude API, which then nests its own spans under yours.
+
+## Step 3: Build the triage agent
+
+The program has three functions. The names below are the Python ones, and the other languages use their own casing, such as `createAgent` in TypeScript:
+
+- **`create_agent`** creates an environment and an agent. The agent has Anthropic's built-in toolset, with the web tools turned off, and one custom tool, `list_issues`. A custom tool runs in your application, not in the sandbox. That makes it the right place for anything that needs your data or your credentials.
+- **`list_issues`** answers the custom tool from a small list of sample issues. It wraps that work in its own `TOOL` span, with OpenInference's `@tracer.tool` decorator in Python and its `traceTool` wrapper in TypeScript. In Python, `@tracer.tool` reads the tool's name, description, and parameters from the function's name, docstring, and signature. TypeScript, Go, and Java set them on the span themselves. The Claude API sees the call and the result but not your code, so this span is the only record of what your application did. If you run custom tools with the Claude SDK's session tool runner instead, the SDK creates this `TOOL` span for you, so don't add your own.
+- **`run_triage`** starts a session inside a `triage-request` `CHAIN` span, created with `@tracer.chain` in Python and `traceChain` in TypeScript, sends the request, and reads the session's event stream. When the agent calls `list_issues`, the session pauses until your application sends back the result. The loop ends when the session goes idle for any reason other than `requires_action`, which means it's waiting on you.
+
+The `triage-request` span records the request as its input and the agent's answer as its output. The Python and TypeScript helpers record them from the function's argument and return value, and Go and Java set the `input.value` and `output.value` attributes themselves. The evaluator in [Step 6](#step-6-evaluate-the-triage) scores those two values. Every span you create also sets its status: `OK` on success, or an error with the exception if a request fails.
+
+<CodeGroup>
+
+```python Python
+# triage.py
+
+# Importing instrumentation first registers the tracer provider
+# before the Claude SDK makes its first request.
+from instrumentation import tracer_provider
+
+import json
+
+import anthropic
+
+ISSUES = [
+    {"number": 101, "title": "Login fails with SSO for all EU users",
+     "labels": ["bug", "auth"], "comments": 14},
+    {"number": 102, "title": "Typo in the README install section",
+     "labels": ["docs"], "comments": 1},
+    {"number": 103, "title": "Export to CSV drops the last row",
+     "labels": ["bug", "export"], "comments": 6},
+    {"number": 104, "title": "Add dark mode to the settings page",
+     "labels": ["enhancement"], "comments": 9},
+]
+
+REQUEST = (
+    "Triage the open issues. Use bash to count the open issues for each "
+    "label, then name the single most urgent issue and explain why in "
+    "two sentences."
+)
+
+client = anthropic.Anthropic()
+tracer = tracer_provider.get_tracer("issue-triage")
+
+
+def create_agent():
+    environment = client.beta.environments.create(
+        name="issue-triage",
+        config={"type": "cloud", "networking": {"type": "limited"}},
+    )
+    agent = client.beta.agents.create(
+        name="Issue Triage Agent",
+        model="claude-opus-5-5",
+        system=(
+            "You triage GitHub issues for a small open-source project. "
+            "Call list_issues to read the issues. Use bash for any "
+            "counting or sorting."
+        ),
+        tools=[
+            {
+                "type": "agent_toolset_20260401",
+                "default_config": {
+                    "permission_policy": {"type": "always_allow"},
+                },
+                "configs": [
+                    {"name": "web_fetch", "enabled": False},
+                    {"name": "web_search", "enabled": False},
+                ],
+            },
+            {
+                "type": "custom",
+                "name": "list_issues",
+                "description": "List the repository's issues as JSON.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "state": {"type": "string", "enum": ["open"]},
+                    },
+                    "required": ["state"],
+                },
+            },
+        ],
+    )
+    return environment, agent
+
+
+# Your own span for the tool your application runs. The Claude API
+# can't see inside this function, so nothing else would trace it.
+@tracer.tool(name="list_issues")
+def list_issues(state: str) -> str:
+    """List the repository's issues as JSON."""
+    return json.dumps(ISSUES)
+
+
+@tracer.chain(name="triage-request")
+def run_triage(request: str) -> str:
+    session = client.beta.sessions.create(
+        agent={"type": "agent", "id": agent.id, "version": agent.version},
+        environment_id=environment.id,
+    )
+    replies = []
+
+    # Open the stream before sending the message so no events are
+    # missed.
+    with client.beta.sessions.events.stream(
+        session_id=session.id,
+    ) as stream:
+        client.beta.sessions.events.send(
+            session_id=session.id,
+            events=[
+                {
+                    "type": "user.message",
+                    "content": [{"type": "text", "text": request}],
+                },
+            ],
+        )
+
+        for event in stream:
+            if event.type == "agent.message":
+                for block in event.content:
+                    if block.type == "text":
+                        replies.append(block.text)
+            elif event.type == "agent.custom_tool_use":
+                client.beta.sessions.events.send(
+                    session_id=session.id,
+                    events=[
+                        {
+                            "type": "user.custom_tool_result",
+                            "custom_tool_use_id": event.id,
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": list_issues(**event.input),
+                                },
+                            ],
+                        },
+                    ],
+                )
+            elif event.type == "session.status_idle":
+                if event.stop_reason.type != "requires_action":
+                    break
+            elif event.type == "session.status_terminated":
+                break
+
+    return "\n".join(replies)
+
+
+environment, agent = create_agent()
+print(run_triage(REQUEST))
+tracer_provider.shutdown()
+```
+
+```typescript TypeScript
+// triage.ts
+
+// Importing instrumentation first registers the tracer provider
+// before the Claude SDK makes its first request.
+import { provider } from "./instrumentation";
+import Anthropic from "@anthropic-ai/sdk";
+import { traceChain, traceTool } from "@arizeai/openinference-core";
+
+const ISSUES = [
+  { number: 101, title: "Login fails with SSO for all EU users",
+    labels: ["bug", "auth"], comments: 14 },
+  { number: 102, title: "Typo in the README install section",
+    labels: ["docs"], comments: 1 },
+  { number: 103, title: "Export to CSV drops the last row",
+    labels: ["bug", "export"], comments: 6 },
+  { number: 104, title: "Add dark mode to the settings page",
+    labels: ["enhancement"], comments: 9 },
+];
+
+const LIST_ISSUES_PARAMETERS = {
+  type: "object" as const,
+  properties: { state: { type: "string", enum: ["open"] } },
+  required: ["state"],
+};
+
+const REQUEST =
+  "Triage the open issues. Use bash to count the open issues for each " +
+  "label, then name the single most urgent issue and explain why in " +
+  "two sentences.";
+
+const client = new Anthropic();
+
+async function createAgent() {
+  const environment = await client.beta.environments.create({
+    name: "issue-triage",
+    config: { type: "cloud", networking: { type: "limited" } },
+  });
+  const agent = await client.beta.agents.create({
+    name: "Issue Triage Agent",
+    model: "claude-opus-5-5",
+    system:
+      "You triage GitHub issues for a small open-source project. " +
+      "Call list_issues to read the issues. Use bash for any " +
+      "counting or sorting.",
+    tools: [
+      {
+        type: "agent_toolset_20260401",
+        default_config: { permission_policy: { type: "always_allow" } },
+        configs: [
+          { name: "web_fetch", enabled: false },
+          { name: "web_search", enabled: false },
+        ],
+      },
+      {
+        type: "custom",
+        name: "list_issues",
+        description: "List the repository's issues as JSON.",
+        input_schema: LIST_ISSUES_PARAMETERS,
+      },
+    ],
+  });
+  return { environment, agent };
+}
+
+// Your own span for the tool your application runs. The Claude API
+// can't see inside this function, so nothing else would trace it.
+const listIssues = traceTool(
+  (input: unknown): string => JSON.stringify(ISSUES),
+  {
+    name: "list_issues",
+    attributes: {
+      "tool.name": "list_issues",
+      "tool.description": "List the repository's issues as JSON.",
+      "tool.parameters": JSON.stringify(LIST_ISSUES_PARAMETERS),
+    },
+  },
+);
+
+function traceTriage(environmentId: string, agentId: string,
+    agentVersion: number) {
+  return traceChain(async (request: string): Promise<string> => {
+    const session = await client.beta.sessions.create({
+      agent: { type: "agent", id: agentId, version: agentVersion },
+      environment_id: environmentId,
+    });
+    const replies: string[] = [];
+
+    // Open the stream before sending the message so no events are missed.
+    const stream = await client.beta.sessions.events.stream(session.id);
+    await client.beta.sessions.events.send(session.id, {
+      events: [
+        { type: "user.message", content: [{ type: "text", text: request }] },
+      ],
+    });
+
+    loop: for await (const event of stream) {
+      switch (event.type) {
+        case "agent.message":
+          for (const block of event.content) {
+            if (block.type === "text") replies.push(block.text);
+          }
+          break;
+        case "agent.custom_tool_use":
+          await client.beta.sessions.events.send(session.id, {
+            events: [
+              {
+                type: "user.custom_tool_result",
+                custom_tool_use_id: event.id,
+                content: [{ type: "text", text: listIssues(event.input) }],
+              },
+            ],
+          });
+          break;
+        case "session.status_idle":
+          if (event.stop_reason.type !== "requires_action") break loop;
+          break;
+        case "session.status_terminated":
+          break loop;
+      }
+    }
+
+    return replies.join("\n");
+  }, { name: "triage-request" });
+}
+
+async function main() {
+  const { environment, agent } = await createAgent();
+  const runTriage = traceTriage(environment.id, agent.id, agent.version);
+  console.log(await runTriage(REQUEST));
+  await provider.shutdown();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+```go Go
+// main.go
+package main
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+    "strings"
+    "time"
+
+    "github.com/anthropics/anthropic-sdk-go"
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/codes"
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+    "go.opentelemetry.io/otel/propagation"
+    "go.opentelemetry.io/otel/sdk/resource"
+    sdktrace "go.opentelemetry.io/otel/sdk/trace"
+    semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+    "go.opentelemetry.io/otel/trace"
+)
+
+type issue struct {
+    Number   int      `json:"number"`
+    Title    string   `json:"title"`
+    Labels   []string `json:"labels"`
+    Comments int      `json:"comments"`
+}
+
+var issues = []issue{
+    {101, "Login fails with SSO for all EU users",
+        []string{"bug", "auth"}, 14},
+    {102, "Typo in the README install section", []string{"docs"}, 1},
+    {103, "Export to CSV drops the last row",
+        []string{"bug", "export"}, 6},
+    {104, "Add dark mode to the settings page",
+        []string{"enhancement"}, 9},
+}
+
+const request = "Triage the open issues. Use bash to count the open " +
+    "issues for each label, then name the single most urgent issue " +
+    "and explain why in two sentences."
+
+var tracer = otel.Tracer("issue-triage")
+
+// listIssuesParameters is the list_issues input schema, recorded on its
+// TOOL span.
+const listIssuesParameters = `{"type":"object",` +
+    `"properties":{"state":{"type":"string","enum":["open"]}},` +
+    `"required":["state"]}`
+
+func main() {
+    if err := run(context.Background()); err != nil {
+        log.Fatal(err)
+    }
+}
+
+// run returns errors instead of exiting, so the deferred Shutdown flushes
+// the spans to Phoenix even when a request fails.
+func run(ctx context.Context) error {
+    tp, err := initTracer(ctx)
+    if err != nil {
+        return fmt.Errorf("register tracer: %w", err)
+    }
+    defer shutdownTracer(tp)
+
+    client := anthropic.NewClient()
+
+    environmentID, agentID, agentVersion, err := createAgent(ctx, client)
+    if err != nil {
+        return fmt.Errorf("create agent: %w", err)
+    }
+
+    answer, err := runTriage(ctx, client, environmentID, agentID,
+        agentVersion)
+    if err != nil {
+        return fmt.Errorf("run triage: %w", err)
+    }
+    fmt.Println(answer)
+    return nil
+}
+
+func phoenixTraceEndpoint(endpoint string) string {
+    endpoint = strings.TrimRight(endpoint, "/")
+    if strings.HasSuffix(endpoint, "/v1/traces") {
+        return endpoint
+    }
+    return endpoint + "/v1/traces"
+}
+
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+    project := os.Getenv("PHOENIX_PROJECT_NAME")
+    if project == "" {
+        project = "claude-managed-agents-triage"
+    }
+    endpoint := os.Getenv("PHOENIX_COLLECTOR_ENDPOINT")
+    if endpoint == "" {
+        endpoint = "http://localhost:6006/v1/traces"
+    }
+    headers := map[string]string{"x-project-name": project}
+    if apiKey := os.Getenv("PHOENIX_API_KEY"); apiKey != "" {
+        headers["Authorization"] = "Bearer " + apiKey
+    }
+    exporter, err := otlptracehttp.New(
+        ctx,
+        otlptracehttp.WithEndpointURL(phoenixTraceEndpoint(endpoint)),
+        otlptracehttp.WithHeaders(headers),
+    )
+    if err != nil {
+        return nil, err
+    }
+    res, _ := resource.New(ctx, resource.WithAttributes(
+        semconv.ServiceName(project),
+    ))
+    tp := sdktrace.NewTracerProvider(
+        sdktrace.WithBatcher(exporter),
+        sdktrace.WithResource(res),
+    )
+    otel.SetTracerProvider(tp)
+    otel.SetTextMapPropagator(propagation.TraceContext{})
+    return tp, nil
+}
+
+func shutdownTracer(tp *sdktrace.TracerProvider) {
+    shutdownCtx, cancel := context.WithTimeout(
+        context.Background(), 5*time.Second)
+    defer cancel()
+    _ = tp.Shutdown(shutdownCtx)
+}
+
+func createAgent(ctx context.Context, client anthropic.Client) (
+    string, string, int64, error) {
+    environment, err := client.Beta.Environments.New(ctx,
+        anthropic.BetaEnvironmentNewParams{
+            Name: "issue-triage",
+            Config: anthropic.BetaEnvironmentNewParamsConfigUnion{
+                OfCloud: &anthropic.BetaCloudConfigParams{
+                    Networking: anthropic.BetaCloudConfigParamsNetworkingUnion{
+                        OfLimited: &anthropic.BetaLimitedNetworkParams{},
+                    },
+                },
+            },
+        })
+    if err != nil {
+        return "", "", 0, err
+    }
+
+    listIssuesTool := anthropic.BetaManagedAgentsCustomToolParams{
+        Type:        anthropic.BetaManagedAgentsCustomToolParamsTypeCustom,
+        Name:        "list_issues",
+        Description: "List the repository's issues as JSON.",
+    }
+    listIssuesTool.InputSchema.Properties = map[string]any{
+        "state": map[string]any{"type": "string", "enum": []string{"open"}},
+    }
+    listIssuesTool.InputSchema.Required = []string{"state"}
+
+    agent, err := client.Beta.Agents.New(ctx, anthropic.BetaAgentNewParams{
+        Name: "Issue Triage Agent",
+        Model: anthropic.BetaManagedAgentsModelConfigParams{
+            ID: "claude-opus-5-5",
+        },
+        System: anthropic.String(
+            "You triage GitHub issues for a small open-source project. " +
+                "Call list_issues to read the issues. Use bash for any " +
+                "counting or sorting."),
+        Tools: []anthropic.BetaAgentNewParamsToolUnion{
+            {OfAgentToolset20260401: toolset()},
+            {OfCustom: &listIssuesTool},
+        },
+    })
+    if err != nil {
+        return "", "", 0, err
+    }
+    return environment.ID, agent.ID, agent.Version, nil
+}
+
+// listIssues records your own span for the tool your application runs.
+// The Claude API can't see inside this function.
+func listIssues(ctx context.Context, input map[string]any) string {
+    _, span := tracer.Start(ctx, "list_issues")
+    defer span.End()
+    inputJSON, _ := json.Marshal(input)
+    result, _ := json.Marshal(issues)
+    span.SetAttributes(
+        attribute.String("openinference.span.kind", "TOOL"),
+        attribute.String("tool.name", "list_issues"),
+        attribute.String("tool.description",
+            "List the repository's issues as JSON."),
+        attribute.String("tool.parameters", listIssuesParameters),
+        attribute.String("input.value", string(inputJSON)),
+        attribute.String("output.value", string(result)),
+    )
+    span.SetStatus(codes.Ok, "")
+    return string(result)
+}
+
+func runTriage(ctx context.Context, client anthropic.Client,
+    environmentID, agentID string,
+    agentVersion int64) (answer string, err error) {
+    ctx, root := tracer.Start(ctx, "triage-request", trace.WithAttributes(
+        attribute.String("openinference.span.kind", "CHAIN"),
+        attribute.String("input.value", request),
+    ))
+    defer func() {
+        if err != nil {
+            root.RecordError(err)
+            root.SetStatus(codes.Error, err.Error())
+        } else {
+            root.SetStatus(codes.Ok, "")
+        }
+        root.End()
+    }()
+
+    sessionParams := anthropic.BetaSessionNewParams{
+        Agent: anthropic.BetaSessionNewParamsAgentUnion{
+            OfBetaManagedAgentsAgents: &anthropic.BetaManagedAgentsAgentParams{
+                Type:    anthropic.BetaManagedAgentsAgentParamsTypeAgent,
+                ID:      agentID,
+                Version: anthropic.Int(agentVersion),
+            },
+        },
+        EnvironmentID: environmentID,
+    }
+    session, err := client.Beta.Sessions.New(ctx, sessionParams)
+    if err != nil {
+        return "", err
+    }
+
+    // Open the stream before sending the message so no events are missed.
+    stream := client.Beta.Sessions.Events.StreamEvents(ctx, session.ID,
+        anthropic.BetaSessionEventStreamParams{})
+    defer stream.Close()
+
+    if err := send(ctx, client, session.ID,
+        anthropic.BetaManagedAgentsEventParamsUnion{
+            OfUserMessage: &anthropic.BetaManagedAgentsUserMessageEventParams{
+                Type: anthropic.
+                    BetaManagedAgentsUserMessageEventParamsTypeUserMessage,
+                Content: []anthropic.
+                    BetaManagedAgentsUserMessageEventParamsContentUnion{{
+                    OfText: textBlock(request),
+                }},
+            },
+        }); err != nil {
+        return "", err
+    }
+
+    var replies []string
+events:
+    for stream.Next() {
+        switch event := stream.Current().AsAny().(type) {
+        case anthropic.BetaManagedAgentsAgentMessageEvent:
+            for _, block := range event.Content {
+                replies = append(replies, block.Text)
+            }
+        case anthropic.BetaManagedAgentsAgentCustomToolUseEvent:
+            result := toolResult(event.ID, listIssues(ctx, event.Input))
+            if err := send(ctx, client, session.ID, result); err != nil {
+                return "", err
+            }
+        case anthropic.BetaManagedAgentsSessionStatusIdleEvent:
+            if event.StopReason.Type != "requires_action" {
+                break events
+            }
+        case anthropic.BetaManagedAgentsSessionStatusTerminatedEvent:
+            break events
+        }
+    }
+    if err := stream.Err(); err != nil {
+        return "", err
+    }
+
+    answer = strings.Join(replies, "\n")
+    root.SetAttributes(attribute.String("output.value", answer))
+    return answer, nil
+}
+
+func send(ctx context.Context, client anthropic.Client, sessionID string,
+    event anthropic.BetaManagedAgentsEventParamsUnion) error {
+    _, err := client.Beta.Sessions.Events.Send(ctx, sessionID,
+        anthropic.BetaSessionEventSendParams{
+            Events: []anthropic.BetaManagedAgentsEventParamsUnion{event},
+        })
+    return err
+}
+
+// toolResult answers a custom tool call. The SDK's
+// BetaManagedAgentsEventParamsOfUserCustomToolResult helper leaves the
+// event type unset, which the API rejects.
+func toolResult(id, text string) anthropic.BetaManagedAgentsEventParamsUnion {
+    var result anthropic.BetaManagedAgentsUserCustomToolResultEventParams
+    result.Type = anthropic.
+        BetaManagedAgentsUserCustomToolResultEventParamsTypeUserCustomToolResult
+    result.CustomToolUseID = id
+    result.Content = []anthropic.
+        BetaManagedAgentsUserCustomToolResultEventParamsContentUnion{{
+        OfText: textBlock(text),
+    }}
+    return anthropic.BetaManagedAgentsEventParamsUnion{
+        OfUserCustomToolResult: &result,
+    }
+}
+
+func textBlock(text string) *anthropic.BetaManagedAgentsTextBlockParam {
+    return &anthropic.BetaManagedAgentsTextBlockParam{
+        Type: anthropic.BetaManagedAgentsTextBlockTypeText,
+        Text: text,
+    }
+}
+
+func toolset() *anthropic.BetaManagedAgentsAgentToolset20260401Params {
+    allow := anthropic.BetaManagedAgentsAlwaysAllowPolicyParam{
+        Type: anthropic.BetaManagedAgentsAlwaysAllowPolicyTypeAlwaysAllow,
+    }
+    ts := &anthropic.BetaManagedAgentsAgentToolset20260401Params{
+        Configs: []anthropic.BetaManagedAgentsAgentToolConfigParamsUnion{
+            {OfWebFetch: &anthropic.BetaManagedAgentsWebFetchToolConfigParams{
+                Enabled: anthropic.Bool(false),
+            }},
+            {OfWebSearch: &anthropic.BetaManagedAgentsWebSearchToolConfigParams{
+                Enabled: anthropic.Bool(false),
+            }},
+        },
+    }
+    ts.Type = anthropic.
+        BetaManagedAgentsAgentToolset20260401ParamsTypeAgentToolset20260401
+    ts.DefaultConfig.PermissionPolicy.OfAlwaysAllow = &allow
+    return ts
+}
+```
+
+```java Java
+// src/main/java/example/Main.java
+package example;
+
+import com.anthropic.client.AnthropicClient;
+import com.anthropic.client.okhttp.AnthropicOkHttpClient;
+import com.anthropic.core.JsonValue;
+import com.anthropic.core.ObjectMappers;
+import com.anthropic.models.beta.agents.*;
+import com.anthropic.models.beta.environments.BetaCloudConfigParams;
+import com.anthropic.models.beta.environments.BetaEnvironment;
+import com.anthropic.models.beta.environments.BetaLimitedNetworkParams;
+import com.anthropic.models.beta.environments.EnvironmentCreateParams;
+import com.anthropic.models.beta.sessions.BetaManagedAgentsAgentParams;
+import com.anthropic.models.beta.sessions.SessionCreateParams;
+import com.anthropic.models.beta.sessions.events.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+public class Main {
+
+    // The list_issues input schema, recorded on its TOOL span.
+    private static final String LIST_ISSUES_PARAMETERS =
+        "{\"type\":\"object\",\"properties\":{\"state\":"
+            + "{\"type\":\"string\",\"enum\":[\"open\"]}},"
+            + "\"required\":[\"state\"]}";
+
+    private static final String ISSUES = """
+        [
+          {"number": 101, "title": "Login fails with SSO for all EU users",
+           "labels": ["bug", "auth"], "comments": 14},
+          {"number": 102, "title": "Typo in the README install section",
+           "labels": ["docs"], "comments": 1},
+          {"number": 103, "title": "Export to CSV drops the last row",
+           "labels": ["bug", "export"], "comments": 6},
+          {"number": 104, "title": "Add dark mode to the settings page",
+           "labels": ["enhancement"], "comments": 9}
+        ]
+        """;
+
+    private static final String REQUEST =
+        "Triage the open issues. Use bash to count the open issues for "
+            + "each label, then name the single most urgent issue and "
+            + "explain why in two sentences.";
+
+    private static AnthropicClient client;
+    private static Tracer tracer;
+
+    public static void main(String[] args) throws Exception {
+        String project = envOrDefault(
+            "PHOENIX_PROJECT_NAME",
+            "claude-managed-agents-triage");
+
+        Resource resource = Resource.getDefault().merge(Resource.create(
+            Attributes.of(
+                AttributeKey.stringKey("service.name"), project,
+                AttributeKey.stringKey("openinference.project.name"),
+                project)));
+
+        OtlpHttpSpanExporter.Builder exporter = OtlpHttpSpanExporter.builder()
+            .setEndpoint(phoenixTraceEndpoint(envOrDefault(
+                "PHOENIX_COLLECTOR_ENDPOINT",
+                "http://localhost:6006/v1/traces")))
+            .addHeader("x-project-name", project);
+        String apiKey = System.getenv("PHOENIX_API_KEY");
+        if (apiKey != null && !apiKey.isBlank()) {
+            exporter.addHeader("Authorization", "Bearer " + apiKey);
+        }
+
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+            .addSpanProcessor(BatchSpanProcessor.builder(
+                exporter.build()).build())
+            .setResource(resource)
+            .build();
+
+        // The Claude SDK reads the global OpenTelemetry instance. It needs
+        // the W3C propagator to link its spans to the API's spans.
+        OpenTelemetrySdk otel = OpenTelemetrySdk.builder()
+            .setTracerProvider(tracerProvider)
+            .setPropagators(ContextPropagators.create(
+                W3CTraceContextPropagator.getInstance()))
+            .buildAndRegisterGlobal();
+
+        client = AnthropicOkHttpClient.fromEnv();
+        tracer = otel.getTracer("issue-triage");
+
+        BetaEnvironment environment = createEnvironment();
+        BetaManagedAgentsAgent agent = createAgent();
+        System.out.println(runTriage(environment, agent));
+
+        tracerProvider.forceFlush().join(10, TimeUnit.SECONDS);
+        tracerProvider.shutdown().join(10, TimeUnit.SECONDS);
+    }
+
+    private static BetaEnvironment createEnvironment() {
+        return client.beta().environments().create(
+            EnvironmentCreateParams.builder()
+                .name("issue-triage")
+                .config(BetaCloudConfigParams.builder()
+                    .networking(BetaLimitedNetworkParams.builder().build())
+                    .build())
+                .build());
+    }
+
+    private static BetaManagedAgentsAgent createAgent() {
+        var toolset = BetaManagedAgentsAgentToolset20260401Params.builder()
+            .type(BetaManagedAgentsAgentToolset20260401Params.Type
+                .AGENT_TOOLSET_20260401)
+            .defaultConfig(
+                BetaManagedAgentsAgentToolsetDefaultConfigParams.builder()
+                    .permissionPolicy(BetaManagedAgentsAlwaysAllowPolicy
+                        .builder()
+                        .type(BetaManagedAgentsAlwaysAllowPolicy.Type
+                            .ALWAYS_ALLOW)
+                        .build())
+                    .build())
+            .addConfig(BetaManagedAgentsWebFetchToolConfigParams.builder()
+                .enabled(false).build())
+            .addConfig(BetaManagedAgentsWebSearchToolConfigParams.builder()
+                .enabled(false).build())
+            .build();
+
+        var listIssues = BetaManagedAgentsCustomToolParams.builder()
+            .type(BetaManagedAgentsCustomToolParams.Type.CUSTOM)
+            .name("list_issues")
+            .description("List the repository's issues as JSON.")
+            .inputSchema(BetaManagedAgentsCustomToolInputSchema.builder()
+                .properties(BetaManagedAgentsCustomToolInputSchema.Properties
+                    .builder()
+                    .putAdditionalProperty("state", JsonValue.from(Map.of(
+                        "type", "string", "enum", List.of("open"))))
+                    .build())
+                .addRequired("state")
+                .build())
+            .build();
+
+        return client.beta().agents().create(AgentCreateParams.builder()
+            .name("Issue Triage Agent")
+            .model(BetaManagedAgentsModel.of("claude-opus-5-5"))
+            .system("You triage GitHub issues for a small open-source "
+                + "project. Call list_issues to read the issues. Use bash "
+                + "for any counting or sorting.")
+            .addTool(toolset)
+            .addTool(listIssues)
+            .build());
+    }
+
+    // Your own span for the tool your application runs. The Claude API
+    // can't see inside this method, so nothing else would trace it.
+    private static String listIssues(
+            BetaManagedAgentsAgentCustomToolUseEvent call)
+            throws JsonProcessingException {
+        Span span = tracer.spanBuilder("list_issues").startSpan();
+        try (Scope scope = span.makeCurrent()) {
+            span.setAttribute("openinference.span.kind", "TOOL");
+            span.setAttribute("tool.name", "list_issues");
+            span.setAttribute("tool.description",
+                "List the repository's issues as JSON.");
+            span.setAttribute("tool.parameters", LIST_ISSUES_PARAMETERS);
+            span.setAttribute("input.value",
+                ObjectMappers.jsonMapper().writeValueAsString(call.input()));
+            span.setAttribute("output.value", ISSUES);
+            span.setStatus(StatusCode.OK);
+            return ISSUES;
+        } catch (Exception e) {
+            span.recordException(e);
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
+    }
+
+    private static BetaManagedAgentsUserCustomToolResultEventParams
+            toolResult(BetaManagedAgentsAgentCustomToolUseEvent call)
+            throws JsonProcessingException {
+        return BetaManagedAgentsUserCustomToolResultEventParams.builder()
+            .type(BetaManagedAgentsUserCustomToolResultEventParams.Type
+                .USER_CUSTOM_TOOL_RESULT)
+            .customToolUseId(call.id())
+            .addTextContent(listIssues(call))
+            .build();
+    }
+
+    private static String runTriage(BetaEnvironment environment,
+            BetaManagedAgentsAgent agent) throws JsonProcessingException {
+        Span root = tracer.spanBuilder("triage-request").startSpan();
+        try (Scope scope = root.makeCurrent()) {
+            root.setAttribute("openinference.span.kind", "CHAIN");
+            root.setAttribute("input.value", REQUEST);
+
+            var session = client.beta().sessions().create(
+                SessionCreateParams.builder()
+                    .agent(BetaManagedAgentsAgentParams.builder()
+                        .type(BetaManagedAgentsAgentParams.Type.AGENT)
+                        .id(agent.id())
+                        .version(agent.version())
+                        .build())
+                    .environmentId(environment.id())
+                    .build());
+            var events = client.beta().sessions().events();
+            List<String> replies = new ArrayList<>();
+
+            // Open the stream before sending the message so no events
+            // are missed.
+            try (var stream = events.streamStreaming(session.id())) {
+                events.send(session.id(), EventSendParams.builder()
+                    .addEvent(BetaManagedAgentsUserMessageEventParams.builder()
+                        .type(BetaManagedAgentsUserMessageEventParams.Type
+                            .USER_MESSAGE)
+                        .addTextContent(REQUEST)
+                        .build())
+                    .build());
+
+                Iterable<BetaManagedAgentsStreamSessionEvents> received =
+                    stream.stream()::iterator;
+                for (var event : received) {
+                    if (event.isAgentMessage()) {
+                        event.asAgentMessage().content()
+                            .forEach(block -> block.text()
+                                .ifPresent(text -> replies.add(text.text())));
+                    } else if (event.isAgentCustomToolUse()) {
+                        var call = event.asAgentCustomToolUse();
+                        events.send(session.id(), EventSendParams.builder()
+                            .addEvent(toolResult(call))
+                            .build());
+                    } else if (event.isSessionStatusIdle()) {
+                        if (!event.asSessionStatusIdle().stopReason()
+                                .isRequiresAction()) {
+                            break;
+                        }
+                    } else if (event.isSessionStatusTerminated()) {
+                        break;
+                    }
+                }
+            }
+
+            String answer = String.join("\n", replies);
+            root.setAttribute("output.value", answer);
+            root.setStatus(StatusCode.OK);
+            return answer;
+        } catch (Exception e) {
+            root.recordException(e);
+            root.setStatus(StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            root.end();
+        }
+    }
+
+    private static String phoenixTraceEndpoint(String endpoint) {
+        String trimmed = endpoint.replaceAll("/+$", "");
+        if (trimmed.endsWith("/v1/traces")) {
+            return trimmed;
+        }
+        return trimmed + "/v1/traces";
+    }
+
+    private static String envOrDefault(String name, String defaultValue) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? defaultValue : value;
+    }
+}
+```
+
+</CodeGroup>
+
+<Note>
+Agents and environments are persistent and versioned. The program creates them on each run to stay self-contained. In your own application, create them once, store their IDs, and pass the IDs to each `sessions.create` call.
+</Note>
+
+## Step 4: Run a session
+
+Run the program:
+
+<CodeGroup>
+
+```bash Python
+python triage.py
+```
+
+```bash TypeScript
+npx tsx triage.ts
+```
+
+```bash Go
+go run main.go
+```
+
+```bash Java
+gradle run
+```
+
+</CodeGroup>
+
+The agent calls `list_issues`, counts the issues by label with bash in its sandbox, and replies. The wording and layout vary from run to run, but the output looks similar to this:
+
+```text wrap
+There are 4 open issues. Here's how many are open under each label, counted with bash:
+
+| Label | Open issues |
+|---|---|
+| bug | 2 (#101, #103) |
+| auth | 1 (#101) |
+| docs | 1 (#102) |
+| enhancement | 1 (#104) |
+| export | 1 (#103) |
+
+The totals add up to more than 4 because #101 and #103 each have two labels.
+
+**Most urgent: #101, "Login fails with SSO for all EU users."** It's a bug that stops a whole region of users from logging in at all, which makes it worse than #103's lost CSV row or the docs and feature requests. It also has the most discussion of any open issue (14 comments), so it's clearly affecting many people and should be fixed first.
+```
+
+## Step 5: Explore the trace
+
+Open your Phoenix instance and select the **`claude-managed-agents-triage`** project. A new trace appears within a minute or two. The Claude API delivers its spans in batches, so they can arrive after yours. Open the trace to see the session from both sides:
+
+<Frame caption="A Claude Managed Agents trace in Phoenix, with your application span joined to the spans exported by Claude Platform">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-triage-trace-tree.png" alt="Phoenix trace view showing a triage-request root span, nested Claude Sessions API spans, agent turn spans, model request spans, a list_issues tool span, and an anthropic.tool_use bash span" />
+</Frame>
+
+```text
+triage-request                          CHAIN, your application
+├─ anthropic.sessions.create            SDK, with the API's span inside
+├─ anthropic.sessions.events.stream     SDK, with the API's span inside
+├─ anthropic.sessions.events.send       SDK, with the API's span inside
+│  └─ anthropic.session.turn            AGENT, stop reason requires_action
+│     └─ anthropic.model_request        LLM
+├─ list_issues                          TOOL, your application
+└─ anthropic.sessions.events.send       SDK, with the API's span inside
+   └─ anthropic.session.turn            AGENT, stop reason end_turn
+      ├─ anthropic.model_request        LLM
+      ├─ anthropic.tool_use bash        TOOL, in the sandbox
+      └─ anthropic.model_request        LLM
+```
+
+- **`triage-request`** is your root span, with the request as input and the agent's answer as output.
+- Under it are the SDK's `CLIENT` spans, one for each request your application sent. Each one contains the API's span for the same request, with the same name.
+- Under the request that sent your message is the agent's first turn. It ends with the stop reason `requires_action` when the agent calls `list_issues`. Your `list_issues` `TOOL` span follows, then the request that sent the result, and a second turn in which the agent runs bash and answers.
+- The SDK's spans for creating the environment and the agent are in traces of their own, because the program creates them before it starts `triage-request`.
+
+Open the `list_issues` span to inspect your application's tool input and output:
+
+<Frame caption="A custom list_issues tool span showing the request and returned issue data">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-triage-list-issues-tool.png" alt="Phoenix info tab for the list_issues tool span showing state open as the input and structured issue data as the output" />
+</Frame>
+
+Open an `anthropic.session.turn` span to read the turn's message attributes, including user messages, tool calls, and tool results. Phoenix shows these values on the **Attributes** tab as `llm.input_messages.*`, `gen_ai.input.messages`, and `gen_ai.output.messages`:
+
+<Frame caption="A session turn span in Phoenix with the Claude Platform message attributes">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-triage-session-turn-attributes.png" alt="Phoenix attributes table for an anthropic.session.turn span showing Claude Platform message attributes, model name, input messages, output messages, and the invoke_agent operation" />
+</Frame>
+
+Open an `anthropic.model_request` span to see the model and the token usage of one model request. Open the `bash` tool span to see the command that the agent ran in its sandbox. Its arguments are the span's input:
+
+<Frame caption="A model request span showing model name, token usage, latency, and cost">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-triage-model-request-attributes.png" alt="Phoenix attributes table for an anthropic.model_request span showing Claude model name, prompt tokens, completion tokens, cache-read tokens, cache-write tokens, request model, provider, and conversation ID" />
+</Frame>
+
+<Frame caption="A bash tool call span showing the command that ran in the Claude Managed Agents sandbox">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-triage-tool-call-info.png" alt="Phoenix info tab for an anthropic.tool_use bash span showing the bash command parameters that counted issue labels in the Claude Managed Agents sandbox" />
+</Frame>
+
+The command's result is in the span's `anthropic.tool_result.content` attribute, on the **Attributes** tab.
+
+
+The API's spans also carry the session thread ID in `gen_ai.conversation.id`, which Phoenix uses as the session ID. Open **Sessions** in the project and select the session to read the thread as a conversation. The Sessions list itself shows no first message, last message, or duration for these sessions, because only the API's spans carry the session ID. For a session with several threads, filter spans on `anthropic.session.id`.
+
+
+## Step 6: Evaluate the triage
+
+The trace shows what the agent did. An evaluator tells you whether it did it well. Sample issue #101 locks out a whole region, so a good triage names it as the most urgent. Create an LLM-as-a-judge evaluator that checks the agent's answer against that:
+
+1. In Phoenix, open **Evaluators** and click **New Task**.
+1. Name the task `triage-quality` and select the `claude-managed-agents-triage` project.
+1. Add a filter on the span name `triage-request`, so the task scores your root spans.
+1. Click **Add Evaluator**, choose **Create Custom**, and use this template:
+
+   ```text wrap
+   You are evaluating an issue-triage agent. It was asked to pick the single most urgent open issue and explain why.
+
+   [Request]: {input}
+   [Answer]: {output}
+
+   An urgent issue blocks many users from core functionality. A good answer names the issue that blocks the most users and gives a reason based on its impact.
+
+   Respond with "correct" if the answer picks the issue with the widest impact and justifies it, or "incorrect" otherwise.
+   ```
+
+1. Map `input` to `attributes.input.value` and `output` to `attributes.output.value`, and set the choices to `correct` (score 1) and `incorrect` (score 0).
+1. Turn on **Run continuously**, and run it once on your existing traces as well.
+1. Click **Create Task**.
+
+
+Run the program a few more times. Each `triage-request` span gets a `triage-quality` label.
+
+
+Filter the project on `incorrect` to find the sessions where the agent got it wrong, and open their traces to see whether the cause was the tool result, the bash step, or the model's reasoning. For programmatic evaluation workflows, see [Evaluating Phoenix traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces).
+
+## Step 7: Read token usage correctly
+
+In a Managed Agents session, only the `anthropic.model_request` spans, and the `anthropic.session.outcome_evaluation` spans when you use outcomes, carry token usage. The turn spans and the Sessions API request spans don't, so the trace's token total is the session's total.
+
+Two details affect what you read:
+
+- **Cache reads are part of the input tokens.** The agent's system prompt and tools are cached after the first model request, so most of each request's input tokens are cache reads, billed at a lower rate. The spans report them in `gen_ai.usage.cache_read.input_tokens` and `gen_ai.usage.cache_write.input_tokens`, which Phoenix doesn't map yet, so it counts them as regular prompt tokens and its cost estimate can be higher than what you were billed.
+- **The `anthropic.sessions.create` spans show as `LLM` spans with zero tokens.** They carry the agent's model, but they aren't model calls, so leave them out when you count model requests.
+
+Anthropic's guide on [counting tokens](https://platform.claude.com/docs/en/manage-claude/opentelemetry#count-tokens) has the rules for other kinds of requests, such as the Messages API, where usage repeats across levels of spans.
+
+## Summary
+
+You traced a Claude Managed Agents session from both sides and evaluated its result:
+
+- A Claude Console destination sends the spans that the Claude API creates to a Phoenix project, routed by the destination's project name.
+- The Claude SDK's spans and W3C trace context join those spans to your application's own trace.
+- A manual `TOOL` span records the custom tool that your application runs, which the Claude API can't see.
+- An LLM-as-a-judge task scores each triage, so you can find the runs that went wrong and trace their cause.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Claude Managed Agents integration" icon="book-open" href="/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing">
+    The reference for the Console destination, the SDK setup, and the spans Phoenix captures.
+  </Card>
+  <Card title="Session-level evaluations" icon="comments" href="/docs/phoenix/cookbook/evaluation/session-level-evaluation">
+    Score whole conversations instead of single answers.
+  </Card>
+  <Card title="Evaluate agents" icon="clipboard-check" href="/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems">
+    Score tool selection, tool results, and goal completion.
+  </Card>
+  <Card title="GenAI semantic conventions" icon="arrows-rotate" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions">
+    How OpenInference and OpenTelemetry GenAI semantic conventions compare.
+  </Card>
+</CardGroup>
