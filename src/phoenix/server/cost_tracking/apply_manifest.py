@@ -68,9 +68,10 @@ def _is_newer(
     if applied is None:
         return True
     # A manifest of a newer schema carries data the applied one can't, so it wins even if
-    # it is older; the next fetch brings back any newer prices.
-    if applied.schema_version < manifest.schema_version:
-        return True
+    # it is older; the next fetch brings back any newer prices. One of an older schema never
+    # wins, or replicas of different versions would keep overwriting each other mid-upgrade.
+    if applied.schema_version != manifest.schema_version:
+        return applied.schema_version < manifest.schema_version
     return manifest.generated_at > applied.generated_at
 
 
@@ -100,6 +101,12 @@ async def apply_manifest_if_newer(
         await session.execute(select(sa.func.pg_advisory_xact_lock(_APPLY_LOCK_ID)))
     applied = await get_applied_manifest_version(session)
     if not _is_newer(manifest, applied):
+        if applied is not None and applied.schema_version > manifest.schema_version:
+            logger.warning(
+                f"The database has a model cost manifest of schema {applied.schema_version}, "
+                f"newer than this Phoenix supports, so built-in model prices won't update "
+                f"until Phoenix is upgraded"
+            )
         return False
 
     entries = _dedupe_entries(manifest)
