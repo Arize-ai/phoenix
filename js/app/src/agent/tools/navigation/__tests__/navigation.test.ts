@@ -141,6 +141,86 @@ describe("navigation.goTo client action", () => {
     expect(getPending(store)).toBeUndefined();
   });
 
+  it("does not report already_there when routerSource has moved but getCurrentPath is stale", async () => {
+    const fakeRouter = createFakeRouterSource("/playground");
+    const { store, handler } = setup({
+      currentPath: "/playground",
+      navigateChangesPath: false,
+      routerSource: fakeRouter.source,
+    });
+
+    // Previous navigation settled at another route in the data router
+    fakeRouter.settleAt("/datasets/RGF0YXNldDox");
+
+    // Subsequent navigation targets /playground while getCurrentPath() is still stale
+    void handler(
+      { path: "/playground", reason: "to return to playground" },
+      CALL_CONTEXT
+    );
+    await Promise.resolve();
+
+    expect(getPending(store)).toMatchObject({
+      path: "/playground",
+      label: "Playground",
+    });
+  });
+
+  it("handles sequential round-trip goTo navigations correctly even if component location lags", async () => {
+    const fakeRouter = createFakeRouterSource("/playground");
+    const { store, handler } = setup({
+      currentPath: "/playground",
+      navigateChangesPath: false, // simulates lag where component effect has not caught up
+      routerSource: fakeRouter.source,
+    });
+
+    // First navigation: /playground -> /datasets/RGF0YXNldDox
+    const firstCallContext = { callId: "tool-call-1:1", sessionId: "session-1" };
+    const firstPromise = handler(
+      { path: "/datasets/RGF0YXNldDox", reason: "to open dataset" },
+      firstCallContext
+    );
+    await Promise.resolve();
+
+    const firstPending = store.getState().pendingNavigationsByToolCallId["tool-call-1:1"];
+    expect(firstPending).toBeDefined();
+
+    const firstAcceptPromise = firstPending?.accept?.();
+    fakeRouter.startNavigation();
+    fakeRouter.settleAt("/datasets/RGF0YXNldDox");
+    await firstAcceptPromise;
+
+    await expect(firstPromise).resolves.toMatchObject({
+      ok: true,
+      output: { status: "navigated", path: "/datasets/RGF0YXNldDox" },
+    });
+
+    // Second navigation immediately back to /playground (component location is still stale /playground)
+    const secondCallContext = { callId: "tool-call-1:2", sessionId: "session-1" };
+    const secondPromise = handler(
+      { path: "/playground", reason: "to return to playground" },
+      secondCallContext
+    );
+    await Promise.resolve();
+
+    const secondPending = store.getState().pendingNavigationsByToolCallId["tool-call-1:2"];
+    // In issue #16768, the second navigation erroneously returned already_there in 0ms
+    expect(secondPending).toBeDefined();
+    expect(secondPending).toMatchObject({
+      path: "/playground",
+      label: "Playground",
+    });
+
+    const secondAcceptPromise = secondPending?.accept?.();
+    fakeRouter.startNavigation();
+    fakeRouter.settleAt("/playground");
+    await secondAcceptPromise;
+
+    await expect(secondPromise).resolves.toMatchObject({
+      ok: true,
+      output: { status: "navigated", path: "/playground" },
+    });
+  });
+
   it("navigates and resolves after the user accepts", async () => {
     const { store, navigate, handler } = setup();
     const resultPromise = handler(
