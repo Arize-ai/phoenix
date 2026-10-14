@@ -121,8 +121,7 @@
               "docs/phoenix/observe/explore-traces",
               "docs/phoenix/tracing/how-to-tracing/filter-expressions",
               "docs/phoenix/observe/view-metrics-and-dashboards",
-              "docs/phoenix/observe/export-trace-data",
-              "docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls"
+              "docs/phoenix/observe/export-trace-data"
             ]
           },
           {
@@ -1733,6 +1732,10 @@
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables",
       "destination": "/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls",
+      "destination": "/docs/phoenix/observe/explore-traces#share-direct-links"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing",

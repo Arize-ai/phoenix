@@ -124,7 +124,30 @@ Use **Attributes** when you need the exact OpenInference fields Phoenix received
 
 ## Share direct links
 
-Use redirect URLs when you need to link from a runbook, dashboard, CI job, or issue to a Phoenix project, trace, span, session, prompt tag, or dataset example. See [Share links to Phoenix resources](/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls) for the supported URL patterns.
+Use redirect URLs when you need to link from a runbook, dashboard, CI job, or issue to a Phoenix project, trace, span, session, prompt tag, or dataset example. Phoenix resolves identifiers you already know, such as a project name or an OpenTelemetry trace ID, so you do not need to look up its internal IDs first.
+
+All redirect URLs follow the pattern `{phoenix_host}/redirects/...`.
+
+| Resource | URL pattern | Identifier |
+| --- | --- | --- |
+| Project | `/redirects/projects/{project_name}` | Project name, such as `default` |
+| Trace | `/redirects/traces/{trace_id}` | OpenTelemetry trace ID |
+| Span | `/redirects/spans/{span_id}` | OpenTelemetry span ID |
+| Session | `/redirects/sessions/{session_id}` | Session ID |
+| Prompt tag | `/redirects/prompts/{prompt_id}/tags/{tag_name}` | Prompt global ID and tag name |
+| Dataset example | `/redirects/datasets/{dataset_id}/examples/{external_id}` | Dataset global ID and example external ID |
+
+For example, this resolves the project named `default` and redirects to its project page:
+
+```text
+https://my-phoenix.example.com/redirects/projects/default
+```
+
+If the identifier does not match an existing resource, Phoenix shows an error page: the resource may have been deleted, or the identifier may be misspelled.
+
+<Tip>
+URL-encode names and IDs with special characters, such as spaces: `/redirects/projects/my%20project`.
+</Tip>
 
 ## Investigate a failure
 
