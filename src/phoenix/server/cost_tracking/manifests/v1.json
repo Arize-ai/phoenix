@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-15T01:26:43Z",
-  "models_sha256": "875ad96b880a6cef98238896d8f25a91255089fd2f6f5a63c722eda8eb815b9d",
+  "generated_at": "2026-10-15T17:54:15Z",
+  "models_sha256": "5f1ecb4f4f17856db73f55ad4555b2e6b46ba823993b6bc51273c78add68584e",
   "models": [
     {
       "name": "chatgpt-image-latest",
@@ -9900,45 +9900,6 @@
           "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
-        }
-      ]
-    },
-    {
-      "name": "typesafe/jev-1.13.0",
-      "name_pattern": "jev-1\\.13\\.0",
-      "source": "litellm",
-      "provider": "typesafe",
-      "token_prices": [
-        {
-          "base_rate": 4.2e-8,
-          "is_prompt": true,
-          "token_type": "input"
-        }
-      ]
-    },
-    {
-      "name": "typesafe/jev-latest",
-      "name_pattern": "jev-latest",
-      "source": "litellm",
-      "provider": "typesafe",
-      "token_prices": [
-        {
-          "base_rate": 4.2e-8,
-          "is_prompt": true,
-          "token_type": "input"
-        }
-      ]
-    },
-    {
-      "name": "typesafe/jev-preview",
-      "name_pattern": "jev-preview",
-      "source": "litellm",
-      "provider": "typesafe",
-      "token_prices": [
-        {
-          "base_rate": 4.2e-8,
-          "is_prompt": true,
-          "token_type": "input"
         }
       ]
     },

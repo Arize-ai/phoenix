@@ -9,7 +9,6 @@ from sync_models import (
     ModelSource,
     TokenPrice,
     _dump_models,
-    extract_litellm_entries,
     next_generated_at,
     serialize_manifest,
     update_manifest,
@@ -82,29 +81,3 @@ def test_serialized_header_comes_before_models() -> None:
         '{\n  "schema_version": 1,\n  "generated_at": "2026-10-01T00:00:00Z",\n'
         f'  "models_sha256": "{manifest.models_sha256}",\n  "models": ['
     )
-
-
-def test_typesafe_evaluation_models_are_priced_by_input_only() -> None:
-    entries = extract_litellm_entries(
-        {
-            "typesafe/jev-latest": {
-                "input_cost_per_token": 4.2e-08,
-                "litellm_provider": "typesafe",
-                "mode": "evaluation",
-                "output_cost_per_token": 0.0,
-            },
-            # Chat models still need an output rate.
-            "together_ai/some-chat-model": {
-                "input_cost_per_token": 4.2e-08,
-                "litellm_provider": "together_ai",
-                "mode": "chat",
-                "output_cost_per_token": 0.0,
-            },
-        }
-    )
-    assert [(e.name, e.provider, e.name_pattern) for e in entries] == [
-        ("typesafe/jev-latest", "typesafe", "jev-latest")
-    ]
-    assert entries[0].token_prices == [
-        TokenPrice(base_rate=4.2e-08, is_prompt=True, token_type="input")
-    ]

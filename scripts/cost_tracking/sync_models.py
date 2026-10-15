@@ -76,7 +76,6 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "together_ai/": "together",
     "zai/": "zai",
     "meta/": "meta",
-    "typesafe/": "typesafe",
 }
 
 
@@ -225,20 +224,6 @@ def _is_positive_number(value: Any) -> bool:
         return False
 
 
-def _has_pricing(model_info: dict[str, Any]) -> bool:
-    """
-    Both an input and an output rate are required for pricing, except for evaluation models
-    (such as Typesafe's Jev), which LiteLLM prices by input tokens only, with an output rate of 0.
-    """
-    if "input_cost_per_token" not in model_info:
-        return False
-    if _output_rate_field(model_info) is not None:
-        return True
-    return model_info.get("mode") == "evaluation" and _is_positive_number(
-        model_info["input_cost_per_token"]
-    )
-
-
 def next_generated_at(
     previous: ModelCostManifest,
     updated: ModelCostManifest,
@@ -277,7 +262,8 @@ def serialize_manifest(manifest: ModelCostManifest) -> str:
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
-        if _has_pricing(model_info):
+        # Both an input and an output rate are required for pricing.
+        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
