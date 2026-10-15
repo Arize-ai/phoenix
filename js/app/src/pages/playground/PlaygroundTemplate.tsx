@@ -35,8 +35,8 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
   availablePaths: string[] | undefined;
   /** Enable the Decision tab in this instance's model menu. */
   supportsDecisionModels?: boolean;
-  /** Why decision models cannot be chosen right now, shown on the disabled tab. */
-  decisionModelsDisabledReason?: string;
+  /** Shown above the Decision tab's providers; see {@link ModelMenu}. */
+  decisionTabNotice?: string;
 }
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
@@ -171,7 +171,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <PlaygroundModelMenu
               playgroundInstanceId={instanceId}
               supportsDecisionModels={props.supportsDecisionModels}
-              decisionModelsDisabledReason={props.decisionModelsDisabledReason}
+              decisionTabNotice={props.decisionTabNotice}
             />
             <ModelParametersConfigButton
               playgroundInstanceId={instanceId}

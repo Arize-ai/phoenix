@@ -55,3 +55,7 @@ export const DECISION_DATASET_BLOCKED_REASON =
 /** Why the dataset picker is disabled while a decision instance exists. */
 export const DECISION_DATASET_SELECT_DISABLED_REASON =
   "Decision models can't run over a dataset yet. Remove the decision instance to test over a dataset.";
+
+/** Shown in the model picker's Decision tab while a dataset is loaded. */
+export const DECISION_MODEL_CLEARS_DATASET_NOTICE =
+  "Decision models can't run over a dataset yet. Selecting one clears the dataset.";

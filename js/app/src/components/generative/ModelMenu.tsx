@@ -7,6 +7,7 @@ import {
 } from "react-aria-components";
 
 import {
+  Alert,
   Autocomplete,
   Button,
   Flex,
@@ -26,9 +27,6 @@ import {
   Tabs,
   TabList,
   Tab,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
   useFilter,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
@@ -212,10 +210,11 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> &
     /** Enable decision selection only on surfaces with a decision execution path. */
     supportsDecisionModels?: boolean;
     /**
-     * When set, the Decision tab is shown but disabled, with this text as the
-     * reason in a tooltip (e.g. a dataset is loaded).
+     * Shown above the Decision tab's providers when choosing a decision model
+     * has a side effect the user should know about first (e.g. it clears the
+     * loaded dataset).
      */
-    decisionModelsDisabledReason?: string;
+    decisionTabNotice?: string;
   };
 
 export function ModelMenu({
@@ -230,7 +229,7 @@ export function ModelMenu({
   onLeadingItemSelect,
   credentialSource,
   supportsDecisionModels = false,
-  decisionModelsDisabledReason,
+  decisionTabNotice,
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -377,41 +376,6 @@ export function ModelMenu({
         )}
       </Button>
       <MenuContainer placement={placement} shouldFlip={shouldFlip}>
-        {supportsDecisionModels ? (
-          <Tabs
-            selectedKey={modelType}
-            onSelectionChange={(key) => {
-              setModelType(key === "DECISION" ? "DECISION" : "LLM");
-              setSearchValue("");
-            }}
-            // Tabs default to filling their parent (height: 100%, flex-grow)
-            // because they normally own the panel below them. Here the menu
-            // owns the content, so the tab bar must size to its tabs or it
-            // stretches into the menu's min-height and leaves a gap. The
-            // component sets its growth under an orientation attribute
-            // selector, so the override has to match that specificity.
-            css={css`
-              &[data-orientation] {
-                flex: none;
-                height: auto;
-              }
-            `}
-          >
-            <TabList aria-label="Model type">
-              <Tab id="LLM">LLM</Tab>
-              <Tab id="DECISION" isDisabled={!!decisionModelsDisabledReason}>
-                {decisionModelsDisabledReason ? (
-                  <TooltipTrigger delay={0}>
-                    <TriggerWrap>Decision</TriggerWrap>
-                    <Tooltip>{decisionModelsDisabledReason}</Tooltip>
-                  </TooltipTrigger>
-                ) : (
-                  "Decision"
-                )}
-              </Tab>
-            </TabList>
-          </Tabs>
-        ) : null}
         <Autocomplete filter={isSearching ? searchFilter : undefined}>
           <MenuHeader>
             <SearchField
@@ -426,6 +390,16 @@ export function ModelMenu({
               <Input placeholder="Search models..." />
             </SearchField>
           </MenuHeader>
+          {supportsDecisionModels ? (
+            <ModelTypeTabs
+              modelType={modelType}
+              notice={decisionTabNotice}
+              onChange={(nextModelType) => {
+                setModelType(nextModelType);
+                setSearchValue("");
+              }}
+            />
+          ) : null}
           {isSearching ? (
             <ModelsByProviderMenu
               key={modelType}
@@ -460,6 +434,54 @@ export function ModelMenu({
         </MenuFooter>
       </MenuContainer>
     </MenuTrigger>
+  );
+}
+
+/**
+ * The LLM / Decision switch under the search field, with an optional notice
+ * above the Decision list. Rendered inside the picker's Autocomplete so the
+ * search field stays first in DOM and keyboard order.
+ */
+function ModelTypeTabs({
+  modelType,
+  notice,
+  onChange,
+}: {
+  modelType: ModelType;
+  notice?: string;
+  onChange: (modelType: ModelType) => void;
+}) {
+  return (
+    <>
+      <Tabs
+        selectedKey={modelType}
+        onSelectionChange={(key) =>
+          onChange(key === "DECISION" ? "DECISION" : "LLM")
+        }
+        // Tabs default to filling their parent (height: 100%, flex-grow)
+        // because they normally own the panel below them. Here the menu
+        // owns the content, so the tab bar must size to its tabs or it
+        // stretches into the menu's min-height and leaves a gap. The
+        // component sets its growth under an orientation attribute
+        // selector, so the override has to match that specificity.
+        css={css`
+          &[data-orientation] {
+            flex: none;
+            height: auto;
+          }
+        `}
+      >
+        <TabList aria-label="Model type">
+          <Tab id="LLM">LLM</Tab>
+          <Tab id="DECISION">Decision</Tab>
+        </TabList>
+      </Tabs>
+      {modelType === "DECISION" && notice ? (
+        <Alert variant="warning" banner>
+          {notice}
+        </Alert>
+      ) : null}
+    </>
   );
 }
 

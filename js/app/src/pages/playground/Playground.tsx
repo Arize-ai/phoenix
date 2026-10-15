@@ -129,6 +129,7 @@ import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import {
   DECISION_DATASET_BLOCKED_REASON,
   DECISION_DATASET_SELECT_DISABLED_REASON,
+  DECISION_MODEL_CLEARS_DATASET_NOTICE,
   NUM_MAX_PLAYGROUND_INSTANCES,
 } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
@@ -834,9 +835,9 @@ function PlaygroundContent() {
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
                     supportsDecisionModels
-                    decisionModelsDisabledReason={
+                    decisionTabNotice={
                       isDatasetMode
-                        ? "Decision models can't run over a dataset yet. Clear the dataset to add one."
+                        ? DECISION_MODEL_CLEARS_DATASET_NOTICE
                         : undefined
                     }
                   />
