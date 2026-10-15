@@ -1,0 +1,132 @@
+---
+title: "Atomic Agents Tracing"
+description: "Trace Atomic Agents agents and tools in Phoenix: an AGENT span per agent run and a TOOL span per tool call, with the LLM calls nested underneath."
+---
+
+[Atomic Agents](https://github.com/eigenwise/atomic-agents) is a lightweight, modular Python framework for building agentic AI applications from small, single-purpose components. Every agent is a typed function: a Pydantic input schema in, a Pydantic output schema out, with the LLM call handled by [Instructor](https://python.useinstructor.com/).
+
+Atomic Agents ships its own OpenInference instrumentor (version 2.11.0 and later). It emits an `AGENT` span for every `AtomicAgent` run and a `TOOL` span for every `BaseTool` run, including tools generated from MCP servers. LLM spans come from the provider instrumentor you already use and nest under the agent span.
+
+## Install
+
+```bash
+pip install "atomic-agents[observability]" arize-phoenix-otel openinference-instrumentation-openai sympy
+```
+
+Install exactly one LLM instrumentor for the provider SDK your Instructor client wraps (`openinference-instrumentation-openai`, `openinference-instrumentation-anthropic`, `openinference-instrumentation-litellm`, ...). Installing both a provider instrumentor and `openinference-instrumentation-instructor` produces two layers of LLM spans.
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+export PHOENIX_PROJECT=[your_phoenix_project_name]
+```
+
+Register Phoenix with auto-instrumentation. The Atomic Agents instrumentor is discovered through the `openinference_instrumentor` entry point, so no extra code is needed:
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="atomic-agents-app",
+    auto_instrument=True,
+)
+```
+
+<Info>
+  To activate the instrumentor by hand (for example with your own `TracerProvider`), use `AtomicAgentsInstrumentor().instrument(tracer_provider=tracer_provider)` from `atomic_agents.observability`. It accepts an OpenInference `TraceConfig` for masking inputs and outputs.
+</Info>
+
+## Run Atomic Agents
+
+Atomic Agents has no built-in tool-calling loop: your code calls an agent, then a tool, then another agent. Each call is a root span on its own, so wrap a unit of work in a parent span to see one trace per turn:
+
+```python expandable
+import instructor
+import openai
+from pydantic import Field
+from sympy import sympify
+
+from atomic_agents import AgentConfig, AtomicAgent, BaseIOSchema, BaseTool, BasicChatInputSchema, BasicChatOutputSchema
+
+tracer = tracer_provider.get_tracer(__name__)
+client = instructor.from_openai(openai.OpenAI())
+
+
+class CalculationPlanSchema(BaseIOSchema):
+    """An arithmetic expression that answers the user's question."""
+
+    expression: str = Field(..., description="A Python arithmetic expression, for example '12 * 7 + 3'.")
+
+
+class CalculatorInputSchema(BaseIOSchema):
+    """Expression to evaluate."""
+
+    expression: str = Field(...)
+
+
+class CalculatorOutputSchema(BaseIOSchema):
+    """Result of the evaluation."""
+
+    result: str = Field(...)
+
+
+class CalculatorTool(BaseTool[CalculatorInputSchema, CalculatorOutputSchema]):
+    def run(self, params: CalculatorInputSchema) -> CalculatorOutputSchema:
+        return CalculatorOutputSchema(result=str(sympify(params.expression)))
+
+
+class CalculationResultSchema(BaseIOSchema):
+    """The question together with the evaluated expression."""
+
+    question: str = Field(...)
+    expression: str = Field(...)
+    result: str = Field(...)
+
+
+planner = AtomicAgent[BasicChatInputSchema, CalculationPlanSchema](AgentConfig(client=client, model="gpt-4o-mini"))
+answerer = AtomicAgent[CalculationResultSchema, BasicChatOutputSchema](AgentConfig(client=client, model="gpt-4o-mini"))
+calculator = CalculatorTool()
+
+question = "If 3 friends split a 47 euro bill and add a 15 percent tip, how much does each pay?"
+
+with tracer.start_as_current_span("answer_question", openinference_span_kind="chain") as turn:
+    turn.set_input(question)
+    plan = planner.run(BasicChatInputSchema(chat_message=question))
+    calculation = calculator.run(CalculatorInputSchema(expression=plan.expression))
+    answer = answerer.run(
+        CalculationResultSchema(question=question, expression=plan.expression, result=calculation.result)
+    )
+    turn.set_output(answer.chat_message)
+
+print(answer.chat_message)
+```
+
+## Observe
+
+The trace in Phoenix looks like this:
+
+```
+CHAIN  answer_question
+├── AGENT  AtomicAgent[BasicChatInputSchema, CalculationPlanSchema].run
+│   └── LLM  ChatCompletion
+├── TOOL   CalculatorTool
+└── AGENT  AtomicAgent[CalculationResultSchema, BasicChatOutputSchema].run
+    └── LLM  ChatCompletion
+```
+
+Agent spans carry `agent.name` (`Class[InputSchema, OutputSchema]`), the input and output schemas as JSON, and `atomic_agents.*` attributes for the model, the Instructor mode, the schema names, the history size entering the turn, the registered context providers and a hash of the static system prompt sections. Tool spans carry `tool.name`, `tool.description`, `tool.parameters` (the input JSON schema) and the tool's input and output. Streaming runs (`run_stream`, `run_async_stream`) record the final response, or the last partial plus `atomic_agents.stream.closed_early` when the consumer stops early.
+
+Wrap calls in `using_session`, `using_user` or `using_metadata` from `openinference.instrumentation` to group spans by conversation or user. To redact agent and tool payloads, set `OPENINFERENCE_HIDE_INPUTS=true` and `OPENINFERENCE_HIDE_OUTPUTS=true`.
+
+## Resources
+
+* [Atomic Agents observability guide](https://eigenwise.github.io/atomic-agents/guides/observability.html)
+
+* [Phoenix tracing example in the Atomic Agents repository](https://github.com/eigenwise/atomic-agents/tree/main/atomic-examples/phoenix-tracing)
+
+* [Atomic Agents on GitHub](https://github.com/eigenwise/atomic-agents)
