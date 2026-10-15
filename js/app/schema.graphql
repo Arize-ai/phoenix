@@ -1540,14 +1540,6 @@ type DbTableStats {
   numBytes: Float!
 }
 
-"""
-The request body shape a provider's decision API accepts. SYSTEM_ONE is the TypeSafe System One body (`state` and named `questions`); OPENAI_DECISIONS is the OpenAI Decisions API body (`input` and a `questions` array).
-"""
-enum DecisionWireFormat {
-  SYSTEM_ONE
-  OPENAI_DECISIONS
-}
-
 type DecryptedSecret {
   value: RedactedString!
 }
@@ -2535,11 +2527,6 @@ type GenerativeProvider {
   The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients are registered for the provider, not from its name.
   """
   modelTypes: [ModelType!]!
-
-  """
-  The request body shape the provider's decision API accepts, so clients can render or export the exact body sent. Null when the provider offers no decision models.
-  """
-  decisionWireFormat: DecisionWireFormat
 
   """The credential requirements for the provider"""
   credentialRequirements: [GenerativeProviderCredentialConfig!]!

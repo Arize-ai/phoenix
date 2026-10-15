@@ -10,7 +10,6 @@ from typing_extensions import assert_never
 from phoenix.config import getenv
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.DecisionWireFormat import DecisionWireFormat
 from phoenix.server.api.types.ModelType import ModelType
 from phoenix.trace.attributes import get_attribute_value
 
@@ -321,19 +320,6 @@ class GenerativeProvider:
         if DECISION_CLIENT_REGISTRY.supports_decisions(self.key):
             model_types.append(ModelType.DECISION)
         return model_types
-
-    @strawberry.field(
-        description=(
-            "The request body shape the provider's decision API accepts, so clients can "
-            "render or export the exact body sent. Null when the provider offers no "
-            "decision models."
-        )
-    )  # type: ignore
-    async def decision_wire_format(self) -> Optional[DecisionWireFormat]:
-        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENT_REGISTRY
-
-        decision_client = DECISION_CLIENT_REGISTRY.get_client_class(self.key)
-        return decision_client.wire_format if decision_client else None
 
     @strawberry.field(description="The credential requirements for the provider")  # type: ignore
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:
