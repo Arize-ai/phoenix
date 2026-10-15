@@ -6,8 +6,11 @@ name: Plugin Evals
 # suite and its flags.
 #
 # One matrix leg per skill, selected with `--tag <skill>`, so a regression is
-# reported per skill (and each skill gets its own cost ceiling and uplift gate
-# instead of sharing one). REQUIREMENT: every case must carry its skill's tag in
+# reported per skill (and each skill gets its own cost ceiling, timeout and
+# uplift gate instead of sharing one). On a PR a leg only runs when the change
+# touches its skill, its cases, or shared plugin/harness files
+# (evals/leg_is_affected.sh), so a phoenix-cli edit does not pay for the Opus
+# phoenix-evals leg. REQUIREMENT: every case must carry its skill's tag in
 # prompt.md front matter (`tags: [phoenix-evals]`, etc.). A leg whose tag matches
 # no cases skips cleanly, so skills whose cases are not tagged yet are simply not
 # evaluated here until they are.
@@ -35,7 +38,7 @@ jobs:
     # Secrets are not available to forks; skip rather than fail.
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false
       matrix:
@@ -46,39 +49,85 @@ jobs:
         # evals README before switching a leg to `block`. `model` is the
         # agent-under-test model for that leg (the judge stays fixed); keep it
         # pinned so scores stay comparable, and bump deliberately.
+        # `max_cost_usd` and `timeout_minutes` are the leg's budget: roughly 1.5x
+        # a measured full run, so a slow or pricey run still finishes instead of
+        # failing on a partial result. Re-measure when cases, runs or the model
+        # change.
         include:
           # phoenix-cli: 0.15 headroom under its measured +0.25 baseline.
           - skill: phoenix-cli
             model: claude-sonnet-5
             min_delta: "0.15"
             gate: block
+            # Measured: ~$17 per full run.
+            max_cost_usd: "25"
+            timeout_minutes: 40
           # phoenix-evals: held to Opus on purpose. Eval authoring (LLM-judge
           # code, pytest CI gates) is a harder task class where sonnet-5 is both
-          # noisy and unreliable at a 0.8-per-case bar; Opus is stable. min_delta
-          # is 0.10 headroom under the measured +0.22 Opus baseline (see
+          # noisy and unreliable at a 0.8-per-case bar; Opus is stable. `warn`
+          # until the current cases have a 3-run baseline (the +0.22 measured
+          # on the earlier case set no longer applies; see
           # evals/phoenix-evals/README.md).
           - skill: phoenix-evals
             model: claude-opus-4-8
             min_delta: "0.12"
-            gate: block
-          # phoenix-tracing: no cases yet, so the leg skips before the gate.
+            gate: warn
+            # Estimated, not yet measured: 11 cases x 3 runs x 2 arms on Opus at
+            # up to 12 turns, about 3x the phoenix-cli leg (~$50). Replace with
+            # the cost and duration of the first CI run.
+            max_cost_usd: "75"
+            timeout_minutes: 90
+          # phoenix-tracing: no cases yet, so the leg skips before setup.
+          # `warn` until its Δ is calibrated.
           - skill: phoenix-tracing
             model: claude-sonnet-5
             min_delta: "0.15"
-            gate: block
+            gate: warn
+            max_cost_usd: "25"
+            timeout_minutes: 40
     name: evals (${{ matrix.skill }})
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          # A pull_request checkout is the merge commit; depth 2 brings its
+          # base-side parent so the next step can diff against it.
+          fetch-depth: 2
+
+      - name: Detect tagged cases
+        id: detect
+        env:
+          SKILL: ${{ matrix.skill }}
+          EVENT_NAME: ${{ github.event_name }}
+        # A leg only runs if at least one case carries this skill's tag in its
+        # prompt.md front matter (inline list form, e.g. `tags: [phoenix-evals]`)
+        # and, on a PR, the change affects this skill. Skills whose cases are not
+        # tagged yet — or not built yet — are skipped rather than failing the run
+        # on a zero-match tag. workflow_dispatch runs every leg that has cases.
+        # The output keeps the name `has_cases` so later steps gate on one flag.
+        run: |
+          if ! grep -rqsE "^tags:.*\b${SKILL}\b" plugins/claude/arize-phoenix/evals --include=prompt.md; then
+            echo "has_cases=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::no cases tagged '${SKILL}' found under evals/; skipping this leg"
+            exit 0
+          fi
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ "$(git diff --name-only HEAD^1 HEAD \
+              | plugins/claude/arize-phoenix/evals/leg_is_affected.sh "${SKILL}")" = "false" ]; then
+            echo "has_cases=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::this change does not touch '${SKILL}' or shared plugin files; skipping this leg"
+            exit 0
+          fi
+          echo "has_cases=true" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Node
+        if: steps.detect.outputs.has_cases == 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
 
       - name: Install subprocess isolation deps
+        if: steps.detect.outputs.has_cases == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends bubblewrap socat
@@ -87,25 +136,9 @@ jobs:
           fi
 
       - name: Install Claude Code
+        if: steps.detect.outputs.has_cases == 'true'
         # Pinned so scores stay comparable; bump deliberately.
         run: npm install -g @anthropic-ai/claude-code@2.1.273
-
-      - name: Detect tagged cases
-        id: detect
-        working-directory: plugins/claude/arize-phoenix
-        env:
-          SKILL: ${{ matrix.skill }}
-        # A leg only runs if at least one case carries this skill's tag in its
-        # prompt.md front matter (inline list form, e.g. `tags: [phoenix-evals]`).
-        # Skills whose cases are not tagged yet — or not built yet — are skipped
-        # rather than failing the run on a zero-match tag.
-        run: |
-          if grep -rqsE "^tags:.*\b${SKILL}\b" evals --include=prompt.md; then
-            echo "has_cases=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "has_cases=false" >> "${GITHUB_OUTPUT}"
-            echo "::notice::no cases tagged '${SKILL}' found under evals/; skipping this leg"
-          fi
 
       - name: Run eval suite
         if: steps.detect.outputs.has_cases == 'true'
@@ -115,11 +148,12 @@ jobs:
           WORKSPACE: ${{ github.workspace }}
           SKILL: ${{ matrix.skill }}
           MODEL: ${{ matrix.model }}
+          MAX_COST_USD: ${{ matrix.max_cost_usd }}
         # --tag selects this skill's cases. --threshold gates each with-plugin
         # score; Δ is gated in the next step. --allow-tools: Write lets a
         # file-writing case create its file; the Read grants let the skill open
-        # its references/ from inside the sandbox. Each skill gets its own
-        # --max-cost-usd so one suite can't starve another's budget.
+        # its references/ from inside the sandbox. --max-cost-usd comes from the
+        # leg's matrix entry so one suite can't starve another's budget.
         run: |
           mkdir -p evals/results
           claude plugin eval . \
@@ -134,7 +168,7 @@ jobs:
               "Read(//${WORKSPACE}/plugins/claude/arize-phoenix/**)" \
               "Read(//${WORKSPACE}/.agents/skills/**)" \
             --no-publish \
-            --max-cost-usd 25 \
+            --max-cost-usd "${MAX_COST_USD}" \
             -j 3
 
       - name: Gate on uplift (Δ)

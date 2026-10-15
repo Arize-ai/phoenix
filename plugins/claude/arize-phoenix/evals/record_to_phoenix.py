@@ -44,22 +44,25 @@ def _case_summary(case: dict[str, Any]) -> dict[str, Any]:
     aggregates = case.get("aggregates", {})
     with_runs = case.get("arms", {}).get("with", [])
 
-    # Majority pass per grader across the with-arm runs, with one explanation.
+    # Majority pass per grader across the with-arm runs, with one explanation
+    # taken from a run whose verdict matches the majority.
     tallies: dict[str, dict[str, Any]] = {}
     for run in with_runs:
         for grader in run.get("graders", []):
             name = grader["name"]
             entry = tallies.setdefault(
-                name, {"passed": 0, "total": 0, "explanation": grader.get("explanation", "")}
+                name, {"passed": 0, "total": 0, "explanations": {True: "", False: ""}}
             )
             entry["total"] += 1
-            if grader.get("passed"):
+            verdict = bool(grader.get("passed"))
+            if verdict:
                 entry["passed"] += 1
+            if not entry["explanations"][verdict]:
+                entry["explanations"][verdict] = grader.get("explanation", "")
 
-    graders = {
-        name: "pass" if t["passed"] * 2 >= t["total"] else "fail" for name, t in tallies.items()
-    }
-    explanations = {name: t["explanation"] for name, t in tallies.items()}
+    majority = {name: t["passed"] * 2 >= t["total"] for name, t in tallies.items()}
+    graders = {name: "pass" if ok else "fail" for name, ok in majority.items()}
+    explanations = {name: tallies[name]["explanations"][ok] for name, ok in majority.items()}
 
     return {
         "score": aggregates.get("score"),
@@ -94,26 +97,21 @@ def main() -> None:
     parser.add_argument("--experiment-name", default=None)
     args = parser.parse_args()
 
-    endpoint = (
-        args.endpoint
-        or os.environ.get("PHOENIX_ENDPOINT")
-        or os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
-        or "http://localhost:6006"
-    )
-
     data = json.loads(args.results.read_text())
     cases = data.get("cases", [])
     if not cases:
         raise SystemExit(f"no cases in {args.results}")
 
-    # One example per case; the recorded with-arm summary is stored as the
-    # example `output` so the replay task can return it unchanged (bound as
-    # `expected`). Stable `id` = case name, so re-runs update rows in place.
+    # One example per case holding only the case definition, so the dataset
+    # stays stable across runs; this run's with-arm summaries live outside it
+    # and the replay task looks them up by case name. Stable `id` = case name,
+    # so re-runs update rows in place.
+    summaries = {c["name"]: _case_summary(c) for c in cases}
     examples = [
         {
             "id": c["name"],
             "input": {"case": c["name"], "prompt": c.get("promptMarkdown", "")},
-            "output": _case_summary(c),
+            "output": {},
             "metadata": {
                 "dir": c.get("dir", ""),
                 "graders": [g["name"] for g in c.get("graders", [])],
@@ -125,11 +123,12 @@ def main() -> None:
     from phoenix.client import Client
     from phoenix.client.experiments import run_experiment
 
-    client = Client(base_url=endpoint)
+    # base_url=None lets the client resolve PHOENIX_ENDPOINT and its fallbacks.
+    client = Client(base_url=args.endpoint)
     dataset = client.datasets.create_dataset(name=args.dataset_name, examples=examples)
 
-    def replay_task(expected: dict[str, Any]) -> dict[str, Any]:
-        return expected
+    def replay_task(input: dict[str, Any]) -> dict[str, Any]:
+        return summaries[input["case"]]
 
     experiment_name = args.experiment_name or (
         f"{args.dataset_name}-{_branch()}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
@@ -143,11 +142,8 @@ def main() -> None:
         client=client,
     )
 
-    print(f"recorded experiment '{experiment_name}' to {endpoint}")
+    print(f"recorded experiment '{experiment_name}' ({experiment['experiment_id']})")
     print(f"dataset '{args.dataset_name}': {len(examples)} examples")
-    url = getattr(experiment, "url", None)
-    if url:
-        print(url)
 
 
 if __name__ == "__main__":
