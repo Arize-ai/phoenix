@@ -80,25 +80,15 @@ jobs:
               - "js/tsconfig.base.json"
               - "js/tsconfig.base.esm.json"
               - ".github/workflows/playwright.yaml"
-      # Skip suites only when every changed path is a changelog or release
-      # manifest.
+      # Inspect version fields as well as paths; dependency changes still run tests.
       - name: Detect a bookkeeping-only change
         id: bookkeeping
         if: ${{ github.event_name == 'pull_request' }}
         continue-on-error: true
+        # Use the base copy so a PR cannot change the detector to skip its own tests.
         run: |
-          python3 - <<'PYTHON'
-          import os, re, subprocess
-          files = subprocess.check_output([
-              "git", "diff", "--no-renames", "--name-only", "-z", "HEAD^1", "HEAD"
-          ]).split(b"\0")[:-1]
-          allowed = rb"(?:\.release-please-manifest\.json|CHANGELOG\.md|packages/[^/]+/CHANGELOG\.md)"
-          only = bool(files) and all(re.fullmatch(allowed, path) for path in files)
-          print(f"Release bookkeeping only: {only}")
-          if only:
-              with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-                  output.write("only=true\n")
-          PYTHON
+          git show HEAD^1:scripts/ci/check_release_bookkeeping.py > "$RUNNER_TEMP/check-release-bookkeeping.py" 2>/dev/null || exit 0
+          python3 "$RUNNER_TEMP/check-release-bookkeeping.py"
 
 
   e2e-test:
