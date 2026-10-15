@@ -93,9 +93,9 @@ jobs:
             Python clients, TypeScript clients, CLI, and REST/GraphQL APIs that should be
             reflected in the three external-facing skills:
 
-              - .agents/skills/phoenix-tracing/
-              - .agents/skills/phoenix-cli/
-              - .agents/skills/phoenix-evals/
+              - skills/phoenix-tracing/
+              - skills/phoenix-cli/
+              - skills/phoenix-evals/
 
             Follow the skill's guidance strictly — fetch origin/main first, breadth-first
             triage, ground every edit in real code, and only patch files inside those three
@@ -115,15 +115,18 @@ jobs:
             and have its first line be exactly: NO_CHANGES
           claude_args: '--allowedTools Skill,Read,Glob,Grep,Edit,Write,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)"'
 
+      - name: Rebuild skill copies
+        run: make skills
+
       - name: Check for changes
         id: changes
         run: |
-          if ! git diff --quiet -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals; then
+          if ! git diff --quiet -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git diff --stat -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
-          elif [[ -n "$(git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals)" ]]; then
+            git diff --stat -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
+          elif [[ -n "$(git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills)" ]]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+            git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
           else
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "No skill changes — exiting cleanly."
@@ -144,7 +147,7 @@ jobs:
           # take precedence over gh's credential helper, so reset the remote to
           # a clean URL to push with the PAT configured above.
           git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          git add .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          git add skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
           git commit -m "docs(skills): weekly audit — $AUDIT_DATE"
           git push origin "$AUDIT_BRANCH"
 

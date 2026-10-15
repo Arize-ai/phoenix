@@ -38,7 +38,7 @@ jobs:
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
       docs_snippets: ${{ steps.filter.outputs.docs_snippets }}
-      mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
+      skills: ${{ steps.filter.outputs.skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
     steps:
@@ -92,12 +92,18 @@ jobs:
               - "js/app/src/pages/project/sessionFilterDSL.ts"
               - "src/phoenix/trace/dsl/**"
               - "scripts/ci/check_filter_dsl_snippets.py"
-            mcp_skills:
+            skills:
+              - "skills/**"
               - ".agents/skills/**"
+              - "skills-lock.json"
               - "src/phoenix/server/mcp/skills/**"
-              - "src/phoenix/server/mcp/skills-lock.json"
+              - "src/phoenix/server/agents/prompts/public_skills/**"
+              - "src/phoenix/server/agents/prompts/skills/**"
+              - "plugins/**"
+              - ".cursor-plugin/**"
+              - "scripts/sync_skills.py"
             skill_graphql_examples:
-              - ".agents/skills/**"
+              - "skills/**"
               - "skills-lock.json"
               - "src/phoenix/server/mcp/skills/**"
               - "src/phoenix/server/agents/prompts/skills/**"
@@ -143,7 +149,7 @@ jobs:
           UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
           JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
           FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
-          MCP_SKILLS: ${{ steps.filter.outputs.mcp_skills }}
+          SKILLS: ${{ steps.filter.outputs.skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
           HARBOR_GRAPHQL: ${{ steps.filter.outputs.harbor_graphql }}
         run: |
@@ -159,7 +165,7 @@ jobs:
           echo "uv_lock: $UV_LOCK"
           echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
           echo "filter_dsl: $FILTER_DSL"
-          echo "mcp_skills: $MCP_SKILLS"
+          echo "skills: $SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
           echo "harbor_graphql: $HARBOR_GRAPHQL"
 
@@ -557,10 +563,10 @@ jobs:
       - name: Check for changes
         run: git diff --exit-code
 
-  mcp-skills:
-    name: Compile MCP Skills
+  skills:
+    name: Check Skills
     needs: changes
-    if: ${{ needs.changes.outputs.mcp_skills == 'true' }}
+    if: ${{ needs.changes.outputs.skills == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -571,12 +577,8 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: lts/*
-      - name: Compile MCP Skills
-        run: make mcp-skills
-      - name: Check for changes
-        run: |
-          git add -A
-          git diff --cached --exit-code
+      - name: Check skill copies and what npx offers
+        run: make skills-check
 
   check-lockfile:
     name: Check uv.lock is up to date
@@ -917,7 +919,7 @@ jobs:
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
-      - mcp-skills
+      - skills
       - check-lockfile
       - type-check
       - unit-tests

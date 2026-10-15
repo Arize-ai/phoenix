@@ -38,7 +38,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	skills skills-check codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -59,7 +59,8 @@ help: ## Show this help message
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
 	@echo -e "  codegen-harbor-graphql - Compile the Harbor verifiers' GraphQL queries into typed Python models"
-	@echo -e "  mcp-skills             - Compile the MCP server's shared skills from .agents/skills"
+	@echo -e "  skills                 - Build every shipped copy of the public skills in skills/"
+	@echo -e "  skills-check           - Ensure the skill copies are current and npx offers only skills/"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -180,16 +181,15 @@ setup-remote-export: ## Configure PXI remote trace export
 # Schema Generation
 #=============================================================================
 
-mcp-skills: ## Compile the MCP server's shared skills from .agents/skills
-	@echo -e "$(CYAN)Compiling MCP skills from src/phoenix/server/mcp/skills-lock.json...$(NC)"
-	@# The skills CLI can only install into <cwd>/.agents/skills, so alias that to skills/ for the compile.
-	@cd src/phoenix/server/mcp \
-		&& mkdir -p .agents && ln -sfn ../skills .agents/skills \
-		&& trap 'rm -rf .agents' EXIT \
-		&& for source in $$(python3 -c 'import json; print(" ".join(e["source"] for e in json.load(open("skills-lock.json"))["skills"].values()))'); do \
-			npx --yes skills add "$$source" --project --agent universal --yes || exit 1; \
-		done
-	@echo -e "$(GREEN)✓ src/phoenix/server/mcp/skills$(NC)"
+skills: ## Build every shipped copy of the public skills in skills/
+	@echo -e "$(CYAN)Building skill copies from skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_skills.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+skills-check: ## Ensure the skill copies are current and npx offers only skills/
+	@echo -e "$(CYAN)Checking skill copies against skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_skills.py --check --npx
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
