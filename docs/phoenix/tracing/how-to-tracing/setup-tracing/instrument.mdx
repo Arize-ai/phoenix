@@ -4,6 +4,8 @@ description: "Add spans around custom logic, tools, agents, and unsupported fram
 sidebarTitle: "Manual spans"
 ---
 
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+
 Use manual instrumentation when you need spans around code that auto-instrumentation does not capture. Common cases include custom tools, routing logic, agent loops, retrieval steps, and unsupported SDKs.
 
 If a supported model client or framework already has an OpenInference integration, start with [Auto-instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel). Then add manual spans around your own code.
@@ -13,6 +15,12 @@ If a supported model client or framework already has an OpenInference integratio
 Use this path when you want to write the spans yourself. First, register tracing. Then wrap the code you want to see in Phoenix.
 
 <Steps>
+  <Step title="Start Phoenix">
+    Spans need a running Phoenix instance to export to. Start one before you instrument, or skip this step if you already have a Phoenix deployment.
+
+    <StartPhoenix />
+  </Step>
+
   <Step title="Install">
     <Tabs>
       <Tab title="Python" icon="python">
@@ -53,12 +61,19 @@ Use this path when you want to write the spans yourself. First, register tracing
     # export PHOENIX_API_KEY="your-api-key"
     ```
 
+    <Warning>
+    `register()` exports over OTLP gRPC by default, which ignores the port in `PHOENIX_COLLECTOR_ENDPOINT` and always sends to port **4317**. Pass `protocol="http/protobuf"` to export over OTLP HTTP on the endpoint's own port, which is what port **6006** serves. Spans sent to a port nothing is listening on are dropped without an error.
+    </Warning>
+
     <Tabs>
       <Tab title="Python" icon="python">
         ```python
         from phoenix.otel import register
 
-        tracer_provider = register(project_name="my-llm-app")
+        tracer_provider = register(
+            project_name="my-llm-app",
+            protocol="http/protobuf",
+        )
         tracer = tracer_provider.get_tracer(__name__)
         ```
       </Tab>
@@ -319,9 +334,44 @@ LLM spans are the most common manual span. Use an [OpenInference auto-instrument
   </Tab>
 </Tabs>
 
-<Tip>
-  Phoenix reads model name, messages, token counts, and cost from the OpenInference LLM attributes. See [Span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for the full list.
-</Tip>
+<Warning>
+  The patterns above record `input.value` and `output.value` only. Model name, per-message content, token counts, and cost come from OpenInference attributes that nothing sets for you, so a manual LLM span reports `0` tokens and no cost until you set them yourself.
+</Warning>
+
+### Set the LLM attributes
+
+Set the OpenInference attributes on the span to get a fully rendered LLM span, with messages listed separately and cost calculated:
+
+```python
+from opentelemetry.trace import Status, StatusCode
+
+messages = [{"role": "user", "content": "Hello, world!"}]
+
+with tracer.start_as_current_span("llm_span", openinference_span_kind="llm") as span:
+    span.set_input(messages)
+    response = openai_client.chat.completions.create(
+        model="gpt-5-mini",
+        messages=messages,
+    )
+    content = response.choices[0].message.content or ""
+    span.set_output(content)
+    span.set_attributes(
+        {
+            "llm.model_name": response.model,
+            "llm.provider": "openai",
+            "llm.input_messages.0.message.role": "user",
+            "llm.input_messages.0.message.content": messages[0]["content"],
+            "llm.output_messages.0.message.role": "assistant",
+            "llm.output_messages.0.message.content": content,
+            "llm.token_count.prompt": response.usage.prompt_tokens,
+            "llm.token_count.completion": response.usage.completion_tokens,
+            "llm.token_count.total": response.usage.total_tokens,
+        }
+    )
+    span.set_status(Status(StatusCode.OK))
+```
+
+Phoenix prices the span from `llm.model_name`, the optional `llm.provider`, and the token counts. See [Track costs](/docs/phoenix/tracing/how-to-tracing/cost-tracking) and [Span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for the full attribute list.
 
 ## What to instrument
 

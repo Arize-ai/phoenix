@@ -4,6 +4,8 @@ sidebarTitle: "Set up tracing"
 description: "Auto-instrument supported frameworks and model clients with Phoenix OTEL and OpenInference."
 ---
 
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+
 Start where tracing is automatic. Install the OpenInference instrumentor for your model client or AI framework, attach it once, and calls are traced.
 
 To let a coding agent do this for you, run [`px setup`](/docs/phoenix/integrations/developer-tools/cli#connect-a-project-with-px-setup).
@@ -13,18 +15,24 @@ To let a coding agent do this for you, run [`px setup`](/docs/phoenix/integratio
 Use this path when you want to add tracing yourself. Choose the OpenInference package for your stack from [Supported integrations](/docs/phoenix/integrations), install it with Phoenix OTEL, then register tracing in your app.
 
 <Steps>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    Spans need a running Phoenix instance to export to. Start one before you instrument, or skip this step if you already have a Phoenix deployment.
+
+    <StartPhoenix />
+  </Step>
+
   <Step title={<span className="step-title">Install</span>}>
     <Tabs>
       <Tab title="Python" icon="python">
         ```bash
         pip install arize-phoenix-otel
-        pip install openinference-instrumentation-openai
+        pip install openinference-instrumentation-openai openai
         ```
       </Tab>
       <Tab title="JS/TS" icon="js">
         ```bash
         npm install @arizeai/phoenix-otel
-        npm install @arizeai/openinference-instrumentation-openai
+        npm install @arizeai/openinference-instrumentation-openai openai
         ```
       </Tab>
     </Tabs>
@@ -52,6 +60,10 @@ Use this path when you want to add tracing yourself. Choose the OpenInference pa
     # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
     ```
 
+    <Warning>
+    `register()` exports over OTLP gRPC by default, which ignores the port in `PHOENIX_COLLECTOR_ENDPOINT` and always sends to port **4317**. Pass `protocol="http/protobuf"` to export over OTLP HTTP on the endpoint's own port, which is what port **6006** serves. Spans sent to a port nothing is listening on are dropped without an error.
+    </Warning>
+
     Call `register()` to initialize tracing. The SDK automatically reads your environment variables.
 
     <Tabs>
@@ -61,6 +73,7 @@ Use this path when you want to add tracing yourself. Choose the OpenInference pa
 
         tracer_provider = register(
             project_name="my-llm-app",
+            protocol="http/protobuf",
             auto_instrument=True,  # automatically instruments OpenAI, LangChain, etc.
         )
         ```

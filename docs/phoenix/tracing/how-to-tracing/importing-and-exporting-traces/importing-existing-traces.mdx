@@ -12,6 +12,14 @@ There are two paths:
 - Upload spans into a Phoenix project when you have a dataframe of [OpenInference](/docs/phoenix/resources/openinference) spans.
 - Open saved traces locally when you have a saved trace dataframe and want to inspect it in a temporary Phoenix app.
 
+## Install
+
+Both paths read and write pandas dataframes, and the local path needs the Phoenix server package:
+
+```bash
+pip install arize-phoenix pandas
+```
+
 ## Connect to Phoenix
 
 <ConnectToPhoenixPython />

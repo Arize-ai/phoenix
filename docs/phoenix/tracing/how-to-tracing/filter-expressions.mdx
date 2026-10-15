@@ -48,11 +48,16 @@ Access span **attributes** by name. Any identifier that isn't a built-in field i
 attribute path, and `metadata[...]` is shorthand for the `metadata` attribute:
 
 ```python
-attributes['llm.model_name'] == 'gpt-4o'
 llm.model_name == 'gpt-4o'
+attributes[['llm', 'model_name']] == 'gpt-4o'
 metadata['topic'] == 'programming'
 'programming' in metadata['topic']
 ```
+
+<Warning>
+A dotted string inside brackets is read as one literal key, so `attributes['llm.model_name']` looks for an attribute
+named `llm.model_name` and matches nothing. Write the dotted path directly, or pass the segments as a list.
+</Warning>
 
 Filter on **annotations** by label, score, or explanation. `is None` matches spans that an
 annotation hasn't been written to yet:
@@ -107,7 +112,7 @@ Read `input`, `output`, attributes, `user.id`, and `metadata[...]` from the trac
 ```python
 'refund' in input
 output is not None
-attributes['llm.model_name'] == 'gpt-4o'
+attributes[['llm', 'model_name']] == 'gpt-4o'
 user.id == 'u1'
 metadata['topic'] == 'support'
 ```
