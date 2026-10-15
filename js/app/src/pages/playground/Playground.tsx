@@ -124,7 +124,6 @@ import {
   type AgentClientActionResult,
   waitForRegisteredClientActions,
 } from "@phoenix/store/agentStore";
-import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import {
@@ -132,7 +131,6 @@ import {
   DECISION_DATASET_SELECT_DISABLED_REASON,
   NUM_MAX_PLAYGROUND_INSTANCES,
 } from "./constants";
-import { setDecisionSearchParams } from "./decisionUtils";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -175,19 +173,13 @@ export function Playground(
     storeDatasetId: props.datasetId ?? null,
   });
 
-  const { modelProviders, decisionModels } = useLazyLoadQuery<PlaygroundQuery>(
+  const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
       query PlaygroundQuery {
         modelProviders {
           name
           dependenciesInstalled
           dependencies
-        }
-        decisionModels: playgroundModels(
-          input: { providerKey: null, modelType: DECISION }
-        ) {
-          name
-          providerKey
         }
       }
     `,
@@ -210,39 +202,6 @@ export function Playground(
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
-  // Decision mode is entered from the URL and resolved against the server's
-  // decision catalog, so new decision providers and models need no frontend
-  // change. URL params win when they name a cataloged provider; otherwise the
-  // first catalog entry is used. With no cataloged decision model (for example
-  // when PHOENIX_ALLOWED_PROVIDERS excludes them all) the page stays in LLM
-  // mode rather than opening a decision instance it cannot run.
-  const requestedDecisionProvider = searchParams.get("decisionProvider");
-  const requestedDecisionModel = searchParams.get("decisionModel");
-  const decisionDefault =
-    decisionModels.find(
-      (model) =>
-        model.providerKey === requestedDecisionProvider &&
-        (requestedDecisionModel == null ||
-          model.name === requestedDecisionModel)
-    ) ??
-    decisionModels.find(
-      (model) => model.providerKey === requestedDecisionProvider
-    ) ??
-    decisionModels[0] ??
-    null;
-  const decisionProvider =
-    decisionDefault && isModelProvider(decisionDefault.providerKey)
-      ? decisionDefault.providerKey
-      : null;
-  const isDecisionMode =
-    searchParams.get("modelType") === "DECISION" &&
-    !datasetId &&
-    decisionProvider != null;
-  const decisionModelName =
-    requestedDecisionProvider === decisionProvider && requestedDecisionModel
-      ? requestedDecisionModel
-      : decisionDefault?.name;
-
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
   }
@@ -252,13 +211,8 @@ export function Playground(
       datasetId={datasetId}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
-      defaultModelType={isDecisionMode ? "DECISION" : "LLM"}
-      defaultModelProvider={
-        isDecisionMode && decisionProvider
-          ? decisionProvider
-          : defaultModelProvider
-      }
-      defaultModelName={isDecisionMode ? decisionModelName : defaultModelName}
+      defaultModelProvider={defaultModelProvider}
+      defaultModelName={defaultModelName}
     >
       <div css={playgroundWrapCSS}>
         <View borderBottomColor="default" borderBottomWidth="thin">
@@ -290,14 +244,14 @@ function AddPromptButton() {
   return (
     <Button
       size="S"
-      aria-label="add prompt"
-      leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+      aria-label="add task"
+      leadingVisual={<Icon svg={<Icons.CopyPlus />} />}
       isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
       onPress={() => {
         addInstance();
       }}
     >
-      Compare
+      Add task
     </Button>
   );
 }
@@ -767,38 +721,6 @@ function PlaygroundContent() {
       { replace: true }
     );
   }, [instancePromptParams, setSearchParams]);
-
-  // The first instance's decision target is part of the URL so a reload
-  // recreates it (see getInitialInstances). Later instances are compared in
-  // place and are not encoded, and a chat first instance clears the params.
-  const firstInstanceDecisionTarget = usePlaygroundContext(
-    (state) => {
-      const firstInstance = state.instances[0];
-      return firstInstance?.model.modelType === "DECISION"
-        ? {
-            provider: firstInstance.model.provider,
-            modelName: firstInstance.model.modelName,
-          }
-        : null;
-    },
-    (left, right) =>
-      left?.provider === right?.provider &&
-      left?.modelName === right?.modelName &&
-      (left == null) === (right == null)
-  );
-  useEffect(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        setDecisionSearchParams({
-          searchParams: next,
-          target: firstInstanceDecisionTarget,
-        });
-        return next;
-      },
-      { replace: true }
-    );
-  }, [firstInstanceDecisionTarget, setSearchParams]);
 
   // Soft block at the router level:
   // - Ephemeral experiment running: will stop on disconnect, user must stay or accept

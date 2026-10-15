@@ -36,6 +36,7 @@ Phoenix has a curated icon set in `js/app/src/components/core/icon/Icons.tsx`. U
 | Note | `Icons.MessageCircle` | Notes left on a span or session (annotations named `note`). Use `Icons.MessageCirclePlus` for the affordance that adds one. |
 | User preferences | `Icons.Options` | User-selectable theme, timezone, and code presentation preferences. |
 | Custom AI provider | `Icons.Sparkle` | Used for custom provider configuration and its empty state. |
+| Duplicate a playground task | `Icons.CopyPlus` | Lucide copy-plus glyph for the playground's **Add task** button and each task's duplicate button, both of which copy an existing task into a new one. Distinct from `Icons.Duplicate`, which is the copy-to-clipboard glyph. |
 | PXI ask tool | `Icons.MessagesSquare` | Tool calls that pause for an answer from the user. |
 | PXI command tool | `Icons.Console` | Shell or command execution. |
 | PXI configuration tool | `Icons.Options` | Tools that configure an existing playground or evaluator workflow. |

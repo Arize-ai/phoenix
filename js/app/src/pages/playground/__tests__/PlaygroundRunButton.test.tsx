@@ -9,6 +9,7 @@ import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import { DECISION_DATASET_BLOCKED_REASON } from "../constants";
+import { createDecisionDraft } from "../decisionUtils";
 import { PlaygroundRunButton } from "../PlaygroundRunButton";
 
 vi.mock("../useCancelPlaygroundRun", () => ({
@@ -33,10 +34,22 @@ describe("PlaygroundRunButton with decision instances", () => {
   function mount(datasetId: string | null) {
     const store = createPlaygroundStore({
       modelConfigByProvider: {},
-      defaultModelType: "DECISION",
-      defaultModelProvider: "TYPESAFE",
-      defaultModelName: "jev-latest",
       datasetId,
+    });
+    const chatInstance = store.getState().instances[0];
+    store.getState().updateInstance({
+      dirty: false,
+      instanceId: chatInstance.id,
+      patch: {
+        llmModel: chatInstance.model,
+        decisionRequest: createDecisionDraft(),
+        model: {
+          ...chatInstance.model,
+          modelType: "DECISION",
+          provider: "TYPESAFE",
+          modelName: "jev-latest",
+        },
+      },
     });
     const runPlaygroundInstances = vi.fn();
     store.setState({ runPlaygroundInstances });

@@ -22,8 +22,6 @@ import { ModelParametersConfigButton } from "@phoenix/components/playground/mode
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
-import { DecisionExportDialog } from "@phoenix/pages/playground/DecisionExportDialog";
-import { DecisionImportDialog } from "@phoenix/pages/playground/DecisionImportDialog";
 import { DecisionRequestEditor } from "@phoenix/pages/playground/DecisionRequestEditor";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
@@ -142,14 +140,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <AlphabeticIndexIcon index={index} />
             </View>
           ) : null}
-          {isDecision ? (
-            // A decision request has no prompt hub entry yet; paste-in and
-            // copy-out take the place of the prompt menu and save.
-            <>
-              <DecisionImportDialog playgroundInstanceId={instanceId} />
-              <DecisionExportDialog playgroundInstanceId={instanceId} />
-            </>
-          ) : (
+          {/* A decision request has no prompt hub entry yet, so nothing
+              stands in for the prompt menu and save. */}
+          {isDecision ? null : (
             <>
               {!disablePromptMenu ? (
                 <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
@@ -205,8 +198,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 }
 
 /**
- * Compare against a copy of this instance. The page's Compare button copies
- * the first instance; this one copies the instance it sits on.
+ * Add a task that starts as a copy of this one. The page's Add task button
+ * copies the first task; this one copies the task it sits on.
  */
 function DuplicateButton(props: PlaygroundInstanceProps) {
   const duplicateInstance = usePlaygroundContext(
@@ -220,8 +213,8 @@ function DuplicateButton(props: PlaygroundInstanceProps) {
     <TooltipTrigger>
       <Button
         size="S"
-        aria-label="Compare against a copy of this instance"
-        leadingVisual={<Icon svg={<Icons.Duplicate />} />}
+        aria-label="Duplicate this task"
+        leadingVisual={<Icon svg={<Icons.CopyPlus />} />}
         isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
         onPress={() => {
           duplicateInstance(props.playgroundInstanceId);
@@ -229,7 +222,7 @@ function DuplicateButton(props: PlaygroundInstanceProps) {
       />
       <Tooltip>
         <TooltipArrow />
-        Compare against a copy of this instance
+        Duplicate this task
       </Tooltip>
     </TooltipTrigger>
   );

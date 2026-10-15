@@ -582,6 +582,23 @@ export const Console = () => (
   </svg>
 );
 
+// @src: lucide copy-plus
+export const CopyPlus = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    style={{ fill: "none", stroke: "currentColor" }}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="15" x2="15" y1="12" y2="18" />
+    <line x1="12" x2="18" y1="15" y2="15" />
+    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+  </svg>
+);
+
 export const ChevronLeftSmall = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">

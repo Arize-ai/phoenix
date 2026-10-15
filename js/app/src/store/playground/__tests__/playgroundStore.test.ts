@@ -3,6 +3,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
 import {
@@ -24,13 +25,25 @@ const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
 
 describe("decision instances in the store", () => {
   it("updates the model name and base URL of a decision-only provider", () => {
-    const store = createPlaygroundStore({
-      modelConfigByProvider: {},
-      defaultModelType: "DECISION",
-      defaultModelProvider: "TYPESAFE",
-      defaultModelName: "jev-latest",
+    const store = createPlaygroundStore({ modelConfigByProvider: {} });
+    const chatInstance = store.getState().instances[0];
+    const instanceId = chatInstance.id;
+    // The model menu turns a chat instance into a decision instance with
+    // this patch; the page no longer opens in decision mode from the URL.
+    store.getState().updateInstance({
+      dirty: false,
+      instanceId,
+      patch: {
+        llmModel: chatInstance.model,
+        decisionRequest: createDecisionDraft(),
+        model: {
+          ...chatInstance.model,
+          modelType: "DECISION",
+          provider: "TYPESAFE",
+          modelName: "jev-latest",
+        },
+      },
     });
-    const instanceId = store.getState().instances[0].id;
     store.getState().updateModel({
       instanceId,
       patch: {
@@ -48,30 +61,6 @@ describe("decision instances in the store", () => {
 });
 
 describe("getInitialInstances", () => {
-  // The page resolves provider and model from the server's decision catalog;
-  // the store carries them through without knowing any provider by name.
-  it.each([
-    ["OPENAI", "gpt-6-luna"],
-    ["TYPESAFE", "jev-latest"],
-    ["ANTHROPIC", "some-future-decision-model"],
-  ] as const)(
-    "initializes a %s decision without interpreting it as chat",
-    (provider, modelName) => {
-      const { instances, instanceMessages } = getInitialInstances({
-        defaultModelType: "DECISION",
-        defaultModelProvider: provider,
-        defaultModelName: modelName,
-        modelConfigByProvider: {},
-      });
-      expect(instances[0].model.modelType).toBe("DECISION");
-      expect(instances[0].model.provider).toBe(provider);
-      expect(instances[0].model.modelName).toBe(modelName);
-      // Each instance owns its request, like a prompt.
-      expect(instances[0].decisionRequest?.questions[0].type).toBe("choice");
-      expect(instances[0].llmModel?.provider).toBe("OPENAI");
-      expect(Object.keys(instanceMessages).length).toBeGreaterThan(0);
-    }
-  );
   beforeEach(() => {
     _resetInstanceId();
   });
