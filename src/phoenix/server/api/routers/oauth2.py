@@ -168,10 +168,13 @@ def _create_redirect_response(request: Request, return_url: Optional[str]) -> Re
             "<head>"
             '<meta charset="utf-8">'
             "<title>Redirecting...</title>"
+            # Matches the default theme background in templates/index.html so the
+            # interstitial doesn't flash white before the next page paints.
+            "<style>html{background:#0e0e0e;color-scheme:dark}</style>"
             f"<script>window.location.replace({js_url});</script>"
             "</head>"
             "<body>"
-            f'<p>Redirecting to <a href="{escaped_url}">continue</a>...</p>'
+            f'<noscript><a href="{escaped_url}">Continue</a></noscript>'
             "</body>"
             "</html>"
         )
