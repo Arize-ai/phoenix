@@ -28,7 +28,8 @@ from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
-from .llm import LLM, DecisionModel, PromptLike
+from .decision import DecisionModel
+from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
 from .tracing import trace

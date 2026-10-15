@@ -5,8 +5,9 @@ from pydantic import BaseModel, Field
 from ..__generated__.classification_evaluator_configs import (
     RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG,
 )
+from ..decision import DecisionModel
 from ..evaluators import ClassificationEvaluator
-from ..llm import LLM, DecisionModel
+from ..llm import LLM
 from ..llm.prompts import PromptTemplate
 
 

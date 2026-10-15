@@ -3,6 +3,7 @@ from importlib.metadata import version
 from typing import Any
 
 from . import llm, metrics, tracing, utils
+from .decision import DecisionModel
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
@@ -17,7 +18,7 @@ from .evaluators import (
     create_evaluator,
     evaluate_dataframe,
 )
-from .llm import LLM, DecisionModel, phoenix_prompt_to_prompt_template
+from .llm import LLM, phoenix_prompt_to_prompt_template
 from .utils import download_benchmark_dataset
 
 __version__ = version("arize-phoenix-evals")

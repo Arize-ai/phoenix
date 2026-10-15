@@ -3,8 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.evals import ClassificationEvaluator
-from phoenix.evals.llm import DecisionModel
+from phoenix.evals import ClassificationEvaluator, DecisionModel
 
 
 def _response(choice, probabilities, model="mock-evaluation-model"):
@@ -27,7 +26,7 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     client.system_one.return_value = _response("incorrect", {"correct": 0.03, "incorrect": 0.97})
     _patch_clients(monkeypatch, sync_client=client)
 
-    decision = DecisionModel(model="jev-latest")
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
     result = decision.generate_classification("Is 2 + 2 = 5 correct?", ["correct", "incorrect"])
 
     assert result == {
@@ -53,7 +52,7 @@ async def test_async_routes_a_text_prompt_through_a_single_choice_question(monke
     async_client.system_one = AsyncMock(return_value=_response("correct", {"correct": 0.9}))
     _patch_clients(monkeypatch, async_client=async_client)
 
-    decision = DecisionModel(model="jev-latest")
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
     result = await decision.async_generate_classification(
         "Is the sky blue?", ["correct", "incorrect"]
     )
@@ -70,7 +69,7 @@ def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monke
 
     evaluator = ClassificationEvaluator(
         name="isValid",
-        llm=DecisionModel(model="jev-latest"),
+        llm=DecisionModel(provider="typesafe", model="jev-latest"),
         prompt_template="is the following question valid: {question}",
         choices={"valid": 1, "invalid": 0},
     )
@@ -95,5 +94,7 @@ def test_missing_sdk_raises_a_helpful_error(monkeypatch):
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", _fail)
-    with pytest.raises(ImportError, match="typesafe-sdk"):
-        DecisionModel(model="jev-latest")
+    # The client factory raises ImportError when typesafe-sdk is missing; the facade wraps
+    # client-construction failures in a ValueError whose message still names the package.
+    with pytest.raises(ValueError, match="typesafe-sdk"):
+        DecisionModel(provider="typesafe", model="jev-latest")

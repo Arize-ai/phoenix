@@ -1,4 +1,3 @@
-from .decision import DecisionModel
 from .prompts import (
     Message,
     MessageRole,
@@ -13,7 +12,6 @@ from .wrapper import LLM, show_provider_availability
 
 __all__ = [
     "LLM",
-    "DecisionModel",
     "Message",
     "MessageRole",
     "MessageTemplate",
