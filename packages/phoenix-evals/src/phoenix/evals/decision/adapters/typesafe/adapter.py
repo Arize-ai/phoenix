@@ -31,9 +31,9 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> Dict[str, Any]:
         from typesafe_sdk import Choice
 
-        # When labels is a dict it maps each label to its description (the evaluator produces
-        # this from `{label: (score, description)}` choices); pass those descriptions straight
-        # to Jev as the choice criteria. A list carries no descriptions, so each is None.
+        # When labels is a dict it maps each label to its description; pass those
+        # descriptions straight to Jev as the choice criteria. A list carries no
+        # descriptions, so each is None.
         criteria: Dict[str, Optional[str]] = (
             dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
         )
@@ -58,7 +58,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         questions = self._build_questions(labels)
         response = self.client.system_one(
-            state=cast(Any, prompt), questions=questions, model=self.model
+            state=cast(Any, prompt), questions=questions, model=self.model, **kwargs
         )
         return self._to_result(response)
 
@@ -70,6 +70,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         questions = self._build_questions(labels)
         response = await self.client.system_one(
-            state=cast(Any, prompt), questions=questions, model=self.model
+            state=cast(Any, prompt), questions=questions, model=self.model, **kwargs
         )
         return self._to_result(response)

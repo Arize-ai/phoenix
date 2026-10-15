@@ -112,6 +112,28 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     }
 
 
+def test_invocation_kwargs_reach_system_one_but_evaluator_params_do_not(monkeypatch):
+    client = MagicMock()
+    client.system_one.return_value = _response("correct", {"correct": 0.9, "incorrect": 0.1})
+    _patch_clients(monkeypatch, sync_client=client)
+
+    evaluator = ClassificationEvaluator(
+        name="correctness",
+        llm=DecisionModel(provider="typesafe", model="jev-latest"),
+        prompt_template="is this correct: {text}",
+        choices=["correct", "incorrect"],
+        timeout=30,  # an extra invocation parameter the user passes through the evaluator
+    )
+    evaluator.evaluate({"text": "2 + 2 = 4"})
+
+    _, kwargs = client.system_one.call_args
+    # Real SDK options are forwarded...
+    assert kwargs["timeout"] == 30
+    # ...but the evaluator-only params the SDK doesn't accept are dropped at the facade.
+    assert "include_explanation" not in kwargs
+    assert "method" not in kwargs
+
+
 def test_missing_sdk_raises_a_helpful_error(monkeypatch):
     import builtins
 

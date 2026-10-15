@@ -136,6 +136,8 @@ class DecisionModel:
         self,
         prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
+        include_explanation: bool = True,
+        method: Any = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Classify a prompt by selecting exactly one of the labels.
@@ -144,7 +146,12 @@ class DecisionModel:
             prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
             labels (Union[List[str], Dict[str, str]]): Either a list of label strings, or a dict
                 mapping each label to a description.
-            **kwargs: Additional keyword arguments to pass to the decision SDK.
+            include_explanation (bool): Sent by ``ClassificationEvaluator`` but not used by
+                decision models, which are decision-only and return no explanation.
+            method (Any): Sent by ``ClassificationEvaluator`` (the object-generation method) but
+                not used by decision models.
+            **kwargs: Additional keyword arguments forwarded to the decision SDK call (e.g.
+                ``timeout``, ``retry``, ``extra_headers``, ``extra_body``).
 
         Returns:
             Dict[str, Any]: A dict with a ``label`` key and an optional ``metadata`` key.
@@ -159,6 +166,8 @@ class DecisionModel:
         self,
         prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
+        include_explanation: bool = True,
+        method: Any = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Asynchronously classify a prompt by selecting exactly one of the labels.
@@ -167,7 +176,12 @@ class DecisionModel:
             prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
             labels (Union[List[str], Dict[str, str]]): Either a list of label strings, or a dict
                 mapping each label to a description.
-            **kwargs: Additional keyword arguments to pass to the decision SDK.
+            include_explanation (bool): Sent by ``ClassificationEvaluator`` but not used by
+                decision models, which are decision-only and return no explanation.
+            method (Any): Sent by ``ClassificationEvaluator`` (the object-generation method) but
+                not used by decision models.
+            **kwargs: Additional keyword arguments forwarded to the decision SDK call (e.g.
+                ``timeout``, ``retry``, ``extra_headers``, ``extra_body``).
 
         Returns:
             Dict[str, Any]: A dict with a ``label`` key and an optional ``metadata`` key.
