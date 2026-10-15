@@ -83,6 +83,7 @@ from phoenix.config import (
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
+    server_log_export_is_enabled,
     verify_server_environment_variables,
 )
 from phoenix.db import models
@@ -161,7 +162,10 @@ from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
-from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
+from phoenix.server.telemetry import (
+    initialize_opentelemetry_logger_provider,
+    initialize_opentelemetry_tracer_provider,
+)
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -1063,6 +1067,8 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
+    if server_log_export_is_enabled():
+        shutdown_callbacks_list.append(initialize_opentelemetry_logger_provider().shutdown)
     encryption_service = EncryptionService(secret=secret)
     redactor = Redactor(secret=secret or SecretStr(""))
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
