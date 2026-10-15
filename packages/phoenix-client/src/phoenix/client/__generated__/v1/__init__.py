@@ -113,6 +113,15 @@ class ChatRequestCredential(TypedDict):
     value: str
 
 
+class ClientError(TypedDict):
+    message: str
+    stack: NotRequired[str]
+    component_stack: NotRequired[str]
+    url: NotRequired[str]
+    user_agent: NotRequired[str]
+    platform_version: NotRequired[str]
+
+
 class CodeEvaluatorUIContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
