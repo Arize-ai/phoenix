@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -1928,19 +1927,9 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                     )
                 )
             elif role == ChatCompletionMessageRole.TOOL:
-                tool_result_content: ToolResultContentBlockTypeDef
-                try:
-                    parsed_json = json.loads(content)
-                    if isinstance(parsed_json, Mapping):
-                        tool_result_content = ToolResultContentBlockTypeDef(json=parsed_json)
-                    else:
-                        tool_result_content = ToolResultContentBlockTypeDef(text=content)
-                except Exception:
-                    tool_result_content = ToolResultContentBlockTypeDef(text=content)
-
                 tool_result = ToolResultBlockTypeDef(
                     toolUseId=tool_call_id or "",
-                    content=[tool_result_content],
+                    content=[ToolResultContentBlockTypeDef(text=content)],
                 )
                 converse_messages.append(
                     MessageTypeDef(
