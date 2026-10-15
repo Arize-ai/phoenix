@@ -40,8 +40,7 @@ def _setup_library_logging() -> None:
 
 def _setup_application_logging() -> None:
     """
-    Configures logging if Phoenix is used as an application: every logger propagates to the
-    root logger, which emits JSON to stdout and stderr through a background queue.
+    Configures logging if Phoenix is used as an application
     """
     logging.getLogger("phoenix").setLevel(Settings.logging_level)
     logging.getLogger("sqlalchemy").setLevel(Settings.db_logging_level)
