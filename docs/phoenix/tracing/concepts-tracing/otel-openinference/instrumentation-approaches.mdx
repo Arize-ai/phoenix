@@ -131,7 +131,7 @@ with tracer.start_as_current_span("answer-question") as span:
     span.set_attribute("input.value", question)
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5-mini",
         messages=[{"role": "user", "content": question}],
     )
 

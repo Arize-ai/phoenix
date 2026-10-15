@@ -180,7 +180,7 @@ Set `session.id` before the traced work runs. Add `user.id` when you want Phoeni
     def assistant(messages: list[dict], session_id: str):
         with using_session(session_id=session_id):
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     *messages,
@@ -240,7 +240,7 @@ Set `session.id` before the traced work runs. Add `user.id` when you want Phoeni
         setSession(context.active(), { sessionId: params.sessionId }),
         async () => {
           const chatCompletion = await client.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-5-mini",
             messages: params.messages,
           });
           return chatCompletion.choices[0].message;

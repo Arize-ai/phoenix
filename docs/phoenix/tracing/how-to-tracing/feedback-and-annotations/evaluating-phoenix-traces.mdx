@@ -68,7 +68,7 @@ client = OpenAI()
 # Function to generate a joke
 def generate_joke():
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-5-mini",
         messages=[
             {"role": "system", "content": "You are a helpful assistant that generates jokes."},
             {"role": "user", "content": "Tell me a joke."},
@@ -178,7 +178,7 @@ Joke: {joke}
 
 nerdy_evaluator = ClassificationEvaluator(
     name="nerdiness",
-    llm=LLM(provider="openai", model="gpt-4o-mini"),
+    llm=LLM(provider="openai", model="gpt-5-mini"),
     prompt_template=prompt_template,
     choices=["nerdy", "not nerdy"], # you could map these labels to scores, but we refrain from judgement here
 )

@@ -48,8 +48,8 @@ Access span **attributes** by name. Any identifier that isn't a built-in field i
 attribute path, and `metadata[...]` is shorthand for the `metadata` attribute:
 
 ```python
-llm.model_name == 'gpt-4o'
-attributes[['llm', 'model_name']] == 'gpt-4o'
+llm.model_name == 'gpt-5-mini'
+attributes[['llm', 'model_name']] == 'gpt-5-mini'
 metadata['topic'] == 'programming'
 'programming' in metadata['topic']
 ```
@@ -112,7 +112,7 @@ Read `input`, `output`, attributes, `user.id`, and `metadata[...]` from the trac
 ```python
 'refund' in input
 output is not None
-attributes[['llm', 'model_name']] == 'gpt-4o'
+attributes[['llm', 'model_name']] == 'gpt-5-mini'
 user.id == 'u1'
 metadata['topic'] == 'support'
 ```
@@ -182,7 +182,7 @@ outputs, and support only `in` / `not in`:
 ```python
 session_annotations['Quality'].score <= 0.5
 session_annotations['Quality'].score is None
-attributes['llm.model_name'] == 'gpt-4o'
+attributes[['llm', 'model_name']] == 'gpt-5-mini'
 user.id == 'u1'
 'refund' in any_input
 'refund' in first_input

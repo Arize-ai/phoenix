@@ -48,12 +48,12 @@ trace.set_tracer_provider(tracer_provider)
 
 tracer = trace.get_tracer(__name__)
 
-with tracer.start_as_current_span("chat gpt-4o-mini") as span:
+with tracer.start_as_current_span("chat gpt-5-mini") as span:
     span.set_attributes(
         {
             "gen_ai.operation.name": "chat",
             "gen_ai.provider.name": "openai",
-            "gen_ai.request.model": "gpt-4o-mini",
+            "gen_ai.request.model": "gpt-5-mini",
             "gen_ai.input.messages": json.dumps(
                 [
                     {
