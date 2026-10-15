@@ -82,6 +82,8 @@ def _download(url: str) -> bytes:
         with urllib.request.urlopen(url, timeout=_TIMEOUT_SECONDS) as response:  # noqa: S310
             body: bytes = response.read(_MAX_MANIFEST_BYTES + 1)
     except urllib.error.HTTPError as error:
+        # urlopen raises it before the with block, holding the error response open. Python
+        # 3.14 emits a ResourceWarning when it is garbage-collected unclosed.
         error.close()
         raise
     if len(body) > _MAX_MANIFEST_BYTES:
