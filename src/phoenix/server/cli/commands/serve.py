@@ -17,8 +17,10 @@ if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
 from uvicorn import Config, Server
+from uvicorn.config import LOGGING_CONFIG
 
 from phoenix.config import (
+    LoggingMode,
     TLSConfigVerifyClient,
     get_env_access_token_expiry,
     get_env_allow_external_resources,
@@ -409,6 +411,7 @@ def run(args: Namespace) -> None:
         port=port,
         root_path=host_root_path,
         log_level=Settings.logging_level,
+        log_config=None if Settings.logging_mode is LoggingMode.STRUCTURED else LOGGING_CONFIG,
     )
 
     if tls_enabled_for_http:
