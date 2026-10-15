@@ -38,6 +38,7 @@ import {
   createDecisionQuestion,
   createScoreLevel,
   DECISION_QUESTION_TYPES,
+  decisionFieldId,
   type DecisionQuestionErrors,
   MAX_CHOICE_OPTIONS,
   MAX_SCORE_LEVELS,
@@ -97,8 +98,8 @@ type Props = {
   isDisabled: boolean;
   canRemove: boolean;
   templateFormat: TemplateFormat;
-  /** Bumped when the request is replaced from outside (import). */
-  revision: number;
+  /** Called with an id from {@link decisionFieldId} when the user leaves a field. */
+  onTouch: (fieldId: string) => void;
   onChange: (patch: Partial<DecisionQuestionDraft>) => void;
   onRemove: () => void;
 };
@@ -120,7 +121,7 @@ export function DecisionQuestionEditor({
   isDisabled,
   canRemove,
   templateFormat,
-  revision,
+  onTouch,
   onChange,
   onRemove,
 }: Props) {
@@ -197,6 +198,7 @@ export function DecisionQuestionEditor({
             aria-label="Question name"
             value={question.name}
             onChange={(name) => onChange({ name })}
+            onBlur={() => onTouch(decisionFieldId.name(question.id))}
             isDisabled={isDisabled}
             isInvalid={!!errors?.name}
           >
@@ -232,13 +234,14 @@ export function DecisionQuestionEditor({
       ) : null}
       <TemplateEditorWrap readOnly={isDisabled}>
         <TemplateEditor
-          // Uncontrolled: remount on format change or import.
-          key={`${question.id}-${templateFormat}-${revision}`}
+          // Uncontrolled: remount on template format change.
+          key={`${question.id}-${templateFormat}`}
           aria-label={`Instructions for ${label}`}
           templateFormat={templateFormat}
           defaultValue={question.instructions}
           placeholder="What should the model decide about the state?"
           onChange={(instructions) => onChange({ instructions })}
+          onBlur={() => onTouch(decisionFieldId.instructions(question.id))}
           readOnly={isDisabled}
         />
       </TemplateEditorWrap>
@@ -249,6 +252,7 @@ export function DecisionQuestionEditor({
               question={question}
               errors={errors}
               isDisabled={isDisabled}
+              onTouch={onTouch}
               onChange={onChange}
             />
           ) : question.type === "score" ? (
@@ -256,6 +260,7 @@ export function DecisionQuestionEditor({
               question={question}
               errors={errors}
               isDisabled={isDisabled}
+              onTouch={onTouch}
               onChange={onChange}
             />
           ) : (
@@ -273,7 +278,7 @@ export function DecisionQuestionEditor({
 
 type CriteriaProps = Pick<
   Props,
-  "question" | "errors" | "isDisabled" | "onChange"
+  "question" | "errors" | "isDisabled" | "onTouch" | "onChange"
 >;
 
 function CriteriaHeading({
@@ -302,6 +307,7 @@ function ChoiceCriteriaEditor({
   question,
   errors,
   isDisabled,
+  onTouch,
   onChange,
 }: CriteriaProps) {
   const updateOption = (
@@ -351,6 +357,7 @@ function ChoiceCriteriaEditor({
                 aria-label={`Option ${optionIndex + 1} value`}
                 value={option.value}
                 onChange={(value) => updateOption(option.id, { value })}
+                onBlur={() => onTouch(decisionFieldId.option(option.id))}
                 isDisabled={isDisabled}
                 isInvalid={!!optionError}
               >
@@ -394,6 +401,7 @@ function ScoreCriteriaEditor({
   question,
   errors,
   isDisabled,
+  onTouch,
   onChange,
 }: CriteriaProps) {
   const moveLevel = (fromIndex: number, toIndex: number) => {
@@ -428,65 +436,70 @@ function ScoreCriteriaEditor({
       />
       {errors?.levels ? <Alert variant="danger">{errors.levels}</Alert> : null}
       <ol css={listCSS} aria-label="Score levels">
-        {question.levels.map((level, levelIndex) => (
-          <li key={level.id} css={levelRowCSS}>
-            <Text size="S" color="text-700" fontFamily="mono">
-              {levelIndex}
-            </Text>
-            <TextField
-              size="S"
-              aria-label={`Level ${levelIndex} description`}
-              value={level.description}
-              onChange={(description) =>
-                onChange({
-                  levels: question.levels.map((candidate) =>
-                    candidate.id === level.id
-                      ? { ...candidate, description }
-                      : candidate
-                  ),
-                })
-              }
-              isDisabled={isDisabled}
-              isInvalid={!!errors?.levels && !level.description.trim()}
-            >
-              <Input
-                placeholder={levelIndex === 0 ? "e.g. Low" : "e.g. High"}
-              />
-            </TextField>
-            <Flex direction="row" gap="size-50">
-              <Button
+        {question.levels.map((level, levelIndex) => {
+          const levelError = errors?.levelDescriptions?.[level.id];
+          return (
+            <li key={level.id} css={levelRowCSS}>
+              <Text size="S" color="text-700" fontFamily="mono">
+                {levelIndex}
+              </Text>
+              <TextField
                 size="S"
-                aria-label={`Move level ${levelIndex} up`}
-                leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
-                isDisabled={isDisabled || levelIndex === 0}
-                onPress={() => moveLevel(levelIndex, levelIndex - 1)}
-              />
-              <Button
-                size="S"
-                aria-label={`Move level ${levelIndex} down`}
-                leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
-                isDisabled={
-                  isDisabled || levelIndex === question.levels.length - 1
-                }
-                onPress={() => moveLevel(levelIndex, levelIndex + 1)}
-              />
-              <Button
-                size="S"
-                aria-label={`Remove level ${levelIndex}`}
-                leadingVisual={<Icon svg={<Icons.Trash />} />}
-                isDisabled={isDisabled || !canRemoveLevel}
-                onPress={() => {
+                aria-label={`Level ${levelIndex} description`}
+                value={level.description}
+                onChange={(description) =>
                   onChange({
-                    levels: question.levels.filter(
-                      (candidate) => candidate.id !== level.id
+                    levels: question.levels.map((candidate) =>
+                      candidate.id === level.id
+                        ? { ...candidate, description }
+                        : candidate
                     ),
-                  });
-                  addLevelButtonRef.current?.focus();
-                }}
-              />
-            </Flex>
-          </li>
-        ))}
+                  })
+                }
+                onBlur={() => onTouch(decisionFieldId.level(level.id))}
+                isDisabled={isDisabled}
+                isInvalid={!!levelError}
+              >
+                <Input
+                  placeholder={levelIndex === 0 ? "e.g. Low" : "e.g. High"}
+                />
+                {levelError ? <FieldError>{levelError}</FieldError> : null}
+              </TextField>
+              <Flex direction="row" gap="size-50">
+                <Button
+                  size="S"
+                  aria-label={`Move level ${levelIndex} up`}
+                  leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
+                  isDisabled={isDisabled || levelIndex === 0}
+                  onPress={() => moveLevel(levelIndex, levelIndex - 1)}
+                />
+                <Button
+                  size="S"
+                  aria-label={`Move level ${levelIndex} down`}
+                  leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
+                  isDisabled={
+                    isDisabled || levelIndex === question.levels.length - 1
+                  }
+                  onPress={() => moveLevel(levelIndex, levelIndex + 1)}
+                />
+                <Button
+                  size="S"
+                  aria-label={`Remove level ${levelIndex}`}
+                  leadingVisual={<Icon svg={<Icons.Trash />} />}
+                  isDisabled={isDisabled || !canRemoveLevel}
+                  onPress={() => {
+                    onChange({
+                      levels: question.levels.filter(
+                        (candidate) => candidate.id !== level.id
+                      ),
+                    });
+                    addLevelButtonRef.current?.focus();
+                  }}
+                />
+              </Flex>
+            </li>
+          );
+        })}
       </ol>
     </Flex>
   );
@@ -496,7 +509,7 @@ function NoulCriteriaEditor({
   question,
   isDisabled,
   onChange,
-}: Omit<CriteriaProps, "errors">) {
+}: Omit<CriteriaProps, "errors" | "onTouch">) {
   return (
     <Flex direction="column" gap="size-100">
       <CriteriaHeading title="Criteria (optional)" action={null} />
