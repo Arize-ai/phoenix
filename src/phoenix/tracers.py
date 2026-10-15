@@ -45,7 +45,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
-from phoenix.server.telemetry import normalize_http_collector_endpoint
+from phoenix.server.telemetry import normalize_http_trace_collector_endpoint
 from phoenix.trace.attributes import (
     AttributeValue,
     get_attribute_value,
@@ -108,7 +108,7 @@ def _build_remote_http_span_exporter(endpoint: str) -> SpanExporter:
         headers["Authorization"] = f"Bearer {api_key}"
 
     return OTLPSpanExporter(
-        endpoint=normalize_http_collector_endpoint(endpoint) + "/v1/traces",
+        endpoint=normalize_http_trace_collector_endpoint(endpoint),
         headers=headers,
     )
 

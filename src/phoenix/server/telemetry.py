@@ -1,6 +1,12 @@
 import logging
 import os
-from typing import TYPE_CHECKING
+
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.semconv.resource import ResourceAttributes
 
 from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
@@ -9,11 +15,6 @@ from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
 )
 
-if TYPE_CHECKING:
-    from opentelemetry.sdk._logs import LoggerProvider
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.trace import TracerProvider
-
 logger = logging.getLogger(__name__)
 
 _SERVICE_NAME = "arize-phoenix-server"
@@ -21,7 +22,17 @@ _OTLP_HTTP_TRACES_PATH = "/v1/traces"
 _OTLP_HTTP_LOGS_PATH = "/v1/logs"
 
 
-def normalize_http_collector_endpoint(endpoint: str) -> str:
+def normalize_http_trace_collector_endpoint(endpoint: str) -> str:
+    return _normalize_http_collector_endpoint(endpoint, _OTLP_HTTP_TRACES_PATH)
+
+
+def normalize_http_log_collector_endpoint(endpoint: str) -> str:
+    return _normalize_http_collector_endpoint(endpoint, _OTLP_HTTP_LOGS_PATH)
+
+
+def _normalize_http_collector_endpoint(endpoint: str, signal_path: str) -> str:
+    """Return the full OTLP/HTTP URL for one signal, tolerating a missing scheme or a
+    pre-appended signal path."""
     normalized_endpoint = endpoint
     if not normalized_endpoint.startswith("http://") and not normalized_endpoint.startswith(
         "https://"
@@ -31,38 +42,32 @@ def normalize_http_collector_endpoint(endpoint: str) -> str:
             "Assuming http."
         )
         normalized_endpoint = f"http://{endpoint}"
-    for signal_path in (_OTLP_HTTP_TRACES_PATH, _OTLP_HTTP_LOGS_PATH):
-        if normalized_endpoint.endswith(signal_path):
-            logger.warning(
-                f"HTTP collector endpoint should not include the {signal_path} path. Removing it."
-            )
-            normalized_endpoint = normalized_endpoint[: -len(signal_path)]
-    return normalized_endpoint.rstrip("/")
+    if normalized_endpoint.endswith(signal_path):
+        logger.warning(
+            f"HTTP collector endpoint should not include the {signal_path} path. Removing it."
+        )
+        normalized_endpoint = normalized_endpoint[: -len(signal_path)]
+    return normalized_endpoint.rstrip("/") + signal_path
 
 
-def _server_resource() -> "Resource":
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.semconv.resource import ResourceAttributes
-
+def _server_resource() -> Resource:
     return Resource(attributes={ResourceAttributes.SERVICE_NAME: _SERVICE_NAME})
 
 
-def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
+def initialize_opentelemetry_tracer_provider() -> TracerProvider:
     logger.info("Initializing OpenTelemetry tracer provider")
-    from opentelemetry.sdk import trace as trace_sdk
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-    tracer_provider = trace_sdk.TracerProvider(resource=_server_resource())
+    tracer_provider = TracerProvider(resource=_server_resource())
     if http_endpoint := os.getenv(
         ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT
     ):
         logger.info(f"Using HTTP collector endpoint: {http_endpoint}")
-        http_endpoint = normalize_http_collector_endpoint(http_endpoint) + _OTLP_HTTP_TRACES_PATH
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter as HttpExporter,
         )
 
-        tracer_provider.add_span_processor(BatchSpanProcessor(HttpExporter(http_endpoint)))
+        tracer_provider.add_span_processor(
+            BatchSpanProcessor(HttpExporter(normalize_http_trace_collector_endpoint(http_endpoint)))
+        )
     if grpc_endpoint := os.getenv(
         ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT
     ):
@@ -76,27 +81,22 @@ def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
     return tracer_provider
 
 
-def initialize_opentelemetry_logger_provider() -> "LoggerProvider":
-    """Build a logger provider exporting over OTLP and attach it to the root logger.
-
-    The provider is returned so the caller can shut it down, which flushes pending records.
-    """
+def initialize_opentelemetry_logger_provider() -> LoggerProvider:
+    """Build a logger provider exporting over OTLP and attach it to the root logger."""
     logger.info("Initializing OpenTelemetry logger provider")
-    from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-
     logger_provider = LoggerProvider(resource=_server_resource())
     if http_endpoint := os.getenv(
         ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT
     ):
         logger.info(f"Using HTTP log collector endpoint: {http_endpoint}")
-        http_endpoint = normalize_http_collector_endpoint(http_endpoint) + _OTLP_HTTP_LOGS_PATH
         from opentelemetry.exporter.otlp.proto.http._log_exporter import (
             OTLPLogExporter as HttpExporter,
         )
 
         logger_provider.add_log_record_processor(
-            BatchLogRecordProcessor(HttpExporter(http_endpoint))
+            BatchLogRecordProcessor(
+                HttpExporter(normalize_http_log_collector_endpoint(http_endpoint))
+            )
         )
     if grpc_endpoint := os.getenv(
         ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT
