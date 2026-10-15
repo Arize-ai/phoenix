@@ -4,15 +4,10 @@ Revision ID: c3f8a1d24b70
 Revises: 4aad9107d196
 Create Date: 2026-09-03 00:00:00.000000
 
-`Span.span_cost` is a scalar relationship, so at most one `span_costs` row may
-exist per span, but `span_costs.span_rowid` carried a plain index rather than a
-unique one. Duplicates therefore multiply any join against `span_costs`, which
-inflates cost and token aggregates and can skew span counts and pagination.
-
-Any duplicates already present are collapsed before the unique index is created,
-keeping the highest `id` for each span -- the most recently written row, which
-reflects the latest cost calculation. Dependent `span_cost_details` rows are
-removed by the existing ON DELETE CASCADE.
+Makes ix_span_costs_span_rowid unique, since Span.span_cost is a scalar
+relationship. Existing duplicates are collapsed first, keeping the highest id
+for each span. Their span_cost_details rows are deleted explicitly because
+SQLite does not enforce ON DELETE CASCADE on the migration connection.
 """
 
 from typing import Sequence, Union
@@ -29,14 +24,6 @@ _INDEX_NAME = "ix_span_costs_span_rowid"
 
 
 def upgrade() -> None:
-    # Collapse duplicates before the unique index is built, otherwise creating
-    # it would fail on any database that already has them.
-    #
-    # The child rows are removed explicitly rather than leaning on the
-    # ON DELETE CASCADE: SQLite only enforces foreign keys when
-    # PRAGMA foreign_keys is ON, and it is off by default on the connection
-    # Alembic migrates with, which would otherwise leave orphaned
-    # span_cost_details behind.
     op.execute(
         """
         DELETE FROM span_cost_details
