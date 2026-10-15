@@ -9,8 +9,12 @@ Also guards that the current flagship lineup stays priced and, just as important
 stays distinguishable: several model IDs are prefixes of newer ones (``claude-opus-5``
 of ``claude-opus-5-5``), so a span must bill against its own entry rather than the
 older, pricier one it happens to be a prefix of.
+
+And guards that the models never change without ``generated_at``: servers apply the manifest
+only if it is newer than the one they have.
 """
 
+import hashlib
 import json
 import re
 from datetime import datetime, timezone
@@ -345,3 +349,13 @@ def test_bundled_manifest_is_the_one_servers_fetch() -> None:
     assert BUNDLED_MANIFEST_PATH == MANIFEST_PATH
     repo_root = MANIFEST_PATH.parents[5]
     assert DEFAULT_MANIFEST_URL.endswith("/main/" + MANIFEST_PATH.relative_to(repo_root).as_posix())
+
+
+def test_models_are_not_changed_without_bumping_generated_at(manifest: dict[str, Any]) -> None:
+    # Hashed as in models_sha256() in scripts/cost_tracking/sync_models.py.
+    canonical = json.dumps(manifest["models"], sort_keys=True, separators=(",", ":"))
+    assert manifest.get("models_sha256") == hashlib.sha256(canonical.encode()).hexdigest(), (
+        "The manifest's models changed without generated_at. Servers would skip the change, "
+        "since they apply only a newer manifest. Run "
+        "`uv run python scripts/cost_tracking/sync_models.py --bump-generated-at`."
+    )

@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-15T00:26:07Z",
+  "generated_at": "2026-10-15T01:26:43Z",
+  "models_sha256": "875ad96b880a6cef98238896d8f25a91255089fd2f6f5a63c722eda8eb815b9d",
   "models": [
     {
       "name": "chatgpt-image-latest",

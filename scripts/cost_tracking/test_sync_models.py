@@ -1,5 +1,7 @@
 """Run with ``uv run pytest scripts/cost_tracking``; it lives outside tests/ beside the script."""
 
+import hashlib
+import json
 from datetime import datetime, timezone
 
 from sync_models import (
@@ -10,6 +12,7 @@ from sync_models import (
     ModelSource,
     TokenPrice,
     extract_litellm_entries,
+    models_sha256,
     next_generated_at,
     serialize_manifest,
     update_manifest,
@@ -22,7 +25,7 @@ NOW = datetime(2026, 10, 14, 12, 30, 15, 123456, tzinfo=timezone.utc)
 
 
 def _manifest(base_rate: float, generated_at: datetime | None = PREVIOUS) -> ModelCostManifest:
-    return ModelCostManifest(
+    manifest = ModelCostManifest(
         generated_at=generated_at,
         models=[
             ModelConfig(
@@ -33,6 +36,8 @@ def _manifest(base_rate: float, generated_at: datetime | None = PREVIOUS) -> Mod
             )
         ],
     )
+    manifest.models_sha256 = models_sha256(manifest)
+    return manifest
 
 
 def _sync(manifest: ModelCostManifest, base_rate: float) -> ModelCostManifest:
@@ -66,11 +71,27 @@ def test_generated_at_is_set_when_missing() -> None:
     assert after.generated_at == NOW.replace(microsecond=0)
 
 
+def test_generated_at_is_bumped_when_models_were_edited_by_hand() -> None:
+    manifest = _manifest(1e-6)
+    manifest.models[0].token_prices[0].base_rate = 2e-6
+    after = _sync(manifest, 2e-6)
+    assert after.generated_at == NOW.replace(microsecond=0)
+
+
 def test_serialized_header_comes_before_models() -> None:
-    text = serialize_manifest(_manifest(1e-6))
+    manifest = _manifest(1e-6)
+    text = serialize_manifest(manifest)
     assert text.startswith(
-        '{\n  "schema_version": 1,\n  "generated_at": "2026-10-01T00:00:00Z",\n  "models": ['
+        '{\n  "schema_version": 1,\n  "generated_at": "2026-10-01T00:00:00Z",\n'
+        f'  "models_sha256": "{manifest.models_sha256}",\n  "models": ['
     )
+
+
+def test_models_sha256_matches_the_manifest_test() -> None:
+    # tests/unit/server/cost_tracking/test_model_cost_manifest.py hashes the file's JSON.
+    data = json.loads(serialize_manifest(_manifest(1e-6)))
+    canonical = json.dumps(data["models"], sort_keys=True, separators=(",", ":"))
+    assert data["models_sha256"] == hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def test_typesafe_evaluation_models_are_priced_by_input_only() -> None:
