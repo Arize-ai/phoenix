@@ -96,6 +96,18 @@ const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
     },
   ];
 
+// Trimmed on submit rather than on input so that spaces can be typed mid-value
+function trimModelFormParams(params: ModelFormParams): ModelFormParams {
+  const trimTokenTypes = (costs: TokenPrice[]) =>
+    costs.map((cost) => ({ ...cost, tokenType: cost.tokenType.trim() }));
+  return {
+    ...params,
+    provider: params.provider?.trim(),
+    promptCosts: trimTokenTypes(params.promptCosts),
+    completionCosts: trimTokenTypes(params.completionCosts),
+  };
+}
+
 function ModelProviderComboBox({
   value,
   onChange,
@@ -124,9 +136,7 @@ function ModelProviderComboBox({
           onChange(provider.value);
         }
       }}
-      onInputChange={(value) => {
-        onChange(value?.toLowerCase());
-      }}
+      onInputChange={onChange}
       onBlur={onBlur}
       isInvalid={invalid}
       size="M"
@@ -227,7 +237,9 @@ export function ModelForm({
   });
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
+    <Form
+      onSubmit={handleSubmit((params) => onSubmit(trimModelFormParams(params)))}
+    >
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           <Controller
