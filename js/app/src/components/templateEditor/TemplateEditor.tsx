@@ -1,4 +1,5 @@
 import { defaultKeymap } from "@codemirror/commands";
+import { EditorState } from "@codemirror/state";
 import { css } from "@emotion/react";
 import type {
   BasicSetupOptions,
@@ -29,6 +30,11 @@ type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
    * Accessible name for the editor's textbox
    */
   "aria-label"?: string;
+  /**
+   * Behave like a text input: one line, no gutter, no wrapping. An edit
+   * that would add a line (Enter, a pasted newline) is dropped.
+   */
+  singleLine?: boolean;
 };
 
 const basicSetupOptions: BasicSetupOptions = {
@@ -40,11 +46,24 @@ const basicSetupOptions: BasicSetupOptions = {
   defaultKeymap: false,
 };
 
-const baseExtensions = [
-  EditorView.lineWrapping,
-  keymap.of([
-    ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
-  ]),
+const singleLineSetupOptions: BasicSetupOptions = {
+  ...basicSetupOptions,
+  lineNumbers: false,
+};
+
+const keymapExtension = keymap.of([
+  ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
+]);
+
+const multiLineExtensions = [EditorView.lineWrapping, keymapExtension];
+
+// Any edit that would leave more than one line is dropped, so Enter and
+// pasted newlines do nothing, as in a plain text input.
+const singleLineExtensions = [
+  keymapExtension,
+  EditorState.transactionFilter.of((transaction) =>
+    transaction.newDoc.lines > 1 ? [] : transaction
+  ),
 ];
 
 /**
@@ -62,6 +81,7 @@ export const TemplateEditor = ({
   readOnly,
   availablePaths,
   "aria-label": ariaLabel = "Prompt template",
+  singleLine = false,
   ...props
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
@@ -69,7 +89,7 @@ export const TemplateEditor = ({
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [
-      ...baseExtensions,
+      ...(singleLine ? singleLineExtensions : multiLineExtensions),
       // name the textbox for assistive technology
       EditorView.contentAttributes.of({ "aria-label": ariaLabel }),
     ];
@@ -95,7 +115,7 @@ export const TemplateEditor = ({
       ext.push(createTemplateAutocomplete(availablePaths, templateFormat));
     }
     return ext;
-  }, [templateFormat, availablePaths, readOnly, ariaLabel]);
+  }, [templateFormat, availablePaths, readOnly, ariaLabel, singleLine]);
 
   useEffect(() => {
     if (readOnly) {
@@ -108,7 +128,7 @@ export const TemplateEditor = ({
     <CodeMirror
       theme={codeMirrorTheme}
       extensions={extensions}
-      basicSetup={basicSetupOptions}
+      basicSetup={singleLine ? singleLineSetupOptions : basicSetupOptions}
       readOnly={readOnly}
       {...props}
       value={value}
