@@ -56,6 +56,7 @@ from phoenix.config import (
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
     get_pids_path,
+    server_log_export_is_enabled,
 )
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import aio_sqlite_read_engine, create_engine, get_async_db_url
@@ -337,6 +338,7 @@ def run(args: Namespace) -> None:
             else None
         ),
         prometheus_enabled=bool(enable_prometheus),
+        otlp_log_export_enabled=server_log_export_is_enabled(),
         smtp_hostname=smtp_hostname,
         telemetry_enabled=get_env_telemetry_enabled(),
         skills_paths=[str(path) for path in get_env_skills_paths()],
