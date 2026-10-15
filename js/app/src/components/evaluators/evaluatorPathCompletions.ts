@@ -1,24 +1,29 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { startCompletion } from "@codemirror/autocomplete";
+import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
 import { TYPEAHEAD_COMPLETION_CLASS_PREFIX } from "@phoenix/components/filter/styles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
+import { toBracketSegment } from "@phoenix/utils/jsonUtils";
+import { unescapeQuotedPathKey } from "@phoenix/utils/objectUtils";
+
 import {
-  BARE_IDENTIFIER_PATTERN,
-  toBracketSegment,
-} from "@phoenix/utils/jsonUtils";
-import {
-  parsePathSegmentRanges,
-  unescapeQuotedPathKey,
-} from "@phoenix/utils/objectUtils";
+  findEvaluatorPathMatches,
+  isPlainEvaluatorPathKey,
+  parseEvaluatorPath,
+} from "./evaluatorJsonPath";
 
 /** A member name being typed, up to and including the empty one. */
 const PARTIAL_MEMBER_PATTERN = /^(?:[A-Za-z_][A-Za-z0-9_]*)?$/;
 
-/** A subscript the user has opened but not yet closed: `[`, `[0`, `['inp`. */
-const PARTIAL_SUBSCRIPT_PATTERN = /^\[(?:'((?:[^'\\]|\\.)*)|(\d*))?$/;
+/**
+ * A subscript the user has opened but not yet closed: `[`, `['inp`, `[-1`,
+ * `[*`, `[0,2`, `[:-1`.
+ */
+const PARTIAL_SUBSCRIPT_PATTERN =
+  /^\[(?:'((?:[^'\\]|\\.)*)|(\*|-?\d*(?:,-?\d*)*|-?\d*:-?\d*(?::-?\d*)?))?$/;
 
 /**
  * How many members the dropdown offers while the user is browsing a level with
@@ -42,8 +47,9 @@ export function capBrowsedMembers<T>({
  * Extends a path by one key, in the notation the server parses.
  *
  * Attribute keys carry dots of their own — `llm.model_name` is one key, not two
- * — so anything that is not a bare identifier is quoted into a bracket segment
- * rather than joined with a dot.
+ * — so anything that is not a plain identifier, or is a word the server's
+ * parser reserves, is quoted into a bracket segment rather than joined with a
+ * dot.
  */
 export function appendPathSegment(
   parentPath: string,
@@ -56,7 +62,7 @@ export function appendPathSegment(
   if (!parentPath) {
     return key;
   }
-  return BARE_IDENTIFIER_PATTERN.test(key)
+  return isPlainEvaluatorPathKey(key)
     ? `${parentPath}.${key}`
     : `${parentPath}${toBracketSegment(key)}`;
 }
@@ -127,11 +133,11 @@ export function getEvaluatorPathCursor(
       if (!subscript) {
         continue;
       }
-      const [, quotedKey, index] = subscript;
+      const [, quotedKey, selector] = subscript;
       containerEnd = splitAt;
       partial =
         quotedKey === undefined
-          ? (index ?? "")
+          ? (selector ?? "")
           : unescapeQuotedPathKey(quotedKey);
       from = splitAt + (quotedKey === undefined ? 1 : 2);
     } else if (PARTIAL_MEMBER_PATTERN.test(fragment)) {
@@ -147,10 +153,7 @@ export function getEvaluatorPathCursor(
     }
 
     const containerPath = textBeforeCursor.slice(0, containerEnd);
-    if (
-      containerPath !== "" &&
-      parsePathSegmentRanges(containerPath) === null
-    ) {
+    if (containerPath !== "" && !parseEvaluatorPath(containerPath).isValid) {
       continue;
     }
     return { containerPath, partial, from };
@@ -212,6 +215,14 @@ export function isEvaluatorPathContainer(value: unknown): boolean {
   return Array.isArray(value) || isStringKeyedObject(value);
 }
 
+/** A row that describes what it reaches rather than spelling the path. */
+export const IDEA_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}idea`;
+
+/** A row for a name the selected record does not supply; dimmed, not dropped. */
+export const UNSET_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}unset`;
+
+const UNRESOLVED_IDEA_INFO = "Not here";
+
 export function toMemberCompletionType(value: unknown): string {
   return isEvaluatorPathContainer(value)
     ? CONTAINER_COMPLETION_TYPE
@@ -236,20 +247,23 @@ export function toMemberPreview(value: unknown): string {
 
 /** One dropdown row: something the cursor's level can be extended with. */
 export type EvaluatorPathCompletion = {
-  /** The text matched against what the user has typed. */
+  /**
+   * What the row shows and is matched as: the path it writes, from where the
+   * typed level starts.
+   */
   key: string;
   /** The whole path the row writes into the field. */
   path: string;
-  /** The value the path reads on the sampled record. */
-  preview: string;
+  /** Beside the key: an idea's description, or the value a field reads. */
+  detail: string;
   /** Which group the row sits under. */
   section: CompletionSection;
   /** Where the row sits within its group; higher comes first. */
   boost?: number;
   /** The row's completion type, which styles it. */
   type?: string;
-  /** One line on what the row reaches, shown when highlighted. */
-  description?: string;
+  /** Shown when the row is highlighted: the value an idea reads. */
+  info?: string;
   /** Whether the row names a container the path can keep reaching into. */
   drills?: boolean;
 };
@@ -269,13 +283,45 @@ export function applyEvaluatorPathCompletion(
     to: number
   ) => {
     view.dispatch({
-      changes: { from: 0, to, insert: completion.path },
+      changes: {
+        from: 0,
+        to: getReplacedEnd({ state: view.state, to }),
+        insert: completion.path,
+      },
       selection: { anchor: completion.path.length },
     });
     if (completion.drills) {
       startCompletion(view);
     }
   };
+}
+
+/**
+ * Where the text a row replaces ends. Opening a subscript auto-closes its
+ * bracket and quote, so a row accepted inside one takes those with it.
+ */
+function getReplacedEnd({
+  state,
+  to,
+}: {
+  state: EditorState;
+  to: number;
+}): number {
+  const textBeforeCursor = state.doc.sliceString(0, to);
+  const cursor = getEvaluatorPathCursor(textBeforeCursor);
+  const fragment =
+    cursor === null ? "" : textBeforeCursor.slice(cursor.containerPath.length);
+  if (!fragment.startsWith("[")) {
+    return to;
+  }
+  let end = to;
+  if (
+    fragment.startsWith("['") &&
+    state.doc.sliceString(end, end + 1) === "'"
+  ) {
+    end += 1;
+  }
+  return state.doc.sliceString(end, end + 1) === "]" ? end + 1 : end;
 }
 
 /**
@@ -317,7 +363,7 @@ export function toWholePathValidFor({
   };
 }
 
-/** Pinned examples lead the root list; everything else follows in its group. */
+/** Ideas lead every level's list; the level's own fields follow in its group. */
 export const SUGGESTED_PATH_SECTION: CompletionSection = {
   name: "Suggestions",
   rank: 0,
@@ -340,10 +386,18 @@ export const PATH_MEMBER_SECTION_RANK = 3;
 /** Where the level below a name typed in full sits: after the name's own. */
 export const PATH_CONTINUATION_SECTION_RANK = 4;
 
-export type EvaluatorSlotSuggestedPathLike = {
+/** Something worth reaching from a level, described by what it reaches. */
+export type EvaluatorPathIdea = {
+  /** The whole path the idea writes. */
   path: string;
+  /** The path from its level on: `[-1].content` below `input.messages`. */
+  relativePath: string;
   description: string;
-};
+} & (
+  | { status: "resolved"; value: unknown; matches: unknown[] }
+  /** Worth reaching on records of this kind, but absent from this one. */
+  | { status: "unresolved" }
+);
 
 export type EvaluatorPathCompletionResult = {
   /** Document offset the typeahead matches and replaces from. */
@@ -353,50 +407,51 @@ export type EvaluatorPathCompletionResult = {
   completions: EvaluatorPathCompletion[];
 };
 
+const NO_IDEAS = () => [];
+
+type EvaluatorPathIdeaSource = (
+  containerPath: string
+) => readonly EvaluatorPathIdea[];
+
 /**
  * The rows the typeahead offers for the path being typed.
  *
  * The top level is the evaluation context itself, so `rootCandidates` names it
  * — the shared candidate tree, whose rows are already whole paths. Each `.`
- * after that opens the level below, read off the context. `suggestedPaths` are
- * whole paths worth pinning above the rest, offered only at the top and only
- * when they resolve, so a suggestion is always a path that would actually bind.
+ * after that opens the level below, read off the context. Every level leads
+ * with `getIdeas` for it. A path typed in full that holds more is offered
+ * first as itself, then by what it holds; after a closed subscript, only when
+ * the menu was asked for.
  */
 export function getEvaluatorPathCompletions({
   source,
   rootCandidates = [],
-  suggestedPaths = [],
+  getIdeas = NO_IDEAS,
   textBeforeCursor,
+  isExplicit = false,
 }: {
   /** The evaluation context a path is resolved against. */
   source: Record<string, unknown>;
   rootCandidates?: readonly EvaluatorPathCompletion[];
-  suggestedPaths?: readonly EvaluatorSlotSuggestedPathLike[];
+  /** The ideas one level below a path, empty for the top level. */
+  getIdeas?: EvaluatorPathIdeaSource;
   textBeforeCursor: string;
+  /** Whether the menu was asked for rather than opened by typing. */
+  isExplicit?: boolean;
 }): EvaluatorPathCompletionResult | null {
   const cursor = getEvaluatorPathCursor(textBeforeCursor);
   if (cursor === null) {
-    return null;
+    return isExplicit
+      ? getClosedSubscriptCompletions({
+          source,
+          rootCandidates,
+          getIdeas,
+          textBeforeCursor,
+        })
+      : null;
   }
   if (cursor.containerPath === "") {
-    const suggested: EvaluatorPathCompletion[] = [];
-    for (const { path, description } of suggestedPaths) {
-      const resolution = resolveEvaluatorPath({ source, path });
-      if (resolution.status === "resolved") {
-        suggested.push({
-          key: path,
-          path,
-          preview: toMemberPreview(resolution.value),
-          section: SUGGESTED_PATH_SECTION,
-          description,
-          drills: isEvaluatorPathContainer(resolution.value),
-        });
-      }
-    }
-    const completions = [...suggested, ...rootCandidates];
-    return completions.length === 0
-      ? null
-      : { from: cursor.from, containerPath: "", completions };
+    return getRootCompletions({ source, rootCandidates, getIdeas, cursor });
   }
 
   const reached = reachEvaluatorContainerPath({
@@ -405,58 +460,258 @@ export function getEvaluatorPathCompletions({
     rootPaths: rootCandidates.map((candidate) => candidate.path),
   });
   const containerPath = reached ?? cursor.containerPath;
-  const resolution = resolveEvaluatorPath({ source, path: containerPath });
-  const members = getEvaluatorPathMembers(
-    resolution.status === "resolved" ? resolution.value : undefined,
-    containerPath
-  );
-  if (members.length === 0) {
+  const level = getEvaluatorPathLevel({
+    source,
+    containerPath,
+    getIdeas,
+    typedSelector: cursor.partial,
+  });
+  if (level === null) {
     return null;
   }
-
-  const section = toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK);
-  const shown = capBrowsedMembers({
-    members,
-    isBrowsing: cursor.partial === "",
-  });
+  // A level reached through a home the author left out is offered as whole
+  // paths, so the typeahead matches what was written against the whole path
+  // too rather than against a member name it does not lead with.
+  const toKey = (path: string) =>
+    reached === null ? toRelativePath(path, containerPath) : path;
   const typedKey = getTypedKey({ textBeforeCursor, cursor });
-  const completions = shown.map((member) => ({
-    ...toCompletion(member, section),
-    ...(reached === null ? {} : { key: member.path }),
-    // A name typed in full is already the path; accepting it again ends the
-    // path rather than reopening what its row already shows.
-    ...(reached === null && member.key === typedKey ? { drills: false } : {}),
-  }));
-  // A name typed in full that holds more is offered by what it holds as well:
-  // `attributes` is a path in its own right, and `attributes.llm` is one the
-  // author can go on to without first typing the dot.
-  const typed = members.find(
-    (member) =>
-      member.key === typedKey && isEvaluatorPathContainer(member.value)
+  const rows = [...level.ideas, ...level.fields];
+  const typed = rows.find(
+    (row) =>
+      row.holdsMore &&
+      typedKey !== null &&
+      toRelativePath(row.path, containerPath) === typedKey
   );
-  if (typed !== undefined) {
-    const below = toMemberSection(typed.path, PATH_CONTINUATION_SECTION_RANK);
-    for (const member of capBrowsedMembers({
-      members: getEvaluatorPathMembers(typed.value, typed.path),
-      isBrowsing: true,
-    })) {
-      completions.push({
-        ...toCompletion(member, below),
-        key:
-          reached === null
-            ? appendPathSegment(typed.key, member.key, member.isIndex)
-            : member.path,
-      });
-    }
+  const section = toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK);
+  const completions =
+    typed === undefined
+      ? [
+          ...level.ideas.map((row) =>
+            toLevelCompletion({
+              row,
+              key: toKey(row.path),
+              section: SUGGESTED_PATH_SECTION,
+            })
+          ),
+          ...capBrowsedMembers({
+            members: level.fields,
+            isBrowsing: cursor.partial === "",
+          }).map((row) =>
+            toLevelCompletion({ row, key: toKey(row.path), section })
+          ),
+        ]
+      : [
+          toFinishedCompletion({ row: typed, key: toKey(typed.path), section }),
+          ...rows
+            .filter(
+              (row) => row !== typed && !isWithinPath(row.path, typed.path)
+            )
+            .map((row) =>
+              toLevelCompletion({ row, key: toKey(row.path), section })
+            ),
+          ...getBelowCompletions({
+            source,
+            getIdeas,
+            path: typed.path,
+            toKey,
+          }),
+        ];
+  if (completions.length === 0) {
+    return null;
   }
+  const fragment = textBeforeCursor.slice(cursor.containerPath.length);
+  // A list's rows are subscripts, so they match from the bracket that opens
+  // one rather than from what is typed inside it.
+  const matchesFromBracket =
+    level.isList && fragment.startsWith("[") && !fragment.startsWith("['");
   return {
-    // A level reached through a home the author left out is offered as whole
-    // paths, so the typeahead matches what was written against the whole path
-    // too rather than against a member name it does not lead with.
-    from: reached === null ? cursor.from : 0,
+    from:
+      reached !== null
+        ? 0
+        : matchesFromBracket
+          ? cursor.containerPath.length
+          : cursor.from,
     containerPath,
     completions,
   };
+}
+
+function getRootCompletions({
+  source,
+  rootCandidates,
+  getIdeas,
+  cursor,
+}: {
+  source: Record<string, unknown>;
+  rootCandidates: readonly EvaluatorPathCompletion[];
+  getIdeas: EvaluatorPathIdeaSource;
+  cursor: EvaluatorPathCursor;
+}): EvaluatorPathCompletionResult | null {
+  const typed = rootCandidates.find(
+    (candidate) => candidate.drills && candidate.key === cursor.partial
+  );
+  if (typed !== undefined) {
+    return {
+      from: cursor.from,
+      containerPath: "",
+      completions: [
+        {
+          ...typed,
+          drills: false,
+          type:
+            typed.type === CONTAINER_COMPLETION_TYPE ? "variable" : typed.type,
+        },
+        ...getBelowCompletions({
+          source,
+          getIdeas,
+          path: typed.path,
+          toKey: (path) => path,
+        }),
+      ],
+    };
+  }
+  const completions = [
+    ...toIdeaRows(getIdeas("")).map((row) =>
+      toLevelCompletion({
+        row,
+        key: row.path,
+        section: SUGGESTED_PATH_SECTION,
+      })
+    ),
+    ...rootCandidates,
+  ];
+  return completions.length === 0
+    ? null
+    : { from: cursor.from, containerPath: "", completions };
+}
+
+/**
+ * A path that ends in a closed subscript, offered as itself and then by what
+ * it holds: accepting "Last message" opens what the message holds.
+ */
+function getClosedSubscriptCompletions({
+  source,
+  rootCandidates,
+  getIdeas,
+  textBeforeCursor,
+}: {
+  source: Record<string, unknown>;
+  rootCandidates: readonly EvaluatorPathCompletion[];
+  getIdeas: EvaluatorPathIdeaSource;
+  textBeforeCursor: string;
+}): EvaluatorPathCompletionResult | null {
+  if (!textBeforeCursor.endsWith("]")) {
+    return null;
+  }
+  const reached = reachEvaluatorContainerPath({
+    source,
+    containerPath: textBeforeCursor,
+    rootPaths: rootCandidates.map((candidate) => candidate.path),
+  });
+  const typedPath = reached ?? textBeforeCursor;
+  const parsed = parseEvaluatorPath(typedPath);
+  const subscript = parsed.isValid ? parsed.steps.at(-1) : undefined;
+  if (subscript === undefined || subscript.from === 0) {
+    return null;
+  }
+  const containerPath = typedPath.slice(0, subscript.from);
+  const level = getEvaluatorPathLevel({
+    source,
+    containerPath,
+    getIdeas,
+    typedSelector: typedPath.slice(subscript.from + 1, -1),
+  });
+  const typed =
+    level?.ideas.find((row) => row.path === typedPath) ??
+    level?.fields.find((row) => row.path === typedPath) ??
+    resolveLevelRow({ source, path: typedPath })[0];
+  if (typed === undefined || !typed.holdsMore) {
+    return null;
+  }
+  const toKey = (path: string) =>
+    reached === null ? toRelativePath(path, containerPath) : path;
+  return {
+    from: reached === null ? subscript.from : 0,
+    containerPath,
+    completions: [
+      toFinishedCompletion({
+        row: typed,
+        key: toKey(typed.path),
+        section: toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK),
+      }),
+      ...getBelowCompletions({ source, getIdeas, path: typed.path, toKey }),
+    ],
+  };
+}
+
+/**
+ * A path typed in full is already written, so its row ends the path when it is
+ * accepted again rather than reopening what follows it.
+ */
+function toFinishedCompletion({
+  row,
+  key,
+  section,
+}: {
+  row: EvaluatorPathLevelRow;
+  key: string;
+  section: CompletionSection;
+}): EvaluatorPathCompletion {
+  return toLevelCompletion({ row: { ...row, holdsMore: false }, key, section });
+}
+
+/** What a path typed in full holds, offered after the path itself. */
+function getBelowCompletions({
+  source,
+  getIdeas,
+  path,
+  toKey,
+}: {
+  source: Record<string, unknown>;
+  getIdeas: EvaluatorPathIdeaSource;
+  path: string;
+  toKey: (path: string) => string;
+}): EvaluatorPathCompletion[] {
+  const below = getEvaluatorPathLevel({
+    source,
+    containerPath: path,
+    getIdeas,
+  });
+  if (below === null) {
+    return [];
+  }
+  const ideaSection = {
+    ...SUGGESTED_PATH_SECTION,
+    rank: PATH_CONTINUATION_SECTION_RANK,
+  };
+  const fieldSection = toMemberSection(
+    path,
+    PATH_CONTINUATION_SECTION_RANK + 1
+  );
+  return [
+    ...below.ideas.map((row) =>
+      toLevelCompletion({ row, key: toKey(row.path), section: ideaSection })
+    ),
+    ...capBrowsedMembers({ members: below.fields, isBrowsing: true }).map(
+      (row) =>
+        toLevelCompletion({ row, key: toKey(row.path), section: fieldSection })
+    ),
+  ];
+}
+
+/**
+ * A path written from `levelPath` on: the whole path at the top, the member
+ * name after a dot, the subscript after a list.
+ */
+function toRelativePath(path: string, levelPath: string): string {
+  const relative = path.slice(levelPath.length);
+  return relative.startsWith(".") ? relative.slice(1) : relative;
+}
+
+/** Whether `path` reaches inside `containerPath` rather than naming it. */
+function isWithinPath(path: string, containerPath: string): boolean {
+  const next = path[containerPath.length];
+  return path.startsWith(containerPath) && (next === "." || next === "[");
 }
 
 /**
@@ -464,7 +719,7 @@ export function getEvaluatorPathCompletions({
  * dot. A name inside a subscript is matched from after its quote, so a row
  * that read past it would have nowhere to write its path from.
  */
-export function getTypedKey({
+function getTypedKey({
   textBeforeCursor,
   cursor,
 }: {
@@ -477,31 +732,188 @@ export function getTypedKey({
     : null;
 }
 
-function toCompletion(
-  member: EvaluatorPathMember,
-  section: CompletionSection
-): EvaluatorPathCompletion {
+/** A path one step or more below a drill level, as that level offers it. */
+type EvaluatorPathLevelRow = {
+  path: string;
+  value: unknown;
+  /** Whether what the path reads has members of its own to drill into. */
+  holdsMore: boolean;
+  /** For an idea: what it reaches. */
+  idea?: string;
+  /** For an idea: the record does not have what it reaches. */
+  isUnresolved?: boolean;
+  boost?: number;
+};
+
+type EvaluatorPathLevel = {
+  ideas: EvaluatorPathLevelRow[];
+  /** The level's own members, less any an idea already offers. */
+  fields: EvaluatorPathLevelRow[];
+  isList: boolean;
+};
+
+const TYPED_INDEX_PATTERN = /^-?\d+$/;
+
+/**
+ * What one level below `containerPath` offers: its ideas, then its own
+ * members. An object's members are its fields; a path that matches several
+ * values offers the fields those values have between them; a list offers an
+ * index typed in full.
+ */
+function getEvaluatorPathLevel({
+  source,
+  containerPath,
+  getIdeas,
+  typedSelector = "",
+}: {
+  source: Record<string, unknown>;
+  containerPath: string;
+  getIdeas: (containerPath: string) => readonly EvaluatorPathIdea[];
+  /** What has been typed inside an open subscript, if anything. */
+  typedSelector?: string;
+}): EvaluatorPathLevel | null {
+  const resolution = resolveEvaluatorPath({ source, path: containerPath });
+  if (resolution.status !== "resolved") {
+    return null;
+  }
+  const ideas = toIdeaRows(getIdeas(containerPath));
+  const isList =
+    resolution.matches.length <= 1 && Array.isArray(resolution.value);
+  let members: EvaluatorPathLevelRow[];
+  if (resolution.matches.length > 1) {
+    members = getMatchedFields(resolution.matches).flatMap((key) =>
+      resolveLevelRow({
+        source,
+        path: appendPathSegment(containerPath, key, false),
+      })
+    );
+  } else if (isList) {
+    members = TYPED_INDEX_PATTERN.test(typedSelector)
+      ? resolveLevelRow({ source, path: `${containerPath}[${typedSelector}]` })
+      : [];
+  } else {
+    members = getEvaluatorPathMembers(resolution.value, containerPath).map(
+      (member) => ({
+        path: member.path,
+        value: member.value,
+        holdsMore: holdsMore({ value: member.value, matches: [member.value] }),
+      })
+    );
+  }
+  const fields = members.filter(
+    (member) => !ideas.some((idea) => idea.path === member.path)
+  );
+  return { ideas, fields, isList };
+}
+
+function toIdeaRows(
+  ideas: readonly EvaluatorPathIdea[]
+): EvaluatorPathLevelRow[] {
+  return ideas.map((idea, index) => ({
+    path: idea.path,
+    idea: idea.description,
+    boost: ideas.length - index,
+    ...(idea.status === "resolved"
+      ? { value: idea.value, holdsMore: holdsMore(idea) }
+      : { value: undefined, holdsMore: false, isUnresolved: true }),
+  }));
+}
+
+function resolveLevelRow({
+  source,
+  path,
+}: {
+  source: Record<string, unknown>;
+  path: string;
+}): EvaluatorPathLevelRow[] {
+  const resolution = resolveEvaluatorPath({ source, path });
+  if (resolution.status !== "resolved") {
+    return [];
+  }
+  return [{ path, value: resolution.value, holdsMore: holdsMore(resolution) }];
+}
+
+/** Whether a value has members to drill into: a non-empty list or object. */
+export function hasEvaluatorPathMembers(value: unknown): boolean {
+  return (
+    isEvaluatorPathContainer(value) && Object.keys(value as object).length > 0
+  );
+}
+
+/**
+ * Whether a path reads something with members of its own: a value that has
+ * them, or several matches that have fields between them.
+ */
+function holdsMore({
+  value,
+  matches,
+}: {
+  value: unknown;
+  matches: readonly unknown[];
+}): boolean {
+  if (matches.length > 1) {
+    return getMatchedFields(matches).length > 0;
+  }
+  return hasEvaluatorPathMembers(value);
+}
+
+/** The fields of every object among `matches`, in the order they appear. */
+function getMatchedFields(matches: readonly unknown[]): string[] {
+  const fields = new Set<string>();
+  for (const match of matches) {
+    if (!Array.isArray(match) && isStringKeyedObject(match)) {
+      for (const key of Object.keys(match)) {
+        fields.add(key);
+      }
+    }
+  }
+  return [...fields];
+}
+
+function toLevelCompletion({
+  row,
+  key,
+  section,
+}: {
+  row: EvaluatorPathLevelRow;
+  key: string;
+  section: CompletionSection;
+}): EvaluatorPathCompletion {
+  const preview = row.isUnresolved
+    ? UNRESOLVED_IDEA_INFO
+    : toMemberPreview(row.value);
+  const type = [
+    ...(row.idea !== undefined ? [IDEA_COMPLETION_TYPE] : []),
+    ...(row.isUnresolved ? [UNSET_COMPLETION_TYPE] : []),
+    ...(row.holdsMore ? [CONTAINER_COMPLETION_TYPE] : []),
+  ].join(" ");
   return {
-    key: member.key,
-    path: member.path,
-    preview: toMemberPreview(member.value),
-    type: toMemberCompletionType(member.value),
+    key,
+    path: row.path,
+    detail: row.idea ?? preview,
+    type: type || "variable",
     section,
-    drills: isEvaluatorPathContainer(member.value),
+    drills: row.holdsMore,
+    ...(row.idea !== undefined && preview !== "" ? { info: preview } : {}),
+    ...(row.boost !== undefined ? { boost: row.boost } : {}),
   };
 }
 
 /**
  * What became of a path written against the mapping source.
  *
- * `unverifiable` covers everything this side cannot answer — no record has been
- * sampled yet, or the path uses syntax only the server resolves — and is
+ * `invalid` is a path the server rejects when the evaluator is saved.
+ * `unverifiable` is a valid path with no record to read it against yet, and is
  * deliberately not an error: a path is only wrong once something has actually
  * checked it.
+ *
+ * A resolved `value` is what the server binds: the one match itself, or the
+ * list of them when there are several.
  */
 export type EvaluatorPathResolution =
-  | { status: "resolved"; value: unknown }
+  | { status: "resolved"; value: unknown; matches: unknown[] }
   | { status: "unresolved"; range: { from: number; to: number } }
+  | { status: "invalid"; range: { from: number; to: number } }
   | { status: "unverifiable" };
 
 /**
@@ -520,45 +932,32 @@ export function resolveEvaluatorPath({
   path: string;
 }): EvaluatorPathResolution {
   if (path === "") {
-    return { status: "resolved", value: undefined };
+    return { status: "resolved", value: undefined, matches: [] };
+  }
+  const parsed = parseEvaluatorPath(path);
+  if (!parsed.isValid) {
+    return {
+      status: "invalid",
+      range: {
+        from: Math.min(parsed.errorAt, Math.max(path.length - 1, 0)),
+        to: path.length,
+      },
+    };
   }
   if (Object.keys(source).length === 0) {
     return { status: "unverifiable" };
   }
-  const segments = parsePathSegmentRanges(path);
-  if (segments === null) {
-    return { status: "unverifiable" };
+  const found = findEvaluatorPathMatches({ source, steps: parsed.steps });
+  if (found.status === "unmatched") {
+    return {
+      status: "unresolved",
+      range: { from: found.step.from, to: found.step.to },
+    };
   }
-
-  let current: unknown = source;
-  for (const segment of segments) {
-    const member = readMember(current, segment.key);
-    if (!member.exists) {
-      return {
-        status: "unresolved",
-        range: { from: segment.from, to: segment.to },
-      };
-    }
-    current = member.value;
-  }
-  return { status: "resolved", value: current };
-}
-
-function readMember(
-  container: unknown,
-  key: string
-): { exists: boolean; value: unknown } {
-  if (Array.isArray(container)) {
-    const index = Number(key);
-    return Number.isInteger(index) && index >= 0 && index < container.length
-      ? { exists: true, value: container[index] }
-      : { exists: false, value: undefined };
-  }
-  // Own keys only: the server resolves these paths with JSONPath, which never
-  // walks the prototype chain, so `in` would preview `metadata.toString` as
-  // resolved and the run would then raise on a path that names nothing.
-  if (isStringKeyedObject(container) && Object.hasOwn(container, key)) {
-    return { exists: true, value: container[key] };
-  }
-  return { exists: false, value: undefined };
+  const { matches } = found;
+  return {
+    status: "resolved",
+    value: matches.length === 1 ? matches[0] : matches,
+    matches,
+  };
 }

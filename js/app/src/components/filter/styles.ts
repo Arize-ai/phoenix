@@ -31,7 +31,10 @@ export const popoverSurfaceCSS = css`
 export const TYPEAHEAD_COMPLETION_CLASS_PREFIX = "typeahead-completion--";
 
 export function toTypeaheadCompletionClass(type: string | undefined): string {
-  return type?.startsWith(TYPEAHEAD_COMPLETION_CLASS_PREFIX) ? type : "";
+  return (type ?? "")
+    .split(" ")
+    .filter((name) => name.startsWith(TYPEAHEAD_COMPLETION_CLASS_PREFIX))
+    .join(" ");
 }
 
 export const typeaheadMenuCSS = css`
@@ -99,7 +102,8 @@ export const typeaheadMenuCSS = css`
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    li.dsl-filter-suggestion .cm-completionLabel {
+    li.dsl-filter-suggestion .cm-completionLabel,
+    li.typeahead-completion--idea .cm-completionDetail {
       font-family: var(--global-font-family-sans);
     }
     /* A suggestion's detail is a whole example condition, not a short type

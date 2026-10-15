@@ -6,7 +6,7 @@ import type {
 import { acceptCompletion } from "@codemirror/autocomplete";
 import { keymap } from "@codemirror/view";
 import { css } from "@emotion/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { DSLFilterConditionValidationResult } from "@phoenix/components/filter/DSLFilterConditionField";
 import { DSLFilterConditionField } from "@phoenix/components/filter/DSLFilterConditionField";
@@ -17,19 +17,26 @@ import type { EvaluatorInputMapping } from "@phoenix/types";
 import { closeCompletionOnEscape } from "./completionKeys";
 import { materializeEvaluatorContext } from "./evaluatorContext";
 import { buildEvaluatorContextCandidates } from "./evaluatorContextCompletions";
-import type { EvaluatorPathCompletion } from "./evaluatorPathCompletions";
+import type {
+  EvaluatorPathCompletion,
+  EvaluatorPathIdea,
+} from "./evaluatorPathCompletions";
 import {
   applyEvaluatorPathCompletion,
+  CONTAINER_COMPLETION_TYPE,
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCompletions,
-  isEvaluatorPathContainer,
+  hasEvaluatorPathMembers,
   resolveEvaluatorPath,
-  SUGGESTED_PATH_SECTION,
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
-import { getEvaluatorSlotSuggestedPaths } from "./evaluatorSlotDefaults";
+import {
+  getEvaluatorPathIdeas,
+  MAPPING_PATH_SYNTAX,
+} from "./evaluatorPathIdeas";
 
 const UNRESOLVED_PATH_MESSAGE = "No such field";
+const INVALID_PATH_MESSAGE = "Not a valid path";
 
 const NO_COMPLETIONS: Completion[] = [];
 const EMPTY_SOURCE: Record<string, unknown> = {};
@@ -62,6 +69,7 @@ const evaluatorPathFieldCSS = css`
  * without knowing where it sits. Each `.` after that opens the next level with
  * the value every field holds on it, so a path is drilled rather than
  * remembered. Left empty, the field shows what the variable reads instead.
+ * A path that does not parse is flagged once the field is left.
  */
 export function EvaluatorPathField({
   value,
@@ -71,8 +79,8 @@ export function EvaluatorPathField({
   ariaLabel,
   evaluatorMappingSource,
   recordKind,
-  variableName,
   placeholder,
+  onFocusChange,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -82,16 +90,10 @@ export function EvaluatorPathField({
   ariaLabel: string;
   evaluatorMappingSource: EvaluatorMappingSourceState;
   recordKind: ProjectEvaluatorRecordKind;
-  /** The evaluator variable this path is read into. */
-  variableName: string;
   /** What the variable reads while the field is empty. */
   placeholder: string;
+  onFocusChange?: (isFocused: boolean) => void;
 }) {
-  const suggestedPaths = getEvaluatorSlotSuggestedPaths(
-    recordKind,
-    variableName
-  );
-
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
   // This only stops churn; a reconfigure the data genuinely earned is what
@@ -114,19 +116,23 @@ export function EvaluatorPathField({
       evaluationContext === null
         ? []
         : buildEvaluatorContextCandidates(evaluationContext).map(
-            (candidate) => ({
-              key: candidate.label,
-              path: candidate.label,
-              preview: candidate.detail,
-              section: candidate.section,
-              boost: candidate.boost,
-              type: candidate.type,
-              ...(candidate.info ? { description: candidate.info } : {}),
-              // One of the evaluator's own inputs is a finished path; its
-              // members have rows of their own.
-              drills:
-                candidate.isNested && isEvaluatorPathContainer(candidate.value),
-            })
+            (candidate) => {
+              const drills = hasEvaluatorPathMembers(candidate.value);
+              return {
+                key: candidate.label,
+                path: candidate.label,
+                detail: candidate.detail,
+                section: candidate.section,
+                boost: candidate.boost,
+                type: drills
+                  ? CONTAINER_COMPLETION_TYPE
+                  : candidate.type === CONTAINER_COMPLETION_TYPE
+                    ? "variable"
+                    : candidate.type,
+                ...(candidate.info ? { info: candidate.info } : {}),
+                drills,
+              };
+            }
           ),
     [evaluationContext]
   );
@@ -135,10 +141,30 @@ export function EvaluatorPathField({
       createEvaluatorPathCompletionSource({
         source: mappingSource,
         rootCandidates,
-        suggestedPaths,
+        getIdeas: (containerPath) =>
+          getEvaluatorPathIdeas({
+            recordKind,
+            source: mappingSource,
+            containerPath,
+            syntax: MAPPING_PATH_SYNTAX,
+          }),
       }),
     ],
-    [mappingSource, rootCandidates, suggestedPaths]
+    [mappingSource, rootCandidates, recordKind]
+  );
+
+  // Read through a ref so focusing does not re-run validation; leaving does.
+  const isFocusedRef = useRef(false);
+  const [blurCount, setBlurCount] = useState(0);
+  const handleFocusChange = useCallback(
+    (isFocused: boolean) => {
+      isFocusedRef.current = isFocused;
+      if (!isFocused) {
+        setBlurCount((count) => count + 1);
+      }
+      onFocusChange?.(isFocused);
+    },
+    [onFocusChange]
   );
 
   const validatePath = useCallback(
@@ -147,9 +173,13 @@ export function EvaluatorPathField({
         return { isValid: false, errorMessage };
       }
       const resolution = resolveEvaluatorPath({ source: mappingSource, path });
-      return resolution.status === "unresolved"
-        ? { isValid: false, errorMessage: UNRESOLVED_PATH_MESSAGE }
-        : { isValid: true };
+      if (resolution.status === "unresolved") {
+        return { isValid: false, errorMessage: UNRESOLVED_PATH_MESSAGE };
+      }
+      if (resolution.status === "invalid" && !isFocusedRef.current) {
+        return { isValid: false, errorMessage: INVALID_PATH_MESSAGE };
+      }
+      return { isValid: true };
     },
     [mappingSource, isInvalid, errorMessage]
   );
@@ -157,7 +187,10 @@ export function EvaluatorPathField({
   const getErrorRange = useCallback(
     (path: string) => {
       const resolution = resolveEvaluatorPath({ source: mappingSource, path });
-      return resolution.status === "unresolved" ? resolution.range : null;
+      return resolution.status === "unresolved" ||
+        resolution.status === "invalid"
+        ? resolution.range
+        : null;
     },
     [mappingSource]
   );
@@ -177,6 +210,8 @@ export function EvaluatorPathField({
       extensions={pathFieldKeys}
       selectOnOpen
       validateCondition={validatePath}
+      validationRetryKey={blurCount}
+      onFocusChange={handleFocusChange}
       getErrorRange={getErrorRange}
       // The field holds the stored path itself, so there is no separate
       // applied value for a settled path to publish.
@@ -204,44 +239,41 @@ const pathFieldKeys = [
 function createEvaluatorPathCompletionSource({
   source,
   rootCandidates,
-  suggestedPaths,
+  getIdeas,
 }: {
   source: Record<string, unknown>;
   rootCandidates: readonly EvaluatorPathCompletion[];
-  suggestedPaths: readonly { path: string; description: string }[];
+  getIdeas: (containerPath: string) => readonly EvaluatorPathIdea[];
 }): CompletionSource {
   return (context: CompletionContext) => {
     const result = getEvaluatorPathCompletions({
       source,
       rootCandidates,
-      suggestedPaths,
+      getIdeas,
       textBeforeCursor: context.state.doc.sliceString(0, context.pos),
+      isExplicit: context.explicit,
     });
     if (result === null) {
       return null;
     }
     return {
       from: result.from,
-      options: result.completions.map((completion, index) => ({
+      options: result.completions.map((completion) => ({
         label: completion.key,
-        ...(completion.preview ? { detail: completion.preview } : {}),
-        ...(completion.description ? { info: completion.description } : {}),
+        ...(completion.detail ? { detail: completion.detail } : {}),
+        ...(completion.info ? { info: completion.info } : {}),
         type: completion.type ?? "property",
-        // Suggestions keep their configured order — the plain narrowing
-        // first, the deeper cuts after — instead of sorting alphabetically.
-        ...(completion.section === SUGGESTED_PATH_SECTION
-          ? { boost: 99 - index }
-          : completion.boost != null
-            ? { boost: completion.boost }
-            : {}),
+        ...(completion.boost != null ? { boost: completion.boost } : {}),
         section: completion.section,
         apply: applyEvaluatorPathCompletion(completion),
       })),
       ...(result.containerPath === ""
         ? {
+            // Only the tree's own paths keep the menu open past a dot; an
+            // idea's dot leads into a level of its own.
             validFor: toWholePathValidFor({
               pattern: EVALUATOR_ROOT_PATH_PATTERN,
-              labels: result.completions.map((completion) => completion.key),
+              labels: rootCandidates.map((candidate) => candidate.key),
             }),
           }
         : {}),
