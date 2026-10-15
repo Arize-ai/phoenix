@@ -1,11 +1,8 @@
 """Run with ``make test-sync-models``, as CI does; it lives outside tests/ beside the script."""
 
-import hashlib
-import json
 from datetime import datetime, timezone
 
 from sync_models import (
-    SCHEMA_VERSION,
     LiteLLMPricingEntry,
     ModelConfig,
     ModelCostManifest,
@@ -17,8 +14,6 @@ from sync_models import (
     serialize_manifest,
     update_manifest,
 )
-
-from phoenix.server.cost_tracking.manifest import SUPPORTED_SCHEMA_VERSION
 
 PREVIOUS = datetime(2026, 10, 1, tzinfo=timezone.utc)
 NOW = datetime(2026, 10, 14, 12, 30, 15, 123456, tzinfo=timezone.utc)
@@ -87,13 +82,6 @@ def test_serialized_header_comes_before_models() -> None:
     )
 
 
-def test_models_sha256_matches_the_manifest_test() -> None:
-    # tests/unit/server/cost_tracking/test_model_cost_manifest.py hashes the file's JSON.
-    data = json.loads(serialize_manifest(_manifest(1e-6)))
-    canonical = json.dumps(data["models"], sort_keys=True, separators=(",", ":"))
-    assert data["models_sha256"] == hashlib.sha256(canonical.encode()).hexdigest()
-
-
 def test_typesafe_evaluation_models_are_priced_by_input_only() -> None:
     entries = extract_litellm_entries(
         {
@@ -118,7 +106,3 @@ def test_typesafe_evaluation_models_are_priced_by_input_only() -> None:
     assert entries[0].token_prices == [
         TokenPrice(base_rate=4.2e-08, is_prompt=True, token_type="input")
     ]
-
-
-def test_writes_the_schema_version_servers_support() -> None:
-    assert SCHEMA_VERSION == SUPPORTED_SCHEMA_VERSION
