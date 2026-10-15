@@ -190,6 +190,7 @@ class TestLoadSkills:
         assert shared == sorted(shared)
         assert pxi == sorted(pxi)
         assert {"phoenix-graphql", "datasets"} <= set(pxi)
+        assert "phoenix-experiment-analyzer" in shared
         assert not set(shared) & set(pxi)
 
     def test_references_are_named_by_their_path_from_the_skill_root(self, tmp_path: Path) -> None:
