@@ -113,8 +113,8 @@ from opentelemetry.sdk.trace import TracerProvider
 from phoenix.otel import BatchSpanProcessor
 
 # Choose the package that matches your source traces.
-from openinference.instrumentation.openlit import OpenInferenceSpanProcessor
-# from openinference.instrumentation.openllmetry import OpenInferenceSpanProcessor
+from openinference.instrumentation.openllmetry import OpenInferenceSpanProcessor
+# from openinference.instrumentation.openlit import OpenInferenceSpanProcessor
 
 tracer_provider = TracerProvider(
     resource=Resource.create({"openinference.project.name": "translated-traces"})
