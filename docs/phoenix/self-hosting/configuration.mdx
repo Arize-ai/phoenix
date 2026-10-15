@@ -37,6 +37,10 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_ALLOW\_EXTERNAL\_RESOURCES:** Controls whether Phoenix makes public-internet requests of its own, such as loading Google Fonts, sending telemetry, or downloading the WebAssembly sandbox runtime. Defaults to `true`. Set to `false` in air-gapped environments. Services you configure yourself, such as LLM providers and hosted sandboxes, aren't affected. See [Air-Gapped Deployments](/docs/phoenix/self-hosting/security/network-security#air-gapped-deployments) for the full list. Available since version 11.15.0.
 
+* **PHOENIX\_DISABLE\_MODEL\_COST\_FETCH:** Whether to stop fetching the latest built-in model prices. By default, Phoenix fetches them shortly after startup and then about once a day, so new models get costs without an upgrade. Set to `true` so that built-in prices change only when you upgrade Phoenix. Defaults to `false`. See [Keeping built-in prices current](/docs/phoenix/tracing/how-to-tracing/cost-tracking#keeping-built-in-prices-current).
+
+* **PHOENIX\_MODEL\_COST\_MANIFEST\_URL:** Where Phoenix fetches the latest built-in model prices from. Accepts `http://`, `https://`, and `file://` URLs, so you can point it at an internal mirror or a local file. Defaults to the pricing file on Phoenix's GitHub `main` branch, which isn't fetched when `PHOENIX_ALLOW_EXTERNAL_RESOURCES` is `false`. A URL you set here is fetched even when `PHOENIX_ALLOW_EXTERNAL_RESOURCES` is `false`. Has no effect when `PHOENIX_DISABLE_MODEL_COST_FETCH` is `true`. Any other URL scheme stops the server from starting.
+
 * **PHOENIX\_SQL\_DATABASE\_URL:** The SQL database URL to use when logging traces and evals. if you plan on using SQLite, it's advised to use a persistent volume and simply point the `PHOENIX_WORKING_DIR` to that volume. If URL is not specified, by default Phoenix starts with a file-based SQLite database in a temporary folder, the location of which will be shown at startup. Phoenix also supports PostgresSQL as shown below:
 
   * PostgreSQL, e.g. `postgresql://@host/dbname?user=user&password=password` or `postgresql://user:password@host/dbname`
