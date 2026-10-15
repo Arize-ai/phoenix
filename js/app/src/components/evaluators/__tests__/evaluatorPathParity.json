@@ -376,7 +376,26 @@
     {
       "context": "edges",
       "path": "metadata.messages[0,-9]",
-      "outcome": "unresolved"
+      "outcome": "value",
+      "value": { "role": "user" }
+    },
+    {
+      "context": "edges",
+      "path": "metadata.messages[-9,-1]",
+      "outcome": "value",
+      "value": { "role": "assistant" }
+    },
+    {
+      "context": "edges",
+      "path": "metadata.s[0,-9]",
+      "outcome": "value",
+      "value": "s"
+    },
+    {
+      "context": "probe",
+      "path": "metadata.*[0]",
+      "outcome": "value",
+      "value": [{ "input": "t1" }, { "x": 1 }, "s", { "b": 1 }]
     },
     {
       "context": "edges",
