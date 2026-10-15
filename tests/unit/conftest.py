@@ -423,6 +423,7 @@ def _memoized_fastapi_type_adapters(
 # construction, so it is not a function of its arguments alone.
 _ROUTER_BUILDER_NAMES = (
     "create_v1_router",
+    "create_errors_router",
     "create_agents_router",
     "create_legacy_agents_router",
 )

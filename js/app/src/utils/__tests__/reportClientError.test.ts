@@ -1,14 +1,14 @@
 import { RedirectingToLoginError } from "@phoenix/authFetch";
 
 import {
-  buildClientErrorReport,
+  buildErrorReport,
   createClientErrorReporter,
 } from "../reportClientError";
 
-describe("buildClientErrorReport", () => {
+describe("buildErrorReport", () => {
   it("should take the message and stack from an Error", () => {
     const error = new TypeError("Cannot read properties of undefined");
-    const report = buildClientErrorReport({
+    const report = buildErrorReport({
       error,
       componentStack: "\n    at SpanDetails",
       url: "/projects/abc/spans",
@@ -18,40 +18,49 @@ describe("buildClientErrorReport", () => {
     expect(report).toEqual({
       message: "Cannot read properties of undefined",
       stack: error.stack,
-      component_stack: "\n    at SpanDetails",
       url: "/projects/abc/spans",
       user_agent: "TestAgent/1.0",
-      platform_version: "20.22.0",
+      attributes: {
+        component_stack: "\n    at SpanDetails",
+        platform_version: "20.22.0",
+      },
     });
   });
 
   it("should describe non-Error values", () => {
-    expect(buildClientErrorReport({ error: "plain string" }).message).toBe(
+    expect(buildErrorReport({ error: "plain string" }).message).toBe(
       "plain string"
     );
-    expect(buildClientErrorReport({ error: { code: 42 } }).message).toBe(
+    expect(buildErrorReport({ error: { code: 42 } }).message).toBe(
       '{"code":42}'
     );
-    expect(buildClientErrorReport({ error: undefined }).message).toBe(
+    expect(buildErrorReport({ error: undefined }).message).toBe(
       "Unknown error"
     );
-    expect(buildClientErrorReport({ error: null }).stack).toBeNull();
+    expect(buildErrorReport({ error: null }).stack).toBeUndefined();
   });
 
   it("should truncate oversized fields to the server's limits", () => {
-    const report = buildClientErrorReport({
+    const report = buildErrorReport({
       error: new Error("x".repeat(5_000)),
       componentStack: "y".repeat(20_000),
     });
     expect(report.message).toHaveLength(2_000);
-    expect(report.component_stack).toHaveLength(16_000);
+    expect(report.attributes?.component_stack).toHaveLength(4_000);
+  });
+
+  it("should omit the component stack when there is none", () => {
+    const report = buildErrorReport({ error: new Error("boom") });
+    expect(report.attributes).not.toHaveProperty("component_stack");
   });
 
   it("should default url, user agent, and version from the page", () => {
-    const report = buildClientErrorReport({ error: new Error("boom") });
+    const report = buildErrorReport({ error: new Error("boom") });
     expect(report.url).toBe(window.location.pathname + window.location.search);
     expect(report.user_agent).toBe(navigator.userAgent);
-    expect(report.platform_version).toBe(window.Config.platformVersion);
+    expect(report.attributes?.platform_version).toBe(
+      window.Config.platformVersion
+    );
   });
 });
 

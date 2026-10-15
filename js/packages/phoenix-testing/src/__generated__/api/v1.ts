@@ -1584,26 +1584,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/client_errors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Report an uncaught error from the browser app
-         * @description Writes the error to the server log so operators can see failures that would otherwise be visible only in the user's browser console.
-         */
-        post: operations["reportClientError"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -2492,30 +2472,6 @@ export interface components {
              * Format: password
              */
             value: string;
-        };
-        /** ClientError */
-        ClientError: {
-            /** Message */
-            message: string;
-            /** Stack */
-            stack?: string | null;
-            /**
-             * Component Stack
-             * @description The React component stack, when the error was caught by an error boundary.
-             */
-            component_stack?: string | null;
-            /**
-             * Url
-             * @description The route the app was displaying when the error occurred.
-             */
-            url?: string | null;
-            /** User Agent */
-            user_agent?: string | null;
-            /**
-             * Platform Version
-             * @description The Phoenix version the app was built from.
-             */
-            platform_version?: string | null;
         };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {
@@ -12990,55 +12946,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatCompletionErrorResponse"];
-                };
-            };
-        };
-    };
-    reportClientError: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClientError"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description The report is malformed or exceeds size limits */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Too many reports from this client */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
                 };
             };
         };

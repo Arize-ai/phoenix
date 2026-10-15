@@ -11,7 +11,6 @@ from .annotation_configs import router as annotation_configs_router
 from .annotations import router as annotations_router
 from .api_keys import router as api_keys_router
 from .chat_completions import router as chat_completions_router
-from .client_errors import router as client_errors_router
 from .custom_model_providers import router as custom_model_providers_router
 from .dataset_labels import router as dataset_labels_router
 from .datasets import router as datasets_router
@@ -89,6 +88,4 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     # AI search, so — like the agents chat endpoints — it stays available to
     # every authenticated role, viewers included.
     router.include_router(chat_completions_router)
-    # Error reports carry no data of their own, so any authenticated role may file them.
-    router.include_router(client_errors_router)
     return router

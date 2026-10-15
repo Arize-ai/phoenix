@@ -1,4 +1,3 @@
-import type { components } from "@phoenix/api/__generated__/v1";
 import {
   authFetch,
   isRedirectingToLogin,
@@ -6,18 +5,29 @@ import {
 } from "@phoenix/authFetch";
 import { BASE_URL, VERSION } from "@phoenix/config";
 
-export type ClientErrorReport = components["schemas"]["ClientError"];
+/**
+ * Request body for `POST /errors`. Mirrors the server's `ErrorReport` model,
+ * which is deliberately kept out of the OpenAPI schema.
+ */
+export interface ErrorReport {
+  message: string;
+  stack?: string;
+  url?: string;
+  user_agent?: string;
+  attributes?: Record<string, string>;
+}
 
 const MESSAGE_MAX_LENGTH = 2_000;
 const STACK_MAX_LENGTH = 16_000;
 const URL_MAX_LENGTH = 2_000;
 const USER_AGENT_MAX_LENGTH = 512;
+const ATTRIBUTE_VALUE_MAX_LENGTH = 4_000;
 const DEFAULT_MAX_DISTINCT_ERRORS = 50;
 
-type SendClientErrorReport = (report: ClientErrorReport) => Promise<unknown>;
+type SendErrorReport = (report: ErrorReport) => Promise<unknown>;
 
-function postClientErrorReport(report: ClientErrorReport) {
-  return authFetch(`${BASE_URL}/v1/client_errors`, {
+function postErrorReport(report: ErrorReport) {
+  return authFetch(`${BASE_URL}/errors`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(report),
@@ -50,14 +60,14 @@ function describeThrownValue(error: unknown): {
 }
 
 /**
- * Build the payload for the client error endpoint from a thrown value.
+ * Build the payload for the error endpoint from a thrown value.
  * @param params.error - whatever was thrown or rejected with
  * @param params.componentStack - React component stack from an error boundary
  * @param params.url - the SPA route being displayed; defaults to the current location
  * @param params.userAgent - defaults to the browser's user agent
  * @param params.platformVersion - defaults to the version the app was served with
  */
-export function buildClientErrorReport({
+export function buildErrorReport({
   error,
   componentStack,
   url = window.location.pathname + window.location.search,
@@ -69,17 +79,23 @@ export function buildClientErrorReport({
   url?: string;
   userAgent?: string;
   platformVersion?: string;
-}): ClientErrorReport {
+}): ErrorReport {
   const { message, stack } = describeThrownValue(error);
+  const attributes: Record<string, string> = {
+    platform_version: truncate(platformVersion, ATTRIBUTE_VALUE_MAX_LENGTH),
+  };
+  if (componentStack) {
+    attributes.component_stack = truncate(
+      componentStack,
+      ATTRIBUTE_VALUE_MAX_LENGTH
+    );
+  }
   return {
     message: truncate(message || "Unknown error", MESSAGE_MAX_LENGTH),
-    stack: stack ? truncate(stack, STACK_MAX_LENGTH) : null,
-    component_stack: componentStack
-      ? truncate(componentStack, STACK_MAX_LENGTH)
-      : null,
+    stack: stack ? truncate(stack, STACK_MAX_LENGTH) : undefined,
     url: truncate(url, URL_MAX_LENGTH),
     user_agent: truncate(userAgent, USER_AGENT_MAX_LENGTH),
-    platform_version: platformVersion,
+    attributes,
   };
 }
 
@@ -90,10 +106,10 @@ export function buildClientErrorReport({
  * @param params.maxDistinctErrors - after this many distinct errors, further reports are dropped
  */
 export function createClientErrorReporter({
-  send = postClientErrorReport,
+  send = postErrorReport,
   maxDistinctErrors = DEFAULT_MAX_DISTINCT_ERRORS,
 }: {
-  send?: SendClientErrorReport;
+  send?: SendErrorReport;
   maxDistinctErrors?: number;
 } = {}) {
   const reportedErrorKeys = new Set<string>();
@@ -109,7 +125,7 @@ export function createClientErrorReporter({
       if (isRedirectingToLoginError(error) || isRedirectingToLogin()) {
         return;
       }
-      const report = buildClientErrorReport({ error, componentStack });
+      const report = buildErrorReport({ error, componentStack });
       const errorKey = `${report.message}\n${report.stack ?? ""}`;
       const isAlreadyReported = reportedErrorKeys.has(errorKey);
       const isAtCapacity = reportedErrorKeys.size >= maxDistinctErrors;
