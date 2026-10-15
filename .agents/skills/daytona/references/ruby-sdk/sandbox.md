@@ -112,6 +112,18 @@ def network_block_all()
 - `Boolean, nil` - Whether to block all network access for the sandbox.
 Not returned by list results; call #refresh on each item to populate.
 
+#### kvm()
+
+```ruby
+def kvm()
+
+```
+
+**Returns**:
+
+- `Boolean, nil` - Whether the sandbox exposes KVM (/dev/kvm) to its guest.
+Not returned by list results; call #refresh on each item to populate.
+
 #### network_allow_list()
 
 ```ruby

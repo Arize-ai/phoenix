@@ -291,7 +291,7 @@ harbor run -p "<task-path>" -a oracle \
 On a `public` baseline, run-time host flags emit a warning and are ignored.
 
 Examples: `examples/tasks/network-policy-matrix/`. Full reference:
-`docs/content/docs/tasks/index.mdx` (Network policy section).
+`docs-mintlify/tasks/network-policies.mdx`.
 
 For Reward Kit judges needing API keys:
 ```toml
@@ -391,14 +391,14 @@ with cwd = WORKDIR. Non-zero exit aborts the step and the trial. Have it
 ```toml
 schema_version = "1.4"
 
-[task]
-name = "<org>/<task-name>"
-version = "1.0.0"
-
 # How per-step rewards roll up into the trial-level verifier_result.
 # "mean" (default): per-key mean across steps that produced a result.
 # "final": the last step's verifier_result verbatim.
 multi_step_reward_strategy = "mean"
+
+[task]
+name = "<org>/<task-name>"
+version = "1.0.0"
 
 [[steps]]
 name = "scaffold"              # Must match the directory under steps/
@@ -454,7 +454,7 @@ aggregation strategy.
 
 ### Full reference + worked example
 
-- Docs: `docs/content/docs/tasks/multi-step.mdx`
+- Docs: `docs-mintlify/tasks/multi-step.mdx`
 - Example task: `examples/tasks/hello-multi-step-advanced/`
 
 ## Special features (mention if relevant)
