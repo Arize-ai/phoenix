@@ -88,8 +88,11 @@ Choose the setup path that matches how you configure tracing. Each path sets the
 
     ```bash
     export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:6006"
+    export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
     export OTEL_EXPORTER_OTLP_HEADERS="x-project-name=my-project"
     ```
+
+    Pin the protocol. The header is only read on the HTTP endpoint, so under gRPC it is ignored and the port is replaced with 4317.
 
     **Using an OTEL Collector `otlphttp` exporter:**
 
@@ -165,7 +168,11 @@ Set `session.id` before the traced work runs. Add `user.id` when you want Phoeni
     from openai import OpenAI
     from phoenix.otel import register, using_session
 
-    register(project_name="chatbot", auto_instrument=True)
+    register(
+        project_name="chatbot",
+        protocol="http/protobuf",
+        auto_instrument=True,
+    )
 
     client = OpenAI()
     session_id = str(uuid.uuid4())
