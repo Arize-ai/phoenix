@@ -1,4 +1,5 @@
 {
   "name": "arize-phoenix",
+  "skills": "./skills/",
   "mcpServers": "./.mcp.json"
 }

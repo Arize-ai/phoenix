@@ -152,7 +152,7 @@ describe("annotation-config CLI conventions", () => {
   it("phoenix-cli skill examples stay in sync with the option surface", () => {
     const skillPath = fileURLToPath(
       new URL(
-        "../../../../.agents/skills/phoenix-cli/SKILL.md",
+        "../../../../skills/phoenix-cli/SKILL.md",
         import.meta.url
       )
     );
