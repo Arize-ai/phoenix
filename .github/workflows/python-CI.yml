@@ -117,6 +117,9 @@ jobs:
             bookkeeping_detector:
               - "scripts/ci/bookkeeping_only.py"
               - "scripts/ci/test_bookkeeping_only.py"
+              - ".github/workflows/python-CI.yml"
+              - ".github/workflows/playwright.yaml"
+              - "Makefile"
       # A release PR bumps versions and appends changelogs; there is nothing in
       # it for the package suites to exercise. Decided from the diff, never from
       # a branch name or label: the aggregators below pass when their jobs skip,
@@ -381,7 +384,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Test the detector
-        run: python3 -m unittest discover -s scripts/ci -p 'test_bookkeeping_only.py'
+        run: make test-bookkeeping-detector
 
   check-filter-dsl-snippets:
     name: Check Filter DSL Snippets

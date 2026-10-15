@@ -9,8 +9,10 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from bookkeeping_only import (
@@ -148,6 +150,12 @@ class SmuggledChanges(unittest.TestCase):
         patch = VERSION_PY_PATCH.replace("20.4.0", "21.0.0")
         refuses(self, [MANIFEST_ENTRY, entry("src/phoenix/version.py", patch)], ROOT_BUMP)
 
+    def test_code_after_a_control_character_is_not_hidden(self) -> None:
+        for separator in ("\f", "\r", "\v", "\x85", "\u2028", "\u2029"):
+            with self.subTest(separator=repr(separator)):
+                patch = VERSION_PY_PATCH + separator + ';raise RuntimeError("smuggled")'
+                refuses(self, [entry("src/phoenix/version.py", patch)], ROOT_BUMP)
+
     def test_changelog_for_an_unreleased_package(self) -> None:
         refuses(
             self,
@@ -234,6 +242,10 @@ class Lockfile(unittest.TestCase):
 
 
 class Manifest(unittest.TestCase):
+    def test_version_that_would_break_a_python_string(self) -> None:
+        with self.assertRaises(NotBookkeeping):
+            released_versions({".": "1.0.0"}, {".": "1.1.0\\"})
+
     def test_added_package(self) -> None:
         with self.assertRaises(NotBookkeeping):
             released_versions({".": "1.0.0"}, {".": "1.0.0", "packages/new": "0.1.0"})
@@ -370,6 +382,14 @@ class Wiring(unittest.TestCase):
 
 
 class Hunks(unittest.TestCase):
+    def test_trailing_newline_does_not_add_a_change(self) -> None:
+        import bookkeeping_only
+
+        self.assertEqual(
+            bookkeeping_only.hunk_lines("@@ -1 +1 @@\n-old\n+new\n"),
+            [[("-", "old"), ("+", "new")]],
+        )
+
     def test_splits_context_removed_and_added(self) -> None:
         self.assertEqual(
             hunks("@@ -1,2 +1,2 @@\n keep\n-old\n+new"),
@@ -387,6 +407,81 @@ class Hunks(unittest.TestCase):
     def test_ignores_the_git_diff_header(self) -> None:
         patch = "diff --git a/x b/x\nindex a..b 100644\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new"
         self.assertEqual(hunks(patch), [([], ["old"], ["new"])])
+
+
+class GitIntegration(unittest.TestCase):
+    """Exercise real patches in the two-parent, shallow checkout Actions uses."""
+
+    def test_shallow_release_merge_and_smuggled_code(self) -> None:
+        import bookkeeping_only
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory) / "repo"
+            repo.mkdir()
+
+            def run(*args: str, cwd: Path = repo) -> str:
+                return subprocess.check_output(
+                    ["git", *args], cwd=cwd, stderr=subprocess.PIPE
+                ).decode()
+
+            run("init", "-b", "main")
+            run("config", "user.name", "Detector Test")
+            run("config", "user.email", "detector@example.invalid")
+            run("config", "commit.gpgsign", "false")
+            manifest = repo / ".release-please-manifest.json"
+            version = repo / "src/phoenix/version.py"
+            version.parent.mkdir(parents=True)
+            manifest.write_text('{".": "20.3.0", "packages/phoenix-client": "3.1.0"}\n')
+            version.write_text('__version__ = "20.3.0"\n')
+            project = repo / "packages/phoenix-client/pyproject.toml"
+            project.parent.mkdir(parents=True)
+            project.write_text('[project]\nversion = "3.1.0"\n')
+            lock = repo / "uv.lock"
+            lock.write_text(
+                '[[package]]\nname = "arize-phoenix-client"\nversion = "3.1.0"\n'
+                'source = { editable = "packages/phoenix-client" }\n'
+            )
+            run("add", ".")
+            run("commit", "-m", "base")
+            run("checkout", "-b", "release")
+            manifest.write_text('{".": "20.4.0", "packages/phoenix-client": "3.2.0"}\n')
+            version.write_text('__version__ = "20.4.0"\n')
+            project.write_text('[project]\nversion = "3.2.0"\n')
+            lock.write_text(lock.read_text().replace("3.1.0", "3.2.0"))
+            (repo / "CHANGELOG.md").write_text("# Changelog\n\n## 20.4.0\n")
+            run("add", ".")
+            run("commit", "-m", "release")
+            run("checkout", "main")
+            run("merge", "--no-ff", "release", "-m", "merge")
+            shallow = Path(directory) / "checkout"
+            run("clone", "--depth=2", repo.as_uri(), str(shallow))
+            self.assertEqual(
+                run("rev-parse", "--is-shallow-repository", cwd=shallow).strip(), "true"
+            )
+
+            original_run = subprocess.run
+
+            def checkout_git(*args, **kwargs):
+                return original_run(*args, cwd=shallow, **kwargs)
+
+            with mock.patch.object(bookkeeping_only.subprocess, "run", checkout_git):
+                decide()
+
+            # A CR is a newline to Python but is embedded within one Git diff
+            # line. Neither subprocess decoding nor the parser may hide it.
+            run("checkout", "release")
+            version.write_bytes(b'__version__ = "20.4.0"\rraise RuntimeError("smuggled")\n')
+            run("add", ".")
+            run("commit", "-m", "smuggle code")
+            run("checkout", "main")
+            run("reset", "--hard", "HEAD^1")
+            run("merge", "--no-ff", "release", "-m", "merge unsafe change")
+            unsafe = Path(directory) / "unsafe"
+            run("clone", "--depth=2", repo.as_uri(), str(unsafe))
+            shallow = unsafe
+            with mock.patch.object(bookkeeping_only.subprocess, "run", checkout_git):
+                with self.assertRaises(NotBookkeeping):
+                    decide()
 
 
 if __name__ == "__main__":

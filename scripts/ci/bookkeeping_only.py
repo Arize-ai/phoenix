@@ -36,6 +36,7 @@ MAX_FILES = 60
 
 VERSION_PY = re.compile(r'^__version__ = "([^"]+)"$')
 VERSION_LINE = re.compile(r'^version = "([^"]+)"$')
+RELEASE_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\Z")
 LOCK_EDITABLE = re.compile(r'^source = \{ editable = "([^"]+)" \}$')
 # \Z, not $, so a filename with a trailing newline cannot match.
 PACKAGE_CHANGELOG = re.compile(r"^(packages/[^/]+)/CHANGELOG\.md\Z")
@@ -54,10 +55,13 @@ class NotBookkeeping(Exception):
 
 
 def git(*args: str) -> str:
-    done = subprocess.run(["git", *args], capture_output=True, text=True)
+    # Preserve carriage returns: universal newline conversion could turn code
+    # inside an added line into an unmarked line that the hunk parser ignores.
+    done = subprocess.run(["git", *args], capture_output=True)
     if done.returncode:
-        raise NotBookkeeping(f"git {args[0]} failed: {done.stderr.strip()}")
-    return done.stdout
+        error = done.stderr.decode(errors="replace").strip()
+        raise NotBookkeeping(f"git {args[0]} failed: {error}")
+    return done.stdout.decode("utf-8")
 
 
 STATUS = {"A": "added", "D": "removed", "M": "modified"}
@@ -86,10 +90,12 @@ def changed_files() -> list[dict[str, object]]:
 def hunk_lines(patch: str) -> list[list[tuple[str, str]]]:
     """Each hunk as its (marker, text) lines in order; markers are ' ', '-', '+'."""
     out: list[list[tuple[str, str]]] = []
-    for line in patch.splitlines():
+    # Git separates diff lines with LF only. str.splitlines() also splits on
+    # form feeds and other characters that can occur inside executable code.
+    for line in patch.split("\n"):
         if line.startswith("@@"):
             out.append([])
-        elif out:
+        elif out and line:
             out[-1].append((line[:1] or " ", line[1:]))
     return out
 
@@ -151,6 +157,8 @@ def released_versions(base: dict[str, str], head: dict[str, str]) -> Bumps:
     bumps = {path: (base[path], head[path]) for path in base if base[path] != head[path]}
     if not bumps:
         raise NotBookkeeping("manifest changes no version")
+    if any(not RELEASE_VERSION.fullmatch(version) for pair in bumps.values() for version in pair):
+        raise NotBookkeeping("manifest contains an unexpected release version")
     return bumps
 
 
