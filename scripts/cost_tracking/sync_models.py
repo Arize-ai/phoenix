@@ -61,7 +61,7 @@ class ModelConfig(BaseModel):
 class ModelCostManifest(BaseModel):
     schema_version: int = SUPPORTED_SCHEMA_VERSION
     generated_at: Optional[datetime] = None
-    # Digest of the models as of generated_at; see models_sha256().
+    # Digest of the models as of generated_at; see compute_models_sha256().
     models_sha256: Optional[str] = None
     models: list[ModelConfig]
 
@@ -251,23 +251,18 @@ def next_generated_at(
     """
     if (
         previous.generated_at is not None
-        and previous.models_sha256 == models_sha256(previous)
+        and previous.models_sha256 == compute_models_sha256(_dump_models(previous))
         and _dump_models(previous) == _dump_models(updated)
     ):
         return previous.generated_at
     return (now or datetime.now(timezone.utc)).replace(microsecond=0)
 
 
-def models_sha256(manifest: ModelCostManifest) -> str:
-    """Digest of the models as serialized, recorded beside ``generated_at``."""
-    return compute_models_sha256(_dump_models(manifest))
-
-
 def stamp(manifest: ModelCostManifest, previous: ModelCostManifest) -> None:
     """Sets the schema version, ``generated_at`` and ``models_sha256`` for the models."""
     manifest.schema_version = SUPPORTED_SCHEMA_VERSION
     manifest.generated_at = next_generated_at(previous, manifest)
-    manifest.models_sha256 = models_sha256(manifest)
+    manifest.models_sha256 = compute_models_sha256(_dump_models(manifest))
 
 
 def _dump_models(manifest: ModelCostManifest) -> list[dict[str, Any]]:

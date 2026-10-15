@@ -8,12 +8,14 @@ from sync_models import (
     ModelCostManifest,
     ModelSource,
     TokenPrice,
+    _dump_models,
     extract_litellm_entries,
-    models_sha256,
     next_generated_at,
     serialize_manifest,
     update_manifest,
 )
+
+from phoenix.server.cost_tracking.manifest import compute_models_sha256
 
 PREVIOUS = datetime(2026, 10, 1, tzinfo=timezone.utc)
 NOW = datetime(2026, 10, 14, 12, 30, 15, 123456, tzinfo=timezone.utc)
@@ -31,7 +33,7 @@ def _manifest(base_rate: float, generated_at: datetime | None = PREVIOUS) -> Mod
             )
         ],
     )
-    manifest.models_sha256 = models_sha256(manifest)
+    manifest.models_sha256 = compute_models_sha256(_dump_models(manifest))
     return manifest
 
 
