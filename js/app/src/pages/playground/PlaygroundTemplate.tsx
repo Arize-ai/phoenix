@@ -22,8 +22,8 @@ import { ModelParametersConfigButton } from "@phoenix/components/playground/mode
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
-import { ConvertDecisionToChatButton } from "@phoenix/pages/playground/ConvertDecisionToChatButton";
 import { DecisionRequestEditor } from "@phoenix/pages/playground/DecisionRequestEditor";
+import { DuplicateAsChatButton } from "@phoenix/pages/playground/DuplicateAsChatButton";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
 import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
@@ -141,11 +141,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <AlphabeticIndexIcon index={index} />
             </View>
           ) : null}
-          {isDecision ? (
-            // A decision request has no prompt hub entry yet; converting it
-            // to an LLM prompt takes the place of the prompt menu and save.
-            <ConvertDecisionToChatButton playgroundInstanceId={instanceId} />
-          ) : (
+          {/* A decision request has no prompt hub entry yet, so nothing
+              stands in for the prompt menu and save. */}
+          {isDecision ? null : (
             <>
               {!disablePromptMenu ? (
                 <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
@@ -182,6 +180,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             />
           </CompositeField>
           <DuplicateButton {...props} />
+          {isDecision ? <DuplicateAsChatButton {...props} /> : null}
           {instances.length > 1 ? <DeleteButton {...props} /> : null}
         </Flex>
       </Flex>

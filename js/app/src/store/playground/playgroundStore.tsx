@@ -373,7 +373,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       );
       const source = instances[sourceIndex];
       if (!source) {
-        return;
+        return null;
       }
       let newMessageIds: number[] = [];
       let newMessageMap: Record<number, ChatMessage> = {};
@@ -428,6 +428,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         false,
         { type: "duplicateInstance" }
       );
+      return copy.id;
     },
     updateDecisionRequest: ({ instanceId, request }) => {
       set(

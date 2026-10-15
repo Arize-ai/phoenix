@@ -60,6 +60,20 @@ describe("decision instances in the store", () => {
   });
 });
 
+describe("duplicateInstance", () => {
+  it("inserts the copy after the source and returns its id", () => {
+    const store = createPlaygroundStore({ modelConfigByProvider: {} });
+    const sourceId = store.getState().instances[0].id;
+    const copyId = store.getState().duplicateInstance(sourceId);
+    expect(copyId).not.toBeNull();
+    expect(store.getState().instances.map((instance) => instance.id)).toEqual([
+      sourceId,
+      copyId,
+    ]);
+    expect(store.getState().duplicateInstance(-1)).toBeNull();
+  });
+});
+
 describe("getInitialInstances", () => {
   beforeEach(() => {
     _resetInstanceId();

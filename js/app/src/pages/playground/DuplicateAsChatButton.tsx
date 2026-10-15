@@ -17,26 +17,27 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { generateMessageId } from "@phoenix/store";
 
+import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { buildChatFromDecisionDraft } from "./decisionUtils";
 import { getDefaultInvocationConfig } from "./providerAdapters";
 import type { PlaygroundInstanceProps } from "./types";
 
 /**
- * Turn a decision instance into a chat instance that asks an LLM the same
- * questions: the questions and criteria become the system message, the
- * state the user message, and the answer shape a response format. The chat
- * model is the one the instance had before it became a decision instance,
- * else the preferred default. The decision request stays on the instance,
- * so picking a decision model again restores it.
+ * Add a task beside this decision task that asks an LLM the same questions:
+ * the questions and criteria become the system message, the state the user
+ * message, and the answer shape a response format. The copy uses the chat
+ * model this task had before it became a decision task, else the preferred
+ * default, and keeps the decision request, so picking a decision model on it
+ * restores the original. The decision task stays as it is, so the two run
+ * side by side.
  */
-export function ConvertDecisionToChatButton({
+export function DuplicateAsChatButton({
   playgroundInstanceId: instanceId,
 }: PlaygroundInstanceProps) {
   const store = usePlaygroundStore();
-  const isRunning = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === instanceId)
-        ?.activeRunId != null
+  const numInstances = usePlaygroundContext((state) => state.instances.length);
+  const isRunning = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.activeRunId != null)
   );
   const defaultModelProvider = usePreferencesContext(
     (state) => state.defaultModelProvider
@@ -45,31 +46,32 @@ export function ConvertDecisionToChatButton({
     (state) => state.defaultModelName
   );
 
-  const convert = () => {
-    const { instances, updateInstance, addMessage } = store.getState();
-    const instance = instances.find((candidate) => candidate.id === instanceId);
-    if (!instance?.decisionRequest) return;
+  const duplicateAsChat = () => {
+    const { instances, duplicateInstance, updateInstance, addMessage } =
+      store.getState();
+    const source = instances.find((candidate) => candidate.id === instanceId);
+    if (!source?.decisionRequest) return;
+    const copyId = duplicateInstance(instanceId);
+    if (copyId == null) return;
     const { messages, responseFormat } = buildChatFromDecisionDraft({
-      draft: instance.decisionRequest,
+      draft: source.decisionRequest,
     });
     const provider = defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;
-    const chatModel = instance.llmModel ?? {
+    const chatModel = source.llmModel ?? {
       provider,
       modelName: defaultModelName ?? DEFAULT_MODEL_NAME,
       invocationParameters: getDefaultInvocationConfig(provider),
     };
     updateInstance({
-      instanceId,
+      instanceId: copyId,
       dirty: true,
       patch: {
         model: { ...chatModel, modelType: "LLM", responseFormat },
         template: { __type: "chat", messageIds: [] },
-        repetitions: {},
-        experiment: null,
       },
     });
     addMessage({
-      playgroundInstanceId: instanceId,
+      playgroundInstanceId: copyId,
       messages: messages.map((message) => ({
         ...message,
         id: generateMessageId(),
@@ -81,16 +83,14 @@ export function ConvertDecisionToChatButton({
     <TooltipTrigger>
       <Button
         size="S"
-        leadingVisual={<Icon svg={<Icons.ArrowCompare />} />}
-        isDisabled={isRunning}
-        onPress={convert}
-      >
-        Convert to LLM
-      </Button>
+        aria-label="Duplicate as an LLM prompt"
+        leadingVisual={<Icon svg={<Icons.MessageSquarePlus />} />}
+        isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
+        onPress={duplicateAsChat}
+      />
       <Tooltip>
         <TooltipArrow />
-        Ask an LLM the same questions: the questions become the system prompt,
-        the state the user message, and the answers a response format.
+        Duplicate as an LLM prompt that asks the same questions
       </Tooltip>
     </TooltipTrigger>
   );
