@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 
 import { svgSize as glyphSize } from "@phoenix/components/agent/PxiGlyph";
-import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 import { dslFilterBadgeGrowIn } from "../styles";
 
@@ -24,14 +23,6 @@ export const aiQueryFilterFieldCSS = css`
   &:not([data-state="idle"]):has(.cm-content:focus-visible)
     .ai-outline__stroke {
     opacity: 1;
-  }
-  /* The outline isolates its stacking (for the glow layers), which traps
-     the typeahead's own z-index inside it — later-stacked page content
-     like a table's sticky header would paint over the open dropdown.
-     Elevate the whole outline only while a tooltip is showing so the
-     field doesn't sit above sibling floating UI the rest of the time. */
-  &:has(.cm-tooltip) {
-    z-index: ${APP_FLOATING_Z_INDEX};
   }
   /* In the prose variant the gradient wraps the field and IS the border —
      the input's own border under it reads as a second, internal ring, and
