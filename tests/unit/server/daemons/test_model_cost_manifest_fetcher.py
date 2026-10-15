@@ -62,13 +62,7 @@ def _manifest_body(generated_at: str = "2026-10-01T00:00:00Z") -> bytes:
 
 
 class _Response(io.BytesIO):
-    """A urlopen response: a context manager that read() drains, with headers."""
-
-    def __init__(self, body: bytes, etag: Optional[str] = None) -> None:
-        super().__init__(body)
-        self.headers = Message()
-        if etag:
-            self.headers["ETag"] = etag
+    """A urlopen response: a context manager that read() drains."""
 
 
 def _http_error(code: int) -> urllib.error.HTTPError:
@@ -81,34 +75,21 @@ def _fetcher(db: DbSessionFactory, url: str = _URL) -> tuple[ModelCostManifestFe
 
 
 class TestDownload:
-    def test_returns_body_and_etag(self) -> None:
-        with patch(_URLOPEN, return_value=_Response(b"body", etag='"abc"')) as urlopen:
-            download = _download(_URL, None)
-        assert download is not None
-        assert download.body == b"body"
-        assert download.etag == '"abc"'
-        request = urlopen.call_args.args[0]
-        assert request.full_url == _URL
-        assert request.get_header("If-none-match") is None
+    def test_returns_the_body(self) -> None:
+        with patch(_URLOPEN, return_value=_Response(b"body")) as urlopen:
+            assert _download(_URL) == b"body"
+        assert urlopen.call_args.args[0] == _URL
         assert urlopen.call_args.kwargs["timeout"] == fetcher_module._TIMEOUT_SECONDS
-
-    def test_sends_the_etag_and_returns_none_when_not_modified(self) -> None:
-        with patch(_URLOPEN, side_effect=_http_error(304)) as urlopen:
-            assert _download(_URL, '"abc"') is None
-        assert urlopen.call_args.args[0].get_header("If-none-match") == '"abc"'
 
     def test_oversized_body_raises(self) -> None:
         with patch(_URLOPEN, return_value=_Response(b"x" * (_MAX_MANIFEST_BYTES + 1))):
             with pytest.raises(ManifestError, match="larger than"):
-                _download(_URL, None)
+                _download(_URL)
 
     def test_reads_a_file_url(self, tmp_path: Any) -> None:
         path = tmp_path / "v1.json"
         path.write_bytes(_manifest_body())
-        download = _download(path.as_uri(), None)
-        assert download is not None
-        assert download.body == _manifest_body()
-        assert download.etag is None
+        assert _download(path.as_uri()) == _manifest_body()
 
 
 class TestFetchAndApply:
@@ -117,7 +98,7 @@ class TestFetchAndApply:
     ) -> None:
         await _ensure_enums(db)
         fetcher, store = _fetcher(db)
-        with patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v1"')):
+        with patch(_URLOPEN, return_value=_Response(_manifest_body())):
             await fetcher._fetch_and_apply()
 
         assert await _active_built_in_prices(db) == {"test-model": 1.0}
@@ -127,43 +108,17 @@ class TestFetchAndApply:
         assert marker.source == "remote"
         assert marker.url == _URL
         store.request_full_refetch.assert_called_once()
-        assert fetcher._etag == '"v1"'
 
     async def test_manifest_not_newer_still_refreshes_the_store(self, db: DbSessionFactory) -> None:
         await _ensure_enums(db)
         fetcher, store = _fetcher(db)
-        with patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v1"')):
+        with patch(_URLOPEN, return_value=_Response(_manifest_body())):
             await fetcher._fetch_and_apply()
         store.reset_mock()
-        with patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v2"')):
+        with patch(_URLOPEN, return_value=_Response(_manifest_body())):
             await fetcher._fetch_and_apply()
         # Another replica may have applied it with rows stamped before the store's cursor.
         store.request_full_refetch.assert_called_once()
-        assert fetcher._etag == '"v2"'
-
-    async def test_not_modified_skips_the_database(self, db: DbSessionFactory) -> None:
-        fetcher, store = _fetcher(db)
-        fetcher._etag = '"v1"'
-        with (
-            patch(_URLOPEN, side_effect=_http_error(304)),
-            patch.object(fetcher_module, "apply_manifest_if_newer") as apply,
-        ):
-            await fetcher._fetch_and_apply()
-        apply.assert_not_called()
-        store.request_full_refetch.assert_not_called()
-        assert fetcher._etag == '"v1"'
-
-    async def test_failed_apply_keeps_the_old_etag(self, db: DbSessionFactory) -> None:
-        fetcher, _ = _fetcher(db)
-        fetcher._etag = '"v1"'
-        with (
-            patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v2"')),
-            patch.object(fetcher_module, "apply_manifest_if_newer", side_effect=RuntimeError),
-        ):
-            with pytest.raises(RuntimeError):
-                await fetcher._fetch_and_apply()
-        # So the next fetch downloads the manifest again instead of getting a 304.
-        assert fetcher._etag == '"v1"'
 
 
 class TestRun:
@@ -259,7 +214,7 @@ class TestRun:
 
         fetcher._running = True
         with (
-            patch(_URLOPEN, side_effect=_http_error(304)) as urlopen,
+            patch(_URLOPEN, side_effect=_http_error(500)) as urlopen,
             patch(_SLEEP, sleep),
         ):
             await fetcher._run()

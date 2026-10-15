@@ -15,7 +15,6 @@ import random
 import urllib.error
 import urllib.request
 from asyncio import sleep
-from typing import NamedTuple, Optional
 
 from phoenix.server.cost_tracking.apply_manifest import apply_manifest_if_newer
 from phoenix.server.cost_tracking.manifest import ManifestError, parse_manifest
@@ -33,11 +32,6 @@ _TIMEOUT_SECONDS = 30
 _MAX_MANIFEST_BYTES = 5 * 1024 * 1024
 
 
-class _Download(NamedTuple):
-    body: bytes
-    etag: Optional[str]
-
-
 class ModelCostManifestFetcher(DaemonTask):
     """Periodically fetches the model cost manifest and applies it if it is newer."""
 
@@ -51,9 +45,6 @@ class ModelCostManifestFetcher(DaemonTask):
         self._db = db
         self._url = url
         self._generative_model_store = generative_model_store
-        # The ETag of the last manifest that was applied or found not newer. Kept in memory
-        # only, so each boot downloads the manifest once.
-        self._etag: Optional[str] = None
 
     async def _run(self) -> None:
         while self._running:
@@ -68,10 +59,8 @@ class ModelCostManifestFetcher(DaemonTask):
             await sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
 
     async def _fetch_and_apply(self) -> None:
-        download = await asyncio.to_thread(_download, self._url, self._etag)
-        if download is None:
-            return
-        manifest = parse_manifest(download.body)
+        body = await asyncio.to_thread(_download, self._url)
+        manifest = parse_manifest(body)
         async with self._db() as session:
             await apply_manifest_if_newer(
                 session, manifest, dialect=self._db.dialect, source="remote", url=self._url
@@ -79,27 +68,22 @@ class ModelCostManifestFetcher(DaemonTask):
         # Refetch even if it wasn't newer: another replica may have applied it, with rows
         # stamped before our store's cursor that its incremental fetch would miss.
         self._generative_model_store.request_full_refetch()
-        self._etag = download.etag
 
 
-def _download(url: str, etag: Optional[str]) -> Optional[_Download]:
+def _download(url: str) -> bytes:
     """
-    Downloads the manifest, or returns None if it hasn't changed since the given ETag.
+    Downloads the manifest.
 
     Raises:
         OSError: If the request fails or times out (including HTTP errors).
         ManifestError: If the body is larger than any manifest should be.
     """
-    request = urllib.request.Request(url, headers={"If-None-Match": etag} if etag else {})
     try:
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS) as response:  # noqa: S310
-            body = response.read(_MAX_MANIFEST_BYTES + 1)
-            new_etag = response.headers.get("ETag")
+        with urllib.request.urlopen(url, timeout=_TIMEOUT_SECONDS) as response:  # noqa: S310
+            body: bytes = response.read(_MAX_MANIFEST_BYTES + 1)
     except urllib.error.HTTPError as error:
         error.close()
-        if error.code == 304:
-            return None
         raise
     if len(body) > _MAX_MANIFEST_BYTES:
         raise ManifestError(f"Model cost manifest is larger than {_MAX_MANIFEST_BYTES} bytes")
-    return _Download(body=body, etag=new_etag)
+    return body
