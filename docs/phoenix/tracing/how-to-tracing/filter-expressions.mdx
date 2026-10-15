@@ -267,10 +267,10 @@ float(attributes['retry_count']) > 1
 `True`. In a filter, a span with no `user.tier` attribute matches *neither* of these expressions:
 
 ```python
-attributes['user.tier'] == 'premium'
-attributes['user.tier'] != 'premium'
+attributes[['user', 'tier']] == 'premium'
+attributes[['user', 'tier']] != 'premium'
 ```
 
 To also match rows where the value is missing, spell it out:
-`attributes['user.tier'] != 'premium' or attributes['user.tier'] is None`.
+`attributes[['user', 'tier']] != 'premium' or attributes[['user', 'tier']] is None`.
 </Note>
