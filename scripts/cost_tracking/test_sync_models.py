@@ -1,4 +1,4 @@
-"""Run with ``uv run pytest scripts/cost_tracking``; it lives outside tests/ beside the script."""
+"""Run with ``make test-sync-models``, as CI does; it lives outside tests/ beside the script."""
 
 import hashlib
 import json

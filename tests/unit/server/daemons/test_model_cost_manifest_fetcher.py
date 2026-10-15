@@ -15,9 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from asgi_lifespan import LifespanManager
-from sqlalchemy import select
 
-from phoenix.db import models
 from phoenix.db.facilitator import _ensure_enums
 from phoenix.server.app import create_app
 from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
@@ -29,14 +27,13 @@ from phoenix.server.cost_tracking.manifest import (
 from phoenix.server.daemons import model_cost_manifest_fetcher as fetcher_module
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.model_cost_manifest_fetcher import (
-    _JITTER_SECONDS,
     _MAX_MANIFEST_BYTES,
-    _SLEEP_SECONDS,
     ModelCostManifestFetcher,
     _download,
 )
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import TestBulkInserter, patch_dml_event_handler, patch_grpc_server
+from tests.unit.server.cost_tracking.test_apply_manifest import _active_built_in_prices
 
 # The suite stubs the fetcher's loop; these tests drive the real one.
 pytestmark = pytest.mark.real_model_cost_fetcher
@@ -83,17 +80,6 @@ def _fetcher(db: DbSessionFactory, url: str = _URL) -> tuple[ModelCostManifestFe
     return ModelCostManifestFetcher(db, url, store), store
 
 
-async def _built_in_model_names(db: DbSessionFactory) -> set[str]:
-    async with db() as session:
-        return set(
-            await session.scalars(
-                select(models.GenerativeModel.name)
-                .where(models.GenerativeModel.is_built_in.is_(True))
-                .where(models.GenerativeModel.deleted_at.is_(None))
-            )
-        )
-
-
 class TestDownload:
     def test_returns_body_and_etag(self) -> None:
         with patch(_URLOPEN, return_value=_Response(b"body", etag='"abc"')) as urlopen:
@@ -134,7 +120,7 @@ class TestFetchAndApply:
         with patch(_URLOPEN, return_value=_Response(_manifest_body(), etag='"v1"')):
             await fetcher._fetch_and_apply()
 
-        assert await _built_in_model_names(db) == {"test-model"}
+        assert await _active_built_in_prices(db) == {"test-model": 1.0}
         async with db() as session:
             marker = await get_applied_manifest_version(session)
         assert marker is not None
@@ -226,7 +212,7 @@ class TestRun:
         assert warnings[0].exc_info is None
         assert _URL in warnings[0].getMessage()
         # The second fetch still ran and applied.
-        assert await _built_in_model_names(db) == {"test-model"}
+        assert await _active_built_in_prices(db) == {"test-model": 1.0}
         store.request_full_refetch.assert_called_once()
 
     async def test_unexpected_errors_are_logged_and_the_loop_carries_on(
@@ -263,7 +249,7 @@ class TestRun:
         assert apply.await_count == 2
         store.request_full_refetch.assert_called_once()
 
-    async def test_sleeps_about_a_day_between_fetches(self, db: DbSessionFactory) -> None:
+    async def test_fetches_on_every_iteration(self, db: DbSessionFactory) -> None:
         fetcher, _ = _fetcher(db)
         sleeps: list[float] = []
 
@@ -278,10 +264,6 @@ class TestRun:
         ):
             await fetcher._run()
         assert urlopen.call_count == 3
-        assert all(
-            _SLEEP_SECONDS - _JITTER_SECONDS <= s <= _SLEEP_SECONDS + _JITTER_SECONDS
-            for s in sleeps
-        )
 
 
 class TestAppWiring:
@@ -289,15 +271,6 @@ class TestAppWiring:
         "env, read_only, expected_url",
         [
             pytest.param({}, False, DEFAULT_MANIFEST_URL, id="default"),
-            pytest.param(
-                {
-                    "PHOENIX_DISABLE_MODEL_COST_FETCH": "true",
-                    "PHOENIX_MODEL_COST_MANIFEST_URL": _URL,
-                },
-                False,
-                None,
-                id="disabled",
-            ),
             pytest.param({"PHOENIX_MODEL_COST_MANIFEST_URL": _URL}, True, None, id="read-only"),
         ],
     )

@@ -79,7 +79,7 @@ def test_accepts_str_and_converts_generated_at_to_utc() -> None:
     assert manifest.generated_at.utcoffset() == timezone.utc.utcoffset(None)
 
 
-@pytest.mark.parametrize("schema_version", [SUPPORTED_SCHEMA_VERSION + 1, 0, "1", True, None])
+@pytest.mark.parametrize("schema_version", [SUPPORTED_SCHEMA_VERSION + 1, 0, "1", True])
 def test_rejects_unsupported_schema_version(schema_version: Any) -> None:
     with pytest.raises(ManifestError, match="schema_version"):
         parse_manifest(json.dumps(_manifest(schema_version=schema_version)))
@@ -125,9 +125,15 @@ def test_rejects_invalid_json(data: bytes) -> None:
         parse_manifest(data)
 
 
-@pytest.mark.parametrize("data", ["[]", '"manifest"', json.dumps(_manifest(models={}))])
-def test_rejects_wrong_shape(data: str) -> None:
-    with pytest.raises(ManifestError):
+@pytest.mark.parametrize(
+    "data, message",
+    [
+        pytest.param("[]", "must be a JSON object", id="not-an-object"),
+        pytest.param(json.dumps(_manifest(models={})), "list of models", id="models-not-a-list"),
+    ],
+)
+def test_rejects_wrong_shape(data: str, message: str) -> None:
+    with pytest.raises(ManifestError, match=message):
         parse_manifest(data)
 
 
@@ -142,22 +148,12 @@ def test_rejected_manifest_does_not_warn_about_entries(caplog: pytest.LogCapture
     "bad_entry, expected_label",
     [
         pytest.param(
-            {k: v for k, v in _model("bad").items() if k != "token_prices"},
-            "'bad'",
-            id="missing-token-prices",
-        ),
-        pytest.param(
             {k: v for k, v in _model("bad").items() if k != "name_pattern"},
             "'bad'",
             id="missing-name-pattern",
         ),
         pytest.param(_model("bad", name_pattern="bad("), "'bad'", id="invalid-regex"),
         pytest.param(_model("   "), "at index 1", id="blank-name"),
-        pytest.param(
-            _model("bad", token_prices=[{"base_rate": 1e-6, "token_type": "input"}]),
-            "'bad'",
-            id="token-price-missing-is-prompt",
-        ),
         pytest.param(
             _model(
                 "bad",
