@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
 SUPPORTED_SCHEMA_VERSION = 1
 
 # The schema version is in the path so that servers fetching from GitHub only ever get a
-# manifest they can read, even after a newer schema ships next to it.
+# manifest they can read, even after a newer schema ships next to it. But the sync script and
+# cost-sync.yml only write the current schema's file, so bumping the version freezes the prices
+# that every older server fetches unless the old file keeps being synced too.
 BUNDLED_MANIFEST_PATH = Path(__file__).parent / "manifests" / f"v{SUPPORTED_SCHEMA_VERSION}.json"
 DEFAULT_MANIFEST_URL = (
     "https://raw.githubusercontent.com/Arize-ai/phoenix/main/"
