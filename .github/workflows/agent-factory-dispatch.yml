@@ -1,0 +1,92 @@
+name: Agent Factory Dispatch
+
+# Human -> Issue: a maintainer labels a triaged issue `agent-factory` (or dispatches it by hand).
+# Identify type: the triage labels (bug / enhancement / documentation) pick the lane.
+# The lane's Managed Agents session then runs on Anthropic's side; this job only starts it.
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to send through the factory
+        required: true
+
+concurrency:
+  group: agent-factory-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    # Same username allowlist as claude-implement-issue.yml and claude.yml - keep all three in sync.
+    if: |
+      github.event_name == 'workflow_dispatch' || (
+        github.event.label.name == 'agent-factory' &&
+        contains(fromJSON('[
+          "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
+          "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
+          "seldo", "yfrigui2"
+        ]'), github.actor)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write # comment the session link on the issue
+      pull-requests: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
+    steps:
+      - name: Guard - skip if a factory PR already exists
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh pr list --head "factory/issue-$ISSUE_NUMBER" --state open --json number -q 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "An open PR already exists for factory/issue-$ISSUE_NUMBER; skipping."
+            exit 0
+          fi
+          LABELS=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name]')
+          echo "labels=$LABELS" >> "$GITHUB_OUTPUT"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Start session
+        if: steps.guard.outputs.ready == 'true'
+        id: session
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.AGENT_FACTORY_ANTHROPIC_API_KEY }}
+          # Mounted as the session's github_repository token: clone and push only, via
+          # Anthropic's git proxy. It never enters the sandbox. Fine-grained PAT with
+          # Contents read/write on this repo; GITHUB_TOKEN would expire with this job.
+          FACTORY_GITHUB_TOKEN: ${{ secrets.AGENT_FACTORY_GITHUB_TOKEN }}
+          LABELS: ${{ steps.guard.outputs.labels }}
+        run: |
+          pip install --quiet "anthropic==1.12.1"
+          python agent-factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" --labels "$LABELS"
+
+      - name: Comment on issue
+        if: steps.guard.outputs.ready == 'true' && steps.session.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LANE: ${{ steps.session.outputs.lane }}
+          SESSION_ID: ${{ steps.session.outputs.session_id }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "🏭 Agent factory started the **$LANE** lane for this issue (session \`$SESSION_ID\`). A draft PR from \`factory/issue-$ISSUE_NUMBER\` follows if the agent gets that far."
+
+      - name: Comment when untyped
+        if: failure() && steps.session.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Agent factory could not start: the issue needs a \`bug\`, \`enhancement\` or \`documentation\` label (run triage first), or the dispatch failed - see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."

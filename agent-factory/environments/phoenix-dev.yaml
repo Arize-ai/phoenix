@@ -1,0 +1,14 @@
+name: phoenix-dev
+description: Cloud sandbox for working on the Arize-ai/phoenix monorepo (Python via uv, TypeScript via pnpm).
+config:
+  type: cloud
+  networking:
+    type: limited
+    # PyPI / npm for `uv sync` and `pnpm install`; the GitHub MCP server for issues and PRs.
+    # git pull/push on the mounted repo goes through Anthropic's git proxy and needs no host here.
+    allow_package_managers: true
+    allow_mcp_servers: true
+  packages:
+    type: packages
+    pip: [uv]
+    npm: [pnpm@12.0.0] # matches packageManager in js/package.json
