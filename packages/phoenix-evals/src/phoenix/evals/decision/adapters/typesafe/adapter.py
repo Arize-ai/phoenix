@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union
 
 from ....llm.prompts import PromptLike
 from ...registries import register_provider
@@ -58,7 +58,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         questions = self._build_questions(labels)
         response = self.client.system_one(
-            state=cast(Any, prompt), questions=questions, model=self.model, **kwargs
+            state=self._to_state(prompt), questions=questions, model=self.model, **kwargs
         )
         return self._to_result(response)
 
@@ -70,6 +70,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         questions = self._build_questions(labels)
         response = await self.client.system_one(
-            state=cast(Any, prompt), questions=questions, model=self.model, **kwargs
+            state=self._to_state(prompt), questions=questions, model=self.model, **kwargs
         )
         return self._to_result(response)

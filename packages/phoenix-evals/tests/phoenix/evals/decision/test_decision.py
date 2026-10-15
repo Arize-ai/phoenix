@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.evals import ClassificationEvaluator, DecisionModel
+from phoenix.evals.decision.types import BaseDecisionAdapter
 
 
 def _response(choice, probabilities, model="mock-evaluation-model"):
@@ -149,3 +150,37 @@ def test_missing_sdk_raises_a_helpful_error(monkeypatch):
     # client-construction failures in a ValueError whose message still names the package.
     with pytest.raises(ValueError, match="typesafe-sdk"):
         DecisionModel(provider="typesafe", model="jev-latest")
+
+
+def test_to_state_passes_a_string_prompt_through_unchanged():
+    assert BaseDecisionAdapter._to_state("just some text") == "just some text"
+
+
+def test_to_state_joins_a_message_list_and_drops_roles():
+    prompt = [
+        {"role": "system", "content": "You are a judge."},
+        {"role": "user", "content": "Is 2 + 2 = 4?"},
+    ]
+    assert BaseDecisionAdapter._to_state(prompt) == "You are a judge.\n\nIs 2 + 2 = 4?"
+
+
+def test_to_state_keeps_only_text_content_parts():
+    prompt = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "first"},
+                {"type": "image_url", "image_url": {"url": "http://example.com/x.png"}},
+                {"type": "text", "text": "second"},
+            ],
+        },
+    ]
+    assert BaseDecisionAdapter._to_state(prompt) == "first\nsecond"
+
+
+def test_to_state_skips_empty_pieces():
+    prompt = [
+        {"role": "system", "content": ""},
+        {"role": "user", "content": "only this"},
+    ]
+    assert BaseDecisionAdapter._to_state(prompt) == "only this"

@@ -67,6 +67,37 @@ class BaseDecisionAdapter(ABC):
         """Return the name/identifier of the underlying model."""
         return f"{type(self).__name__}-{type(self.client).__name__}"
 
+    @staticmethod
+    def _to_state(prompt: PromptLike) -> str:
+        """Flatten a prompt into a single plain-text decision ``state``.
+
+        - A string prompt passes through unchanged.
+        - A message list is joined in order with a blank line between messages; roles are
+          dropped, since decision models have none.
+        - When a message's content is a list of parts, only text parts are kept (joined with
+          a newline); image and file parts are not forwarded.
+        - Empty pieces are skipped.
+        """
+        if isinstance(prompt, str):
+            return prompt
+
+        pieces: List[str] = []
+        for message in prompt:
+            content = message.get("content") if isinstance(message, dict) else None
+            if isinstance(content, str):
+                text = content
+            elif isinstance(content, list):
+                text = "\n".join(
+                    part["text"]
+                    for part in content
+                    if isinstance(part, dict) and part.get("type") == "text" and part.get("text")
+                )
+            else:
+                text = ""
+            if text:
+                pieces.append(text)
+        return "\n\n".join(pieces)
+
 
 @dataclass
 class ProviderRegistration:
