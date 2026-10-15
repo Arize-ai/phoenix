@@ -22,6 +22,7 @@ import { ModelParametersConfigButton } from "@phoenix/components/playground/mode
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
+import { ConvertDecisionToChatButton } from "@phoenix/pages/playground/ConvertDecisionToChatButton";
 import { DecisionRequestEditor } from "@phoenix/pages/playground/DecisionRequestEditor";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { PlaygroundChatTemplate } from "@phoenix/pages/playground/PlaygroundChatTemplate";
@@ -140,9 +141,11 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <AlphabeticIndexIcon index={index} />
             </View>
           ) : null}
-          {/* A decision request has no prompt hub entry yet, so nothing
-              stands in for the prompt menu and save. */}
-          {isDecision ? null : (
+          {isDecision ? (
+            // A decision request has no prompt hub entry yet; converting it
+            // to an LLM prompt takes the place of the prompt menu and save.
+            <ConvertDecisionToChatButton playgroundInstanceId={instanceId} />
+          ) : (
             <>
               {!disablePromptMenu ? (
                 <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />

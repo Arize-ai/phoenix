@@ -4,6 +4,7 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
+  CanonicalResponseFormat,
   DecisionChoiceOptionDraft,
   DecisionQuestionDraft,
   DecisionQuestionType,
@@ -11,7 +12,7 @@ import type {
   DecisionScoreLevelDraft,
   PlaygroundInstance,
 } from "@phoenix/store/playground/types";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 /*
@@ -780,6 +781,214 @@ export function parseDecisionImport(text: string): DecisionImportResult {
   return {
     model: parsed.data.model ?? null,
     draft: toDraftFromSystemOne(parsed.data),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Structured output: the questions as a JSON schema an LLM can fill, and as a
+// chat template that asks an LLM the same questions.
+// ---------------------------------------------------------------------------
+
+type JsonSchemaObject = Record<string, unknown>;
+
+export type DecisionJsonSchema = {
+  type: "object";
+  properties: Record<string, JsonSchemaObject>;
+  required: string[];
+  additionalProperties: false;
+};
+
+/** One line per criterion, for schema descriptions and the system prompt. */
+function describeCriteria(question: DecisionQuestionDraft): string[] {
+  switch (question.type) {
+    case "choice":
+      return question.choices.map((option) => {
+        const value = option.value.trim();
+        const description = option.description.trim();
+        return description ? `- ${value}: ${description}` : `- ${value}`;
+      });
+    case "score":
+      return question.levels.map(
+        (level, index) => `${index}: ${level.description.trim()}`
+      );
+    case "noul": {
+      const lines: string[] = [];
+      const trueDescription = question.noul.trueDescription.trim();
+      const falseDescription = question.noul.falseDescription.trim();
+      if (trueDescription) lines.push(`True when: ${trueDescription}`);
+      if (falseDescription) lines.push(`False when: ${falseDescription}`);
+      return lines;
+    }
+    default:
+      return assertUnreachable(question.type);
+  }
+}
+
+/**
+ * The JSON schema for one question's answer: a choice is a string enum, a
+ * true/false question a boolean, and a score an integer enum over the level
+ * indices (an enum rather than a range, since strict structured-output modes
+ * accept enums everywhere). Instructions and criteria become the description.
+ */
+export function toQuestionJsonSchema(
+  question: DecisionQuestionDraft
+): JsonSchemaObject {
+  const description = [
+    question.instructions.trim(),
+    ...describeCriteria(question),
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const described = description ? { description } : {};
+  switch (question.type) {
+    case "choice":
+      return {
+        type: "string",
+        enum: question.choices.map((option) => option.value.trim()),
+        ...described,
+      };
+    case "score":
+      return {
+        type: "integer",
+        enum: question.levels.map((_, index) => index),
+        ...described,
+      };
+    case "noul":
+      return { type: "boolean", ...described };
+    default:
+      return assertUnreachable(question.type);
+  }
+}
+
+/** An object schema with one required property per question, keyed by name. */
+export function toDecisionJsonSchema(
+  questions: readonly DecisionQuestionDraft[]
+): DecisionJsonSchema {
+  // Null-prototype, as in buildDecisionRequest, so a question named
+  // "__proto__" is a property rather than a prototype assignment.
+  const properties: Record<string, JsonSchemaObject> = Object.create(null);
+  for (const question of questions) {
+    properties[question.name.trim()] = toQuestionJsonSchema(question);
+  }
+  return {
+    type: "object",
+    properties,
+    required: Object.keys(properties),
+    additionalProperties: false,
+  };
+}
+
+/** A name providers accept for a schema or function: letters, digits, `_`, `-`. */
+export function toSchemaName(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+  return cleaned || "decision";
+}
+
+/**
+ * The questions as an OpenAI-style `response_format`, the shape the
+ * playground's response format editor shows for an OpenAI instance.
+ */
+export function toDecisionResponseFormat({
+  questions,
+  name,
+}: {
+  questions: readonly DecisionQuestionDraft[];
+  name: string;
+}) {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: toSchemaName(name),
+      strict: true,
+      schema: toDecisionJsonSchema(questions),
+    },
+  };
+}
+
+/** The questions as an OpenAI-style function tool whose arguments answer them. */
+export function toDecisionToolDefinition({
+  questions,
+  name,
+}: {
+  questions: readonly DecisionQuestionDraft[];
+  name: string;
+}) {
+  return {
+    type: "function",
+    function: {
+      name: toSchemaName(name),
+      description: "Answer each question about the input.",
+      parameters: toDecisionJsonSchema(questions),
+      strict: true,
+    },
+  };
+}
+
+export type DecisionChatMessage = {
+  role: "system" | "user";
+  content: string;
+};
+
+/** How to answer one question, as a block of the system message. */
+function describeQuestionForPrompt(question: DecisionQuestionDraft): string {
+  const lines = [`## ${question.name.trim()}`, question.instructions.trim()];
+  switch (question.type) {
+    case "choice":
+      lines.push(
+        "Answer with one of these options:",
+        ...describeCriteria(question)
+      );
+      break;
+    case "score":
+      lines.push(
+        `Answer with a level from 0 to ${question.levels.length - 1}, low to high:`,
+        ...describeCriteria(question)
+      );
+      break;
+    case "noul":
+      lines.push("Answer true or false.", ...describeCriteria(question));
+      break;
+    default:
+      assertUnreachable(question.type);
+  }
+  return lines.filter(Boolean).join("\n");
+}
+
+/**
+ * A chat template that asks an LLM the draft's questions: a system message
+ * with the questions and their criteria, a user message carrying the state,
+ * and a response format whose schema is {@link toDecisionJsonSchema}.
+ * Template variables in the text are kept, so the Inputs panel still applies.
+ */
+export function buildChatFromDecisionDraft({
+  draft,
+}: {
+  draft: DecisionRequestDraft;
+}): {
+  messages: DecisionChatMessage[];
+  responseFormat: CanonicalResponseFormat;
+} {
+  const content = [
+    "Answer each question about the input. Reply with JSON matching the response format.",
+    ...draft.questions.map(describeQuestionForPrompt),
+  ].join("\n\n");
+  return {
+    messages: [
+      { role: "system", content },
+      { role: "user", content: draft.state },
+    ],
+    responseFormat: {
+      type: "json_schema",
+      jsonSchema: {
+        name: "decision",
+        strict: true,
+        schema: toDecisionJsonSchema(draft.questions),
+      },
+    },
   };
 }
 
