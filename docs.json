@@ -1364,6 +1364,7 @@
           {
             "group": "10.2026",
             "pages": [
+              "docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools",
               "docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans"
             ]
           },
