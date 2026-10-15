@@ -22,6 +22,7 @@ from typing import Any
 
 import pytest
 
+import phoenix
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
 from phoenix.server.cost_tracking.manifest import (
@@ -320,8 +321,9 @@ def test_checked_in_manifest_parses_without_skipping_entries(
 
 def test_bundled_manifest_is_the_one_servers_fetch() -> None:
     # Servers fetch the bundled file from GitHub, and the sync script writes it, so the URL
-    # must point at it.
-    assert BUNDLED_MANIFEST_PATH == MANIFEST_PATH
+    # must point at it. Compared within the package, since CI tests an installed copy of it.
+    package_path = BUNDLED_MANIFEST_PATH.relative_to(Path(phoenix.__file__).parent)
+    assert package_path == MANIFEST_PATH.relative_to(MANIFEST_PATH.parents[3])
     repo_root = MANIFEST_PATH.parents[5]
     assert DEFAULT_MANIFEST_URL.endswith("/main/" + MANIFEST_PATH.relative_to(repo_root).as_posix())
 
