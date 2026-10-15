@@ -20,14 +20,14 @@ def setup_logging() -> None:
     """
     logging_mode = Settings.logging_mode
     if logging_mode is LoggingMode.DEFAULT:
-        _setup_library_logging()
+        _set_up_default_logging()
     elif logging_mode is LoggingMode.STRUCTURED:
-        _setup_application_logging()
+        _set_up_structured_logging()
     else:
         assert_never(logging_mode)
 
 
-def _setup_library_logging() -> None:
+def _set_up_default_logging() -> None:
     """
     Configures logging if Phoenix is used as a library
     """
@@ -38,7 +38,7 @@ def _setup_library_logging() -> None:
     logger.info("Default logging ready")
 
 
-def _setup_application_logging() -> None:
+def _set_up_structured_logging() -> None:
     """
     Configures logging if Phoenix is used as an application
     """
