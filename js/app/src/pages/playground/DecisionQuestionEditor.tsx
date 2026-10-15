@@ -33,7 +33,6 @@ import type {
   DecisionQuestionType,
 } from "@phoenix/store/playground/types";
 
-import { DecisionCopyMenu } from "./DecisionCopyMenu";
 import {
   createChoiceOption,
   createDecisionQuestion,
@@ -202,16 +201,13 @@ export function DecisionQuestionEditor({
         </Flex>
       }
       extra={
-        <Flex direction="row" gap="size-100">
-          <DecisionCopyMenu question={question} label={label} />
-          <Button
-            size="S"
-            aria-label={`Delete ${label}`}
-            leadingVisual={<Icon svg={<Icons.Trash />} />}
-            isDisabled={isDisabled || !canRemove}
-            onPress={onRemove}
-          />
-        </Flex>
+        <Button
+          size="S"
+          aria-label={`Delete ${label}`}
+          leadingVisual={<Icon svg={<Icons.Trash />} />}
+          isDisabled={isDisabled || !canRemove}
+          onPress={onRemove}
+        />
       }
     >
       {headerError ? (

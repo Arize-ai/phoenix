@@ -14,8 +14,6 @@ import {
   normalizeDecisionResult,
   parseDecisionImport,
   toDecisionJsonSchema,
-  toDecisionResponseFormat,
-  toDecisionToolDefinition,
   validateDecisionDraft,
 } from "../decisionUtils";
 
@@ -484,29 +482,6 @@ describe("structured output", () => {
       enum: [0, 1],
       description: "Severity?\n0: Low\n1: High",
     });
-  });
-
-  it("wraps the schema as a response format and a tool with a safe name", () => {
-    const responseFormat = toDecisionResponseFormat({
-      questions: [draft.questions[0]],
-      name: "department choice!",
-    });
-    expect(responseFormat).toMatchObject({
-      type: "json_schema",
-      json_schema: { name: "department_choice", strict: true },
-    });
-    expect(responseFormat.json_schema.schema.required).toEqual(["department"]);
-    const tool = toDecisionToolDefinition({
-      questions: draft.questions,
-      name: "",
-    });
-    expect(tool).toMatchObject({
-      type: "function",
-      function: { name: "decision", strict: true },
-    });
-    expect(tool.function.parameters).toEqual(
-      toDecisionJsonSchema(draft.questions)
-    );
   });
 
   it("builds a chat template that asks an LLM the same questions", () => {

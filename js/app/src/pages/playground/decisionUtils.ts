@@ -785,7 +785,7 @@ export function parseDecisionImport(text: string): DecisionImportResult {
 }
 
 // ---------------------------------------------------------------------------
-// Structured output: the questions as a JSON schema an LLM can fill, and as a
+// Structured output: the questions as a JSON schema an LLM can fill, and a
 // chat template that asks an LLM the same questions.
 // ---------------------------------------------------------------------------
 
@@ -875,56 +875,6 @@ export function toDecisionJsonSchema(
     properties,
     required: Object.keys(properties),
     additionalProperties: false,
-  };
-}
-
-/** A name providers accept for a schema or function: letters, digits, `_`, `-`. */
-export function toSchemaName(name: string): string {
-  const cleaned = name
-    .trim()
-    .replace(/[^a-zA-Z0-9_-]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 64);
-  return cleaned || "decision";
-}
-
-/**
- * The questions as an OpenAI-style `response_format`, the shape the
- * playground's response format editor shows for an OpenAI instance.
- */
-export function toDecisionResponseFormat({
-  questions,
-  name,
-}: {
-  questions: readonly DecisionQuestionDraft[];
-  name: string;
-}) {
-  return {
-    type: "json_schema",
-    json_schema: {
-      name: toSchemaName(name),
-      strict: true,
-      schema: toDecisionJsonSchema(questions),
-    },
-  };
-}
-
-/** The questions as an OpenAI-style function tool whose arguments answer them. */
-export function toDecisionToolDefinition({
-  questions,
-  name,
-}: {
-  questions: readonly DecisionQuestionDraft[];
-  name: string;
-}) {
-  return {
-    type: "function",
-    function: {
-      name: toSchemaName(name),
-      description: "Answer each question about the input.",
-      parameters: toDecisionJsonSchema(questions),
-      strict: true,
-    },
   };
 }
 
