@@ -672,6 +672,13 @@
                 ]
               },
               {
+                "group": "Atomic Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/atomic-agents",
+                  "docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing"
+                ]
+              },
+              {
                 "group": "AutoGen",
                 "pages": [
                   "docs/phoenix/integrations/python/autogen",
