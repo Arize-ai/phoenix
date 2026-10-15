@@ -64,19 +64,16 @@ jobs:
             timeout_minutes: 40
           # phoenix-evals: held to Opus on purpose. Eval authoring (LLM-judge
           # code, pytest CI gates) is a harder task class where sonnet-5 is both
-          # noisy and unreliable at a 0.8-per-case bar; Opus is stable. `warn`
-          # until the current cases have a 3-run baseline (the +0.22 measured
-          # on the earlier case set no longer applies; see
-          # evals/phoenix-evals/README.md).
+          # noisy and unreliable at a 0.8-per-case bar; Opus is stable. min_delta
+          # is ~0.14 headroom under the measured +0.44 Opus baseline (one 3-run
+          # pass, so wider than usual; see evals/phoenix-evals/README.md).
           - skill: phoenix-evals
             model: claude-opus-4-8
-            min_delta: "0.12"
-            gate: warn
-            # Estimated, not yet measured: 11 cases x 3 runs x 2 arms on Opus at
-            # up to 12 turns, about 3x the phoenix-cli leg (~$50). Replace with
-            # the cost and duration of the first CI run.
-            max_cost_usd: "75"
-            timeout_minutes: 90
+            min_delta: "0.30"
+            gate: block
+            # Measured: $18.93 and 27 minutes per full run.
+            max_cost_usd: "30"
+            timeout_minutes: 45
           # phoenix-tracing: no cases yet, so the leg skips before setup.
           # `warn` until its Δ is calibrated.
           - skill: phoenix-tracing

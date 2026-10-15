@@ -13,13 +13,29 @@ without it, so the headline number is Δ (with-plugin minus without-plugin), not
 
 ## Baseline
 
-**Not yet measured for the current cases.** The earlier case set measured a mean Δ of +0.22
-over the fire cases (`-neg-` excluded) on a 3-run `--ablation with-without` pass with
-`--judge-model claude-sonnet-5`, but cases 02–05 and 08 have since been tightened and 10–11
-added. Until a fresh 3-run pass is recorded here (mean and per-case Δ), the CI leg in
-`.github/workflows/plugin-evals.yml` runs with `gate: warn` at `min_delta: 0.12`. After
-measuring, set `min_delta` about 0.10 under the new mean and switch the leg to `block`.
-Re-measure whenever the cases or the skill change materially.
+Measured Oct 2026 in CI (3 runs per case, `--ablation with-without`, agent `claude-opus-4-8`,
+`--judge-model claude-sonnet-5`): mean Δ **+0.44** over the fire cases (`-neg-` excluded). A
+full run cost $18.93 and took 27 minutes.
+
+| Case                             | With | Without | Δ     |
+| -------------------------------- | ---- | ------- | ----- |
+| `01-rag-groundedness-judge`      | 0.97 | 0.50    | +0.47 |
+| `02-json-schema-code-eval`       | 1.00 | 1.00    | 0.00  |
+| `03-run-evaluator-experiment`    | 0.89 | 0.44    | +0.44 |
+| `04-validate-judge-labels`       | 0.94 | 0.56    | +0.39 |
+| `05-faithfulness-ci-gate`        | 0.93 | 0.44    | +0.48 |
+| `06-ts-relevance-judge`          | 1.00 | 0.29    | +0.71 |
+| `09-fix-legacy-llm-classify`     | 1.00 | 0.83    | +0.17 |
+| `10-fix-hallucination-threshold` | 1.00 | 0.13    | +0.87 |
+| `07-neg-elixir-exunit`           | 1.00 | 1.00    | 0.00  |
+| `08-neg-generic-metric-q`        | 1.00 | 1.00    | 0.00  |
+| `11-neg-export-traces-dataframe` | 0.67 | 1.00    | −0.33 |
+
+`02` is a regression guard only (both arms pass). `11` scored 0.67 only because its answer
+regex accepted just `get_spans_dataframe`; it now also accepts `query_spans`, and the skill
+never fired in either arm. The CI gate in `.github/workflows/plugin-evals.yml` is
+`min_delta: 0.30`, `gate: block` — wider headroom than phoenix-cli's 0.10 because this is a
+single measurement. Re-measure whenever the cases or the skill change materially.
 
 ## Cases
 
