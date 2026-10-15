@@ -148,24 +148,20 @@ _SERVER_OWNED_PATH_PREFIXES = ("/oauth2/authorize",)
 def _is_server_owned_path(path: Optional[str]) -> bool:
     if not path:
         return False
-    return any(path.startswith(prefix) for prefix in _SERVER_OWNED_PATH_PREFIXES)
+    return any(
+        path == prefix or path.startswith((f"{prefix}?", f"{prefix}/"))
+        for prefix in _SERVER_OWNED_PATH_PREFIXES
+    )
 
 
 def _create_redirect_response(request: Request, return_url: Optional[str]) -> Response:
-    redirect_path = prepend_root_path(request.scope, return_url or "/")
+    path_part, sep, query = (return_url or "/").partition("?")
+    redirect_path = f"{prepend_root_path(request.scope, path_part)}{sep}{query}"
     if _is_server_owned_path(return_url):
-        # When return_url points to a server-owned endpoint (e.g. /oauth2/authorize),
-        # an HTTP 302 directly from the cross-site IdP callback navigation causes browsers
-        # to withhold SameSite=Strict cookies on the follow-up GET request.
-        # Returning a same-origin HTML page that navigates via client-side script
-        # ensures the navigation to the server-owned path is same-site, sending the Strict cookies.
+        # A 302 from the cross-site IdP callback keeps the redirect chain cross-site,
+        # withholding SameSite=Strict cookies; commit a same-origin document first.
         escaped_url = html.escape(redirect_path)
-        # Escape HTML tag delimiters in the JSON string for safe inline script embedding
-        js_url = (
-            json.dumps(redirect_path)
-            .replace("<", "\\u003c")
-            .replace(">", "\\u003e")
-        )
+        js_url = json.dumps(redirect_path).replace("<", "\\u003c").replace(">", "\\u003e")
         content = (
             "<!doctype html>"
             "<html>"
@@ -179,7 +175,11 @@ def _create_redirect_response(request: Request, return_url: Optional[str]) -> Re
             "</body>"
             "</html>"
         )
-        return HTMLResponse(content=content, status_code=200)
+        return HTMLResponse(
+            content=content,
+            status_code=200,
+            headers={"Cache-Control": "no-store"},
+        )
     return RedirectResponse(
         url=redirect_path,
         status_code=302,

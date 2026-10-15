@@ -1,3 +1,4 @@
+import html
 from secrets import token_hex
 from typing import Any, Optional, cast
 
@@ -857,7 +858,8 @@ class TestLoginOriginUrl:
 
 
 class TestOAuth2TokensRedirect:
-    def _request(self, root_path: str = "") -> Request:
+    @staticmethod
+    def _request(root_path: str = "") -> Request:
         return Request(
             {
                 "type": "http",
@@ -871,48 +873,57 @@ class TestOAuth2TokensRedirect:
             }
         )
 
-    def test_redirects_302_for_spa_routes(self) -> None:
-        request = self._request()
-        response = _create_redirect_response(request, "/projects")
+    @pytest.mark.parametrize(
+        "root_path,return_url,expected_location",
+        [
+            ("", None, "/"),
+            ("", "/projects", "/projects"),
+            ("", "/oauth2/consent", "/oauth2/consent"),
+            ("", "/oauth2/authorized", "/oauth2/authorized"),
+            ("/phoenix", "/projects", "/phoenix/projects"),
+            ("", "/projects?next=http://127.0.0.1:8765/", "/projects?next=http://127.0.0.1:8765/"),
+        ],
+    )
+    def test_redirects_302_for_non_server_owned_paths(
+        self, root_path: str, return_url: Optional[str], expected_location: str
+    ) -> None:
+        response = _create_redirect_response(self._request(root_path), return_url)
         assert isinstance(response, RedirectResponse)
         assert response.status_code == 302
-        assert response.headers["location"] == "/projects"
+        assert response.headers["location"] == expected_location
 
-    def test_redirects_302_for_default_root(self) -> None:
-        request = self._request()
-        response = _create_redirect_response(request, None)
-        assert isinstance(response, RedirectResponse)
-        assert response.status_code == 302
-        assert response.headers["location"] == "/"
-
-    def test_serves_html_same_site_navigation_for_server_owned_authorize_endpoint(self) -> None:
-        request = self._request()
-        return_url = "/oauth2/authorize?client_id=mcp-gateway&state=xyz"
-        response = _create_redirect_response(request, return_url)
+    @pytest.mark.parametrize(
+        "root_path,return_url,expected_target",
+        [
+            ("", "/oauth2/authorize", "/oauth2/authorize"),
+            (
+                "",
+                "/oauth2/authorize?client_id=mcp-gateway&state=xyz&redirect_uri=http://127.0.0.1:8765/",
+                "/oauth2/authorize?client_id=mcp-gateway&state=xyz&redirect_uri=http://127.0.0.1:8765/",
+            ),
+            (
+                "/phoenix",
+                "/oauth2/authorize?client_id=mcp-gateway&state=xyz",
+                "/phoenix/oauth2/authorize?client_id=mcp-gateway&state=xyz",
+            ),
+        ],
+    )
+    def test_serves_html_navigation_for_server_owned_paths(
+        self, root_path: str, return_url: str, expected_target: str
+    ) -> None:
+        response = _create_redirect_response(self._request(root_path), return_url)
         assert isinstance(response, HTMLResponse)
         assert response.status_code == 200
-        body = response.body.decode("utf-8")
-        assert 'window.location.replace("/oauth2/authorize?client_id=mcp-gateway&state=xyz");' in body
-        assert 'href="/oauth2/authorize?client_id=mcp-gateway&amp;state=xyz"' in body
+        assert response.headers["cache-control"] == "no-store"
+        body = bytes(response.body).decode("utf-8")
+        assert f'window.location.replace("{expected_target}");' in body
+        assert f'href="{html.escape(expected_target)}"' in body
 
-    def test_server_owned_redirect_preserves_root_path(self) -> None:
-        request = self._request(root_path="/phoenix")
-        return_url = "/oauth2/authorize?client_id=mcp-gateway&state=xyz"
-        response = _create_redirect_response(request, return_url)
-        assert isinstance(response, HTMLResponse)
-        assert response.status_code == 200
-        body = response.body.decode("utf-8")
-        assert 'window.location.replace("/phoenix/oauth2/authorize?client_id=mcp-gateway&state=xyz");' in body
-        assert 'href="/phoenix/oauth2/authorize?client_id=mcp-gateway&amp;state=xyz"' in body
-
-    def test_server_owned_redirect_escapes_script_breakout_xss(self) -> None:
-        request = self._request()
-        return_url = "/oauth2/authorize?</script><script>alert(1)</script>"
-        response = _create_redirect_response(request, return_url)
-        assert isinstance(response, HTMLResponse)
-        assert response.status_code == 200
-        body = response.body.decode("utf-8")
-        assert "\\u003c/script\\u003e\\u003cscript\\u003e" in body
-        # Ensure the script tag inside the HTML is not prematurely closed:
+    def test_server_owned_redirect_escapes_script_and_attribute_breakout(self) -> None:
+        return_url = '/oauth2/authorize?q="></script><script>alert(1)</script>'
+        response = _create_redirect_response(self._request(), return_url)
+        body = bytes(response.body).decode("utf-8")
         script_content = body.split("<script>", 1)[1].split("</script>", 1)[0]
         assert "</script>" not in script_content
+        assert "\\u003c/script\\u003e\\u003cscript\\u003e" in script_content
+        assert 'href="/oauth2/authorize?q=&quot;&gt;&lt;/script&gt;' in body
