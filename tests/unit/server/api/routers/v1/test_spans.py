@@ -1057,6 +1057,82 @@ async def test_span_search_pagination(
             assert isinstance(span.status_code, str)
 
 
+@pytest.fixture
+async def project_with_unflattenable_attributes(db: DbSessionFactory) -> None:
+    """Attributes that a flatten/unflatten round trip cannot reproduce."""
+    async with db() as session:
+        project_row_id = await session.scalar(
+            insert(models.Project).values(name="unflattenable").returning(models.Project.id)
+        )
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="unflattenable123",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        await session.execute(
+            insert(models.Span).values(
+                trace_rowid=trace_id,
+                span_id="756e666c6174",
+                parent_id=None,
+                name="unflattenable span",
+                span_kind="RETRIEVER",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
+                attributes=UNFLATTENABLE_ATTRIBUTES,
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+
+
+UNFLATTENABLE_ATTRIBUTES: dict[str, Any] = {
+    "openinference": {"span": {"kind": "RETRIEVER"}},
+    "metadata": {"a.b.c": 123, "1.2.3": "abc"},
+    "retrieval": {
+        "documents": [
+            {},
+            {"document": {"content": "B", "score": 2}},
+        ]
+    },
+}
+
+
+async def test_span_search_nested_attributes_format_returns_attributes_as_stored(
+    httpx_client: httpx.AsyncClient, project_with_unflattenable_attributes: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/unflattenable/spans", params={"attributes_format": "nested"}
+    )
+    assert resp.is_success
+    (span,) = resp.json()["data"]
+    assert span["attributes"] == UNFLATTENABLE_ATTRIBUTES
+    assert span["span_kind"] == "RETRIEVER"
+
+
+async def test_span_search_flattens_attributes_by_default(
+    httpx_client: httpx.AsyncClient, project_with_unflattenable_attributes: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/unflattenable/spans")
+    assert resp.is_success
+    (span,) = resp.json()["data"]
+    assert span["attributes"] == {
+        "metadata.a.b.c": 123,
+        "metadata.1.2.3": "abc",
+        "retrieval.documents.1.document.content": "B",
+        "retrieval.documents.1.document.score": 2,
+    }
+    assert span["span_kind"] == "RETRIEVER"
+
+
 async def test_span_search_filter_expression(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
