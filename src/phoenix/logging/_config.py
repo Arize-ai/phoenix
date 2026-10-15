@@ -28,9 +28,6 @@ def setup_logging() -> None:
 
 
 def _set_up_default_logging() -> None:
-    """
-    Configures logging if Phoenix is used as a library
-    """
     logger = logging.getLogger("phoenix")
     logger.setLevel(Settings.logging_level)
     db_logger = logging.getLogger("sqlalchemy")
@@ -39,9 +36,6 @@ def _set_up_default_logging() -> None:
 
 
 def _set_up_structured_logging() -> None:
-    """
-    Configures logging if Phoenix is used as an application
-    """
     logging.getLogger("phoenix").setLevel(Settings.logging_level)
     logging.getLogger("sqlalchemy").setLevel(Settings.db_logging_level)
     root_logger = logging.getLogger()
