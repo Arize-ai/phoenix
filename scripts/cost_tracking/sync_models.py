@@ -1,20 +1,21 @@
 import argparse
-import hashlib
 import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Annotated, Any, Literal, Optional
 from urllib.request import urlopen
 
 from pydantic import AfterValidator, BaseModel
 
-PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
+from phoenix.server.cost_tracking.manifest import (
+    BUNDLED_MANIFEST_PATH,
+    SUPPORTED_SCHEMA_VERSION,
+    compute_models_sha256,
+)
 
-# Keep in sync with SUPPORTED_SCHEMA_VERSION in src/phoenix/server/cost_tracking/manifest.py.
-SCHEMA_VERSION = 1
+PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
 
 
 class ThresholdBasedTokenPriceCustomization(BaseModel):
@@ -58,7 +59,7 @@ class ModelConfig(BaseModel):
 
 
 class ModelCostManifest(BaseModel):
-    schema_version: int = SCHEMA_VERSION
+    schema_version: int = SUPPORTED_SCHEMA_VERSION
     generated_at: Optional[datetime] = None
     # Digest of the models as of generated_at; see models_sha256().
     models_sha256: Optional[str] = None
@@ -258,21 +259,13 @@ def next_generated_at(
 
 
 def models_sha256(manifest: ModelCostManifest) -> str:
-    """
-    Digest of the models as serialized, recorded beside ``generated_at``.
-
-    Servers apply a manifest only if its ``generated_at`` is newer than the one they have, so
-    the models must not change without it. The digest lets a test catch models edited by hand
-    without running this script. Keep in sync with the test in
-    tests/unit/server/cost_tracking/test_model_cost_manifest.py, which hashes the file's JSON.
-    """
-    canonical = json.dumps(_dump_models(manifest), sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode()).hexdigest()
+    """Digest of the models as serialized, recorded beside ``generated_at``."""
+    return compute_models_sha256(_dump_models(manifest))
 
 
 def stamp(manifest: ModelCostManifest, previous: ModelCostManifest) -> None:
     """Sets the schema version, ``generated_at`` and ``models_sha256`` for the models."""
-    manifest.schema_version = SCHEMA_VERSION
+    manifest.schema_version = SUPPORTED_SCHEMA_VERSION
     manifest.generated_at = next_generated_at(previous, manifest)
     manifest.models_sha256 = models_sha256(manifest)
 
@@ -460,12 +453,8 @@ def main() -> int:
         ),
     )
     args = parser.parse_args()
-    local_file_path = (
-        Path(__file__).parent
-        / f"../../src/phoenix/server/cost_tracking/manifests/v{SCHEMA_VERSION}.json"
-    )
 
-    with open(local_file_path, "r") as file:
+    with open(BUNDLED_MANIFEST_PATH, "r") as file:
         manifest_text = file.read()
     manifest = ModelCostManifest.model_validate_json(manifest_text)
     previous_manifest = manifest.model_copy(deep=True)
@@ -487,7 +476,7 @@ def main() -> int:
 
     updated_text = serialize_manifest(updated_manifest)
     if updated_text != manifest_text:
-        with open(local_file_path, "w") as file:
+        with open(BUNDLED_MANIFEST_PATH, "w") as file:
             file.write(updated_text)
         print("Model data updated successfully")
     else:

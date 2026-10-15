@@ -8,6 +8,7 @@ skipped with a warning instead of failing the whole manifest. Only problems with
 as a whole (invalid JSON, an unsupported ``schema_version``, a bad ``generated_at``) raise.
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -150,6 +151,18 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
     return manifest.model_copy(
         update={"models": models, "skipped_model_names": frozenset(skipped_names)}
     )
+
+
+def compute_models_sha256(models: list[Any]) -> str:
+    """
+    Digest of a manifest's ``models``, as JSON values, recorded as its ``models_sha256``.
+
+    Servers apply a manifest only if its ``generated_at`` is newer than the one they have, so
+    the models must not change without it. The sync script records this digest whenever it
+    sets ``generated_at``, which lets a test catch models edited by hand without the script.
+    """
+    canonical = json.dumps(models, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def _summarize(error: ValidationError) -> str:

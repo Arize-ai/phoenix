@@ -14,7 +14,6 @@ And guards that the models never change without ``generated_at``: servers apply 
 only if it is newer than the one they have.
 """
 
-import hashlib
 import json
 import re
 from datetime import datetime, timezone
@@ -29,6 +28,7 @@ from phoenix.server.cost_tracking.manifest import (
     BUNDLED_MANIFEST_PATH,
     DEFAULT_MANIFEST_URL,
     SUPPORTED_SCHEMA_VERSION,
+    compute_models_sha256,
     parse_manifest,
 )
 
@@ -344,17 +344,15 @@ def test_typesafe_evaluation_models_are_priced_by_input_only(
 
 
 def test_bundled_manifest_is_the_one_servers_fetch() -> None:
-    # Servers fetch the bundled file from GitHub, and the sync script writes it, so all
-    # three must agree on its path.
+    # Servers fetch the bundled file from GitHub, and the sync script writes it, so the URL
+    # must point at it.
     assert BUNDLED_MANIFEST_PATH == MANIFEST_PATH
     repo_root = MANIFEST_PATH.parents[5]
     assert DEFAULT_MANIFEST_URL.endswith("/main/" + MANIFEST_PATH.relative_to(repo_root).as_posix())
 
 
 def test_models_are_not_changed_without_bumping_generated_at(manifest: dict[str, Any]) -> None:
-    # Hashed as in models_sha256() in scripts/cost_tracking/sync_models.py.
-    canonical = json.dumps(manifest["models"], sort_keys=True, separators=(",", ":"))
-    assert manifest.get("models_sha256") == hashlib.sha256(canonical.encode()).hexdigest(), (
+    assert manifest.get("models_sha256") == compute_models_sha256(manifest["models"]), (
         "The manifest's models changed without generated_at. Servers would skip the change, "
         "since they apply only a newer manifest. Run "
         "`uv run python scripts/cost_tracking/sync_models.py --bump-generated-at`."
