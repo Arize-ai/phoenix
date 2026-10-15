@@ -76,6 +76,7 @@ Use manual attributes only when an auto-instrumentor does not cover your provide
 
 ```python
 from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 from phoenix.otel import register
 
 register(project_name="manual-multimodal-tracing")
@@ -94,6 +95,7 @@ with tracer.start_as_current_span("inspect-image") as span:
             "llm.input_messages.0.message.contents.1.message_content.image.image.url": image_url,
         }
     )
+    span.set_status(Status(StatusCode.OK))
 ```
 
 ## Keep payloads small

@@ -26,15 +26,26 @@ pip install arize-phoenix pandas
 
 ## Load your spans
 
-Both paths below start from `df`, a dataframe of [OpenInference](/docs/phoenix/resources/openinference) spans. Load it however you stored it:
+Both paths below start from `df`, a dataframe of [OpenInference](/docs/phoenix/resources/openinference) spans. The most direct source is a project in another Phoenix instance:
 
 ```python
-import pandas as pd
+from phoenix.client import Client
 
-# Saved earlier, or exported from another Phoenix instance with
-# client.spans.get_spans_dataframe()
-df = pd.read_parquet("spans.parquet")
+client = Client()
+
+df = client.spans.get_spans_dataframe(project_identifier="my-source-project")
 ```
+
+<Warning>
+Name the project. `get_spans_dataframe()` with no arguments reads the `default` project and returns an
+empty dataframe with no error, so a missing `project_identifier` looks like a project with no spans.
+</Warning>
+
+<Warning>
+If you stage the dataframe on disk first, use `to_pickle` and `read_pickle`. A Parquet round-trip turns
+the message lists inside `attributes` into NumPy arrays, and `log_spans_dataframe` then fails with
+`TypeError: Object of type ndarray is not JSON serializable` for any span carrying LLM messages.
+</Warning>
 
 ## Upload spans to an existing Phoenix project
 
@@ -71,6 +82,13 @@ df = uniquify_spans_dataframe(df)
 
 Use `TraceDataset` when you want to open a local Phoenix instance from a dataframe or from a trace dataset you saved earlier.
 
+<Warning>
+`launch_app` starts a **second** Phoenix inside your process. Unset `PHOENIX_COLLECTOR_ENDPOINT` and leave
+ports 6006 and 4317 free before you call it. If it cannot bind, it returns `None` rather than raising, so
+the next line fails with `AttributeError: 'NoneType' object has no attribute 'url'`. To read spans in a
+Phoenix you are already running, upload them with `log_spans_dataframe` instead.
+</Warning>
+
 ```python
 import phoenix as px
 
@@ -80,7 +98,7 @@ px.launch_app(trace=px.TraceDataset(df))
 # Launch Phoenix from a saved trace dataset
 trace_dataset = px.TraceDataset.load(
     "f7733fda-6ad6-4427-a803-55ad2182b662",
-    directory="/my_saved_traces/",
+    directory="my_saved_traces",
 )
 px.launch_app(trace=trace_dataset)
 ```
@@ -89,15 +107,15 @@ The local Phoenix instance runs only while your notebook or Python process is ru
 
 ## Save and reload a trace dataset
 
-`TraceDataset.save` writes the trace dataset to disk and returns the dataset ID. Pass that ID to `TraceDataset.load` when you want to open it again.
+`TraceDataset.save` writes the trace dataset to disk and returns the dataset ID. Pass that ID to `TraceDataset.load` when you want to open it again. Create the directory first; `save` does not create it.
 
 ```python
 import phoenix as px
 
 trace_dataset = px.TraceDataset(df)
-dataset_id = trace_dataset.save(directory="/my_saved_traces/")
+dataset_id = trace_dataset.save(directory="my_saved_traces")
 
-reloaded = px.TraceDataset.load(dataset_id, directory="/my_saved_traces/")
+reloaded = px.TraceDataset.load(dataset_id, directory="my_saved_traces")
 px.launch_app(trace=reloaded)
 ```
 

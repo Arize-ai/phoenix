@@ -94,7 +94,14 @@ Use this path when your traces come from OpenLIT, OpenLLMetry, or Traceloop. Add
 Processor order matters. Add the translation processor before the exporter processor. See [Span processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) for how processors run.
 </Warning>
 
-Use the processor that matches the source of your spans:
+Install the processor that matches the source of your spans:
+
+```bash
+pip install openinference-instrumentation-openllmetry  # OpenLLMetry or Traceloop
+pip install openinference-instrumentation-openlit      # OpenLIT
+```
+
+Then add it ahead of the exporter:
 
 ```python
 from opentelemetry import trace
