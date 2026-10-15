@@ -670,7 +670,7 @@ describe("resolveEvaluatorPath", () => {
     ).toEqual({ status: "resolved", value: ["a", "b"], matches: ["a", "b"] });
   });
 
-  it("blames the subscript the server raises on", () => {
+  it("blames the subscript that matches nothing", () => {
     const path = "metadata.events[-2].name";
 
     expect(resolveEvaluatorPath({ source: SPAN_SOURCE, path })).toEqual({

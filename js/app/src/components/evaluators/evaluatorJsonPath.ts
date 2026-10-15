@@ -279,7 +279,7 @@ export type EvaluatorPathMatches =
   | { status: "unmatched"; step: EvaluatorPathStep };
 
 /**
- * Walks `steps` over `source` the way jsonpath_ng 1.8 does for the server's
+ * Walks `steps` over `source` the way jsonpath_ng 1.10 does for the server's
  * `apply_input_mapping`: each step maps over every match so far, and a step
  * that matches nothing or raises fails the whole path.
  */
@@ -372,19 +372,13 @@ function applyIndices({
       ? Array.from(value)
       : null;
   if (items === null) {
-    if (!isStringKeyedObject(value)) {
-      return null;
-    }
-    const size = Object.keys(value).length;
-    return indices.some((index) => size > index) ? null : [];
+    // An object has no positions, so an index matches nothing on one.
+    return isStringKeyedObject(value) ? [] : null;
   }
   const matches: unknown[] = [];
   for (const index of indices) {
-    if (index >= items.length) {
+    if (index >= items.length || index < -items.length) {
       continue;
-    }
-    if (index < -items.length) {
-      return null;
     }
     matches.push(items.at(index));
   }
