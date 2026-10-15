@@ -3,6 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import {
   ContentSkeleton,
   Flex,
+  ListSkeleton,
   ParagraphSkeleton,
   Skeleton,
   Text,
@@ -10,6 +11,7 @@ import {
 } from "@phoenix/components";
 import type {
   BorderRadiusValue,
+  ComponentSize,
   TextSize,
 } from "@phoenix/components/core/types";
 
@@ -19,9 +21,9 @@ import { OptionGrid } from "../../utils/OptionGrid";
  * A placeholder in the shape of content that is still loading, so the layout
  * does not move when the content arrives. Reach for a prebuilt shape before
  * sizing a `Skeleton` by hand: `TextSkeleton` for one line of text,
- * `ParagraphSkeleton` for several, and `ContentSkeleton` for the body of a
- * card. A wave sweeps across every skeleton, and stops when the user prefers
- * reduced motion.
+ * `ParagraphSkeleton` for several, `ContentSkeleton` for the body of a card,
+ * and `ListSkeleton` for a list. A wave sweeps across every skeleton, and
+ * stops when the user prefers reduced motion.
  *
  * A line of text is one continuous bar, never a row of word-sized pieces. Put
  * several skeletons on one line only when that line holds separate
@@ -31,7 +33,12 @@ import { OptionGrid } from "../../utils/OptionGrid";
 const meta: Meta = {
   title: "Design System/Feedback/Skeleton",
   component: Skeleton,
-  subcomponents: { TextSkeleton, ParagraphSkeleton, ContentSkeleton },
+  subcomponents: {
+    TextSkeleton,
+    ParagraphSkeleton,
+    ContentSkeleton,
+    ListSkeleton,
+  },
   tags: ["updated", "unreviewed", "complete"],
   parameters: {
     layout: "centered",
@@ -61,6 +68,28 @@ const TEXT_COLUMNS: {
 ];
 
 const TEXT = "Latency";
+
+const LIST_SIZES: { label: ComponentSize; code: true }[] = (
+  ["S", "M", "L"] as const
+).map((size) => ({ label: size, code: true }));
+
+const LIST_FILL_HEIGHTS: { label: string; code: true; height: number }[] = [
+  { label: "160px", code: true, height: 160 },
+  { label: "300px", code: true, height: 300 },
+];
+
+const LIST_FADE_EDGES: {
+  label: string;
+  code: true;
+  fadeEdge: "bottom" | null;
+}[] = [
+  { label: "null", code: true, fadeEdge: null },
+  { label: "bottom", code: true, fadeEdge: "bottom" },
+];
+
+const fullWidthCSS = css`
+  width: 100%;
+`;
 
 const LINES: { label: string; code: true; lines: number }[] = [
   { label: "1", code: true, lines: 1 },
@@ -132,6 +161,84 @@ export const ContentSkeletonDefault: StoryFn = () => (
 ContentSkeletonDefault.storyName = "Content Skeleton";
 ContentSkeletonDefault.tags = ["!dev"];
 ContentSkeletonDefault.parameters = { themeLayout: "row" };
+
+/**
+ * `ListSkeleton` stands where a list's loaded items will be. Choose the
+ * `size` whose height is closest to the loaded items'. Set
+ * `itemCount="fill"` when the loaded list fills its container, which must
+ * then have a definite height, or be a flex column whose remaining height
+ * the skeleton takes. A filling list fades toward the bottom, since the
+ * loaded list runs on past it; pass `fadeEdge={null}` to turn that off, or
+ * set `fadeEdge` on a counted list that should trail off.
+ */
+export const ListSkeletonDefault: StoryFn = () => (
+  <div css={fullWidthCSS}>
+    <ListSkeleton itemCount={3} />
+  </div>
+);
+ListSkeletonDefault.storyName = "List Skeleton";
+ListSkeletonDefault.tags = ["!dev"];
+ListSkeletonDefault.parameters = { layout: "padded", themeLayout: "column" };
+
+export const ListSkeletonSizes: StoryFn = () => (
+  <OptionGrid
+    columns={LIST_SIZES}
+    cellWidth="240px"
+    justifyCells="stretch"
+    alignRows="start"
+    renderCell={(_row, column) => (
+      <div css={fullWidthCSS}>
+        <ListSkeleton size={column?.label} itemCount={3} />
+      </div>
+    )}
+  />
+);
+ListSkeletonSizes.storyName = "List Skeleton: Sizes";
+ListSkeletonSizes.tags = ["!dev"];
+ListSkeletonSizes.parameters = { layout: "padded", themeLayout: "column" };
+
+export const ListSkeletonFillHeight: StoryFn = () => (
+  <OptionGrid
+    rows={LIST_FILL_HEIGHTS}
+    cellWidth="320px"
+    justifyCells="stretch"
+    renderCell={(row) => (
+      <div
+        css={css`
+          height: ${row.height}px;
+        `}
+      >
+        <ListSkeleton itemCount="fill" />
+      </div>
+    )}
+  />
+);
+ListSkeletonFillHeight.storyName = "List Skeleton: Fill Height";
+ListSkeletonFillHeight.tags = ["!dev"];
+ListSkeletonFillHeight.parameters = {
+  layout: "padded",
+  themeLayout: "column",
+};
+
+export const ListSkeletonFadeEdge: StoryFn = () => (
+  <OptionGrid
+    columns={LIST_FADE_EDGES}
+    cellWidth="320px"
+    justifyCells="stretch"
+    renderCell={(_row, column) => (
+      <div
+        css={css`
+          height: 240px;
+        `}
+      >
+        <ListSkeleton itemCount="fill" fadeEdge={column?.fadeEdge} />
+      </div>
+    )}
+  />
+);
+ListSkeletonFadeEdge.storyName = "List Skeleton: Fade Edge";
+ListSkeletonFadeEdge.tags = ["!dev"];
+ListSkeletonFadeEdge.parameters = { layout: "padded", themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryFn = () => (
