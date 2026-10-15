@@ -124,7 +124,20 @@ Auto-instrumented spans do not need this: use [`using_attributes`](#sessions-use
 
 Set `input.value` and `output.value` for the span table. Set MIME types when the value is JSON, text, or another structured format.
 
-For chat-style LLM spans, also use `llm.input_messages.*` and `llm.output_messages.*` so Phoenix can show message roles and content. See [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for the message format.
+For chat-style LLM spans, also use `llm.input_messages.*` and `llm.output_messages.*` so Phoenix can show message roles and content. Each message is a numbered group:
+
+```python
+span.set_attributes(
+    {
+        "llm.input_messages.0.message.role": "user",
+        "llm.input_messages.0.message.content": question,
+        "llm.output_messages.0.message.role": "assistant",
+        "llm.output_messages.0.message.content": answer,
+    }
+)
+```
+
+Number each message from `0` in order. See [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for tool calls and the other message fields.
 
 <Tabs>
   <Tab title="Python" icon="python">

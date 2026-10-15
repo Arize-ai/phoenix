@@ -24,6 +24,18 @@ pip install arize-phoenix pandas
 
 <ConnectToPhoenixPython />
 
+## Load your spans
+
+Both paths below start from `df`, a dataframe of [OpenInference](/docs/phoenix/resources/openinference) spans. Load it however you stored it:
+
+```python
+import pandas as pd
+
+# Saved earlier, or exported from another Phoenix instance with
+# client.spans.get_spans_dataframe()
+df = pd.read_parquet("spans.parquet")
+```
+
 ## Upload spans to an existing Phoenix project
 
 Use `log_spans_dataframe` when you have a dataframe of spans and want to write those spans to a Phoenix project.

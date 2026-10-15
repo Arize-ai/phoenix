@@ -48,16 +48,12 @@ Use this path when you want to add tracing yourself. Choose the OpenInference pa
     Set environment variables to connect to your Phoenix instance:
 
     ```bash
-    export PHOENIX_API_KEY="your-api-key"
-
-    # Local (default, no API key required)
+    # Local Phoenix, no API key required
     export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 
-    # A remote Phoenix deployment
+    # A remote or self-hosted Phoenix deployment
     # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
-
-    # Self-hosted
-    # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
+    # export PHOENIX_API_KEY="your-api-key"
     ```
 
     <Warning>

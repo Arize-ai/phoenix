@@ -79,7 +79,7 @@ The `.where()` filter expression uses the same language as the Phoenix filter ba
 </Check>
 
 <Info>
-By default, result dataframes are indexed by `span_id`. If you use `.explode()`, Phoenix adds the exploded list index to the dataframe index. For `retrieval.documents`, that added index is named `document_position`.
+By default, result dataframes are indexed by `context.span_id`. If you use `.explode()`, Phoenix adds the exploded list index to the dataframe index. For `retrieval.documents`, that added index is named `document_position`.
 </Info>
 
 This query returns retriever spans with their input value.

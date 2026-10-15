@@ -88,7 +88,7 @@ any(cost_detail.token_type == "cache_read" for cost_detail in cost_details)
 
 ## Learn more
 
-* **Customize token attributes** — set model names, token counts, metadata, and other OpenInference fields. See [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans).
+* **Set the token attributes yourself** — the table under [Set up cost tracking](#set-up-cost-tracking) lists every attribute Phoenix prices from. For metadata, tags, sessions, and other context, see [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans).
 * **Filter by cost** — use cost fields in span, trace, and session filters. For token-type details, use `cost_details` on spans and `span_cost_details` on traces or sessions. See [Filter expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions).
 * **Tune the SDK setup** — configure batching, custom endpoints, headers, sampling, and full SDK options. See [Python arize-phoenix-otel](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) or [TypeScript @arizeai/phoenix-otel](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel).
 
