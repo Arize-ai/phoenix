@@ -190,6 +190,7 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | | [Agent Spec](https://arize.com/docs/phoenix/tracing/integrations-tracing/agentspec) | `openinference-instrumentation-agentspec` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-agentspec.svg)](https://pypi.python.org/pypi/openinference-instrumentation-agentspec) |
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/claude-color.png" height="14"> | [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk) | `openinference-instrumentation-claude-agent-sdk` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-claude-agent-sdk.svg)](https://pypi.python.org/pypi/openinference-instrumentation-claude-agent-sdk) |
 | | [TypeSafe AI](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python) | `openinference-instrumentation-typesafe` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-typesafe.svg)](https://pypi.python.org/pypi/openinference-instrumentation-typesafe) |
+| | [Atomic Agents](https://arize.com/docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing) | `atomic-agents[observability]` | [![PyPI Version](https://img.shields.io/pypi/v/atomic-agents.svg)](https://pypi.python.org/pypi/atomic-agents) |
 
 ## Span Processors
 
