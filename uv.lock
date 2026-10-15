@@ -965,8 +965,8 @@ requires-dist = [
     { name = "tqdm" },
     { name = "tqdm", marker = "extra == 'test'" },
     { name = "types-tqdm", marker = "extra == 'test'" },
-    { name = "typesafe-sdk", marker = "extra == 'dev'" },
-    { name = "typesafe-sdk", marker = "extra == 'test'" },
+    { name = "typesafe-sdk", marker = "extra == 'dev'", specifier = ">=0.7,<1" },
+    { name = "typesafe-sdk", marker = "extra == 'test'", specifier = ">=0.7,<1" },
     { name = "typing-extensions", specifier = ">=4.5,<5" },
     { name = "typing-extensions", marker = "extra == 'test'", specifier = ">=4.5,<5" },
 ]
