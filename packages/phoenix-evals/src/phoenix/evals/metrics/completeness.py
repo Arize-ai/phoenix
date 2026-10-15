@@ -6,7 +6,7 @@ from ..__generated__.classification_evaluator_configs import (
     COMPLETENESS_CLASSIFICATION_EVALUATOR_CONFIG,
 )
 from ..evaluators import ClassificationEvaluator
-from ..llm import LLM, Decision
+from ..llm import LLM, DecisionModel
 from ..llm.prompts import PromptTemplate
 
 
@@ -72,7 +72,7 @@ class CompletenessEvaluator(ClassificationEvaluator):
             ),
         )
 
-    def __init__(self, llm: Union[LLM, Decision], **kwargs: Any):
+    def __init__(self, llm: Union[LLM, DecisionModel], **kwargs: Any):
         super().__init__(
             name=self.NAME,
             llm=llm,

@@ -7,7 +7,7 @@ _CLASSIFICATION_INSTRUCTIONS = (
 )
 
 
-class Decision:
+class DecisionModel:
     """A decision model (e.g. TypeSafe's Jev) used as a classification judge.
 
     Unlike :class:`LLM`, a decision model only answers typed questions and cannot
@@ -18,11 +18,11 @@ class Decision:
     Example::
 
         from phoenix.evals import ClassificationEvaluator
-        from phoenix.evals.llm import Decision
+        from phoenix.evals.llm import DecisionModel
 
         evaluator = ClassificationEvaluator(
             name="sentiment",
-            llm=Decision(model="jev-latest"),
+            llm=DecisionModel(model="jev-latest"),
             prompt_template="Classify the sentiment: {text}",
             choices=["positive", "negative", "neutral"],
         )
@@ -33,7 +33,7 @@ class Decision:
             from typesafe_sdk import AsyncTypeSafeClient, TypeSafeClient
         except ImportError as e:
             raise ImportError(
-                "The typesafe-sdk package is required to use Decision. "
+                "The typesafe-sdk package is required to use DecisionModel. "
                 "Install it with `pip install typesafe-sdk`."
             ) from e
 

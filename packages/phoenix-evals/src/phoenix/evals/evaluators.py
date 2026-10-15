@@ -28,7 +28,7 @@ from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
-from .llm import LLM, Decision, PromptLike
+from .llm import LLM, DecisionModel, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
 from .tracing import trace
@@ -532,7 +532,7 @@ class LLMEvaluator(Evaluator):
         self,
         *,
         name: str,
-        llm: Union[LLM, Decision],
+        llm: Union[LLM, DecisionModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
@@ -698,7 +698,7 @@ class ClassificationEvaluator(LLMEvaluator):
         self,
         *,
         name: str,
-        llm: Union[LLM, Decision],
+        llm: Union[LLM, DecisionModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
@@ -1133,7 +1133,7 @@ def create_evaluator(
 def create_classifier(
     name: str,
     prompt_template: str,
-    llm: Union[LLM, Decision],
+    llm: Union[LLM, DecisionModel],
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],

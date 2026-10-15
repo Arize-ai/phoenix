@@ -17,7 +17,7 @@ from .evaluators import (
     create_evaluator,
     evaluate_dataframe,
 )
-from .llm import LLM, Decision, phoenix_prompt_to_prompt_template
+from .llm import LLM, DecisionModel, phoenix_prompt_to_prompt_template
 from .utils import download_benchmark_dataset
 
 __version__ = version("arize-phoenix-evals")
@@ -48,7 +48,7 @@ __all__ = [
     "templating",
     "llm",
     "LLM",
-    "Decision",
+    "DecisionModel",
     "phoenix_prompt_to_prompt_template",
     "bind_evaluator",
     "tracing",

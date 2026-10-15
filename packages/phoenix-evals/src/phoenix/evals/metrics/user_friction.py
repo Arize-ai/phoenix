@@ -6,7 +6,7 @@ from ..__generated__.classification_evaluator_configs import (
     USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
 from ..evaluators import ClassificationEvaluator
-from ..llm import LLM, Decision
+from ..llm import LLM, DecisionModel
 from ..llm.prompts import PromptTemplate
 
 
@@ -75,7 +75,7 @@ class UserFrictionEvaluator(ClassificationEvaluator):
         conversation: str = Field(description="The conversation before the target user message.")
         user_message: str = Field(description="The latest user message to classify.")
 
-    def __init__(self, llm: Union[LLM, Decision], **kwargs: Any):
+    def __init__(self, llm: Union[LLM, DecisionModel], **kwargs: Any):
         super().__init__(
             name=self.NAME,
             llm=llm,

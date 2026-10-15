@@ -6,7 +6,7 @@ from ..__generated__.classification_evaluator_configs import (
     REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG,
 )
 from ..evaluators import ClassificationEvaluator
-from ..llm import LLM, Decision
+from ..llm import LLM, DecisionModel
 from ..llm.prompts import PromptTemplate
 
 
@@ -65,7 +65,7 @@ class RefusalEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: Union[LLM, Decision],
+        llm: Union[LLM, DecisionModel],
         **kwargs: Any,
     ):
         super().__init__(
