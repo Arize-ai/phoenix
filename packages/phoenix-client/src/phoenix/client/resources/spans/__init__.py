@@ -29,7 +29,10 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
+    GET_PROJECTS_BY_NAME,
+    GET_SPANS_ATTRIBUTES_FORMAT,
     GET_SPANS_BY_ATTRIBUTE,
+    GET_SPANS_FILTER_EXPRESSION,
     GET_SPANS_FILTERS,
     GET_SPANS_ORDER,
     GET_SPANS_SORT,
@@ -37,6 +40,7 @@ from phoenix.client.constants.server_requirements import (
     GET_SPANS_TRACE_IDS,
 )
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
+from phoenix.client.helpers.spans import convert_spans_to_dataframe
 from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.id_handling import is_node_id
@@ -105,6 +109,41 @@ SpanNoteData = v1.SpanNoteData
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 _SPAN_PAGE_SIZE = 100
+_DATAFRAME_PAGE_SIZE = 1000
+_SPAN_LIST_EXPORT_REQUIREMENTS = (
+    GET_PROJECTS_BY_NAME,
+    GET_SPANS_ATTRIBUTES_FORMAT,
+    GET_SPANS_FILTER_EXPRESSION,
+    GET_SPANS_SORT,
+)
+"""What ``get_spans_dataframe`` needs from the server to page through the span list endpoint."""
+_DEFAULT_PROJECT_NAME = "default"
+_ROOT_SPANS_CONDITION = "parent_span is None"
+_ROOT_SPANS_ONLY_DEPRECATION = (
+    "root_spans_only is deprecated. Use a filter expression instead: "
+    f'SpanQuery().where("{_ROOT_SPANS_CONDITION}") matches root spans including orphans '
+    '(spans whose parent is absent), and SpanQuery().where("parent_id is None") matches '
+    "only spans with no parent id."
+)
+
+
+def _require_pandas() -> None:
+    try:
+        import pandas  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    except ImportError:
+        raise ImportError(
+            "pandas is required to use get_spans_dataframe. Install it with 'pip install pandas'"
+        )
+
+
+def _span_filter_condition(query: SpanQuery, *, root_spans_only: bool) -> Optional[str]:
+    """The query's ``where`` condition, narrowed to root spans when asked."""
+    condition: Optional[str] = query.to_dict().get("filter", {}).get("condition")
+    if not root_spans_only:
+        return condition or None
+    if condition:
+        return f"({condition}) and {_ROOT_SPANS_CONDITION}"
+    return _ROOT_SPANS_CONDITION
 
 
 def _span_list_params(
@@ -120,8 +159,10 @@ def _span_list_params(
     span_kind: Optional[Union[str, Sequence[str]]],
     status_code: Optional[Union[str, Sequence[str]]],
     attributes: Optional[_Attributes],
+    filter: Optional[str],
     sort: Optional[SpanSort],
     order: Optional[SortOrder],
+    attributes_format: Optional[Literal["flattened", "nested"]] = None,
 ) -> dict[str, Union[int, str, Sequence[str]]]:
     """Query parameters for one page of ``GET /v1/projects/{id}/spans``."""
     params: dict[str, Union[int, str, Sequence[str]]] = {"limit": limit}
@@ -143,12 +184,16 @@ def _span_list_params(
         params["status_code"] = [status_code] if isinstance(status_code, str) else list(status_code)
     if attributes:
         params["attribute"] = _serialize_attributes(attributes)
+    if filter:
+        params["filter"] = filter
     if sort:
         params["sort"] = sort
     if order:
         params["order"] = order
     if cursor:
         params["cursor"] = cursor
+    if attributes_format:
+        params["attributes_format"] = attributes_format
     return params
 
 
@@ -237,83 +282,129 @@ class Spans:
     ) -> "pd.DataFrame":
         """Retrieves spans based on the provided filter conditions.
 
+
         Args:
             query (Optional[SpanQuery]): A SpanQuery object defining the query criteria.
             start_time (Optional[datetime]): Optional start time for filtering.
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
-            root_spans_only (Optional[bool]): Whether to return only root spans.
-                Deprecated: express root-span scoping in the query instead, e.g.
-                `SpanQuery().where("parent_span is None")` to match root spans
-                including orphans (spans whose parent is absent), or
-                `parent_id is None` to match only spans with no parent id.
+            root_spans_only (Optional[bool]): Deprecated. Whether to return only root
+                spans, including orphans whose parent is absent. Use a filter expression
+                instead: ``SpanQuery().where("parent_span is None")``.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
                 to filter by.
-            timeout (Optional[int]): Optional request timeout in seconds.
+            timeout (Optional[int]): Optional request timeout in seconds, applied to each
+                request made.
 
         Returns:
-            pd.DataFrame: A pandas DataFrame containing the retrieved spans.
+            pd.DataFrame: A pandas DataFrame containing the retrieved spans. When no
+                project has the given name, the DataFrame is empty.
 
         Raises:
             ImportError: If pandas is not installed.
+            ValueError: If both ``project_identifier`` and ``project_name`` are given.
+            httpx.HTTPStatusError: If the API returns an error response.
         """
-        project_name = project_name
+        _require_pandas()
+        if project_identifier and project_name:
+            raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
         if root_spans_only is not None:
-            warnings.warn(
-                "root_spans_only is deprecated. Express root-span scoping in the query "
-                'instead: SpanQuery().where("parent_span is None") for root spans including '
-                'orphans, or SpanQuery().where("parent_id is None") for only spans with no '
-                "parent id.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            warnings.warn(_ROOT_SPANS_ONLY_DEPRECATION, DeprecationWarning, stacklevel=2)
         query = query if query else SpanQuery()
-        normalized_start_time = _normalize_datetime(start_time)
-        normalized_end_time = _normalize_datetime(end_time)
-
-        request_body = {
-            "queries": [query.to_dict()],
-            "start_time": _to_iso_format(normalized_start_time),
-            "end_time": _to_iso_format(normalized_end_time),
-            "limit": limit,
-            "root_spans_only": root_spans_only,
-        }
-
-        try:
-            import pandas as pd
-
-            _ = pd  # Prevent unused symbol error
-
-            if project_identifier and project_name:
-                raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
-            elif project_identifier and not project_name:
-                if is_node_id(project_identifier, node_type="Project"):
-                    project_response = self._client.get(
-                        url=f"v1/projects/{project_identifier}",
-                        headers={"accept": "application/json"},
-                        timeout=timeout,
-                    )
-                    project_response.raise_for_status()
-                    project = project_response.json()
-                    project_name = project["data"]["name"]
-                else:
-                    project_name = project_identifier
-
-            response = self._client.post(
-                url="v1/spans",
-                headers={"accept": "application/json"},
-                params={"project_name": project_name} if project_name else None,
-                json=request_body,
+        if not self._guard.supports(*_SPAN_LIST_EXPORT_REQUIREMENTS):
+            return self._legacy_spans_dataframe(
+                query=query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+                project_identifier=project_identifier,
+                project_name=project_name,
                 timeout=timeout,
             )
-            return _process_span_dataframe(response)
-        except ImportError:
-            raise ImportError(
-                "pandas is required to use get_spans_dataframe. "
-                "Install it with 'pip install pandas'"
+        condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
+        project_id = self._resolve_project_id(
+            project_identifier or project_name or _DEFAULT_PROJECT_NAME, timeout=timeout
+        )
+        spans: list[v1.Span] = []
+        cursor: Optional[str] = None
+        while project_id is not None and len(spans) < limit:
+            page = self._paginate(
+                project_identifier=project_id,
+                cursor=cursor,
+                limit=min(_DATAFRAME_PAGE_SIZE, limit - len(spans)),
+                start_time=_normalize_datetime(start_time),
+                end_time=_normalize_datetime(end_time),
+                filter=condition,
+                attributes_format="nested",
+                sort="start_time",
+                timeout=timeout,
             )
+            spans.extend(page["data"])
+            cursor = page.get("next_cursor")
+            if not cursor or not page["data"]:
+                break
+        return convert_spans_to_dataframe(spans[:limit], query)
+
+    def _legacy_spans_dataframe(
+        self,
+        *,
+        query: SpanQuery,
+        start_time: Optional[datetime],
+        end_time: Optional[datetime],
+        limit: int,
+        root_spans_only: Optional[bool],
+        project_identifier: Optional[str],
+        project_name: Optional[str],
+        timeout: Optional[int],
+    ) -> "pd.DataFrame":
+        """Export through the legacy ``POST /v1/spans`` route of servers without the span list."""
+        if project_identifier and is_node_id(project_identifier, node_type="Project"):
+            project_response = self._client.get(
+                url=f"v1/projects/{project_identifier}",
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            project_response.raise_for_status()
+            project = cast(v1.GetProjectResponseBody, project_response.json())
+            project_name = project["data"]["name"]
+        elif project_identifier:
+            project_name = project_identifier
+        response = self._client.post(
+            url="v1/spans",
+            headers={"accept": "application/json"},
+            params={"project_name": project_name} if project_name else None,
+            json=_legacy_export_request_body(
+                query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+            ),
+            timeout=timeout,
+        )
+        return _process_span_dataframe(response)
+
+    def _resolve_project_id(self, identifier: str, *, timeout: Optional[int]) -> Optional[str]:
+        if is_node_id(identifier, node_type="Project"):
+            return identifier
+        self._guard.require(GET_PROJECTS_BY_NAME)
+        response = self._client.get(
+            url="v1/projects",
+            params={
+                "name": identifier,
+                "limit": 1,
+                "include_experiment_projects": "true",
+                "include_dataset_evaluator_projects": "true",
+            },
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        projects = cast(v1.GetProjectsResponseBody, response.json())["data"]
+        return projects[0]["id"] if projects else None
 
     def get_span_annotations_dataframe(
         self,
@@ -556,8 +647,10 @@ class Spans:
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
         attributes: Optional[_Attributes] = None,
+        filter: Optional[str] = None,
         sort: Optional[SpanSort] = None,
         order: Optional[SortOrder] = None,
+        attributes_format: Optional[Literal["flattened", "nested"]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.SpansResponseBody:
         response = self._client.get(
@@ -574,8 +667,10 @@ class Spans:
                 span_kind=span_kind,
                 status_code=status_code,
                 attributes=attributes,
+                filter=filter,
                 sort=sort,
                 order=order,
+                attributes_format=attributes_format,
             ),
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -596,6 +691,7 @@ class Spans:
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
         attributes: Optional[_Attributes] = None,
+        filter: Optional[str] = None,
         sort: Optional[SpanSort] = None,
         order: Optional[SortOrder] = None,
         limit: int = 100,
@@ -630,6 +726,9 @@ class Spans:
                 To match a stored string whose contents look like a number or boolean
                 (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
                 Requires Phoenix server >= 14.9.0.
+            filter (Optional[str]): A span filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions,
+                AND-ed with the other filters. Requires Phoenix server >= 20.17.0.
             sort (Optional[Literal["id", "start_time"]]): Which field orders the
                 result. The default, ``"id"``, is insertion order;
                 ``"start_time"`` is when each span started, with ties broken by id.
@@ -654,6 +753,8 @@ class Spans:
             self._guard.require(GET_SPANS_FILTERS)
         if attributes:
             self._guard.require(GET_SPANS_BY_ATTRIBUTE)
+        if filter:
+            self._guard.require(GET_SPANS_FILTER_EXPRESSION)
         if sort:
             self._guard.require(GET_SPANS_SORT)
         if order:
@@ -674,6 +775,7 @@ class Spans:
                 span_kind=span_kind,
                 status_code=status_code,
                 attributes=attributes,
+                filter=filter,
                 sort=sort,
                 order=order,
                 timeout=timeout,
@@ -1553,91 +1655,137 @@ class AsyncSpans:
         end_time: Optional[datetime] = None,
         limit: int = 1000,
         root_spans_only: Optional[bool] = None,
-        project_name: Optional[str] = None,
         project_identifier: Optional[str] = None,
+        project_name: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Retrieves spans based on the provided filter conditions.
+
 
         Args:
             query (Optional[SpanQuery]): A SpanQuery object defining the query criteria.
             start_time (Optional[datetime]): Optional start time for filtering.
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
-            root_spans_only (Optional[bool]): Whether to return only root spans.
-                Deprecated: express root-span scoping in the query instead, e.g.
-                `SpanQuery().where("parent_span is None")` to match root spans
-                including orphans (spans whose parent is absent), or
-                `parent_id is None` to match only spans with no parent id.
+            root_spans_only (Optional[bool]): Deprecated. Whether to return only root
+                spans, including orphans whose parent is absent. Use a filter expression
+                instead: ``SpanQuery().where("parent_span is None")``.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
                 to filter by.
-            timeout (Optional[int]): Optional request timeout in seconds.
-
+            timeout (Optional[int]): Optional request timeout in seconds, applied to each
+                request made.
 
         Returns:
-            pd.DataFrame: A pandas DataFrame containing the retrieved spans.
+            pd.DataFrame: A pandas DataFrame containing the retrieved spans. When no
+                project has the given name, the DataFrame is empty.
 
         Raises:
             ImportError: If pandas is not installed.
+            ValueError: If both ``project_identifier`` and ``project_name`` are given.
+            httpx.HTTPStatusError: If the API returns an error response.
         """
-        project_name = project_name
+        _require_pandas()
+        if project_identifier and project_name:
+            raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
         if root_spans_only is not None:
-            warnings.warn(
-                "root_spans_only is deprecated. Express root-span scoping in the query "
-                'instead: SpanQuery().where("parent_span is None") for root spans including '
-                'orphans, or SpanQuery().where("parent_id is None") for only spans with no '
-                "parent id.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            warnings.warn(_ROOT_SPANS_ONLY_DEPRECATION, DeprecationWarning, stacklevel=2)
         query = query if query else SpanQuery()
-        normalized_start_time = _normalize_datetime(start_time)
-        normalized_end_time = _normalize_datetime(end_time)
-
-        request_body = {
-            "queries": [query.to_dict()],
-            "start_time": _to_iso_format(normalized_start_time),
-            "end_time": _to_iso_format(normalized_end_time),
-            "limit": limit,
-            "root_spans_only": root_spans_only,
-        }
-
-        try:
-            import pandas as pd
-
-            _ = pd  # Prevent unused symbol error
-
-            if project_identifier and project_name:
-                raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
-            elif project_identifier and not project_name:
-                if is_node_id(project_identifier, node_type="Project"):
-                    project_response = await self._client.get(
-                        url=f"v1/projects/{project_identifier}",
-                        headers={"accept": "application/json"},
-                        timeout=timeout,
-                    )
-                    project_response.raise_for_status()
-                    project = project_response.json()
-                    project_name = project["data"]["name"]
-                else:
-                    project_name = project_identifier
-
-            response = await self._client.post(
-                url="v1/spans",
-                headers={"accept": "application/json"},
-                params={"project_name": project_name} if project_name else None,
-                json=request_body,
+        if not await self._guard.supports(*_SPAN_LIST_EXPORT_REQUIREMENTS):
+            return await self._legacy_spans_dataframe(
+                query=query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+                project_identifier=project_identifier,
+                project_name=project_name,
                 timeout=timeout,
             )
-            await response.aread()
-            return _process_span_dataframe(response)
-        except ImportError:
-            raise ImportError(
-                "pandas is required to use get_spans_dataframe. "
-                "Install it with 'pip install pandas'"
+        condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
+        project_id = await self._resolve_project_id(
+            project_identifier or project_name or _DEFAULT_PROJECT_NAME, timeout=timeout
+        )
+        spans: list[v1.Span] = []
+        cursor: Optional[str] = None
+        while project_id is not None and len(spans) < limit:
+            page = await self._paginate(
+                project_identifier=project_id,
+                cursor=cursor,
+                limit=min(_DATAFRAME_PAGE_SIZE, limit - len(spans)),
+                start_time=_normalize_datetime(start_time),
+                end_time=_normalize_datetime(end_time),
+                filter=condition,
+                attributes_format="nested",
+                sort="start_time",
+                timeout=timeout,
             )
+            spans.extend(page["data"])
+            cursor = page.get("next_cursor")
+            if not cursor or not page["data"]:
+                break
+        return convert_spans_to_dataframe(spans[:limit], query)
+
+    async def _legacy_spans_dataframe(
+        self,
+        *,
+        query: SpanQuery,
+        start_time: Optional[datetime],
+        end_time: Optional[datetime],
+        limit: int,
+        root_spans_only: Optional[bool],
+        project_identifier: Optional[str],
+        project_name: Optional[str],
+        timeout: Optional[int],
+    ) -> "pd.DataFrame":
+        """Export through the legacy ``POST /v1/spans`` route of servers without the span list."""
+        if project_identifier and is_node_id(project_identifier, node_type="Project"):
+            project_response = await self._client.get(
+                url=f"v1/projects/{project_identifier}",
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
+            project_response.raise_for_status()
+            project = cast(v1.GetProjectResponseBody, project_response.json())
+            project_name = project["data"]["name"]
+        elif project_identifier:
+            project_name = project_identifier
+        response = await self._client.post(
+            url="v1/spans",
+            headers={"accept": "application/json"},
+            params={"project_name": project_name} if project_name else None,
+            json=_legacy_export_request_body(
+                query,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+            ),
+            timeout=timeout,
+        )
+        return _process_span_dataframe(response)
+
+    async def _resolve_project_id(
+        self, identifier: str, *, timeout: Optional[int]
+    ) -> Optional[str]:
+        if is_node_id(identifier, node_type="Project"):
+            return identifier
+        await self._guard.require(GET_PROJECTS_BY_NAME)
+        response = await self._client.get(
+            url="v1/projects",
+            params={
+                "name": identifier,
+                "limit": 1,
+                "include_experiment_projects": "true",
+                "include_dataset_evaluator_projects": "true",
+            },
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        projects = cast(v1.GetProjectsResponseBody, response.json())["data"]
+        return projects[0]["id"] if projects else None
 
     async def get_span_annotations_dataframe(
         self,
@@ -1880,8 +2028,10 @@ class AsyncSpans:
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
         attributes: Optional[_Attributes] = None,
+        filter: Optional[str] = None,
         sort: Optional[SpanSort] = None,
         order: Optional[SortOrder] = None,
+        attributes_format: Optional[Literal["flattened", "nested"]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.SpansResponseBody:
         response = await self._client.get(
@@ -1898,8 +2048,10 @@ class AsyncSpans:
                 span_kind=span_kind,
                 status_code=status_code,
                 attributes=attributes,
+                filter=filter,
                 sort=sort,
                 order=order,
+                attributes_format=attributes_format,
             ),
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1920,6 +2072,7 @@ class AsyncSpans:
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
         attributes: Optional[_Attributes] = None,
+        filter: Optional[str] = None,
         sort: Optional[SpanSort] = None,
         order: Optional[SortOrder] = None,
         limit: int = 100,
@@ -1954,6 +2107,9 @@ class AsyncSpans:
                 To match a stored string whose contents look like a number or boolean
                 (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
                 Requires Phoenix server >= 14.9.0.
+            filter (Optional[str]): A span filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions,
+                AND-ed with the other filters. Requires Phoenix server >= 20.17.0.
             sort (Optional[Literal["id", "start_time"]]): Which field orders the
                 result. The default, ``"id"``, is insertion order;
                 ``"start_time"`` is when each span started, with ties broken by id.
@@ -1978,6 +2134,8 @@ class AsyncSpans:
             await self._guard.require(GET_SPANS_FILTERS)
         if attributes:
             await self._guard.require(GET_SPANS_BY_ATTRIBUTE)
+        if filter:
+            await self._guard.require(GET_SPANS_FILTER_EXPRESSION)
         if sort:
             await self._guard.require(GET_SPANS_SORT)
         if order:
@@ -1998,6 +2156,7 @@ class AsyncSpans:
                 span_kind=span_kind,
                 status_code=status_code,
                 attributes=attributes,
+                filter=filter,
                 sort=sort,
                 order=order,
                 timeout=timeout,
@@ -2816,35 +2975,6 @@ class AsyncSpans:
         return all_responses if sync else None
 
 
-def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
-    """Convert a datetime to ISO format string.
-
-    Args:
-        value (Optional[datetime]): The datetime value to convert.
-
-    Returns:
-        Optional[str]: ISO format string if value is provided, None otherwise.
-    """
-    return value.isoformat() if value else None
-
-
-def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
-    """Decode a JSON string into a pandas DataFrame using table schema.
-
-    Args:
-        obj (str): JSON string containing DataFrame data in table schema format.
-
-    Returns:
-        pd.DataFrame: The decoded pandas DataFrame with cleaned index and column names.
-    """
-    import pandas as pd  # pyright: ignore[reportUnusedImport]
-    from pandas.io.json._table_schema import parse_table_schema  # type: ignore
-
-    df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))
-    df.index.names = [x.split("_", 1)[1] or None for x in df.index.names]  # type: ignore
-    return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)  # type: ignore[override,unused-ignore]
-
-
 def _normalize_datetime(
     dt: Optional[datetime],
     tz: Optional[tzinfo] = None,
@@ -2867,6 +2997,45 @@ def _normalize_datetime(
     if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
         dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
     return dt.astimezone(timezone.utc)
+
+
+def _legacy_export_request_body(
+    query: SpanQuery,
+    *,
+    start_time: Optional[datetime],
+    end_time: Optional[datetime],
+    limit: int,
+    root_spans_only: Optional[bool],
+) -> dict[str, Any]:
+    """The request body of the legacy ``POST /v1/spans`` route."""
+    return {
+        "queries": [query.to_dict()],
+        "start_time": _to_iso_format(_normalize_datetime(start_time)),
+        "end_time": _to_iso_format(_normalize_datetime(end_time)),
+        "limit": limit,
+        "root_spans_only": root_spans_only,
+    }
+
+
+def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
+    return value.isoformat() if value else None
+
+
+def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
+    """Decode a JSON string into a pandas DataFrame using table schema.
+
+    Args:
+        obj (str): JSON string containing DataFrame data in table schema format.
+
+    Returns:
+        pd.DataFrame: The decoded pandas DataFrame with cleaned index and column names.
+    """
+    import pandas as pd  # pyright: ignore[reportUnusedImport]
+    from pandas.io.json._table_schema import parse_table_schema  # type: ignore
+
+    df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))
+    df.index.names = [x.split("_", 1)[1] or None for x in df.index.names]  # type: ignore
+    return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)  # type: ignore[override,unused-ignore]
 
 
 def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":

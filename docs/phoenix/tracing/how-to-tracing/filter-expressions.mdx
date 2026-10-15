@@ -19,7 +19,7 @@ Session filters require Phoenix **19.18.0+**.
 | :--- | :--- | :--- | :--- |
 | UI filter bar | Yes — spans table (via GraphQL) | Yes — traces table (via GraphQL) | Yes — sessions table (via GraphQL) |
 | GraphQL | `filterCondition` argument | `traceFilterCondition` argument | `sessionFilterCondition` argument |
-| Python / TypeScript clients | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` (Python only) | `filter` argument on `traces.get_traces(...)` / `getTraces(...)` | `filter` argument on `sessions.list(...)` / `listSessions(...)` |
+| Python / TypeScript clients | `filter` argument on `spans.get_spans(...)`, or `SpanQuery().where(...)` (Python only) | `filter` argument on `traces.get_traces(...)` / `getTraces(...)` | `filter` argument on `sessions.list(...)` / `listSessions(...)` |
 | REST list / search endpoints | `filter` query param on `GET /v1/projects/{project_identifier}/spans` | `filter` query param on `GET /v1/projects/{project_identifier}/traces` | `filter` query param on `GET /v1/projects/{project_identifier}/sessions` |
 
 <Info>
