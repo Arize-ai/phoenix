@@ -97,8 +97,11 @@ Processor order matters. Add the translation processor before the exporter proce
 Install the processor that matches the source of your spans:
 
 ```bash
-pip install openinference-instrumentation-openllmetry  # OpenLLMetry or Traceloop
-pip install openinference-instrumentation-openlit      # OpenLIT
+# OpenLLMetry or Traceloop
+pip install openinference-instrumentation-openllmetry
+
+# OpenLIT (requires Python < 3.14)
+pip install openinference-instrumentation-openlit
 ```
 
 Then add it ahead of the exporter:
