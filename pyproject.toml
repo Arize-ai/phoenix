@@ -429,6 +429,10 @@ exclude = [
   "src/phoenix/trace/v1/evaluation_pb2.py*",
   "src/phoenix/vendor/json_canonicalization_scheme",
   ".agents/**/*.md",
+  # Public skills and their generated copies; `make skills-check` keeps the copies identical.
+  "skills/**/*.md",
+  "src/phoenix/server/mcp/skills/**/*.md",
+  "src/phoenix/server/agents/prompts/public_skills/**/*.md",
   ".claude/**/*.md",
   ".cursor/**/*.md",
   ".github/**/*.md",
