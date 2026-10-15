@@ -83,6 +83,35 @@ def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monke
     assert score.metadata["probabilities"] == {"valid": 0.1, "invalid": 0.9}
 
 
+def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
+    client = MagicMock()
+    client.system_one.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
+    _patch_clients(monkeypatch, sync_client=client)
+
+    evaluator = ClassificationEvaluator(
+        name="isValid",
+        llm=DecisionModel(provider="typesafe", model="jev-latest"),
+        prompt_template="is the following question valid: {question}",
+        choices={
+            "valid": (1, "the question is well formed"),
+            "invalid": (0, "the question is malformed"),  # label: (score, description)
+        },
+    )
+    [score] = evaluator.evaluate({"question": "asdf"})
+
+    # The score map from the tuple still maps the chosen label to its score.
+    assert score.label == "valid"
+    assert score.score == 1
+
+    # The descriptions from the tuple reach Jev as the choice criteria.
+    _, kwargs = client.system_one.call_args
+    question = kwargs["questions"]["label"]
+    assert question.criteria == {
+        "valid": "the question is well formed",
+        "invalid": "the question is malformed",
+    }
+
+
 def test_missing_sdk_raises_a_helpful_error(monkeypatch):
     import builtins
 

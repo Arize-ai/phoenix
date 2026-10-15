@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 from ....llm.prompts import PromptLike
 from ...registries import register_provider
@@ -31,8 +31,12 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> Dict[str, Any]:
         from typesafe_sdk import Choice
 
-        label_names = list(labels) if isinstance(labels, list) else list(labels.keys())
-        criteria = {label: None for label in label_names}
+        # When labels is a dict it maps each label to its description (the evaluator produces
+        # this from `{label: (score, description)}` choices); pass those descriptions straight
+        # to Jev as the choice criteria. A list carries no descriptions, so each is None.
+        criteria: Dict[str, Optional[str]] = (
+            dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
+        )
         return {"label": Choice(instructions=_CLASSIFICATION_INSTRUCTIONS, criteria=criteria)}
 
     @staticmethod
