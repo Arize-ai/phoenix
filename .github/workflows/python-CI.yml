@@ -34,7 +34,7 @@ jobs:
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel == 'true' && steps.bookkeeping.outputs.only != 'true' }}
       migrations: ${{ steps.filter.outputs.migrations }}
       ddl: ${{ steps.filter.outputs.ddl }}
-      # Keep this raw: lockfile freshness must also be checked on release PRs.
+      # Check that uv.lock matches pyproject.toml even when release changes skip tests.
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       bookkeeping: ${{ steps.bookkeeping.outputs.only }}
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
