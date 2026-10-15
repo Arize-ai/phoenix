@@ -1,3 +1,5 @@
+import argparse
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -58,6 +60,8 @@ class ModelConfig(BaseModel):
 class ModelCostManifest(BaseModel):
     schema_version: int = SCHEMA_VERSION
     generated_at: Optional[datetime] = None
+    # Digest of the models as of generated_at; see models_sha256().
+    models_sha256: Optional[str] = None
     models: list[ModelConfig]
 
 
@@ -241,11 +245,36 @@ def next_generated_at(
 ) -> datetime:
     """
     Keeps the previous ``generated_at`` unless the models changed, so that a sync with no price
-    changes leaves the manifest untouched.
+    changes leaves the manifest untouched. Models edited by hand since ``generated_at`` was set
+    count as changed: their digest no longer matches ``models_sha256``.
     """
-    if previous.generated_at is not None and _dump_models(previous) == _dump_models(updated):
+    if (
+        previous.generated_at is not None
+        and previous.models_sha256 == models_sha256(previous)
+        and _dump_models(previous) == _dump_models(updated)
+    ):
         return previous.generated_at
     return (now or datetime.now(timezone.utc)).replace(microsecond=0)
+
+
+def models_sha256(manifest: ModelCostManifest) -> str:
+    """
+    Digest of the models as serialized, recorded beside ``generated_at``.
+
+    Servers apply a manifest only if its ``generated_at`` is newer than the one they have, so
+    the models must not change without it. The digest lets a test catch models edited by hand
+    without running this script. Keep in sync with the test in
+    tests/unit/server/cost_tracking/test_model_cost_manifest.py, which hashes the file's JSON.
+    """
+    canonical = json.dumps(_dump_models(manifest), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def stamp(manifest: ModelCostManifest, previous: ModelCostManifest) -> None:
+    """Sets the schema version, ``generated_at`` and ``models_sha256`` for the models."""
+    manifest.schema_version = SCHEMA_VERSION
+    manifest.generated_at = next_generated_at(previous, manifest)
+    manifest.models_sha256 = models_sha256(manifest)
 
 
 def _dump_models(manifest: ModelCostManifest) -> list[dict[str, Any]]:
@@ -421,29 +450,40 @@ def update_manifest(
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Sync the model cost manifest with LiteLLM.")
+    parser.add_argument(
+        "--bump-generated-at",
+        action="store_true",
+        help=(
+            "Don't fetch from LiteLLM; only update generated_at and models_sha256 if the models "
+            "were edited by hand. Run this after editing the manifest's models."
+        ),
+    )
+    args = parser.parse_args()
     local_file_path = (
         Path(__file__).parent
         / f"../../src/phoenix/server/cost_tracking/manifests/v{SCHEMA_VERSION}.json"
     )
-    url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
-
-    try:
-        remote_data = fetch_data(url)
-    except Exception as error:
-        print(f"Error fetching model data from LiteLLM: {error}")
-        return 1
 
     with open(local_file_path, "r") as file:
         manifest_text = file.read()
     manifest = ModelCostManifest.model_validate_json(manifest_text)
     previous_manifest = manifest.model_copy(deep=True)
 
-    litellm_entries = extract_litellm_entries(remote_data)
-    print(f"Found {len(litellm_entries)} models with pricing from LiteLLM")
-
-    updated_manifest = update_manifest(manifest, litellm_entries)
-    updated_manifest.schema_version = SCHEMA_VERSION
-    updated_manifest.generated_at = next_generated_at(previous_manifest, updated_manifest)
+    if args.bump_generated_at:
+        updated_manifest = manifest
+        litellm_entries = None
+    else:
+        url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+        try:
+            remote_data = fetch_data(url)
+        except Exception as error:
+            print(f"Error fetching model data from LiteLLM: {error}")
+            return 1
+        litellm_entries = extract_litellm_entries(remote_data)
+        print(f"Found {len(litellm_entries)} models with pricing from LiteLLM")
+        updated_manifest = update_manifest(manifest, litellm_entries)
+    stamp(updated_manifest, previous_manifest)
 
     updated_text = serialize_manifest(updated_manifest)
     if updated_text != manifest_text:
@@ -454,7 +494,8 @@ def main() -> int:
         print("No changes detected")
 
     print(f"Total models in file: {len(updated_manifest.models)}")
-    print(f"Models from this sync: {len(litellm_entries)}")
+    if litellm_entries is not None:
+        print(f"Models from this sync: {len(litellm_entries)}")
 
     return 0
 
