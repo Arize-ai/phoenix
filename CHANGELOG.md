@@ -1,5 +1,23 @@
 # Changelog
 
+## [20.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.4...arize-phoenix-v20.22.0) (2026-10-15)
+
+
+### Features
+
+* **playground:** add Meta muse-wonder-1.0 and gemini-4-argon ([#16976](https://github.com/Arize-ai/phoenix/issues/16976)) ([d5168d1](https://github.com/Arize-ai/phoenix/commit/d5168d1645198ad7b7a47f1d597170e4b291ecef))
+
+
+### Bug Fixes
+
+* **oauth2:** preserve SameSite=Strict cookies on server-owned return_url after IdP sign-in ([#16997](https://github.com/Arize-ai/phoenix/issues/16997)) ([c332b0c](https://github.com/Arize-ai/phoenix/commit/c332b0c988b7e0742d8714c18429db1214680d38))
+
+
+### Documentation
+
+* add Claude Managed Agents tracing docs ([#16989](https://github.com/Arize-ai/phoenix/issues/16989)) ([54fe899](https://github.com/Arize-ai/phoenix/commit/54fe8990e08452cfad0f344d8868e286a3df8b4a))
+* add standalone release note for the Harbor plugin ([#16977](https://github.com/Arize-ai/phoenix/issues/16977)) ([fe4a06b](https://github.com/Arize-ai/phoenix/commit/fe4a06b0fd765ab5ff4f3370dbf9b8f859b9db41))
+
 ## [20.21.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.3...arize-phoenix-v20.21.4) (2026-10-14)
 
 
