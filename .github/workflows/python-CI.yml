@@ -45,7 +45,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          # The bookkeeping detector diffs the merge commit against its parent.
           fetch-depth: 2
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
@@ -112,7 +111,7 @@ jobs:
               - "js/app/schema.graphql"
               - "pyproject.toml"
       # Skip suites only when every changed path is a changelog or release
-      # manifest. Source and dependency files always keep the suites enabled.
+      # manifest.
       - name: Detect a bookkeeping-only change
         id: bookkeeping
         if: ${{ github.event_name == 'pull_request' }}
