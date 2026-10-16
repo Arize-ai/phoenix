@@ -51,9 +51,12 @@ export class ErrorBoundary extends Component<
       const errorMessage: string | null =
         this.state.error instanceof Error ? this.state.error.message : null;
       return typeof this.props.fallback === "function" ? (
-        <this.props.fallback error={errorMessage} />
+        <this.props.fallback error={errorMessage} thrown={this.state.error} />
       ) : (
-        <BugReportErrorBoundaryFallback error={errorMessage} />
+        <BugReportErrorBoundaryFallback
+          error={errorMessage}
+          thrown={this.state.error}
+        />
       );
     }
 
