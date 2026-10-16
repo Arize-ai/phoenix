@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e8aa9784af6cd280fa69de1c0dc95a0>>
+ * @generated SignedSource<<a393a7c7dc560068d94a39f3dd1770ad>>
  * @lightSyntaxTransform
  */
 
@@ -10,8 +10,16 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
-export type useModelMenuDataQuery$variables = Record<PropertyKey, never>;
+export type ModelType = "DECISION" | "LLM";
+export type useModelMenuDataQuery$variables = {
+  includeDecisionModels: boolean;
+};
 export type useModelMenuDataQuery$data = {
+  readonly decisionModels?: ReadonlyArray<{
+    readonly modelType: ModelType;
+    readonly name: string;
+    readonly providerKey: GenerativeProviderKey;
+  }>;
   readonly generativeModelCustomProviders: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -26,9 +34,11 @@ export type useModelMenuDataQuery$data = {
     readonly credentialsSet: boolean;
     readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
+    readonly modelTypes: ReadonlyArray<ModelType>;
     readonly name: string;
   }>;
   readonly playgroundModels: ReadonlyArray<{
+    readonly modelType: ModelType;
     readonly name: string;
     readonly providerKey: GenerativeProviderKey;
   }>;
@@ -39,14 +49,38 @@ export type useModelMenuDataQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "includeDecisionModels"
+  }
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v1 = [
+v2 = [
+  (v1/*:: as any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "providerKey",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "modelType",
+    "storageKey": null
+  }
+],
+v3 = [
   {
     "alias": null,
     "args": null,
@@ -78,7 +112,7 @@ v1 = [
                 "name": "id",
                 "storageKey": null
               },
-              (v0/*:: as any*/),
+              (v1/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -117,7 +151,7 @@ v1 = [
         "name": "key",
         "storageKey": null
       },
-      (v0/*:: as any*/),
+      (v1/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -131,6 +165,13 @@ v1 = [
         "kind": "ScalarField",
         "name": "credentialsSet",
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "modelTypes",
+        "storageKey": null
       }
     ],
     "storageKey": null
@@ -142,47 +183,64 @@ v1 = [
     "kind": "LinkedField",
     "name": "playgroundModels",
     "plural": true,
-    "selections": [
-      (v0/*:: as any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "providerKey",
-        "storageKey": null
-      }
-    ],
+    "selections": (v2/*:: as any*/),
     "storageKey": null
+  },
+  {
+    "condition": "includeDecisionModels",
+    "kind": "Condition",
+    "passingValue": true,
+    "selections": [
+      {
+        "alias": "decisionModels",
+        "args": [
+          {
+            "kind": "Literal",
+            "name": "input",
+            "value": {
+              "modelType": "DECISION",
+              "providerKey": null
+            }
+          }
+        ],
+        "concreteType": "PlaygroundModel",
+        "kind": "LinkedField",
+        "name": "playgroundModels",
+        "plural": true,
+        "selections": (v2/*:: as any*/),
+        "storageKey": "playgroundModels(input:{\"modelType\":\"DECISION\",\"providerKey\":null})"
+      }
+    ]
   }
 ];
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*:: as any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "useModelMenuDataQuery",
-    "selections": (v1/*:: as any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "700a417c415e5bc889e79dce3bf18e53",
+    "cacheID": "d4489cf4ea15d69d7c399f9e2d11c08a",
     "id": null,
     "metadata": {},
     "name": "useModelMenuDataQuery",
     "operationKind": "query",
-    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query useModelMenuDataQuery(\n  $includeDecisionModels: Boolean!\n) {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    credentialsSet\n    modelTypes\n  }\n  playgroundModels {\n    name\n    providerKey\n    modelType\n  }\n  decisionModels: playgroundModels(input: {providerKey: null, modelType: DECISION}) @include(if: $includeDecisionModels) {\n    name\n    providerKey\n    modelType\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f60d71682e63a12728470a15b4d7daf4";
+(node as any).hash = "0a51a0be2141a18af6c43ef3aaf16ebc";
 
 export default node;

@@ -13,6 +13,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group, useDefaultLayout } from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { createReadExperimentResultsClientAction } from "@phoenix/agent/tools/experimentResults";
@@ -87,12 +88,17 @@ import {
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import {
+  Alert,
   Button,
   Flex,
   Icon,
   Icons,
   Loading,
   PageHeader,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
@@ -120,7 +126,12 @@ import {
 } from "@phoenix/store/agentStore";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import {
+  DECISION_DATASET_BLOCKED_REASON,
+  DECISION_DATASET_SELECT_DISABLED_REASON,
+  DECISION_MODEL_CLEARS_DATASET_NOTICE,
+  NUM_MAX_PLAYGROUND_INSTANCES,
+} from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -136,6 +147,7 @@ import {
   PlaygroundDatasetSection,
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
+import { PlaygroundDecisionOutput } from "./PlaygroundDecisionOutput";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -191,7 +203,6 @@ export function Playground(
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
-
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
   }
@@ -234,14 +245,14 @@ function AddPromptButton() {
   return (
     <Button
       size="S"
-      aria-label="add prompt"
-      leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
+      aria-label="add task"
+      leadingVisual={<Icon svg={<Icons.CopyPlus />} />}
       isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
       onPress={() => {
         addInstance();
       }}
     >
-      Compare
+      Add task
     </Button>
   );
 }
@@ -286,6 +297,16 @@ function PlaygroundContent() {
     return serializedSplitIds.split("\0");
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
+  const hasDecisionInstance = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.model.modelType === "DECISION")
+  );
+  const decisionInstanceIds = usePlaygroundContext(
+    useShallow((state) =>
+      state.instances
+        .filter((instance) => instance.model.modelType === "DECISION")
+        .map((instance) => instance.id)
+    )
+  );
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -795,6 +816,13 @@ function PlaygroundContent() {
           }
         >
           <div css={promptsWrapCSS}>
+            {isDatasetMode && hasDecisionInstance ? (
+              <View paddingBottom="size-200">
+                <Alert variant="danger" title="Run blocked">
+                  {DECISION_DATASET_BLOCKED_REASON}
+                </Alert>
+              </View>
+            ) : null}
             <Flex direction="row" gap="size-200" maxWidth="100%">
               {instanceIds.map((instanceId) => (
                 <View
@@ -806,6 +834,12 @@ function PlaygroundContent() {
                     playgroundInstanceId={instanceId}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
+                    supportsDecisionModels
+                    decisionTabNotice={
+                      isDatasetMode
+                        ? DECISION_MODEL_CLEARS_DATASET_NOTICE
+                        : undefined
+                    }
                   />
                 </View>
               ))}
@@ -856,7 +890,21 @@ function PlaygroundContent() {
                 headingLevel={2}
                 resizable
                 title="Inputs"
-                extra={<PlaygroundDatasetSelect />}
+                extra={
+                  hasDecisionInstance ? (
+                    <TooltipTrigger delay={0}>
+                      <TriggerWrap>
+                        <PlaygroundDatasetSelect isDisabled />
+                      </TriggerWrap>
+                      <Tooltip>
+                        <TooltipArrow />
+                        {DECISION_DATASET_SELECT_DISABLED_REASON}
+                      </Tooltip>
+                    </TooltipTrigger>
+                  ) : (
+                    <PlaygroundDatasetSelect />
+                  )
+                }
                 panelProps={{ id: "input", minSize: "10%" }}
                 onCollapseChange={(collapsed) =>
                   handleSectionCollapse(collapsed, "inputs")
@@ -881,7 +929,13 @@ function PlaygroundContent() {
                 <Flex direction="row" gap="size-200">
                   {instanceIds.map((instanceId) => (
                     <View key={`${instanceId}-output`} flex="1 1 0px">
-                      <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      {decisionInstanceIds.includes(instanceId) ? (
+                        <PlaygroundDecisionOutput
+                          playgroundInstanceId={instanceId}
+                        />
+                      ) : (
+                        <PlaygroundOutput playgroundInstanceId={instanceId} />
+                      )}
                     </View>
                   ))}
                 </Flex>

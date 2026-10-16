@@ -43,6 +43,9 @@ export function PlaygroundConfigButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  const hasDecisionInstance = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.model.modelType === "DECISION")
+  );
   return (
     <DialogTrigger>
       <Button
@@ -81,19 +84,20 @@ export function PlaygroundConfigButton() {
                 <Flex direction="row" justifyContent="start">
                   <Switch
                     labelPlacement="start"
-                    isSelected={streaming}
+                    isSelected={streaming && !hasDecisionInstance}
                     onChange={() => {
                       setStreaming(!streaming);
                       setPlaygroundStreamingEnabled(!streaming);
                     }}
-                    isDisabled={isRunning}
+                    isDisabled={isRunning || hasDecisionInstance}
                   >
                     <Text size="M">Streaming</Text>
                   </Switch>
                 </Flex>
                 <Text color="text-700" size="XS">
-                  Enable streaming to view experiment task output as it is
-                  generated in real time.
+                  {hasDecisionInstance
+                    ? "Decision models return a complete typed response and do not stream."
+                    : "Enable streaming to view experiment task output as it is generated in real time."}
                 </Text>
                 <ComboBox
                   aria-label="AWS Bedrock Model Prefix"

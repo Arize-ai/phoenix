@@ -3,6 +3,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
 import {
@@ -21,6 +22,57 @@ const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
   type: "json_schema",
   jsonSchema: { name: "MySchema", schema: { type: "object" }, strict: true },
 };
+
+describe("decision instances in the store", () => {
+  it("updates the model name and base URL of a decision-only provider", () => {
+    const store = createPlaygroundStore({ modelConfigByProvider: {} });
+    const chatInstance = store.getState().instances[0];
+    const instanceId = chatInstance.id;
+    // The model menu turns a chat instance into a decision instance with
+    // this patch; the page no longer opens in decision mode from the URL.
+    store.getState().updateInstance({
+      dirty: false,
+      instanceId,
+      patch: {
+        llmModel: chatInstance.model,
+        decisionRequest: createDecisionDraft(),
+        model: {
+          ...chatInstance.model,
+          modelType: "DECISION",
+          provider: "TYPESAFE",
+          modelName: "jev-latest",
+        },
+      },
+    });
+    store.getState().updateModel({
+      instanceId,
+      patch: {
+        modelName: "fixture-slow",
+        baseUrl: "http://127.0.0.1:16138/v1",
+      },
+    });
+    expect(store.getState().instances[0].model).toMatchObject({
+      provider: "TYPESAFE",
+      modelType: "DECISION",
+      modelName: "fixture-slow",
+      baseUrl: "http://127.0.0.1:16138/v1",
+    });
+  });
+});
+
+describe("duplicateInstance", () => {
+  it("inserts the copy after the source and returns its id", () => {
+    const store = createPlaygroundStore({ modelConfigByProvider: {} });
+    const sourceId = store.getState().instances[0].id;
+    const copyId = store.getState().duplicateInstance(sourceId);
+    expect(copyId).not.toBeNull();
+    expect(store.getState().instances.map((instance) => instance.id)).toEqual([
+      sourceId,
+      copyId,
+    ]);
+    expect(store.getState().duplicateInstance(-1)).toBeNull();
+  });
+});
 
 describe("getInitialInstances", () => {
   beforeEach(() => {
