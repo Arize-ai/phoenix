@@ -282,6 +282,19 @@ class TestCreateChatCompletion:
         assert model in error["message"]
         assert not build_model_spy.selections
 
+    async def test_decision_only_provider_is_rejected_before_credentials(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """A provider with decision models only cannot serve chat completions. The
+        refusal is an OpenAI-shaped 400, not an unhandled error, and it does not
+        depend on which provider it is."""
+        response = await httpx_client.post(
+            "v1/chat/completions", json=_request_body(model="typesafe:jev-latest")
+        )
+        assert response.status_code == 400, response.text
+        assert "decision models only" in response.json()["error"]["message"]
+
     async def test_tools_are_rejected(
         self,
         httpx_client: httpx.AsyncClient,

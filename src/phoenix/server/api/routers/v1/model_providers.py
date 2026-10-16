@@ -21,8 +21,9 @@ class BuiltInModelProvider(V1RoutesBaseModel):
     provider: ModelProvider = Field(
         ...,
         description=(
-            "The provider family identifier, accepted wherever a built-in model provider "
-            "is specified (e.g. 'OPENAI')."
+            "The provider family identifier, accepted wherever a built-in chat model provider "
+            "is specified, such as prompts and chat completions (e.g. 'OPENAI'). Providers that "
+            "offer decision models only are not listed here."
         ),
     )
     name: str = Field(
@@ -39,7 +40,7 @@ class GetModelProvidersResponseBody(ResponseBody[list[BuiltInModelProvider]]):
     "/model_providers",
     operation_id="getModelProviders",
     summary="List built-in model provider families",
-    description="Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.",  # noqa: E501
+    description="Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. Only providers that offer chat models are listed, because this list feeds chat-only surfaces such as prompts and `POST /v1/chat/completions`; decision-only providers are omitted. User-defined providers are listed separately by `GET /v1/custom_model_providers`.",  # noqa: E501
     response_description="A list of built-in model provider families",
     response_model_by_alias=True,
     response_model_exclude_unset=True,

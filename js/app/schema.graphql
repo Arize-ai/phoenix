@@ -940,6 +940,55 @@ input CreateDatasetSplitWithExamplesInput {
   exampleIds: [ID!]!
 }
 
+"""
+A decision request: the state the questions are asked about, and the named questions. Each question is an object with `type`, `instructions`, and `criteria`.
+"""
+input CreateDecisionInput {
+  """
+  The provider whose decision API runs the request; it must offer decision models.
+  """
+  providerKey: GenerativeProviderKey!
+
+  """The decision model to run."""
+  modelName: String!
+
+  """
+  The evidence the questions are asked about: a string, object, or array.
+  """
+  state: JSON!
+
+  """
+  Questions keyed by the name their answer is returned under; see the input description for the shape of each type.
+  """
+  questions: JSON!
+
+  """
+  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  """
+  baseUrl: String = null
+
+  """
+  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+}
+
+"""
+Outcome of one decision run. Problems found before the provider is called fail the mutation with a GraphQL error.
+"""
+type CreateDecisionPayload {
+  """
+  The provider response with `answers` keyed by question name; null when `error` is set.
+  """
+  result: JSON
+
+  """The DECISION span recorded for the provider call, successful or not."""
+  span: Span
+
+  """Why the provider call failed; null on success."""
+  error: String
+}
+
 input CreateDocumentAnnotationInput {
   spanId: ID!
   documentPosition: Int!
@@ -2474,6 +2523,11 @@ type GenerativeProvider {
   dependencies: [String!]!
   dependenciesInstalled: Boolean!
 
+  """
+  The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients are registered for the provider, not from its name.
+  """
+  modelTypes: [ModelType!]!
+
   """The credential requirements for the provider"""
   credentialRequirements: [GenerativeProviderCredentialConfig!]!
 
@@ -2504,6 +2558,7 @@ enum GenerativeProviderKey {
   TOGETHER
   ZAI
   META
+  TYPESAFE
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2655,12 +2710,25 @@ enum ModelProvider {
   TOGETHER
   ZAI
   META
+  TYPESAFE
+}
+
+"""The kind of model a playground instance runs."""
+enum ModelType {
+  """Chat completion models that generate text from messages."""
+  LLM
+
+  """
+  Decision models that answer typed questions (choice, noul, score) about a state and return probabilities rather than text.
+  """
+  DECISION
 }
 
 input ModelsInput {
-  providerKey: GenerativeProviderKey
+  providerKey: GenerativeProviderKey = null
   modelName: String = null
   openaiApiType: OpenAIApiType = null
+  modelType: ModelType! = LLM
 }
 
 input MontyConfigInput {
@@ -2703,6 +2771,11 @@ type Mutation {
   """
   setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+
+  """
+  Run a decision model over `state` with named `questions` and record the call as a DECISION span in the playground project.
+  """
+  createDecision(input: CreateDecisionInput!): CreateDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
@@ -3045,6 +3118,7 @@ input PlaygroundEvaluatorInput {
 type PlaygroundModel implements ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey!
+  modelType: ModelType!
 }
 
 type Project implements Node {

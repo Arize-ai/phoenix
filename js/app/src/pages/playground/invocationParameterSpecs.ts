@@ -82,6 +82,10 @@ export function getInvocationFamilyForProvider(
       return InvocationFamily.GOOGLE_GENAI;
     case "AWS":
       return InvocationFamily.AWS_BEDROCK;
+    case "TYPESAFE":
+      throw new Error(
+        "Decision models do not support chat invocation parameters"
+      );
   }
   return assertUnreachable(provider);
 }

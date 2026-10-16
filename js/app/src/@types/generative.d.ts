@@ -16,7 +16,8 @@ declare type ModelProvider =
   | "PERPLEXITY"
   | "TOGETHER"
   | "ZAI"
-  | "META";
+  | "META"
+  | "TYPESAFE";
 
 /**
  * The role of a chat message

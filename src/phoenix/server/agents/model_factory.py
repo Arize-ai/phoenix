@@ -32,6 +32,8 @@ from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.agent_sessions import get_custom_provider
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
+from phoenix.server.api.helpers.playground_registry import require_chat_provider
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -97,6 +99,20 @@ def _first_credential(credentials: Mapping[str, str | None], *keys: str) -> str 
     return None
 
 
+def _require_chat_provider(provider: ModelProvider) -> None:
+    """Reject providers with no chat models before any credential is resolved.
+
+    Agents and the chat-completions proxy are chat sessions, so a decision-only
+    provider is unsupported here independent of which provider it is. The guard's
+    GraphQL-flavoured ``BadRequest`` is translated to the agents domain so REST
+    callers get a 400 rather than an unhandled error.
+    """
+    try:
+        require_chat_provider(GenerativeProviderKey.from_model_provider(provider))
+    except BadRequest as exc:
+        raise ProviderUnsupportedError(str(exc)) from exc
+
+
 def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str, ...]:
     """Env-var names whose values are resolved (secrets first, then environment)
     before building a model for a built-in provider."""
@@ -134,6 +150,9 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("ZAI_API_KEY",)
     if provider is ModelProvider.META:
         return ("META_API_KEY",)
+    if provider is ModelProvider.TYPESAFE:
+        # Decision-only; ``build_model`` rejects it before resolving credentials.
+        return ()
     assert_never(provider)
 
 
@@ -168,6 +187,7 @@ async def build_model(
             decrypt=decrypt,
         )
     elif isinstance(model, BuiltInProviderModelSelection):
+        _require_chat_provider(model.provider)
         async with db() as session:
             credentials = await _resolve_secrets_or_env(
                 session,
