@@ -1,3 +1,4 @@
+from .llm import LLM, show_provider_availability
 from .prompts import (
     Message,
     MessageRole,
@@ -8,7 +9,6 @@ from .prompts import (
     TemplateFormat,
     phoenix_prompt_to_prompt_template,
 )
-from .wrapper import LLM, show_provider_availability
 
 __all__ = [
     "LLM",
