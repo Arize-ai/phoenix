@@ -75,6 +75,11 @@ const viewportModalCSS = css`
 
   .react-aria-Dialog {
     pointer-events: auto;
+    // The top navigation's PXI control paints above viewport modals, so tall
+    // dialogs use the same block margin as fullscreen to clear the nav row.
+    max-height: calc(
+      100% - var(--global-dimension-size-600) - var(--global-dimension-size-600)
+    );
   }
 `;
 
