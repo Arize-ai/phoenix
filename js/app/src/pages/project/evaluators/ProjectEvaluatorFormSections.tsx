@@ -166,23 +166,22 @@ export const ProjectEvaluatorInputMappingDock = ({
 };
 
 const mappingDockCSS = css`
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  // Every box between the dock and its scrolling body has to be allowed to
-  // shrink, or the panel's cap on the dock's height never reaches the body.
-  .disclosure,
-  .disclosure__panel:not([hidden]) {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
   // The dock is a section of the form like the ones above it, so its title
   // takes the same level-2 heading scale rather than the disclosure default.
   .mapping-dock__title {
     font-size: var(--global-font-size-l);
     line-height: var(--global-line-height-l);
     font-weight: 600;
+  }
+  // The dock scrolls as a whole (see EvaluatorForm), so the heading sticks
+  // to its top while the rows pass under it. Scrolling one region rather
+  // than the body alone keeps a single scrollbar gutter, the same width as
+  // the form's, beside both the heading and the rows.
+  .disclosure__trigger {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--global-background-color-default);
   }
   // A section heading, not a bar: no rule under it and no tint on hover.
   // The chevron is the only sign that it toggles. The heading class is part
@@ -206,14 +205,10 @@ const mappingDockCSS = css`
     padding-bottom: var(--global-dimension-size-200);
   }
   .mapping-dock__body {
-    flex: 1 1 auto;
-    min-height: 0;
     display: flex;
     flex-direction: column;
     // Description to fields, as in the sections above.
     gap: var(--global-dimension-size-200);
-    overflow-y: auto;
-    overscroll-behavior: contain;
     padding: 0 var(--global-dimension-size-200) var(--global-dimension-size-200);
     box-sizing: border-box;
   }
