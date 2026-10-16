@@ -10,6 +10,8 @@ compare the conditions in the Phoenix UI.
 | --- | --- | --- | --- |
 | `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
+| `jobs/mcp-code-mode.yaml` | How does Claude Code compare between px with skills and the MCP server in code mode? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
+| `jobs/mcp-no-code-mode.yaml` | How does the same MCP agent do when code mode is off? Run it with `mcp-code-mode.yaml` to compare. | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
 | --- | --- |
@@ -113,7 +115,8 @@ compare the Phoenix interfaces under the same test conditions.
 | Agent | Runs | Reaches Phoenix through |
 | --- | --- | --- |
 | `phoenix-chat-agent` | PXI inside the Phoenix server | The agent session chat route |
-| `claude-code-mcp` | Claude Code | The remote MCP server at `/mcp` |
+| `claude-code-mcp` | Claude Code | The remote MCP server at `/mcp`, in code mode |
+| `claude-code-mcp-no-code-mode` | Claude Code | The remote MCP server with `PHOENIX_ENABLE_MCP_CODE_MODE=false`, which lists one tool per `/v1` operation |
 | `claude-code-cli` | Claude Code | `px`, built from this checkout, plus the public `phoenix-cli` skill |
 | `codex-mcp` | Codex | The remote MCP server |
 | `codex-cli` | Codex | The same px install and skill |
@@ -180,6 +183,10 @@ measurements.
 A condition is an agent entry in `jobs/trail-benchmark-dev.yaml`. Copy one, change the
 class, model, `kwargs`, `env`, or `skills`, and give it a new name. Skills are directories
 containing `SKILL.md`; Harbor installs them for Claude Code and Codex.
+
+An agent's `env` reaches only the agent. To change a Phoenix server setting, set it under
+`environment.env` in a separate job file, as `jobs/mcp-no-code-mode.yaml` does. The
+healthcheck that starts Phoenix receives it, and it applies to every agent in that job.
 
 To compare px or server versions, stage the tasks from the other checkout and use
 `--job-name` to identify the version. This process changes the image but not the dataset,
