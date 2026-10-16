@@ -45,9 +45,10 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
             "model_id": "mock-evaluation-model",
             "confidence": 0.95,
         },
-        "usage": {"input_tokens": 11, "output_tokens": 3},
     }
     assert "explanation" not in result
+    # usage is popped onto the DECISION span, not returned in the result
+    assert "usage" not in result
 
     client.system_one.assert_called_once()
     _, kwargs = client.system_one.call_args
@@ -209,18 +210,49 @@ def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch
     assert "confidence" not in result["metadata"]
 
 
-def test_usage_is_top_level_and_not_copied_onto_the_score(monkeypatch):
+def test_decision_span_records_attributes_and_usage(monkeypatch):
+    from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
     client = MagicMock()
     client.system_one.return_value = _response(
         "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5
     )
     _patch_clients(monkeypatch, sync_client=client)
 
-    # Direct call: usage is a separate top-level key, not buried in metadata.
+    # Inject our own tracer so the span lands in this exporter (no reliance on the global).
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider.get_tracer("test")
+
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = decision.generate_classification("is this valid?", ["valid", "invalid"])
-    assert result["usage"] == {"input_tokens": 42, "output_tokens": 5}
-    assert "usage" not in result["metadata"]
+    result = decision.generate_classification("is this valid?", ["valid", "invalid"], tracer=tracer)
+
+    # usage is popped onto the span, not returned in the result.
+    assert "usage" not in result
+
+    [span] = exporter.get_finished_spans()
+    attrs = dict(span.attributes or {})
+    assert (
+        attrs[SpanAttributes.OPENINFERENCE_SPAN_KIND] == OpenInferenceSpanKindValues.DECISION.value
+    )
+    assert attrs[SpanAttributes.DECISION_SYSTEM] == "typesafe"
+    assert attrs[SpanAttributes.DECISION_PROVIDER] == "typesafe"
+    assert attrs[SpanAttributes.DECISION_REQUEST_MODEL_NAME] == "jev-latest"
+    assert attrs[SpanAttributes.DECISION_RESPONSE_MODEL_NAME] == "mock-evaluation-model"
+    assert attrs[SpanAttributes.DECISION_TOKEN_COUNT_INPUT] == 42
+    assert attrs[SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT] == 5
+    assert SpanAttributes.INPUT_VALUE in attrs
+    assert SpanAttributes.OUTPUT_VALUE in attrs
+
+
+def test_usage_is_not_copied_onto_the_score(monkeypatch):
+    client = MagicMock()
+    client.system_one.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
+    _patch_clients(monkeypatch, sync_client=client)
 
     # Through the evaluator: confidence reaches the score, usage does not.
     evaluator = ClassificationEvaluator(

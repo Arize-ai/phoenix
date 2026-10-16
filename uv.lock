@@ -954,7 +954,7 @@ requires-dist = [
     { name = "openai", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "openai", marker = "extra == 'test'", specifier = ">=1.0.0" },
     { name = "openinference-instrumentation", specifier = ">=0.1.20" },
-    { name = "openinference-semantic-conventions", specifier = ">=0.1.19" },
+    { name = "openinference-semantic-conventions", specifier = ">=0.1.41" },
     { name = "openinference-semantic-conventions", marker = "extra == 'test'" },
     { name = "opentelemetry-api" },
     { name = "pandas" },
@@ -4717,11 +4717,11 @@ wheels = [
 
 [[package]]
 name = "openinference-semantic-conventions"
-version = "0.1.40"
+version = "0.1.41"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/59/d6/279ecdfe77e5c2fd05a2f26ff4a970bb5390090cbf70d5b9774e27e68d90/openinference_semantic_conventions-0.1.40.tar.gz", hash = "sha256:1a21e1a19eee461f541438603fad560cb3fa1a4a073d2560767f608240d0af3f", size = 14609, upload-time = "2026-10-01T02:33:17.762Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/be/e1fe52e3ae242695101144e058edfdd8e412a58ce04e2e2b410268683b05/openinference_semantic_conventions-0.1.41.tar.gz", hash = "sha256:78d4ffd9d1f2f89cb4bd58a0afe5a460475ce3d76a4d993f50fb0ce8bf4129a3", size = 15789, upload-time = "2026-10-01T18:22:33.408Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/20/b0dc0cccef2bd052ebb591df79f8df430b1ba93b8f6c9f5313a2bed8ac2b/openinference_semantic_conventions-0.1.40-py3-none-any.whl", hash = "sha256:a15c6fb75cbd51f6a42ffd156fcbdd0cb836edc952c9a5c3d065efdf0ffa0d71", size = 11711, upload-time = "2026-10-01T02:33:16.521Z" },
+    { url = "https://files.pythonhosted.org/packages/74/fa/a5197690b860f8a5b43e56aba4a34e0b42db6548b45dd6ceda9ab8980c63/openinference_semantic_conventions-0.1.41-py3-none-any.whl", hash = "sha256:4c55f59427436da842c7aae871965399ef92b8909b41e02c076e1092b4c12e51", size = 12678, upload-time = "2026-10-01T18:22:32.275Z" },
 ]
 
 [[package]]

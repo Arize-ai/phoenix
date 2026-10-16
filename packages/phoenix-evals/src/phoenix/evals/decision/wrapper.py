@@ -1,13 +1,52 @@
 import functools
+import json
+from inspect import BoundArguments
 from typing import Any, Dict, List, Optional, Union
 
+import opentelemetry.trace as trace_api
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry.trace import Tracer
+
 from phoenix.evals.rate_limiters import RateLimiter
+from phoenix.evals.tracing import trace
 
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
+from .types import BaseDecisionAdapter
 
 register_adapters()
+
+
+def _get_decision_system(bound: BoundArguments) -> str:
+    """The decision API shape (the adapter's ``client_name()``), e.g. ``typesafe``."""
+    return getattr(bound.arguments["self"], "_client_name", "") or ""
+
+
+def _get_decision_provider(bound: BoundArguments) -> str:
+    """The host that serves the model (the ``provider`` argument), e.g. ``typesafe``."""
+    return bound.arguments["self"].provider or ""
+
+
+def _get_decision_model_name(bound: BoundArguments) -> str:
+    """The requested model name, e.g. ``jev-latest``."""
+    return bound.arguments["self"].model or ""
+
+
+def _get_decision_input(bound: BoundArguments) -> str:
+    """A JSON view of the request: the flattened state, the model, and the labels."""
+    prompt = bound.arguments.get("prompt")
+    payload = {
+        "state": BaseDecisionAdapter._to_state(prompt) if prompt is not None else "",
+        "model": bound.arguments["self"].model,
+        "questions": bound.arguments.get("labels"),
+    }
+    return json.dumps(payload, default=str)
+
+
+def _jsonify_output(result: Any) -> str:
+    """Convert the classification result to a JSON string for the span output."""
+    return json.dumps(result, default=str)
 
 
 class DecisionModel:
@@ -120,6 +159,7 @@ class DecisionModel:
         self._async_client = async_client
         self._sync_adapter = adapter_class(sync_client, model=model)
         self._async_adapter = adapter_class(async_client, model=model)
+        self._client_name = registration.client_name
         self._rate_limit_errors = rate_limit_errors
         rate_limit_args: Dict[str, Any] = {}
         if initial_per_second_request_rate is not None:
@@ -132,12 +172,42 @@ class DecisionModel:
             for error in rate_limit_errors
         ]
 
+    @staticmethod
+    def _record_usage_on_span(result: Dict[str, Any]) -> None:
+        """Move per-call telemetry from the result onto the current DECISION span.
+
+        ``@trace`` makes its span current while the method runs, so this pops ``usage`` off the
+        result (keeping it out of ``Score.metadata``) and sets the response model name and token
+        counts on the span, where they show up once per call in the trace.
+        """
+        usage = result.pop("usage", None) or {}
+        span = trace_api.get_current_span()
+        attributes = {
+            SpanAttributes.DECISION_RESPONSE_MODEL_NAME: result.get("metadata", {}).get("model_id"),
+            SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.get("input_tokens"),
+            SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.get("output_tokens"),
+        }
+        for key, value in attributes.items():
+            if value is not None:
+                span.set_attribute(key, value)
+
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.DECISION,
+        process_input={
+            SpanAttributes.DECISION_SYSTEM: _get_decision_system,
+            SpanAttributes.DECISION_PROVIDER: _get_decision_provider,
+            SpanAttributes.DECISION_REQUEST_MODEL_NAME: _get_decision_model_name,
+            SpanAttributes.INPUT_VALUE: _get_decision_input,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
     def generate_classification(
         self,
         prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         method: Any = None,
+        tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Classify a prompt by selecting exactly one of the labels.
@@ -150,6 +220,8 @@ class DecisionModel:
                 decision models, which are decision-only and return no explanation.
             method (Any): Sent by ``ClassificationEvaluator`` (the object-generation method) but
                 not used by decision models.
+            tracer (Optional[Tracer]): Optional tracer for the DECISION span. If not provided,
+                the global tracer provider is used.
             **kwargs: Additional keyword arguments forwarded to the decision SDK call (e.g.
                 ``timeout``, ``retry``, ``extra_headers``, ``extra_body``).
 
@@ -160,14 +232,27 @@ class DecisionModel:
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
         )
-        return rate_limited(prompt, labels, **kwargs)
+        result: Dict[str, Any] = rate_limited(prompt, labels, **kwargs)
+        self._record_usage_on_span(result)
+        return result
 
+    @trace(
+        span_kind=OpenInferenceSpanKindValues.DECISION,
+        process_input={
+            SpanAttributes.DECISION_SYSTEM: _get_decision_system,
+            SpanAttributes.DECISION_PROVIDER: _get_decision_provider,
+            SpanAttributes.DECISION_REQUEST_MODEL_NAME: _get_decision_model_name,
+            SpanAttributes.INPUT_VALUE: _get_decision_input,
+        },
+        process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
+    )
     async def async_generate_classification(
         self,
         prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         method: Any = None,
+        tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Asynchronously classify a prompt by selecting exactly one of the labels.
@@ -180,6 +265,8 @@ class DecisionModel:
                 decision models, which are decision-only and return no explanation.
             method (Any): Sent by ``ClassificationEvaluator`` (the object-generation method) but
                 not used by decision models.
+            tracer (Optional[Tracer]): Optional tracer for the DECISION span. If not provided,
+                the global tracer provider is used.
             **kwargs: Additional keyword arguments forwarded to the decision SDK call (e.g.
                 ``timeout``, ``retry``, ``extra_headers``, ``extra_body``).
 
@@ -190,7 +277,9 @@ class DecisionModel:
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
-        return await rate_limited(prompt, labels, **kwargs)
+        result: Dict[str, Any] = await rate_limited(prompt, labels, **kwargs)
+        self._record_usage_on_span(result)
+        return result
 
 
 def show_decision_provider_availability() -> None:
