@@ -1,13 +1,16 @@
 /**
  * Balanced synthetic sentiment benchmark.
  *
- * Authored single-message cases that exercise the built-in rubric's hard
- * distinctions, which crowd-labeled corpora blur: a negative *topic* stated
- * without affect is neutral; routine courtesy ("thanks", "hello") is neutral,
- * not positive; and sentiment is not friction — a user can push back on the
- * assistant with no affect, or be upset about their own situation while
- * raising no objection. Categories are balanced across positive / neutral /
- * negative so accuracy and macro F1 are not inflated by class imbalance.
+ * Authored cases that exercise the built-in rubric's hard distinctions, which
+ * crowd-labeled corpora blur: a negative *topic* stated without affect is
+ * neutral; routine courtesy ("thanks", "hello") is neutral, not positive; and
+ * the one-directional friction relationship — friction toward the assistant
+ * (correcting a mistake it had the information to avoid) always carries
+ * negative sentiment, even when phrased flatly, while a user can be negative
+ * about their own situation with no friction, and redirecting the assistant
+ * toward a never-previously-requested direction is friction-free and neutral.
+ * Categories are spread across positive / neutral / negative so accuracy and
+ * macro F1 are not inflated by class imbalance.
  *
  * The `conversation` is present only to resolve what the latest user message
  * refers to; the judge must label the affect of `userMessage` alone.
@@ -170,17 +173,70 @@ const examplesByCategory: Record<string, Example[]> = {
       expectedLabel: "neutral",
     },
   ],
-  friction_without_affect: [
+  // Friction toward the assistant is negative even when phrased flatly: the
+  // user is correcting something the assistant had the information to get
+  // right. Friction implies negative sentiment (the reverse does not hold).
+  friction_toward_assistant: [
     {
       conversation:
         "User: Show this week's data.\nAssistant: Here is last month's data.",
       userMessage: "That's the wrong range. Use this week instead.",
-      expectedLabel: "neutral",
+      expectedLabel: "negative",
     },
     {
       conversation: "User: Keep it short.\nAssistant: [writes long reply]",
       userMessage: "Cut this down to two sentences.",
+      expectedLabel: "negative",
+    },
+    {
+      conversation:
+        "User: Book the aisle seat.\nAssistant: I've booked a window seat for you.",
+      userMessage: "I said aisle. Change it.",
+      expectedLabel: "negative",
+    },
+  ],
+  // Redirecting toward a direction never previously requested is NOT friction
+  // (the assistant did nothing wrong), so with no other affect it is neutral.
+  novel_steering: [
+    {
+      conversation: "User: Draft an announcement.\nAssistant: [provides draft]",
+      userMessage: "Actually, make it a bit shorter.",
       expectedLabel: "neutral",
+    },
+    {
+      conversation:
+        "User: Show sales by month.\nAssistant: [provides a monthly table]",
+      userMessage: "Now break it down by region instead.",
+      expectedLabel: "neutral",
+    },
+    {
+      conversation:
+        "User: Suggest three team names.\nAssistant: Atlas, Beacon, and Cedar.",
+      userMessage: "Give me three more, maybe something nature-themed.",
+      expectedLabel: "neutral",
+    },
+  ],
+  // Negative sentiment with NO friction: the user is upset about their own
+  // situation or the world, not reacting to the assistant falling short.
+  negative_without_friction: [
+    {
+      conversation: "",
+      userMessage:
+        "I just found out my flight got cancelled and I'm going to miss the wedding. I'm gutted.",
+      expectedLabel: "negative",
+    },
+    {
+      conversation: "Assistant: How can I help today?",
+      userMessage:
+        "Honestly I'm overwhelmed — everything's piling up at work and I can't keep up.",
+      expectedLabel: "negative",
+    },
+    {
+      conversation:
+        "User: Can you help me draft a note to my landlord?\nAssistant: Of course, what's it about?",
+      userMessage:
+        "They're raising the rent again and I'm really stressed about affording it.",
+      expectedLabel: "negative",
     },
   ],
   longer_conversation: [
@@ -262,7 +318,7 @@ px.describe(
   },
   {
     description:
-      "Three-class sentiment on 29 authored cases (9 positive, 12 neutral, 8 negative), mostly single-message plus 3 multi-turn conversations, covering satisfaction/relief, praise, frustration/anger, complaints, calm questions on unpleasant topics, routine courtesy, plain requests/facts, friction without affect, and longer conversations.",
+      "Three-class sentiment on 36 authored cases (9 positive, 13 neutral, 14 negative), mostly single-message plus 3 multi-turn conversations, covering satisfaction/relief, praise, frustration/anger, complaints, calm questions on unpleasant topics, routine courtesy, plain requests/facts, friction toward the assistant (negative), novel steering (neutral), negative without friction, and longer conversations.",
     metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.8 },
