@@ -248,7 +248,9 @@ try {
 success). If any span is invalid or duplicates an existing span, no spans are queued
 and a `SpanCreationError` is thrown carrying `invalidSpans` (each `{ spanId, traceId,
 error }`), `duplicateSpans` (each `{ spanId, traceId }`), and `totalInvalid` /
-`totalDuplicates` counts. This function is marked `@experimental` and mirrors the
+`totalDuplicates` counts. When the server's span ingestion queue is full it answers 503
+and queues nothing; that surfaces as a plain `Error` ("Failed to log spans: …"), so
+retry the same batch with backoff. This function is marked `@experimental` and mirrors the
 Python client's `Client.spans.log_spans` (see `instrumentation-manual-python.md`).
 
 ## See Also

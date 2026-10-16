@@ -22,20 +22,35 @@ Answer (helpful/not_helpful):`,
 });
 ```
 
-## Decision-Only Models
+## Decision Models
 
-`model` also accepts an AI SDK evaluation model (e.g. TypeSafe's Jev), a cheaper, faster classifier for high-volume labeling:
+`model` also accepts an AI SDK decision model, such as OpenAI's `gpt-6-luna` (Decisions API) or TypeSafe's Jev. A decision model picks one of the labels directly and returns a probability for each instead of generating text, so it is much faster and cheaper than a chat model judge. Every classification evaluator, built-in or custom, works with one. Requires `@arizeai/phoenix-evals` >= 2.7.0; with OpenAI, use `@ai-sdk/openai` >= 4.0.89.
 
 ```typescript
-import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
-import { typeSafeAi } from "@ai-sdk/typesafe-ai";
+import { openai } from "@ai-sdk/openai";
+import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 
-const hallucination = createHallucinationEvaluator({
-  model: typeSafeAi.evaluationModel("jev-latest"),
+const correctness = createCorrectnessEvaluator({
+  model: openai.decisionModel("gpt-6-luna"),
 });
+
+const result = await correctness.evaluate({
+  input: "What is the capital of Australia?",
+  output: "Sydney.",
+});
+// { label: "incorrect", score: 0,
+//   metadata: { probabilities: { correct: 0.02, incorrect: 0.98 }, confidence: 0.96, modelId: "gpt-6-luna" } }
 ```
 
-Results have no `explanation`; `metadata` holds per-label `probabilities` and `modelId`. No spans are emitted.
+For Jev, pass `typeSafeAi.evaluationModel("jev-latest")` from `@ai-sdk/typesafe-ai`.
+
+- **No explanation:** `explanation` is always undefined. `metadata.probabilities` maps each label to its probability; `metadata.confidence` is present when the provider reports one (OpenAI and TypeSafe do).
+- **Prompt shape:** the template renders as it would for a language model, then goes out as one plain-text state. Message roles are dropped and only text content is sent.
+- **Refusals:** a refusal throws the AI SDK's `Experimental_DecisionRefusalError`; inside `runExperiment` it is recorded as that evaluation's error.
+- **String IDs:** a plain string model ID is always treated as a language model. Use the provider's `decisionModel()`.
+- **Type guard:** `isDecisionModel(model)` and the `DecisionModel` type are exported from `@arizeai/phoenix-evals`.
+- **Tracing:** calls go through the AI SDK's `experimental_decide`, which `@arizeai/phoenix-otel` records as DECISION spans (see the phoenix-tracing skill's `span-decision.md`).
+- **When not to use:** decision models can't work through a problem step by step. They suit judgments you can read off the text (relevance, faithfulness, tool selection, toxicity) and are unreliable for checks that need a calculation, such as arithmetic or unit conversions. Use a language model for those.
 
 ## Template Variables
 

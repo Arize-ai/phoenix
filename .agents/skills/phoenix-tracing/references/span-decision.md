@@ -6,6 +6,8 @@ DECISION spans represent a call to a decision model: a model that takes some sta
 
 Known decision models: the OpenAI Decisions API (`client.decisions.create`, predicate / choice / score questions over text or images) and TypeSafe AI System One / Jev (Noul / Choice / Score questions). Both have OpenInference auto-instrumentors that emit DECISION spans: `openinference-instrumentation-openai` >= 0.1.64 and `openinference-instrumentation-typesafe` >= 0.1.4 in Python, `@arizeai/openinference-instrumentation-openai` >= 4.4.0 and `@arizeai/openinference-instrumentation-typesafe` >= 0.4.1 in TypeScript.
 
+Vercel AI SDK v7 decision models (`openai.decisionModel(...)` called through `experimental_decide`, as `@arizeai/phoenix-evals` classification evaluators do) need no extra instrumentor: with the AI SDK telemetry registered as in `instrumentation-auto-typescript.md`, `@arizeai/openinference-vercel` >= 3.3.0 (a dependency of `@arizeai/phoenix-otel`) turns each decide span into a DECISION span with the decision state as input, the answers as output, and the model, provider, and token counts.
+
 Use DECISION instead of LLM when the output is a choice over caller-supplied options, not generated prose. Use EVALUATOR when the span scores a model's output for quality; use GUARDRAIL when it enforces a safety or policy check.
 
 ## Required Attributes
