@@ -1,0 +1,364 @@
+{
+  "source": "https://huggingface.co/datasets/candradhipa/Language-Detection",
+  "split": "train",
+  "note": "The 'other' slice is one passage from each of ten languages outside English, Spanish, French, and Hindi. Each session is the dataset Text field; the evaluator's primary-language label is expected_label.",
+  "counts": {
+    "english": 10,
+    "french": 10,
+    "spanish": 10,
+    "hindi": 10,
+    "other": 10
+  },
+  "examples": [
+    {
+      "id": "english_01",
+      "source_row": 0,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "Nature, in the broadest sense, is the natural, physical, material world or universe."
+    },
+    {
+      "id": "english_02",
+      "source_row": 1,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "\"Nature\" can refer to the phenomena of the physical world, and also to life in general."
+    },
+    {
+      "id": "english_03",
+      "source_row": 2,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "The study of nature is a large, if not the only, part of science."
+    },
+    {
+      "id": "english_04",
+      "source_row": 3,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "Although humans are part of nature, human activity is often understood as a separate category from other natural phenomena."
+    },
+    {
+      "id": "english_05",
+      "source_row": 4,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "[1] The word nature is borrowed from the Old French nature and is derived from the Latin word natura, or \"essential qualities, innate disposition\", and in ancient times, literally meant \"birth\"."
+    },
+    {
+      "id": "english_06",
+      "source_row": 5,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "[2] In ancient philosophy, natura is mostly used as the Latin translation of the Greek word physis (φύσις), which originally related to the intrinsic characteristics that plants, animals, and other features of the world develop of their own accord."
+    },
+    {
+      "id": "english_07",
+      "source_row": 6,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "[3][4] The concept of nature as a whole, the physical universe, is one of several expansions of the original notion;[1] it began with certain core applications of the word φύσις by pre-Socratic philosophers (though this word had a dynamic dimension then, especially for Heraclitus), and has steadily gained currency ever since."
+    },
+    {
+      "id": "english_08",
+      "source_row": 7,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "During the advent of modern scientific method in the last several centuries, nature became the passive reality, organized and moved by divine laws."
+    },
+    {
+      "id": "english_09",
+      "source_row": 8,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "[5][6] With the Industrial revolution, nature increasingly became seen as the part of reality deprived from intentional intervention : it was hence considered as sacred by some traditions (Rousseau, American transcendentalism) or a mere decorum for divine providence or human history (Hegel, Marx)."
+    },
+    {
+      "id": "english_10",
+      "source_row": 9,
+      "source_language": "English",
+      "expected_label": "english",
+      "session": "However, a vitalist vision of nature, closer to the presocratic one, got reborn at the same time, especially after Charles Darwin."
+    },
+    {
+      "id": "french_01",
+      "source_row": 3250,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Si vous disposez d'ouvrages ou d'articles de référence ou si vous connaissez des sites web de qualité traitant du thème abordé ici, merci de compléter l'article en donnant les références utiles à sa vérifiabilité et en les liant à la section « Notes et références » En pratique : Quelles sources sont attendues ?"
+    },
+    {
+      "id": "french_02",
+      "source_row": 3252,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Cette page ou section est en train d'être traduite en français à partir de l'article Wikipédia Nature rédigé en anglais, raison pour laquelle il peut y avoir des lacunes dans le contenu, des erreurs syntaxiques voire du texte non traduit."
+    },
+    {
+      "id": "french_03",
+      "source_row": 3253,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Vous pouvez aider au développement de Wikipédia en continuant la traduction à partir de l'article original."
+    },
+    {
+      "id": "french_04",
+      "source_row": 3254,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Le mot nature est un terme polysémique (c’est-à-dire qu'il a plusieurs sens) : il peut signifier la composition et la matière d'une chose (ce qu'elle est, son essence), l'origine et le devenir d'une chose, l'ensemble du réel indépendant de la culture humaine, ou l'ensemble des systèmes et des phénomènes naturels[1]."
+    },
+    {
+      "id": "french_05",
+      "source_row": 3256,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Les principes de l'éthique environnementale, de nouvelles lois et des chartes de protection de l'environnement fondent le développement d'une idéologie culturelle humaine en relation avec la biosphère."
+    },
+    {
+      "id": "french_06",
+      "source_row": 3257,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Si l'étymologie du terme « nature » est relativement bien connue, l'évolution de son sens est beaucoup plus complexe à déterminer, et ce terme a connu des significations très différentes voire contradictoires pendant son histoire[1]."
+    },
+    {
+      "id": "french_07",
+      "source_row": 3259,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Il vient du latin natura, qui désignait « le cours des choses ; le caractère naturel, la constitution, la qualité ; l'univers » et littéralement « naissance »."
+    },
+    {
+      "id": "french_08",
+      "source_row": 3260,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Le terme vient lui-même du verbe nascor (« naître »), ici au supin[1]."
+    },
+    {
+      "id": "french_09",
+      "source_row": 3261,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Si ce terme signifie essentiellement le « caractère inné » au IIe siècle avant notre ère, le latin classique, notamment par le biais de Cicéron, va l'enrichir de tous les sens du terme grec phusis, beaucoup plus complexe et obscur et dont il devient la traduction en philosophie latine[1]."
+    },
+    {
+      "id": "french_10",
+      "source_row": 3262,
+      "source_language": "French",
+      "expected_label": "french",
+      "session": "Phusis vient du verbe phuein, dérivé de la racine phu qui désigne la croissance végétale."
+    },
+    {
+      "id": "spanish_01",
+      "source_row": 4810,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "Nature es una de las más prestigiosas revistas científicas a nivel mundial,[1]​ que fue fundada por Joseph Norman Lockyer."
+    },
+    {
+      "id": "spanish_02",
+      "source_row": 4812,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "[2]​ Con una periodicidad semanal, la revista es publicada en Reino Unido por la compañía Nature Publishing Group, subsidiaria de Macmillan Publishers, propiedad del Grupo Editorial Holtzbrinck (dueños del semanario Die Zeit)."
+    },
+    {
+      "id": "spanish_03",
+      "source_row": 4813,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "Nature tiene oficinas en Londres, Nueva York, San Francisco, Washington D. C., Tokio, París, Múnich y Basingstoke, y dispone de corresponsales propios en la mayoría de los países industrializados."
+    },
+    {
+      "id": "spanish_04",
+      "source_row": 4814,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "La editorial publica también varias revistas especializadas bajo el nombre de Nature como Nature Neuroscience, Nature Methods y Nature Structural and Molecular Biology entre otros títulos."
+    },
+    {
+      "id": "spanish_05",
+      "source_row": 4815,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "La revista es leída por científicos e investigadores de todo el mundo siendo la mayor parte de los artículos exposiciones de trabajos de investigación muy técnicos."
+    },
+    {
+      "id": "spanish_06",
+      "source_row": 4816,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "Sin embargo también incluye editoriales y noticias científicas de carácter general así como artículos sobre política científica en diferentes países, críticas de libros técnicos y de divulgación y artículos sobre la historia y el futuro de algunas disciplinas científicas."
+    },
+    {
+      "id": "spanish_07",
+      "source_row": 4817,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "Según los Journal Citation Reports, la revista tiene un factor de impacto de 41,456."
+    },
+    {
+      "id": "spanish_08",
+      "source_row": 4818,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "[3]​ Para la mayoría de los científicos publicar en Nature constituye una marca de prestigio."
+    },
+    {
+      "id": "spanish_09",
+      "source_row": 4819,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "La revista rechaza en torno al 95% de los artículos que le son enviados para la revisión por pares."
+    },
+    {
+      "id": "spanish_10",
+      "source_row": 4820,
+      "source_language": "Spanish",
+      "expected_label": "spanish",
+      "session": "[4]​ Los artículos publicados aparecen en ocasiones reseñados por la prensa general y se considera que se encuentran en el frente de la investigación científica."
+    },
+    {
+      "id": "hindi_01",
+      "source_row": 1989,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "[3] जुलाई 2008 को, पांच सबसे बड़े भाषा संस्करण हैं (लेख गणना के क्रम में)- अंग्रेजी, जर्मन, फ्रेंच, पॉलिश और जापानी विकिपीडिया."
+    },
+    {
+      "id": "hindi_02",
+      "source_row": 1993,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "[64] इस साइटने मीडिया के कई रूपों पर एक प्रभाव पैदा किया है। कुछ मीडिया स्रोत त्रुटियों के लिए विकिपीडिया की संवेदनशीलता पर व्यंग्य करते हैं, जैसे जुलाई 2006 में द अनियन में मुख पृष्ठ का लेख जिसका शीर्षक था \"विकिपीडिया सेलेब्रेट्स 750 इयर्स ऑफ़ अमेरिकन इंडीपेनडेंस.\""
+    },
+    {
+      "id": "hindi_03",
+      "source_row": 1994,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "[151] अन्य विकिपीडिया के बारे में कहते हैं कि कोई भी संपादन कर सकता है जैसे द ऑफिस के एक प्रकरण \"द नेगोशिएशन\", जिसमें पात्र माइकल स्कॉट ने कहा, \"विकिपीडिया एक सबसे अच्छी चीज है\"."
+    },
+    {
+      "id": "hindi_04",
+      "source_row": 1999,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "ये कैसा चल रहा है?। तो आप किसी से मिलते हैं और आप यह कैसे हो रहा है?"
+    },
+    {
+      "id": "hindi_05",
+      "source_row": 2000,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "वाक्यांश संख्या दो, जब आपने किसी को कुछ समय के लिए नहीं देखा है, तो आप उसे बताएंगे कि कोई समय नहीं है, तो इसका मतलब है कि आपने इस व्यक्ति को शायद हफ्तों या महीनों में नहीं देखा है जब तक कि वाक्यांश संख्या नहीं देखी जाती है। तीन अगर आप पूछना चाहते हैं कि आप क्या कर रहे हैं। आप पूछते हैं कि आपके जीवन में क्या चल रहा था?"
+    },
+    {
+      "id": "hindi_06",
+      "source_row": 2003,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "क्या हो रहा है अगर आप कुछ नहीं पकड़ते हैं या यह उस व्यक्ति को समझ नहीं पाया जिसे आप हमेशा पूछ सकते हैं कि क्या मैंने आपको सही किया है?"
+    },
+    {
+      "id": "hindi_07",
+      "source_row": 2004,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "और फिर आगे बढ़ें और समझाएं कि आपको कहाँ मिला था मैंने आपको सही किया?"
+    },
+    {
+      "id": "hindi_08",
+      "source_row": 2006,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "और आपको वह नहीं मिला जो दूसरा व्यक्ति कह रहा था आप कह सकते हैं कि आप कह रहे थे और एक प्रश्न चिह्न के साथ। जिसका अर्थ है जो व्यक्ति को एक बार फिर से दोहराने के लिए प्रेरित करता है?"
+    },
+    {
+      "id": "hindi_09",
+      "source_row": 2008,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "मुझे विश्वास नहीं हो रहा है कि आप मुझे मुस्कुराने के लिए किसी को बताने के लिए मज़ाक कर रहे हैं और खुश रहने के लिए आप हमेशा कह सकते हैं कि खुश रहो। अगर आप चाहते हैं कि कोई व्यक्ति रोने की आवाज़ करे और किसी ऐसी चीज़ के बारे में शिकायत करे जो नहीं हो रही है तो आप कह सकते हैं कि मैं आ सकता हूँ क्या आप इसे कर सकते हैं?"
+    },
+    {
+      "id": "hindi_10",
+      "source_row": 2011,
+      "source_language": "Hindi",
+      "expected_label": "hindi",
+      "session": "यह इसके लायक नहीं है। आप उस समस्या से बहुत बेहतर हैं जिसके बारे में आप रो रहे हैं ' अपने आँसुओं के लायक नहीं है। यह इस लायक नहीं है कि मैं व्यक्तिगत रूप से आपको पसंद किए जाने वाले वाक्यांश से प्यार करता हूं जिसका अर्थ है कि आप अद्भुत हैं। बाप रे बाप। तुम चट्टान तुम चट्टान?"
+    },
+    {
+      "id": "other_portuguese",
+      "source_row": 2511,
+      "source_language": "Portugeese",
+      "expected_label": "other",
+      "session": "Nature é uma revista científica interdisciplinar britânica, publicada pela primeira vez em 4 de novembro de 1869."
+    },
+    {
+      "id": "other_italian",
+      "source_row": 7114,
+      "source_language": "Italian",
+      "expected_label": "other",
+      "session": "Nature è una delle più antiche ed importanti riviste scientifiche esistenti, forse in assoluto quella considerata di maggior prestigio nell'ambito della comunità scientifica internazionale (insieme a Science)."
+    },
+    {
+      "id": "other_russian",
+      "source_row": 5995,
+      "source_language": "Russian",
+      "expected_label": "other",
+      "session": "— «Природа») — один из самых старых и авторитетных общенаучных журналов."
+    },
+    {
+      "id": "other_swedish",
+      "source_row": 8286,
+      "source_language": "Sweedish",
+      "expected_label": "other",
+      "session": "Nature är en framstående brittisk vetenskaplig veckotidskrift som började utges 4 november 1869 och grundades av Norman Lockyer."
+    },
+    {
+      "id": "other_dutch",
+      "source_row": 4264,
+      "source_language": "Dutch",
+      "expected_label": "other",
+      "session": "Nature (Engels voor 'natuur') is een Brits vooral natuurwetenschappelijk tijdschrift."
+    },
+    {
+      "id": "other_arabic",
+      "source_row": 8963,
+      "source_language": "Arabic",
+      "expected_label": "other",
+      "session": "ويكيبيديا هي موسوعة يمكن لأي مستخدم تعديل وتحرير وإنشاء مقالات جديدة فيها."
+    },
+    {
+      "id": "other_turkish",
+      "source_row": 7812,
+      "source_language": "Turkish",
+      "expected_label": "other",
+      "session": "Nature (Fransızca ve İngilizce: Nature = doğa) Vikipedi, kullanıcıları tarafından ortaklaşa olarak birçok dilde hazırlanan; özgür, bağımsız, ücretsiz, reklamsız, kâr amacı gütmeyen bir internet ansiklopedisi."
+    },
+    {
+      "id": "other_german",
+      "source_row": 9498,
+      "source_language": "German",
+      "expected_label": "other",
+      "session": ".Wir sind alle auf der Suche nach schnellen Wegen, um fließender Englisch zu sprechen."
+    },
+    {
+      "id": "other_greek",
+      "source_row": 5630,
+      "source_language": "Greek",
+      "expected_label": "other",
+      "session": "Αν περιμένατε να βρίσκεται εδώ μια σελίδα και δεν υπάρχει, η σελίδα μπορεί να μην εμφανίζεται λόγω καθυστέρησης στην ανανέωση της βάσης δεδομένων, ή μπορεί να έχει διαγραφεί."
+    },
+    {
+      "id": "other_tamil",
+      "source_row": 2042,
+      "source_language": "Tamil",
+      "expected_label": "other",
+      "session": "விக்கிப்பீடியா (Wikipedia; /ˌwɪkɪˈpiːdiə/ (கேட்க) wik-ih-PEE-dee-ə அல்லது /ˌwɪkiˈpiːdiə/ (கேட்க) wik-ee-PEE-dee-ə) என்பது, வணிக நோக்கற்ற விக்கிமீடியா நிறுவனத்தின் உதவியுடன் நடத்தப்படும், கூட்டாகத் தொகுக்கப்படும், பன்மொழி, கட்டற்ற இணையக் கலைக்களஞ்சியமாகும்."
+    }
+  ]
+}
