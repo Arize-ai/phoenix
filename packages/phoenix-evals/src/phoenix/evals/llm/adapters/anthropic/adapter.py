@@ -15,6 +15,18 @@ from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
 
+# `anthropic>=1` dropped these from the `messages.create()` signature, so passing them as keyword
+# arguments raises a TypeError. The API still accepts them, so they go in the request body instead.
+_SAMPLING_PARAMS = ("temperature", "top_p", "top_k")
+
+
+def _move_sampling_params_to_extra_body(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    sampling_params = {name: kwargs.pop(name) for name in _SAMPLING_PARAMS if name in kwargs}
+    if sampling_params:
+        # Values the caller already put in `extra_body` take precedence
+        kwargs["extra_body"] = {**sampling_params, **(kwargs.get("extra_body") or {})}
+    return kwargs
+
 
 def identify_anthropic_client(client: Any) -> bool:
     if isinstance(client, AnthropicClientWrapper):
@@ -82,7 +94,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             raise ValueError("Cannot call sync method generate_text() on async Anthropic client.")
         messages, system = self._build_messages(prompt)
         required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
-        kwargs = {**required_kwargs, **kwargs}
+        kwargs = _move_sampling_params_to_extra_body({**required_kwargs, **kwargs})
 
         # Add system message if present
         if system:
@@ -107,7 +119,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             )
         messages, system = self._build_messages(prompt)
         required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
-        kwargs = {**required_kwargs, **kwargs}
+        kwargs = _move_sampling_params_to_extra_body({**required_kwargs, **kwargs})
 
         # Add system message if present
         if system:
@@ -140,7 +152,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         self._validate_schema(schema)
 
         required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
-        kwargs = {**required_kwargs, **kwargs}
+        kwargs = _move_sampling_params_to_extra_body({**required_kwargs, **kwargs})
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             raise ValueError(
@@ -170,7 +182,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         self._validate_schema(schema)
 
         required_kwargs = {"max_tokens": 4096}  # max_tokens is required for Anthropic
-        kwargs = {**required_kwargs, **kwargs}
+        kwargs = _move_sampling_params_to_extra_body({**required_kwargs, **kwargs})
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
             raise ValueError(
