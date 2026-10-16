@@ -4,7 +4,6 @@ import { useFragment } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
-import z from "zod";
 
 import { Loading } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
@@ -13,6 +12,7 @@ import {
   CreateLLMDatasetEvaluatorSlideover,
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
+import { choicesToOutputConfigValues } from "@phoenix/components/evaluators/utils";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorsLoaderQuery.graphql";
 import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
@@ -86,12 +86,6 @@ export function DatasetEvaluatorsPageContent() {
       (t) => t.name === templateName
     );
     if (template) {
-      const maybeValidatedChoices = z
-        .record(z.string(), z.number())
-        .safeParse(template.choices);
-      const validatedChoices = maybeValidatedChoices.success
-        ? maybeValidatedChoices.data
-        : {};
       setCreateLLMEvaluatorDialogInitialState({
         name: template.name,
         description: template.description ?? "",
@@ -99,10 +93,7 @@ export function DatasetEvaluatorsPageContent() {
           {
             name: template.name,
             optimizationDirection: template.optimizationDirection,
-            values: Object.entries(validatedChoices).map(([label, score]) => ({
-              label,
-              score,
-            })),
+            values: choicesToOutputConfigValues(template.choices),
           },
         ],
         promptMessages: template.messages,

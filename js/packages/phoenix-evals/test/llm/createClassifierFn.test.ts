@@ -236,4 +236,50 @@ Is the answer above factual or hallucinated based on the query and reference tex
     // Cleanup
     generateClassificationSpy.mockRestore();
   });
+
+  it("returns the label and no score when choices are a list of labels", async () => {
+    const generateClassificationSpy = vi
+      .spyOn(generateClassificationModule, "generateClassification")
+      .mockResolvedValue({
+        label: "english",
+        explanation: "The text is English.",
+      });
+
+    const classifier = createClassifierFn({
+      model: new MockLanguageModelV3({
+        doGenerate: async () => ({
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 1,
+              noCache: 1,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: {
+              total: 1,
+              text: 1,
+              reasoning: undefined,
+            },
+          },
+          content: [{ type: "text", text: "{}" }],
+          warnings: [],
+        }),
+      }),
+      choices: ["english", "spanish", "other"],
+      promptTemplate: "Classify: {{text}}",
+    });
+
+    const result = await classifier({ text: "Hello" });
+
+    expect(generateClassificationSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        labels: ["english", "spanish", "other"],
+      })
+    );
+    expect(result.label).toBe("english");
+    expect(result.score).toBeUndefined();
+
+    generateClassificationSpy.mockRestore();
+  });
 });
