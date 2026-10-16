@@ -264,3 +264,49 @@ def test_usage_is_not_copied_onto_the_score(monkeypatch):
     [score] = evaluator.evaluate({"text": "asdf"})
     assert score.metadata["confidence"] == 0.95
     assert "usage" not in score.metadata
+
+
+def test_builtin_evaluator_sends_a_flattened_string_state(monkeypatch):
+    from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+
+    client = MagicMock()
+    client.system_one.return_value = _response("grounded", {"grounded": 0.8, "hallucinated": 0.2})
+    _patch_clients(monkeypatch, sync_client=client)
+
+    evaluator = HallucinationEvaluator(llm=DecisionModel(provider="typesafe", model="jev-latest"))
+    eval_input = {"input": "User: What is our refund window?", "output": "Electronics: 90 days."}
+    [score] = evaluator.evaluate(eval_input)
+
+    assert score.label == "grounded"
+
+    # The built-in prompt renders to a message list; _to_state must flatten it to a plain
+    # string. The hallucination template is a single message, so the whole flattened state
+    # must equal that message's rendered content.
+    rendered = evaluator._prompt_template.render(variables=eval_input)
+    assert len(rendered) == 1
+    expected_state = rendered[0]["content"]
+
+    _, kwargs = client.system_one.call_args
+    state = kwargs["state"]
+    assert isinstance(state, str)
+    assert state == expected_state
+
+
+async def test_async_evaluate_through_classification_evaluator(monkeypatch):
+    async_client = MagicMock()
+    async_client.system_one = AsyncMock(
+        return_value=_response("valid", {"valid": 0.7, "invalid": 0.3})
+    )
+    _patch_clients(monkeypatch, async_client=async_client)
+
+    evaluator = ClassificationEvaluator(
+        name="isValid",
+        llm=DecisionModel(provider="typesafe", model="jev-latest"),
+        prompt_template="is this valid: {text}",
+        choices=["valid", "invalid"],
+    )
+    [score] = await evaluator.async_evaluate({"text": "asdf"})
+
+    assert score.label == "valid"
+    assert score.metadata["confidence"] == 0.95
+    async_client.system_one.assert_awaited_once()
