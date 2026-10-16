@@ -1067,3 +1067,63 @@ class TestListWrapper:
         assert '"content"' in result
         assert '"Hello"' in result
         assert "ListWrapper" not in result
+
+
+class TestFStringTemplateErrors:
+    """FStringTemplateFormatter should surface user-facing errors as TemplateFormatterError."""
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            pytest.param("Answer: }", id="stray-closing-brace"),
+            pytest.param("Answer: {answer", id="unterminated-field"),
+            pytest.param("{answer!}", id="empty-conversion"),
+        ],
+    )
+    def test_parse_invalid_template_raises_template_formatter_error(self, template: str) -> None:
+        formatter = FStringTemplateFormatter()
+        with pytest.raises(TemplateFormatterError, match="Invalid f-string template"):
+            formatter.parse(template)
+        with pytest.raises(TemplateFormatterError, match="Invalid f-string template"):
+            formatter.parse_with_types(template)
+        with pytest.raises(TemplateFormatterError, match="Invalid f-string template"):
+            formatter.format(template, answer="x")
+
+    @pytest.mark.parametrize(
+        "template,variables",
+        [
+            pytest.param("{user.missing}", {"user": {"name": "Alice"}}, id="missing-attribute"),
+            pytest.param("{user.name}", {"user": "Alice"}, id="attribute-on-string"),
+            pytest.param("{items[5]}", {"items": [1, 2]}, id="index-out-of-range"),
+            pytest.param("{items[key]}", {"items": [1, 2]}, id="string-index-on-list"),
+            pytest.param("{name:d}", {"name": "Alice"}, id="format-spec-mismatch"),
+            pytest.param("{user:>10}", {"user": {"name": "Alice"}}, id="format-spec-on-dict"),
+            pytest.param("{name!z}", {"name": "Alice"}, id="unknown-conversion"),
+        ],
+    )
+    def test_format_resolution_failure_raises_template_formatter_error(
+        self, template: str, variables: dict[str, Any]
+    ) -> None:
+        formatter = FStringTemplateFormatter()
+        with pytest.raises(TemplateFormatterError, match="Unable to format template"):
+            formatter.format(template, **variables)
+
+    def test_error_chains_original_exception(self) -> None:
+        formatter = FStringTemplateFormatter()
+        with pytest.raises(TemplateFormatterError) as exc_info:
+            formatter.format("{items[5]}", items=[1])
+        assert isinstance(exc_info.value.__cause__, IndexError)
+
+    def test_private_attribute_error_is_not_rewrapped(self) -> None:
+        formatter = FStringTemplateFormatter()
+        with pytest.raises(TemplateFormatterError, match="not permitted in templates"):
+            formatter.format("{user.__class__}", user={"name": "Alice"})
+
+    def test_valid_templates_still_format(self) -> None:
+        formatter = FStringTemplateFormatter()
+        assert (
+            formatter.format(
+                "{{literal}} {user.name} {items[-1]}", user={"name": "A"}, items=[1, 2]
+            )
+            == "{literal} A 2"
+        )
