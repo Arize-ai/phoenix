@@ -4,7 +4,7 @@ from enum import Enum
 import strawberry
 from typing_extensions import assert_never
 
-from phoenix.server.settings.registry import ModelCostManifestVersionSetting
+from phoenix.server.settings.registry import ModelCostManifestVersion
 
 
 @strawberry.enum
@@ -26,7 +26,7 @@ class ModelCostManifest:
     )
 
 
-def to_gql_model_cost_manifest(marker: ModelCostManifestVersionSetting) -> ModelCostManifest:
+def to_gql_model_cost_manifest(marker: ModelCostManifestVersion) -> ModelCostManifest:
     if marker.source == "bundled":
         source = ModelCostManifestSource.BUNDLED
     elif marker.source == "remote":

@@ -2,7 +2,7 @@
 Syncs the built-in generative models and their token prices with a model cost manifest.
 
 The manifest bundled with Phoenix is applied at boot, and newer copies fetched at runtime are
-applied the same way. The ``cost_tracking.model_cost_manifest`` system setting records which
+applied the same way. The ``cost_tracking.model_cost_manifest`` system_state row records which
 manifest was applied last, and a manifest is only applied if it is newer, so that a boot never
 rolls back prices fetched since. The rows themselves are the cache: nothing else is stored.
 """
@@ -20,15 +20,14 @@ from sqlalchemy.orm import joinedload
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import insert_on_conflict
-from phoenix.db.models import SystemSettingKey
 from phoenix.db.types.token_price_customization import TokenPriceCustomizationParser
 from phoenix.server.cost_tracking.manifest import ManifestModel, ModelCostManifest
-from phoenix.server.settings.registry import ManifestSource, ModelCostManifestVersionSetting
+from phoenix.server.daemons.system_state import upsert_system_state
+from phoenix.server.settings.registry import ManifestSource, ModelCostManifestVersion
 
 logger = logging.getLogger(__name__)
 
-MANIFEST_VERSION_SETTING_KEY: SystemSettingKey = "cost_tracking.model_cost_manifest"
+MANIFEST_VERSION_STATE_KEY = "cost_tracking.model_cost_manifest"
 
 # Serializes applies across replicas sharing a PostgreSQL database. SQLite allows one writer.
 _APPLY_LOCK_ID = 0x70686F656E6978  # "phoenix"
@@ -46,16 +45,14 @@ class _TokenTypeKey(NamedTuple):
 
 async def get_applied_manifest_version(
     session: AsyncSession,
-) -> Optional[ModelCostManifestVersionSetting]:
+) -> Optional[ModelCostManifestVersion]:
     value = await session.scalar(
-        select(models.SystemSetting.value).where(
-            models.SystemSetting.key == MANIFEST_VERSION_SETTING_KEY
-        )
+        select(models.SystemState.value).where(models.SystemState.key == MANIFEST_VERSION_STATE_KEY)
     )
     if value is None:
         return None
     try:
-        return ModelCostManifestVersionSetting.model_validate(value)
+        return ModelCostManifestVersion.model_validate(value)
     except ValidationError as error:
         logger.warning(f"Ignoring invalid model cost manifest version marker: {error}")
         return None
@@ -63,7 +60,7 @@ async def get_applied_manifest_version(
 
 def _is_newer(
     manifest: ModelCostManifest,
-    applied: Optional[ModelCostManifestVersionSetting],
+    applied: Optional[ModelCostManifestVersion],
 ) -> bool:
     if applied is None:
         return True
@@ -133,7 +130,7 @@ async def apply_manifest_if_newer(
     num_removed += await _soft_delete_models(session, unmatched, unless_referenced=True)
     num_added, num_updated = await _upsert_models(session, entries, built_in_models)
 
-    marker = ModelCostManifestVersionSetting(
+    marker = ModelCostManifestVersion(
         schema_version=manifest.schema_version,
         generated_at=manifest.generated_at,
         source=source,
@@ -141,16 +138,7 @@ async def apply_manifest_if_newer(
         applied_at=datetime.now(timezone.utc),
     )
     payload = marker.model_dump(mode="json")
-    await session.execute(
-        insert_on_conflict(
-            {"key": MANIFEST_VERSION_SETTING_KEY, "value": payload},
-            table=models.SystemSetting,
-            dialect=dialect,
-            unique_by=("key",),
-            constraint_name="pk_system_settings",
-            set_={"value": payload, "updated_at": sa.func.now()},
-        )
-    )
+    await session.execute(upsert_system_state(MANIFEST_VERSION_STATE_KEY, payload, dialect=dialect))
     logger.info(
         f"Applied {source} model cost manifest generated at "
         f"{manifest.generated_at.isoformat()}: {num_added} models added, "

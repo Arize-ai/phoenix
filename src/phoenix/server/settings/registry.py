@@ -60,10 +60,20 @@ class AgentSessionRetentionSetting(BaseModel):
     max_count_per_user: int = Field(default=DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER, ge=0)
 
 
+SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType(
+    {
+        "agent.assistant.trace_recording": AgentTraceRecordingSetting,
+        "agent.assistant.enabled": AgentAssistantEnabledSetting,
+        "agent.assistant.session_retention": AgentSessionRetentionSetting,
+        "agent.assistant.github": AgentGitHubSetting,
+    }
+)
+
+
 ManifestSource = Literal["bundled", "remote"]
 
 
-class ModelCostManifestVersionSetting(BaseModel):
+class ModelCostManifestVersion(BaseModel):
     """Which model cost manifest the built-in models and token prices were last synced from.
 
     Written by the server, not by admins: the bundled manifest is applied at boot and a
@@ -81,17 +91,10 @@ class ModelCostManifestVersionSetting(BaseModel):
     applied_at: AwareDatetime
 
 
-SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType(
-    {
-        "agent.assistant.trace_recording": AgentTraceRecordingSetting,
-        "agent.assistant.enabled": AgentAssistantEnabledSetting,
-        "agent.assistant.session_retention": AgentSessionRetentionSetting,
-        "agent.assistant.github": AgentGitHubSetting,
-        "cost_tracking.model_cost_manifest": ModelCostManifestVersionSetting,
-    }
-)
-
-
 # Keys stored in the system_state table, which the server writes itself (unlike
 # system_settings, which admins edit). Each key maps to the model its value must parse as.
-STATE_REGISTRY: Mapping[str, type[BaseModel]] = MappingProxyType({})
+STATE_REGISTRY: Mapping[str, type[BaseModel]] = MappingProxyType(
+    {
+        "cost_tracking.model_cost_manifest": ModelCostManifestVersion,
+    }
+)

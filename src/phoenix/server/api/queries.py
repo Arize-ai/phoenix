@@ -364,7 +364,7 @@ class Query:
         ),
     )  # type: ignore
     def model_cost_manifest(self, info: Info[Context, None]) -> Optional[ModelCostManifest]:
-        if (marker := info.context.settings.model_cost_manifest_version) is None:
+        if (marker := info.context.state.model_cost_manifest_version) is None:
             return None
         return to_gql_model_cost_manifest(marker)
 

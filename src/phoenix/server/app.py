@@ -808,6 +808,7 @@ def create_graphql_router(
     graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
     system_settings: SystemSettings,
+    system_state: SystemState,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
@@ -848,6 +849,7 @@ def create_graphql_router(
         return build_context(
             db=db,
             settings=system_settings,
+            state=system_state,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
@@ -1101,6 +1103,7 @@ def create_app(
     graphql_router = create_graphql_router(
         db=db,
         system_settings=system_settings,
+        system_state=system_state,
         graphql_schema=graphql_schema,
         authentication_enabled=authentication_enabled,
         last_updated_at=last_updated_at,
@@ -1389,6 +1392,7 @@ def create_app(
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,
         system_settings=system_settings,
+        system_state=system_state,
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
@@ -1496,6 +1500,7 @@ def _get_build_graphql_context_function(
     *,
     db: DbSessionFactory,
     system_settings: SystemSettings,
+    system_state: SystemState,
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
@@ -1522,6 +1527,7 @@ def _get_build_graphql_context_function(
         return build_context(
             db=db,
             settings=system_settings,
+            state=system_state,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
