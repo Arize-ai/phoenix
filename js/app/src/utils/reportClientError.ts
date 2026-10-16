@@ -17,8 +17,6 @@ export interface ErrorReport {
   attributes?: Record<string, string>;
 }
 
-const DEFAULT_MAX_DISTINCT_ERRORS = 50;
-
 type SendErrorReport = (report: ErrorReport) => Promise<unknown>;
 
 function postErrorReport(report: ErrorReport) {
@@ -91,14 +89,11 @@ export function buildErrorReport({
  * Create a reporter that sends each distinct error once per page session and
  * never throws, so it is safe to call from error handlers.
  * @param params.send - delivers a report; defaults to POSTing to the server
- * @param params.maxDistinctErrors - after this many distinct errors, further reports are dropped
  */
 export function createClientErrorReporter({
   send = postErrorReport,
-  maxDistinctErrors = DEFAULT_MAX_DISTINCT_ERRORS,
 }: {
   send?: SendErrorReport;
-  maxDistinctErrors?: number;
 } = {}) {
   const reportedErrorKeys = new Set<string>();
 
@@ -115,9 +110,7 @@ export function createClientErrorReporter({
       }
       const report = buildErrorReport({ error, componentStack });
       const errorKey = `${report.message}\n${report.stack ?? ""}`;
-      const isAlreadyReported = reportedErrorKeys.has(errorKey);
-      const isAtCapacity = reportedErrorKeys.size >= maxDistinctErrors;
-      if (isAlreadyReported || isAtCapacity) {
+      if (reportedErrorKeys.has(errorKey)) {
         return;
       }
       reportedErrorKeys.add(errorKey);
