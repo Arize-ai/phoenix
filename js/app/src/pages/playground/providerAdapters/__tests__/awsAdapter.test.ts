@@ -5,8 +5,15 @@ import {
   awsConfigToPromptInput,
   awsReadField,
   awsWriteField,
+  getDefaultAwsConfig,
   parseAwsConfig,
 } from "../awsAdapter";
+
+describe("getDefaultAwsConfig", () => {
+  it("creates the fresh AWS playground defaults without a temperature", () => {
+    expect(getDefaultAwsConfig()).toEqual({ maxTokens: 1024 });
+  });
+});
 
 describe("parseAwsConfig", () => {
   it("drops unknown keys and preserves canonical fields", () => {
