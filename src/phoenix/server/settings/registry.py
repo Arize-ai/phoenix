@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Mapping
+from typing import Literal, Mapping, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from phoenix.db.models import SystemSettingKey
 
@@ -70,6 +70,31 @@ SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType
 )
 
 
+ManifestSource = Literal["bundled", "remote"]
+
+
+class ModelCostManifestVersion(BaseModel):
+    """Which model cost manifest the built-in models and token prices were last synced from.
+
+    Written by the server, not by admins: the bundled manifest is applied at boot and a
+    fetched one at runtime, each only if it is newer than the one recorded here.
+    """
+
+    # Unknown fields are ignored so that replicas running an older Phoenix can still read a
+    # marker written by a newer one.
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    schema_version: int
+    generated_at: AwareDatetime
+    source: ManifestSource
+    url: Optional[str] = None
+    applied_at: AwareDatetime
+
+
 # Keys stored in the system_state table, which the server writes itself (unlike
 # system_settings, which admins edit). Each key maps to the model its value must parse as.
-STATE_REGISTRY: Mapping[str, type[BaseModel]] = MappingProxyType({})
+STATE_REGISTRY: Mapping[str, type[BaseModel]] = MappingProxyType(
+    {
+        "cost_tracking.model_cost_manifest": ModelCostManifestVersion,
+    }
+)

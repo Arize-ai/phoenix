@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
     from phoenix.server.daemons.experiment_runner import ExperimentRunner
     from phoenix.server.daemons.system_settings import SystemSettings
+    from phoenix.server.daemons.system_state import SystemState
     from phoenix.server.dml_event import DmlEvent
     from phoenix.server.email.types import EmailSender
     from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -42,6 +43,7 @@ class Context(BaseContext):
     db: DbSessionFactory
     data_loaders: DataLoaders
     settings: SystemSettings
+    state: SystemState
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     span_cost_calculator: SpanCostCalculator
     experiment_runner: ExperimentRunner
@@ -120,6 +122,7 @@ def build_context(
     *,
     db: DbSessionFactory,
     settings: SystemSettings,
+    state: SystemState,
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
@@ -142,6 +145,7 @@ def build_context(
     context = Context(
         db=db,
         settings=settings,
+        state=state,
         data_loaders=build_data_loaders(db, cache_for_dataloaders),
         cache_for_dataloaders=cache_for_dataloaders,
         span_cost_calculator=span_cost_calculator,

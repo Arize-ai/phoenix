@@ -79,6 +79,7 @@ from phoenix.config import (
     get_env_host_root_path,
     get_env_max_spans_queue_size,
     get_env_mcp_code_mode,
+    get_env_model_cost_manifest_url,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -125,6 +126,7 @@ from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
+from phoenix.server.daemons.model_cost_manifest_fetcher import ModelCostManifestFetcher
 from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.daemons.system_state import SystemState
 from phoenix.server.dml_event import DmlEvent
@@ -652,6 +654,7 @@ def _lifespan(
     agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
     generative_model_store: GenerativeModelStore,
+    model_cost_manifest_fetcher: Optional[ModelCostManifestFetcher],
     system_settings: SystemSettings,
     system_state: SystemState,
     db_disk_usage_monitor: DbDiskUsageMonitor,
@@ -708,6 +711,8 @@ def _lifespan(
             await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(generative_model_store)
+            if model_cost_manifest_fetcher:
+                await stack.enter_async_context(model_cost_manifest_fetcher)
             await stack.enter_async_context(system_settings)
             await stack.enter_async_context(system_state)
             await stack.enter_async_context(db_disk_usage_monitor)
@@ -803,6 +808,7 @@ def create_graphql_router(
     graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
     system_settings: SystemSettings,
+    system_state: SystemState,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
@@ -843,6 +849,7 @@ def create_graphql_router(
         return build_context(
             db=db,
             settings=system_settings,
+            state=system_state,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
@@ -1039,6 +1046,13 @@ def create_app(
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
+    # A read-only server leaves the built-in prices to the server that writes.
+    model_cost_manifest_url = None if read_only else get_env_model_cost_manifest_url()
+    model_cost_manifest_fetcher = (
+        ModelCostManifestFetcher(db, model_cost_manifest_url, generative_model_store)
+        if model_cost_manifest_url
+        else None
+    )
     span_cost_calculator = SpanCostCalculator(generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
@@ -1089,6 +1103,7 @@ def create_app(
     graphql_router = create_graphql_router(
         db=db,
         system_settings=system_settings,
+        system_state=system_state,
         graphql_schema=graphql_schema,
         authentication_enabled=authentication_enabled,
         last_updated_at=last_updated_at,
@@ -1130,6 +1145,7 @@ def create_app(
             agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
             generative_model_store=generative_model_store,
+            model_cost_manifest_fetcher=model_cost_manifest_fetcher,
             system_settings=system_settings,
             system_state=system_state,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
@@ -1376,6 +1392,7 @@ def create_app(
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,
         system_settings=system_settings,
+        system_state=system_state,
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
@@ -1483,6 +1500,7 @@ def _get_build_graphql_context_function(
     *,
     db: DbSessionFactory,
     system_settings: SystemSettings,
+    system_state: SystemState,
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
@@ -1509,6 +1527,7 @@ def _get_build_graphql_context_function(
         return build_context(
             db=db,
             settings=system_settings,
+            state=system_state,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,

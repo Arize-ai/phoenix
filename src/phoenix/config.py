@@ -167,6 +167,19 @@ When False, Phoenix makes no public-internet requests on its own initiative, suc
 telemetry, or the WASM sandbox binary download. Services the operator configures, such as LLM
 providers and hosted sandboxes, are unaffected. Defaults to True.
 """
+ENV_PHOENIX_MODEL_COST_MANIFEST_URL = "PHOENIX_MODEL_COST_MANIFEST_URL"
+"""
+URL of the model cost manifest that Phoenix fetches to keep built-in model prices current
+without an upgrade. Defaults to the manifest for this version's schema on Phoenix's GitHub
+main branch. Accepts http(s)
+and file:// URLs, so it can point at an internal mirror. Because the operator configures it,
+an explicit URL is fetched even when PHOENIX_ALLOW_EXTERNAL_RESOURCES is False.
+"""
+ENV_PHOENIX_DISABLE_MODEL_COST_FETCH = "PHOENIX_DISABLE_MODEL_COST_FETCH"
+"""
+Whether to stop fetching the model cost manifest, so that built-in model prices only change
+on upgrade. Defaults to False.
+"""
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
 The SQL database URL to use when logging traces and evals.
@@ -3873,6 +3886,33 @@ def get_env_allow_external_resources() -> bool:
     operator configures, such as LLM providers and hosted sandboxes, are unaffected by this flag.
     """
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
+
+
+def get_env_model_cost_manifest_url() -> Optional[str]:
+    """
+    The URL to fetch the model cost manifest from, or None if it shouldn't be fetched.
+
+    The default URL is fetched only if external resources are allowed. A URL set with
+    PHOENIX_MODEL_COST_MANIFEST_URL is fetched regardless, unless the fetch is disabled.
+
+    Raises:
+        ValueError: If PHOENIX_MODEL_COST_MANIFEST_URL is not an http(s) or file:// URL.
+    """
+    if _bool_val(ENV_PHOENIX_DISABLE_MODEL_COST_FETCH, False):
+        return None
+    if url := (getenv(ENV_PHOENIX_MODEL_COST_MANIFEST_URL) or "").strip():
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https", "file") or not (parsed.netloc or parsed.path):
+            raise ValueError(
+                f"{ENV_PHOENIX_MODEL_COST_MANIFEST_URL} must be an http(s) or file:// URL. "
+                f"Got: {url}"
+            )
+        return url
+    if not get_env_allow_external_resources():
+        return None
+    from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
+
+    return DEFAULT_MANIFEST_URL
 
 
 def get_env_postgres_use_aws_iam_auth() -> bool:

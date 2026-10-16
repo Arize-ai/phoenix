@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<115e0c9cdfa4e54cdcb60dafaa2fc8ff>>
+ * @generated SignedSource<<ba3deda29b7da1172a597a688d74da0d>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type settingsModelsLoaderQuery$variables = Record<PropertyKey, never>;
 export type settingsModelsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelsTable_generativeModels" | "useModelCostManifestDescription_query">;
 };
 export type settingsModelsLoaderQuery = {
   response: settingsModelsLoaderQuery$data;
@@ -51,6 +51,11 @@ return {
         "args": null,
         "kind": "FragmentSpread",
         "name": "ModelsTable_generativeModels"
+      },
+      {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "useModelCostManifestDescription_query"
       }
     ],
     "type": "Query",
@@ -238,20 +243,45 @@ return {
         "key": "ModelsTable_generativeModels",
         "kind": "LinkedHandle",
         "name": "generativeModels"
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "ModelCostManifest",
+        "kind": "LinkedField",
+        "name": "modelCostManifest",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "generatedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "source",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "2561e105687af94ee14ba63f1a570f9b",
+    "cacheID": "ba30d1b9fb6f6386abcee10776b08cd7",
     "id": null,
     "metadata": {},
     "name": "settingsModelsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsModelsLoaderQuery {\n  ...ModelsTable_generativeModels\n  ...useModelCostManifestDescription_query\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment useModelCostManifestDescription_query on Query {\n  modelCostManifest {\n    generatedAt\n    source\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a0f3a13e85b11b62ee06f77c3efabae7";
+(node as any).hash = "6aeb15c24bd234cbe0e0c0a97dee9554";
 
 export default node;

@@ -2,17 +2,43 @@ from __future__ import annotations
 
 import logging
 from asyncio import sleep
-from typing import Mapping, Optional
+from typing import Literal, Mapping, Optional, overload
 
 import sqlalchemy as sa
 from pydantic import BaseModel, ValidationError
+from sqlalchemy.sql.dml import ReturningInsert
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
-from phoenix.server.settings.registry import STATE_REGISTRY
+from phoenix.server.settings.registry import STATE_REGISTRY, ModelCostManifestVersion
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+
+def upsert_system_state(
+    key: str,
+    payload: object,
+    *,
+    dialect: SupportedSQLDialect,
+) -> ReturningInsert[int]:
+    """Writes a system_state row, starting its revision at 1 and incrementing it after that.
+
+    The statement returns the revision written. It's for writers that need the row in their
+    own transaction; others go through ``SystemState``, which also updates its cache.
+    """
+    return insert_on_conflict(
+        {"key": key, "value": payload, "revision": 1},
+        table=models.SystemState,
+        dialect=dialect,
+        unique_by=("key",),
+        constraint_name="pk_system_state",
+        set_={
+            "value": payload,
+            "revision": models.SystemState.revision + 1,
+        },
+    ).returning(models.SystemState.revision)
 
 
 class _StateCache:
@@ -21,6 +47,12 @@ class _StateCache:
     def __init__(self) -> None:
         self._data: dict[str, tuple[int, BaseModel]] = {}
 
+    @overload
+    def get(
+        self, key: Literal["cost_tracking.model_cost_manifest"]
+    ) -> Optional[ModelCostManifestVersion]: ...
+    @overload
+    def get(self, key: str) -> Optional[BaseModel]: ...
     def get(self, key: str) -> Optional[BaseModel]:
         entry = self._data.get(key)
         return entry[1] if entry is not None else None
@@ -53,23 +85,22 @@ class SystemState(DaemonTask):
         self._cache = _StateCache()
         self._refresh_interval_seconds = refresh_interval_seconds
 
+    @property
+    def model_cost_manifest_version(self) -> Optional[ModelCostManifestVersion]:
+        """The model cost manifest last applied, or None if none has been recorded.
+
+        Written by the cost tracking code in its own transaction rather than through this
+        cache, so it is picked up on the next poll.
+        """
+        return self._cache.get("cost_tracking.model_cost_manifest")
+
     async def _set(self, key: str, value: BaseModel) -> BaseModel:
         model_cls = self._registry.get(key)
         if model_cls is None:
             raise ValueError(f"Unknown state key: {key}")
         parsed = model_cls.model_validate(value)
         payload = parsed.model_dump(mode="json")
-        stmt = insert_on_conflict(
-            {"key": key, "value": payload, "revision": 1},
-            table=models.SystemState,
-            dialect=self._db.dialect,
-            unique_by=("key",),
-            constraint_name="pk_system_state",
-            set_={
-                "value": payload,
-                "revision": models.SystemState.revision + 1,
-            },
-        ).returning(models.SystemState.revision)
+        stmt = upsert_system_state(key, payload, dialect=self._db.dialect)
         async with self._db() as session:
             revision = (await session.execute(stmt)).scalar_one()
         self._cache.put(key, revision, parsed)
