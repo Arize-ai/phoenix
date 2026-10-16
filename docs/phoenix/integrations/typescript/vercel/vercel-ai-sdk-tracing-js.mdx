@@ -1,7 +1,7 @@
 ---
 title: "Vercel AI SDK Tracing (JS)"
 description: "Trace Vercel AI SDK calls with @arizeai/phoenix-otel and send spans to Phoenix for LLM and agent observability."
-keywords: ['vercel', 'ai-sdk', 'opentelemetry', 'openinference', 'typescript', 'tracing', 'observability', 'phoenix']
+keywords: ['vercel', 'ai-sdk', 'opentelemetry', 'openinference', 'typescript', 'tracing', 'observability', 'phoenix', 'decision model', 'experimental_decide', 'DECISION span']
 ---
 
 Phoenix traces [Vercel AI SDK](https://github.com/vercel/ai) (>= 7) applications through the AI SDK's OpenTelemetry integration (`@ai-sdk/otel`). The simplest setup is [`@arizeai/phoenix-otel`](https://www.npmjs.com/package/@arizeai/phoenix-otel), which handles the OpenTelemetry provider, OpenInference span processing, and export to Phoenix in a single `register()` call.
@@ -66,6 +66,72 @@ This applies to agents as well: a `ToolLoopAgent` run is traced end to end, with
 
 <Note>
 `register()` uses a batch span processor by default, so spans still queued when a short-lived script exits may not be exported. Call `await provider.shutdown()` before exit to flush them, or pass `batch: false` to `register()` for immediate export.
+</Note>
+
+## Decision models
+
+AI SDK decision models, such as OpenAI's `gpt-6-luna` through `openai.decisionModel()` or TypeSafe's Jev through `@ai-sdk/typesafe-ai`, answer typed questions about a shared state instead of generating text. Calls made through the AI SDK's `experimental_decide` are traced as **[DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision)** rather than LLM spans, with no extra instrumentor. This requires `@arizeai/phoenix-otel` 2.2.0 or later (which brings `@arizeai/openinference-vercel` 3.3.0), plus `ai` 7.0.128 and `@ai-sdk/otel` 1.0.128 or later.
+
+Two options on the `OpenTelemetry` integration shape what Phoenix receives:
+
+- `experimental_decision: true` records the decision state, questions, and answers. Without it the spans carry the model and token counts but no input or output.
+- `enrichSpan: enrichSpanWithOpenInference` tells the processor which of the two spans the AI SDK emits per call is the model call. The SDK emits an outer operation span and a child model-call span with identical `gen_ai.*` attributes, so without this hint both are exported as DECISION spans. `enrichSpanWithOpenInference` is re-exported from the ESM-only `@arizeai/phoenix-otel/vercel` subpath.
+
+```typescript
+// instrumentation.ts
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { register } from "@arizeai/phoenix-otel";
+import { enrichSpanWithOpenInference } from "@arizeai/phoenix-otel/vercel";
+import { registerTelemetry } from "ai";
+
+export const provider = register({
+  projectName: "my-ai-sdk-app",
+});
+
+registerTelemetry(
+  new OpenTelemetry({
+    headers: false,
+    experimental_decision: true,
+    enrichSpan: enrichSpanWithOpenInference,
+  }),
+);
+```
+
+With that in place, a decision call needs no per-call configuration:
+
+```typescript
+import { experimental_decide } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+const { answers } = await experimental_decide({
+  model: openai.decisionModel("gpt-6-luna"),
+  state: "Customer message: My invoice shows a charge I don't recognize.",
+  questions: {
+    department: {
+      type: "choice",
+      instructions: "Which team should handle this message?",
+      criteria: {
+        billing: "Charges, refunds, and invoices",
+        technical: "Bugs, outages, and setup problems",
+        sales: "Pricing, plans, and upgrades",
+      },
+    },
+  },
+});
+
+console.log(answers.department.choice, answers.department.probabilities);
+```
+
+Each call appears in Phoenix as two spans named `decide <model>`, for example `decide gpt-6-luna`: a `CHAIN` span for the decide operation, carrying the state and questions as input and the answers as output, with a child **DECISION** span for the model call carrying:
+
+- `decision.system` and `decision.provider`, for example `openai` or `typesafe`
+- `decision.request.model_name` and `decision.model_name`. The AI SDK does not report a separate response model, so `decision.response.model_name` is not set.
+- `decision.token_count.input` and `decision.token_count.output`. The output count is often `0`, since the answers are typed values rather than generated tokens.
+
+Phoenix names the decision model in the DECISION span's input card. Because the model and its usage are recorded under `decision.*` rather than `llm.*`, decision calls stay out of Phoenix's LLM token and cost reporting.
+
+<Note>
+TypeScript [classification evaluators](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification#decision-models) from `@arizeai/phoenix-evals` take the same path when given a decision model. They enable both options on their own telemetry integration, so their decide spans arrive in Phoenix shaped as above with no further setup.
 </Note>
 
 ## Next.js

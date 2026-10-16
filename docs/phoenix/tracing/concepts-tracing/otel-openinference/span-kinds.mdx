@@ -49,7 +49,7 @@ OpenInference defines twelve span-kind values. The first four (LLM, Chain, Agent
 | <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/concepts/otel/unknown.png" width="32" alt="Unknown span-kind icon" style={{ display: "inline-block", margin: 0, verticalAlign: "middle" }} /> | **`UNKNOWN`** | Default when no kind is set explicitly. |
 
 <Note>
-**`DECISION` spans are new.** Phoenix renders them with their own icon and a span view that names the decision model. The OpenInference instrumentors for the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api) and [TypeSafe AI System One](/docs/phoenix/integrations/llm-providers/typesafe) emit them. The `decision.*` attributes are described under [DECISION](#decision) below and may still evolve as more decision-model providers appear.
+**`DECISION` spans are new.** Phoenix renders them with their own icon and a span view that names the decision model. The OpenInference instrumentors for the [OpenAI Decisions API](/docs/phoenix/integrations/llm-providers/openai/openai-tracing#decisions-api) and [TypeSafe AI System One](/docs/phoenix/integrations/llm-providers/typesafe) emit them, as does the [Vercel AI SDK](/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js#decision-models) integration for `experimental_decide` calls. The `decision.*` attributes are described under [DECISION](#decision) below and may still evolve as more decision-model providers appear.
 </Note>
 
 # Common Attributes Across All Kinds
