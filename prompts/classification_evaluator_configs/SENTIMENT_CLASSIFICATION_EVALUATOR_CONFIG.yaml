@@ -19,17 +19,21 @@ messages:
 
       - Frustration, annoyance, disappointment, anger, sadness, or anxiety
       - Dissatisfaction or complaint about an outcome, product, service, or their own situation, such as "my order still hasn't arrived" or "this is a mess"
+      - Friction toward the assistant: correcting, challenging, or re-issuing a request because the assistant failed to do something it had the information to get right, such as "no, I asked for this week" or "that is still not what I wanted". Friction toward the assistant always carries negative sentiment, even when phrased flatly and with no explicit emotion words, because the user is reacting to the assistant falling short
 
       NEUTRAL - The latest user message carries no clear affect. This includes:
 
       - A plain question, request, instruction, or statement of fact, even about an unpleasant topic. A calm question about a refund or a cancellation is neutral
+      - Steering the assistant toward a direction the user never previously asked for - a refinement, a follow-up, or a change of mind, such as "actually, make it shorter" or "now break this down by region". Redirecting to something new is not friction and, with no other affect, is neutral
       - A terse answer such as "no", "the second one", or "skip"
       - Ordinary courtesy on its own, such as "thanks", "hello", or "please" with no further feeling expressed
       - A message whose sentiment cannot be determined from the text
 
       </rubric>
 
-      Judge only sentiment the user actually expresses. Do not infer a feeling from the topic alone, from the assistant's behavior, or from how you imagine the user might feel. A negative topic stated without affect is neutral. A routine "thank you" is neutral, not positive. Sentiment is not friction: a user can be negative about their situation while raising no objection to the assistant, and can push back on the assistant while expressing no particular feeling.
+      Judge only sentiment the user actually expresses. Do not infer a feeling from the topic alone or from how you imagine the user might feel. A negative topic stated without affect is neutral. A routine "thank you" is neutral, not positive.
+
+      Negative sentiment and friction are related but not the same, and the relationship is one-directional. A user can express negative sentiment about their own situation while raising no objection to the assistant ("my order still hasn't arrived") - that is negative, with no friction. The reverse does not hold: friction toward the assistant always carries negative sentiment, because the user is reacting to the assistant falling short. So correcting or challenging the assistant after it mishandled a request the assistant had the information to get right is negative, even when stated without emotion words. Only redirecting the assistant toward a direction never previously requested is friction-free and, absent other affect, neutral.
 
       When the message mixes feelings, label the sentiment that dominates it. When the evidence is weak or ambiguous, choose neutral.
 
