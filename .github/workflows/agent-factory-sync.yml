@@ -1,0 +1,73 @@
+name: Agent Factory Sync
+
+# Git is the source of truth for the factory's Managed Agents resources.
+# Pull requests print the plan; a merge to main applies it and commits claude-lock.json.
+on:
+  pull_request:
+    paths: [agent-factory/**]
+  push:
+    branches: [main]
+    paths: [agent-factory/**]
+
+# Nothing locks claude-lock.json, so only one apply may run at a time.
+concurrency:
+  group: agent-factory-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  ANT_VERSION: "1.34.0" # vault files need >= 1.34.0
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-factory
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install ant
+        run: |
+          curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin ant
+      - name: Plan
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.AGENT_FACTORY_ANTHROPIC_API_KEY }}
+        run: ant apply --dry-run -v .
+
+  apply:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-factory
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install ant
+        run: |
+          curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin ant
+      - name: Apply
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.AGENT_FACTORY_ANTHROPIC_API_KEY }}
+        run: ant apply --yes .
+      # Commit even when apply failed partway: a partial apply still records what it created,
+      # and a lock file that loses those IDs makes the next apply create duplicates.
+      - name: Commit claude-lock.json
+        if: always()
+        env:
+          PUSH_TOKEN: ${{ secrets.AGENT_FACTORY_PUSH_TOKEN }} # must be allowed to push to main
+        run: |
+          git diff --quiet -- claude-lock.json && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add claude-lock.json
+          git commit -m "chore(agent-factory): update claude-lock.json"
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main
