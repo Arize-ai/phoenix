@@ -1,6 +1,7 @@
 ---
-title: "Annotating via the Client"
-description: Use the phoenix client to capture end-user feedback
+title: "Annotate with the client"
+sidebarTitle: "Annotate with the client"
+description: Use the Phoenix client to capture end-user feedback.
 ---
 
 <Info>
@@ -39,7 +40,7 @@ Phoenix expects feedback to be in the form of an **annotation.** Annotations con
     "explanation": "The response answered the question I asked"
   },
   "metadata": {
-    "model": "gpt-4",
+    "model": "gpt-5-mini",
     "threshold_ms": 500,
     "confidence": "high"
   },
@@ -76,6 +77,10 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
 <Tabs>
 
   <Tab title="Python" icon="python">
+
+    ```bash
+    pip install arize-phoenix-client
+    ```
 
     **Retrieve the current span\_id**
 
@@ -193,7 +198,7 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
             "explanation": "The response answered the question I asked"
           },
           "metadata": {
-            "model": "gpt-4",
+            "model": "gpt-5-mini",
             "threshold_ms": 500,
             "confidence": "high"
           }

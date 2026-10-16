@@ -64,7 +64,7 @@ These attributes apply to every span kind. Auto-instrumentors set them automatic
 | `output.value` | The span's output. |
 | `output.mime_type` | `"text/plain"` (default) or `"application/json"`. The TS semconv also defines `"audio/wav"`. |
 | `metadata` | Arbitrary JSON-stringified metadata. |
-| `session.id` | Groups traces into a session. See [Sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions). |
+| `session.id` | Groups traces into a session. See [Set up projects and sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions#sessions). |
 | `user.id` | The user the request belongs to. |
 | `tag.tags` | A list of tags for filtering and search. |
 
@@ -82,7 +82,7 @@ A call to a large language model.
 
 | Attribute | Description |
 | :--- | :--- |
-| `llm.model_name` | The model identifier (e.g., `gpt-4o`, `claude-3-5-sonnet-20241022`). |
+| `llm.model_name` | The model identifier (e.g., `gpt-5-mini`, `claude-3-5-sonnet-20241022`). |
 | `llm.provider` | The provider (e.g. `openai`, `anthropic`, `mistralai`). |
 | `llm.system` | The underlying LLM system, when distinct from `provider`. |
 | `llm.input_messages` | The chat history sent to the model. |
