@@ -41,11 +41,15 @@ against `js/app/schema.graphql`. The shared `harbor_verifiers` package is instal
 3. `step_03_compare`
    - Instruction: compare first and last experiments, show moved examples, record the learning on the last one.
    - Verifier:
-     - `no_new_experiments_or_scores`: no experiment or annotation was created after the step began,
-       taking the start from the first timestamp in the step's ATIF trajectory.
-     - `reply_names_both_experiments`: the final reply names the first and last experiment.
-     - `reply_links_comparison_view`: the reply links `/datasets/<id>/compare?experimentId=...` for exactly that pair.
-     - `learning_recorded_on_last_experiment`: the last experiment's metadata holds a date on or after the step began.
-     - `judge_accepts_comparison`: the LLM judge (`PHOENIX_EVAL_JUDGE_PROVIDER` and
-       `PHOENIX_EVAL_JUDGE_MODEL`, default OpenAI `gpt-5-nano`) confirms the reply states matching scores, compares latency and
-       cost, cites real moved examples, and gives a verdict.
+     - `no_new_experiments_or_scores`: no experiment or annotation was created after the step began.
+     - `learning_recorded_on_last_experiment`: the last experiment was updated after the step began
+       and has a description or metadata.
+     - `judge_accepts_comparison`: the shared LLM judge (`PHOENIX_EVAL_JUDGE_PROVIDER` and
+       `PHOENIX_EVAL_JUDGE_MODEL`, default OpenAI `gpt-5-nano`) confirms the reply identifies both
+       experiments, states matching scores, says which examples changed, and gives a verdict.
+
+Each step's tool call and turn counts, and step 3's start time, cover only that step. Claude
+Code carries the whole session in one trajectory, so the checks locate the step by the opening
+sentence of its instruction (`hill_climb_checks.STEP_INSTRUCTIONS`), which must stay in sync
+with the `instruction.md` files.
+
