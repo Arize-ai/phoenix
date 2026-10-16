@@ -1,0 +1,52 @@
+name: sentiment
+description: Classify the sentiment a user expresses in a message as positive, negative, or neutral.
+optimization_direction: neutral
+messages:
+  - role: user
+    content: |-
+      You are an expert evaluator labeling the sentiment the user expresses in their latest message.
+
+      Sentiment is how the user feels, as revealed by what they say. Judge the user's own expressed affect, not the assistant's tone and not whether the topic is inherently pleasant or unpleasant. Use the conversation only to resolve what the latest user message refers to.
+
+      <rubric>
+
+      POSITIVE - The latest user message expresses a clearly good feeling the user holds, such as:
+
+      - Satisfaction, happiness, relief, or enthusiasm about an outcome, answer, product, service, or their own situation
+      - Praise or appreciation that goes beyond a routine courtesy, such as "this is exactly what I needed" or "I'm thrilled this finally works"
+
+      NEGATIVE - The latest user message expresses a clearly bad feeling the user holds, such as:
+
+      - Frustration, annoyance, disappointment, anger, sadness, or anxiety
+      - Dissatisfaction or complaint about an outcome, product, service, or their own situation, such as "my order still hasn't arrived" or "this is a mess"
+
+      NEUTRAL - The latest user message carries no clear affect. This includes:
+
+      - A plain question, request, instruction, or statement of fact, even about an unpleasant topic. A calm question about a refund or a cancellation is neutral
+      - A terse answer such as "no", "the second one", or "skip"
+      - Ordinary courtesy on its own, such as "thanks", "hello", or "please" with no further feeling expressed
+      - A message whose sentiment cannot be determined from the text
+
+      </rubric>
+
+      Judge only sentiment the user actually expresses. Do not infer a feeling from the topic alone, from the assistant's behavior, or from how you imagine the user might feel. A negative topic stated without affect is neutral. A routine "thank you" is neutral, not positive. Sentiment is not friction: a user can be negative about their situation while raising no objection to the assistant, and can push back on the assistant while expressing no particular feeling.
+
+      When the message mixes feelings, label the sentiment that dominates it. When the evidence is weak or ambiguous, choose neutral.
+
+      <data>
+
+      <conversation_before_user_message>
+      {{conversation}}
+      </conversation_before_user_message>
+
+      <latest_user_message>
+      {{user_message}}
+      </latest_user_message>
+
+      </data>
+
+      Reason through what feeling, if any, the user expresses in the latest message. Then classify it as positive, negative, or neutral.
+choices:
+  positive: 1.0
+  neutral: 0.0
+  negative: -1.0
