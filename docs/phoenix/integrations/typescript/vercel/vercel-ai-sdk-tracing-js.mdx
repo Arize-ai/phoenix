@@ -131,7 +131,7 @@ Each call appears in Phoenix as two spans named `decide <model>`, for example `d
 Phoenix names the decision model in the DECISION span's input card. Because the model and its usage are recorded under `decision.*` rather than `llm.*`, decision calls stay out of Phoenix's LLM token and cost reporting.
 
 <Note>
-TypeScript [classification evaluators](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification#decision-models) from `@arizeai/phoenix-evals` take the same path when given a decision model. They enable both options on their own telemetry integration, so their decide spans arrive in Phoenix shaped as above with no further setup.
+TypeScript [classification evaluators](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification#decision-models) from `@arizeai/phoenix-evals` take the same path when given a decision model. They enable `experimental_decision` on their own telemetry integration, so the state, questions, and answers are recorded with no further setup. They do not set `enrichSpan`, so the outer operation span is also exported as a DECISION span rather than a CHAIN span.
 </Note>
 
 ## Next.js
