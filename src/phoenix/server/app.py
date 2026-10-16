@@ -126,6 +126,7 @@ from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.system_settings import SystemSettings
+from phoenix.server.daemons.system_state import SystemState
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
@@ -161,7 +162,7 @@ from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
-from phoenix.server.settings.registry import SETTINGS_REGISTRY
+from phoenix.server.settings.registry import SETTINGS_REGISTRY, STATE_REGISTRY
 from phoenix.server.telemetry import (
     initialize_opentelemetry_logger_provider,
     initialize_opentelemetry_tracer_provider,
@@ -652,6 +653,7 @@ def _lifespan(
     experiment_sweeper: ExperimentSweeper,
     generative_model_store: GenerativeModelStore,
     system_settings: SystemSettings,
+    system_state: SystemState,
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
@@ -676,6 +678,7 @@ def _lifespan(
             if isinstance((res := callback()), Awaitable):
                 await res
         await system_settings.bootstrap()
+        await system_state.bootstrap()
         async with AsyncExitStack() as stack:
             (
                 enqueue_annotations,
@@ -706,6 +709,7 @@ def _lifespan(
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(system_settings)
+            await stack.enter_async_context(system_state)
             await stack.enter_async_context(db_disk_usage_monitor)
             await stack.enter_async_context(sandbox_runtime.monty)
             # ``sandbox_session_manager`` must enter before ``experiment_runner``
@@ -1031,6 +1035,7 @@ def create_app(
         dml_event_handler=dml_event_handler,
     )
     system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    system_state = SystemState(db=db, registry=STATE_REGISTRY)
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
@@ -1126,6 +1131,7 @@ def create_app(
             experiment_sweeper=experiment_sweeper,
             generative_model_store=generative_model_store,
             system_settings=system_settings,
+            system_state=system_state,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
@@ -1352,6 +1358,7 @@ def create_app(
         app.state.ldap_authenticator = LDAPAuthenticator(ldap_config)
     app.state.db = db
     app.state.system_settings = system_settings
+    app.state.system_state = system_state
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
