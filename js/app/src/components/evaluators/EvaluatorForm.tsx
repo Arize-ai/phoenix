@@ -163,6 +163,10 @@ const dockedLeftCSS = css`
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    // Both regions reserve the same scrollbar gutter, so where scrollbars
+    // take up space the dock's right edge lines up with the form's above it
+    // whether or not either region is scrolling.
+    scrollbar-gutter: stable;
     display: flex;
     flex-direction: column;
     padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
@@ -174,9 +178,12 @@ const dockedLeftCSS = css`
     display: flex;
     flex-direction: column;
     min-height: 0;
-    // The dock grows with its content up to half the panel, then its own
-    // body scrolls; the configuration above always keeps the other half.
+    // The dock grows with its content up to half the panel, then scrolls;
+    // the configuration above always keeps the other half.
     max-height: 50%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     border-top: 1px solid var(--global-border-color-default);
     background-color: var(--global-background-color-default);
   }
