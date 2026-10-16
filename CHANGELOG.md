@@ -1,5 +1,23 @@
 # Changelog
 
+## [20.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.22.0...arize-phoenix-v20.23.0) (2026-10-16)
+
+
+### Features
+
+* **server:** export server logs over OTLP ([#17010](https://github.com/Arize-ai/phoenix/issues/17010)) ([add77bf](https://github.com/Arize-ai/phoenix/commit/add77bf75b6acd36ea93c7364e09a31fe276649b))
+
+
+### Bug Fixes
+
+* **playground:** forward Bedrock tool results directly as text ([#16951](https://github.com/Arize-ai/phoenix/issues/16951)) ([15355fd](https://github.com/Arize-ai/phoenix/commit/15355fd1a8a62c7218b1c5e434541b8976b3f62c))
+
+
+### Documentation
+
+* add Atomic Agents tracing integration ([#17000](https://github.com/Arize-ai/phoenix/issues/17000)) ([fe5e933](https://github.com/Arize-ai/phoenix/commit/fe5e933ee996fa9330af5c1149605bbeb04149c4))
+* Add Phoenix release notes — 2026-10-14 ([#16979](https://github.com/Arize-ai/phoenix/issues/16979)) ([97c4b2a](https://github.com/Arize-ai/phoenix/commit/97c4b2accd378104a799da58ac686a38dd07f529))
+
 ## [20.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.4...arize-phoenix-v20.22.0) (2026-10-15)
 
 
