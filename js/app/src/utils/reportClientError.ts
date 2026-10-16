@@ -6,7 +6,7 @@ import {
 import { BASE_URL, VERSION } from "@phoenix/config";
 
 /**
- * Request body for `POST /errors`. Mirrors the server's `ErrorReport` model,
+ * Request body for `POST /client_errors`. Mirrors the server's `ErrorReport` model,
  * which is deliberately kept out of the OpenAPI schema.
  */
 export interface ErrorReport {
@@ -17,26 +17,17 @@ export interface ErrorReport {
   attributes?: Record<string, string>;
 }
 
-const MESSAGE_MAX_LENGTH = 2_000;
-const STACK_MAX_LENGTH = 16_000;
-const URL_MAX_LENGTH = 2_000;
-const USER_AGENT_MAX_LENGTH = 512;
-const ATTRIBUTE_VALUE_MAX_LENGTH = 4_000;
 const DEFAULT_MAX_DISTINCT_ERRORS = 50;
 
 type SendErrorReport = (report: ErrorReport) => Promise<unknown>;
 
 function postErrorReport(report: ErrorReport) {
-  return authFetch(`${BASE_URL}/errors`, {
+  return authFetch(`${BASE_URL}/client_errors`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(report),
     keepalive: true,
   });
-}
-
-function truncate(text: string, maxLength: number): string {
-  return text.length > maxLength ? text.slice(0, maxLength) : text;
 }
 
 function describeThrownValue(error: unknown): {
@@ -82,19 +73,16 @@ export function buildErrorReport({
 }): ErrorReport {
   const { message, stack } = describeThrownValue(error);
   const attributes: Record<string, string> = {
-    platform_version: truncate(platformVersion, ATTRIBUTE_VALUE_MAX_LENGTH),
+    platform_version: platformVersion,
   };
   if (componentStack) {
-    attributes.component_stack = truncate(
-      componentStack,
-      ATTRIBUTE_VALUE_MAX_LENGTH
-    );
+    attributes.component_stack = componentStack;
   }
   return {
-    message: truncate(message || "Unknown error", MESSAGE_MAX_LENGTH),
-    stack: stack ? truncate(stack, STACK_MAX_LENGTH) : undefined,
-    url: truncate(url, URL_MAX_LENGTH),
-    user_agent: truncate(userAgent, USER_AGENT_MAX_LENGTH),
+    message: message || "Unknown error",
+    stack,
+    url,
+    user_agent: userAgent,
     attributes,
   };
 }
