@@ -161,10 +161,12 @@ For model and provider options, see
 
 ## Benchmarks
 
-A categorized synthetic benchmark exercises the rubric's hard distinctions —
-calm questions on unpleasant topics, routine courtesy, friction toward the
-assistant, friction-free redirects, negative sentiment without friction, and
-multi-turn conversations. See
+On a 36-example authored synthetic benchmark using `gpt-4o-mini`, the default
+prompt achieves 0.97 accuracy, 0.98 macro precision, 0.98 macro recall, and
+0.98 macro F1. The benchmark exercises the rubric's hard distinctions — calm
+questions on unpleasant topics, routine courtesy, friction toward the assistant,
+friction-free redirects, negative sentiment without friction, and multi-turn
+conversations. See
 [sentiment.synthetic.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/sentiment.synthetic.eval.ts)
 for the full example set.
 
