@@ -860,11 +860,13 @@ export const lightThemeCSS = css`
     --floating-toolbar-border-color: var(--global-color-gray-200);
 
     // Optimization Direction Colors
-    --global-color-optimization-direction-positive: var(--global-color-success);
+    --global-color-optimization-direction-positive: var(
+      --global-color-green-900
+    );
     --global-color-background-optimization-direction-positive: var(
       --global-color-success-100
     );
-    --global-color-optimization-direction-negative: var(--global-color-danger);
+    --global-color-optimization-direction-negative: var(--global-color-red-900);
     --global-color-background-optimization-direction-negative: var(
       --global-color-danger-100
     );
