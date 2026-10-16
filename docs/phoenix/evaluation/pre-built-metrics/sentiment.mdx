@@ -1,0 +1,179 @@
+---
+title: "Sentiment"
+description: "Classify the sentiment a user expresses in a message as positive, negative, or neutral."
+---
+
+## Overview
+
+The **Sentiment** evaluator classifies the affect the user expresses in their
+latest message as `positive`, `neutral`, or `negative`. It judges the user's
+own expressed feeling — not the assistant's tone, and not whether the topic is
+inherently pleasant or unpleasant.
+
+Use it to track how users feel across a conversation, surface turns worth
+reviewing, and measure whether product changes shift expressed sentiment.
+
+<Info>
+Sentiment is **descriptive**, not a quality signal: no label is "good" or
+"bad", so the evaluator has no preferred direction. A plain question or
+instruction is `neutral`, even about an unpleasant topic, and a routine
+"thanks" is `neutral`, not `positive`. When the evidence is weak or ambiguous,
+the label defaults to `neutral`.
+</Info>
+
+<Info>
+Negative sentiment and user friction are related but not the same, and the
+relationship is one-directional. A user can be negative about their own
+situation while raising no objection to the assistant ("my order still hasn't
+arrived"). The reverse does not hold: friction toward the assistant —
+correcting or challenging it after it mishandled a request it had the
+information to get right — always carries negative sentiment, even when phrased
+flatly. Only redirecting the assistant toward a direction never previously
+requested is friction-free and, absent other affect, `neutral`.
+</Info>
+
+## Supported Levels
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply when a span contains the preceding conversation and latest user message. |
+| **Trace** | Yes | Useful when each trace represents one conversational turn. |
+| **Session** | Yes | Evaluate each user turn using the preceding session history. |
+
+**Relevant span kinds:** AGENT, CHAIN, and LLM spans that preserve multi-turn
+conversation history.
+
+## Input Requirements
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `conversation` | `string` | Human-readable conversation before the target user message. |
+| `user_message` / `userMessage` | `string` | Latest user message to classify. |
+
+Keep the target message separate from `conversation`. The conversation is used
+only to resolve what the latest user message refers to; the label reflects the
+affect of the latest message alone. Render tool activity compactly and remove
+non-human payloads before evaluation.
+
+## Output Interpretation
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"positive"`, `"neutral"`, or `"negative"` | Classification result |
+| `score` | `1.0`, `0.0`, or `-1.0` | `1.0` positive, `0.0` neutral, `-1.0` negative |
+| `explanation` | `string` | Judge reasoning |
+| `direction` | `"neutral"` | Descriptive label; no direction is preferred |
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import SentimentEvaluator
+
+    evaluator = SentimentEvaluator(
+        llm=LLM(provider="openai", model="gpt-4o-mini"),
+        temperature=0.0,
+    )
+
+    scores = evaluator.evaluate({
+        "conversation": (
+            "User: My order still hasn't arrived.\n"
+            "Assistant: I'm sorry, let me check on that."
+        ),
+        "user_message": "This is the third time I've had to ask.",
+    })
+
+    print(scores[0])
+    # Score(name='sentiment', score=-1.0, label='negative', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createSentimentEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const evaluator = createSentimentEvaluator({
+      model: openai("gpt-4o-mini"),
+    });
+
+    const result = await evaluator.evaluate({
+      conversation:
+        "User: My order still hasn't arrived.\nAssistant: I'm sorry, let me check on that.",
+      userMessage: "This is the third time I've had to ask.",
+    });
+
+    console.log(result);
+    // { score: -1, label: "negative", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+## Using Input Mapping
+
+Map your trace or dataset fields into the evaluator's two-field contract. The
+conversation should end immediately before the target user message.
+
+```python
+input_mapping = {
+    "conversation": lambda row: render_messages(row["messages"][:-1]),
+    "user_message": lambda row: row["messages"][-1]["content"],
+}
+
+scores = evaluator.evaluate(dataset_row, input_mapping)
+```
+
+See [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping) for
+additional mapping options.
+
+## Viewing and Modifying the Prompt
+
+The default prompt is maintained in the
+[classification evaluator config](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/SENTIMENT_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+Adapt it when your application has domain-specific conventions.
+
+```typescript
+import {
+  createSentimentEvaluator,
+} from "@arizeai/phoenix-evals";
+
+const evaluator = createSentimentEvaluator({
+  model,
+  promptTemplate: `Conversation: {{conversation}}
+Latest user message: {{userMessage}}
+Classify the sentiment the user expresses as positive, neutral, or negative.`,
+  choices: { positive: 1, neutral: 0, negative: -1 },
+});
+```
+
+## Configuration
+
+For model and provider options, see
+[Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+## Using with Phoenix
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## Benchmarks
+
+A categorized synthetic benchmark exercises the rubric's hard distinctions —
+calm questions on unpleasant topics, routine courtesy, friction toward the
+assistant, friction-free redirects, negative sentiment without friction, and
+multi-turn conversations. See
+[sentiment.synthetic.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/sentiment.synthetic.eval.ts)
+for the full example set.
+
+## API Reference
+
+- **Python:** [SentimentEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript:** [createSentimentEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [User Friction Evaluator](/docs/phoenix/evaluation/pre-built-metrics/user-friction)
+- [Refusal Evaluator](/docs/phoenix/evaluation/pre-built-metrics/refusal)
