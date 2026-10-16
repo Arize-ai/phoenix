@@ -19,7 +19,9 @@ import {
   compactLegendProps,
   defaultCartesianGridProps,
   defaultTooltipProps,
+  getRoundedLinearAxis,
   InteractiveLegend,
+  type RoundedLinearAxis,
   useInteractiveLegend,
 } from "@phoenix/components/chart";
 import { useTheme } from "@phoenix/contexts";
@@ -113,21 +115,17 @@ export function ExperimentAnnotationScoresChart({
   const visibleScoreKeys = scoreKeys.filter(
     (scoreKey) => !hiddenDataKeys.has(scoreKey)
   );
-  let minScore = Infinity;
-  let maxScore = -Infinity;
-  for (const dataPoint of chartData) {
-    for (const scoreKey of visibleScoreKeys) {
+  const visibleScores = chartData.flatMap((dataPoint) =>
+    visibleScoreKeys.flatMap((scoreKey) => {
       const scoreValue = dataPoint[scoreKey as keyof typeof dataPoint];
-      if (typeof scoreValue === "number") {
-        if (scoreValue < minScore) minScore = scoreValue;
-        if (scoreValue > maxScore) maxScore = scoreValue;
-      }
-    }
-  }
-  const yDomain =
-    minScore >= 0 && maxScore <= 1 && maxScore !== -Infinity
-      ? ([0, 1] as [number, number])
-      : undefined;
+      return typeof scoreValue === "number" ? [scoreValue] : [];
+    })
+  );
+  const yAxis: Partial<RoundedLinearAxis> =
+    visibleScores.length > 0 &&
+    visibleScores.every((score) => score >= 0 && score <= 1)
+      ? { domain: [0, 1] }
+      : (getRoundedLinearAxis({ values: visibleScores }) ?? {});
 
   const hasData = chartData.some((dataPoint) =>
     scoreKeys.some(
@@ -157,7 +155,11 @@ export function ExperimentAnnotationScoresChart({
               experiments: chartData,
             })}
           />
-          <YAxis {...experimentMetricsYAxisProps} domain={yDomain} />
+          <YAxis
+            {...experimentMetricsYAxisProps}
+            domain={yAxis.domain}
+            ticks={yAxis.ticks}
+          />
           {scoreKeys.map((key) => {
             const color = getWordColor({ word: key, theme });
             const markProps = {
