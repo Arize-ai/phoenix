@@ -42,13 +42,26 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     @staticmethod
     def _to_result(response: Any) -> Dict[str, Any]:
         answer = response.choices["label"]
-        return {
-            "label": answer.choice,
-            "metadata": {
-                "probabilities": answer.probabilities,
-                "model_id": response.model,
-            },
+        metadata: Dict[str, Any] = {
+            "probabilities": answer.probabilities,
+            "model_id": response.model,
         }
+        # Confidence is provider-reported; include it only when the provider gives one.
+        confidence = getattr(answer, "confidence", None)
+        if confidence is not None:
+            metadata["confidence"] = confidence
+
+        result: Dict[str, Any] = {"label": answer.choice, "metadata": metadata}
+
+        # Token usage is returned as a separate top-level key (not in metadata) so the traced
+        # method can put it on the DECISION span, instead of copying it onto every Score.
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            result["usage"] = {
+                "input_tokens": getattr(usage, "input_tokens", None),
+                "output_tokens": getattr(usage, "output_tokens", None),
+            }
+        return result
 
     def generate_classification(
         self,

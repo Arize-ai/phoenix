@@ -7,10 +7,18 @@ from phoenix.evals import ClassificationEvaluator, DecisionModel
 from phoenix.evals.decision.types import BaseDecisionAdapter
 
 
-def _response(choice, probabilities, model="mock-evaluation-model"):
-    """Build a fake SystemOneResponse exposing `.choices[name]` and `.model`."""
-    answer = SimpleNamespace(choice=choice, probabilities=probabilities)
-    return SimpleNamespace(model=model, choices={"label": answer})
+def _response(
+    choice,
+    probabilities,
+    model="mock-evaluation-model",
+    confidence=0.95,
+    input_tokens=11,
+    output_tokens=3,
+):
+    """Build a fake SystemOneResponse exposing `.choices[name]`, `.model`, and `.usage`."""
+    answer = SimpleNamespace(choice=choice, probabilities=probabilities, confidence=confidence)
+    usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
+    return SimpleNamespace(model=model, choices={"label": answer}, usage=usage)
 
 
 def _patch_clients(monkeypatch, sync_client=None, async_client=None):
@@ -35,7 +43,9 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
         "metadata": {
             "probabilities": {"correct": 0.03, "incorrect": 0.97},
             "model_id": "mock-evaluation-model",
+            "confidence": 0.95,
         },
+        "usage": {"input_tokens": 11, "output_tokens": 3},
     }
     assert "explanation" not in result
 
@@ -184,3 +194,41 @@ def test_to_state_skips_empty_pieces():
         {"role": "user", "content": "only this"},
     ]
     assert BaseDecisionAdapter._to_state(prompt) == "only this"
+
+
+def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch):
+    client = MagicMock()
+    client.system_one.return_value = _response(
+        "correct", {"correct": 0.9, "incorrect": 0.1}, confidence=None
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
+    result = decision.generate_classification("is this ok?", ["correct", "incorrect"])
+
+    assert "confidence" not in result["metadata"]
+
+
+def test_usage_is_top_level_and_not_copied_onto_the_score(monkeypatch):
+    client = MagicMock()
+    client.system_one.return_value = _response(
+        "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    # Direct call: usage is a separate top-level key, not buried in metadata.
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
+    result = decision.generate_classification("is this valid?", ["valid", "invalid"])
+    assert result["usage"] == {"input_tokens": 42, "output_tokens": 5}
+    assert "usage" not in result["metadata"]
+
+    # Through the evaluator: confidence reaches the score, usage does not.
+    evaluator = ClassificationEvaluator(
+        name="isValid",
+        llm=DecisionModel(provider="typesafe", model="jev-latest"),
+        prompt_template="is this valid: {text}",
+        choices=["valid", "invalid"],
+    )
+    [score] = evaluator.evaluate({"text": "asdf"})
+    assert score.metadata["confidence"] == 0.95
+    assert "usage" not in score.metadata
