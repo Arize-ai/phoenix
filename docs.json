@@ -185,6 +185,7 @@
                     "pages": [
                       "docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators",
                       "docs/phoenix/evaluation/how-to-evals/configuring-the-llm",
+                      "docs/phoenix/evaluation/how-to-evals/decision-models",
                       "docs/phoenix/evaluation/how-to-evals/prompt-formats"
                     ]
                   },
