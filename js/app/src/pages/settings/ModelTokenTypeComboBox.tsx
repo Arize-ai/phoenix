@@ -81,8 +81,7 @@ export function ModelTokenTypeComboBox<
           onChange(option.tokenType);
         }
       }}
-      onInputChange={(_value) => {
-        const value = _value.toLowerCase();
+      onInputChange={(value) => {
         if (value) {
           onChange(value);
         } else {

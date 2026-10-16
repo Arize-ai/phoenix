@@ -85,7 +85,8 @@ export function ModelTokenCostControlTable({
                   name={`${namePrefix}.${index}.tokenType`}
                   control={control}
                   rules={{
-                    required: "Token type is required",
+                    validate: (value) =>
+                      !!value?.trim() || "Token type is required",
                   }}
                   render={({
                     fieldState: { invalid, error },
