@@ -31,7 +31,10 @@ import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pa
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
-import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import {
+  ProjectEvaluatorInputMappingDock,
+  ProjectLlmEvaluatorFormSections,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
@@ -655,6 +658,12 @@ const ScratchLlmDialogContent = ({
           scope={scope}
           onScopeChange={onScopeChange}
           onFilterValidityChange={onFilterValidityChange}
+        />
+      }
+      formLeftDock={
+        <ProjectEvaluatorInputMappingDock
+          recordKind={toEvaluatorRecordKind(scope.targetType)}
+          evaluatorKind="prompt"
         />
       }
       formRightPanel={

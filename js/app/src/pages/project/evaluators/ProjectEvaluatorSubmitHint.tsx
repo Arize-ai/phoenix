@@ -36,7 +36,10 @@ export function formatUnboundVariablesHint(
     : undefined;
 }
 
-/** Must be called under an `EvaluatorStoreProvider`. */
+/**
+ * What a save is waiting on, apart from the name: an empty name is only
+ * reported when the author tries to save, by the field itself.
+ */
 export const useProjectEvaluatorSubmitHint = ({
   targetType,
   isFilterValid,
@@ -49,10 +52,6 @@ export const useProjectEvaluatorSubmitHint = ({
   unboundVariables?: readonly string[];
   submitLabel?: string;
 }): string | undefined => {
-  const name = useEvaluatorStore((state) => state.evaluator.globalName);
-  if (!name.trim()) {
-    return `Name your evaluator to ${submitLabel}`;
-  }
   if (!isFilterValid) {
     const filterNoun = toEvaluatorRecordKind(targetType);
     return `Fix the ${filterNoun} filter to ${submitLabel}`;
