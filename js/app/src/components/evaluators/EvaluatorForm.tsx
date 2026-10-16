@@ -86,6 +86,10 @@ export const EvaluatorFormProvider = ({
  * The two-panel resizable layout for configuring evaluators. Callers provide
  * the content of each panel.
  *
+ * `leftDock` pins a region to the bottom of the left panel. The panel then
+ * splits into a scrolling region for `left` and a fixed footer for the dock,
+ * so the dock stays in view however far the configuration above it scrolls.
+ *
  * @example
  * ```tsx
  * <EvaluatorForm
@@ -96,6 +100,7 @@ export const EvaluatorFormProvider = ({
  */
 export const EvaluatorForm = ({
   left,
+  leftDock,
   right,
 }: {
   /**
@@ -103,26 +108,26 @@ export const EvaluatorForm = ({
    */
   left: ReactNode;
   /**
+   * Pinned to the bottom of the left panel, outside its scroll region.
+   */
+  leftDock?: ReactNode;
+  /**
    * The content of the right (test) panel.
    */
   right: ReactNode;
 }) => {
   return (
     <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
-      <Panel
-        defaultSize={50}
-        style={panelStyle}
-        css={css`
-          display: flex;
-          flex-direction: column;
-          padding: var(--global-dimension-size-100)
-            var(--global-dimension-size-200);
-          padding-bottom: var(--global-dimension-size-600);
-          box-sizing: border-box;
-        `}
-      >
-        {left}
-      </Panel>
+      {leftDock != null ? (
+        <Panel defaultSize={50} style={dockedPanelStyle} css={dockedLeftCSS}>
+          <div className="evaluator-form__left-scroll">{left}</div>
+          <div className="evaluator-form__left-dock">{leftDock}</div>
+        </Panel>
+      ) : (
+        <Panel defaultSize={50} style={panelStyle} css={leftCSS}>
+          {left}
+        </Panel>
+      )}
       <Separator css={compactResizeHandleCSS} />
       <Panel
         defaultSize={50}
@@ -141,10 +146,52 @@ export const EvaluatorForm = ({
   );
 };
 
+const leftCSS = css`
+  display: flex;
+  flex-direction: column;
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  padding-bottom: var(--global-dimension-size-600);
+  box-sizing: border-box;
+`;
+
+const dockedLeftCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  .evaluator-form__left-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
+      var(--global-dimension-size-300);
+    box-sizing: border-box;
+  }
+  .evaluator-form__left-dock {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    // The dock grows with its content up to half the panel, then its own
+    // body scrolls; the configuration above always keeps the other half.
+    max-height: 50%;
+    border-top: 1px solid var(--global-border-color-default);
+    background-color: var(--global-background-color-default);
+  }
+`;
+
 const panelStyle = {
   height: "100%",
   overflowY: "auto",
   // keep trackpad overscroll from chaining to the dialog and
   // dragging the header/footer with it
   overscrollBehavior: "contain",
+} as const;
+
+/** The docked variant scrolls its own region, not the panel. */
+const dockedPanelStyle = {
+  height: "100%",
+  overflow: "hidden",
 } as const;

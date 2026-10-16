@@ -1,4 +1,6 @@
-import { Flex, Text } from "@phoenix/components";
+import { css } from "@emotion/react";
+
+import { Text } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
@@ -14,7 +16,11 @@ import {
 
 /**
  * Where the evaluator's declared variables are read from on the record it
- * runs on.
+ * runs on, one compact row per variable: the name on the left, the path on
+ * the right, so the docked panel spends its bounded height on fields rather
+ * than on labels. Past {@link TWO_COLUMN_MIN_VARIABLES} the rows flow into a
+ * second column where the panel is wide enough, so a long list costs height
+ * before it costs the prompt editor.
  *
  * `input`, `output`, and `metadata` read their matching context fields when
  * left blank. Other variables need a path unless they are optional code
@@ -54,53 +60,101 @@ export const ProjectEvaluatorInputMapping = ({
   const setFocusedMappingVariable = useEvaluatorStore(
     (state) => state.setFocusedMappingVariable
   );
+  if (variables.length === 0) {
+    return (
+      <Text color="text-500" size="S">
+        Add variables to the evaluator to map them here.
+      </Text>
+    );
+  }
   return (
-    <Flex direction="column" gap="size-200" width="100%">
+    <div
+      css={mappingRowsCSS}
+      data-columns={variables.length >= TWO_COLUMN_MIN_VARIABLES ? "2" : "1"}
+    >
       {variables.map((variable) => (
-        <SwitchableEvaluatorInput
-          key={variable}
-          fieldName={escapeFieldNameForReactHookForm(variable)}
-          label={variable}
-          size="M"
-          control={control}
-          getValues={getValues}
-          setValue={setValue}
-          pathOptions={[]}
-          allowsLiteral={false}
-          renderPathInput={({
-            value,
-            onChange,
-            isInvalid,
-            errorMessage,
-            ariaLabel,
-          }) => (
-            <EvaluatorPathField
-              value={value}
-              onChange={onChange}
-              isInvalid={isInvalid}
-              errorMessage={errorMessage}
-              ariaLabel={ariaLabel}
-              evaluatorMappingSource={evaluatorMappingSource}
-              recordKind={recordKind}
-              onFocusChange={(isFocused) =>
-                setFocusedMappingVariable(isFocused ? variable : null)
-              }
-              placeholder={getEvaluatorInputPlaceholder({
-                variableName: variable,
-                isRequired: requiredVariables?.includes(variable) ?? true,
-                literal: Object.hasOwn(literalMapping, variable)
-                  ? literalMapping[variable]
-                  : undefined,
-              })}
+        <div key={variable} className="mapping-row">
+          {/* The path field is a CodeMirror editor and takes its accessible
+              name from the control itself, so this is a visual label only. */}
+          <code className="mapping-row__name" aria-hidden title={variable}>
+            {variable}
+          </code>
+          <div className="mapping-row__field">
+            <SwitchableEvaluatorInput
+              fieldName={escapeFieldNameForReactHookForm(variable)}
+              label={variable}
+              hideLabel
+              size="S"
+              control={control}
+              getValues={getValues}
+              setValue={setValue}
+              pathOptions={[]}
+              allowsLiteral={false}
+              renderPathInput={({
+                value,
+                onChange,
+                isInvalid,
+                errorMessage,
+                ariaLabel,
+              }) => (
+                <EvaluatorPathField
+                  value={value}
+                  onChange={onChange}
+                  isInvalid={isInvalid}
+                  errorMessage={errorMessage}
+                  ariaLabel={ariaLabel}
+                  evaluatorMappingSource={evaluatorMappingSource}
+                  recordKind={recordKind}
+                  onFocusChange={(isFocused) =>
+                    setFocusedMappingVariable(isFocused ? variable : null)
+                  }
+                  placeholder={getEvaluatorInputPlaceholder({
+                    variableName: variable,
+                    isRequired: requiredVariables?.includes(variable) ?? true,
+                    literal: Object.hasOwn(literalMapping, variable)
+                      ? literalMapping[variable]
+                      : undefined,
+                  })}
+                />
+              )}
             />
-          )}
-        />
+          </div>
+        </div>
       ))}
-      {variables.length === 0 && (
-        <Text color="text-500">
-          Add variables to the evaluator to map them here.
-        </Text>
-      )}
-    </Flex>
+    </div>
   );
 };
+
+/** From this many variables the rows may take a second column. */
+const TWO_COLUMN_MIN_VARIABLES = 5;
+
+const mappingRowsCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  width: 100%;
+  &[data-columns="2"] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    column-gap: var(--global-dimension-size-300);
+    row-gap: var(--global-dimension-size-100);
+  }
+  .mapping-row {
+    display: grid;
+    grid-template-columns: minmax(72px, 160px) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--global-dimension-size-150);
+  }
+  .mapping-row__name {
+    font-family: var(--global-font-family-code, monospace);
+    font-size: var(--global-font-size-xs);
+    font-weight: 600;
+    color: var(--global-text-color-900);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mapping-row__field {
+    min-width: 0;
+  }
+`;
