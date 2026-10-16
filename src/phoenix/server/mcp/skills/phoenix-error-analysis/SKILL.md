@@ -4,6 +4,7 @@ description: Find out what is going wrong in LLM or agent traffic by reading sam
 summary: Read sampled traces, write open-coding notes, then group them into narrow one-dimension annotations with counts that pick eval targets and fix priorities.
 license: Apache-2.0
 metadata:
+  targets: "agents mcp pxi"
   author: arize-ai
   version: "1.0.0"
 ---

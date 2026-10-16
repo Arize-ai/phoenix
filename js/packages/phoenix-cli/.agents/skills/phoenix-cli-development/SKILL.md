@@ -326,7 +326,7 @@ px project --endpoint http://my-server:6006 list
 10. Run `pnpm test` — fix any failures before proceeding
 11. Run `pnpm build` — fix any type errors before proceeding
 12. Update `README.md` with usage examples showing both human and agent-friendly invocations
-13. Update the external Phoenix CLI skill at `.agents/skills/phoenix-cli/SKILL.md` when commands, flags, examples, or output shapes change
+13. Update the external Phoenix CLI skill at `skills/phoenix-cli/SKILL.md` when commands, flags, examples, or output shapes change
 14. Keep skill updates concise: document the new capability with the smallest useful examples and output-shape notes rather than repeating the full README
 15. If the command prompts for input or confirmation, support `--no-input` (see `InteractiveCommandOptions`)
 16. Add at least one example to `--help` via `.addHelpText('after', ...)`

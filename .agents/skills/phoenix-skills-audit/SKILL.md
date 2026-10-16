@@ -23,7 +23,7 @@ reads recent commits, identifies what changed in user-facing surfaces, and updat
 relevant `SKILL.md` and `references/*.md` files in place.
 
 This is a sibling skill to `phoenix-docs-gap-audit`. The docs-gap-audit produces a *report*
-about gaps in `docs/phoenix/`; this skill produces *edits* to `.agents/skills/`. Skills are
+about gaps in `docs/phoenix/`; this skill produces *edits* to `skills/`. Skills are
 loaded into agent context every time the user asks a question that triggers them, so a
 stale skill teaches every future agent the wrong API. That makes drift here strictly
 worse than drift in human-facing docs — humans can sanity-check; agents can't.
@@ -31,11 +31,11 @@ worse than drift in human-facing docs — humans can sanity-check; agents can't.
 ## Targets — the three skills this audit owns
 
 ```
-.agents/skills/phoenix-tracing/SKILL.md
-.agents/skills/phoenix-tracing/references/*.md
-.agents/skills/phoenix-cli/SKILL.md
-.agents/skills/phoenix-evals/SKILL.md
-.agents/skills/phoenix-evals/references/*.md
+skills/phoenix-tracing/SKILL.md
+skills/phoenix-tracing/references/*.md
+skills/phoenix-cli/SKILL.md
+skills/phoenix-evals/SKILL.md
+skills/phoenix-evals/references/*.md
 ```
 
 Do not touch any other skill directory. If a change clearly belongs in a skill outside
@@ -345,8 +345,8 @@ Before exiting, walk through:
       reflected in the edits, or the run summary states a concrete reason it was
       dropped (e.g., "PR #X already self-patched the skill", with the SHA). A tagged
       candidate that just disappears is a triage bug — go back and reconcile.
-- [ ] No edits made outside `.agents/skills/phoenix-tracing/`, `.agents/skills/phoenix-cli/`,
-      or `.agents/skills/phoenix-evals/`.
+- [ ] No edits made outside `skills/phoenix-tracing/`, `skills/phoenix-cli/`,
+      or `skills/phoenix-evals/`. Copies elsewhere are rebuilt by `make skills`.
 - [ ] No invented APIs, no invented imports, no placeholder values disguised as real code.
 - [ ] Prose follows the writing-style rules: present tense, no changelog narration,
       sparing bold, catalog files get rows/bullets rather than new sections.
