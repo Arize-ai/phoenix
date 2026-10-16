@@ -216,6 +216,16 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_id ON public.prompts_prompt_labels
     USING btree (prompt_id);
 
 
+-- Table: system_state
+-- -------------------
+CREATE TABLE public.system_state (
+    key VARCHAR NOT NULL,
+    value JSONB NOT NULL,
+    revision BIGINT NOT NULL,
+    CONSTRAINT pk_system_state PRIMARY KEY (key)
+);
+
+
 -- Table: token_prices
 -- -------------------
 CREATE TABLE public.token_prices (
