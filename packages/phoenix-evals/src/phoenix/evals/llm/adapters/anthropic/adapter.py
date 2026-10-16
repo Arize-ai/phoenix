@@ -15,6 +15,15 @@ from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
 
+# These models reject a forced `tool_choice` (`{"type": "tool"}` or `{"type": "any"}`) with a 400,
+# so object generation lets them choose the tool instead.
+_MODELS_REJECTING_FORCED_TOOL_CHOICE = (
+    "claude-fable-5-1",
+    "claude-mythos-5-1",
+    "claude-opus-5-5",
+    "claude-sonnet-5-5",
+)
+
 
 def identify_anthropic_client(client: Any) -> bool:
     if isinstance(client, AnthropicClientWrapper):
@@ -198,7 +207,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice=self._tool_choice(),
             **kwargs,
         )
 
@@ -225,7 +234,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice=self._tool_choice(),
             **kwargs,
         )
 
@@ -234,6 +243,13 @@ class AnthropicAdapter(BaseLLMAdapter):
                 return cast(Dict[str, Any], content_block.input)
 
         raise ValueError("No tool use in response")
+
+    def _tool_choice(self) -> Dict[str, Any]:
+        if self.model.startswith(_MODELS_REJECTING_FORCED_TOOL_CHOICE):
+            # `auto` lets the model reply without calling the tool; that still raises
+            # "No tool use in response" below.
+            return {"type": "auto"}
+        return {"type": "tool", "name": "extract_structured_data"}
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get("description", "Respond in a format matching the provided schema")
