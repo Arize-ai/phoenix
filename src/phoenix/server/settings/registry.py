@@ -68,3 +68,8 @@ SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType
         "agent.assistant.github": AgentGitHubSetting,
     }
 )
+
+
+# Keys stored in the system_state table, which the server writes itself (unlike
+# system_settings, which admins edit). Each key maps to the model its value must parse as.
+STATE_REGISTRY: Mapping[str, type[BaseModel]] = MappingProxyType({})
