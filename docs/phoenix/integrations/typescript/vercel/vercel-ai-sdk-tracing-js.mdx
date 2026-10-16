@@ -70,7 +70,7 @@ This applies to agents as well: a `ToolLoopAgent` run is traced end to end, with
 
 ## Decision models
 
-AI SDK decision models, such as OpenAI's `gpt-6-luna` through `openai.decisionModel()` or TypeSafe's Jev through `@ai-sdk/typesafe-ai`, answer typed questions about a shared state instead of generating text. Calls made through the AI SDK's `experimental_decide` are traced as **[DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision)** rather than LLM spans, with no extra instrumentor. This requires `@arizeai/phoenix-otel` 2.2.0 or later (which brings `@arizeai/openinference-vercel` 3.3.0), plus `ai` 7.0.128 and `@ai-sdk/otel` 1.0.128 or later.
+AI SDK decision models, such as OpenAI's `gpt-6-luna` through `openai.decisionModel()` or TypeSafe's Jev through `@ai-sdk/typesafe-ai`, answer typed questions about a shared state instead of generating text. Calls made through the AI SDK's `experimental_decide` are traced as **[DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision)** rather than LLM spans, with no extra instrumentor. This requires `@arizeai/openinference-vercel` 3.3.0 or later, plus `ai` 7.0.128 and `@ai-sdk/otel` 1.0.128 or later. `@arizeai/phoenix-otel` 2.x depends on `@arizeai/openinference-vercel` with a caret range, so a fresh install resolves to 3.3.0 or later. In an existing project, check the version in your lockfile and run `npm update @arizeai/openinference-vercel` if it is older.
 
 Two options on the `OpenTelemetry` integration shape what Phoenix receives:
 
