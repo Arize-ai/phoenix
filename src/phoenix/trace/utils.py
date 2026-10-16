@@ -26,12 +26,20 @@ def download_json_traces_fixture(
 def json_lines_to_df(lines: list[str]) -> pd.DataFrame:
     """
     Convert a list of JSON line strings to a Pandas DataFrame.
+
+    Blank lines are skipped. Returns an empty DataFrame if there are no JSON objects.
     """
     data = []
 
     for line in lines:
+        # Skip blank lines, e.g. a trailing newline at the end of the file
+        if not line.strip():
+            continue
         # Load the JSON object from the line
         data.append(json.loads(line))
+
+    if not data:
+        return pd.DataFrame()
 
     # Normalize data to a flat structure
     df = pd.concat([pd.json_normalize(item, max_level=1) for item in data], ignore_index=True)
