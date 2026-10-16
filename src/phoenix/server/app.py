@@ -33,6 +33,7 @@ import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.telemetry import TelemetryConfig
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
@@ -1111,6 +1112,14 @@ def create_app(
         if not get_env_disable_agent_assistant() and get_env_allow_external_resources()
         else None
     )
+    # FastAPI's native OpenTelemetry support. Request spans go only to Phoenix's own
+    # tracer provider (when server instrumentation is enabled), never to global
+    # providers that a host process may have configured.
+    telemetry: TelemetryConfig = (
+        {"tracer_provider": tracer_provider, "metrics": False, "logs": False}
+        if tracer_provider is not None
+        else {"tracing": False, "metrics": False, "logs": False}
+    )
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -1146,6 +1155,7 @@ def create_app(
             AgentSessionConflict: agent_session_conflict_handler,
         },
         debug=debug,
+        telemetry=telemetry,
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
         },
@@ -1387,12 +1397,6 @@ def create_app(
     )
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
-    if tracer_provider:
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-        FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
-        FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
-        shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
     if allowed_origins:
         app.add_middleware(
             CORSMiddleware,
