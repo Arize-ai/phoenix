@@ -382,6 +382,42 @@ def test_dot_delimited_f_string_variables() -> None:
     assert template.variables == ["hello.world"]
 
 
+class TestPromptTemplateFormatOverride:
+    def test_copy_with_format_override_rebuilds_formatters(self) -> None:
+        source = PromptTemplate(template="Hello {{name}} {x}")
+        copied = PromptTemplate(template=source, template_format=TemplateFormat.F_STRING)
+        direct = PromptTemplate(
+            template="Hello {{name}} {x}", template_format=TemplateFormat.F_STRING
+        )
+        assert copied.template_format is TemplateFormat.F_STRING
+        assert copied.variables == direct.variables
+        assert copied.render({"name": "N", "x": "X"}) == direct.render({"name": "N", "x": "X"})
+
+    def test_copy_with_mustache_override_matches_direct_construction(self) -> None:
+        source = PromptTemplate(template="Hello {{name}} {x}")
+        copied = PromptTemplate(template=source, template_format=TemplateFormat.MUSTACHE)
+        direct = PromptTemplate(
+            template="Hello {{name}} {x}", template_format=TemplateFormat.MUSTACHE
+        )
+        assert copied.variables == direct.variables
+        assert copied.render({"name": "N", "x": "X"}) == direct.render({"name": "N", "x": "X"})
+
+    def test_copy_without_override_preserves_original(self) -> None:
+        source = PromptTemplate(template="Hello {{name}} {x}")
+        rendered_before = source.render({"name": "N", "x": "X"})
+        copied = PromptTemplate(template=source)
+        assert copied.template_format is None
+        assert copied.render({"name": "N", "x": "X"}) == rendered_before
+
+    def test_copy_with_same_format_preserves_original(self) -> None:
+        direct = PromptTemplate(
+            template="Hello {{name}} {x}", template_format=TemplateFormat.F_STRING
+        )
+        copied = PromptTemplate(template=direct, template_format=TemplateFormat.F_STRING)
+        assert copied.variables == direct.variables
+        assert copied.render({"name": "N", "x": "X"}) == direct.render({"name": "N", "x": "X"})
+
+
 class TestPromptTemplate:
     """Tests for the unified PromptTemplate class."""
 
