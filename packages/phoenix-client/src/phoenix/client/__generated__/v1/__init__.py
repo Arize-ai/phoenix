@@ -1457,6 +1457,7 @@ class BuiltInModelProvider(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     name: str
 
@@ -1481,6 +1482,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     modelName: str
 
@@ -2340,6 +2342,7 @@ class PromptVersionData(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]

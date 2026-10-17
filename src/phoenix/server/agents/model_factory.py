@@ -134,6 +134,8 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("ZAI_API_KEY",)
     if provider is ModelProvider.META:
         return ("META_API_KEY",)
+    if provider is ModelProvider.TYPESAFE:
+        return ("TYPESAFE_API_KEY",)
     assert_never(provider)
 
 

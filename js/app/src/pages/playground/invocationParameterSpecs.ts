@@ -75,6 +75,10 @@ export function getInvocationFamilyForProvider(
     case "TOGETHER":
     case "ZAI":
     case "META":
+    // TypeSafe AI's API is a typed evaluation endpoint rather than chat
+    // completions, so it has no invocation family of its own; default to the
+    // generic OpenAI family, matching the server.
+    case "TYPESAFE":
       return InvocationFamily.OPENAI;
     case "ANTHROPIC":
       return InvocationFamily.ANTHROPIC;

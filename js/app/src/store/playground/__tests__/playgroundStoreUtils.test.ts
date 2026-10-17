@@ -195,6 +195,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    TYPESAFE: [
+      [
+        "return tools as they are for typesafe",
+        "TYPESAFE",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     CEREBRAS: [
       [
         "return tools as they are for cerebras",

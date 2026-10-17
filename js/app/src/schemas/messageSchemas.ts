@@ -426,6 +426,7 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
     case "AWS":
       return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
+    case "TYPESAFE":
     case "GOOGLE":
       // TODO: Add Google message support
       return message as ProviderToMessageMap[T];
@@ -465,6 +466,7 @@ type ProviderToMessageMap = {
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;
+  TYPESAFE: JSONLiteral;
 };
 
 /**
