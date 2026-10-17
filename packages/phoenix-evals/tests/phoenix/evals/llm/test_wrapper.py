@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 
 import pytest
 
-from phoenix.evals.llm.wrapper import generate_classification_schema
+from phoenix.evals.llm.wrapper import LLM, generate_classification_schema
 
 
 class TestGenerateClassificationSchema:
@@ -274,3 +274,16 @@ class TestGenerateClassificationSchema:
         required = schema["required"]
         assert isinstance(required, list)
         assert "label" in required
+
+
+def test_client_specific_kwargs_override_shared_kwargs(openai_api_key: str) -> None:
+    llm = LLM(
+        provider="openai",
+        model="gpt-4o",
+        timeout=30.0,
+        sync_client_kwargs={"timeout": 60.0},
+        async_client_kwargs={"timeout": 120.0},
+    )
+
+    assert llm._sync_client.timeout == 60.0
+    assert llm._async_client.timeout == 120.0
