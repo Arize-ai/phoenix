@@ -28,6 +28,7 @@ from typing_extensions import Annotated, Mapping
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
+from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
@@ -532,7 +533,7 @@ class LLMEvaluator(Evaluator):
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: Union[LLM, DecisionModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
@@ -698,7 +699,7 @@ class ClassificationEvaluator(LLMEvaluator):
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: Union[LLM, DecisionModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
@@ -776,7 +777,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 name=self.name,
                 label=label,
                 explanation=explanation,
-                metadata={"model": self.llm.model},  # could add more metadata here
+                metadata={"model": self.llm.model, **response.get("metadata", {})},
                 kind=self.kind,
                 direction=self.direction,
             )
@@ -818,7 +819,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 name=self.name,
                 label=label,
                 explanation=explanation,
-                metadata={"model": self.llm.model},  # could add more metadata here
+                metadata={"model": self.llm.model, **response.get("metadata", {})},
                 kind=self.kind,
                 direction=self.direction,
             )
@@ -1133,7 +1134,7 @@ def create_evaluator(
 def create_classifier(
     name: str,
     prompt_template: str,
-    llm: LLM,
+    llm: Union[LLM, DecisionModel],
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
