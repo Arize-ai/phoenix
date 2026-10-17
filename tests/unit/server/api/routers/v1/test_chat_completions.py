@@ -10,12 +10,14 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk as OpenAIChatCompletionChunk
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import (
+    ImageUrl,
     ModelMessage,
     ModelRequest,
     ModelResponse,
     SystemPromptPart,
     TextPart,
     UserPromptPart,
+    VideoUrl,
 )
 from pydantic_ai.models.function import AgentInfo, DeltaToolCalls, FunctionModel
 from pydantic_ai.usage import RequestUsage
@@ -103,6 +105,174 @@ def _validated_chunks(sse_text: str) -> list[dict[str, Any]]:
 
 
 class TestCreateChatCompletion:
+    @pytest.mark.parametrize("model_name", ["MiniMax-M2.7", "unknown-model"])
+    @pytest.mark.parametrize("media_type", ["image_url", "video_url"])
+    async def test_rejects_media_for_unsupported_minimax_model(
+        self,
+        httpx_client: httpx.AsyncClient,
+        model_name: str,
+        media_type: str,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(
+                model=f"minimax:{model_name}",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": media_type, media_type: {"url": "https://example.test/media"}}
+                        ],
+                    }
+                ],
+            ),
+        )
+        assert response.status_code == 400
+        assert "not supported by this MiniMax model" in response.json()["error"]["message"]
+
+    async def test_rejects_unsupported_minimax_detail(
+        self, httpx_client: httpx.AsyncClient
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(
+                model="minimax:MiniMax-M3",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": "https://example.test/image.png",
+                                    "detail": "auto",
+                                },
+                            }
+                        ],
+                    }
+                ],
+            ),
+        )
+        assert response.status_code == 400
+        assert "media detail" in response.json()["error"]["message"]
+
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_preserves_minimax_media_parts(
+        self,
+        httpx_client: httpx.AsyncClient,
+        build_model_spy: _BuildModelSpy,
+        stream: bool,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(
+                model="minimax:MiniMax-M3",
+                stream=stream,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Compare the image and video."},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": "https://example.test/image.png",
+                                    "detail": "high",
+                                },
+                            },
+                            {
+                                "type": "video_url",
+                                "video_url": {"url": "mm_file://video-file", "fps": 2},
+                            },
+                        ],
+                    }
+                ],
+            ),
+        )
+        assert response.status_code == 200, response.text
+        (message,) = build_model_spy.messages
+        assert isinstance(message, ModelRequest)
+        (part,) = message.parts
+        assert isinstance(part, UserPromptPart)
+        assert part.content == [
+            "Compare the image and video.",
+            ImageUrl(url="https://example.test/image.png", vendor_metadata={"detail": "high"}),
+            VideoUrl(url="mm_file://video-file", vendor_metadata={"fps": 2.0}),
+        ]
+
+    @pytest.mark.parametrize("role", ["system", "developer", "assistant"])
+    async def test_rejects_media_outside_user_messages(
+        self,
+        httpx_client: httpx.AsyncClient,
+        role: str,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(
+                model="minimax:MiniMax-M3",
+                messages=[
+                    {
+                        "role": role,
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": "https://example.test/image.png"},
+                            }
+                        ],
+                    }
+                ],
+            ),
+        )
+        assert response.status_code == 400
+        assert "only supported in user messages" in response.json()["error"]["message"]
+
+    @pytest.mark.parametrize("fps", [0, 6])
+    async def test_rejects_invalid_video_sampling_rate(
+        self,
+        httpx_client: httpx.AsyncClient,
+        fps: float,
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(
+                model="minimax:MiniMax-M3",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "video_url",
+                                "video_url": {"url": "https://example.test/video.mp4", "fps": fps},
+                            }
+                        ],
+                    }
+                ],
+            ),
+        )
+        assert response.status_code == 422
+
+    async def test_rejects_video_for_custom_provider(self, httpx_client: httpx.AsyncClient) -> None:
+        provider_id = str(GlobalID("GenerativeModelCustomProvider", "7"))
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(
+                model=f"custom:{provider_id}:test-model",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "video_url",
+                                "video_url": {"url": "https://example.test/video.mp4"},
+                            }
+                        ],
+                    }
+                ],
+            ),
+        )
+        assert response.status_code == 400
+        assert "only supported by the MiniMax provider" in response.json()["error"]["message"]
+
     def test_openai_usage_preserves_prompt_cache_hits(self) -> None:
         usage = chat_completions_module._to_openai_usage(
             RequestUsage(input_tokens=100, output_tokens=20, cache_read_tokens=60)

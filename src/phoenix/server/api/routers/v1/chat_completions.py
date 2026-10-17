@@ -14,6 +14,7 @@ from pydantic import ConfigDict, Field
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
     FinishReason,
+    ImageUrl,
     ModelMessage,
     ModelRequest,
     PartDeltaEvent,
@@ -22,6 +23,7 @@ from pydantic_ai.messages import (
     TextPart,
     TextPartDelta,
     UserPromptPart,
+    VideoUrl,
 )
 from pydantic_ai.messages import (
     ModelResponse as PydanticAIModelResponse,
@@ -147,9 +149,35 @@ class ChatCompletionTextPart(V1RoutesBaseModel):
     text: str
 
 
+class ChatCompletionMediaURL(V1RoutesBaseModel):
+    url: str
+    detail: Optional[Literal["auto", "low", "default", "high"]] = None
+    max_long_side_pixel: Optional[int] = Field(default=None, ge=1)
+
+
+class ChatCompletionVideoURL(ChatCompletionMediaURL):
+    fps: Optional[float] = Field(default=None, ge=0.2, le=5)
+
+
+class ChatCompletionImagePart(V1RoutesBaseModel):
+    type: Literal["image_url"]
+    image_url: ChatCompletionMediaURL
+
+
+class ChatCompletionVideoPart(V1RoutesBaseModel):
+    type: Literal["video_url"]
+    video_url: ChatCompletionVideoURL
+
+
+ChatCompletionContentPart = Annotated[
+    Union[ChatCompletionTextPart, ChatCompletionImagePart, ChatCompletionVideoPart],
+    Field(discriminator="type"),
+]
+
+
 class ChatCompletionRequestMessage(V1RoutesBaseModel):
     role: Literal["system", "developer", "user", "assistant"]
-    content: Union[str, list[ChatCompletionTextPart]]
+    content: Union[str, list[ChatCompletionContentPart]]
 
 
 class ChatCompletionStreamOptions(V1RoutesBaseModel):
@@ -285,6 +313,33 @@ def _parse_model_id(model_id: str) -> AgentModelSelection:
 
 
 def _reject_unsupported_parameters(body: CreateChatCompletionRequestBody) -> None:
+    for message in body.messages:
+        if isinstance(message.content, str):
+            continue
+        for part in message.content:
+            if isinstance(part, ChatCompletionTextPart):
+                continue
+            if message.role != "user":
+                raise _ChatCompletionError(
+                    "Media content is only supported in user messages.", status_code=400
+                )
+            media = part.image_url if isinstance(part, ChatCompletionImagePart) else part.video_url
+            provider, _, model_name = body.model.partition(":")
+            if provider.lower() == "minimax":
+                from phoenix.server.agents.pydantic_ai.minimax import MINIMAX_MEDIA_MODELS
+
+                if model_name not in MINIMAX_MEDIA_MODELS:
+                    raise _ChatCompletionError(
+                        "Media input is not supported by this MiniMax model.", status_code=400
+                    )
+                if media.detail == "auto":
+                    raise _ChatCompletionError(
+                        "MiniMax media detail must be 'low', 'default', or 'high'.", status_code=400
+                    )
+            if isinstance(part, ChatCompletionVideoPart) and provider.lower() != "minimax":
+                raise _ChatCompletionError(
+                    "Video content is only supported by the MiniMax provider.", status_code=400
+                )
     if body.tools or body.tool_choice is not None:
         raise _ChatCompletionError(
             "Tool calling is not supported by this endpoint.",
@@ -304,10 +359,42 @@ def _reject_unsupported_parameters(body: CreateChatCompletionRequestBody) -> Non
         )
 
 
-def _content_to_text(content: Union[str, list[ChatCompletionTextPart]]) -> str:
+def _content_to_text(content: Union[str, list[ChatCompletionContentPart]]) -> str:
     if isinstance(content, str):
         return content
-    return "".join(part.text for part in content)
+    if any(not isinstance(part, ChatCompletionTextPart) for part in content):
+        raise _ChatCompletionError(
+            "Media content is only supported in user messages.", status_code=400
+        )
+    return "".join(part.text for part in content if isinstance(part, ChatCompletionTextPart))
+
+
+def _content_to_user_prompt(
+    content: Union[str, list[ChatCompletionContentPart]],
+) -> Union[str, list[Union[str, ImageUrl, VideoUrl]]]:
+    if isinstance(content, str) or all(
+        isinstance(part, ChatCompletionTextPart) for part in content
+    ):
+        return _content_to_text(content)
+    parts: list[Union[str, ImageUrl, VideoUrl]] = []
+    for part in content:
+        if isinstance(part, ChatCompletionTextPart):
+            parts.append(part.text)
+        elif isinstance(part, ChatCompletionImagePart):
+            parts.append(
+                ImageUrl(
+                    url=part.image_url.url,
+                    vendor_metadata=part.image_url.model_dump(exclude={"url"}, exclude_none=True),
+                )
+            )
+        else:
+            parts.append(
+                VideoUrl(
+                    url=part.video_url.url,
+                    vendor_metadata=part.video_url.model_dump(exclude={"url"}, exclude_none=True),
+                )
+            )
+    return parts
 
 
 def _to_pydantic_ai_messages(
@@ -315,11 +402,16 @@ def _to_pydantic_ai_messages(
 ) -> list[ModelMessage]:
     out: list[ModelMessage] = []
     for message in messages:
+        if message.role == "user":
+            out.append(
+                ModelRequest(
+                    parts=[UserPromptPart(content=_content_to_user_prompt(message.content))]
+                )
+            )
+            continue
         text = _content_to_text(message.content)
         if message.role in ("system", "developer"):
             out.append(ModelRequest(parts=[SystemPromptPart(content=text)]))
-        elif message.role == "user":
-            out.append(ModelRequest(parts=[UserPromptPart(content=text)]))
         else:
             out.append(PydanticAIModelResponse(parts=[TextPart(content=text)]))
     return out
