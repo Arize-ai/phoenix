@@ -197,11 +197,46 @@ def test_direct_mistral_models_carry_openinference_provider_and_rates(
 
 
 @pytest.mark.parametrize(
+    "model_name, input_rate, cache_read_rate",
+    [
+        # Embedding models only publish prompt rates (no completion / output).
+        ("mistral/mistral-embed", 1e-7, None),
+        ("mistral/mistral-embed-2312", 1e-7, None),
+        ("mistral/codestral-embed", 1.5e-7, 1.5e-8),
+        ("mistral/codestral-embed-2505", 1.5e-7, 1.5e-8),
+    ],
+)
+def test_mistral_embedding_models_carry_input_only_rates(
+    models_by_name: dict[str, dict[str, Any]],
+    model_name: str,
+    input_rate: float,
+    cache_read_rate: float | None,
+) -> None:
+    assert model_name in models_by_name, f"missing model entry: {model_name}"
+    model = models_by_name[model_name]
+    assert model.get("provider") == "mistralai"
+    assert model["name_pattern"] == model_name.removeprefix("mistral/")
+    prices = {price["token_type"]: price for price in model["token_prices"]}
+    assert prices["input"]["base_rate"] == pytest.approx(input_rate, rel=1e-9)
+    assert prices["input"]["is_prompt"] is True
+    assert "output" not in prices
+    if cache_read_rate is None:
+        assert "cache_read" not in prices
+    else:
+        assert prices["cache_read"]["base_rate"] == pytest.approx(cache_read_rate, rel=1e-9)
+        assert prices["cache_read"]["is_prompt"] is True
+
+
+@pytest.mark.parametrize(
     "span_model_name, span_provider, expected_entry",
     [
         ("mistral-large-latest", "mistralai", "mistral/mistral-large-latest"),
         ("mistral-small-latest", "mistralai", "mistral/mistral-small-latest"),
         ("codestral-latest", "mistralai", "mistral/codestral-latest"),
+        ("mistral-embed", "mistralai", "mistral/mistral-embed"),
+        ("mistral-embed-2312", "mistralai", "mistral/mistral-embed-2312"),
+        ("codestral-embed", "mistralai", "mistral/codestral-embed"),
+        ("codestral-embed-2505", "mistralai", "mistral/codestral-embed-2505"),
         # Provider-less spans still match by name_pattern alone.
         ("mistral-large-latest", None, "mistral/mistral-large-latest"),
         # Together-hosted Mistral stays on the together provider entry.

@@ -213,11 +213,26 @@ def _is_positive_number(value: Any) -> bool:
         return False
 
 
+def _has_usable_pricing(model_info: dict[str, Any]) -> bool:
+    """
+    Return whether LiteLLM publishes enough rates for Phoenix to price the model.
+
+    Chat / completion models need both an input rate and an output (or image-output)
+    rate. Embedding models only bill prompt tokens, so LiteLLM omits
+    ``output_cost_per_token``; accept those when ``mode`` is ``embedding`` and a
+    positive input rate is present.
+    """
+    if not _is_positive_number(model_info.get("input_cost_per_token")):
+        return False
+    if _output_rate_field(model_info) is not None:
+        return True
+    return model_info.get("mode") == "embedding"
+
+
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
-        # Both an input and an output rate are required for pricing.
-        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
+        if isinstance(model_info, dict) and _has_usable_pricing(model_info):
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
