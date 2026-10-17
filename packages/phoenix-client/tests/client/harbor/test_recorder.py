@@ -97,9 +97,22 @@ class FakeDataset:
 
 
 class FakeDatasets:
-    def __init__(self, dataset: FakeDataset | Exception) -> None:
+    def __init__(
+        self,
+        dataset: FakeDataset | Exception,
+        current: FakeDataset | None = None,
+    ) -> None:
         self._dataset = dataset
+        self._current = current
         self.calls: list[dict[str, Any]] = []
+        self.lookups: list[str] = []
+
+    async def get_dataset(self, *, dataset: str, **kwargs: Any) -> FakeDataset:
+        del kwargs
+        self.lookups.append(dataset)
+        if self._current is None:
+            raise ValueError(f"Dataset not found: {dataset}")
+        return self._current
 
     async def create_dataset(self, **kwargs: Any) -> FakeDataset:
         self.calls.append(kwargs)
@@ -295,6 +308,50 @@ class TestSyncDataset:
             assert examples[1]["id"] == "task-b"
             assert examples[1]["output"] == {}
         assert datasets.calls[0]["examples"] != datasets.calls[1]["examples"]
+
+    async def test_subset_keeps_examples_for_tasks_outside_the_job(self) -> None:
+        current = FakeDataset(
+            [
+                task("task-a", reference_output={"count": 1}).to_example() | {"node_id": "node-a"},
+                task("task-b").to_example() | {"node_id": "node-b"},
+            ],
+            version_id="version-2",
+        )
+        datasets = FakeDatasets(
+            FakeDataset(
+                [example_row("task-a", "node-a"), example_row("task-b", "node-b")],
+                version_id="version-3",
+            ),
+            current=current,
+        )
+        snapshot = await recorder(FakeClient(datasets)).sync_dataset(
+            plan(tasks=(task("task-a", reference_output={"count": 2}),))
+        )
+
+        (call,) = datasets.calls
+        assert [example["id"] for example in call["examples"]] == ["task-a", "task-b"]
+        assert call["examples"][0]["output"] == {"count": 2}
+        assert call["examples"][1]["output"] == {}
+        assert snapshot.version_id == "version-3"
+        assert snapshot.example_ids == {"task-a": "node-a", "task-b": "node-b"}
+
+    async def test_unchanged_subset_does_not_publish_a_new_version(self) -> None:
+        current = FakeDataset(
+            [
+                task("task-a").to_example() | {"node_id": "node-a"},
+                task("task-b").to_example() | {"node_id": "node-b"},
+            ],
+            version_id="version-2",
+        )
+        datasets = FakeDatasets(FakeDataset([]), current=current)
+        snapshot = await recorder(FakeClient(datasets)).sync_dataset(plan(tasks=(task("task-a"),)))
+
+        assert datasets.calls == []
+        assert snapshot == DatasetSnapshot(
+            "dataset-1",
+            "version-2",
+            {"task-a": "node-a", "task-b": "node-b"},
+        )
 
     async def test_uploads_the_full_task_snapshot(self) -> None:
         datasets = FakeDatasets(FakeDataset([example_row("task-a", "node-a")]))
