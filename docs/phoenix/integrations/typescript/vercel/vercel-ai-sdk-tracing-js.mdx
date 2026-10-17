@@ -125,7 +125,7 @@ console.log(answers.department.choice, answers.department.probabilities);
 Each call appears in Phoenix as two spans named `decide <model>`, for example `decide gpt-6-luna`: a `CHAIN` span for the decide operation, carrying the state and questions as input and the answers as output, with a child **DECISION** span for the model call carrying:
 
 - `decision.system` and `decision.provider`, for example `openai` or `typesafe`
-- `decision.request.model_name` and `decision.model_name`. The AI SDK does not report a separate response model, so `decision.response.model_name` is not set.
+- `decision.request.model_name`, `decision.response.model_name`, and `decision.model_name`. The response model needs `@ai-sdk/otel` 1.0.138 or later; earlier versions do not record it on decide spans.
 - `decision.token_count.input` and `decision.token_count.output`. The output count is often `0`, since the answers are typed values rather than generated tokens.
 
 Phoenix names the decision model in the DECISION span's input card. Because the model and its usage are recorded under `decision.*` rather than `llm.*`, decision calls stay out of Phoenix's LLM token and cost reporting.
