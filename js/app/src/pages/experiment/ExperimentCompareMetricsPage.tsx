@@ -17,6 +17,7 @@ import {
   View,
 } from "@phoenix/components";
 import type { OptimizationDirectionResult } from "@phoenix/components/annotation";
+import { getOptimizationBounds } from "@phoenix/components/annotation/optimizationUtils";
 import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import {
@@ -29,6 +30,7 @@ import { useTheme } from "@phoenix/contexts";
 import { ExperimentComparePageQueriesCompareMetricsQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { compareAnnotationMeanScores } from "@phoenix/pages/experiment/utils";
 import { getWordColor } from "@phoenix/utils/colorUtils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {
   costFormatter,
   latencyMsFormatter,
@@ -124,6 +126,37 @@ export function ExperimentCompareMetricsPage({
                 }
               }
             }
+            datasetEvaluators(first: 100) {
+              edges {
+                node {
+                  name
+                  outputConfigs {
+                    __typename
+                    ... on CategoricalAnnotationConfig {
+                      name
+                      optimizationDirection
+                      values {
+                        label
+                        score
+                      }
+                    }
+                    ... on ContinuousAnnotationConfig {
+                      name
+                      optimizationDirection
+                      lowerBound
+                      upperBound
+                    }
+                    ... on FreeformAnnotationConfig {
+                      name
+                      optimizationDirection
+                      threshold
+                      lowerBound
+                      upperBound
+                    }
+                  }
+                }
+              }
+            }
           }
         }
         experimentRunMetricComparisons(
@@ -161,6 +194,12 @@ export function ExperimentCompareMetricsPage({
             numRunsEqual
           }
           completionCost {
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+          }
+          annotations {
+            annotationName
             numRunsImproved
             numRunsRegressed
             numRunsEqual
@@ -352,6 +391,19 @@ export function ExperimentCompareMetricsPage({
         completionTokensMetric,
       ];
 
+      // Evaluator scores are compared in the direction their evaluator optimizes for, as in
+      // the compare table and list views
+      const annotationConfigsByName = new Map(
+        datasetEvaluatorsToAnnotationConfigs(
+          data.dataset.datasetEvaluators?.edges.map((edge) => edge.node) ?? []
+        ).map((config) => [config.name, config])
+      );
+      const annotationComparisonsByName = new Map(
+        comparisons?.annotations.map((annotationComparison) => [
+          annotationComparison.annotationName,
+          annotationComparison,
+        ])
+      );
       const annotationMetrics: MetricCardProps[] = compareAnnotationMeanScores(
         baseExperiment,
         compareExperiments
@@ -360,22 +412,34 @@ export function ExperimentCompareMetricsPage({
           annotationName,
           baseExperimentMeanScore,
           compareExperimentMeanScores,
-        }) => ({
-          icon: (
-            <ColorSwatch
-              color={getWordColor({ word: annotationName, theme })}
-            />
-          ),
-          title: annotationName,
-          baseExperimentValue: baseExperimentMeanScore,
-          compareExperiments: compareExperimentMeanScores.map(
-            ({ experimentId, meanScore }, experimentIndex) => ({
-              id: experimentId,
-              value: meanScore,
-              color: getExperimentColor(experimentIndex),
-            })
-          ),
-        })
+        }) => {
+          const annotationComparison =
+            annotationComparisonsByName.get(annotationName);
+          return {
+            icon: (
+              <ColorSwatch
+                color={getWordColor({ word: annotationName, theme })}
+              />
+            ),
+            title: annotationName,
+            baseExperimentValue: baseExperimentMeanScore,
+            comparison: annotationComparison && {
+              numImprovements: annotationComparison.numRunsImproved,
+              numRegressions: annotationComparison.numRunsRegressed,
+              numEqual: annotationComparison.numRunsEqual,
+            },
+            optimizationDirection: getOptimizationBounds(
+              annotationConfigsByName.get(annotationName)
+            ).optimizationDirection,
+            compareExperiments: compareExperimentMeanScores.map(
+              ({ experimentId, meanScore }, experimentIndex) => ({
+                id: experimentId,
+                value: meanScore,
+                color: getExperimentColor(experimentIndex),
+              })
+            ),
+          };
+        }
       );
       return {
         annotationMetrics,
