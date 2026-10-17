@@ -976,11 +976,18 @@ def create_evaluator(
         # Handle tuples by processing each element
         if isinstance(result, tuple):
             tuple_score_data: Dict[str, Any] = {}
+            has_number = False
             for item in result:
-                if isinstance(item, (int, float, bool)):
-                    tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
-                    if "label" not in tuple_score_data and isinstance(item, bool):
-                        tuple_score_data["label"] = str(item)  # may get overwritten
+                if isinstance(item, bool):
+                    # A bool is a pass/fail label; it is the score only when no number is given,
+                    # whichever order the elements come in. The first bool decides both.
+                    if "label" not in tuple_score_data:
+                        if not has_number:
+                            tuple_score_data["score"] = float(item)
+                        tuple_score_data["label"] = str(item)  # may get overwritten by a string
+                elif isinstance(item, (int, float)):
+                    tuple_score_data["score"] = item
+                    has_number = True
                 elif isinstance(item, str):
                     if item.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
                         tuple_score_data["label"] = item
