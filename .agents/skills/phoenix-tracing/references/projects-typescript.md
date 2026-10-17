@@ -108,6 +108,66 @@ The project is identified the same way as elsewhere in the client — pass
 `policyId: null` is how you reset to the default; leaving `policyId` out
 entirely is a type error. The call returns the project's resulting assignment.
 
+## Assigning Annotation Configs
+
+Annotation configs define the labels and score ranges reviewers can use. A
+config is created once, then assigned to whichever projects should offer it.
+The `projects` subpath covers the assignment side only — it never creates,
+edits, or deletes a config. All four helpers require Phoenix server >= 17.16.0.
+
+```typescript
+import {
+  listProjectAnnotationConfigs,
+  assignProjectAnnotationConfig,
+  unassignProjectAnnotationConfig,
+  setProjectAnnotationConfigs,
+} from "@arizeai/phoenix-client/projects";
+
+// Read what the project currently offers (pages for you)
+const configs = await listProjectAnnotationConfigs({ projectName: "support-bot" });
+for (const config of configs) {
+  console.log(`${config.name} (${config.type})`);
+}
+
+// Add one config, leaving the rest alone
+await assignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+
+// Remove one config; the config itself survives
+await unassignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+```
+
+`assignProjectAnnotationConfig` and `unassignProjectAnnotationConfig` are both
+idempotent, so re-running either is safe. Use them when you want to nudge one
+config; use `setProjectAnnotationConfigs` when you want the project to match an
+exact list, since anything absent from `configIds` is unassigned:
+
+```typescript
+// Declare the full set
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: ["Q2F0ZWdvcmljYWxBbm5vdGF0aW9uQ29uZmlnOjE="],
+});
+
+// Clear every assignment
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: [],
+});
+```
+
+The project is identified the same way as elsewhere — `projectName`,
+`projectId`, or `project`. The config takes the matching trio: `configName`,
+`configId`, or `config` (a name or GlobalID). `setProjectAnnotationConfigs`
+is the exception and takes GlobalIDs only, via `configIds`. Reach for
+`configId` when a name may contain `/`, which the server cannot route in a
+path parameter.
+
 ## Moving Traces Between Projects
 
 `transferTraces` re-parents traces into another project. It is a move, not a

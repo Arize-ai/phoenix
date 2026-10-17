@@ -59,6 +59,32 @@ def build_review_queue(spans_df, max_traces=100):
 
 **Saturation:** Stop when new traces show the same failure patterns.
 
+## Sampling the Newest Spans
+
+`get_spans` returns spans in insertion order by default, which is not the same
+as the order they started in — late arrivals (backfills, replays, a slow
+exporter flush) land at the end regardless of when they ran. When "the last 50
+requests" has to mean the last 50 by wall clock, sort on `start_time`:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+spans = client.spans.get_spans(
+    project_identifier="my-app",
+    sort="start_time",
+    order="desc",
+    limit=50,
+)
+```
+
+`sort` takes `"id"` (insertion order, the default) or `"start_time"`, with ties
+broken by id. `order` takes `"asc"` or `"desc"` and defaults to `"desc"`.
+Either one requires Phoenix server >= 20.16.0; against an older server the
+client raises rather than silently returning insertion-ordered spans. Both
+parameters are on `get_spans`, not `get_spans_dataframe`.
+
 ## Trace-Level Sampling
 
 When you need whole requests (all spans per trace), use `get_traces`:
