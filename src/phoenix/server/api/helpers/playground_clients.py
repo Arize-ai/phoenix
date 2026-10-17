@@ -772,12 +772,18 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                         yield tc
                     if (tool_calls := delta.tool_calls) is not None:
                         for tool_call_index, tool_call in enumerate(tool_calls):
-                            tool_call_id = (
-                                tool_call.id
-                                if tool_call.id is not None
-                                else tool_call_ids[tool_call_index]
+                            index = (
+                                tool_call.index
+                                if getattr(tool_call, "index", None) is not None
+                                else tool_call_index
                             )
-                            tool_call_ids[tool_call_index] = tool_call_id
+                            if tool_call.id is not None:
+                                tool_call_id = tool_call.id
+                            elif index in tool_call_ids:
+                                tool_call_id = tool_call_ids[index]
+                            else:
+                                tool_call_id = f"call_{index}"
+                            tool_call_ids[index] = tool_call_id
                             if (function := tool_call.function) is not None:
                                 tcc = ToolCallChunk(
                                     id=tool_call_id,

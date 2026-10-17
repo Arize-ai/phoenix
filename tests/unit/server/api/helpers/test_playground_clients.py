@@ -65,7 +65,7 @@ from phoenix.server.api.helpers.playground_registry import (
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk, ToolCallChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
@@ -75,6 +75,17 @@ def _null_client_factory(provider: str) -> LLMClientFactory[Any]:
     @asynccontextmanager
     async def create_client() -> AsyncIterator[Any]:
         yield None
+
+    return LLMClientFactory(create_client, (provider, "test"))
+
+
+def _dummy_openai_client_factory(provider: str = "openai") -> LLMClientFactory[Any]:
+    @asynccontextmanager
+    async def create_client() -> AsyncIterator[Any]:
+        class Dummy:
+            _client = None
+
+        yield Dummy()
 
     return LLMClientFactory(create_client, (provider, "test"))
 
@@ -516,6 +527,242 @@ class TestOpenAIBaseStreamingClient:
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
         assert not attributes
+
+    async def test_streaming_tool_call_fragments_keyed_by_index(
+        self,
+        tracer: Tracer,
+    ) -> None:
+        from openai.types.chat import ChatCompletionChunk
+        from openai.types.chat.chat_completion_chunk import (
+            Choice,
+            ChoiceDelta,
+            ChoiceDeltaToolCall,
+            ChoiceDeltaToolCallFunction,
+        )
+
+        client = OpenAICompatibleClient(
+            client_factory=_dummy_openai_client_factory("openai"),
+            model_name="gpt-4o",
+            provider="openai",
+        )
+
+        chunks = [
+            ChatCompletionChunk(
+                id="chunk1",
+                choices=[
+                    Choice(
+                        index=0,
+                        finish_reason=None,
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    id="call_weather",
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name="get_weather",
+                                        arguments=None,
+                                    ),
+                                )
+                            ]
+                        ),
+                    )
+                ],
+                created=1,
+                model="gpt-4o",
+                object="chat.completion.chunk",
+            ),
+            ChatCompletionChunk(
+                id="chunk2",
+                choices=[
+                    Choice(
+                        index=0,
+                        finish_reason=None,
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=1,
+                                    id="call_time",
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name="get_time",
+                                        arguments=None,
+                                    ),
+                                )
+                            ]
+                        ),
+                    )
+                ],
+                created=1,
+                model="gpt-4o",
+                object="chat.completion.chunk",
+            ),
+            ChatCompletionChunk(
+                id="chunk3",
+                choices=[
+                    Choice(
+                        index=0,
+                        finish_reason=None,
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    id=None,
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name=None,
+                                        arguments='{"city": "Paris"}',
+                                    ),
+                                )
+                            ]
+                        ),
+                    )
+                ],
+                created=1,
+                model="gpt-4o",
+                object="chat.completion.chunk",
+            ),
+            ChatCompletionChunk(
+                id="chunk4",
+                choices=[
+                    Choice(
+                        index=0,
+                        finish_reason=None,
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=1,
+                                    id=None,
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name=None,
+                                        arguments='{"tz": "CET"}',
+                                    ),
+                                )
+                            ]
+                        ),
+                    )
+                ],
+                created=1,
+                model="gpt-4o",
+                object="chat.completion.chunk",
+            ),
+        ]
+
+        async def fake_stream(**kwargs: Any) -> AsyncIterator[Any]:
+            async def gen() -> AsyncIterator[Any]:
+                for c in chunks:
+                    yield c
+
+            return gen()
+
+        client._openai_chat_completion_create_stream = fake_stream  # type: ignore[method-assign]
+
+        args_by_id: dict[str, str] = {}
+        async for chunk in client.chat_completion_create(
+            messages=[],
+            tools=None,
+            invocation_parameters=None,
+            tracer=tracer,
+        ):
+            assert isinstance(chunk, ToolCallChunk)
+            args_by_id.setdefault(chunk.id, "")
+            args_by_id[chunk.id] += chunk.function.arguments
+
+        assert args_by_id == {
+            "call_weather": '{"city": "Paris"}',
+            "call_time": '{"tz": "CET"}',
+        }
+
+    async def test_streaming_tool_call_without_initial_id_generates_stable_id(
+        self,
+        tracer: Tracer,
+    ) -> None:
+        from openai.types.chat import ChatCompletionChunk
+        from openai.types.chat.chat_completion_chunk import (
+            Choice,
+            ChoiceDelta,
+            ChoiceDeltaToolCall,
+            ChoiceDeltaToolCallFunction,
+        )
+
+        client = OpenAICompatibleClient(
+            client_factory=_dummy_openai_client_factory("openai"),
+            model_name="gpt-4o",
+            provider="openai",
+        )
+
+        chunks = [
+            ChatCompletionChunk(
+                id="chunk1",
+                choices=[
+                    Choice(
+                        index=0,
+                        finish_reason=None,
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    id=None,
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name="lookup",
+                                        arguments='{"q":',
+                                    ),
+                                )
+                            ]
+                        ),
+                    )
+                ],
+                created=1,
+                model="gpt-4o",
+                object="chat.completion.chunk",
+            ),
+            ChatCompletionChunk(
+                id="chunk2",
+                choices=[
+                    Choice(
+                        index=0,
+                        finish_reason=None,
+                        delta=ChoiceDelta(
+                            tool_calls=[
+                                ChoiceDeltaToolCall(
+                                    index=0,
+                                    id=None,
+                                    function=ChoiceDeltaToolCallFunction(
+                                        name=None,
+                                        arguments=' "foo"}',
+                                    ),
+                                )
+                            ]
+                        ),
+                    )
+                ],
+                created=1,
+                model="gpt-4o",
+                object="chat.completion.chunk",
+            ),
+        ]
+
+        async def fake_stream(**kwargs: Any) -> AsyncIterator[Any]:
+            async def gen() -> AsyncIterator[Any]:
+                for c in chunks:
+                    yield c
+
+            return gen()
+
+        client._openai_chat_completion_create_stream = fake_stream  # type: ignore[method-assign]
+
+        chunks_received: list[ToolCallChunk] = []
+        async for chunk in client.chat_completion_create(
+            messages=[],
+            tools=None,
+            invocation_parameters=None,
+            tracer=tracer,
+        ):
+            assert isinstance(chunk, ToolCallChunk)
+            chunks_received.append(chunk)
+
+        assert len(chunks_received) == 2
+        assert chunks_received[0].id == chunks_received[1].id
+        assert bool(chunks_received[0].id)
+        assert chunks_received[0].function.arguments == '{"q":'
+        assert chunks_received[1].function.arguments == ' "foo"}'
 
 
 class TestAnthropicStreamingClient:
