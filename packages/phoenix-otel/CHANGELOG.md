@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.2...arize-phoenix-otel-v0.17.3) (2026-10-17)
+
+
+### Bug Fixes
+
+* **otel:** show the header name in the URL-encoding warning ([#16428](https://github.com/Arize-ai/phoenix/issues/16428)) ([30949b8](https://github.com/Arize-ai/phoenix/commit/30949b840efd6e800bb14d7cd746c983a1763813))
+
+
+### Documentation
+
+* fix dead Read the Docs links ([#16967](https://github.com/Arize-ai/phoenix/issues/16967)) ([0fed1f4](https://github.com/Arize-ai/phoenix/commit/0fed1f431c65cf24f52ca8153d5ffd63ce04a1b2))
+
 ## [0.17.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.1...arize-phoenix-otel-v0.17.2) (2026-09-28)
 
 
