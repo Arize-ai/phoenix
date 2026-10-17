@@ -224,6 +224,10 @@ async def _refresh_tokens(request: Request) -> Response:
         or refresh_token_claims.subject is None
         or (user_id := int(refresh_token_claims.subject)) is None
         or (expiration_time := refresh_token_claims.expiration_time) is None
+        or refresh_token_claims.attributes is None
+        # Delegated OAuth credentials must retain their client/grant binding through
+        # /oauth2/token; this route issues unrestricted browser-session cookies.
+        or refresh_token_claims.attributes.grant_id is not None
     ):
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     if expiration_time.timestamp() <= datetime.now(timezone.utc).timestamp():
