@@ -243,11 +243,53 @@ def canonical_resource_identifier(url: str) -> str:
     return urlunsplit((scheme, netloc, path, "", ""))
 
 
+def _extract_forwarded_scheme(request: Request) -> str | None:
+    """Extract public scheme from X-Forwarded-Proto or RFC 7239 Forwarded headers."""
+    if x_forwarded_proto := request.headers.get("x-forwarded-proto"):
+        scheme = x_forwarded_proto.split(",")[0].strip().lower()
+        if scheme in ("http", "https"):
+            return scheme
+    if forwarded := request.headers.get("forwarded"):
+        for element in forwarded.split(";"):
+            for part in element.split(","):
+                key, _, value = part.strip().partition("=")
+                if key.lower() == "proto":
+                    scheme = value.strip('"').lower()
+                    if scheme in ("http", "https"):
+                        return scheme
+    return None
+
+
+def _extract_forwarded_host(request: Request) -> str | None:
+    """Extract public host from X-Forwarded-Host or RFC 7239 Forwarded headers."""
+    if x_forwarded_host := request.headers.get("x-forwarded-host"):
+        host = x_forwarded_host.split(",")[0].strip()
+        if host:
+            return host
+    if forwarded := request.headers.get("forwarded"):
+        for element in forwarded.split(";"):
+            for part in element.split(","):
+                key, _, value = part.strip().partition("=")
+                if key.lower() == "host":
+                    host = value.strip('"')
+                    if host:
+                        return host
+    return None
+
+
 def public_origin(request: Request) -> str:
     """Return the public base URL clients use as the issuer and resource identifier."""
     if os.getenv(ENV_PHOENIX_ROOT_URL):
         return canonical_resource_identifier(str(get_env_root_url()))
-    return canonical_resource_identifier(str(request.base_url))
+    base_url = str(request.base_url)
+    forwarded_scheme = _extract_forwarded_scheme(request)
+    forwarded_host = _extract_forwarded_host(request)
+    if forwarded_scheme or forwarded_host:
+        parsed = urlsplit(base_url)
+        scheme = forwarded_scheme or parsed.scheme
+        netloc = forwarded_host or parsed.netloc
+        base_url = urlunsplit((scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+    return canonical_resource_identifier(base_url)
 
 
 def _validate_loopback_redirect(
