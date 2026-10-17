@@ -109,6 +109,59 @@ class TestGoogleStreamingClient:
         assert not client.is_transient_error(ClientError(400, {}))
         assert client.is_transient_error(TimeoutError())
 
+    def test_iter_gemini_response_chunks_thinking_and_cached_tokens(
+        self, client: GoogleClient
+    ) -> None:
+        from google.genai import types
+
+        from phoenix.server.api.helpers.playground_clients import (
+            LLM_TOKEN_COUNT_COMPLETION,
+            LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING,
+            LLM_TOKEN_COUNT_PROMPT,
+            LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
+            LLM_TOKEN_COUNT_TOTAL,
+            TextChunk,
+        )
+
+        class MockSpan:
+            def __init__(self) -> None:
+                self.attributes: dict[str, Any] = {}
+
+            def set_attributes(self, attrs: dict[str, Any]) -> None:
+                self.attributes.update(attrs)
+
+        span = MockSpan()
+        response = types.GenerateContentResponse(
+            candidates=[
+                types.Candidate(
+                    content=types.Content(
+                        role="model",
+                        parts=[
+                            types.Part(text="Thinking process...", thought=True),
+                            types.Part(text="Final answer"),
+                        ],
+                    )
+                )
+            ],
+            usage_metadata=types.GenerateContentResponseUsageMetadata(
+                prompt_token_count=1000,
+                cached_content_token_count=800,
+                candidates_token_count=10,
+                thoughts_token_count=500,
+                total_token_count=1510,
+            ),
+        )
+
+        chunks = list(client._iter_gemini_response_chunks(response, span))  # type: ignore[arg-type]
+        text_content = "".join(c.content for c in chunks if isinstance(c, TextChunk))
+
+        assert text_content == "Final answer"
+        assert span.attributes[LLM_TOKEN_COUNT_PROMPT] == 1000
+        assert span.attributes[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] == 800
+        assert span.attributes[LLM_TOKEN_COUNT_COMPLETION] == 510
+        assert span.attributes[LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING] == 500
+        assert span.attributes[LLM_TOKEN_COUNT_TOTAL] == 1510
+
 
 class TestOpenAIBaseStreamingClient:
     @pytest.fixture
