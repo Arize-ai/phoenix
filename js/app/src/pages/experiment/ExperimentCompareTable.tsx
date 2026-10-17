@@ -16,7 +16,6 @@ import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import {
-  Alert,
   Empty,
   ExpandableContent,
   Flex,
@@ -31,6 +30,7 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
+import { JSONBlock } from "@phoenix/components/code/JSONBlock";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   calculateAnnotationListHeight,
@@ -55,7 +55,9 @@ import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
+import { PrettyText } from "@phoenix/components/utility/PrettyText";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { usePrettyText } from "@phoenix/hooks/usePrettyText";
 import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -917,7 +919,7 @@ const outputContentCSS = css`
   padding: var(--global-dimension-size-200);
 `;
 
-function ExperimentRunOutput(
+export function ExperimentRunOutput(
   props: ExperimentRun & {
     numRepetitions: number;
     onOpenTraceDetails: (details: SelectedTraceDetails) => void;
@@ -984,11 +986,36 @@ function ExperimentRunOutput(
 }
 
 function RunError({ error, height }: { error: string; height: number }) {
+  const { text, textType } = usePrettyText(error);
+  // Only accept whitespace-only formatting. Parsing can round numbers or drop
+  // duplicate keys; keep quoted strings intact when comparing non-whitespace.
+  const jsonTokens = /"(?:\\.|[^"\\])*"|[^\s]/g;
+  const preserveOriginalJSON =
+    textType === "json" &&
+    error.match(jsonTokens)?.join("") !== text.match(jsonTokens)?.join("");
+
   return (
     <Flex direction="column" height="100%">
       <ExpandableContent height={height}>
         <div css={outputContentCSS}>
-          <Alert variant="danger">{error}</Alert>
+          <Flex direction="row" gap="size-100" alignItems="start">
+            <Icon
+              svg={<Icons.AlertCircle />}
+              color="danger"
+              role="img"
+              aria-label="Error"
+              css={css`
+                flex-shrink: 0;
+              `}
+            />
+            <View flex="1" minWidth={0}>
+              {preserveOriginalJSON ? (
+                <JSONBlock value={error} />
+              ) : (
+                <PrettyText>{error}</PrettyText>
+              )}
+            </View>
+          </Flex>
         </div>
       </ExpandableContent>
     </Flex>
