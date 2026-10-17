@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 2.3.0
+
+### Minor Changes
+
+- 188ce28: feat(phoenix-otel): Upgrade openinference-vercel tracing dependency to support decision model tracing
+
 ## 2.2.0
 
 ### Minor Changes
