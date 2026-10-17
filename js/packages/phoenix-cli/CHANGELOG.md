@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.18.9
+
+### Patch Changes
+
+- @arizeai/phoenix-client@7.16.2
+
 ## 1.18.8
 
 ### Patch Changes
