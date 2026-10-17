@@ -640,6 +640,19 @@ class PromptMetaInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PromptMistralInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
+
+
 class PromptMoonshotInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
@@ -1455,6 +1468,7 @@ class BuiltInModelProvider(TypedDict):
         "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "MISTRAL",
         "ZAI",
         "META",
     ]
@@ -1479,6 +1493,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "MISTRAL",
         "ZAI",
         "META",
     ]
@@ -1850,6 +1865,11 @@ class PromptGroqInvocationParameters(TypedDict):
 class PromptMetaInvocationParameters(TypedDict):
     type: Literal["meta"]
     meta: PromptMetaInvocationParametersContent
+
+
+class PromptMistralInvocationParameters(TypedDict):
+    type: Literal["mistral"]
+    mistral: PromptMistralInvocationParametersContent
 
 
 class PromptMoonshotInvocationParameters(TypedDict):
@@ -2338,6 +2358,7 @@ class PromptVersionData(TypedDict):
         "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "MISTRAL",
         "ZAI",
         "META",
     ]
@@ -2360,6 +2381,7 @@ class PromptVersionData(TypedDict):
         PromptMoonshotInvocationParameters,
         PromptPerplexityInvocationParameters,
         PromptTogetherInvocationParameters,
+        PromptMistralInvocationParameters,
         PromptZAIInvocationParameters,
         PromptMetaInvocationParameters,
     ]

@@ -18,6 +18,7 @@ export type PromptModelProvider =
   | "MOONSHOT"
   | "MINIMAX"
   | "PERPLEXITY"
+  | "MISTRAL"
   | "ZAI"
   | "META";
 

@@ -18,6 +18,12 @@ class TestGenerativeProvider:
         provider = GenerativeProvider._infer_model_provider_from_model_name("MiniMax-M3")
         assert provider == GenerativeProviderKey.MINIMAX
 
+        provider = GenerativeProvider._infer_model_provider_from_model_name("mistral-large-latest")
+        assert provider == GenerativeProviderKey.MISTRAL
+
+        provider = GenerativeProvider._infer_model_provider_from_model_name("codestral-latest")
+        assert provider == GenerativeProviderKey.MISTRAL
+
         provider = GenerativeProvider._infer_model_provider_from_model_name("unknown-model")
         assert provider is None
 
@@ -29,6 +35,10 @@ class TestGenerativeProvider:
         attributes = {"llm": {"model_name": "claude-v1"}}
         provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
         assert provider == GenerativeProviderKey.ANTHROPIC
+
+        attributes = {"llm": {"provider": OpenInferenceLLMProviderValues.MISTRALAI.value}}
+        provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
+        assert provider == GenerativeProviderKey.MISTRAL
 
         attributes = {"llm": {"provider": "UnknownProvider"}}
         provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
