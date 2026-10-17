@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.9.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.2...arize-phoenix-evals-v3.9.3) (2026-10-17)
+
+
+### Bug Fixes
+
+* **evals:** typecheck JSONPath extraction against jsonpath-ng ([#16935](https://github.com/Arize-ai/phoenix/issues/16935)) ([aa4b05b](https://github.com/Arize-ai/phoenix/commit/aa4b05be651b3cd975da8e6edb3e0ea31c172407))
+
+
+### Documentation
+
+* fix dead Read the Docs links ([#16967](https://github.com/Arize-ai/phoenix/issues/16967)) ([0fed1f4](https://github.com/Arize-ai/phoenix/commit/0fed1f431c65cf24f52ca8153d5ffd63ce04a1b2))
+
 ## [3.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.1...arize-phoenix-evals-v3.9.2) (2026-10-09)
 
 
