@@ -1,5 +1,17 @@
 # Changelog
 
+## [20.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.23.0...arize-phoenix-v20.24.0) (2026-10-17)
+
+
+### Features
+
+* report uncaught frontend errors to the server log ([#17005](https://github.com/Arize-ai/phoenix/issues/17005)) ([2c0873c](https://github.com/Arize-ai/phoenix/commit/2c0873c7d239a08a36df6966a131322b8c266e94))
+
+
+### Documentation
+
+* add Atomic Agents to the Python tracing integrations table ([#17024](https://github.com/Arize-ai/phoenix/issues/17024)) ([23162f5](https://github.com/Arize-ai/phoenix/commit/23162f5e972652baba9e86a170198e914dda987d))
+
 ## [20.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.22.0...arize-phoenix-v20.23.0) (2026-10-16)
 
 
