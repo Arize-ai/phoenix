@@ -883,6 +883,22 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes    # Skip the pro
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px model-provider list`
+
+List the built-in model providers the connected Phoenix deployment allows. When the server sets `PHOENIX_ALLOWED_PROVIDERS`, only those providers are listed.
+
+```bash
+px model-provider list
+px model-provider list --format raw --no-progress | jq -r '.[].provider'
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
 ### `px auth login`
 
 Log in with the browser-based OAuth flow and store tokens on the selected profile. The login URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in, and the CLI refreshes expiring access tokens automatically for REST, GraphQL, and PXI requests.

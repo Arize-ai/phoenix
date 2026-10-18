@@ -52,6 +52,17 @@ describe("Phoenix CLI", () => {
     ).toBeUndefined();
   });
 
+  it("should register model-provider list", () => {
+    const program = createProgram();
+    const modelProviderCommand = program.commands.find(
+      (command) => command.name() === "model-provider"
+    );
+
+    expect(
+      modelProviderCommand?.commands.map((command) => command.name())
+    ).toEqual(["list"]);
+  });
+
   it("should register trace list and trace get as the primary trace commands", () => {
     const program = createProgram();
     const traceCommand = program.commands.find(
