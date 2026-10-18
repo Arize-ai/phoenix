@@ -65,11 +65,11 @@ export function PromptLayout() {
 
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  let defaultTab = "prompt";
+  let selectedTab = "prompt";
   if (pathname.includes("versions")) {
-    defaultTab = "versions";
+    selectedTab = "versions";
   } else if (pathname.includes("config")) {
-    defaultTab = "config";
+    selectedTab = "config";
   }
 
   const data = useFragment<PromptLayout__main$key>(
@@ -142,7 +142,7 @@ export function PromptLayout() {
         }
       />
       <Tabs
-        defaultSelectedKey={defaultTab}
+        selectedKey={selectedTab}
         onSelectionChange={(key) => {
           let url: string;
           if (key === "versions") {

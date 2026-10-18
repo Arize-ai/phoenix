@@ -1,5 +1,77 @@
 # Changelog
 
+## [20.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.22.0...arize-phoenix-v20.23.0) (2026-10-16)
+
+
+### Features
+
+* **server:** export server logs over OTLP ([#17010](https://github.com/Arize-ai/phoenix/issues/17010)) ([add77bf](https://github.com/Arize-ai/phoenix/commit/add77bf75b6acd36ea93c7364e09a31fe276649b))
+
+
+### Bug Fixes
+
+* **playground:** forward Bedrock tool results directly as text ([#16951](https://github.com/Arize-ai/phoenix/issues/16951)) ([15355fd](https://github.com/Arize-ai/phoenix/commit/15355fd1a8a62c7218b1c5e434541b8976b3f62c))
+
+
+### Documentation
+
+* add Atomic Agents tracing integration ([#17000](https://github.com/Arize-ai/phoenix/issues/17000)) ([fe5e933](https://github.com/Arize-ai/phoenix/commit/fe5e933ee996fa9330af5c1149605bbeb04149c4))
+* Add Phoenix release notes — 2026-10-14 ([#16979](https://github.com/Arize-ai/phoenix/issues/16979)) ([97c4b2a](https://github.com/Arize-ai/phoenix/commit/97c4b2accd378104a799da58ac686a38dd07f529))
+
+## [20.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.4...arize-phoenix-v20.22.0) (2026-10-15)
+
+
+### Features
+
+* **playground:** add Meta muse-wonder-1.0 and gemini-4-argon ([#16976](https://github.com/Arize-ai/phoenix/issues/16976)) ([d5168d1](https://github.com/Arize-ai/phoenix/commit/d5168d1645198ad7b7a47f1d597170e4b291ecef))
+
+
+### Bug Fixes
+
+* **oauth2:** preserve SameSite=Strict cookies on server-owned return_url after IdP sign-in ([#16997](https://github.com/Arize-ai/phoenix/issues/16997)) ([c332b0c](https://github.com/Arize-ai/phoenix/commit/c332b0c988b7e0742d8714c18429db1214680d38))
+
+
+### Documentation
+
+* add Claude Managed Agents tracing docs ([#16989](https://github.com/Arize-ai/phoenix/issues/16989)) ([54fe899](https://github.com/Arize-ai/phoenix/commit/54fe8990e08452cfad0f344d8868e286a3df8b4a))
+* add standalone release note for the Harbor plugin ([#16977](https://github.com/Arize-ai/phoenix/issues/16977)) ([fe4a06b](https://github.com/Arize-ai/phoenix/commit/fe4a06b0fd765ab5ff4f3370dbf9b8f859b9db41))
+
+## [20.21.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.3...arize-phoenix-v20.21.4) (2026-10-14)
+
+
+### Bug Fixes
+
+* **ui:** keep labels on Escape and fix table sort, a11y and accessor warnings ([#16980](https://github.com/Arize-ai/phoenix/issues/16980)) ([53a1735](https://github.com/Arize-ai/phoenix/commit/53a173532c18ac0fd04370cdfcd1ea4cfefdd706))
+
+## [20.21.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.2...arize-phoenix-v20.21.3) (2026-10-13)
+
+
+### Documentation
+
+* fix dead Read the Docs links ([#16967](https://github.com/Arize-ai/phoenix/issues/16967)) ([0fed1f4](https://github.com/Arize-ai/phoenix/commit/0fed1f431c65cf24f52ca8153d5ffd63ce04a1b2))
+
+## [20.21.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.1...arize-phoenix-v20.21.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **experiments:** coerce average repeated-run latency to float on PostgreSQL ([#16957](https://github.com/Arize-ai/phoenix/issues/16957)) ([c05a170](https://github.com/Arize-ai/phoenix/commit/c05a1708b3d13c18600f71e4dd0c1a620df310d2))
+* **graphql:** normalize retrieval summary counts to int ([#16960](https://github.com/Arize-ai/phoenix/issues/16960)) ([9735fc9](https://github.com/Arize-ai/phoenix/commit/9735fc97b0a337521c06f8638f3657a52efc8320))
+
+## [20.21.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.21.0...arize-phoenix-v20.21.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* improve span ingestion reliability ([#16889](https://github.com/Arize-ai/phoenix/issues/16889)) ([678740c](https://github.com/Arize-ai/phoenix/commit/678740c3be5a5568af8887a44ebbad30b01e9078))
+* **trace:** accept empty dataframes in TraceDataset ([#16913](https://github.com/Arize-ai/phoenix/issues/16913)) ([d0dc9e5](https://github.com/Arize-ai/phoenix/commit/d0dc9e5ff0a33a1962da6aae83e6f56ac72c444f))
+
+
+### Documentation
+
+* Add Scalekit to the Phoenix platform docs ([#16896](https://github.com/Arize-ai/phoenix/issues/16896)) ([1afe1ea](https://github.com/Arize-ai/phoenix/commit/1afe1ea12e77adbe56de0383f659cdbf372c26b3))
+* **readme:** make the "Add to Cursor" MCP badge clickable on GitHub ([#16926](https://github.com/Arize-ai/phoenix/issues/16926)) ([b8d0e3f](https://github.com/Arize-ai/phoenix/commit/b8d0e3fd9be43bae658cd933f66cc386ef1ed2c9))
+
 ## [20.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.20.0...arize-phoenix-v20.21.0) (2026-10-11)
 
 

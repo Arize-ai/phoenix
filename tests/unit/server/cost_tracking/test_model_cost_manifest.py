@@ -277,6 +277,9 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         ("gpt-5.6-sol", "gpt-5.6-sol"),
         ("gpt-5.6-terra", "gpt-5.6-terra"),
         ("gpt-5.6-luna", "gpt-5.6-luna"),
+        # LiteLLM lists Argon only under gemini/ and vertex_ai/, so its entry is manual.
+        ("gemini-4-argon", "gemini-4-argon"),
+        ("muse-wonder-1.0", "meta/muse-wonder-1.0"),
     ],
 )
 def test_current_lineup_resolves_to_its_own_manifest_entry(

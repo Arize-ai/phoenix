@@ -1,3 +1,5 @@
+import type { RowSelectionState } from "@tanstack/react-table";
+
 import { addRowRangeToSelection } from "../addRowRangeToSelection";
 
 describe("addRowRangeToSelection", () => {
@@ -68,7 +70,7 @@ describe("addRowRangeToSelection", () => {
   });
 
   it("does not mutate the original selection", () => {
-    const originalSelection = { "0": true };
+    const originalSelection: RowSelectionState = { "0": true };
     addRowRangeToSelection({
       rows,
       lastSelectedIndex: 1,

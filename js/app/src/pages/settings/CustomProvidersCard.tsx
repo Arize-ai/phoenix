@@ -1,10 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
@@ -25,6 +19,8 @@ import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import {
@@ -308,12 +304,10 @@ export function CustomProvidersCard({
     return cols;
   }, [authenticationEnabled]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<DataRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;

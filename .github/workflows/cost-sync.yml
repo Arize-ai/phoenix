@@ -428,6 +428,12 @@ jobs:
         # truncate the command mid-string.
         run: |
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"
+      - name: Approve pull request
+        if: steps.cpr.outputs.pull-request-number != ''
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ steps.cpr.outputs.pull-request-number }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}
 
   slack-notification:
     name: Slack Notification

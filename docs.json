@@ -672,6 +672,13 @@
                 ]
               },
               {
+                "group": "Atomic Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/atomic-agents",
+                  "docs/phoenix/integrations/python/atomic-agents/atomic-agents-tracing"
+                ]
+              },
+              {
                 "group": "AutoGen",
                 "pages": [
                   "docs/phoenix/integrations/python/autogen",
@@ -841,6 +848,13 @@
             "group": "Platform",
             "pages": [
               {
+                "group": "Claude Managed Agents",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/claude-managed-agents",
+                  "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing"
+                ]
+              },
+              {
                 "group": "Dify",
                 "pages": [
                   "docs/phoenix/integrations/platforms/dify",
@@ -866,6 +880,13 @@
                 "pages": [
                   "docs/phoenix/integrations/platforms/prompt-flow",
                   "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing"
+                ]
+              },
+              {
+                "group": "Scalekit",
+                "pages": [
+                  "docs/phoenix/integrations/platforms/scalekit",
+                  "docs/phoenix/integrations/platforms/scalekit/scalekit-tracing"
                 ]
               }
             ]
@@ -1283,6 +1304,7 @@
             "pages": [
               "docs/phoenix/cookbook/tracing/identify-high-signal-traces",
               "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
+              "docs/phoenix/cookbook/tracing/claude-managed-agents-guide",
               "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
               "docs/phoenix/cookbook/tracing/structured-data-extraction",
               "docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
@@ -1349,6 +1371,7 @@
           {
             "group": "10.2026",
             "pages": [
+              "docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools",
               "docs/phoenix/release-notes/10-2026/10-01-2026-trace-tree-evals-and-decision-spans"
             ]
           },
@@ -1357,6 +1380,7 @@
             "pages": [
               "docs/phoenix/release-notes/09-2026/09-29-2026-editable-dataset-examples-and-trace-metrics",
               "docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis",
+              "docs/phoenix/release-notes/09-2026/09-08-2026-harbor-plugin-for-agent-benchmarks",
               "docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi",
               "docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates"
             ]

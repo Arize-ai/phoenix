@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -1434,6 +1433,7 @@ class ZAIClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.META,
     model_names=[
         PROVIDER_DEFAULT,
+        "muse-wonder-1.0",
         "muse-spark-1.3",
         "muse-spark-1.3-contributor",
         "muse-spark-1.2",
@@ -1930,7 +1930,7 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
             elif role == ChatCompletionMessageRole.TOOL:
                 tool_result = ToolResultBlockTypeDef(
                     toolUseId=tool_call_id or "",
-                    content=[ToolResultContentBlockTypeDef(json=json.loads(content))],
+                    content=[ToolResultContentBlockTypeDef(text=content)],
                 )
                 converse_messages.append(
                     MessageTypeDef(
@@ -2988,6 +2988,10 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
         return google_messages, "\n".join(system_prompts)
 
 
+GEMINI_4_MODELS = [
+    "gemini-4-argon",
+]
+
 GEMINI_3_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.7-flash",
@@ -3002,7 +3006,7 @@ GEMINI_3_MODELS = [
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=GEMINI_3_MODELS,
+    model_names=[*GEMINI_4_MODELS, *GEMINI_3_MODELS],
 )
 class GoogleGemini3Client(GoogleClient):
     async def chat_completion_create(

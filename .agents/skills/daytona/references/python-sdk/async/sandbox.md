@@ -68,6 +68,8 @@ Represents a Daytona Sandbox.
   is configured).
 - `network_block_all` _bool | None_ - Whether to block all network access for the Sandbox
   (not returned by list results; call `refresh_data()` on each item to populate).
+- `kvm` _bool | None_ - Whether the sandbox exposes KVM (/dev/kvm) to its guest
+  (not returned by list results; call `refresh_data()` on each item to populate).
 - `network_allow_list` _str | None_ - Comma-separated list of allowed CIDR network addresses for
   the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
 - `domain_allow_list` _str | None_ - Comma-separated list of allowed domains for
@@ -98,6 +100,14 @@ pyright: ignore[reportRedeclaration]
 
 ```python
 network_block_all = None
+```
+
+pyright: ignore[reportRedeclaration]
+
+##### kvm: `bool | None`
+
+```python
+kvm = None
 ```
 
 pyright: ignore[reportRedeclaration]

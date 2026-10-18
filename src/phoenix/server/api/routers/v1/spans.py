@@ -63,6 +63,7 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     get_project_by_identifier,
+    is_not_at_capacity,
 )
 
 DEFAULT_SPAN_LIMIT = 1000
@@ -1419,14 +1420,16 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
 
 @router.post(
     "/projects/{project_identifier}/spans",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[Depends(is_not_locked), Depends(is_not_at_capacity)],
     operation_id="createSpans",
     summary="Create spans",
     description=(
         "Submit spans to be inserted into a project. If any spans are invalid or "
         "duplicates, no spans will be inserted."
     ),
-    responses=add_errors_to_responses([404, 400]),
+    responses=add_errors_to_responses(
+        [404, 400, {"status_code": 503, "description": "Span ingestion queue is at capacity"}]
+    ),
     status_code=202,
 )
 async def create_spans(

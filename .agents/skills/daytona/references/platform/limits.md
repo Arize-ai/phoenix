@@ -21,6 +21,7 @@ Resources are shared across all running sandboxes. The number of sandboxes you c
 - **Compute**: the total CPU cores available
 - **Memory**: the total RAM available
 - **Storage**: the total disk space available
+- **GPU**: the total GPU units available
 
 ## Sandbox limits
 

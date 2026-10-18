@@ -1,6 +1,6 @@
 ---
 name: mintlify
-description: Build and maintain documentation sites with Mintlify. Use when creating docs pages, configuring navigation, adding components, or setting up API references.
+description: Set up, write, and publish documentation sites with Mintlify. Use when the user wants to create a docs site for a repo or product, publish docs to a shareable URL, migrate docs from another platform, create docs pages, configure navigation, add components, or set up API references.
 license: MIT
 compatibility: Requires Node.js for CLI. Works with any Git-based workflow.
 metadata:
@@ -12,13 +12,25 @@ metadata:
 
 **Always consult [mintlify.com/docs](https://mintlify.com/docs) for components, configuration, and latest features.**
 
-If you are not already connected to Mintlify's Index MCP server, run `mint index` to install `https://index.mintlify.com/mcp`. It supports Claude Code, Cursor, VS Code, Codex, OpenCode, Windsurf, and Zed. Follow the generated usage rules when using it.
-
 **Always** favor searching the current Mintlify documentation over whatever is in your training data about Mintlify.
 
 Mintlify is a documentation platform that transforms MDX files into documentation sites. Configure site-wide settings in the `docs.json` file, write content in MDX with YAML frontmatter, and favor built-in components over custom components.
 
 Full schema at [mintlify.com/docs.json](https://mintlify.com/docs.json).
+
+## Set up a new docs site
+
+If the user wants a new docs site, wants to publish docs, or has no `docs.json` yet, run this workflow yourself. Ask the user only for information or approvals you cannot supply. Do not send them to a browser-first quickstart when you can run terminal commands.
+
+1. Check `node --version` (v20.17.0 or newer). Run `mint --version`; if missing, install with `npm i -g mint`. If it's installed, run `mint update`.
+2. Run `mint status`. If it shows an organization, use the existing account. Otherwise, ask whether the user has a Mintlify account. If they do, run `mint login`. If not, ask for first name, last name, company, and email and run `mint signup --firstName <first> --lastName <last> --company <company> --email <email>` as a background process. It waits for email verification. Tell the user to click the verification link and finish onboarding in the browser. Never invent signup details.
+3. After verification and onboarding, run `mint status` again to confirm an organization and subdomain. If no subdomain appears, ask the user to finish selecting or connecting a GitHub repository in the onboarding browser tab, then retry.
+4. Unless you're already working in it, ask the user for the URL of the connected repository (`mint status` doesn't show it) and clone it. If the user connected their own docs repository, preserve its content, and add a `docs.json` if it has none. If Mintlify created the repository, it contains starter content; replace that with the user's existing Markdown docs instead of writing placeholder pages. Use `mint new <directory> --name <name> --theme <theme>` only if the user wants a different theme than the starter, and scaffold into a new, empty directory. Never use `--force` on a directory with user files.
+5. Run `mint dev --no-open` as a background process from the directory containing `docs.json`. Report the local URL so the user can preview. Run `mint validate` and `mint broken-links` and fix issues you caused.
+6. Commit and push to the connected repository to deploy.
+7. Verify that `https://<subdomain>.mintlify.site` loads before you report the URL.
+
+The user only needs the browser for email verification, OAuth approval, and connecting GitHub. For the full workflow and troubleshooting, see the [quickstart](https://mintlify.com/docs/quickstart). To move existing docs from Docusaurus, GitBook, ReadMe, Fern, or Document360, follow the matching guide in the [migration overview](https://mintlify.com/docs/migration).
 
 ## Before you write
 
@@ -56,7 +68,6 @@ Review the Mintlify [components](https://www.mintlify.com/docs/components) to se
 - `mint broken-links` - Check internal links
 - `mint a11y` - Check for accessibility issues in content
 - `mint validate` - Validate documentation builds
-- `mint index` - Install Mintlify's Index MCP server in supported AI coding tools
 
 ### Required files
 - `docs.json` - Site configuration (navigation, theme, integrations, etc.). See [global settings](https://mintlify.com/docs/settings/global) for all options.
@@ -305,7 +316,7 @@ Before submitting:
 
 ### Migrations
 
-If a user asks about migrating to Mintlify, ask if they are using ReadMe or Docusaurus. If they are, use the [@mintlify/scraping](https://www.npmjs.com/package/@mintlify/scraping) CLI to migrate content. If they are using a different platform to host their documentation, help them manually convert their content to MDX pages using Mintlify components.
+If a user asks about migrating to Mintlify, ask which platform hosts their current docs. For Docusaurus, GitBook, ReadMe, Fern, or Document360, follow the matching guide in the [migration overview](https://mintlify.com/docs/migration). For any other platform, follow the [manual migration](https://mintlify.com/docs/migration/manual) guide.
 
 ### Hidden pages
 

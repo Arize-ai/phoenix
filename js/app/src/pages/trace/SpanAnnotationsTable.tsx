@@ -1,4 +1,3 @@
-import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
@@ -9,6 +8,7 @@ import {
   PreformattedTextCell,
   ResizableTable,
 } from "@phoenix/components/table";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationDeleteButton } from "@phoenix/components/trace/SpanAnnotationDeleteButton";

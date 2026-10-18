@@ -3,9 +3,9 @@
 # Copyright (c) Pydantic Services Inc. 2024 to present
 # SPDX-License-Identifier: MIT
 #
-# Kept byte-identical to upstream except for the `result_provider_metadata` field on the four
-# tool output parts, which AI SDK v7 defines but pydantic-ai does not yet carry. The
-# divergence is allowlisted in
+# Kept byte-identical to upstream except for `result_provider_metadata` on tool output
+# parts and `raw_input` on streaming tool parts, which AI SDK v7 defines but pydantic-ai
+# does not yet carry. The divergence is allowlisted in
 # tests/unit/db/types/test_data_stream_protocol_compatibility.py; drop it there once upstream
 # catches up.
 
@@ -170,6 +170,7 @@ class ToolInputStreamingPart(BaseUIPart):
     title: str | None = None
     state: Literal["input-streaming"] = "input-streaming"
     input: Any | None = None
+    raw_input: str | None = None
     provider_executed: bool | None = None
     call_provider_metadata: ProviderMetadata | None = None
     approval: ToolApproval | None = None
@@ -281,6 +282,7 @@ class DynamicToolInputStreamingPart(BaseUIPart):
     title: str | None = None
     state: Literal["input-streaming"] = "input-streaming"
     input: Any | None = None
+    raw_input: str | None = None
     provider_executed: bool | None = None
     call_provider_metadata: ProviderMetadata | None = None
     approval: ToolApproval | None = None
