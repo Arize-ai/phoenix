@@ -75,6 +75,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { ModelNameTableCell } from "@phoenix/pages/project/ModelNameTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { isSpanRowSelected } from "@phoenix/utils/traceSelectionUtils";
@@ -210,6 +211,17 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
+const ModelNameCell = <TData extends { modelName?: string | null }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <ModelNameTableCell
+      modelName={row.original.modelName}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
+};
 const MetadataCell = <TData extends { metadata: unknown }, TValue>({
   row,
 }: CellContext<TData, TValue>) => {
@@ -347,6 +359,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 metadata
                 userId
+                modelName
                 statusCode
                 statusMessage
                 startTime
@@ -599,6 +612,12 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ getValue }) => {
         return <SpanKindToken spanKind={getValue() as string} />;
       },
+    },
+    {
+      header: "model",
+      accessorKey: "modelName",
+      enableSorting: false,
+      cell: ModelNameCell,
     },
     {
       header: "name",
