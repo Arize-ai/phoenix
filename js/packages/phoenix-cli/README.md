@@ -538,6 +538,25 @@ Miss-case stderr (raw): `{"error":"Project 'foo' not found","code":"FAILURE","hi
 
 ---
 
+### `px project retention set <project-identifier> <policy-id>` / `px project retention reset <project-identifier>`
+
+Assign an existing trace retention policy (by GlobalID) to a project, or reset the project to the default policy. The project may be a name or ID. Both commands require an admin when authentication is enabled and prompt for confirmation, since a shorter retention window lets the next sweep permanently delete traces; pass `--yes` for unattended use. Output is the resulting assignment `{project_id, policy_id}`, where `policy_id` is `null` after a reset.
+
+```bash
+px project retention set my-project UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI= --yes
+px project retention reset my-project --yes --format raw --no-progress
+```
+
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `-y, --yes`         | Skip confirmation prompt   | —        |
+| `--no-progress`     | Suppress progress output   | —        |
+
+Errors exit with `AUTH_REQUIRED` (4) for a 401/403, `INVALID_ARGUMENT` (3) for a malformed policy ID, and `FAILURE` (1) when the project or policy does not exist, with a `StructuredError` on stderr in `--format json|raw`.
+
+---
+
 ### `px session list`
 
 List sessions for a project.
