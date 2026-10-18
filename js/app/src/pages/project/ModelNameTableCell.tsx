@@ -30,8 +30,7 @@ export const ModelNameTableCell = ({
     >
       <Token
         maxWidth="100%"
-        title={modelName}
-        aria-label={`Filter spans by model ${modelName}`}
+        title={`Filter spans by model ${modelName}`}
         onPress={() =>
           onFilterConditionPressed(makeModelNameFilterCondition(modelName))
         }
