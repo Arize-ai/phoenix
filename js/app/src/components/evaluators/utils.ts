@@ -1,4 +1,5 @@
 import { graphql, readInlineData } from "relay-runtime";
+import z from "zod";
 
 import type {
   AnnotationConfigInput,
@@ -10,6 +11,7 @@ import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
+  ClassificationChoice,
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
@@ -444,4 +446,31 @@ export const getOutputConfigValidationErrors = (
   }
 
   return errors;
+};
+
+const choicesMapSchema = z.record(z.string(), z.number());
+const choicesListSchema = z.array(z.string());
+
+/**
+ * Normalize a classification evaluator config's `choices` into output-config
+ * values. `choices` can be either a label-to-score map
+ * (`{ correct: 1, incorrect: 0 }` → `[{ label, score }]`) or a bare list of
+ * labels (`["english", "spanish"]` → `[{ label }]`, no score). Unrecognized
+ * shapes yield an empty array.
+ */
+export const choicesToOutputConfigValues = (
+  choices: unknown
+): ClassificationChoice[] => {
+  const asList = choicesListSchema.safeParse(choices);
+  if (asList.success) {
+    return asList.data.map((label) => ({ label }));
+  }
+  const asMap = choicesMapSchema.safeParse(choices);
+  if (asMap.success) {
+    return Object.entries(asMap.data).map(([label, score]) => ({
+      label,
+      score,
+    }));
+  }
+  return [];
 };
