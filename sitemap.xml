@@ -41,48 +41,12 @@
     <lastmod>2026-10-09T19:59:54+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/tutorial</loc>
-    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/tutorial/your-first-traces</loc>
-    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/tutorial/annotations-and-evaluations</loc>
-    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/tutorial/sessions</loc>
-    <lastmod>2026-02-08T18:56:43+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/llm-traces</loc>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/llm-traces/projects</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/llm-traces/sessions</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/llm-traces/metrics</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel</loc>
@@ -93,23 +57,15 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables</loc>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions</loc>
+    <lastmod>2026-10-12T03:48:44+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
@@ -117,59 +73,7 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories</loc>
-    <lastmod>2026-04-14T18:01:33+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions</loc>
-    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
@@ -177,16 +81,40 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/observe/explore-traces</loc>
+    <lastmod>2026-10-12T03:48:44+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/observe/investigate-a-failure</loc>
+    <lastmod>2026-10-14T05:05:49+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions</loc>
+    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/observe/view-metrics-and-dashboards</loc>
+    <lastmod>2026-10-12T03:48:44+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/observe/export-trace-data</loc>
+    <lastmod>2026-10-12T03:48:44+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/tutorials/run-evals-with-built-in-evals</loc>
@@ -206,6 +134,30 @@
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/annotations-concepts</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-auto-instrumented-spans</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
@@ -391,6 +343,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/harbor</loc>
     <lastmod>2026-09-09T22:36:38+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/importing-atif-trajectories</loc>
+    <lastmod>2026-10-12T03:48:44+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/integrations/pytest</loc>
@@ -595,106 +551,6 @@
   <url>
     <loc>https://arize.com/docs/phoenix/settings/sandboxes/modal</loc>
     <lastmod>2026-05-21T22:10:36+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/user-guide</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/production-guide</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/environments</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/how-tracing-works</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/annotations-concepts</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/signals</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector</loc>
-    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/concepts-datasets</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions</loc>
@@ -1942,6 +1798,82 @@
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/signals</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/user-guide</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/production-guide</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/environments</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/concepts-datasets</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>

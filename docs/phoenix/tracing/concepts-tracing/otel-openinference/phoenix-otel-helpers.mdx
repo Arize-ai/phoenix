@@ -7,7 +7,7 @@ keywords: ['phoenix.otel', 'register', 'auto_instrument', 'PHOENIX_API_KEY', 'PH
 
 The previous four pages — [Resource](/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource), [Exporter](/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter), [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor), and [Tracer Provider](/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider) — walked through the OpenTelemetry tracing components one by one. Wiring them up by hand in every application is verbose. The `phoenix.otel` SDK collapses all of it into a single function call — and adds a few Phoenix-specific capabilities on top.
 
-For the practical how-to of installing and using these helpers, see [Set up tracing](/docs/phoenix/tracing/how-to-tracing). This page covers what they do under the hood.
+For the practical steps to install and use these helpers, see [Set up tracing](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel). The rest of the page explains what the helpers do under the hood.
 
 # Appreciate the Simplicity
 
@@ -64,7 +64,7 @@ The convenience function handles four things for you. Each one has additional ca
 This works because `register()` never calls a version-gated server endpoint. Everything it wires up rests on two backward-compatible contracts:
 
 - **OTLP transport** — the exporter sends spans over the OpenTelemetry Protocol, which every Phoenix server version accepts.
-- **[OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference)** — the attribute names both sides agree on, tracked in the `openinference-semantic-conventions` package and evolved additively.
+- **[OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions)** — the attribute names both sides agree on, tracked in the `openinference-semantic-conventions` package and evolved additively.
 
 Because compatibility rests on these stable layers rather than matched version pairs, there is no `arize-phoenix-otel` × Phoenix server version table to consult. (Individual *features* — not the SDK as a whole — may carry a minimum server version; those are noted on the relevant feature pages.)
 
