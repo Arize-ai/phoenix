@@ -13,6 +13,7 @@ import {
   Tabs as AriaTabs,
   type TabsProps as AriaTabsProps,
 } from "react-aria-components";
+import { Link } from "react-router";
 
 import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
@@ -358,6 +359,7 @@ const tabCSS = css`
   font-weight: 400;
   line-height: var(--global-line-height-s);
   font-size: var(--global-font-size-s);
+  text-decoration: none;
 
   // Hover pill, drawn behind the label and inset from the tab's hit area so
   // adjacent pills never touch. Kept as a pseudo-element so the tab's own box
@@ -402,16 +404,29 @@ const tabCSS = css`
   }
 `;
 
+/**
+ * Renders a tab with an href as a react-router Link, so a plain click routes
+ * client-side (keeping the app's basename) while modifier and middle clicks
+ * fall through to the browser and open the tab's URL in a new tab.
+ */
+const renderTabElement: NonNullable<AriaTabProps["render"]> = (props) =>
+  "href" in props ? <Link {...props} to={props.href} /> : <div {...props} />;
+
 export function Tab({
   children,
   css: _css,
   className,
+  render,
   ...props
 }: { children: React.ReactNode } & AriaTabProps & StylableProps) {
   return (
     <AriaTab
       css={css(tabCSS, _css)}
       className={classNames("react-aria-Tab", className)}
+      render={
+        render ??
+        (typeof props.href === "string" ? renderTabElement : undefined)
+      }
       {...props}
     >
       {children}

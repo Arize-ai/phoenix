@@ -10,15 +10,9 @@ import {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import {
-  Outlet,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router";
+import { Outlet, useParams, useSearchParams } from "react-router";
 
-import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
+import { LazyTabPanel, Loading } from "@phoenix/components";
 import {
   ConnectedTimeRangeSelector,
   type TimeRangeISOStrings,
@@ -33,7 +27,6 @@ import {
 import { useNotify } from "@phoenix/contexts/NotificationContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
-import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
@@ -51,6 +44,7 @@ import {
   ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
+import { isTab, type ProjectTab, ProjectTabs } from "./ProjectTabs";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
@@ -103,26 +97,13 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
-
-/**
- * Type guard for the tab path in the URL
- */
-const isTab = (tab: string): tab is (typeof TABS)[number] => {
-  return TABS.includes(tab as (typeof TABS)[number]);
-};
-
-const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
+const TAB_INDEX_MAP: Record<ProjectTab, number> = {
   spans: 0,
   traces: 1,
   sessions: 2,
   metrics: 3,
   config: 4,
 };
-
-const TAB_PATH_BY_INDEX = Object.fromEntries(
-  Object.entries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab])
-) as Record<number, (typeof TABS)[number]>;
 
 export function ProjectPageContent({
   projectId,
@@ -225,8 +206,7 @@ function ProjectPageContentBody({
   projectId: string;
   timeRangeISOStrings: TimeRangeISOStrings;
 }) {
-  const navigate = useNavigate();
-  const { rootPath, tab } = useProjectRootPath();
+  const { tab } = useProjectRootPath();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
@@ -274,7 +254,6 @@ function ProjectPageContentBody({
       ProjectPageQueriesProjectConfigQuery
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   // React Router recreates this setter on every location change. The resolvers
   // below are handed to the filter field, whose validation effect keys on their
@@ -470,21 +449,6 @@ function ProjectPageContentBody({
     });
   }, [tabIndex, projectId]);
 
-  const onTabChange = useCallback(
-    (index: number) => {
-      startTransition(() => {
-        const search = clearSelectionScopedParams(location.search);
-        const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
-        navigate({
-          pathname: `${rootPath}/${tab}`,
-          search,
-          hash: location.hash,
-        });
-      });
-    },
-    [location.hash, location.search, navigate, rootPath]
-  );
-
   return (
     <main css={mainCSS}>
       <LegacyTraceFilterParamNotice
@@ -507,21 +471,7 @@ function ProjectPageContentBody({
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >
-        <Tabs
-          onSelectionChange={(key) => {
-            if (typeof key === "string" && isTab(key)) {
-              onTabChange(TAB_INDEX_MAP[key]);
-            }
-          }}
-          selectedKey={tab}
-        >
-          <TabList>
-            <Tab id="spans">Spans</Tab>
-            <Tab id="traces">Traces</Tab>
-            <Tab id="sessions">Sessions</Tab>
-            <Tab id="metrics">Metrics</Tab>
-            <Tab id="config">Config</Tab>
-          </TabList>
+        <ProjectTabs>
           <LazyTabPanel padded={false} id="spans">
             <Outlet />
           </LazyTabPanel>
@@ -537,7 +487,7 @@ function ProjectPageContentBody({
           <LazyTabPanel padded={false} id="config">
             <Outlet />
           </LazyTabPanel>
-        </Tabs>
+        </ProjectTabs>
       </ProjectPageQueryReferenceContext.Provider>
     </main>
   );
