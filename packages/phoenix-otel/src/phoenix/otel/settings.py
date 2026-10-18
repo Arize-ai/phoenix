@@ -173,7 +173,10 @@ def _load_env_file_entry() -> Tuple[Optional[Path], Dict[str, str]]:
                                 path, f"file exceeds {_MAX_ENV_FILE_SIZE_BYTES} bytes"
                             )
                         else:
-                            values = _parse_env_file(contents.decode("utf-8"))
+                            # utf-8-sig strips a leading BOM (U+FEFF) so the first key survives;
+                            # plain utf-8 leaves it glued to the key, which then
+                            # fails the PHOENIX_ prefix check and is dropped silently.
+                            values = _parse_env_file(contents.decode("utf-8-sig"))
                 else:
                     _warn_if_env_file_skipped(
                         path, "opened file must be a regular file owned by the current user"
