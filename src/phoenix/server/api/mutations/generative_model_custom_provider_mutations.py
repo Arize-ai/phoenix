@@ -516,6 +516,14 @@ class GenerativeModelCustomProviderMutationMixin:
             models.GenerativeModelCustomProvider.id == provider_id
         )
         async with info.context.db() as session:
+            if await session.scalar(
+                sa.select(models.DecisionVersion.id)
+                .where(models.DecisionVersion.custom_provider_id == provider_id)
+                .limit(1)
+            ):
+                raise BadRequest(
+                    "This provider is referenced by saved decision versions and cannot be deleted"
+                )
             await session.execute(stmt)
 
         return DeleteGenerativeModelCustomProviderMutationPayload(

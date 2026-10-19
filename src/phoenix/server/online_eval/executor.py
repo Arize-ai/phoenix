@@ -675,7 +675,12 @@ class OnlineEvalExecutor:
         project_evaluator_ids = {unit.project_evaluator_id for unit in units}
         polymorphic = with_polymorphic(
             models.Evaluator,
-            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+            [
+                models.LLMEvaluator,
+                models.CodeEvaluator,
+                models.BuiltinEvaluator,
+                models.DecisionEvaluator,
+            ],
         )
         rows = (
             await session.execute(

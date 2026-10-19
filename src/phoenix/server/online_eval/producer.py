@@ -288,7 +288,12 @@ class OnlineEvalProducer(DaemonTask):
         """
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
-            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+            [
+                models.LLMEvaluator,
+                models.CodeEvaluator,
+                models.BuiltinEvaluator,
+                models.DecisionEvaluator,
+            ],
         )
         active: list[_ActiveProjectEvaluator] = []
         async with self._db() as session:

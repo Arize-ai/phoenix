@@ -935,6 +935,7 @@ async def update_dataset_code_evaluator(
 
 @dataclass(kw_only=True)
 class DatasetEvaluatorPatch:
+    decision_projection_policy: Optional[dict[str, Any]] = UNSET
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
@@ -1142,6 +1143,34 @@ async def patch_dataset_evaluator(
                             reason="incompatible_override",
                             dataset_evaluator_ids=[str(GlobalID("DatasetEvaluator", str(row.id)))],
                         ) from error
+            from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
+            from phoenix.server.api.helpers.decision_evaluators import (
+                freeze_decision_evaluator,
+                validate_decision_output_overrides,
+            )
+
+            kind = await session.scalar(
+                select(models.Evaluator.kind).where(models.Evaluator.id == row.evaluator_id)
+            )
+            if kind == "DECISION":
+                decision = await get_decision_evaluator(session, row.evaluator_id, lock=True)
+                await session.refresh(row)
+                policy = (
+                    row.decision_projection_policy
+                    if patch.decision_projection_policy is UNSET
+                    else patch.decision_projection_policy
+                )
+                try:
+                    definition = freeze_decision_evaluator(decision, policy_override=policy)
+                    validate_decision_output_overrides(
+                        definition, values.get("output_configs", row.output_configs)
+                    )
+                except ValueError as error:
+                    raise BadRequest(str(error)) from error
+                if patch.decision_projection_policy is not UNSET:
+                    values["decision_projection_policy"] = patch.decision_projection_policy
+            elif patch.decision_projection_policy is not UNSET:
+                raise BadRequest("Projection policy overrides require a decision evaluator")
             row = await _write_dataset_evaluator(session, row.id, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         if patch.name is not UNSET and patch.name is not None:

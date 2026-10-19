@@ -428,7 +428,12 @@ class EvalSweeper(DaemonTask):
     async def _load_evaluators(self, session: AsyncSession) -> list[_SweepProjectEvaluator]:
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
-            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+            [
+                models.LLMEvaluator,
+                models.CodeEvaluator,
+                models.BuiltinEvaluator,
+                models.DecisionEvaluator,
+            ],
         )
         rows = (
             await session.execute(

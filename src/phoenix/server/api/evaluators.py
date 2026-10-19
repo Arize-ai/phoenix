@@ -865,7 +865,13 @@ async def get_evaluators(
 
     # Join subclass tables so BuiltinEvaluator.key / LLM columns are loaded (see with_polymorphic).
     PolymorphicEvaluator = with_polymorphic(
-        models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
+        models.Evaluator,
+        [
+            models.LLMEvaluator,
+            models.CodeEvaluator,
+            models.BuiltinEvaluator,
+            models.DecisionEvaluator,
+        ],
     )
     dataset_evaluators_result = (
         await session.execute(
@@ -1018,6 +1024,21 @@ async def get_evaluators(
             if resolved is None:
                 raise NotFound(f"LLM evaluator with ID '{ev.id}' not found")
             evaluators.append(resolved)
+        elif isinstance(ev, models.DecisionEvaluator):
+            from phoenix.server.api.helpers.decision_evaluator_service import (
+                build_decision_evaluator,
+            )
+            from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+
+            binding = dataset_evaluators_by_id[de_id][0]
+            definition = freeze_decision_evaluator(
+                ev, policy_override=binding.decision_projection_policy
+            )
+            evaluators.append(
+                await build_decision_evaluator(
+                    definition, session=session, decrypt=decrypt, credentials=credentials
+                )
+            )
         elif isinstance(ev, models.BuiltinEvaluator):
             builtin_evaluator_cls = get_builtin_evaluator_by_key(ev.key)
             if builtin_evaluator_cls is None:
@@ -1327,6 +1348,15 @@ async def pin_evaluator_definition(
     pinned, so every start and resume of the experiment runs the same code in the same
     environment.
     """
+    from phoenix.db.types.evaluator_definition import StoredDecisionEvaluatorDefinition
+
+    if isinstance(definition, StoredDecisionEvaluatorDefinition):
+        from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
+        from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+
+        return freeze_decision_evaluator(
+            await get_decision_evaluator(session, definition.decision_evaluator_id)
+        )
     if not isinstance(definition, StoredCodeEvaluatorDefinition) or (
         definition.code_evaluator_version_id is not None
         and definition.sandbox_config_id is not None
@@ -1393,6 +1423,18 @@ async def build_evaluator_from_definition(
             configuration, a judge prompt whose tools do not match its output configs,
             or a stored evaluator that no longer exists.
     """
+    from phoenix.db.types.evaluator_definition import (
+        InlineDecisionEvaluatorDefinition,
+        StoredDecisionEvaluatorDefinition,
+    )
+    from phoenix.server.api.helpers.decision_evaluator_service import build_decision_evaluator
+
+    if isinstance(
+        definition, (InlineDecisionEvaluatorDefinition, StoredDecisionEvaluatorDefinition)
+    ):
+        return await build_decision_evaluator(
+            definition, session=session, decrypt=decrypt, credentials=credentials
+        )
     if isinstance(definition, BuiltInEvaluatorDefinition):
         return await _build_builtin_evaluator(definition, session=session)
     if isinstance(definition, InlineLLMEvaluatorDefinition):

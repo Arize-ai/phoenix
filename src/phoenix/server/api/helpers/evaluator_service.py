@@ -258,7 +258,12 @@ async def create_code_evaluator(
     return row
 
 
-_TYPENAME_BY_KIND = {"LLM": "LLMEvaluator", "CODE": "CodeEvaluator", "BUILTIN": "BuiltInEvaluator"}
+_TYPENAME_BY_KIND = {
+    "LLM": "LLMEvaluator",
+    "CODE": "CodeEvaluator",
+    "BUILTIN": "BuiltInEvaluator",
+    "DECISION": "DecisionEvaluator",
+}
 
 
 async def _name_taken(context: EvaluatorServiceContext, name: Union[str, Identifier]) -> Conflict:

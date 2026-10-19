@@ -34,6 +34,7 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
     "LLMEvaluator": "LLM",
     "CodeEvaluator": "CODE",
     "BuiltInEvaluator": "BUILTIN",
+    "DecisionEvaluator": "DECISION",
 }
 
 
@@ -401,6 +402,7 @@ async def garbage_collect_evaluators(
 ) -> None:
     deleted_ids: set[int] = set()
     llm_evaluator_prompts: dict[int, tuple[Optional[int], int]] = {}
+    decision_evaluator_tags: dict[int, int] = {}
     if evaluator_ids:
         # Read the LLM evaluators' tag and prompt before deleting: once a row is gone there is
         # nothing left to join it against. RETURNING then reports only the evaluators this
@@ -416,6 +418,16 @@ async def garbage_collect_evaluators(
                 ).where(models.LLMEvaluator.id.in_(evaluator_ids))
             )
         }
+        decision_evaluator_tags = dict(
+            (
+                await session.execute(
+                    select(
+                        models.DecisionEvaluator.id,
+                        models.DecisionEvaluator.decision_version_tag_id,
+                    ).where(models.DecisionEvaluator.id.in_(evaluator_ids))
+                )
+            ).all()
+        )
         deleted_ids = set(
             await session.scalars(
                 delete(models.Evaluator)
@@ -441,6 +453,10 @@ async def garbage_collect_evaluators(
             )
         )
     for evaluator_id in deleted_ids:
+        if (tag_id := decision_evaluator_tags.get(evaluator_id)) is not None:
+            await session.execute(
+                delete(models.DecisionVersionTag).where(models.DecisionVersionTag.id == tag_id)
+            )
         if (prompt_info := llm_evaluator_prompts.get(evaluator_id)) is not None:
             tag_id, prompt_id = prompt_info
             await release_llm_evaluator_prompt(
