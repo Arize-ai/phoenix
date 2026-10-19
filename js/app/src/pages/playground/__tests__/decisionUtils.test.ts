@@ -4,6 +4,7 @@ import {
   buildChatFromDecisionDraft,
   buildDecisionConnection,
   buildDecisionInput,
+  buildDecisionTaskDefinition,
   buildDecisionRequest,
   createChoiceOption,
   createDecisionDraft,
@@ -11,8 +12,11 @@ import {
   createScoreLevel,
   decisionFieldId,
   extractDecisionVariables,
+  getDecisionDatasetBlockedReason,
+  getDecisionDatasetProblem,
   getDecisionValidationError,
   maskUntouchedErrors,
+  normalizeDecisionAnswer,
   normalizeDecisionResult,
   parseDecisionImport,
   toDecisionJsonSchema,
@@ -697,6 +701,126 @@ describe("buildDecisionConnection", () => {
       })
     ).toEqual({
       builtIn: { providerKey: "TYPESAFE", baseUrl: null, credentials },
+    });
+  });
+});
+
+describe("decision tasks over a dataset", () => {
+  const mustache = TemplateFormats.Mustache;
+
+  it("passes a state that is one variable through as that input", () => {
+    const draft = { ...createDecisionDraft(), state: " {{state}} " };
+    const definition = buildDecisionTaskDefinition({
+      draft,
+      templateFormat: mustache,
+    });
+    expect(definition.inputs).toEqual([{ name: "state" }]);
+    expect(definition.state).toEqual({ input: "state" });
+    expect(definition.questions[0]).toMatchObject({
+      choice: { name: "department" },
+    });
+  });
+
+  it("sends any other text state as a template over its variables", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      state: "Ticket: {{ticket}} (plan {{plan}})",
+    };
+    expect(
+      buildDecisionTaskDefinition({ draft, templateFormat: mustache })
+    ).toMatchObject({
+      inputs: [{ name: "ticket" }, { name: "plan" }],
+      state: {
+        text: {
+          template: "Ticket: {{ticket}} (plan {{plan}})",
+          templateFormat: "MUSTACHE",
+        },
+      },
+    });
+  });
+
+  it("explains what a dataset can't fill", () => {
+    const draft = createDecisionDraft();
+    expect(
+      getDecisionDatasetProblem({ draft, templateFormat: mustache })
+    ).toContain("needs a template variable");
+    expect(
+      getDecisionDatasetProblem({
+        draft: { ...draft, state: "{{state}}", stateFormat: "json" },
+        templateFormat: mustache,
+      })
+    ).toContain("write the state as text");
+    const templatedQuestion = {
+      ...draft,
+      state: "{{state}}",
+      questions: draft.questions.map((question) => ({
+        ...question,
+        instructions: "About {{customer}}?",
+      })),
+    };
+    expect(
+      getDecisionDatasetProblem({
+        draft: templatedQuestion,
+        templateFormat: mustache,
+      })
+    ).toContain("questions can't use template variables (customer)");
+    expect(() =>
+      buildDecisionTaskDefinition({
+        draft: templatedQuestion,
+        templateFormat: mustache,
+      })
+    ).toThrow("questions can't use template variables");
+  });
+
+  it("refuses mixing decision and LLM instances in one dataset run", () => {
+    const decision = {
+      model: { modelType: "DECISION" },
+      decisionRequest: { ...createDecisionDraft(), state: "{{state}}" },
+    } as never;
+    const llm = { model: { modelType: "LLM" }, decisionRequest: null } as never;
+    expect(
+      getDecisionDatasetBlockedReason({
+        instances: [decision],
+        templateFormat: mustache,
+      })
+    ).toBeNull();
+    expect(
+      getDecisionDatasetBlockedReason({
+        instances: [decision, llm],
+        templateFormat: mustache,
+      })
+    ).toContain("all use decision models or all use LLMs");
+    expect(
+      getDecisionDatasetBlockedReason({
+        instances: [llm],
+        templateFormat: mustache,
+      })
+    ).toBeNull();
+  });
+});
+
+describe("normalizeDecisionAnswer for experiment run outputs", () => {
+  it("reads a scale answer's expected level and level probabilities", () => {
+    expect(
+      normalizeDecisionAnswer({
+        name: "urgency",
+        answer: {
+          type: "scale",
+          expected_level: 1.3,
+          confidence: 0.4,
+          probabilities: { "0": 0.2, "1": 0.3, "2": 0.5 },
+        },
+      })
+    ).toMatchObject({
+      kind: "score",
+      name: "urgency",
+      score: 1.3,
+      confidence: 0.4,
+      levels: [
+        { index: 0, probability: 0.2 },
+        { index: 1, probability: 0.3 },
+        { index: 2, probability: 0.5 },
+      ],
     });
   });
 });

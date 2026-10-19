@@ -6,13 +6,19 @@ import type {
 import {
   DEFAULT_MAX_CONCURRENCY,
   getPlaygroundEvaluatorTask,
+  getTemplateVariablesPath,
 } from "@phoenix/store/playground";
 
 import type {
+  DecisionTaskInput,
   EvaluatorInputMappingInput,
   ExperimentsOverDatasetInput,
   ExperimentTaskInput,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import {
+  buildDecisionConnection,
+  buildDecisionTaskDefinition,
+} from "./decisionUtils";
 import {
   getEvaluatorTaskName,
   getEvaluatorTaskPreview,
@@ -122,6 +128,18 @@ function getExperimentTaskInput({
 }): ExperimentTaskInput {
   const evaluator = getPlaygroundEvaluatorTask(instance);
 
+  if (instance.model.modelType === "DECISION") {
+    return {
+      decision: getDecisionTaskInput({
+        playgroundStore,
+        credentials,
+        datasetId,
+        evaluatorMappings,
+        instance,
+      }),
+    };
+  }
+
   if (!evaluator) {
     return {
       prompt: getPromptTaskInput({
@@ -155,5 +173,62 @@ function getExperimentTaskInput({
         projectEvaluatorId: evaluator.source.projectEvaluatorId,
       },
     },
+  };
+}
+
+/**
+ * The decision task a dataset run creates an experiment for, the decision
+ * counterpart of a prompt task: the instance's decision copied as written,
+ * where each example's input values are read (the prompt tasks' template
+ * variables path), the connection, and the dataset evaluators that score its
+ * answers.
+ */
+function getDecisionTaskInput({
+  playgroundStore,
+  credentials,
+  datasetId,
+  evaluatorMappings,
+  instance,
+}: {
+  playgroundStore: PlaygroundStore;
+  credentials: CredentialsState;
+  datasetId: string;
+  evaluatorMappings: PlaygroundEvaluatorMappings;
+  instance: PlaygroundNormalizedInstance;
+}): DecisionTaskInput {
+  const { templateFormat, stateByDatasetId } = playgroundStore.getState();
+  if (!instance.decisionRequest) {
+    throw new Error("The decision instance has no request.");
+  }
+  const definition = buildDecisionTaskDefinition({
+    draft: instance.decisionRequest,
+    templateFormat,
+  });
+  const providerCredentials = credentials[instance.model.provider] ?? {};
+  return {
+    ...definition,
+    connection: buildDecisionConnection({
+      provider: instance.model.provider,
+      baseUrl: instance.model.baseUrl,
+      customProvider: instance.model.customProvider,
+      credentials: Object.entries(providerCredentials).flatMap(
+        ([envVarName, value]) =>
+          typeof value === "string" && value ? [{ envVarName, value }] : []
+      ),
+    }),
+    modelName: instance.model.modelName ?? "",
+    inputValuesPath:
+      getTemplateVariablesPath({
+        stateByDatasetId,
+        datasetId,
+        taskKind: "prompt",
+      }) ?? "",
+    evaluators: Object.entries(evaluatorMappings).map(
+      ([datasetEvaluatorId, { name, inputMapping }]) => ({
+        id: datasetEvaluatorId,
+        name,
+        inputMapping,
+      })
+    ),
   };
 }

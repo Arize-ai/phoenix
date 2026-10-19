@@ -4,7 +4,6 @@ import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
-import { useClearPlaygroundDataset } from "@phoenix/pages/playground/useClearPlaygroundDataset";
 
 export type PlaygroundModelMenuProps = {
   /**
@@ -35,8 +34,6 @@ export function PlaygroundModelMenu({
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
-  const hasDataset = usePlaygroundContext((state) => state.datasetId != null);
-  const clearDataset = useClearPlaygroundDataset();
 
   const value: ModelMenuValue | null = instance?.model.modelName
     ? {
@@ -81,11 +78,6 @@ export function PlaygroundModelMenu({
           experiment: null,
         },
       });
-      // Decision models have no dataset execution path, so the dataset goes;
-      // the menu warned about this above the Decision tab.
-      if (hasDataset) {
-        clearDataset();
-      }
       return;
     }
 

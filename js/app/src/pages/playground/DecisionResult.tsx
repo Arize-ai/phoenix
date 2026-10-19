@@ -302,9 +302,12 @@ function parseOutput(output: string): unknown {
 export function DecisionResult({
   output,
   request,
+  showUsage = true,
 }: {
   output: string;
   request: DecisionRequestDraft | null;
+  /** Leave out the model and usage line, where the surrounding view shows them. */
+  showUsage?: boolean;
 }) {
   const result = normalizeDecisionResult({
     result: parseOutput(output),
@@ -328,9 +331,11 @@ export function DecisionResult({
           </li>
         ))}
       </ul>
-      <Text size="XS" color="text-700" css={tabularNumbersCSS}>
-        {formatUsage({ model: result.model, usage: result.usage })}
-      </Text>
+      {showUsage ? (
+        <Text size="XS" color="text-700" css={tabularNumbersCSS}>
+          {formatUsage({ model: result.model, usage: result.usage })}
+        </Text>
+      ) : null}
     </Flex>
   );
 }

@@ -17,8 +17,10 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store/playground/types";
 
-import { DECISION_DATASET_BLOCKED_REASON } from "./constants";
-import { getDecisionValidationError } from "./decisionUtils";
+import {
+  getDecisionDatasetBlockedReason,
+  getDecisionValidationError,
+} from "./decisionUtils";
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
 import { usePlaygroundExampleEditing } from "./examplesEditing";
 import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
@@ -67,18 +69,16 @@ export function PlaygroundRunButton() {
   const isDatasetMode = usePlaygroundContext(
     (state) => state.datasetId != null
   );
-  const hasDecisionInstance = instances.some(
-    (instance) => instance.model.modelType === "DECISION"
-  );
-  // Decision models have no dataset execution path, so a run that would
-  // include one over a dataset is refused outright rather than half-run.
-  // An invalid decision request is refused the same way, with its first
-  // problem as the reason, since the error may sit in a collapsed card.
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  // An invalid decision request is refused with its first problem as the
+  // reason, since the error may sit in a collapsed card. Over a dataset, a
+  // decision the examples can't fill is refused the same way.
   const invalidDecisionReason = getInvalidDecisionReason(instances);
   const blockedReason =
-    isDatasetMode && hasDecisionInstance
-      ? DECISION_DATASET_BLOCKED_REASON
-      : invalidDecisionReason;
+    invalidDecisionReason ??
+    (isDatasetMode
+      ? getDecisionDatasetBlockedReason({ instances, templateFormat })
+      : null);
   const hasInvalidDecision = invalidDecisionReason != null;
 
   const isEvaluatorKind = usePlaygroundContext(

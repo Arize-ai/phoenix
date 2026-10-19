@@ -9,7 +9,6 @@ import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
-import { DECISION_DATASET_BLOCKED_REASON } from "../constants";
 import { createDecisionDraft } from "../decisionUtils";
 import { PlaygroundExampleEditingProvider } from "../examplesEditing";
 import { PlaygroundRunButton } from "../PlaygroundRunButton";
@@ -124,7 +123,22 @@ describe("PlaygroundRunButton with decision instances", () => {
     });
   });
 
-  it("refuses the whole run and explains why when a dataset is loaded", async () => {
+  it("runs over a dataset when each example fills the state", () => {
+    const { store, runPlaygroundInstances } = mount("RGF0YXNldDox");
+    const instance = store.getState().instances[0];
+    act(() =>
+      store.getState().updateDecisionRequest({
+        instanceId: instance.id,
+        request: { ...instance.decisionRequest!, state: "{{ticket}}" },
+      })
+    );
+    const button = runButton();
+    expect(button?.disabled).toBe(false);
+    act(() => button?.click());
+    expect(runPlaygroundInstances).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a dataset run and explains why when no example can fill the state", async () => {
     const { runPlaygroundInstances } = mount("RGF0YXNldDox");
     const button = runButton();
     expect(button?.disabled).toBe(true);
@@ -142,7 +156,7 @@ describe("PlaygroundRunButton with decision instances", () => {
     await act(async () => user.hover(triggerWrap!));
     await vi.waitFor(() => {
       expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
-        DECISION_DATASET_BLOCKED_REASON
+        "Instance A: Over a dataset, the state needs a template variable"
       );
     });
   });
