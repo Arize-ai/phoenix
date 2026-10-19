@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Any, Optional, Sequence, cast
 
-from openinference.semconv.trace import SpanAttributes
+import openinference.instrumentation as oi
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 
@@ -69,7 +69,8 @@ class DecisionEvaluator(BaseEvaluator):
             f"Evaluator: {name}",
             context=Context(),
             attributes={
-                SpanAttributes.OPENINFERENCE_SPAN_KIND: "EVALUATOR",
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
             },
         ) as span:
             trace_id = format_trace_id(span.get_span_context().trace_id) if tracer else None
@@ -90,6 +91,22 @@ class DecisionEvaluator(BaseEvaluator):
                     start_time=started,
                     end_time=datetime.now(timezone.utc),
                 )
+                span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "results": [
+                                {
+                                    "name": result["name"],
+                                    "label": result["label"],
+                                    "score": result["score"],
+                                    "explanation": result["explanation"],
+                                }
+                                for result in results
+                            ]
+                        }
+                    )
+                )
+                span.set_status(Status(StatusCode.OK))
                 return cast(list[EvaluationResult], results)
             except Exception as error:
                 span.set_status(Status(StatusCode.ERROR, str(error)))
@@ -103,7 +120,6 @@ class DecisionEvaluator(BaseEvaluator):
                         "explanation": None,
                         "metadata": {
                             "decision": {
-                                "schema_version": 1,
                                 "status": "error",
                                 "source": self.definition.source.model_dump(mode="json")
                                 if self.definition.source

@@ -49,7 +49,13 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
         )
     )
     input_mapping: InputMapping
-    projection_policy: Optional[DecisionProjectionPolicy] = None
+    projection_policy: Optional[DecisionProjectionPolicy] = Field(
+        default=None,
+        description=(
+            "Decision evaluators only. Each question listed replaces the evaluator's scoring "
+            "settings for it; every other question keeps the evaluator's. Null inherits all."
+        ),
+    )
     description: Optional[str] = Field(
         default=None, description="Binding override. Null inherits the shared description."
     )
@@ -66,7 +72,13 @@ class CreateDatasetEvaluatorRequest(EvaluatorRequest):
 class PatchDatasetEvaluatorRequest(EvaluatorRequest):
     model_config = ConfigDict(json_schema_extra={"minProperties": 1})
 
-    projection_policy: Optional[DecisionProjectionPolicy] = Field(default=UNDEFINED)
+    projection_policy: Optional[DecisionProjectionPolicy] = Field(
+        default=UNDEFINED,
+        description=(
+            "Decision evaluators only. Omit to preserve; null inherits all of the evaluator's "
+            "scoring settings; otherwise each question listed replaces the evaluator's setting."
+        ),
+    )
     name: Identifier = Field(default=UNDEFINED)
     input_mapping: InputMapping = Field(default=UNDEFINED)
     description: Optional[str] = Field(

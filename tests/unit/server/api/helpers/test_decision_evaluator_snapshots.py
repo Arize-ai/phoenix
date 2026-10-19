@@ -41,7 +41,7 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
                 "name": "judge",
                 "inputMapping": {"literalMapping": {"ticket": {"id": 1}}, "pathMapping": {}},
                 "projectionPolicy": {
-                    "questions": {"urgent": {"type": "predicate", "threshold": 0.4}}
+                    "questions": [{"predicate": {"name": "urgent", "threshold": 0.4}}]
                 },
             }
         },
@@ -80,14 +80,14 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
     )
     assert result.data and not result.errors, result.errors
     result = await gql_client.execute(
-        "mutation($input:PatchDatasetDecisionEvaluatorInput!){patchDatasetDecisionEvaluator(input:$input){evaluator{id}}}",
+        "mutation($input:UpdateDatasetDecisionEvaluatorInput!){updateDatasetDecisionEvaluator(input:$input){evaluator{id}}}",
         variables={
             "input": {
                 "datasetEvaluatorId": binding_id,
                 "name": "changed-judge",
                 "inputMapping": {"literalMapping": {"ticket": {"id": 2}}, "pathMapping": {}},
                 "projectionPolicy": {
-                    "questions": {"urgent": {"type": "predicate", "threshold": 0.9}}
+                    "questions": [{"predicate": {"name": "urgent", "threshold": 0.9}}]
                 },
             }
         },

@@ -1167,6 +1167,9 @@ async def patch_dataset_evaluator(
                     )
                 except ValueError as error:
                     raise BadRequest(str(error)) from error
+                if "output_configs" in values:
+                    # Derived from the judge whenever they are read, so they follow its edits.
+                    values["output_configs"] = None
                 if patch.decision_projection_policy is not UNSET:
                     values["decision_projection_policy"] = patch.decision_projection_policy
             elif patch.decision_projection_policy is not UNSET:

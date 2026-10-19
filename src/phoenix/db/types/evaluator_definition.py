@@ -123,7 +123,6 @@ class InlineDecisionEvaluatorDefinition(DBBaseModel):
 
     model_config = ConfigDict(frozen=True)
     type: Literal["inline_decision_evaluator"]
-    schema_version: Literal[1] = 1
     decision_schema_version: Literal[1] = 1
     name: str
     description: str | None = None

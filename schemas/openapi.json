@@ -14141,7 +14141,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Decision evaluators only. Each question listed replaces the evaluator's scoring settings for it; every other question keeps the evaluator's. Null inherits all."
           },
           "description": {
             "anyOf": [
@@ -15716,12 +15717,6 @@
       },
       "DecisionProjectionPolicy": {
         "properties": {
-          "schema_version": {
-            "type": "integer",
-            "const": 1,
-            "title": "Schema Version",
-            "default": 1
-          },
           "questions": {
             "additionalProperties": {
               "oneOf": [
@@ -19253,7 +19248,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Decision evaluators only. Omit to preserve; null inherits all of the evaluator's scoring settings; otherwise each question listed replaces the evaluator's setting."
           },
           "name": {
             "$ref": "#/components/schemas/Identifier"
@@ -19794,7 +19790,8 @@
             "enum": [
               "LLM",
               "CODE",
-              "BUILTIN"
+              "BUILTIN",
+              "DECISION"
             ],
             "title": "Kind"
           },

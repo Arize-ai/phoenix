@@ -50,7 +50,6 @@ DecisionQuestionProjection = Annotated[
 
 
 class DecisionProjectionPolicy(_ProjectionModel):
-    schema_version: Literal[1] = 1
     questions: dict[str, DecisionQuestionProjection] = Field(default_factory=dict)
 
 
@@ -81,7 +80,7 @@ def resolve_projection_policy(
                     f"{', '.join(sorted(unknown_choices))}"
                 )
         resolved[question.name] = type(projection).model_validate(projection.model_dump())
-    return DecisionProjectionPolicy(schema_version=1, questions=resolved)
+    return DecisionProjectionPolicy(questions=resolved)
 
 
 def derive_decision_output_configs(
@@ -124,11 +123,17 @@ def derive_decision_output_configs(
 
 def effective_decision_policy(
     questions: list[DecisionQuestion],
-    policy: DecisionProjectionPolicy,
+    policy: dict[str, Any],
     override: Optional[dict[str, Any]] = None,
 ) -> DecisionProjectionPolicy:
-    """Resolve a complete binding override, or inherit the shared evaluator policy."""
-    return resolve_projection_policy(
-        questions,
-        DecisionProjectionPolicy.model_validate(override) if override is not None else policy,
-    )
+    """Resolve a binding's policy: each question it names replaces the evaluator's settings
+    for that question, and every other question inherits them."""
+    merged = DecisionProjectionPolicy.model_validate(policy)
+    if override is not None:
+        merged = DecisionProjectionPolicy(
+            questions={
+                **merged.questions,
+                **DecisionProjectionPolicy.model_validate(override).questions,
+            }
+        )
+    return resolve_projection_policy(questions, merged)

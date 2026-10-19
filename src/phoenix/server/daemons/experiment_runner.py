@@ -122,6 +122,7 @@ from phoenix.db.types.experiment_log import (
     RetriesExhaustedDetail,
 )
 from phoenix.db.types.prompts import PromptChatTemplate, PromptInvocationParameters
+from phoenix.server.api.decision_evaluator import DecisionEvaluator
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
     EvaluationResult,
@@ -279,25 +280,26 @@ def _output_configs_for_eval_run(
     return list(evaluator.output_configs)
 
 
-async def _raise_retryable_evaluation_error(
-    evaluator: BaseEvaluator,
-    results: Sequence[EvaluationResult],
-    *,
-    tracer: Tracer,
-    project_id: int,
-    db: DbSessionFactory,
+def _raise_retryable_evaluation_error(
+    evaluator: BaseEvaluator, results: Sequence[EvaluationResult]
 ) -> None:
-    """Classify returned model failures through the same client used for scheduling."""
-    client = evaluator.provider_client
-    if client is None:
+    """Re-raise a returned rate-limit or transient failure so the runner retries it.
+
+    Evaluators report model failures as error results. Classifying them with the client
+    used for scheduling sends retryable ones to the retry handler instead of recording
+    them. As for any retried work, the attempt's trace is not kept.
+
+    TODO: LLM judges return failures the same way but are still recorded on the first
+    failure, as before decision judges; extending this to them changes their behavior.
+    """
+    if not isinstance(evaluator, DecisionEvaluator):
         return
+    client = evaluator.provider_client
     for result in results:
         error = result.get("error_exc")
         if error is not None and (
             client.is_rate_limit_error(error) or client.is_transient_error(error)
         ):
-            async with db() as session:
-                session.add_all(tracer.get_db_traces(project_id=project_id))
             raise error
 
 
@@ -319,9 +321,11 @@ class EvaluatorRunSpec:
         """The name the evaluator runs under.
 
         A lone output config keeps writing under its own name; several are each written
-        under ``<binding name>.<config name>``.
+        under ``<binding name>.<config name>``. A decision judge's configs are named after
+        its questions, so it always writes under its binding: two bindings of one judge
+        must not share annotation names.
         """
-        if len(self.output_configs) == 1:
+        if len(self.output_configs) == 1 and not isinstance(self.evaluator, DecisionEvaluator):
             return self.output_configs[0].name
         return self.name
 
@@ -965,13 +969,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
                     output_configs=self.output_configs,
                     tracer=tracer,
                 )
-                await _raise_retryable_evaluation_error(
-                    self._evaluator,
-                    eval_results,
-                    tracer=tracer,
-                    project_id=self._project_id,
-                    db=self._db,
-                )
+                _raise_retryable_evaluation_error(self._evaluator, eval_results)
 
         except TimeoutError:
             logger.warning(f"EvaluatorTaskWorkItem {self.debug_identifier} timed out")
@@ -1535,13 +1533,7 @@ class EvalWorkItem(WorkItem):
                     output_configs=self._output_configs,
                     tracer=tracer,
                 )
-                await _raise_retryable_evaluation_error(
-                    self._evaluator,
-                    eval_results,
-                    tracer=tracer,
-                    project_id=self._project_id,
-                    db=self._db,
-                )
+                _raise_retryable_evaluation_error(self._evaluator, eval_results)
                 logger.debug(
                     f"EvalWorkItem {self.debug_identifier}: evaluator returned "
                     f"{len(eval_results)} result(s)"
@@ -2820,6 +2812,17 @@ class RunningExperiment:
         """Persist a log row for this experiment."""
         try:
             async with self._db() as session:
+                # A frozen judge can outlive its binding, and an eval log cannot: its foreign
+                # key cascades from the binding. Skip the row rather than fail the insert.
+                # TODO: SQLite can reuse a deleted binding's ID, attaching the log to another.
+                if isinstance(log, models.ExperimentEvalLog) and (
+                    await session.get(models.DatasetEvaluators, log.dataset_evaluator_id) is None
+                ):
+                    logger.warning(
+                        f"Experiment {self._experiment.id}: binding "
+                        f"{log.dataset_evaluator_id} was deleted; log not saved: {log.message}"
+                    )
+                    return
                 session.add(log)
         except Exception:
             logger.exception(

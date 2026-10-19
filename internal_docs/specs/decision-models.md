@@ -10,7 +10,7 @@
 > without the UI). The UI work is PR #16876. Where the pipeline stands against
 > prompts is in [The Complete Parallel Pipeline](#the-complete-parallel-pipeline),
 > and the choices to settle before shipping are in
-> [Forking Decisions](#forking-decisions). This spec assumes apps fetch saved
+> [Decisions Before Release](#decisions-before-release). This spec assumes apps fetch saved
 > decisions at run time, the way they fetch prompts; that assumption is what
 > justifies a standalone family with tags. Server-side decision evaluators are
 > planned below, with dataset evaluators as the first milestone; they are not
@@ -322,7 +322,7 @@ model.
 ```python
 decision = client.decisions.get(decision_identifier="triage", tag="production")
 kwargs = decision.format(inputs={"ticket": ticket}, sdk="typesafe")
-result = await typesafe.system_one(**kwargs)    # or openai.decisions.create(**kwargs)
+result = await typesafe.system_one(**kwargs)  # or openai.decisions.create(**kwargs)
 ```
 
 `format` validates the inputs against the declared signature, builds the state,
@@ -411,7 +411,7 @@ Keyed by name so evaluators reach values by path (`output.urgent.probability`),
 as a dataset's reference answers are usually keyed. The fields inside each
 answer are Phoenix's, though, and a dataset's need not match: the typed-decisions
 references carry `label` where a choice answer has `choice` (see
-[Forking Decisions](#forking-decisions)). The model that answered and
+[Decisions Before Release](#decisions-before-release)). The model that answered and
 the usage stay on the `DECISION` span, which goes to the experiment's project,
 as a prompt run's output is the response alone.
 
@@ -499,8 +499,8 @@ rather than zero.
 
 ## Decision Evaluators
 
-**Planned, not implemented.** A decision evaluator uses a decision model as a
-judge. It maps the target's fields into declared inputs, renders the state,
+**Milestone 1 server work is built; its UI is not.** A decision evaluator uses a
+decision model as a judge. It maps the target's fields into declared inputs, renders the state,
 asks fixed questions in one call, and projects the normalized answers into
 annotations. It shares provider clients with decision tasks, but the two roles
 remain distinct: a task produces answers to evaluate; a judge produces verdicts.
@@ -546,19 +546,47 @@ One saved judge can serve several datasets or projects with different mappings.
 Preserve structured input types and reuse decision state rendering; descriptive
 input JSON schemas do not become new runtime coercion or validation rules.
 
-Store a versioned projection policy on the evaluator for predicate thresholds,
+Store a projection policy on the evaluator for predicate thresholds,
 choice scores, scale-label mode, and optimization direction. Dataset bindings
-may override this policy. Existing generic `output_configs` have no predicate
-threshold field, so they alone cannot express these overrides. Add a typed
-binding policy field and derive effective output configs through one shared
-resolver. Generic output-config overrides must agree with the derived schema;
-they cannot add choices, retype questions, or change scale bounds independently.
+may override it per question: each question a binding's policy names replaces the
+evaluator's settings for that question, and every other question keeps the
+evaluator's, so a later edit to the evaluator still reaches them. Existing generic
+`output_configs` have no predicate threshold field, so they alone cannot express
+these overrides. A typed binding policy field holds them, and one shared resolver
+derives the effective policy and output configs. A decision binding stores no
+`output_configs`: they are derived whenever they are read. A request may send
+them only if they equal the derived ones.
+
+GraphQL exposes projection policies as typed objects, including on dataset
+bindings and frozen experiment definitions. `DecisionProjectionPolicyInput`
+accepts a list of question settings. Each question setting
+selects exactly one of `predicate`, `choice`, or `scale`, following the decision
+question input pattern. For example:
+
+```graphql
+projectionPolicy: {
+  questions: [{ predicate: { name: "accuracy", threshold: 0.5 } }]
+}
+```
+
+Every variant carries the question `name` and `optimizationDirection`. Predicates
+have `threshold`, choices have typed `{choice, score}` entries, and scales have
+`includeLabel`. Output questions implement `DecisionQuestionProjection`; clients
+select variant fields through inline fragments. Output questions and choice
+scores follow the decision's declared order, since the stored map's key order
+differs across databases. Reject duplicate question names and choice-score
+entries; a validation error names the question. Omitting a patch policy preserves it; a null dataset
+binding policy restores inheritance. This GraphQL representation maps to the
+existing stored policy format without changing it.
 
 Guard owned-tag deletion and every move, including moves through version
 creation. Validate the proposed version and policy against binding inputs,
 question identities/types, choice values, scale meanings, and overrides. A
 breaking bound change must fail with the affected binding names and require an
-explicit migration or separate evaluator. Compatible changes affect future
+explicit migration or separate evaluator. Reordering inputs, questions, or choices
+is compatible; reordering a scale's levels is not, since a level's index is its
+score. Input JSON schemas are descriptive, so changing them is compatible. A
+version of another decision can never be pinned. Compatible changes affect future
 execution snapshots. Keep deletion and concurrent edits consistent with existing
 evaluator services and lock ordering.
 
@@ -567,7 +595,9 @@ evaluator services and lock ordering.
 Derive one `OutputConfigType` per question from the selected version, then apply
 the effective projection policy. Annotation names use `result_annotation_names`:
 one question writes under the binding's name, several under
-`{binding}.{question}`. Changing between one and several questions changes
+`{binding}.{question}`. The runner's rule for other evaluators, that a lone output
+writes under its config's name, does not apply: a decision's configs are named
+after its questions, and two bindings of one judge must not share a name. Changing between one and several questions changes
 annotation names and is a breaking bound update, even if an old question remains.
 
 | Answer | Derived output config | Annotation |
@@ -609,24 +639,26 @@ or wrong-type answers fail the invocation under existing adapter validation;
 this feature does not require batch splitting or malformed-answer salvage.
 Retryable provider failures must reach the runner's retry handler. Returning an
 error result with `error_exc` attached is insufficient where the runner records
-that result directly as a failure.
+that result directly as a failure, so the runner re-raises a decision judge's
+returned rate-limit or transient failure, classified by the judge's own client.
+As for any retried work, a retried attempt's trace is not kept. LLM judges return
+failures the same way and are still recorded on the first one; giving them the
+same retries is a separate change. The runner owns retries in experiments, so
+judges there run without SDK retries; a preview, which nothing retries, keeps them.
 
-**The exact annotation metadata schema is not settled.** The required content
-is outcome status, question identity/type, normalized answer (including native
-uncertainty), applied projection policy, and provenance: selected decision/version
-when available, requested/resolved model, and non-secret connection identity.
-A versioned `metadata.decision` namespace is proposed, not an agreed field-level
-contract. Finalize required/optional fields, enum values, nesting and versioning
-before implementing persistence or refusal-aware readers. Reconcile the related
-Python evals library proposal explicitly; its rubric normalization and recovery
-planner are not implicitly the server contract. Request usage belongs on the
-DECISION span rather than being repeated per annotation.
+Each annotation records, under `metadata.decision`, its outcome status, the
+question's identity and type, the normalized answer (including native
+uncertainty), the applied projection policy, and provenance: the selected
+decision and version when available, the requested and resolved model, and a
+non-secret connection identity. Request usage belongs on the DECISION span rather
+than being repeated per annotation. The current shape is provisional; see
+[Evaluator Annotation Metadata](#evaluator-annotation-metadata).
 
 ### Experiment Snapshots and Resume
 
 Freeze a dataset evaluator's resolved decision definition/version, effective
 projection policy, derived output configs, input mapping, binding name and source
-IDs when attaching it to an experiment. Store a versioned execution snapshot on
+IDs when attaching it to an experiment. Store an execution snapshot on
 the experiment's evaluator binding. Persist no credentials; resolve them through
 the connection system at execution time. Legacy experiments without a snapshot
 retain their existing semantics rather than claiming reconstructable history.
@@ -764,14 +796,13 @@ catalog; and decision models kept out of every chat path. The rest, by the
   playground (built in PR #16876).
 - **The agent.** Not yet: its playground and experiment tools don't know
   decision panels or runs.
-- **Before shipping:** the [forking decisions](#forking-decisions), to be decided
+- **Before shipping:** the [decisions before release](#decisions-before-release), to be decided
   as a team, and the PostgreSQL migration and tests, which have run only on
   SQLite.
 - **Decisions that block work:**
   - [renaming questions](#open-questions) decides how the UI flags a rename;
     the tables don't depend on it, since a rename is a new version;
-  - the exact annotation metadata schema blocks judging persistence/readers;
-    `box` is rejected as an evaluator output and does not block other types;
+  - `box` is rejected as an evaluator output and does not block other types;
   - assets and images (`messages` state) block image inputs.
 
 ## Build Order
@@ -802,16 +833,18 @@ measurement, assets, or every earlier numbered item.
    evaluation third. Shared runtime, derived outputs, projection policy and
    tracing support the three milestones.
 
-## Forking Decisions
+## Decisions Before Release
 
-Choices that are cheap to change now and expensive once stored data, apps, and
-evaluators depend on them. Each has a current default so work can proceed; each
-needs a deliberate decision before it hardens.
+These are one-way doors: cheap to change now, expensive once stored data, apps,
+and evaluators depend on them. Each has a current default so work can proceed;
+each needs a deliberate team decision before a release ships it. Smaller,
+reversible unknowns are in [Open Questions](#open-questions).
 
-Five of them choose a format at a boundary: the stored version, the run output,
-the span, a dataset's reference answers, and the SDK arguments handed to apps.
-At each, Phoenix can use a provider's format or its own. They are related enough
-to decide together.
+Six of them choose a format at a boundary: the stored version, the run output,
+the span, a dataset's reference answers, the SDK arguments handed to apps, and a
+judge's annotations. At each, Phoenix can use a provider's format or its own.
+They are related enough to decide together. The seventh is the shape of the
+evaluator API: how a judge's scoring is written.
 
 ### Answer Format
 
@@ -984,6 +1017,73 @@ version does. Changing or replacing a deprecated model means a new version, and
 an app following a tag gets whatever model that version names. A per-call
 override could be added later without breaking anything.
 
+### Evaluator Annotation Metadata
+
+A decision judge writes ordinary annotations: a label, a score, and for a refusal
+a fixed explanation. Everything a decision adds goes in `metadata.decision`,
+which is the only way a reader can tell a refusal from a missing score, or see
+the judge's uncertainty. The current shape (`decision_evaluators.py`,
+`decision_evaluator.py`), implemented ahead of this decision:
+
+- **Answered or refused:** `status` (`answered` or `refused`), `question` (`name`,
+  `type`), `answer` (Phoenix's normalized answer, with confidence and
+  probabilities), `projection` (the question's applied scoring settings),
+  `requested_model`, `resolved_model`, `provider`, `custom_provider_id`, and
+  `source` (evaluator, decision, version, and binding IDs).
+- **Error:** only `status: error` and `source`; the message is the annotation's
+  `error`.
+- **Not recorded:** usage, which stays on the span.
+
+The preview already reads `status` (`chat_mutations.py`), and annotations are
+exported and read by other tools.
+
+- **Versioning:** unversioned (current, like other annotation metadata), with
+  readers tolerating missing fields; or a version inside the namespace, so a
+  reader can tell shapes apart without guessing.
+- **Answer shape:** `answer` embeds whichever format
+  [Answer Format](#answer-format) picks, so the two are one decision.
+- **Error results:** the minimal shape (current), or the same fields with nulls,
+  so readers handle one shape.
+- **Refusal status:** metadata only (current), or a first-class annotation field,
+  since coverage counts and aggregates must exclude refusals and annotations
+  have no status column.
+- **One shape with `phoenix-evals`:** a `ClassificationEvaluator(llm: Decision)`
+  writes annotations too. Matching shapes let one reader handle both; its rubric
+  normalization and recovery planner are not implicitly the server contract.
+
+Historical annotations are not rewritten, so whatever judges store before this is
+decided, readers handle forever. Decide with [Answer Format](#answer-format),
+before a release stores judge results.
+
+### Output Configs and Projection Policies
+
+Every evaluator kind carries `output_configs`, the generic scoring contract that
+the UI, the SDK, and annotation views read. A decision judge also has a projection
+policy, which says the same thing in more detail (thresholds, choice scores, scale
+labels), and its output configs are derived from the policy and its questions. So
+for decisions, `output_configs` is read-only in effect:
+
+- **Writes:** the REST create and patch bodies for a dataset binding still accept
+  `output_configs` for a decision judge. The server accepts them only if they equal
+  the derived configs, then stores none, so the field can only repeat the server's
+  own answer. GraphQL's decision mutations don't take them.
+- **Reads:** REST and GraphQL return both, the derived configs beside the policy.
+
+The options:
+
+- **Accept and check** (current): one request shape for every kind, and a client
+  can echo back what it read. But the field looks writable and isn't.
+- **Reject for decision judges:** clearer, and an error says to edit the policy;
+  REST clients need a branch per kind on write.
+- **Unify:** make the projection policy the general scoring model, with an LLM
+  judge's categorical configs as one case of it. The cleanest end state, and the
+  largest change, since it reaches existing evaluators and their stored configs.
+
+Reads keep `output_configs` under every option, because annotation names and
+score types come from it. Decide before `/v1/evaluators` and
+`/v1/datasets/{id}/evaluators` ship decision judges in a release: the request
+bodies and the SDK's generated types freeze whichever shape ships.
+
 ## Open Questions
 
 - **Span attribute for the version ID.** Whether OpenInference gets a
@@ -991,11 +1091,6 @@ override could be added later without breaking anything.
   prompt IDs are carried today.
 - **Renaming questions.** Whether a rename should create a new decision, or keep
   the decision and mark earlier runs as answering a different question.
-- **Decision evaluator metadata.** Finalize the field-level, versioned
-  annotation metadata schema, including refusal status and projection provenance,
-  before persistence and readers are implemented. `metadata.decision` remains a
-  proposed namespace; the requirements are in
-  [Refusals, Errors, and Metadata](#refusals-errors-and-metadata).
 - **Evaluator outputs for per-example questions.** An evaluator's output names
   are fixed, while a benchmark's question names vary per example. A code
   evaluator can summarize over all answers; whether built-in metrics need

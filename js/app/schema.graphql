@@ -996,7 +996,7 @@ input CreateDatasetDecisionEvaluatorInput {
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput!
   description: String = null
-  projectionPolicy: JSON = null
+  projectionPolicy: DecisionProjectionPolicyInput = null
 }
 
 input CreateDatasetInput {
@@ -1046,7 +1046,7 @@ input CreateDecisionEvaluatorInput {
   name: Identifier!
   decisionVersionId: ID!
   description: String = null
-  projectionPolicy: JSON = null
+  projectionPolicy: DecisionProjectionPolicyInput = null
 }
 
 input CreateDecisionInput {
@@ -1396,7 +1396,11 @@ type DatasetEvaluator implements Node {
   evaluator: Evaluator!
   description: String
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
-  decisionProjectionPolicy: JSON
+
+  """
+  A decision judge's scoring settings for this dataset, by question. Each question listed replaces the judge's own settings for it; every other question keeps the judge's. Null when the binding uses the judge's settings unchanged.
+  """
+  decisionProjectionPolicy: DecisionProjectionPolicy
   inputMapping: EvaluatorInputMapping!
   user: User
   project: Project!
@@ -1742,11 +1746,47 @@ type DecisionChoiceOption {
   description: String
 }
 
+"""
+A choice's label is the chosen value. Its score is the chosen value's configured score, or null when the value has none.
+"""
+type DecisionChoiceProjection implements DecisionQuestionProjection {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """Scores for some or all of the question's choices, in declared order."""
+  scores: [DecisionChoiceScore!]!
+}
+
+"""Scoring for a choice question."""
+input DecisionChoiceProjectionInput {
+  name: String!
+
+  """Scores by choice; a choice left out gets a null score."""
+  scores: [DecisionChoiceScoreInput!]! = []
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
 """One option from a fixed set."""
 type DecisionChoiceQuestion {
   name: String!
   instructions: String!
   choices: [DecisionChoiceOption!]!
+}
+
+"""The score a choice question's annotation gets for one choice."""
+type DecisionChoiceScore {
+  """The choice's value, as the question declares it."""
+  choice: String!
+  score: Float!
+}
+
+"""The score for one of a choice question's declared choices."""
+input DecisionChoiceScoreInput {
+  choice: String!
+  score: Float!
 }
 
 """A connection to a list of items."""
@@ -1789,7 +1829,7 @@ type DecisionEvaluator implements Evaluator & Node {
   datasetEvaluators: [DatasetEvaluator!]!
   user: User
   inputSchema: JSON!
-  projectionPolicy: JSON!
+  projectionPolicy: DecisionProjectionPolicy!
   decisionVersion: DecisionVersion!
   decisionVersionTag: DecisionVersionTag!
 }
@@ -1883,11 +1923,49 @@ type DecisionPredicateCriteria {
   false: String
 }
 
+"""
+A predicate's score is the probability that it is true. Its label is `true` when that probability is at least the threshold, otherwise `false`.
+"""
+type DecisionPredicateProjection implements DecisionQuestionProjection {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """The probability, in [0, 1], at or above which the label is `true`."""
+  threshold: Float!
+}
+
+"""Scoring for a predicate question."""
+input DecisionPredicateProjectionInput {
+  name: String!
+
+  """The probability, in [0, 1], at or above which the label is `true`."""
+  threshold: Float! = 0.5
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
 """A statement answered with the probability that it is true."""
 type DecisionPredicateQuestion {
   name: String!
   instructions: String!
   criteria: DecisionPredicateCriteria
+}
+
+"""How a decision judge's answers become annotations, by question."""
+type DecisionProjectionPolicy {
+  """
+  Settings by question, in the order the decision declares its questions.
+  """
+  questions: [DecisionQuestionProjection!]!
+}
+
+"""
+Scoring settings by question. A question left out keeps its default, or on a dataset binding, the judge's own setting.
+"""
+input DecisionProjectionPolicyInput {
+  questions: [DecisionQuestionProjectionInput!]! = []
 }
 
 union DecisionQuestion = DecisionPredicateQuestion | DecisionChoiceQuestion | DecisionScaleQuestion
@@ -1906,6 +1984,24 @@ input DecisionQuestionInput @oneOf {
   scale: ScaleQuestionInput
 }
 
+"""
+How one decision question's answer becomes an annotation's label and score.
+"""
+interface DecisionQuestionProjection {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+}
+
+"""Scoring settings for one named decision question."""
+input DecisionQuestionProjectionInput @oneOf {
+  predicate: DecisionPredicateProjectionInput
+  choice: DecisionChoiceProjectionInput
+  scale: DecisionScaleProjectionInput
+}
+
 """A successful decision run."""
 type DecisionResult {
   """The model that answered, after alias resolution."""
@@ -1919,6 +2015,31 @@ type DecisionResult {
 type DecisionScaleLevel {
   label: String!
   description: String
+}
+
+"""
+A scale's score is its expected level, from 0 to the number of levels minus one.
+"""
+type DecisionScaleProjection implements DecisionQuestionProjection {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """
+  Whether the annotation is also labeled with the most probable level; on a tie, the first such level.
+  """
+  includeLabel: Boolean!
+}
+
+"""Scoring for a scale question; its score is the expected level."""
+input DecisionScaleProjectionInput {
+  name: String!
+
+  """Also label the annotation with the most probable level."""
+  includeLabel: Boolean! = false
+  optimizationDirection: OptimizationDirection! = NONE
 }
 
 """Ordered levels; a level's position, from zero, is its value."""
@@ -3631,7 +3752,6 @@ input InlineCodeEvaluatorInput {
 type InlineDecisionEvaluatorDefinition {
   name: String!
   description: String
-  schemaVersion: Int!
   decisionSchemaVersion: Int!
   inputs: [DecisionInputDefinition!]!
   state: DecisionState!
@@ -3639,7 +3759,7 @@ type InlineDecisionEvaluatorDefinition {
   modelProvider: GenerativeProviderKey!
   modelName: String!
   customProviderId: ID
-  projectionPolicy: JSON!
+  projectionPolicy: DecisionProjectionPolicy!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   source: EvaluatorTaskSource
 }
@@ -3952,7 +4072,7 @@ type Mutation {
   patchDecisionEvaluator(input: PatchDecisionEvaluatorInput!): DecisionEvaluatorMutationPayload!
   deleteDecisionEvaluator(input: DeleteDecisionEvaluatorInput!): DeleteDecisionEvaluatorPayload!
   createDatasetDecisionEvaluator(input: CreateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
-  patchDatasetDecisionEvaluator(input: PatchDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetDecisionEvaluator(input: UpdateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
@@ -4123,14 +4243,6 @@ input PatchCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]
 }
 
-input PatchDatasetDecisionEvaluatorInput {
-  datasetEvaluatorId: ID!
-  name: Identifier
-  description: String
-  inputMapping: EvaluatorInputMappingInput
-  projectionPolicy: JSON
-}
-
 """
 Input to the `patchDatasetExamples` mutation. The operations are applied in order and committed together as one new dataset version, or not at all. Later operations see the effect of earlier ones: replacing a field twice keeps the last value, removing an example discards its replacements, and targeting an example after it was removed is an error.
 """
@@ -4161,7 +4273,7 @@ input PatchDecisionEvaluatorInput {
   name: Identifier
   description: String
   decisionVersionId: ID
-  projectionPolicy: JSON
+  projectionPolicy: DecisionProjectionPolicyInput
 }
 
 input PatchDecisionInput {
@@ -6873,6 +6985,14 @@ input UpdateDatasetCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigs: [AnnotationConfigInput!]
   description: String
+}
+
+input UpdateDatasetDecisionEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier
+  description: String
+  inputMapping: EvaluatorInputMappingInput
+  projectionPolicy: DecisionProjectionPolicyInput
 }
 
 input UpdateDatasetLLMEvaluatorInput {

@@ -22,6 +22,9 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
+from phoenix.db.types.decision_evaluators import (
+    DecisionProjectionPolicy as StoredDecisionProjectionPolicy,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
@@ -48,6 +51,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.DecisionProjectionPolicy import DecisionProjectionPolicy
 from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -772,8 +776,12 @@ class DecisionEvaluator(Evaluator, Node):
         return JSON(decision_input_schema((await self._record(info)).selected_version.inputs))
 
     @strawberry.field
-    async def projection_policy(self, info: Info[Context, None]) -> JSON:
-        return JSON((await self._record(info)).projection_policy)
+    async def projection_policy(self, info: Info[Context, None]) -> DecisionProjectionPolicy:
+        record = await self._record(info)
+        return DecisionProjectionPolicy.from_orm(
+            StoredDecisionProjectionPolicy.model_validate(record.projection_policy),
+            record.selected_version.questions,
+        )
 
     @strawberry.field
     async def decision_version(
@@ -1373,10 +1381,29 @@ class DatasetEvaluator(Node):
             )
         ]
 
-    @strawberry.field
-    async def decision_projection_policy(self, info: Info[Context, None]) -> Optional[JSON]:
-        policy = (await self._get_record(info)).decision_projection_policy
-        return JSON(policy) if policy is not None else None
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "A decision judge's scoring settings for this dataset, by question. Each question "
+            "listed replaces the judge's own settings for it; every other question keeps the "
+            "judge's. Null when the binding uses the judge's settings unchanged."
+        )
+    )
+    async def decision_projection_policy(
+        self, info: Info[Context, None]
+    ) -> Optional[DecisionProjectionPolicy]:
+        record = await self._get_record(info)
+        if record.decision_projection_policy is None:
+            return None
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        questions = (
+            evaluator.selected_version.questions
+            if isinstance(evaluator, models.DecisionEvaluator)
+            else []
+        )
+        return DecisionProjectionPolicy.from_orm(
+            StoredDecisionProjectionPolicy.model_validate(record.decision_projection_policy),
+            questions,
+        )
 
     @strawberry.field
     async def input_mapping(

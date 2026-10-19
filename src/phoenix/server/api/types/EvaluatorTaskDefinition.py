@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import strawberry
 from strawberry.relay import GlobalID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -27,6 +26,7 @@ from phoenix.server.api.types.DecisionDefinition import (
     to_gql_decision_question,
     to_gql_decision_state,
 )
+from phoenix.server.api.types.DecisionProjectionPolicy import DecisionProjectionPolicy
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluatorOutputConfig,
     _to_gql_output_config,
@@ -220,7 +220,6 @@ class InlineDecisionEvaluatorDefinition:
 
     name: str
     description: Optional[str]
-    schema_version: int
     decision_schema_version: int
     inputs: list[DecisionInputDefinition]
     state: DecisionState
@@ -228,7 +227,7 @@ class InlineDecisionEvaluatorDefinition:
     model_provider: GenerativeProviderKey
     model_name: str
     custom_provider_id: Optional[GlobalID]
-    projection_policy: JSON
+    projection_policy: DecisionProjectionPolicy
     output_configs: list[BuiltInEvaluatorOutputConfig]
     source: Optional[EvaluatorTaskSource]
 
@@ -239,7 +238,6 @@ class InlineDecisionEvaluatorDefinition:
         return cls(
             name=obj.name,
             description=obj.description,
-            schema_version=obj.schema_version,
             decision_schema_version=obj.decision_schema_version,
             inputs=[to_gql_decision_input(value) for value in obj.inputs],
             state=to_gql_decision_state(obj.state),
@@ -247,7 +245,9 @@ class InlineDecisionEvaluatorDefinition:
             model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
             model_name=obj.model_name,
             custom_provider_id=_global_id("GenerativeModelCustomProvider", obj.custom_provider_id),
-            projection_policy=JSON(obj.projection_policy.model_dump(mode="json")),
+            projection_policy=DecisionProjectionPolicy.from_orm(
+                obj.projection_policy, obj.questions
+            ),
             output_configs=_to_gql_output_configs(
                 derive_decision_output_configs(obj.questions, obj.projection_policy), evaluator_id
             ),

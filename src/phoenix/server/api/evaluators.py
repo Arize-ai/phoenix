@@ -1032,7 +1032,11 @@ async def get_evaluators(
 
             binding = dataset_evaluators_by_id[de_id][0]
             definition = freeze_decision_evaluator(
-                ev, policy_override=binding.decision_projection_policy
+                ev,
+                policy_override=binding.decision_projection_policy,
+                name=binding.name.root,
+                description=binding.description,
+                dataset_evaluator_id=binding.id,
             )
             evaluators.append(
                 await build_decision_evaluator(
@@ -1396,6 +1400,7 @@ async def build_evaluator_from_definition(
     max_message_bytes: Optional[int] = None,
     max_payload_bytes: Optional[int] = None,
     payload_limit_remediation: Optional[str] = None,
+    sdk_retries: bool = False,
 ) -> BaseEvaluator:
     """
     Build the runtime evaluator a definition describes.
@@ -1417,6 +1422,8 @@ async def build_evaluator_from_definition(
         payload_limit_remediation: What the payload-limit error tells the user to do; it
             names the cap the caller applied, so the caller that sets ``max_payload_bytes``
             sets this too.
+        sdk_retries: Let a decision judge's provider SDK retry; only when no runner owns
+            retries, as for a preview.
 
     Raises:
         BadRequest: The definition cannot be honoured: a missing or disabled sandbox
@@ -1433,7 +1440,11 @@ async def build_evaluator_from_definition(
         definition, (InlineDecisionEvaluatorDefinition, StoredDecisionEvaluatorDefinition)
     ):
         return await build_decision_evaluator(
-            definition, session=session, decrypt=decrypt, credentials=credentials
+            definition,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+            sdk_retries=sdk_retries,
         )
     if isinstance(definition, BuiltInEvaluatorDefinition):
         return await _build_builtin_evaluator(definition, session=session)

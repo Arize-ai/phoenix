@@ -7,6 +7,7 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.decision_clients import (
     DecisionResponse,
     PredicateAnswer,
@@ -21,7 +22,13 @@ from .test_saved_decision_mutations import CREATE_VERSION, create, version_input
 CREATE_EVALUATOR = """
 mutation ($input: CreateDecisionEvaluatorInput!) {
   createDecisionEvaluator(input: $input) { evaluator {
-    id name kind projectionPolicy inputSchema decisionVersion { id }
+    id name kind projectionPolicy {
+      questions { __typename name optimizationDirection
+        ... on DecisionPredicateProjection { threshold }
+        ... on DecisionChoiceProjection { scores { choice score } }
+        ... on DecisionScaleProjection { includeLabel }
+      }
+    } inputSchema decisionVersion { id }
     decisionVersionTag { id name }
     outputConfigs { ... on ContinuousAnnotationConfig { name lowerBound upperBound } ... on CategoricalAnnotationConfig { name values { label score } } }
   } }
@@ -38,8 +45,7 @@ async def saved_evaluator(gql_client: AsyncGraphQLClient) -> tuple[dict[str, Any
                 "name": "triage-judge",
                 "decisionVersionId": decision["version"]["id"],
                 "projectionPolicy": {
-                    "schema_version": 1,
-                    "questions": {"urgent": {"type": "predicate", "threshold": 0.8}},
+                    "questions": [{"predicate": {"name": "urgent", "threshold": 0.8}}],
                 },
             }
         },
@@ -134,7 +140,7 @@ async def test_dataset_binding_and_mixed_refusal_preview(
     assert refused["error"] is None
     assert refused["annotation"]["score"] is None and refused["annotation"]["label"] is None
     assert refused["annotation"]["metadata"]["decision"]["status"] == "refused"
-    assert refused["annotation"]["explanation"] == "Decision model refused this question"
+    assert refused["annotation"]["explanation"] == "Decision model refused this question."
     assert invoke.await_count == 1
     assert invoke.call_args.args[0].state == {"id": 1}
 
@@ -167,7 +173,7 @@ async def test_bound_tag_move_rejects_breaking_questions(
             }
         },
     )
-    assert result.errors and "incompatible" in result.errors[0].message
+    assert result.errors and "would break dataset evaluators 'judge'" in result.errors[0].message
     result = await gql_client.execute(
         "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
         variables={"input": {"evaluatorId": evaluator["id"]}},
@@ -211,3 +217,422 @@ async def test_detaching_last_binding_releases_owned_pin(
             )
             is None
         )
+
+
+async def test_typed_projection_variants_and_frozen_definition(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    empty_dataset: None,
+) -> None:
+    from phoenix.db.types.evaluators import InputMapping
+    from phoenix.server.api.helpers.decision_evaluators import freeze_decision_evaluator
+
+    version = version_input()
+    version["questions"].append(
+        {
+            "scale": {
+                "name": "quality",
+                "instructions": "Rate quality",
+                "levels": [{"label": "low"}, {"label": "high"}],
+            }
+        }
+    )
+    decision = await create(gql_client, version=version)
+    result = await gql_client.execute(
+        CREATE_EVALUATOR,
+        variables={
+            "input": {
+                "name": "typed-judge",
+                "decisionVersionId": decision["version"]["id"],
+                "projectionPolicy": {
+                    "questions": [
+                        {
+                            "predicate": {
+                                "name": "urgent",
+                                "threshold": 0.75,
+                                "optimizationDirection": "MAXIMIZE",
+                            }
+                        },
+                        {
+                            "choice": {
+                                "name": "team",
+                                "scores": [
+                                    {"choice": "billing", "score": 1},
+                                    {"choice": "technical", "score": 0},
+                                ],
+                                "optimizationDirection": "MINIMIZE",
+                            }
+                        },
+                        {"scale": {"name": "quality", "includeLabel": True}},
+                    ]
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    evaluator = result.data["createDecisionEvaluator"]["evaluator"]
+    policy = evaluator["projectionPolicy"]
+    # Declared order, not the order sent or the stored map's key order.
+    expected_policy: dict[str, Any] = {
+        "questions": [
+            {
+                "__typename": "DecisionPredicateProjection",
+                "name": "urgent",
+                "threshold": 0.75,
+                "optimizationDirection": "MAXIMIZE",
+            },
+            {
+                "__typename": "DecisionChoiceProjection",
+                "name": "team",
+                "scores": [{"choice": "billing", "score": 1}, {"choice": "technical", "score": 0}],
+                "optimizationDirection": "MINIMIZE",
+            },
+            {
+                "__typename": "DecisionScaleProjection",
+                "name": "quality",
+                "includeLabel": True,
+                "optimizationDirection": "NONE",
+            },
+        ],
+    }
+    assert policy == expected_policy
+    async with db() as session:
+        record = await session.get(
+            models.DecisionEvaluator, int(GlobalID.from_id(evaluator["id"]).node_id)
+        )
+        assert record is not None
+        definition = freeze_decision_evaluator(record)
+        experiment = models.Experiment(
+            dataset_id=1, dataset_version_id=1, name="typed-frozen", repetitions=1, metadata_={}
+        )
+        session.add(experiment)
+        await session.flush()
+        session.add(
+            models.ExperimentEvaluatorTask(
+                id=experiment.id,
+                evaluator_kind="DECISION",
+                name=Identifier("typed-judge"),
+                definition=definition,
+                input_mapping=InputMapping(
+                    literal_mapping={}, path_mapping={"ticket": "input.ticket"}
+                ),
+                output_configs=record.output_configs,
+            )
+        )
+    result = await gql_client.execute(
+        """
+      query($id: ID!) { node(id:$id) { ... on ExperimentJob { taskConfig {
+        ... on EvaluatorTaskConfig { definition { ... on InlineDecisionEvaluatorDefinition {
+          projectionPolicy { questions { __typename name optimizationDirection
+            ... on DecisionPredicateProjection { threshold }
+            ... on DecisionChoiceProjection { scores { choice score } }
+            ... on DecisionScaleProjection { includeLabel }
+          } }
+        } } }
+      } } } }
+    """,
+        variables={"id": str(GlobalID("ExperimentJob", str(experiment.id)))},
+    )
+    assert result.data and not result.errors, result.errors
+    assert result.data["node"]["taskConfig"]["definition"]["projectionPolicy"] == policy
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        {"questions": [{"predicate": {"name": "urgent", "threshold": 1.1}}]},
+        {"questions": [{"predicate": {"name": "missing"}}]},
+        {"questions": [{"scale": {"name": "urgent"}}]},
+        {"questions": [{"predicate": {"name": "urgent"}}, {"predicate": {"name": "urgent"}}]},
+        {
+            "questions": [
+                {
+                    "choice": {
+                        "name": "team",
+                        "scores": [
+                            {"choice": "billing", "score": 1},
+                            {"choice": "billing", "score": 0},
+                        ],
+                    }
+                }
+            ]
+        },
+        {
+            "questions": [
+                {"choice": {"name": "team", "scores": [{"choice": "unknown", "score": 1}]}}
+            ]
+        },
+        {"questions": [{}]},
+        {"questions": [{"predicate": {"name": "urgent"}, "scale": {"name": "urgent"}}]},
+    ],
+)
+async def test_invalid_typed_policy_does_not_create_an_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    policy: dict[str, Any],
+) -> None:
+    from sqlalchemy import select
+
+    decision = await create(gql_client)
+    result = await gql_client.execute(
+        CREATE_EVALUATOR,
+        variables={
+            "input": {
+                "name": "invalid-policy",
+                "decisionVersionId": decision["version"]["id"],
+                "projectionPolicy": policy,
+            }
+        },
+    )
+    assert result.errors, result.data
+    async with db() as session:
+        assert (
+            await session.scalar(
+                select(models.DecisionEvaluator).where(
+                    models.DecisionEvaluator.name == Identifier("invalid-policy")
+                )
+            )
+            is None
+        )
+
+
+async def test_binding_policy_patch_preserves_omission_and_null_restores_inheritance(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    _, evaluator = await saved_evaluator(gql_client)
+    result = await gql_client.execute(
+        """
+      mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{
+        id decisionProjectionPolicy { questions { name ... on DecisionPredicateProjection { threshold } } }
+      }}}
+    """,
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": evaluator["id"],
+                "name": "judge",
+                "inputMapping": {"literalMapping": {}, "pathMapping": {"ticket": "input.ticket"}},
+                "projectionPolicy": {
+                    "questions": [{"predicate": {"name": "urgent", "threshold": 0.6}}]
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    binding = result.data["createDatasetDecisionEvaluator"]["evaluator"]
+    assert binding["decisionProjectionPolicy"] == {
+        "questions": [{"name": "urgent", "threshold": 0.6}]
+    }
+    patch = """
+      mutation($input:UpdateDatasetDecisionEvaluatorInput!){updateDatasetDecisionEvaluator(input:$input){evaluator{
+        decisionProjectionPolicy { questions { name ... on DecisionPredicateProjection { threshold } } }
+        evaluator { ... on DecisionEvaluator { projectionPolicy { questions { name ... on DecisionPredicateProjection { threshold } } } } }
+      }}}
+    """
+    result = await gql_client.execute(
+        patch, variables={"input": {"datasetEvaluatorId": binding["id"], "description": "changed"}}
+    )
+    assert result.data and not result.errors, result.errors
+    assert (
+        result.data["updateDatasetDecisionEvaluator"]["evaluator"]["decisionProjectionPolicy"]
+        == binding["decisionProjectionPolicy"]
+    )
+    result = await gql_client.execute(
+        patch, variables={"input": {"datasetEvaluatorId": binding["id"], "projectionPolicy": None}}
+    )
+    assert result.data and not result.errors, result.errors
+    patched = result.data["updateDatasetDecisionEvaluator"]["evaluator"]
+    assert patched["decisionProjectionPolicy"] is None
+    inherited = {
+        question["name"]: question
+        for question in patched["evaluator"]["projectionPolicy"]["questions"]
+    }
+    assert inherited["urgent"]["threshold"] == 0.8
+
+
+async def test_binding_override_replaces_only_the_questions_it_names(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    decision = await create(gql_client)
+    result = await gql_client.execute(
+        CREATE_EVALUATOR,
+        variables={
+            "input": {
+                "name": "scored-judge",
+                "decisionVersionId": decision["version"]["id"],
+                "projectionPolicy": {
+                    "questions": [
+                        {"predicate": {"name": "urgent", "threshold": 0.8}},
+                        {
+                            "choice": {
+                                "name": "team",
+                                "scores": [
+                                    {"choice": "technical", "score": 0},
+                                    {"choice": "billing", "score": 1},
+                                ],
+                            }
+                        },
+                    ]
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    evaluator = result.data["createDecisionEvaluator"]["evaluator"]
+    # Choice scores come back in the choices' declared order.
+    team = next(q for q in evaluator["projectionPolicy"]["questions"] if q["name"] == "team")
+    assert team["scores"] == [
+        {"choice": "billing", "score": 1},
+        {"choice": "technical", "score": 0},
+    ]
+    result = await gql_client.execute(
+        """
+      mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{
+        outputConfigs { ... on CategoricalAnnotationConfig { name values { label score } } }
+      }}}
+    """,
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": evaluator["id"],
+                "name": "judge",
+                "inputMapping": {"literalMapping": {}, "pathMapping": {"ticket": "input.ticket"}},
+                "projectionPolicy": {
+                    "questions": [{"predicate": {"name": "urgent", "threshold": 0.6}}]
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    configs = result.data["createDatasetDecisionEvaluator"]["evaluator"]["outputConfigs"]
+    # The override names only `urgent`, so `team` keeps the judge's scores.
+    assert {
+        "name": "team",
+        "values": [{"label": "billing", "score": 1}, {"label": "technical", "score": 0}],
+    } in configs
+
+
+PATCH_EVALUATOR = """
+mutation ($input: PatchDecisionEvaluatorInput!) {
+  patchDecisionEvaluator(input: $input) { evaluator {
+    name decisionVersion { id }
+    projectionPolicy { questions { name ... on DecisionPredicateProjection { threshold } } }
+  } }
+}
+"""
+
+
+async def test_patch_decision_evaluator(gql_client: AsyncGraphQLClient) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+
+    async def patch(**fields: Any) -> Any:
+        return await gql_client.execute(
+            PATCH_EVALUATOR, variables={"input": {"evaluatorId": evaluator["id"], **fields}}
+        )
+
+    def threshold(patched: Any) -> float:
+        questions = patched.data["patchDecisionEvaluator"]["evaluator"]["projectionPolicy"][
+            "questions"
+        ]
+        return float(next(q["threshold"] for q in questions if q["name"] == "urgent"))
+
+    result = await patch(
+        projectionPolicy={"questions": [{"predicate": {"name": "urgent", "threshold": 0.3}}]}
+    )
+    assert result.data and not result.errors, result.errors
+    assert threshold(result) == 0.3
+    result = await patch(name="renamed-judge")
+    assert result.data and not result.errors, result.errors
+    assert threshold(result) == 0.3, "omitting the policy keeps it"
+    result = await patch(projectionPolicy=None)
+    assert result.errors and "cannot be null" in result.errors[0].message
+    other = await create(gql_client, name="other-decision")
+    result = await patch(decisionVersionId=other["version"]["id"])
+    assert result.errors and "its own decision" in result.errors[0].message
+    result = await patch(
+        projectionPolicy={"questions": [{"predicate": {"name": "urgent", "threshold": 1.5}}]}
+    )
+    assert result.errors
+    message = result.errors[0].message
+    assert "question 'urgent'" in message and "threshold" in message
+    assert "pydantic" not in message and "PredicateProjection" not in message
+
+
+async def test_reordering_bound_questions_is_compatible(
+    gql_client: AsyncGraphQLClient, empty_dataset: None
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    binding = await gql_client.execute(
+        "mutation($input:CreateDatasetDecisionEvaluatorInput!){createDatasetDecisionEvaluator(input:$input){evaluator{id}}}",
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": evaluator["id"],
+                "name": "judge",
+                "inputMapping": {"literalMapping": {}, "pathMapping": {"ticket": "input.ticket"}},
+            }
+        },
+    )
+    assert binding.data and not binding.errors, binding.errors
+    questions = version_input()["questions"]
+    questions[1]["choice"]["choices"].reverse()
+    result = await gql_client.execute(
+        CREATE_VERSION,
+        variables={
+            "input": {
+                "decisionId": decision["id"],
+                "version": version_input(questions=questions[::-1]),
+                "tags": [{"name": evaluator["decisionVersionTag"]["name"]}],
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+
+
+async def test_update_dataset_decision_evaluator_rejects_other_bindings(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    empty_dataset: None,
+    synced_builtin_evaluators: None,
+) -> None:
+    from sqlalchemy import select
+
+    async with db() as session:
+        builtin_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+    result = await gql_client.execute(
+        "mutation($input:CreateDatasetBuiltinEvaluatorInput!){createDatasetBuiltinEvaluator(input:$input){evaluator{id}}}",
+        variables={
+            "input": {
+                "datasetId": str(GlobalID("Dataset", "1")),
+                "evaluatorId": str(GlobalID("BuiltInEvaluator", str(builtin_id))),
+                "name": "builtin",
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    update = "mutation($input:UpdateDatasetDecisionEvaluatorInput!){updateDatasetDecisionEvaluator(input:$input){evaluator{id}}}"
+    result = await gql_client.execute(
+        update,
+        variables={
+            "input": {
+                "datasetEvaluatorId": result.data["createDatasetBuiltinEvaluator"]["evaluator"][
+                    "id"
+                ],
+                "description": "x",
+            }
+        },
+    )
+    assert result.errors and "not a decision evaluator" in result.errors[0].message
+    result = await gql_client.execute(
+        update,
+        variables={
+            "input": {
+                "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "999")),
+                "description": "x",
+            }
+        },
+    )
+    assert result.errors and "not found" in result.errors[0].message

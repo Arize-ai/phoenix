@@ -3035,6 +3035,7 @@ export interface components {
              */
             evaluator_id: string;
             input_mapping: components["schemas"]["InputMapping"];
+            /** @description Decision evaluators only. Each question listed replaces the evaluator's scoring settings for it; every other question keeps the evaluator's. Null inherits all. */
             projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             /**
              * Description
@@ -3680,12 +3681,6 @@ export interface components {
         };
         /** DecisionProjectionPolicy */
         DecisionProjectionPolicy: {
-            /**
-             * Schema Version
-             * @default 1
-             * @constant
-             */
-            schema_version?: 1;
             /** Questions */
             questions?: {
                 [key: string]: components["schemas"]["PredicateProjection"] | components["schemas"]["ChoiceProjection"] | components["schemas"]["ScaleProjection"];
@@ -5014,6 +5009,7 @@ export interface components {
         };
         /** PatchDatasetEvaluatorRequest */
         PatchDatasetEvaluatorRequest: {
+            /** @description Decision evaluators only. Omit to preserve; null inherits all of the evaluator's scoring settings; otherwise each question listed replaces the evaluator's setting. */
             projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             name?: components["schemas"]["Identifier"];
             input_mapping?: components["schemas"]["InputMapping"];
@@ -5224,7 +5220,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "LLM" | "CODE" | "BUILTIN";
+            kind: "LLM" | "CODE" | "BUILTIN" | "DECISION";
             /** Isbuiltin */
             isBuiltin: boolean;
             /** Isapplied */

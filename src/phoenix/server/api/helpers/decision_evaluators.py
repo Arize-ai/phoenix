@@ -7,10 +7,10 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
     ChoiceProjection,
-    DecisionProjectionPolicy,
     PredicateProjection,
     ScaleProjection,
     derive_decision_output_configs,
+    effective_decision_policy,
     resolve_projection_policy,
 )
 from phoenix.db.types.decisions import DecisionInput, ScaleQuestion
@@ -46,15 +46,11 @@ def freeze_decision_evaluator(
     version = evaluator.selected_version
     if version is None:
         raise ValueError("The evaluator's pinned decision version was not found")
-    policy = resolve_projection_policy(
-        version.questions,
-        DecisionProjectionPolicy.model_validate(
-            policy_override if policy_override is not None else evaluator.projection_policy
-        ),
+    policy = effective_decision_policy(
+        version.questions, evaluator.projection_policy, policy_override
     )
     return InlineDecisionEvaluatorDefinition(
         type="inline_decision_evaluator",
-        schema_version=1,
         decision_schema_version=version.schema_version,
         name=name if name is not None else evaluator.name.root,
         description=description if description is not None else evaluator.description,
@@ -129,10 +125,9 @@ def project_decision_response(
                 "annotator_kind": "LLM",
                 "label": label,
                 "score": score,
-                "explanation": "Decision model refused this question" if refused else None,
+                "explanation": "Decision model refused this question." if refused else None,
                 "metadata": {
                     "decision": {
-                        "schema_version": 1,
                         "status": "refused" if refused else "answered",
                         "question": {"name": question.name, "type": question.type},
                         "answer": answer.model_dump(mode="json"),
@@ -140,6 +135,7 @@ def project_decision_response(
                         "requested_model": definition.model_name,
                         "resolved_model": response.model,
                         "provider": definition.model_provider.value,
+                        "custom_provider_id": definition.custom_provider_id,
                         "source": definition.source.model_dump(mode="json")
                         if definition.source
                         else None,

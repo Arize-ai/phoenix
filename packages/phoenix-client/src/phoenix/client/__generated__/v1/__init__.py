@@ -523,7 +523,7 @@ class PlaygroundEvaluatorTaskUIContext(TypedDict):
 class PlaygroundEvaluatorUIContext(TypedDict):
     datasetEvaluatorId: str
     name: str
-    kind: Literal["LLM", "CODE", "BUILTIN"]
+    kind: Literal["LLM", "CODE", "BUILTIN", "DECISION"]
     isBuiltin: bool
     isApplied: bool
 
@@ -1727,7 +1727,6 @@ class DatasetExample(TypedDict):
 
 
 class DecisionProjectionPolicy(TypedDict):
-    schema_version: NotRequired[Literal[1]]
     questions: NotRequired[
         Mapping[str, Union[PredicateProjection, ChoiceProjection, ScaleProjection]]
     ]

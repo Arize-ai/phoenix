@@ -13,7 +13,11 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
-from phoenix.db.types.decision_evaluators import DecisionProjectionPolicy, resolve_projection_policy
+from phoenix.db.types.decision_evaluators import (
+    DecisionProjectionPolicy,
+    effective_decision_policy,
+    resolve_projection_policy,
+)
 from phoenix.db.types.evaluator_definition import (
     InlineDecisionEvaluatorDefinition,
     StoredDecisionEvaluatorDefinition,
@@ -59,9 +63,13 @@ async def get_decision_evaluator(
 
 
 async def _version(session: AsyncSession, version_id: GlobalID) -> models.DecisionVersion:
-    version = await session.get(models.DecisionVersion, _id(version_id, "DecisionVersion"))
+    return await _version_by_rowid(session, _id(version_id, "DecisionVersion"))
+
+
+async def _version_by_rowid(session: AsyncSession, rowid: int) -> models.DecisionVersion:
+    version = await session.get(models.DecisionVersion, rowid)
     if version is None:
-        raise NotFound(f"Decision version not found: {version_id}")
+        raise NotFound(f"Decision version not found: {rowid}")
     if version.schema_version != 1:
         raise BadRequest("Unsupported decision schema version")
     return version
@@ -123,13 +131,19 @@ class DecisionEvaluatorPatch:
 
 
 def _signature(definition: InlineDecisionEvaluatorDefinition) -> tuple[Any, ...]:
+    """What a binding depends on: input names it maps, and the outputs it is scored by.
+
+    Order is not part of it: reordering inputs, questions, or choices changes no mapping or
+    annotation name. A scale's levels are ordered, because a level's index is its score.
+    Input JSON schemas are descriptive and are not enforced, so they are not part of it.
+    """
     return (
-        tuple(input.name for input in definition.inputs),
-        tuple(
+        frozenset(input.name for input in definition.inputs),
+        frozenset(
             (
                 question.name,
                 question.type,
-                tuple(choice.value for choice in question.choices)
+                frozenset(choice.value for choice in question.choices)
                 if question.type == "choice"
                 else tuple((level.label, level.description) for level in question.levels)
                 if question.type == "scale"
@@ -159,9 +173,10 @@ async def validate_bound_decision_update(
         update={"inputs": version.inputs, "state": version.state, "questions": version.questions}
     )
     if bindings and _signature(original) != _signature(candidate):
+        names = ", ".join(sorted(f"'{binding.name.root}'" for binding in bindings))
         raise Conflict(
-            "Dataset evaluator bindings are incompatible with changes to decision inputs, "
-            "question names, types, choices, or scale levels",
+            f"Changing decision inputs, question names, types, choices, or scale levels "
+            f"would break dataset evaluators {names}; detach them or create a new evaluator",
             reason="incompatible_override",
             dataset_evaluator_ids=[
                 str(GlobalID("DatasetEvaluator", str(binding.id))) for binding in bindings
@@ -179,13 +194,8 @@ async def validate_bound_decision_update(
         raise BadRequest(str(error)) from error
     for binding in bindings:
         try:
-            binding_policy = resolve_projection_policy(
-                version.questions,
-                DecisionProjectionPolicy.model_validate(
-                    binding.decision_projection_policy
-                    if binding.decision_projection_policy is not None
-                    else policy
-                ),
+            binding_policy = effective_decision_policy(
+                version.questions, policy, binding.decision_projection_policy
             )
             validate_decision_output_overrides(
                 candidate.model_copy(update={"projection_policy": binding_policy}),
@@ -213,6 +223,10 @@ async def patch_decision_evaluator(
                 if patch.decision_version_id is not UNSET and patch.decision_version_id is not None
                 else evaluator.selected_version
             )
+            if version.decision_id != evaluator.decision_id:
+                raise BadRequest(
+                    "A decision evaluator can only be pinned to versions of its own decision"
+                )
             if patch.projection_policy is None and patch.projection_policy is not UNSET:
                 raise BadRequest("projection_policy cannot be null")
             policy = (
@@ -227,8 +241,7 @@ async def patch_decision_evaluator(
             await validate_bound_decision_update(session, evaluator, version, policy)
             tag = await session.get(models.DecisionVersionTag, evaluator.decision_version_tag_id)
             assert tag is not None
-            tag.decision_id, tag.decision_version_id = version.decision_id, version.id
-            evaluator.decision_id = version.decision_id
+            tag.decision_version_id = version.id
             evaluator.projection_policy = policy
             if patch.name is not UNSET and patch.name is not None:
                 evaluator.name = patch.name
@@ -277,9 +290,7 @@ async def guard_owned_decision_tag_move(
     if evaluator_id is None:
         return
     evaluator = await get_decision_evaluator(session, evaluator_id, lock=True)
-    version = await session.get(models.DecisionVersion, version_id)
-    if version is None:
-        raise NotFound("Decision version not found")
+    version = await _version_by_rowid(session, version_id)
     await validate_bound_decision_update(session, evaluator, version, evaluator.projection_policy)
 
 
@@ -320,7 +331,8 @@ async def create_dataset_decision_binding(
                 evaluator_id=evaluator.id,
                 name=input.name,
                 input_mapping=input.input_mapping,
-                output_configs=input.output_configs,
+                # Derived from the judge whenever they are read, so they follow its edits.
+                output_configs=None,
                 description=input.description,
                 decision_projection_policy=input.projection_policy,
                 user_id=context.user_id,
@@ -343,8 +355,13 @@ async def build_decision_evaluator(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Optional[Sequence[GenerativeCredentialInput]] = None,
+    sdk_retries: bool = False,
 ) -> "DecisionEvaluator":
-    """Build a native judge from its saved or frozen definition without SDK retries."""
+    """Build a native judge from its saved or frozen definition.
+
+    SDK retries are off by default because the experiment runner owns retries; a preview,
+    which nothing retries, turns them on.
+    """
     from phoenix.server.api.decision_evaluator import DecisionEvaluator
     from phoenix.server.api.helpers.decision_clients import (
         get_custom_provider_decision_client,
@@ -369,7 +386,7 @@ async def build_decision_evaluator(
             model_name=definition.model_name,
             session=session,
             decrypt=decrypt,
-            sdk_retries=False,
+            sdk_retries=sdk_retries,
         )
     else:
         client = await get_decision_client(
@@ -379,6 +396,6 @@ async def build_decision_evaluator(
             session=session,
             decrypt=decrypt,
             credentials=credentials,
-            sdk_retries=False,
+            sdk_retries=sdk_retries,
         )
     return DecisionEvaluator(definition, client)

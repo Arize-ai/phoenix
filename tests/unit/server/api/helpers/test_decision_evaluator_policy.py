@@ -58,7 +58,6 @@ def test_output_shapes_and_default_policy_roundtrip() -> None:
 @pytest.mark.parametrize(
     "policy",
     [
-        {"schema_version": 2},
         {"questions": {"correct": {"type": "predicate", "threshold": 2}}},
         {"questions": {"correct": {"type": "predicate", "threshold": float("nan")}}},
         {"questions": {"route": {"type": "choice", "scores": {"accept": float("inf")}}}},

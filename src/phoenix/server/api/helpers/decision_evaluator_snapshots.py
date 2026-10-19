@@ -1,7 +1,5 @@
 """Immutable dataset decision judges, independent of later binding or tag edits."""
 
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +8,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluator_definition import InlineDecisionEvaluatorDefinition
 from phoenix.db.types.evaluators import InputMapping
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_evaluator_service import get_decision_evaluator
 from phoenix.server.api.helpers.decision_evaluators import (
     freeze_decision_evaluator,
@@ -19,7 +18,6 @@ from phoenix.server.api.helpers.decision_evaluators import (
 
 class DecisionEvaluatorSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
     dataset_evaluator_id: int
     name: str
     definition: InlineDecisionEvaluatorDefinition
@@ -53,13 +51,17 @@ async def freeze_dataset_decision_evaluators(session: AsyncSession, experiment_i
     snapshots = []
     for binding in bindings:
         evaluator = await get_decision_evaluator(session, binding.evaluator_id, lock=True)
-        definition = freeze_decision_evaluator(
-            evaluator,
-            policy_override=binding.decision_projection_policy,
-            name=binding.name.root,
-            description=binding.description,
-            dataset_evaluator_id=binding.id,
-        )
+        try:
+            definition = freeze_decision_evaluator(
+                evaluator,
+                policy_override=binding.decision_projection_policy,
+                name=binding.name.root,
+                description=binding.description,
+                dataset_evaluator_id=binding.id,
+            )
+            output_configs = validate_decision_output_overrides(definition, binding.output_configs)
+        except ValueError as error:
+            raise BadRequest(f"Dataset evaluator '{binding.name.root}': {error}") from error
         snapshots.append(
             DecisionEvaluatorSnapshot(
                 dataset_evaluator_id=binding.id,
@@ -67,9 +69,7 @@ async def freeze_dataset_decision_evaluators(session: AsyncSession, experiment_i
                 definition=definition,
                 input_mapping=binding.input_mapping,
                 project_id=binding.project_id,
-                output_configs=validate_decision_output_overrides(
-                    definition, binding.output_configs
-                ),
+                output_configs=output_configs,
             ).model_dump(mode="json")
         )
     job.decision_evaluator_snapshots = snapshots

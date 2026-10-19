@@ -129,7 +129,7 @@ async def test_refusal_is_terminal_and_keeps_siblings(
     assert results[1]["label"] is None and results[1]["score"] is None
     assert results[1]["error"] is None
     assert results[1]["metadata"]["decision"]["status"] == "refused"
-    assert results[1]["explanation"] == "Decision model refused this question"
+    assert results[1]["explanation"] == "Decision model refused this question."
     assert invoke.await_count == 1
 
 
@@ -186,3 +186,49 @@ async def test_explicit_context_keeps_standalone_decision_detached(
             otel_context=Context(),
         )
     assert len(tracer.get_db_traces(project_id=1)) == 2
+
+
+async def test_runner_retries_a_returned_rate_limit_from_a_decision_judge_only(
+    definition: InlineDecisionEvaluatorDefinition,
+    client: TypeSafeDecisionClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.server.daemons.experiment_runner import _raise_retryable_evaluation_error
+
+    error = DecisionRateLimitError("slow down")
+    monkeypatch.setattr(client, "invoke", AsyncMock(side_effect=error))
+    evaluator = DecisionEvaluator(definition, client)
+    results = await evaluator.evaluate(
+        context={},
+        input_mapping=InputMapping(path_mapping={}, literal_mapping={"ticket": {"id": 1}}),
+        name="judge",
+        output_configs=list(evaluator.output_configs),
+    )
+    with pytest.raises(DecisionRateLimitError):
+        _raise_retryable_evaluation_error(evaluator, results)
+    # Other judges that return failures (LLM judges) keep recording them, as before.
+    other = MagicMock(provider_client=client)
+    _raise_retryable_evaluation_error(other, results)
+
+
+async def test_eval_log_for_a_deleted_binding_is_skipped() -> None:
+    from phoenix.db import models
+    from tests.unit.server.daemons.test_experiment_runner import (
+        _AsyncSessionContext,
+        _make_running_experiment,
+    )
+
+    exp = _make_running_experiment()
+    session = MagicMock()
+    session.get = AsyncMock(return_value=None)
+    exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+    await exp._persist_log(
+        models.ExperimentEvalLog(
+            experiment_id=1,
+            level="ERROR",
+            message="failed",
+            experiment_run_id=1,
+            dataset_evaluator_id=7,
+        )
+    )
+    session.add.assert_not_called()
