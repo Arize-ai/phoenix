@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0289f79fd7db19e04b74f9682f1279df>>
+ * @generated SignedSource<<3d2ea0d5c0de7069638d31b0f5f2b4f0>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";

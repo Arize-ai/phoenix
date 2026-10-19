@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c5caf3342ad2a2ed685ff7513bb67ce>>
+ * @generated SignedSource<<157a2ec8b373c0c722491269e5943487>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluatorFilterColumn = "name";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type EvaluatorFilter = {
   col: EvaluatorFilterColumn;
   value: string;

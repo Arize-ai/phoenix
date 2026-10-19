@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<561fcd80de43998ca2fed3fa16ff1d90>>
+ * @generated SignedSource<<48a0254e98d5d98d753238975ee27641>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";

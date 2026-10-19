@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ac6f17ed32c789e5e5dc26e445ffc8dd>>
+ * @generated SignedSource<<a551dd621f16dff688b7162c1072c358>>
  * @lightSyntaxTransform
  */
 
@@ -28,23 +28,33 @@ export type EvaluatorPreviewItemInput = {
   inputMapping: EvaluatorInputMappingInput;
 };
 export type EvaluatorDefinitionInput = {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
+  decisionEvaluatorId: string;
+  inlineCodeEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
   builtInEvaluatorId: string;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
   inlineLlmEvaluator: InlineLLMEvaluatorInput;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId: string;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator: InlineCodeEvaluatorInput;
   inlineLlmEvaluator?: never;
 };

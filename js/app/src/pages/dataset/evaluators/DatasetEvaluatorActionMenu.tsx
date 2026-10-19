@@ -15,6 +15,7 @@ import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/datase
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import type { EvaluatorKind } from "@phoenix/types";
 
 import { DeleteDatasetEvaluatorDialog } from "./DeleteDatasetEvaluatorDialog";
 
@@ -32,7 +33,7 @@ export function DatasetEvaluatorActionMenu({
 }: {
   datasetId: string;
   datasetEvaluatorId: string;
-  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  evaluatorKind: EvaluatorKind;
   evaluatorName: string;
   updateConnectionIds?: string[];
 }) {
@@ -60,17 +61,20 @@ export function DatasetEvaluatorActionMenu({
               }
             }}
           >
-            <MenuItem id={DatasetEvaluatorAction.EDIT}>
-              <Flex
-                direction="row"
-                gap="size-75"
-                justifyContent="start"
-                alignItems="center"
-              >
-                <Icon svg={<Icons.Edit2 />} />
-                <Text>Edit</Text>
-              </Flex>
-            </MenuItem>
+            {/* TODO: decision evaluators have no edit slideover yet. */}
+            {evaluatorKind !== "DECISION" ? (
+              <MenuItem id={DatasetEvaluatorAction.EDIT}>
+                <Flex
+                  direction="row"
+                  gap="size-75"
+                  justifyContent="start"
+                  alignItems="center"
+                >
+                  <Icon svg={<Icons.Edit2 />} />
+                  <Text>Edit</Text>
+                </Flex>
+              </MenuItem>
+            ) : null}
             <MenuItem id={DatasetEvaluatorAction.DELETE}>
               <Flex
                 direction="row"
@@ -101,7 +105,7 @@ export function DatasetEvaluatorActionMenu({
           onOpenChange={setIsEditDialogOpen}
           updateConnectionIds={updateConnectionIds}
         />
-      ) : (
+      ) : evaluatorKind === "LLM" ? (
         <EditLLMDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluatorId}
           datasetId={datasetId}
@@ -109,7 +113,7 @@ export function DatasetEvaluatorActionMenu({
           onOpenChange={setIsEditDialogOpen}
           updateConnectionIds={updateConnectionIds}
         />
-      )}
+      ) : null}
       <DeleteDatasetEvaluatorDialog
         datasetEvaluatorId={datasetEvaluatorId}
         evaluatorName={evaluatorName}

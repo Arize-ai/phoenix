@@ -21,10 +21,11 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { useNotifySuccess } from "@phoenix/contexts";
+import type { EvaluatorKind } from "@phoenix/types";
 
 export type DeleteEvaluatorDialogProps = {
   evaluatorName: string;
-  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  evaluatorKind: EvaluatorKind;
   target: "project" | "dataset";
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;

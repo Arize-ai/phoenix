@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c3a1984087cfda71204449e4bf5c19e9>>
+ * @generated SignedSource<<0786dd9a1ffc017be47e6c1b2640740e>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";

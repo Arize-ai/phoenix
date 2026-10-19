@@ -23,6 +23,7 @@ const NAME_PLACEHOLDERS: Record<EvaluatorKind, string> = {
   LLM: "e.g. llm_eval",
   CODE: "e.g. code_eval",
   BUILTIN: "e.g. correctness",
+  DECISION: "e.g. decision_eval",
 };
 
 /**
