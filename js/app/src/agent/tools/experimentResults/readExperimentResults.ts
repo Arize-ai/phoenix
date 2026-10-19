@@ -37,7 +37,7 @@ type ExperimentRunResult = {
   expectedOutputs: ExperimentRunExpectedOutput[];
 };
 
-type ExperimentTaskKind = "prompt" | "evaluator";
+type ExperimentTaskKind = "prompt" | "decision" | "evaluator";
 
 export type ExperimentResults = {
   experiment: {
@@ -89,6 +89,8 @@ function toTaskKind(typename: string | undefined): ExperimentTaskKind | null {
       return "prompt";
     case "EvaluatorTaskConfig":
       return "evaluator";
+    case "DecisionTaskConfig":
+      return "decision";
     default:
       return null;
   }

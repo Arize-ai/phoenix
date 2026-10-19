@@ -38,7 +38,11 @@ function DecisionDetails({
       <Flex direction="column">
         <DecisionRow
           name="decision status"
-          value={decision.status === "refused" ? "Refused" : decision.status}
+          value={
+            { answered: "Answered", refused: "Refused", error: "Error" }[
+              decision.status
+            ]
+          }
         />
         {decision.question ? (
           <DecisionRow
@@ -67,7 +71,13 @@ function DecisionDetails({
         {decision.probabilities.map(({ key, probability }) => (
           <DecisionRow
             key={key}
-            name={`p(${key})`}
+            // TODO: Include scale level labels in annotation metadata to show
+            // historical labels here. Indices match the zero-based expected level.
+            name={
+              decision.question?.type === "scale"
+                ? `p(level ${key})`
+                : `p(${key})`
+            }
             value={floatFormatter(probability)}
           />
         ))}

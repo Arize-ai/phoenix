@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb598ff3c71289a9d6126349fe809eaf>>
+ * @generated SignedSource<<f1f371ccc04575abd36e6aec7cc732ae>>
  * @lightSyntaxTransform
  */
 
@@ -62,6 +62,9 @@ export type fetchPlaygroundDecisionQuery$data = {
       readonly state: {
         readonly __typename: "DecisionInputState";
         readonly input: string;
+      } | {
+        readonly __typename: "DecisionObjectState";
+        readonly object: boolean;
       } | {
         readonly __typename: "DecisionTextState";
         readonly template: string;
@@ -205,6 +208,20 @@ v9 = {
       "plural": false,
       "selections": [
         (v6/*:: as any*/),
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "object",
+              "storageKey": null
+            }
+          ],
+          "type": "DecisionObjectState",
+          "abstractKey": null
+        },
         {
           "kind": "InlineFragment",
           "selections": [
@@ -419,16 +436,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3661bc53fe9fa68f784120c022c4b278",
+    "cacheID": "aea019a28f3419d4c4d0e7fedb1b9803",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundDecisionQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundDecisionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        modelProvider\n        modelName\n        customProvider {\n          id\n          name\n        }\n        inputs {\n          name\n        }\n        state {\n          __typename\n          ... on DecisionInputState {\n            input\n          }\n          ... on DecisionTextState {\n            template\n            templateFormat\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundDecisionQuery(\n  $decisionId: ID!\n  $versionId: ID\n  $tagName: Identifier\n) {\n  decision: node(id: $decisionId) {\n    __typename\n    ... on Decision {\n      id\n      name\n      version(versionId: $versionId, tagName: $tagName) {\n        id\n        modelProvider\n        modelName\n        customProvider {\n          id\n          name\n        }\n        inputs {\n          name\n        }\n        state {\n          __typename\n          ... on DecisionObjectState {\n            object\n          }\n          ... on DecisionInputState {\n            input\n          }\n          ... on DecisionTextState {\n            template\n            templateFormat\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "67eb3f36e928334438b3aa63663915e2";
+(node as any).hash = "64b12a47609029c0b8cd9536697fcf28";
 
 export default node;

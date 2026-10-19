@@ -7,8 +7,10 @@
 
 import { fetchQuery, graphql } from "relay-runtime";
 
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
+  createDecisionTaskInstance,
   DEFAULT_INSTANCE_PARAMS,
   DEFAULT_MAX_CONCURRENCY,
   generateInstanceId,
@@ -23,9 +25,12 @@ import type {
   PlaygroundInstance,
   PlaygroundProps,
 } from "@phoenix/store/playground/types";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { experimentRehydrationQuery } from "./__generated__/experimentRehydrationQuery.graphql";
+import { toSavedDecisionVersion } from "./fetchPlaygroundDecision";
 import { buildPlaygroundInstanceFieldsFromPromptConfig } from "./promptConfigToPlaygroundInstance";
+import { savedDecisionVersionToDraft } from "./savedDecisionUtils";
 
 import "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 
@@ -47,6 +52,61 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
           }
           taskConfig {
             __typename
+            ... on DecisionTaskConfig {
+              modelProvider
+              modelName
+              baseUrl
+              customProvider {
+                id
+                name
+              }
+              inputValuesPath
+              questionsPath
+              questionsFormat
+              inputs {
+                name
+              }
+              state {
+                __typename
+                ... on DecisionObjectState {
+                  object
+                }
+                ... on DecisionInputState {
+                  input
+                }
+                ... on DecisionTextState {
+                  template
+                  templateFormat
+                }
+              }
+              questions {
+                __typename
+                ... on DecisionPredicateQuestion {
+                  name
+                  instructions
+                  criteria {
+                    true
+                    false
+                  }
+                }
+                ... on DecisionChoiceQuestion {
+                  name
+                  instructions
+                  choices {
+                    value
+                    description
+                  }
+                }
+                ... on DecisionScaleQuestion {
+                  name
+                  instructions
+                  levels {
+                    label
+                    description
+                  }
+                }
+              }
+            }
             ... on PromptTaskConfig {
               prompt {
                 templateType
@@ -290,16 +350,89 @@ export async function fetchExperimentPlaygroundProps(
 
   const node = data.node;
   const job = node.job;
-  if (job?.taskConfig?.__typename !== "PromptTaskConfig") return null;
+  const taskConfig = job?.taskConfig;
+  if (!job || !taskConfig) return null;
 
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(
     (edge) => edge.node.id
   );
 
+  if (taskConfig.__typename === "DecisionTaskConfig") {
+    // TODO: Preserve per-example questionsPath/questionsFormat in the decision
+    // playground draft before rehydrating benchmark tasks; fixed questions would
+    // silently change what a rerun asks.
+    if (taskConfig.questionsPath != null) return null;
+    return decisionTaskConfigToPlaygroundProps({
+      taskConfig,
+      maxConcurrency: job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+      datasetId: node.dataset?.id ?? null,
+      selectedDatasetEvaluatorIds,
+    });
+  }
+  if (taskConfig.__typename !== "PromptTaskConfig") return null;
   return taskConfigToPlaygroundProps(
-    job.taskConfig,
+    taskConfig,
     job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
     node.dataset?.id ?? null,
     selectedDatasetEvaluatorIds
   );
+}
+
+/** Rebuild a fixed-question decision task from its frozen experiment configuration. */
+export function decisionTaskConfigToPlaygroundProps({
+  taskConfig,
+  maxConcurrency,
+  datasetId,
+  selectedDatasetEvaluatorIds,
+}: {
+  taskConfig: Extract<
+    NonNullable<
+      NonNullable<
+        experimentRehydrationQuery["response"]["node"]["job"]
+      >["taskConfig"]
+    >,
+    { __typename: "DecisionTaskConfig" }
+  >;
+  maxConcurrency: number;
+  datasetId: string | null;
+  selectedDatasetEvaluatorIds: string[];
+}): ExperimentRehydrationResult {
+  if (!isModelProvider(taskConfig.modelProvider)) {
+    throw new Error(`Unknown decision provider: ${taskConfig.modelProvider}`);
+  }
+  const version = toSavedDecisionVersion(taskConfig);
+  const templateFormat =
+    version.state.kind === "text" && version.state.templateFormat === "F_STRING"
+      ? TemplateFormats.FString
+      : TemplateFormats.Mustache;
+  const defaults = createDecisionTaskInstance();
+  const instance: PlaygroundInstance = {
+    ...defaults,
+    id: generateInstanceId(),
+    decisionRequest: savedDecisionVersionToDraft({ version, templateFormat }),
+    model: {
+      ...defaults.model,
+      provider: taskConfig.modelProvider,
+      modelName: taskConfig.modelName,
+      customProvider: taskConfig.customProvider ?? null,
+      baseUrl: taskConfig.baseUrl,
+    },
+  };
+  return {
+    playgroundProps: { instances: [instance], templateFormat },
+    datasetId,
+    stateByDatasetId: datasetId
+      ? {
+          [datasetId]: {
+            templateVariablesPathByRole: {
+              ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_ROLE,
+              tested: taskConfig.inputValuesPath,
+            },
+            appendedMessagesPath: null,
+            maxConcurrency,
+          },
+        }
+      : {},
+    selectedDatasetEvaluatorIds,
+  };
 }

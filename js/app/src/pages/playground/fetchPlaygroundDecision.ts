@@ -43,6 +43,9 @@ const decisionVersionQuery = graphql`
           }
           state {
             __typename
+            ... on DecisionObjectState {
+              object
+            }
             ... on DecisionInputState {
               input
             }
@@ -88,8 +91,10 @@ type FetchedVersion = NonNullable<
   NonNullable<fetchPlaygroundDecisionQuery$data["decision"]>["version"]
 >;
 
-/** The fetched version in the shape the editor-draft conversion reads. */
-function toSavedVersion(version: FetchedVersion): SavedDecisionVersion {
+/** A fetched version or frozen experiment task in the shape the draft conversion reads. */
+export function toSavedDecisionVersion(
+  version: Pick<FetchedVersion, "state" | "inputs" | "questions">
+): SavedDecisionVersion {
   const state: SavedDecisionVersion["state"] =
     version.state.__typename === "DecisionInputState"
       ? { kind: "input", input: version.state.input }
@@ -182,7 +187,7 @@ export async function fetchDecisionVersion({
       name: decision.name,
       versionId: version.id,
     },
-    version: toSavedVersion(version),
+    version: toSavedDecisionVersion(version),
     modelProvider: version.modelProvider,
     modelName: version.modelName,
     customProvider: version.customProvider ?? null,

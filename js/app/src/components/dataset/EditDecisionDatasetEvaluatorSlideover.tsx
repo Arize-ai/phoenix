@@ -484,11 +484,28 @@ const EditDecisionEvaluatorDialogContent = ({
         return;
       }
       const questions = toDecisionQuestionDefinitions(next.questions);
+      const variables = next.inputs.map(({ name }) => name);
+      const { evaluator, setPathMapping, setLiteralMapping } = store.getState();
+      const declaredNames = new Set(variables);
+      setPathMapping(
+        Object.fromEntries(
+          Object.entries(evaluator.inputMapping.pathMapping).filter(([name]) =>
+            declaredNames.has(name)
+          )
+        )
+      );
+      setLiteralMapping(
+        Object.fromEntries(
+          Object.entries(evaluator.inputMapping.literalMapping).filter(
+            ([name]) => declaredNames.has(name)
+          )
+        )
+      );
       setPinned({
         versionId: next.id,
         sequenceNumber: next.sequenceNumber,
         questions,
-        variables: next.inputs.map(({ name }) => name),
+        variables,
       });
       setJudgePolicy((current) => normalizePolicy(questions, current));
       setBindingOverride((current) => pruneBindingOverride(current, questions));
@@ -570,7 +587,7 @@ const EditDecisionEvaluatorDialogContent = ({
             title="Input mapping"
             description="Map the judge's inputs to fields of the dataset example, the task output, and the reference output."
           />
-          <EvaluatorInputMapping />
+          <EvaluatorInputMapping key={pinned.versionId} />
         </Flex>
       </section>
       <section aria-label="Scoring for this dataset">
