@@ -21,7 +21,9 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { JSONEditor, CodeEditorFieldWrapper } from "@phoenix/components/code";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
+import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import type { DecisionActionsDeleteMutation } from "./__generated__/DecisionActionsDeleteMutation.graphql";
 import type { DecisionActionsDeleteTagMutation } from "./__generated__/DecisionActionsDeleteTagMutation.graphql";
@@ -116,20 +118,36 @@ export function DeleteDecisionButton({
 export function EditDecisionButton({
   decisionId,
   description,
+  metadata = {},
   onSaved,
 }: {
   decisionId: string;
   description: string | null;
+  metadata?: Record<string, unknown>;
   onSaved: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [value, setValue] = useState(description ?? "");
+  const [metadataValue, setMetadataValue] = useState(
+    JSON.stringify(metadata, null, 2)
+  );
   const [error, setError] = useState<string | null>(null);
   const [commit, isPending] = useMutation<DecisionActionsPatchMutation>(graphql`
-    mutation DecisionActionsPatchMutation($id: ID!, $description: String) {
-      patchDecision(input: { decisionId: $id, description: $description }) {
+    mutation DecisionActionsPatchMutation(
+      $id: ID!
+      $description: String
+      $metadata: JSON!
+    ) {
+      patchDecision(
+        input: {
+          decisionId: $id
+          description: $description
+          metadata: $metadata
+        }
+      ) {
         id
         description
+        metadata
       }
     }
   `);
@@ -139,15 +157,16 @@ export function EditDecisionButton({
       onOpenChange={(open) => {
         setIsOpen(open);
         setValue(description ?? "");
+        setMetadataValue(JSON.stringify(metadata, null, 2));
         setError(null);
       }}
     >
-      <Button size="S">Edit description</Button>
+      <Button size="S">Edit decision</Button>
       <Modal>
         <Dialog>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit decision description</DialogTitle>
+              <DialogTitle>Edit decision</DialogTitle>
               <DialogTitleExtra>
                 <DialogCloseButton />
               </DialogTitleExtra>
@@ -156,8 +175,16 @@ export function EditDecisionButton({
               <Form
                 onSubmit={(event) => {
                   event.preventDefault();
+                  if (!isJSONObjectString(metadataValue)) {
+                    setError("Metadata must be a valid JSON object");
+                    return;
+                  }
                   commit({
-                    variables: { id: decisionId, description: value || null },
+                    variables: {
+                      id: decisionId,
+                      description: value || null,
+                      metadata: JSON.parse(metadataValue),
+                    },
                     onCompleted: (_, errors) => {
                       if (errors?.length) {
                         setError(
@@ -177,6 +204,12 @@ export function EditDecisionButton({
                   <Label>Description</Label>
                   <TextArea />
                 </TextField>
+                <CodeEditorFieldWrapper label="Metadata">
+                  <JSONEditor
+                    value={metadataValue}
+                    onChange={setMetadataValue}
+                  />
+                </CodeEditorFieldWrapper>
                 <Flex justifyContent="end" gap="size-100">
                   <Button slot="close">Cancel</Button>
                   <Button
@@ -184,7 +217,7 @@ export function EditDecisionButton({
                     variant="primary"
                     isDisabled={isPending}
                   >
-                    Save description
+                    Save decision
                   </Button>
                 </Flex>
               </Form>
