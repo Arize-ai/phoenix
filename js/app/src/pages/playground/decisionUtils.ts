@@ -280,6 +280,8 @@ export function validateDecisionDraft(
   if (stateError) errors.state = stateError;
   if (draft.questions.length === 0) {
     errors.questions = "Add at least one question";
+  } else if (draft.questions.length > MAX_DECISION_QUESTIONS) {
+    errors.questions = `At most ${MAX_DECISION_QUESTIONS} questions`;
   }
   const seenNames = new Set<string>();
   for (const question of draft.questions) {
@@ -373,7 +375,7 @@ export function buildDecisionRequest({
   const formatText = createTextFormatter({ templateFormat, variables });
   const stateText = formatText(draft.state);
   const state: unknown =
-    draft.stateFormat === "json" ? JSON.parse(stateText) : stateText;
+    draft.stateFormat === "json" ? parseJsonState(stateText) : stateText;
   // A null-prototype record so a question literally named "__proto__" is an
   // own property rather than a prototype assignment.
   const questions: Record<string, SystemOneQuestion> = Object.create(null);
@@ -384,6 +386,17 @@ export function buildDecisionRequest({
     });
   }
   return { state, questions };
+}
+
+/** JSON state after variables are filled in, with a cause when it no longer parses. */
+function parseJsonState(stateText: string): unknown {
+  try {
+    return JSON.parse(stateText);
+  } catch {
+    throw new Error(
+      "State is not valid JSON after filling in variables. Quote variable values, or escape quotes inside them."
+    );
+  }
 }
 
 /**
@@ -609,6 +622,13 @@ const openAIDecisionsSchema = z.object({
   ),
 });
 
+/** A schema issue with the field it refers to, for the import error banner. */
+function describeImportIssue(issue: z.ZodIssue | undefined): string {
+  if (!issue) return "schema mismatch";
+  const path = issue.path.join(".");
+  return path ? `${path}: ${issue.message}` : issue.message;
+}
+
 export type DecisionImportResult = {
   draft: DecisionRequestDraft;
   format: DecisionWireFormat;
@@ -730,7 +750,7 @@ export function parseDecisionImport(text: string): DecisionImportResult {
     const parsed = openAIDecisionsSchema.safeParse(json);
     if (!parsed.success) {
       throw new Error(
-        `Not a valid OpenAI Decisions request: ${parsed.error.issues[0]?.message ?? "schema mismatch"}`
+        `Not a valid OpenAI Decisions request: ${describeImportIssue(parsed.error.issues[0])}`
       );
     }
     return {
@@ -742,7 +762,7 @@ export function parseDecisionImport(text: string): DecisionImportResult {
   const parsed = systemOneSchema.safeParse(json);
   if (!parsed.success) {
     throw new Error(
-      `Not a valid System One request: ${parsed.error.issues[0]?.message ?? "schema mismatch"}`
+      `Not a valid System One request: ${describeImportIssue(parsed.error.issues[0])}`
     );
   }
   return {
@@ -1038,6 +1058,44 @@ export function normalizeDecisionResult({
 }
 
 // ---------------------------------------------------------------------------
+// URL state
+// ---------------------------------------------------------------------------
+
+/** The search params that put the playground in decision mode on load. */
+export const DECISION_SEARCH_PARAMS = [
+  "modelType",
+  "decisionProvider",
+  "decisionModel",
+] as const;
+
+/**
+ * Write the first instance's decision target to the URL, or clear it. The
+ * URL recreates one instance on load, so only that instance is encoded.
+ * @param params.searchParams - the params to mutate
+ * @param params.target - the first instance's provider and model when it is a
+ *   decision instance, else null
+ */
+export function setDecisionSearchParams({
+  searchParams,
+  target,
+}: {
+  searchParams: URLSearchParams;
+  target: { provider: string; modelName: string | null } | null;
+}): void {
+  if (!target) {
+    DECISION_SEARCH_PARAMS.forEach((key) => searchParams.delete(key));
+    return;
+  }
+  searchParams.set("modelType", "DECISION");
+  searchParams.set("decisionProvider", target.provider);
+  if (target.modelName) {
+    searchParams.set("decisionModel", target.modelName);
+  } else {
+    searchParams.delete("decisionModel");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Span replay
 // ---------------------------------------------------------------------------
 
@@ -1116,15 +1174,19 @@ function readDecisionDraft(inputText: string | null): {
  * @param params.base - the default instance to build on
  * @param params.spanId - the span's node id, recorded on the replayed run
  * @param params.attributes - the span's parsed attributes
+ * @param params.status - the span's status, so a failed call replays as a
+ *   failed run rather than an empty one
  */
 export function buildDecisionInstanceFromSpanAttributes({
   base,
   spanId,
   attributes,
+  status,
 }: {
   base: PlaygroundInstance;
   spanId: string;
   attributes: unknown;
+  status?: { code: string; message: string };
 }): { playgroundInstance: PlaygroundInstance; parsingErrors: string[] } {
   const spanAttributes = isStringKeyedObject(attributes) ? attributes : {};
   const decisionAttributes = isStringKeyedObject(spanAttributes.decision)
@@ -1145,6 +1207,8 @@ export function buildDecisionInstanceFromSpanAttributes({
     readAttributeValueText(spanAttributes.input)
   );
   if (error) parsingErrors.push(error);
+  const output = readAttributeValueText(spanAttributes.output);
+  const isFailedRun = status?.code === "ERROR" && output == null;
 
   return {
     playgroundInstance: {
@@ -1161,9 +1225,15 @@ export function buildDecisionInstanceFromSpanAttributes({
       decisionRequest: draft,
       repetitions: {
         1: {
-          output: readAttributeValueText(spanAttributes.output),
+          output,
           spanId,
-          error: null,
+          error: isFailedRun
+            ? {
+                title: "Decision failed",
+                message:
+                  status?.message || "The recorded decision call failed.",
+              }
+            : null,
           toolCalls: {},
           status: "finished",
         },

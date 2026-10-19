@@ -113,6 +113,31 @@ describe("decision request draft", () => {
     });
   });
 
+  it("caps the question count like the server does", () => {
+    const draft = createDecisionDraft();
+    draft.questions = Array.from({ length: 256 }, (_, index) =>
+      createDecisionQuestion({
+        type: "noul",
+        name: `q${index}`,
+        instructions: "?",
+      })
+    );
+    expect(getDecisionValidationError(draft)).toBe("At most 255 questions");
+  });
+
+  it("explains a JSON state that stops parsing once variables are filled in", () => {
+    const draft = createDecisionDraft();
+    draft.stateFormat = "json";
+    draft.state = '{"note": "{{note}}"}';
+    expect(() =>
+      buildDecisionRequest({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+        variables: { note: 'say "hi"' },
+      })
+    ).toThrow("not valid JSON after filling in variables");
+  });
+
   it("handles question names that overlap Object.prototype safely", () => {
     const draft = createDecisionDraft();
     draft.questions[0].name = "__proto__";
@@ -310,6 +335,14 @@ describe("provider wire formats", () => {
     '{"input": "x", "questions": [{"type": "chat"}]}',
   ])("rejects %s with a readable error", (text) => {
     expect(() => parseDecisionImport(text)).toThrow();
+  });
+
+  it("names the field a schema error refers to", () => {
+    expect(() =>
+      parseDecisionImport(
+        '{"state": "x", "questions": {"q": {"type": "choice", "criteria": {"a": "b", "c": "d"}}}}'
+      )
+    ).toThrow("questions.q.instructions");
   });
 });
 

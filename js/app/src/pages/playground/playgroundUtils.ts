@@ -1149,6 +1149,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       base: basePlaygroundInstance,
       spanId: span.id,
       attributes: parsedAttributes,
+      status: { code: span.statusCode, message: span.statusMessage },
     });
   }
 
