@@ -22,6 +22,10 @@ import {
   EVALUATOR_DETAILS_ROUTE_ID,
   EvaluatorTracePage,
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
+import {
+  decisionLoader,
+  type DecisionLoaderData,
+} from "@phoenix/pages/decisions/decisionLoader";
 import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
 import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
@@ -44,6 +48,8 @@ import {
   ProjectEvaluatorTracePage,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
+import { SettingsDecisionsPage } from "@phoenix/pages/settings/decisions/SettingsDecisionsPage";
+import { settingsDecisionsPageLoader } from "@phoenix/pages/settings/decisions/settingsDecisionsPageLoader";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -1040,7 +1046,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Decisions",
               description:
-                "Browse saved decisions, typed questions, models, versions, and tags.",
+                "Browse, search, and label saved decisions, their models, versions, and tags.",
             },
             navigation: {
               section: "Pages",
@@ -1053,8 +1059,28 @@ export const appRouteObjects = createRoutesFromElements(
           <Route index element={<DecisionsPage />} />
           <Route
             path=":decisionId"
+            loader={decisionLoader}
+            shouldRevalidate={() => true}
             handle={{
-              crumb: () => "Decision",
+              crumb: (data: DecisionLoaderData) =>
+                data?.decision?.__typename === "Decision"
+                  ? data.decision.name
+                  : "Decision unknown",
+              copy: (data: DecisionLoaderData) =>
+                data?.decision?.__typename === "Decision"
+                  ? [
+                      {
+                        name: "Decision Name",
+                        value: data.decision.name,
+                        iconKey: "Text" as const,
+                      },
+                      {
+                        name: "Decision ID",
+                        value: data.decision.id,
+                        iconKey: "ID" as const,
+                      },
+                    ]
+                  : [],
               agentRoute: {
                 label: "Decision Details",
                 description:
@@ -1063,7 +1089,28 @@ export const appRouteObjects = createRoutesFromElements(
             }}
           >
             <Route index element={<DecisionPage />} />
-            <Route path="versions" element={<DecisionPage />} />
+            <Route
+              path="versions"
+              element={<DecisionPage />}
+              handle={{
+                agentRoute: {
+                  label: "Decision Versions",
+                  description:
+                    "Browse decision versions and compare their definitions, questions, and model configuration.",
+                },
+              }}
+            />
+            <Route
+              path="config"
+              element={<DecisionPage />}
+              handle={{
+                agentRoute: {
+                  label: "Decision Configuration",
+                  description:
+                    "Manage saved decision version tags and settings.",
+                },
+              }}
+            />
             <Route
               path="versions/:versionId"
               element={<DecisionPage />}
@@ -1391,6 +1438,19 @@ export const appRouteObjects = createRoutesFromElements(
               element={<RetentionPolicyDetailsDrawer />}
             />
           </Route>
+          <Route
+            path="decisions"
+            element={<SettingsDecisionsPage />}
+            loader={settingsDecisionsPageLoader}
+            handle={{
+              crumb: () => "Decisions",
+              agentRoute: {
+                label: "Decision Settings",
+                description:
+                  "Configure saved decision labels and labeling options.",
+              },
+            }}
+          />
           <Route
             path="prompts"
             element={<SettingsPromptsPage />}

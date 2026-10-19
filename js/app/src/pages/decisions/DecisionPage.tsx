@@ -1,36 +1,79 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   Alert,
   Button,
   Card,
-  CopyToClipboardButton,
+  Counter,
+  DialogTrigger,
   Flex,
-  Heading,
+  Icon,
+  Icons,
+  LazyTabPanel,
   Link,
   LinkButton,
   PageHeader,
   Skeleton,
+  Tab,
+  TabList,
+  Tabs,
   Text,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { JSONBlock } from "@phoenix/components/code";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 import type { DecisionPage_versions$key } from "./__generated__/DecisionPage_versions.graphql";
 import type { DecisionPageQuery } from "./__generated__/DecisionPageQuery.graphql";
 import type { DecisionPageVersionsQuery } from "./__generated__/DecisionPageVersionsQuery.graphql";
+import { CloneDecisionDialog } from "./CloneDecisionDialog";
 import {
   DeleteDecisionButton,
   DeleteDecisionTagButton,
   EditDecisionButton,
-  SetDecisionTagButton,
 } from "./DecisionActions";
+import { DecisionLabelConfigButton } from "./DecisionLabelConfigButton";
+import { DecisionLabels } from "./DecisionLabels";
+import { DecisionVersionDetails } from "./DecisionVersionDetails";
+
+const mainCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  .tabs {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    div[role="tablist"] {
+      flex: none;
+    }
+    .tabs__pane-container {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      div[role="tabpanel"]:not([hidden]) {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        overflow: auto;
+      }
+    }
+  }
+`;
 
 export function DecisionPage() {
   const { decisionId, versionId } = useParams();
@@ -38,28 +81,20 @@ export function DecisionPage() {
   if (!decisionId)
     return <Alert variant="danger">Decision ID is required.</Alert>;
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow: auto;
-      `}
+    <Suspense
+      fallback={
+        <View padding="size-200">
+          <Skeleton height={300} />
+        </View>
+      }
     >
-      <Suspense
-        fallback={
-          <View padding="size-200">
-            <Skeleton height={300} />
-          </View>
-        }
-      >
-        <DecisionDetails
-          decisionId={decisionId}
-          versionId={versionId ?? null}
-          refreshKey={refreshKey}
-          onRefresh={() => setRefreshKey((key) => key + 1)}
-        />
-      </Suspense>
-    </div>
+      <DecisionDetails
+        decisionId={decisionId}
+        versionId={versionId ?? null}
+        refreshKey={refreshKey}
+        onRefresh={() => setRefreshKey((key) => key + 1)}
+      />
+    </Suspense>
   );
 }
 
@@ -75,6 +110,12 @@ function DecisionDetails({
   onRefresh: () => void;
 }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const selectedTab = pathname.endsWith("/config")
+    ? "config"
+    : pathname.includes("/versions")
+      ? "versions"
+      : "decision";
   const { decision } = useLazyLoadQuery<DecisionPageQuery>(
     graphql`
       query DecisionPageQuery($id: ID!, $versionId: ID) {
@@ -84,65 +125,23 @@ function DecisionDetails({
             id
             name
             description
+            metadata
+            versionCount
+            sourceDecision {
+              id
+              name
+            }
             versionTags {
               id
               name
+              description
               decisionVersionId
             }
+            ...DecisionLabels
             ...DecisionPage_versions
             version(versionId: $versionId) {
               id
-              description
-              modelName
-              modelProvider
-              createdAt
-              schemaVersion
-              metadata
-              customProvider {
-                name
-              }
-              inputs {
-                name
-                description
-                jsonSchema
-              }
-              state {
-                __typename
-                ... on DecisionTextState {
-                  template
-                  templateFormat
-                }
-                ... on DecisionInputState {
-                  input
-                }
-              }
-              questions {
-                __typename
-                ... on DecisionPredicateQuestion {
-                  name
-                  instructions
-                  criteria {
-                    true
-                    false
-                  }
-                }
-                ... on DecisionChoiceQuestion {
-                  name
-                  instructions
-                  choices {
-                    value
-                    description
-                  }
-                }
-                ... on DecisionScaleQuestion {
-                  name
-                  instructions
-                  levels {
-                    label
-                    description
-                  }
-                }
-              }
+              ...DecisionVersionDetails_version
             }
           }
         }
@@ -151,7 +150,6 @@ function DecisionDetails({
     { id: decisionId, versionId },
     { fetchPolicy: "store-and-network", fetchKey: refreshKey }
   );
-
   if (decision?.__typename !== "Decision")
     return (
       <View padding="size-200">
@@ -162,252 +160,263 @@ function DecisionDetails({
       </View>
     );
   const version = decision.version;
-  const versionJSON = version ? JSON.stringify(version, null, 2) : "";
+  const tagNames = decision.versionTags.map((tag) => tag.name);
+  const versionDetails = version ? (
+    <DecisionVersionDetails
+      versionRef={version}
+      decisionId={decision.id}
+      tagNames={tagNames}
+      onRefresh={onRefresh}
+      isOverview={selectedTab === "decision"}
+    />
+  ) : (
+    <Alert variant="warning">This version could not be found.</Alert>
+  );
   return (
-    <>
+    <main css={mainCSS}>
       <PageHeader
         title={decision.name}
-        subTitle={decision.description || "Versioned decision"}
+        subTitle={
+          decision.sourceDecision ? (
+            <Text color="text-700">
+              cloned from{" "}
+              <Link to={`/decisions/${decision.sourceDecision.id}`}>
+                {decision.sourceDecision.name}
+              </Link>
+            </Text>
+          ) : undefined
+        }
         extra={
           <Flex gap="size-100" alignItems="center">
-            <CopyToClipboardButton
-              text={decision.id}
-              aria-label="Copy decision ID"
-            />
             <CanModify>
-              <EditDecisionButton
-                decisionId={decision.id}
-                description={decision.description}
-                onSaved={onRefresh}
-              />
-              <DeleteDecisionButton
-                decisionId={decision.id}
-                name={decision.name}
-                onDeleted={() => navigate("/decisions")}
-              />
+              <DialogTrigger>
+                <Button leadingVisual={<Icon svg={<Icons.GitBranch />} />}>
+                  Clone
+                </Button>
+                <ViewportModalOverlay>
+                  <ViewportModal size="M">
+                    <CloneDecisionDialog
+                      decisionId={decision.id}
+                      decisionName={decision.name}
+                      decisionDescription={decision.description ?? undefined}
+                      decisionMetadata={decision.metadata ?? undefined}
+                    />
+                  </ViewportModal>
+                </ViewportModalOverlay>
+              </DialogTrigger>
             </CanModify>
-            {version ? (
-              <LinkButton
-                variant="primary"
-                to={`/playground?${new URLSearchParams({ decisionId: decision.id, decisionVersionId: version.id })}`}
-              >
-                Open in playground
-              </LinkButton>
-            ) : null}
+            <LinkButton
+              variant="primary"
+              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+              to={`/playground?${new URLSearchParams({ decisionId: decision.id, ...(version ? { decisionVersionId: version.id } : {}) })}`}
+            >
+              Playground
+            </LinkButton>
           </Flex>
         }
       />
-      <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          <Card title="Versions">
-            <DecisionVersions
-              query={decision}
-              selectedVersionId={version?.id ?? null}
-              decisionId={decision.id}
-            />
-          </Card>
-          <Card
-            title="Version tags"
-            extra={
-              <CanModify>
-                {version ? (
-                  <SetDecisionTagButton
-                    versionId={version.id}
-                    tagNames={decision.versionTags.map((tag) => tag.name)}
-                    onSaved={onRefresh}
-                  />
-                ) : null}
-              </CanModify>
-            }
+      <Tabs
+        selectedKey={selectedTab}
+        onSelectionChange={(key) =>
+          navigate(
+            `/decisions/${decision.id}${key === "decision" ? "" : `/${key}`}`
+          )
+        }
+      >
+        <TabList>
+          <Tab id="decision">Decision</Tab>
+          <Tab id="versions">
+            Versions <Counter>{decision.versionCount}</Counter>
+          </Tab>
+          <Tab id="config">Config</Tab>
+        </TabList>
+        <LazyTabPanel id="decision">
+          <div
+            css={css`
+              display: flex;
+              flex: 1 1 auto;
+              min-width: 0;
+              @media (max-width: 1000px) {
+                flex-direction: column;
+              }
+            `}
           >
-            <View padding="size-200">
-              <Flex direction="column" gap="size-100">
-                {decision.versionTags.length ? (
-                  decision.versionTags.map((tag) => (
-                    <Flex key={tag.id} gap="size-200" alignItems="center">
-                      <Link
-                        to={`/decisions/${decision.id}/versions/${tag.decisionVersionId}`}
-                      >
-                        <TagVersionLabel>{tag.name}</TagVersionLabel>
-                      </Link>
-                      <Text>{tag.decisionVersionId}</Text>
-                      <CanModify>
-                        <DeleteDecisionTagButton
-                          tagId={tag.id}
-                          name={tag.name}
-                          onDeleted={onRefresh}
-                        />
-                      </CanModify>
-                    </Flex>
-                  ))
-                ) : (
-                  <Text color="text-700">No version tags</Text>
-                )}
+            <div
+              css={css`
+                flex: 1 1 auto;
+                min-width: 0;
+                padding: var(--global-dimension-size-200);
+                overflow: auto;
+              `}
+            >
+              {versionDetails}
+            </div>
+            <aside
+              css={css`
+                flex: 0 0 400px;
+                border-left: 1px solid var(--global-border-color-default);
+                padding: var(--global-dimension-size-200);
+                overflow: auto;
+              `}
+            >
+              <Flex direction="column" gap="size-200">
+                <Card
+                  title="Description"
+                  extra={
+                    <CanModify>
+                      <EditDecisionButton
+                        decisionId={decision.id}
+                        description={decision.description}
+                        metadata={decision.metadata}
+                        onSaved={onRefresh}
+                      />
+                    </CanModify>
+                  }
+                >
+                  <View padding="size-200">
+                    <Text>{decision.description || "No description"}</Text>
+                  </View>
+                </Card>
+                <Card
+                  title="Labels"
+                  extra={
+                    <CanModify>
+                      <DecisionLabelConfigButton decisionId={decision.id} />
+                    </CanModify>
+                  }
+                >
+                  <View padding="size-200">
+                    <DecisionLabels decision={decision} />
+                  </View>
+                </Card>
+                <Card title="Metadata">
+                  <JSONBlock
+                    value={JSON.stringify(decision.metadata, null, 2)}
+                  />
+                </Card>
+                <Card title="Latest versions">
+                  <DecisionVersions
+                    query={decision}
+                    selectedVersionId={version?.id ?? null}
+                    decisionId={decision.id}
+                    isOverview
+                  />
+                </Card>
               </Flex>
-            </View>
-          </Card>
-          {!version ? (
-            <Alert variant="danger">
-              {versionId
-                ? "This version does not belong to this decision or is unavailable. Choose a version above."
-                : "This decision has no saved versions."}
-            </Alert>
-          ) : (
-            <>
-              <Card
-                title="Selected version"
-                extra={
-                  <CopyToClipboardButton
-                    text={versionJSON}
-                    aria-label="Copy selected version"
-                  />
-                }
-              >
-                <View padding="size-200">
-                  <Flex direction="column" gap="size-100">
-                    <Text>{version.id}</Text>
-                    <Text>
-                      {version.modelName} ·{" "}
-                      {version.customProvider?.name ?? version.modelProvider}
-                    </Text>
-                    <Text color="text-700">
-                      Created {new Date(version.createdAt).toLocaleString()}
-                    </Text>
-                    {version.description ? (
-                      <Text>{version.description}</Text>
-                    ) : null}
-                  </Flex>
-                </View>
-              </Card>
-              <Card
-                title="Inputs"
-                extra={
-                  <CopyToClipboardButton
-                    text={JSON.stringify(version.inputs, null, 2)}
-                  />
-                }
-              >
-                <View padding="size-200">
-                  <Flex direction="column" gap="size-200">
-                    {version.inputs.map((input) => (
-                      <Flex key={input.name} direction="column" gap="size-50">
-                        <Heading level={3}>{input.name}</Heading>
-                        {input.description ? (
-                          <Text>{input.description}</Text>
-                        ) : null}
-                        {input.jsonSchema ? (
-                          <JSONBlock
-                            value={JSON.stringify(input.jsonSchema, null, 2)}
-                          />
-                        ) : null}
-                      </Flex>
+            </aside>
+          </div>
+        </LazyTabPanel>
+        <LazyTabPanel id="versions">
+          <div
+            css={css`
+              display: flex;
+              flex: 1 1 auto;
+              min-width: 0;
+              @media (max-width: 800px) {
+                flex-direction: column;
+              }
+            `}
+          >
+            <aside
+              css={css`
+                flex: 0 0 400px;
+                border-right: 1px solid var(--global-border-color-default);
+                overflow: auto;
+              `}
+            >
+              <DecisionVersions
+                query={decision}
+                selectedVersionId={version?.id ?? null}
+                decisionId={decision.id}
+              />
+            </aside>
+            <div
+              css={css`
+                flex: 1 1 auto;
+                min-width: 0;
+                overflow: auto;
+                padding: var(--global-dimension-size-200);
+              `}
+            >
+              {versionDetails}
+            </div>
+          </div>
+        </LazyTabPanel>
+        <LazyTabPanel id="config">
+          <View padding="size-200" width="100%">
+            <Flex
+              direction="column"
+              gap="size-200"
+              maxWidth={900}
+              marginStart="auto"
+              marginEnd="auto"
+            >
+              <Card title="Version tags">
+                <table css={tableCSS} aria-label="Decision version tags">
+                  <thead>
+                    <tr>
+                      <th scope="col">Tag</th>
+                      <th scope="col">Version</th>
+                      <th scope="col">Description</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {decision.versionTags.map((tag) => (
+                      <tr key={tag.id}>
+                        <td>
+                          <TagVersionLabel>{tag.name}</TagVersionLabel>
+                        </td>
+                        <td>
+                          <Link
+                            to={`/decisions/${decision.id}/versions/${tag.decisionVersionId}`}
+                          >
+                            {tag.decisionVersionId}
+                          </Link>
+                        </td>
+                        <td>{tag.description || "—"}</td>
+                        <td>
+                          <CanModify>
+                            <DeleteDecisionTagButton
+                              tagId={tag.id}
+                              name={tag.name}
+                              onDeleted={onRefresh}
+                            />
+                          </CanModify>
+                        </td>
+                      </tr>
                     ))}
+                  </tbody>
+                </table>
+                {decision.versionTags.length === 0 ? (
+                  <View padding="size-200">
+                    <Text color="text-700">
+                      No version tags. Select a version to add a tag.
+                    </Text>
+                  </View>
+                ) : null}
+              </Card>
+              <Card title="Decision settings">
+                <View padding="size-200">
+                  <Flex justifyContent="space-between" gap="size-100">
+                    <LinkButton to="/settings/decisions">
+                      Manage decision labels
+                    </LinkButton>
+                    <CanModify>
+                      <DeleteDecisionButton
+                        decisionId={decision.id}
+                        name={decision.name}
+                        onDeleted={() => navigate("/decisions")}
+                      />
+                    </CanModify>
                   </Flex>
                 </View>
               </Card>
-              <Card
-                title="State"
-                extra={
-                  <CopyToClipboardButton
-                    text={JSON.stringify(version.state, null, 2)}
-                  />
-                }
-              >
-                <View padding="size-200">
-                  {version.state.__typename === "DecisionTextState" ? (
-                    <>
-                      <Text color="text-700">
-                        {version.state.templateFormat}
-                      </Text>
-                      <pre
-                        css={css`
-                          white-space: pre-wrap;
-                          overflow-wrap: anywhere;
-                        `}
-                      >
-                        {version.state.template}
-                      </pre>
-                    </>
-                  ) : version.state.__typename === "DecisionInputState" ? (
-                    <Text>Use input: {version.state.input}</Text>
-                  ) : (
-                    <Text>Send the declared inputs as a JSON object.</Text>
-                  )}
-                </View>
-              </Card>
-              <Card
-                title="Questions"
-                extra={
-                  <CopyToClipboardButton
-                    text={JSON.stringify(version.questions, null, 2)}
-                  />
-                }
-              >
-                <View padding="size-200">
-                  <Flex direction="column" gap="size-200">
-                    {version.questions.map((question, index) => {
-                      if (question.__typename === "%other") return null;
-                      return (
-                        <Flex key={index} direction="column" gap="size-100">
-                          <Heading level={3}>{question.name}</Heading>
-                          <Text>{question.instructions}</Text>
-                          {question.__typename ===
-                          "DecisionPredicateQuestion" ? (
-                            <Flex direction="column" gap="size-50">
-                              <Text color="text-700">Predicate</Text>
-                              {question.criteria?.true ? (
-                                <Text>True: {question.criteria.true}</Text>
-                              ) : null}
-                              {question.criteria?.false ? (
-                                <Text>False: {question.criteria.false}</Text>
-                              ) : null}
-                            </Flex>
-                          ) : question.__typename ===
-                            "DecisionChoiceQuestion" ? (
-                            <ul>
-                              {question.choices.map((choice) => (
-                                <li key={choice.value}>
-                                  {choice.value}
-                                  {choice.description
-                                    ? ` — ${choice.description}`
-                                    : ""}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : question.__typename ===
-                            "DecisionScaleQuestion" ? (
-                            <ol start={0}>
-                              {question.levels.map((level, levelIndex) => (
-                                <li key={levelIndex}>
-                                  {level.label}
-                                  {level.description
-                                    ? ` — ${level.description}`
-                                    : ""}
-                                </li>
-                              ))}
-                            </ol>
-                          ) : null}
-                        </Flex>
-                      );
-                    })}
-                  </Flex>
-                </View>
-              </Card>
-              <Card
-                title="Metadata"
-                extra={
-                  <CopyToClipboardButton
-                    text={JSON.stringify(version.metadata, null, 2)}
-                  />
-                }
-              >
-                <JSONBlock value={JSON.stringify(version.metadata, null, 2)} />
-              </Card>
-            </>
-          )}
-        </Flex>
-      </View>
-    </>
+            </Flex>
+          </View>
+        </LazyTabPanel>
+      </Tabs>
+    </main>
   );
 }
 
@@ -415,10 +424,12 @@ function DecisionVersions({
   query,
   selectedVersionId,
   decisionId,
+  isOverview = false,
 }: {
   query: DecisionPage_versions$key;
   selectedVersionId: string | null;
   decisionId: string;
+  isOverview?: boolean;
 }) {
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     DecisionPageVersionsQuery,
@@ -436,9 +447,14 @@ function DecisionVersions({
           edges {
             node {
               id
+              sequenceNumber
               createdAt
               description
               modelName
+              user {
+                username
+                profilePictureUrl
+              }
               tags {
                 id
                 name
@@ -450,57 +466,63 @@ function DecisionVersions({
     `,
     query
   );
+  const versions = isOverview
+    ? data.versions.edges.slice(0, 5)
+    : data.versions.edges;
   return (
-    <>
-      <table css={tableCSS} aria-label="Decision versions">
-        <thead>
-          <tr>
-            {["Version", "Model", "Description", "Tags", "Created"].map(
-              (heading) => (
-                <th scope="col" key={heading}>
-                  {heading}
-                </th>
-              )
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {data.versions.edges.map(({ node: version }) => (
-            <tr
-              key={version.id}
-              aria-selected={version.id === selectedVersionId}
-            >
-              <td>
-                <Link
-                  to={`/decisions/${decisionId}/versions/${version.id}`}
-                  aria-current={
-                    version.id === selectedVersionId ? "page" : undefined
-                  }
-                >
-                  {version.id}
-                </Link>
-              </td>
-              <td>{version.modelName}</td>
-              <td>{version.description || "—"}</td>
-              <td>
-                <Flex gap="size-100">
-                  {version.tags.map((tag) => (
-                    <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
-                  ))}
-                </Flex>
-              </td>
-              <td>{new Date(version.createdAt).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {hasNext ? (
+    <Flex direction="column">
+      {versions.map(({ node: version }) => (
+        <View
+          key={version.id}
+          padding="size-200"
+          borderBottomWidth="thin"
+          borderColor="default"
+          backgroundColor={
+            version.id === selectedVersionId && !isOverview
+              ? "gray-100"
+              : undefined
+          }
+        >
+          <Flex direction="column" gap="size-100">
+            <Flex justifyContent="space-between" gap="size-100">
+              <Link
+                to={`/decisions/${decisionId}/versions/${version.id}`}
+                aria-current={
+                  version.id === selectedVersionId && !isOverview
+                    ? "page"
+                    : undefined
+                }
+              >
+                Version {version.sequenceNumber}
+              </Link>
+              <Text color="text-700">
+                {new Date(version.createdAt).toLocaleDateString()}
+              </Text>
+            </Flex>
+            {version.description ? <Text>{version.description}</Text> : null}
+            <Text color="text-700">{version.modelName}</Text>
+            <UserDisplay user={version.user} />
+            <Flex gap="size-100" wrap>
+              {version.tags.map((tag) => (
+                <TagVersionLabel key={tag.id}>{tag.name}</TagVersionLabel>
+              ))}
+            </Flex>
+          </Flex>
+        </View>
+      ))}
+      {isOverview ? (
+        <View padding="size-200">
+          <Link to={`/decisions/${decisionId}/versions`}>
+            View all versions
+          </Link>
+        </View>
+      ) : hasNext ? (
         <View padding="size-200">
           <Button onPress={() => loadNext(20)} isDisabled={isLoadingNext}>
             {isLoadingNext ? "Loading…" : "Load more versions"}
           </Button>
         </View>
       ) : null}
-    </>
+    </Flex>
   );
 }

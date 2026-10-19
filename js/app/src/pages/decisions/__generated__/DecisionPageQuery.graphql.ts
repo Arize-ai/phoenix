@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0c6d2bf5c108aed8fda8b77f48ddb70d>>
+ * @generated SignedSource<<a52920fbe781fce2b521871f94f9ec88>>
  * @lightSyntaxTransform
  */
 
@@ -9,8 +9,6 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type DecisionPageQuery$variables = {
   id: string;
   versionId?: string | null;
@@ -20,71 +18,24 @@ export type DecisionPageQuery$data = {
     readonly __typename: "Decision";
     readonly description: string | null;
     readonly id: string;
+    readonly metadata: any;
     readonly name: string;
-    readonly version: {
-      readonly createdAt: string;
-      readonly customProvider: {
-        readonly name: string;
-      } | null;
-      readonly description: string | null;
+    readonly sourceDecision: {
       readonly id: string;
-      readonly inputs: ReadonlyArray<{
-        readonly description: string | null;
-        readonly jsonSchema: any | null;
-        readonly name: string;
-      }>;
-      readonly metadata: any;
-      readonly modelName: string;
-      readonly modelProvider: GenerativeProviderKey;
-      readonly questions: ReadonlyArray<{
-        readonly __typename: "DecisionChoiceQuestion";
-        readonly choices: ReadonlyArray<{
-          readonly description: string | null;
-          readonly value: string;
-        }>;
-        readonly instructions: string;
-        readonly name: string;
-      } | {
-        readonly __typename: "DecisionPredicateQuestion";
-        readonly criteria: {
-          readonly false: string | null;
-          readonly true: string | null;
-        } | null;
-        readonly instructions: string;
-        readonly name: string;
-      } | {
-        readonly __typename: "DecisionScaleQuestion";
-        readonly instructions: string;
-        readonly levels: ReadonlyArray<{
-          readonly description: string | null;
-          readonly label: string;
-        }>;
-        readonly name: string;
-      } | {
-        // This will never be '%other', but we need some
-        // value in case none of the concrete values match.
-        readonly __typename: "%other";
-      }>;
-      readonly schemaVersion: number;
-      readonly state: {
-        readonly __typename: "DecisionInputState";
-        readonly input: string;
-      } | {
-        readonly __typename: "DecisionTextState";
-        readonly template: string;
-        readonly templateFormat: DecisionTemplateFormat;
-      } | {
-        // This will never be '%other', but we need some
-        // value in case none of the concrete values match.
-        readonly __typename: "%other";
-      };
+      readonly name: string;
     } | null;
+    readonly version: {
+      readonly id: string;
+      readonly " $fragmentSpreads": FragmentRefs<"DecisionVersionDetails_version">;
+    } | null;
+    readonly versionCount: number;
     readonly versionTags: ReadonlyArray<{
       readonly decisionVersionId: string;
+      readonly description: string | null;
       readonly id: string;
       readonly name: string;
     }>;
-    readonly " $fragmentSpreads": FragmentRefs<"DecisionPage_versions">;
+    readonly " $fragmentSpreads": FragmentRefs<"DecisionLabels" | "DecisionPage_versions">;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -147,6 +98,34 @@ v5 = {
 v6 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "metadata",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "versionCount",
+  "storageKey": null
+},
+v8 = [
+  (v3/*:: as any*/),
+  (v4/*:: as any*/)
+],
+v9 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Decision",
+  "kind": "LinkedField",
+  "name": "sourceDecision",
+  "plural": false,
+  "selections": (v8/*:: as any*/),
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
   "concreteType": "DecisionVersionTag",
   "kind": "LinkedField",
   "name": "versionTags",
@@ -154,6 +133,7 @@ v6 = {
   "selections": [
     (v3/*:: as any*/),
     (v4/*:: as any*/),
+    (v5/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -164,49 +144,78 @@ v6 = {
   ],
   "storageKey": null
 },
-v7 = [
+v11 = [
   {
     "kind": "Variable",
     "name": "versionId",
     "variableName": "versionId"
   }
 ],
-v8 = {
+v12 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 20
+  }
+],
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "modelName",
+  "name": "sequenceNumber",
   "storageKey": null
 },
-v9 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "modelProvider",
-  "storageKey": null
-},
-v10 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v11 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "schemaVersion",
+  "name": "modelName",
   "storageKey": null
 },
-v12 = {
+v16 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "metadata",
+  "concreteType": "User",
+  "kind": "LinkedField",
+  "name": "user",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "username",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "profilePictureUrl",
+      "storageKey": null
+    },
+    (v3/*:: as any*/)
+  ],
   "storageKey": null
 },
-v13 = {
+v17 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DecisionVersionTag",
+  "kind": "LinkedField",
+  "name": "tags",
+  "plural": true,
+  "selections": (v8/*:: as any*/),
+  "storageKey": null
+},
+v18 = {
   "alias": null,
   "args": null,
   "concreteType": "DecisionInputDefinition",
@@ -226,7 +235,7 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -273,14 +282,14 @@ v14 = {
   ],
   "storageKey": null
 },
-v15 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "instructions",
   "storageKey": null
 },
-v16 = {
+v21 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -293,7 +302,7 @@ v16 = {
       "kind": "InlineFragment",
       "selections": [
         (v4/*:: as any*/),
-        (v15/*:: as any*/),
+        (v20/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -327,7 +336,7 @@ v16 = {
       "kind": "InlineFragment",
       "selections": [
         (v4/*:: as any*/),
-        (v15/*:: as any*/),
+        (v20/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -355,7 +364,7 @@ v16 = {
       "kind": "InlineFragment",
       "selections": [
         (v4/*:: as any*/),
-        (v15/*:: as any*/),
+        (v20/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -382,13 +391,23 @@ v16 = {
   ],
   "storageKey": null
 },
-v17 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 20
-  }
-];
+v22 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
+  "storageKey": null
+},
+v23 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "GenerativeModelCustomProvider",
+  "kind": "LinkedField",
+  "name": "customProvider",
+  "plural": false,
+  "selections": (v8/*:: as any*/),
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -412,6 +431,14 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "DecisionLabels"
+              },
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -419,34 +446,18 @@ return {
               },
               {
                 "alias": null,
-                "args": (v7/*:: as any*/),
+                "args": (v11/*:: as any*/),
                 "concreteType": "DecisionVersion",
                 "kind": "LinkedField",
                 "name": "version",
                 "plural": false,
                 "selections": [
                   (v3/*:: as any*/),
-                  (v5/*:: as any*/),
-                  (v8/*:: as any*/),
-                  (v9/*:: as any*/),
-                  (v10/*:: as any*/),
-                  (v11/*:: as any*/),
-                  (v12/*:: as any*/),
                   {
-                    "alias": null,
                     "args": null,
-                    "concreteType": "GenerativeModelCustomProvider",
-                    "kind": "LinkedField",
-                    "name": "customProvider",
-                    "plural": false,
-                    "selections": [
-                      (v4/*:: as any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  (v13/*:: as any*/),
-                  (v14/*:: as any*/),
-                  (v16/*:: as any*/)
+                    "kind": "FragmentSpread",
+                    "name": "DecisionVersionDetails_version"
+                  }
                 ],
                 "storageKey": null
               }
@@ -483,9 +494,32 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
+              (v7/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
               {
                 "alias": null,
-                "args": (v17/*:: as any*/),
+                "args": null,
+                "concreteType": "DecisionLabel",
+                "kind": "LinkedField",
+                "name": "labels",
+                "plural": true,
+                "selections": [
+                  (v4/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "color",
+                    "storageKey": null
+                  },
+                  (v3/*:: as any*/)
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": (v12/*:: as any*/),
                 "concreteType": "DecisionVersionConnection",
                 "kind": "LinkedField",
                 "name": "versions",
@@ -508,22 +542,12 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*:: as any*/),
-                          (v10/*:: as any*/),
+                          (v13/*:: as any*/),
+                          (v14/*:: as any*/),
                           (v5/*:: as any*/),
-                          (v8/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "DecisionVersionTag",
-                            "kind": "LinkedField",
-                            "name": "tags",
-                            "plural": true,
-                            "selections": [
-                              (v3/*:: as any*/),
-                              (v4/*:: as any*/)
-                            ],
-                            "storageKey": null
-                          },
+                          (v15/*:: as any*/),
+                          (v16/*:: as any*/),
+                          (v17/*:: as any*/),
                           (v2/*:: as any*/)
                         ],
                         "storageKey": null
@@ -568,7 +592,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v17/*:: as any*/),
+                "args": (v12/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "DecisionPage_versions",
@@ -577,35 +601,50 @@ return {
               },
               {
                 "alias": null,
-                "args": (v7/*:: as any*/),
+                "args": (v11/*:: as any*/),
                 "concreteType": "DecisionVersion",
                 "kind": "LinkedField",
                 "name": "version",
                 "plural": false,
                 "selections": [
                   (v3/*:: as any*/),
+                  (v13/*:: as any*/),
                   (v5/*:: as any*/),
-                  (v8/*:: as any*/),
-                  (v9/*:: as any*/),
-                  (v10/*:: as any*/),
-                  (v11/*:: as any*/),
-                  (v12/*:: as any*/),
+                  (v14/*:: as any*/),
+                  (v6/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "GenerativeModelCustomProvider",
-                    "kind": "LinkedField",
-                    "name": "customProvider",
-                    "plural": false,
-                    "selections": [
-                      (v4/*:: as any*/),
-                      (v3/*:: as any*/)
-                    ],
+                    "kind": "ScalarField",
+                    "name": "schemaVersion",
                     "storageKey": null
                   },
-                  (v13/*:: as any*/),
-                  (v14/*:: as any*/),
-                  (v16/*:: as any*/)
+                  (v16/*:: as any*/),
+                  (v17/*:: as any*/),
+                  (v18/*:: as any*/),
+                  (v19/*:: as any*/),
+                  (v21/*:: as any*/),
+                  (v15/*:: as any*/),
+                  (v22/*:: as any*/),
+                  (v23/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "DecisionVersion",
+                    "kind": "LinkedField",
+                    "name": "previousVersion",
+                    "plural": false,
+                    "selections": [
+                      (v3/*:: as any*/),
+                      (v18/*:: as any*/),
+                      (v19/*:: as any*/),
+                      (v21/*:: as any*/),
+                      (v15/*:: as any*/),
+                      (v22/*:: as any*/),
+                      (v23/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               }
@@ -619,16 +658,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ccf17294a2b0d86ca9a7d3ed503f264a",
+    "cacheID": "45f7c01b2704e76719f79f77ba071aea",
     "id": null,
     "metadata": {},
     "name": "DecisionPageQuery",
     "operationKind": "query",
-    "text": "query DecisionPageQuery(\n  $id: ID!\n  $versionId: ID\n) {\n  decision: node(id: $id) {\n    __typename\n    ... on Decision {\n      id\n      name\n      description\n      versionTags {\n        id\n        name\n        decisionVersionId\n      }\n      ...DecisionPage_versions\n      version(versionId: $versionId) {\n        id\n        description\n        modelName\n        modelProvider\n        createdAt\n        schemaVersion\n        metadata\n        customProvider {\n          name\n          id\n        }\n        inputs {\n          name\n          description\n          jsonSchema\n        }\n        state {\n          __typename\n          ... on DecisionTextState {\n            template\n            templateFormat\n          }\n          ... on DecisionInputState {\n            input\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment DecisionPage_versions on Decision {\n  versions(first: 20) {\n    edges {\n      node {\n        id\n        createdAt\n        description\n        modelName\n        tags {\n          id\n          name\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DecisionPageQuery(\n  $id: ID!\n  $versionId: ID\n) {\n  decision: node(id: $id) {\n    __typename\n    ... on Decision {\n      id\n      name\n      description\n      metadata\n      versionCount\n      sourceDecision {\n        id\n        name\n      }\n      versionTags {\n        id\n        name\n        description\n        decisionVersionId\n      }\n      ...DecisionLabels\n      ...DecisionPage_versions\n      version(versionId: $versionId) {\n        id\n        ...DecisionVersionDetails_version\n      }\n    }\n    id\n  }\n}\n\nfragment DecisionLabels on Decision {\n  labels {\n    name\n    color\n    id\n  }\n}\n\nfragment DecisionPage_versions on Decision {\n  versions(first: 20) {\n    edges {\n      node {\n        id\n        sequenceNumber\n        createdAt\n        description\n        modelName\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        tags {\n          id\n          name\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DecisionVersionDetails_definition on DecisionVersion {\n  inputs {\n    name\n    description\n    jsonSchema\n  }\n  state {\n    __typename\n    ... on DecisionTextState {\n      template\n      templateFormat\n    }\n    ... on DecisionInputState {\n      input\n    }\n  }\n  questions {\n    __typename\n    ... on DecisionPredicateQuestion {\n      name\n      instructions\n      criteria {\n        true\n        false\n      }\n    }\n    ... on DecisionChoiceQuestion {\n      name\n      instructions\n      choices {\n        value\n        description\n      }\n    }\n    ... on DecisionScaleQuestion {\n      name\n      instructions\n      levels {\n        label\n        description\n      }\n    }\n  }\n  modelName\n  modelProvider\n  customProvider {\n    id\n    name\n  }\n}\n\nfragment DecisionVersionDetails_version on DecisionVersion {\n  id\n  sequenceNumber\n  description\n  createdAt\n  metadata\n  schemaVersion\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  tags {\n    id\n    name\n  }\n  ...DecisionVersionDetails_definition\n  previousVersion {\n    id\n    ...DecisionVersionDetails_definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4667de0ed6cc58611528982097485f99";
+(node as any).hash = "84428c856812955d48033722a1209acc";
 
 export default node;

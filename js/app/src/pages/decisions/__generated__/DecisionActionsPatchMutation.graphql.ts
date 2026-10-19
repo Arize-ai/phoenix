@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8037ee9fc802bfbdba24e1060843b038>>
+ * @generated SignedSource<<445f901b27ecec12ef746cdac4c4ad2a>>
  * @lightSyntaxTransform
  */
 
@@ -11,11 +11,13 @@ import { ConcreteRequest } from 'relay-runtime';
 export type DecisionActionsPatchMutation$variables = {
   description?: string | null;
   id: string;
+  metadata: any;
 };
 export type DecisionActionsPatchMutation$data = {
   readonly patchDecision: {
     readonly description: string | null;
     readonly id: string;
+    readonly metadata: any;
   };
 };
 export type DecisionActionsPatchMutation = {
@@ -34,7 +36,12 @@ v1 = {
   "kind": "LocalArgument",
   "name": "id"
 },
-v2 = [
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "metadata"
+},
+v3 = [
   {
     "alias": null,
     "args": [
@@ -49,6 +56,11 @@ v2 = [
             "kind": "Variable",
             "name": "description",
             "variableName": "description"
+          },
+          {
+            "kind": "Variable",
+            "name": "metadata",
+            "variableName": "metadata"
           }
         ],
         "kind": "ObjectValue",
@@ -73,6 +85,13 @@ v2 = [
         "kind": "ScalarField",
         "name": "description",
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "metadata",
+        "storageKey": null
       }
     ],
     "storageKey": null
@@ -82,12 +101,13 @@ return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*:: as any*/),
-      (v1/*:: as any*/)
+      (v1/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "DecisionActionsPatchMutation",
-    "selections": (v2/*:: as any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -95,23 +115,24 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v1/*:: as any*/),
-      (v0/*:: as any*/)
+      (v0/*:: as any*/),
+      (v2/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "DecisionActionsPatchMutation",
-    "selections": (v2/*:: as any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "5c9cf178cd924dfe0e1d6bdd37679fcd",
+    "cacheID": "314e98dfc0c05fc716bac1e70ef717f8",
     "id": null,
     "metadata": {},
     "name": "DecisionActionsPatchMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionActionsPatchMutation(\n  $id: ID!\n  $description: String\n) {\n  patchDecision(input: {decisionId: $id, description: $description}) {\n    id\n    description\n  }\n}\n"
+    "text": "mutation DecisionActionsPatchMutation(\n  $id: ID!\n  $description: String\n  $metadata: JSON!\n) {\n  patchDecision(input: {decisionId: $id, description: $description, metadata: $metadata}) {\n    id\n    description\n    metadata\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e87bfc48382597f280e409837b9e0c64";
+(node as any).hash = "0ed85cec6f8e933994dec3a2bcaad5cf";
 
 export default node;

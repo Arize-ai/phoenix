@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85bf2a47b8e2c902efe20b24030cb61d>>
+ * @generated SignedSource<<a1bbbb51708f8a899a32e49459785a03>>
  * @lightSyntaxTransform
  */
 
@@ -9,16 +9,9 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DecisionFilterColumn = "name";
-export type DecisionFilter = {
-  col: DecisionFilterColumn;
-  value: string;
-};
-export type DecisionsPageQuery$variables = {
-  filter?: DecisionFilter | null;
-};
+export type DecisionsPageQuery$variables = Record<PropertyKey, never>;
 export type DecisionsPageQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"DecisionsPage_list">;
+  readonly " $fragmentSpreads": FragmentRefs<"DecisionsTable_decisions">;
 };
 export type DecisionsPageQuery = {
   response: DecisionsPageQuery$data;
@@ -28,51 +21,53 @@ export type DecisionsPageQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "filter"
+    "kind": "Literal",
+    "name": "first",
+    "value": 100
   }
 ],
 v1 = {
-  "kind": "Variable",
-  "name": "filter",
-  "variableName": "filter"
-},
-v2 = [
-  (v1/*:: as any*/),
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 50
-  }
-],
-v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v3 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "profilePictureUrl",
+    "storageKey": null
+  },
+  (v1/*:: as any*/)
+];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
     "name": "DecisionsPageQuery",
     "selections": [
       {
-        "args": [
-          (v1/*:: as any*/)
-        ],
+        "args": null,
         "kind": "FragmentSpread",
-        "name": "DecisionsPage_list"
+        "name": "DecisionsTable_decisions"
       }
     ],
     "type": "Query",
@@ -80,13 +75,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
     "name": "DecisionsPageQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "DecisionConnection",
         "kind": "LinkedField",
         "name": "decisions",
@@ -101,15 +96,15 @@ return {
             "plural": true,
             "selections": [
               {
-                "alias": null,
+                "alias": "decision",
                 "args": null,
                 "concreteType": "Decision",
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*:: as any*/),
-                  (v4/*:: as any*/),
+                  (v1/*:: as any*/),
+                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -120,15 +115,21 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "updatedAt",
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "createdBy",
+                    "plural": false,
+                    "selections": (v3/*:: as any*/),
                     "storageKey": null
                   },
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "versionCount",
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "updatedBy",
+                    "plural": false,
+                    "selections": (v3/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -139,7 +140,14 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
-                      (v3/*:: as any*/),
+                      (v1/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "createdAt",
+                        "storageKey": null
+                      },
                       {
                         "alias": null,
                         "args": null,
@@ -160,13 +168,27 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "versionCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "DecisionVersionTag",
                     "kind": "LinkedField",
                     "name": "versionTags",
                     "plural": true,
                     "selections": [
-                      (v3/*:: as any*/),
-                      (v4/*:: as any*/),
+                      (v1/*:: as any*/),
+                      (v2/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -180,8 +202,21 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
+                    "concreteType": "DecisionLabel",
+                    "kind": "LinkedField",
+                    "name": "labels",
+                    "plural": true,
+                    "selections": [
+                      (v1/*:: as any*/),
+                      (v2/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "color",
+                        "storageKey": null
+                      }
+                    ],
                     "storageKey": null
                   }
                 ],
@@ -192,6 +227,25 @@ return {
                 "args": null,
                 "kind": "ScalarField",
                 "name": "cursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Decision",
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
+                  },
+                  (v1/*:: as any*/)
+                ],
                 "storageKey": null
               }
             ],
@@ -223,32 +277,33 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": null
+        "storageKey": "decisions(first:100)"
       },
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
+        "args": (v0/*:: as any*/),
         "filters": [
-          "filter"
+          "filter",
+          "labelIds"
         ],
         "handle": "connection",
-        "key": "DecisionsPage_decisions",
+        "key": "DecisionsTable_decisions",
         "kind": "LinkedHandle",
         "name": "decisions"
       }
     ]
   },
   "params": {
-    "cacheID": "a120f2fa5a15ff437891397d24dac72d",
+    "cacheID": "bf3c67db8c5ee7819ddef4225e13677d",
     "id": null,
     "metadata": {},
     "name": "DecisionsPageQuery",
     "operationKind": "query",
-    "text": "query DecisionsPageQuery(\n  $filter: DecisionFilter\n) {\n  ...DecisionsPage_list_Vt7Yj\n}\n\nfragment DecisionsPage_list_Vt7Yj on Query {\n  decisions(first: 50, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        description\n        updatedAt\n        versionCount\n        version {\n          id\n          modelName\n          modelProvider\n        }\n        versionTags {\n          id\n          name\n          decisionVersionId\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DecisionsPageQuery {\n  ...DecisionsTable_decisions\n}\n\nfragment DecisionsTable_decisions on Query {\n  decisions(first: 100) {\n    edges {\n      decision: node {\n        id\n        name\n        description\n        createdBy {\n          username\n          profilePictureUrl\n          id\n        }\n        updatedBy {\n          username\n          profilePictureUrl\n          id\n        }\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        updatedAt\n        versionCount\n        versionTags {\n          id\n          name\n          decisionVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "178e45017124f5eb40ba2cd50cdc6be4";
+(node as any).hash = "eafc54afebc3bcbd37b0bbda069326c9";
 
 export default node;
