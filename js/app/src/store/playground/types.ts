@@ -146,11 +146,6 @@ export type DecisionRequestDraft = {
   state: string;
   stateFormat: "text" | "json";
   questions: DecisionQuestionDraft[];
-  /**
-   * Bumped when the request is replaced wholesale (import), so uncontrolled
-   * editors remount and show the new text. Local typing never changes it.
-   */
-  revision?: number;
 };
 
 export type PlaygroundInput = {

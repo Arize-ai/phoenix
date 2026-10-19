@@ -152,12 +152,21 @@ export function createDecisionDraft(): DecisionRequestDraft {
 // Validation
 // ---------------------------------------------------------------------------
 
+/** A field left empty; the one error editors hold back until the field is left. */
+export const REQUIRED_ERROR = "Required";
+const STATE_REQUIRED_ERROR = "State cannot be empty";
+
 export type DecisionQuestionErrors = {
   name?: string;
   instructions?: string;
+  /** Too few or too many options. */
   choices?: string;
+  /** Per option id: an empty or duplicate value. */
   choiceOptions?: Partial<Record<string, string>>;
+  /** Too few or too many levels. */
   levels?: string;
+  /** Per level id: an empty description. */
+  levelDescriptions?: Partial<Record<string, string>>;
 };
 
 export type DecisionDraftErrors = {
@@ -180,7 +189,7 @@ function getChoiceQuestionErrors(
   const optionErrors: Partial<Record<string, string>> = {};
   for (const option of question.choices) {
     const value = option.value.trim();
-    if (!value) optionErrors[option.id] = "Required";
+    if (!value) optionErrors[option.id] = REQUIRED_ERROR;
     else if (seenValues.has(value)) optionErrors[option.id] = "Duplicate";
     seenValues.add(value);
   }
@@ -190,18 +199,21 @@ function getChoiceQuestionErrors(
 
 function getScoreQuestionErrors(
   question: DecisionQuestionDraft
-): Pick<DecisionQuestionErrors, "levels"> {
+): Pick<DecisionQuestionErrors, "levels" | "levelDescriptions"> {
+  const errors: Pick<DecisionQuestionErrors, "levels" | "levelDescriptions"> =
+    {};
   const levelCount = question.levels.length;
   if (levelCount < MIN_SCORE_LEVELS) {
-    return { levels: `Add at least ${MIN_SCORE_LEVELS} levels` };
+    errors.levels = `Add at least ${MIN_SCORE_LEVELS} levels`;
+  } else if (levelCount > MAX_SCORE_LEVELS) {
+    errors.levels = `At most ${MAX_SCORE_LEVELS} levels`;
   }
-  if (levelCount > MAX_SCORE_LEVELS) {
-    return { levels: `At most ${MAX_SCORE_LEVELS} levels` };
+  const levelErrors: Partial<Record<string, string>> = {};
+  for (const level of question.levels) {
+    if (!level.description.trim()) levelErrors[level.id] = REQUIRED_ERROR;
   }
-  if (question.levels.some((level) => !level.description.trim())) {
-    return { levels: "Every level needs a description" };
-  }
-  return {};
+  if (Object.keys(levelErrors).length) errors.levelDescriptions = levelErrors;
+  return errors;
 }
 
 function getQuestionErrors({
@@ -214,10 +226,10 @@ function getQuestionErrors({
 }): DecisionQuestionErrors {
   const errors: DecisionQuestionErrors = {};
   const name = question.name.trim();
-  if (!name) errors.name = "Required";
+  if (!name) errors.name = REQUIRED_ERROR;
   else if (seenNames.has(name)) errors.name = "Duplicate name";
   else seenNames.add(name);
-  if (!question.instructions.trim()) errors.instructions = "Required";
+  if (!question.instructions.trim()) errors.instructions = REQUIRED_ERROR;
   if (question.type === "choice") {
     Object.assign(errors, getChoiceQuestionErrors(question));
   }
@@ -228,7 +240,7 @@ function getQuestionErrors({
 }
 
 function getStateError(draft: DecisionRequestDraft): string | undefined {
-  if (!draft.state.trim()) return "State cannot be empty";
+  if (!draft.state.trim()) return STATE_REQUIRED_ERROR;
   if (draft.stateFormat !== "json") return undefined;
   try {
     const parsed: unknown = JSON.parse(draft.state);
@@ -298,8 +310,126 @@ export function getDecisionValidationError(
       return `${label}: option values must be unique and non-empty`;
     }
     if (questionErrors.levels) return `${label}: ${questionErrors.levels}`;
+    if (questionErrors.levelDescriptions) {
+      return `${label}: every level needs a description`;
+    }
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Error visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Ids for the fields a draft's errors refer to. Editors record the fields
+ * the user has left under these ids; see {@link maskUntouchedErrors}.
+ */
+export const decisionFieldId = {
+  state: () => "state",
+  name: (questionId: string) => `${questionId}.name`,
+  instructions: (questionId: string) => `${questionId}.instructions`,
+  option: (optionId: string) => `option.${optionId}`,
+  level: (levelId: string) => `level.${levelId}`,
+} as const;
+
+function visibleFieldError({
+  message,
+  fieldId,
+  touched,
+}: {
+  message: string | undefined;
+  fieldId: string;
+  touched: ReadonlySet<string>;
+}): string | undefined {
+  if (message == null) return undefined;
+  const isRequired =
+    message === REQUIRED_ERROR || message === STATE_REQUIRED_ERROR;
+  return !isRequired || touched.has(fieldId) ? message : undefined;
+}
+
+function visibleFieldErrors({
+  fieldErrors,
+  toFieldId,
+  touched,
+}: {
+  fieldErrors: Partial<Record<string, string>> | undefined;
+  toFieldId: (id: string) => string;
+  touched: ReadonlySet<string>;
+}): Partial<Record<string, string>> | undefined {
+  if (!fieldErrors) return undefined;
+  const visible: Partial<Record<string, string>> = {};
+  for (const [id, message] of Object.entries(fieldErrors)) {
+    const shown = visibleFieldError({
+      message,
+      fieldId: toFieldId(id),
+      touched,
+    });
+    if (shown) visible[id] = shown;
+  }
+  return Object.keys(visible).length ? visible : undefined;
+}
+
+/**
+ * The errors to show right now. An empty required field is reported only
+ * once the user has visited and left it, so a freshly added question,
+ * option, or level does not open in an error state; the Run button still
+ * refuses an invalid request and names the problem. Every other error
+ * (duplicates, counts, malformed JSON) is shown as soon as it exists,
+ * since it comes from something the user typed or removed.
+ * @param params.errors - the full validation result
+ * @param params.touched - ids from {@link decisionFieldId} the user has left
+ */
+export function maskUntouchedErrors({
+  errors,
+  touched,
+}: {
+  errors: DecisionDraftErrors;
+  touched: ReadonlySet<string>;
+}): DecisionDraftErrors {
+  const byQuestionId: DecisionDraftErrors["byQuestionId"] = {};
+  for (const [questionId, questionErrors] of Object.entries(
+    errors.byQuestionId
+  )) {
+    if (!questionErrors) continue;
+    const visible: DecisionQuestionErrors = {
+      name: visibleFieldError({
+        message: questionErrors.name,
+        fieldId: decisionFieldId.name(questionId),
+        touched,
+      }),
+      instructions: visibleFieldError({
+        message: questionErrors.instructions,
+        fieldId: decisionFieldId.instructions(questionId),
+        touched,
+      }),
+      choices: questionErrors.choices,
+      levels: questionErrors.levels,
+      choiceOptions: visibleFieldErrors({
+        fieldErrors: questionErrors.choiceOptions,
+        toFieldId: decisionFieldId.option,
+        touched,
+      }),
+      levelDescriptions: visibleFieldErrors({
+        fieldErrors: questionErrors.levelDescriptions,
+        toFieldId: decisionFieldId.level,
+        touched,
+      }),
+    };
+    const shown = Object.fromEntries(
+      Object.entries(visible).filter(([, value]) => value != null)
+    ) as DecisionQuestionErrors;
+    if (Object.keys(shown).length) byQuestionId[questionId] = shown;
+  }
+  return {
+    state: visibleFieldError({
+      message: errors.state,
+      fieldId: decisionFieldId.state(),
+      touched,
+    }),
+    questions: errors.questions,
+    byQuestionId,
+  };
 }
 
 // ---------------------------------------------------------------------------
