@@ -459,6 +459,7 @@ async def test_frozen_decision_evaluators_survive_binding_deletion_and_experimen
             )
             .returning(models.Experiment.id)
         )
+        assert experiment_id is not None
         await session.execute(
             insert(models.ExperimentJob).values(id=experiment_id, type="PROMPT", status="STOPPED")
         )
