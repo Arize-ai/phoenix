@@ -108,10 +108,14 @@ def render_state(
         ValueError: A declared input is missing, or an undeclared one is passed.
     """
     names = [input.name for input in inputs]
+    # Both are named together, so a misspelled name reads as the typo it is.
+    problems: list[str] = []
     if missing := [name for name in names if name not in values]:
-        raise ValueError(f"Missing inputs: {', '.join(missing)}")
+        problems.append(f"Missing inputs: {', '.join(missing)}")
     if undeclared := sorted(set(values) - set(names)):
-        raise ValueError(f"Undeclared inputs: {', '.join(undeclared)}")
+        problems.append(f"Undeclared inputs: {', '.join(undeclared)}")
+    if problems:
+        raise ValueError("; ".join(problems))
     if isinstance(state, ObjectState):
         return {name: values[name] for name in names}
     if isinstance(state, InputState):

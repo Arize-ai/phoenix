@@ -92,6 +92,15 @@ class RunDecisionVersionInput:
             "provider brings its own key."
         ),
     )
+    base_url: Optional[str] = strawberry.field(
+        default=None,
+        description=(
+            "Send the request to this endpoint instead of the built-in provider's default, "
+            "such as a local Ollama. Requires an API key in `credentials` or a stored secret "
+            "where the provider needs one; the server-configured key is never sent to a "
+            "custom URL. A custom provider brings its own endpoint."
+        ),
+    )
 
 
 @strawberry.type(
@@ -228,7 +237,8 @@ class DecisionMutationMixin:
             if version is None:
                 raise NotFound(f"Decision version not found: {input.decision_version_id}")
             request = version_decision_request(version, input.input_values)
-            client = await _version_connection(version, input.credentials).resolve_client(
+            connection = _version_connection(version, input.credentials, input.base_url)
+            client = await connection.resolve_client(
                 model_name=version.model_name,
                 session=session,
                 decrypt=info.context.decrypt,
@@ -241,9 +251,19 @@ class DecisionMutationMixin:
 def _version_connection(
     version: models.DecisionVersion,
     credentials: Optional[list[GenerativeCredentialInput]],
+    base_url: Optional[str],
 ) -> DecisionConnectionInput:
-    """Where a saved version runs: its custom provider, or its built-in provider."""
+    """Where a saved version runs: its custom provider, or its built-in provider.
+
+    Raises:
+        BadRequest: An endpoint is given for a version on a custom provider.
+    """
     if version.custom_provider_id is not None:
+        if base_url is not None:
+            raise BadRequest(
+                "This version runs on a custom provider, which brings its own endpoint; "
+                "baseUrl is for built-in providers."
+            )
         return DecisionConnectionInput(
             custom_provider=CustomProviderDecisionConnectionInput(
                 id=GlobalID(GenerativeModelCustomProvider.__name__, str(version.custom_provider_id))
@@ -252,6 +272,7 @@ def _version_connection(
     return DecisionConnectionInput(
         built_in=BuiltInDecisionConnectionInput(
             provider_key=GenerativeProviderKey.from_model_provider(version.model_provider),
+            base_url=base_url,
             credentials=credentials,
         )
     )

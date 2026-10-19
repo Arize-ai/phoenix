@@ -33,6 +33,7 @@ def test_object_state_is_exactly_the_declared_inputs() -> None:
     [
         ({"ticket": "x"}, "Missing inputs: plan"),
         ({"ticket": "x", "plan": "pro", "extra": 1}, "Undeclared inputs: extra"),
+        ({"ticket": "x", "plna": "pro"}, "Missing inputs: plan; Undeclared inputs: plna"),
     ],
 )
 def test_input_values_must_match_the_declared_inputs(values: dict[str, Any], message: str) -> None:

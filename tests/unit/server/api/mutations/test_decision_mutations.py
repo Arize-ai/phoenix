@@ -1483,3 +1483,61 @@ async def test_a_saved_version_checks_its_input_values_before_calling(
             {"ticket": "hi"}, str(GlobalID("DecisionVersion", "999"))
         )
     assert route.call_count == 0
+
+
+async def test_a_saved_version_runs_at_the_endpoint_the_call_names(
+    gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A saved version stores no endpoint, so a local Ollama is named by the call."""
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    version_id = await save_version(gql_client, modelProvider="OLLAMA", modelName="nimble")
+    run = {"decisionVersionId": version_id, "inputValues": {"ticket": "hi"}}
+    result = await gql_client.execute(RUN_VERSION, variables={"input": run})
+    assert result.errors and "base URL is required" in result.errors[0].message
+    with respx.mock:
+        route = respx.post("http://gpu-box:11434/v1/systemone").respond(200, json=OLLAMA_RESPONSE)
+        result = await gql_client.execute(
+            RUN_VERSION, variables={"input": {**run, "baseUrl": "http://gpu-box:11434"}}
+        )
+    assert result.data and not result.errors, result.errors
+    assert result.data["runDecisionVersion"]["error"] is None
+    assert route.call_count == 1
+
+
+async def test_the_server_key_never_goes_to_an_endpoint_the_call_names(
+    gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TYPESAFE_API_KEY", "server-key")
+    version_id = await save_version(gql_client)
+    with respx.mock:
+        route = respx.post("https://attacker.example/v1/systemone").respond(200, json=URGENT_ANSWER)
+        result = await gql_client.execute(
+            RUN_VERSION,
+            variables={
+                "input": {
+                    "decisionVersionId": version_id,
+                    "inputValues": {"ticket": "hi"},
+                    "baseUrl": "https://attacker.example",
+                }
+            },
+        )
+    assert result.errors and "server-configured TypeSafe API key" in result.errors[0].message
+    assert route.call_count == 0
+
+
+async def test_a_custom_provider_version_takes_no_endpoint(gql_client: AsyncGraphQLClient) -> None:
+    provider_id = await create_custom_provider(
+        gql_client, "System One proxy", "system-one-proxy", TYPESAFE_PROVIDER_CONFIG
+    )
+    version_id = await save_version(gql_client, customProviderId=provider_id)
+    result = await gql_client.execute(
+        RUN_VERSION,
+        variables={
+            "input": {
+                "decisionVersionId": version_id,
+                "inputValues": {"ticket": "hi"},
+                "baseUrl": "https://elsewhere.example",
+            }
+        },
+    )
+    assert result.errors and "brings its own endpoint" in result.errors[0].message

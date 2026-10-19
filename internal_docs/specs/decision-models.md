@@ -462,8 +462,10 @@ rather than zero.
   - `runDecisionVersion(input: {decisionVersionId, inputValues, credentials})`
     (built): runs a saved version as saved, its definition, model, and provider
     included, so a caller doesn't copy the version into `runDecision`.
-    `credentials` serve a version on a built-in provider; a custom provider
-    brings its own key. It returns the same payload as `runDecision`.
+    `credentials` and `baseUrl` serve a version on a built-in provider (a
+    version stores no endpoint, so a local Ollama is named by the call); a
+    custom provider brings its own key and endpoint. It returns the same payload
+    as `runDecision`.
   - `createDecision` (built): a name, a description, metadata, the first
     version as a `DecisionVersionInput`, and tags. A name already in use is a
     conflict.

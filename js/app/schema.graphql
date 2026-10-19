@@ -5533,6 +5533,11 @@ input RunDecisionVersionInput {
   API keys for this request only, for a version on a built-in provider. When omitted, a stored secret is used, then the server environment. A custom provider brings its own key.
   """
   credentials: [GenerativeCredentialInput!] = null
+
+  """
+  Send the request to this endpoint instead of the built-in provider's default, such as a local Ollama. Requires an API key in `credentials` or a stored secret where the provider needs one; the server-configured key is never sent to a custom URL. A custom provider brings its own endpoint.
+  """
+  baseUrl: String = null
 }
 
 type SandboxBackendInfo {
