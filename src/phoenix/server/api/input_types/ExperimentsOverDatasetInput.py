@@ -11,6 +11,7 @@ from phoenix.db.types.evaluator_definition import EvaluatorSource
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ConnectionConfigInput import ConnectionConfigInput
+from phoenix.server.api.input_types.DecisionTaskInput import DecisionTaskInput
 from phoenix.server.api.input_types.EvaluatorDefinitionInput import EvaluatorDefinitionInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
@@ -104,6 +105,15 @@ class EvaluatorTaskInput:
 class ExperimentTaskInput:
     prompt: Optional[PromptTaskInput] = UNSET
     evaluator: Optional[EvaluatorTaskInput] = UNSET
+    decision: Optional[DecisionTaskInput] = UNSET
+
+    @property
+    def kind(self) -> str:
+        if self.prompt:
+            return "prompt"
+        if self.decision:
+            return "decision"
+        return "evaluator"
 
 
 @strawberry.input
@@ -128,7 +138,7 @@ class ExperimentsOverDatasetInput:
     create_ephemeral_experiment: Optional[bool] = False
     tasks: list[ExperimentTaskInput] = strawberry.field(
         description="One experiment is created per task, in this order. "
-        "The tasks must all be prompts or all be evaluators.",
+        "The tasks must all be of one kind: prompts, decisions, or evaluators.",
     )
 
     def __post_init__(self) -> None:
@@ -136,6 +146,6 @@ class ExperimentsOverDatasetInput:
             raise BadRequest("At least one task is required")
         if len(self.tasks) > MAX_TASKS_PER_RUN:
             raise BadRequest(f"At most {MAX_TASKS_PER_RUN} tasks can run together")
-        kinds = {"prompt" if task.prompt else "evaluator" for task in self.tasks}
+        kinds = {task.kind for task in self.tasks}
         if len(kinds) > 1:
-            raise BadRequest("Tasks must all be prompts or all be evaluators")
+            raise BadRequest("Tasks must all be of one kind: prompts, decisions, or evaluators")

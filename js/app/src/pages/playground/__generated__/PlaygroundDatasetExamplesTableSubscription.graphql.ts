@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c06d23469e49f754ec1dfd738a6d8f8>>
+ * @generated SignedSource<<e39f20b7eaa42d753ccd3b4575d06618>>
  * @lightSyntaxTransform
  */
 
@@ -8,8 +8,11 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
+export type DecisionQuestionFormat = "OPENAI" | "PHOENIX" | "SYSTEM_ONE";
+export type DecisionTemplateFormat = "F_STRING" | "MUSTACHE";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
@@ -38,10 +41,16 @@ export type GenerativeCredentialInput = {
   value: string;
 };
 export type ExperimentTaskInput = {
+  decision?: never;
   evaluator?: never;
   prompt: PromptTaskInput;
 } | {
+  decision?: never;
   evaluator: EvaluatorTaskInput;
+  prompt?: never;
+} | {
+  decision: DecisionTaskInput;
+  evaluator?: never;
   prompt?: never;
 };
 export type PromptTaskInput = {
@@ -344,6 +353,112 @@ export type EvaluatorTaskSourceInput = {
   evaluatorId?: string | null;
   projectEvaluatorId?: string | null;
   promptVersionId?: string | null;
+};
+export type DecisionTaskInput = {
+  connection: DecisionConnectionInput;
+  inputMapping: EvaluatorInputMappingInput;
+  inputs: ReadonlyArray<DecisionInputDefinitionInput>;
+  modelName: string;
+  questions: DecisionQuestionSourceInput;
+  references?: DecisionReferencesInput | null;
+  scoring?: DecisionScoringInput | null;
+  state: DecisionStateInput;
+};
+export type DecisionConnectionInput = {
+  builtIn: BuiltInDecisionConnectionInput;
+  customProvider?: never;
+} | {
+  builtIn?: never;
+  customProvider: CustomProviderDecisionConnectionInput;
+};
+export type BuiltInDecisionConnectionInput = {
+  baseUrl?: string | null;
+  credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
+  providerKey: GenerativeProviderKey;
+};
+export type CustomProviderDecisionConnectionInput = {
+  id: string;
+};
+export type DecisionInputDefinitionInput = {
+  description?: string | null;
+  jsonSchema?: any | null;
+  name: string;
+};
+export type DecisionStateInput = {
+  input?: never;
+  object: boolean;
+  text?: never;
+} | {
+  input?: never;
+  object?: never;
+  text: TextStateInput;
+} | {
+  input: string;
+  object?: never;
+  text?: never;
+};
+export type TextStateInput = {
+  template: string;
+  templateFormat: DecisionTemplateFormat;
+};
+export type DecisionQuestionSourceInput = {
+  example?: never;
+  fixed: ReadonlyArray<DecisionQuestionInput>;
+} | {
+  example: ExampleQuestionsInput;
+  fixed?: never;
+};
+export type DecisionQuestionInput = {
+  choice?: never;
+  predicate: PredicateQuestionInput;
+  scale?: never;
+} | {
+  choice: ChoiceQuestionInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: ScaleQuestionInput;
+};
+export type PredicateQuestionInput = {
+  criteria?: PredicateCriteriaInput | null;
+  instructions: string;
+  name: string;
+};
+export type PredicateCriteriaInput = {
+  false?: string | null;
+  true?: string | null;
+};
+export type ChoiceQuestionInput = {
+  choices: ReadonlyArray<ChoiceOptionInput>;
+  instructions: string;
+  name: string;
+};
+export type ChoiceOptionInput = {
+  description?: string | null;
+  value: string;
+};
+export type ScaleQuestionInput = {
+  instructions: string;
+  levels: ReadonlyArray<ScaleLevelInput>;
+  name: string;
+};
+export type ScaleLevelInput = {
+  description?: string | null;
+  label: string;
+};
+export type ExampleQuestionsInput = {
+  format?: DecisionQuestionFormat;
+  path: string;
+};
+export type DecisionReferencesInput = {
+  annotatorKind: AnnotatorKind;
+  distributionPath?: string | null;
+  labelPath?: string | null;
+};
+export type DecisionScoringInput = {
+  predicateThreshold?: number;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ExperimentsOverDatasetInput;

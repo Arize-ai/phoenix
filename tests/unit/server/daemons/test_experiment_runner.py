@@ -2096,11 +2096,16 @@ class TestLoadEvaluatorTaskConfig:
             return_value=MagicMock(),
         ):
             async with db() as session:
-                job, llm_client, specs, evaluator = await runner._load_experiment_config(
-                    session, experiment.id, credentials=None
-                )
+                (
+                    job,
+                    llm_client,
+                    specs,
+                    evaluator,
+                    decision_client,
+                ) = await runner._load_experiment_config(session, experiment.id, credentials=None)
 
         assert isinstance(job, models.ExperimentEvaluatorTask)
+        assert decision_client is None
         assert job.name == Identifier("answer-length")
         assert llm_client is _NO_OP_LLM_CLIENT
         assert specs == []

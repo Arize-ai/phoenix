@@ -132,6 +132,15 @@ from phoenix.server.api.evaluators import (
     get_evaluators,
 )
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionClient,
+    get_custom_provider_decision_client,
+    get_decision_client,
+)
+from phoenix.server.api.helpers.decision_experiments import (
+    build_example_request,
+    decision_run_output,
+)
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.message_helpers import (
@@ -153,6 +162,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.monty_runtime import MontyBusy
@@ -1187,6 +1197,173 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         return False
 
 
+class DecisionTaskWorkItem(ExampleWorkItem):
+    """
+    Decision task work item: ask the experiment's decision model about one dataset
+    example x one repetition.
+
+    The example becomes one decision request (see ``build_example_request``), and the
+    answers are the run's output, by question name and with no decision rule applied.
+    The DECISION span goes to the experiment's project.
+    """
+
+    def __init__(
+        self,
+        *,
+        # Owner - reports results back to this experiment
+        running_experiment: RunningExperiment,
+        # Identity
+        experiment: models.Experiment,
+        dataset_example_revision: models.DatasetExampleRevision,
+        repetition_number: int,
+        # Decision config
+        decision_task: models.ExperimentDecisionTask,
+        decision_client: DecisionClient,
+        # Execution context
+        db: DbSessionFactory,
+        tracer_factory: Callable[[], Tracer],
+        project_id: int,
+        # Optional parameters with defaults
+        timeout: float = 120.0,
+        retry_count: int = 0,
+    ) -> None:
+        self._running_experiment = running_experiment
+        self._experiment = experiment
+        self._dataset_example_revision = dataset_example_revision
+        self._repetition_number = repetition_number
+        self._decision_task = decision_task
+        self._decision_client = decision_client
+        self._db = db
+        self._tracer_factory = tracer_factory
+        self._project_id = project_id
+        self._timeout = timeout
+        self.retry_count = retry_count
+
+    @cached_property
+    def debug_identifier(self) -> str:
+        return (
+            f"decision-task:experiment_id={self._experiment.id}, "
+            f"dataset_example_id={self._dataset_example_revision.dataset_example_id}, "
+            f"repetition={self._repetition_number}"
+        )
+
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        return self._decision_client.get_rate_limit_key()
+
+    @override
+    async def execute(self) -> None:
+        """Ask the model about the example, write the run to DB, and report results."""
+        logger.debug(f"DecisionTaskWorkItem {self.debug_identifier}: starting")
+        tracer = self._tracer_factory()
+        start_time = datetime.now(timezone.utc)
+        revision = self._dataset_example_revision
+        try:
+            # A request the example can't make fails the same way on every retry, so
+            # it is recorded as the run's error without calling the model.
+            request = build_example_request(
+                self._decision_task.config,
+                dataset_example_eval_context(
+                    input=revision.input, output=revision.output, metadata=revision.metadata_
+                ),
+            )
+        except ValueError as error:
+            await self._record_run(
+                error=f"Could not build the decision request: {error}",
+                exc=error,
+                start_time=start_time,
+                tracer=tracer,
+            )
+            return
+        try:
+            with anyio.fail_after(self._timeout):
+                response = await self._decision_client.create(request=request, tracer=tracer)
+        except TimeoutError:
+            logger.warning(f"DecisionTaskWorkItem {self.debug_identifier} timed out")
+            await self._running_experiment.on_timeout(self)
+        except anyio.get_cancelled_exc_class():
+            logger.debug(f"DecisionTaskWorkItem {self.debug_identifier} cancelled")
+            raise
+        except Exception as e:
+            err_type = type(e).__name__
+            if self._decision_client.is_rate_limit_error(e):
+                logger.debug(
+                    f"DecisionTaskWorkItem {self.debug_identifier} hit rate limit ({err_type})"
+                )
+                await self._running_experiment.on_rate_limit(self)
+            elif self._decision_client.is_transient_error(e) or isinstance(e, SQLAlchemyError):
+                logger.warning(
+                    f"DecisionTaskWorkItem {self.debug_identifier} "
+                    f"transient error ({err_type}): {e}"
+                )
+                await self._running_experiment.on_transient_error(self, e)
+            else:
+                logger.warning(
+                    f"DecisionTaskWorkItem {self.debug_identifier} failed ({err_type}): {e}"
+                )
+                await self._record_run(error=str(e), exc=e, start_time=start_time, tracer=tracer)
+        else:
+            await self._record_run(
+                output=decision_run_output(response), start_time=start_time, tracer=tracer
+            )
+
+    async def _record_run(
+        self,
+        *,
+        start_time: datetime,
+        tracer: Tracer,
+        output: dict[str, Any] | None = None,
+        error: str | None = None,
+        exc: Exception | None = None,
+    ) -> None:
+        """Persist the run, with its DECISION span when there is one, and broadcast it."""
+        end_time = datetime.now(timezone.utc)
+        db_traces = list(tracer.get_db_traces(project_id=self._project_id))
+        db_run = models.ExperimentRun(
+            experiment_id=self._experiment.id,
+            dataset_example_id=self._dataset_example_revision.dataset_example_id,
+            trace_id=db_traces[0].trace_id if db_traces else None,
+            output=output if output is not None else {},
+            repetition_number=self._repetition_number,
+            start_time=start_time,
+            end_time=end_time,
+            error=error,
+        )
+        try:
+            db_run = await self._persist_run(db_run, db_traces)
+        except Exception as persist_err:
+            logger.warning(
+                f"DecisionTaskWorkItem {self.debug_identifier}: failed to persist run to DB",
+                exc_info=True,
+            )
+            await self._running_experiment.on_failure(self, persist_err)
+            return
+        root_span = _root_span(db_traces[0]) if db_traces else None
+        span = Span(id=root_span.id, db_record=root_span) if root_span is not None else None
+        experiment_run = ExperimentRun(id=db_run.id, db_record=db_run)
+        if error is None:
+            self._running_experiment._broadcast(
+                ChatCompletionSubscriptionResult(
+                    span=span,
+                    experiment_run=experiment_run,
+                    dataset_example_id=self.dataset_example_global_id,
+                    repetition_number=self._repetition_number,
+                )
+            )
+            await self._running_experiment.on_task_success(self, db_run)
+        else:
+            self._running_experiment._broadcast(
+                ChatCompletionSubscriptionError(
+                    message=error,
+                    span=span,
+                    experiment_run=experiment_run,
+                    dataset_example_id=self.dataset_example_global_id,
+                    repetition_number=self._repetition_number,
+                )
+            )
+            await self._running_experiment.on_failure(self, exc or Exception(error))
+
+
 def _verdicts(eval_results: Sequence[EvaluationResult]) -> Any:
     """The run output of an evaluator task: its verdict, or a list for a multi-output evaluator."""
     verdicts = [
@@ -1630,6 +1807,7 @@ class RunningExperiment:
         credentials: Sequence[GenerativeCredentialInput] | None = None,
         evaluator_run_specs: Sequence[EvaluatorRunSpec] = (),
         task_evaluator: BaseEvaluator | None = None,
+        decision_client: DecisionClient | None = None,
         max_retries: int = 3,
         base_backoff_seconds: float = 1.0,
     ) -> None:
@@ -1648,6 +1826,7 @@ class RunningExperiment:
         self._evaluator_run_specs = evaluator_run_specs
         # The evaluator that is the task of an EVALUATOR experiment; None otherwise
         self._task_evaluator = task_evaluator
+        self._decision_client = decision_client
         self._max_retries = max_retries
         self._base_backoff_seconds = base_backoff_seconds
         self._max_concurrency = experiment_job.max_concurrency
@@ -2192,9 +2371,11 @@ class RunningExperiment:
         )
 
     def _has_task_to_dispatch(self) -> bool:
-        """Whether this experiment's job produces runs: a prompt task or an evaluator task."""
+        """Whether this experiment's job produces runs: a prompt, decision, or evaluator task."""
         if isinstance(self._experiment_job, models.ExperimentPromptTask):
             return True
+        if isinstance(self._experiment_job, models.ExperimentDecisionTask):
+            return self._decision_client is not None
         return (
             isinstance(self._experiment_job, models.ExperimentEvaluatorTask)
             and self._task_evaluator is not None
@@ -2213,6 +2394,19 @@ class RunningExperiment:
                 dataset_example_revision=dataset_example_revision,
                 repetition_number=repetition_number,
                 prompt_task=job,
+                project_id=project_id,
+            )
+        if isinstance(job, models.ExperimentDecisionTask):
+            assert self._decision_client is not None
+            return DecisionTaskWorkItem(
+                running_experiment=self,
+                experiment=self._experiment,
+                dataset_example_revision=dataset_example_revision,
+                repetition_number=repetition_number,
+                decision_task=job,
+                decision_client=self._decision_client,
+                db=self._db,
+                tracer_factory=self._tracer_factory,
                 project_id=project_id,
             )
         assert isinstance(job, models.ExperimentEvaluatorTask)
@@ -3146,11 +3340,18 @@ class ExperimentRunner(DaemonTask):
         session: AsyncSession,
         experiment_id: int,
         credentials: Sequence[GenerativeCredentialInput] | None,
-    ) -> tuple[models.ExperimentJob, LLMClient, list[EvaluatorRunSpec], BaseEvaluator | None]:
+    ) -> tuple[
+        models.ExperimentJob,
+        LLMClient,
+        list[EvaluatorRunSpec],
+        BaseEvaluator | None,
+        DecisionClient | None,
+    ]:
         """Load execution config, resolve LLM client, and build evaluator specs.
 
-        Returns (experiment_job, llm_client, evaluator_run_specs, task_evaluator), where
-        task_evaluator is the evaluator an EVALUATOR job runs as its task (None otherwise).
+        Returns (experiment_job, llm_client, evaluator_run_specs, task_evaluator,
+        decision_client), where task_evaluator is the evaluator an EVALUATOR job runs as
+        its task and decision_client the client a DECISION job asks (None otherwise).
         """
         # Load child class directly to eagerly populate all columns.
         # Using session.get() on the base ExperimentJob with joined-table
@@ -3158,14 +3359,45 @@ class ExperimentRunner(DaemonTask):
         # error when accessed outside the session's internal greenlet.
         llm_client: LLMClient
         task_evaluator: BaseEvaluator | None = None
+        decision_client: DecisionClient | None = None
+        experiment_job: models.ExperimentJob
         prompt_task = await session.get(models.ExperimentPromptTask, experiment_id)
-        evaluator_task = (
+        decision_task = (
             None
             if prompt_task is not None
+            else await session.get(models.ExperimentDecisionTask, experiment_id)
+        )
+        evaluator_task = (
+            None
+            if prompt_task is not None or decision_task is not None
             else await session.get(models.ExperimentEvaluatorTask, experiment_id)
         )
-        if prompt_task is not None:
-            experiment_job: models.ExperimentJob = prompt_task
+        if decision_task is not None:
+            experiment_job = decision_task
+            llm_client = _NO_OP_LLM_CLIENT
+            # The runner retries by failure kind, so the SDK's own retries are off.
+            if decision_task.custom_provider_id is not None:
+                decision_client = await get_custom_provider_decision_client(
+                    custom_provider_id=decision_task.custom_provider_id,
+                    model_name=decision_task.model_name,
+                    session=session,
+                    decrypt=self._decrypt,
+                    sdk_retries=False,
+                )
+            else:
+                decision_client = await get_decision_client(
+                    provider=GenerativeProviderKey.from_model_provider(
+                        decision_task.model_provider
+                    ),
+                    model_name=decision_task.model_name,
+                    base_url=decision_task.base_url,
+                    credentials=credentials,
+                    session=session,
+                    decrypt=self._decrypt,
+                    sdk_retries=False,
+                )
+        elif prompt_task is not None:
+            experiment_job = prompt_task
             llm_client = await get_playground_client(
                 model_provider=prompt_task.model_provider,
                 model_name=prompt_task.model_name,
@@ -3242,7 +3474,7 @@ class ExperimentRunner(DaemonTask):
             f"evaluator(s) from junction)"
         )
 
-        return experiment_job, llm_client, evaluator_run_specs, task_evaluator
+        return experiment_job, llm_client, evaluator_run_specs, task_evaluator, decision_client
 
     # === Public API ===
 
@@ -3298,6 +3530,7 @@ class ExperimentRunner(DaemonTask):
                 llm_client,
                 evaluator_run_specs,
                 task_evaluator,
+                decision_client,
             ) = await self._load_experiment_config(session, experiment_id, credentials)
             session.expunge(experiment)
             session.expunge(experiment_job)
@@ -3314,6 +3547,7 @@ class ExperimentRunner(DaemonTask):
             credentials=credentials,
             evaluator_run_specs=evaluator_run_specs,
             task_evaluator=task_evaluator,
+            decision_client=decision_client,
         )
 
         # Subscribe BEFORE registering - guarantees no missed chunks

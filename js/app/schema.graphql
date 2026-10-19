@@ -1675,11 +1675,41 @@ input DecisionInputDefinitionInput {
   jsonSchema: JSON = null
 }
 
+"""How questions stored in a dataset example are written."""
+enum DecisionQuestionFormat {
+  PHOENIX
+  SYSTEM_ONE
+  OPENAI
+}
+
 """One decision question. Exactly one type must be set."""
 input DecisionQuestionInput @oneOf {
   predicate: PredicateQuestionInput
   choice: ChoiceQuestionInput
   scale: ScaleQuestionInput
+}
+
+"""Where each example's questions come from."""
+input DecisionQuestionSourceInput @oneOf {
+  """The same questions for every example."""
+  fixed: [DecisionQuestionInput!]
+  example: ExampleQuestionsInput
+}
+
+"""
+Where each question's reference answer is in an example. `{question}` in a path stands for the question's name, such as `reference.{question}.label`. A missing or unreadable reference is skipped and counted, never scored.
+"""
+input DecisionReferencesInput {
+  """The expected answer: a choice value, true or false, or a level."""
+  labelPath: String = null
+
+  """A reference distribution over the answers."""
+  distributionPath: String = null
+
+  """
+  Who wrote the references: accuracy against HUMAN ones, agreement against a model's.
+  """
+  annotatorKind: AnnotatorKind!
 }
 
 """A successful decision run."""
@@ -1692,6 +1722,12 @@ type DecisionResult {
   usage: DecisionUsage!
 }
 
+"""Settings that change scores without changing what was asked."""
+input DecisionScoringInput {
+  """A predicate counts as true at or above this probability."""
+  predicateThreshold: Float! = 0.5
+}
+
 """
 How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template, and `input` sends one input's value unchanged.
 """
@@ -1701,6 +1737,22 @@ input DecisionStateInput @oneOf {
 
   """The name of the input whose value is the state."""
   input: String
+}
+
+"""A decision model asked about every example of a dataset."""
+input DecisionTaskInput {
+  connection: DecisionConnectionInput!
+  modelName: String!
+
+  """The named inputs the state is built from."""
+  inputs: [DecisionInputDefinitionInput!]!
+  state: DecisionStateInput!
+
+  """Where each input's value is in the example's evaluation context."""
+  inputMapping: EvaluatorInputMappingInput!
+  questions: DecisionQuestionSourceInput!
+  references: DecisionReferencesInput = null
+  scoring: DecisionScoringInput = null
 }
 
 enum DecisionTemplateFormat {
@@ -2480,6 +2532,15 @@ input EvaluatorTaskSourceInput {
   projectEvaluatorId: ID = null
 }
 
+"""Each example carries its own questions, as a benchmark does."""
+input ExampleQuestionsInput {
+  """
+  Where the questions are in the example's evaluation context, such as `input.questions`.
+  """
+  path: String!
+  format: DecisionQuestionFormat! = SYSTEM_ONE
+}
+
 interface ExampleRevision {
   input: JSON!
   output: JSON!
@@ -2868,6 +2929,7 @@ union ExperimentTaskConfig = PromptTaskConfig | EvaluatorTaskConfig
 input ExperimentTaskInput @oneOf {
   prompt: PromptTaskInput
   evaluator: EvaluatorTaskInput
+  decision: DecisionTaskInput
 }
 
 input ExperimentsOverDatasetInput {
@@ -2890,7 +2952,7 @@ input ExperimentsOverDatasetInput {
   createEphemeralExperiment: Boolean = false
 
   """
-  One experiment is created per task, in this order. The tasks must all be prompts or all be evaluators.
+  One experiment is created per task, in this order. The tasks must all be of one kind: prompts, decisions, or evaluators.
   """
   tasks: [ExperimentTaskInput!]!
 }

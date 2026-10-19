@@ -6,12 +6,14 @@ example's evaluation context and the state renders them. Questions are the confi
 or read from the example in a declared format.
 """
 
+import json
+import re
 from typing import Any, Mapping
 
 from pydantic import ValidationError
 
 from phoenix.db.types.decisions import DecisionTaskConfig, FixedQuestions
-from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.evaluators import InputMapping, validate_jsonpath
 from phoenix.server.api.evaluators import apply_input_mapping
 from phoenix.server.api.helpers.decision_clients import DecisionRequest, DecisionResponse
 from phoenix.server.api.helpers.decision_formats import parse_questions
@@ -63,3 +65,28 @@ def decision_run_output(response: DecisionResponse) -> dict[str, Any]:
             },
         }
     }
+
+
+QUESTION_PLACEHOLDER = "{question}"
+_PLACEHOLDER_SEGMENT = re.compile(r"\.?\{question\}")
+
+
+def reference_path(template: str, question_name: str) -> str:
+    """The path to one question's reference: ``{question}`` in the template becomes the
+    name as a quoted segment, so any question name is a valid path."""
+    segment = f"[{json.dumps(question_name)}]"
+    return _PLACEHOLDER_SEGMENT.sub(lambda _: segment, template)
+
+
+def validate_reference_template(template: str) -> None:
+    """Check a reference path template before anything runs.
+
+    Raises:
+        ValueError: The template does not name the question, or is not a valid path.
+    """
+    if QUESTION_PLACEHOLDER not in template:
+        raise ValueError(
+            f"A reference path must contain {QUESTION_PLACEHOLDER}, such as "
+            f"reference.{QUESTION_PLACEHOLDER}.label"
+        )
+    validate_jsonpath(reference_path(template, "question"))
