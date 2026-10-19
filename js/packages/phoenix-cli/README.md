@@ -327,6 +327,20 @@ px trace add-note abc123def456 --text "agent triage complete" --format raw --no-
 
 ---
 
+### `px trace transfer [trace-id...] --to <project>`
+
+Move traces into another project. The traces are re-parented, not copied, so they no longer appear in their source project, and every trace must currently belong to the same source project. Trace IDs (OpenTelemetry trace IDs or GlobalIDs) come from arguments, `--file <path>` (one per line), or stdin with `--file -`; the destination is a project name or GlobalID. Asks for confirmation unless `--yes` is passed. Requires Phoenix server >= 20.4.0.
+
+```bash
+px trace transfer abc123def456 0123456789abcdef --to production
+px trace transfer --file trace-ids.txt --to UHJvamVjdDoy --yes
+px trace list --format raw --no-progress | jq -r '.[].traceId' | px trace transfer --file - --to production --yes --format raw
+```
+
+Output (json/raw): `{ transferred_trace_count, destination_project_identifier, destination_project_id }`. Traces from more than one source project (422) exit with code 3 (invalid argument); a missing trace or destination project (404) exits with code 1.
+
+---
+
 ### `px trace-annotations delete`
 
 Delete trace annotations for the configured project. Requires `--all` (delete every matching row) **or** both `--start-time` and `--end-time` to bound the delete to a `[start_time, end_time)` window — `--name`, `--identifier`, and `--annotator-kind` are narrowing filters and never authorize the request on their own. Deletes are disabled by default; set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first.
