@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a551dd621f16dff688b7162c1072c358>>
+ * @generated SignedSource<<b357210e7d9a1c26c55c3d2fa11a05e9>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type EvaluatorPreviewsInput = {
 export type EvaluatorPreviewItemInput = {
   applyOnlineEvaluationLimits?: boolean;
   context: any;
+  datasetEvaluatorId?: string | null;
   evaluator: EvaluatorDefinitionInput;
   inputMapping: EvaluatorInputMappingInput;
 };

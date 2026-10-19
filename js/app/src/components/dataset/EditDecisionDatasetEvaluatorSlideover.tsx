@@ -658,6 +658,7 @@ const EditDecisionEvaluatorDialogContent = ({
         <Flex direction="column" gap="size-100">
           <DecisionJudgePreview
             judgeId={judge.id}
+            datasetEvaluatorId={datasetEvaluatorId}
             isJudgeChanged={isJudgeChanged}
           />
           <EvaluatorExampleDataset />
@@ -762,15 +763,18 @@ type PreviewResult =
   | { kind: "error"; evaluatorName: string; message: string };
 
 /**
- * Runs the saved judge on the selected example. The server previews a decision
- * judge by id, so this uses the judge's saved version and scoring, not edits
- * made in this dialog, and not this dataset's scoring override.
+ * Runs the saved judge on the selected example as this dataset's evaluator, so
+ * it is named and scored as experiments run it: with the saved version, the
+ * judge's saved scoring, and this dataset's saved override. Unsaved edits made
+ * in this dialog are not used.
  */
 const DecisionJudgePreview = ({
   judgeId,
+  datasetEvaluatorId,
   isJudgeChanged,
 }: {
   judgeId: string;
+  datasetEvaluatorId: string;
   isJudgeChanged: boolean;
 }) => {
   const store = useEvaluatorStoreInstance();
@@ -808,6 +812,7 @@ const DecisionJudgePreview = ({
             {
               context: state.evaluatorMappingSource.source,
               evaluator: { decisionEvaluatorId: judgeId },
+              datasetEvaluatorId,
               inputMapping: normalizeInputMapping(state.evaluator.inputMapping),
             },
           ],
@@ -864,12 +869,10 @@ const DecisionJudgePreview = ({
         </Button>
       </Flex>
       <Text color="text-500">
-        The test runs the judge as saved, with its saved version and scoring and
-        this dataset&apos;s input mapping.{" "}
-        {isJudgeChanged
-          ? "Your unsaved changes to the judge are not used. "
-          : ""}
-        This dataset&apos;s scoring override is not applied.
+        The test runs the judge as this dataset&apos;s evaluator, with its saved
+        version and scoring, this dataset&apos;s saved scoring, and the input
+        mapping below.{" "}
+        {isJudgeChanged ? "Your unsaved changes are not used." : ""}
       </Text>
       {isPreviewing ? <AnnotationPreviewSkeletonCard /> : null}
       {results.map((result, index) =>
