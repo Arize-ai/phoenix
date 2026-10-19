@@ -7,6 +7,7 @@ export const ANNOTATOR_KINDS = [
   "LLM",
   "HUMAN",
   "CODE",
+  "EXTERNAL",
 ] as const satisfies readonly AnnotatorKind[];
 
 export function isAnnotatorKind(value: unknown): value is AnnotatorKind {

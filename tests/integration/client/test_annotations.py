@@ -31,6 +31,15 @@ from .._helpers import (
 _ANNOTATOR_KINDS = ["LLM", "CODE", "HUMAN"]
 
 
+def _expected_stored_annotator_kind(kind: str) -> str:
+    """The kind the server should persist for a client-submitted annotation.
+
+    Client-supplied LLM/CODE claims are re-stamped to EXTERNAL at the API
+    boundary; HUMAN passes through unchanged.
+    """
+    return "EXTERNAL" if kind in ("LLM", "CODE") else kind
+
+
 class TestClientForSpanAnnotations:
     """Tests the Phoenix span annotation client functionality.
 
@@ -161,7 +170,10 @@ class TestClientForSpanAnnotations:
             # Get the annotation and verify all fields match what was provided
             assert anno["name"] == annotation_name, "Annotation name should match input"
             assert anno["source"] == "API", "Annotation source should be API"
-            assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"
+            # client-supplied LLM claims are re-stamped to EXTERNAL at the API boundary
+            assert anno["annotatorKind"] == "EXTERNAL", (
+                "Annotation annotator_kind should be EXTERNAL (re-stamped from LLM)"
+            )
             assert anno["metadata"] == metadata, "Annotation metadata should match input"
             user = anno["user"]
             assert user is not None, "Annotation should have a user"
@@ -293,8 +305,9 @@ class TestClientForSpanAnnotations:
                     f"Batch annotation {j + 1} name should match input"
                 )
                 assert anno["source"] == "API", f"Batch annotation {j + 1} source should be API"
-                assert anno["annotatorKind"] == "CODE", (
-                    f"Batch annotation {j + 1} annotator_kind should be CODE"
+                assert anno["annotatorKind"] == "EXTERNAL", (
+                    f"Batch annotation {j + 1} annotator_kind should be EXTERNAL "
+                    "(re-stamped from CODE)"
                 )
                 assert anno["metadata"] == metadata[j], (
                     f"Batch annotation {j + 1} metadata should match input"
@@ -358,6 +371,7 @@ class TestClientForSpanAnnotations:
         df1_annotation_names = [token_hex(8), token_hex(8)]
         df1_span_ids = [span_id1, span_id2]
         df1_annotator_kinds = ["HUMAN", "LLM"]
+        df1_expected_kinds = ["HUMAN", "EXTERNAL"]  # LLM re-stamped at the API boundary
         df1_labels = [token_hex(8), token_hex(8)]
         df1_scores = [
             int.from_bytes(token_bytes(4), byteorder="big"),
@@ -419,7 +433,7 @@ class TestClientForSpanAnnotations:
             assert anno["metadata"] == df1_metadata[i], (
                 f"DataFrame annotation {i + 1} metadata should match input"
             )
-            assert anno["annotatorKind"] == df1_annotator_kinds[i], (
+            assert anno["annotatorKind"] == df1_expected_kinds[i], (
                 f"DataFrame annotation {i + 1} annotator_kind should match input"
             )
 
@@ -430,6 +444,7 @@ class TestClientForSpanAnnotations:
         # This is an alternative way to specify span IDs without a dedicated column
         df2_annotation_names = [token_hex(8), token_hex(8)]
         df2_annotator_kinds = ["HUMAN", "LLM"]
+        df2_expected_kinds = ["HUMAN", "EXTERNAL"]  # LLM re-stamped at the API boundary
         df2_labels = [token_hex(8), token_hex(8)]
         df2_scores = [
             int.from_bytes(token_bytes(4), byteorder="big"),
@@ -491,7 +506,7 @@ class TestClientForSpanAnnotations:
             assert anno["metadata"] == df2_metadata[i], (
                 f"DataFrame annotation {i + 1} metadata should match input"
             )
-            assert anno["annotatorKind"] == df2_annotator_kinds[i], (
+            assert anno["annotatorKind"] == df2_expected_kinds[i], (
                 f"DataFrame annotation {i + 1} annotator_kind should match input"
             )
 
@@ -502,6 +517,7 @@ class TestClientForSpanAnnotations:
         # The DataFrame does not include an annotator_kind column, and the value is
         # provided as a parameter to the API call.
         global_annotator_kind: Literal["HUMAN"] = "HUMAN"
+        global_expected_kind = "HUMAN"  # HUMAN passes through unchanged
         df3_annotation_names = [token_hex(8), token_hex(8)]
         df3_span_ids = [span_id1, span_id2]
         df3_labels = [token_hex(8), token_hex(8)]
@@ -565,7 +581,7 @@ class TestClientForSpanAnnotations:
             assert anno["metadata"] == df3_metadata[i], (
                 f"DataFrame annotation {i + 1} metadata should match input"
             )
-            assert anno["annotatorKind"] == global_annotator_kind, (
+            assert anno["annotatorKind"] == global_expected_kind, (
                 f"DataFrame annotation {i + 1} annotator_kind should match global value"
             )
 
@@ -645,7 +661,9 @@ class TestClientForSpanAnnotations:
         assert anno["label"] is None, "Annotation label should be None"
         assert anno["explanation"] is None, "Annotation explanation should be None"
         assert anno["source"] == "API", "Annotation source should be API"
-        assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"
+        assert anno["annotatorKind"] == "EXTERNAL", (
+            "Annotation annotator_kind should be EXTERNAL (re-stamped from LLM)"
+        )
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
@@ -731,7 +749,9 @@ class TestClientForSpanAnnotations:
         assert anno["label"] is None, "DataFrame annotation label should be None"
         assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
         assert anno["source"] == "API", "DataFrame annotation source should be API"
-        assert anno["annotatorKind"] == "LLM", "DataFrame annotation annotator_kind should be LLM"
+        assert anno["annotatorKind"] == "EXTERNAL", (
+            "DataFrame annotation annotator_kind should be EXTERNAL (re-stamped from LLM)"
+        )
 
     async def test_burst_annotations_with_unique_identifiers(
         self,
@@ -829,7 +849,9 @@ class TestClientForSpanAnnotations:
             anno = annotations_by_identifier[identifiers[i]]
             assert anno["name"] == annotation_name, f"Annotation {i} name should match input"
             assert anno["source"] == "API", f"Annotation {i} source should be API"
-            assert anno["annotatorKind"] == "CODE", f"Annotation {i} annotator_kind should be CODE"
+            assert anno["annotatorKind"] == "EXTERNAL", (
+                f"Annotation {i} annotator_kind should be EXTERNAL (re-stamped from CODE)"
+            )
             assert anno["metadata"] == metadata[i], f"Annotation {i} metadata should match input"
             assert anno["label"] == labels[i], f"Annotation {i} label should match input"
             assert anno["score"] == scores[i], f"Annotation {i} score should match input"
@@ -957,7 +979,7 @@ class TestClientForSpanDocumentAnnotations:
             # Verify annotation fields
             assert anno["name"] == annotation_name
             assert anno["source"] == "API"
-            assert anno["annotatorKind"] == "LLM"
+            assert anno["annotatorKind"] == "EXTERNAL"  # re-stamped from LLM
             assert anno["metadata"] == metadata
             assert anno["documentPosition"] == document_position
             assert anno["user"]["id"] == expected_user_id
@@ -1066,7 +1088,7 @@ class TestClientForSpanDocumentAnnotations:
                 # Verify annotation fields
                 assert anno["name"] == annotation_names[j]
                 assert anno["source"] == "API"
-                assert anno["annotatorKind"] == "CODE"
+                assert anno["annotatorKind"] == "EXTERNAL"
                 assert anno["metadata"] == metadata[j]
                 assert anno["identifier"] == identifiers[j]
                 assert anno["documentPosition"] == document_positions[j]
@@ -1107,6 +1129,7 @@ class TestClientForSpanDocumentAnnotations:
         df_annotation_names = [token_hex(8), token_hex(8)]
         df_span_ids = [span_id1, span_id2]
         df_annotator_kinds = ["HUMAN", "LLM"]
+        df_expected_kinds = ["HUMAN", "EXTERNAL"]  # LLM re-stamped at the API boundary
         df_labels = [token_hex(8), token_hex(8)]
         df_scores = [
             int.from_bytes(token_bytes(4), byteorder="big"),
@@ -1168,7 +1191,7 @@ class TestClientForSpanDocumentAnnotations:
             assert anno["name"] == df_annotation_names[i]
             assert anno["source"] == "API"
             assert anno["metadata"] == df_metadata[i]
-            assert anno["annotatorKind"] == df_annotator_kinds[i]
+            assert anno["annotatorKind"] == df_expected_kinds[i]
             assert anno["documentPosition"] == document_positions[i]
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
@@ -1238,7 +1261,7 @@ class TestClientForSpanDocumentAnnotations:
         assert anno["label"] is None
         assert anno["explanation"] is None
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"
+        assert anno["annotatorKind"] == "EXTERNAL"  # re-stamped from LLM
         assert anno["documentPosition"] == document_position
 
     @pytest.mark.parametrize("sync", [True, False])
@@ -1540,8 +1563,9 @@ class TestClientForTraceAnnotations:
                     f"Batch annotation {j + 1} name should match input"
                 )
                 assert anno["source"] == "API", f"Batch annotation {j + 1} source should be API"
-                assert anno["annotatorKind"] == "CODE", (
-                    f"Batch annotation {j + 1} annotator_kind should be CODE"
+                assert anno["annotatorKind"] == "EXTERNAL", (
+                    f"Batch annotation {j + 1} annotator_kind should be EXTERNAL "
+                    "(re-stamped from CODE)"
                 )
                 assert anno["metadata"] == metadata[j], (
                     f"Batch annotation {j + 1} metadata should match input"
@@ -1609,6 +1633,7 @@ class TestClientForTraceAnnotations:
         df1_annotation_names = [token_hex(8), token_hex(8)]
         df1_trace_ids = [trace_id1, trace_id2]
         df1_annotator_kinds = ["HUMAN", "CODE"]
+        df1_expected_kinds = ["HUMAN", "EXTERNAL"]  # CODE re-stamped at the API boundary
         df1_labels = [token_hex(8), token_hex(8)]
         df1_scores = [
             int.from_bytes(token_bytes(4), byteorder="big"),
@@ -1670,7 +1695,7 @@ class TestClientForTraceAnnotations:
             assert anno["metadata"] == df1_metadata[i], (
                 f"DataFrame annotation {i + 1} metadata should match input"
             )
-            assert anno["annotatorKind"] == df1_annotator_kinds[i], (
+            assert anno["annotatorKind"] == df1_expected_kinds[i], (
                 f"DataFrame annotation {i + 1} annotator_kind should match input"
             )
 
@@ -1681,6 +1706,7 @@ class TestClientForTraceAnnotations:
         # This is an alternative way to specify trace IDs without a dedicated column
         df2_annotation_names = [token_hex(8), token_hex(8)]
         df2_annotator_kinds = ["HUMAN", "CODE"]
+        df2_expected_kinds = ["HUMAN", "EXTERNAL"]  # CODE re-stamped at the API boundary
         df2_labels = [token_hex(8), token_hex(8)]
         df2_scores = [
             int.from_bytes(token_bytes(4), byteorder="big"),
@@ -1742,7 +1768,7 @@ class TestClientForTraceAnnotations:
             assert anno["metadata"] == df2_metadata[i], (
                 f"DataFrame annotation {i + 1} metadata should match input"
             )
-            assert anno["annotatorKind"] == df2_annotator_kinds[i], (
+            assert anno["annotatorKind"] == df2_expected_kinds[i], (
                 f"DataFrame annotation {i + 1} annotator_kind should match input"
             )
 
@@ -1753,6 +1779,7 @@ class TestClientForTraceAnnotations:
         # The DataFrame does not include an annotator_kind column, and the value is
         # provided as a parameter to the API call.
         global_annotator_kind: Literal["CODE"] = "CODE"
+        global_expected_kind = "EXTERNAL"  # CODE re-stamped at the API boundary
         df3_annotation_names = [token_hex(8), token_hex(8)]
         df3_trace_ids = [trace_id1, trace_id2]
         df3_labels = [token_hex(8), token_hex(8)]
@@ -1816,7 +1843,7 @@ class TestClientForTraceAnnotations:
             assert anno["metadata"] == df3_metadata[i], (
                 f"DataFrame annotation {i + 1} metadata should match input"
             )
-            assert anno["annotatorKind"] == global_annotator_kind, (
+            assert anno["annotatorKind"] == global_expected_kind, (
                 f"DataFrame annotation {i + 1} annotator_kind should match global value"
             )
 
@@ -1898,7 +1925,9 @@ class TestClientForTraceAnnotations:
         assert anno["label"] is None, "Annotation label should be None"
         assert anno["explanation"] is None, "Annotation explanation should be None"
         assert anno["source"] == "API", "Annotation source should be API"
-        assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"
+        assert anno["annotatorKind"] == "EXTERNAL", (
+            "Annotation annotator_kind should be EXTERNAL (re-stamped from LLM)"
+        )
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
@@ -1985,7 +2014,7 @@ class TestClientForTraceAnnotations:
         assert anno["label"] is None, "DataFrame annotation label should be None"
         assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
         assert anno["source"] == "API", "DataFrame annotation source should be API"
-        assert anno["annotatorKind"] == "CODE", "DataFrame annotation annotator_kind should be CODE"
+        assert anno["annotatorKind"] == "EXTERNAL", "DataFrame annotation annotator_kind should be CODE"
 
     async def test_burst_trace_annotations_with_unique_identifiers(
         self,
@@ -2080,7 +2109,7 @@ class TestClientForTraceAnnotations:
             anno = annotations_by_identifier[identifiers[i]]
             assert anno["name"] == annotation_name, f"Trace annotation {i} name should match input"
             assert anno["source"] == "API", f"Trace annotation {i} source should be API"
-            assert anno["annotatorKind"] == "CODE", (
+            assert anno["annotatorKind"] == "EXTERNAL", (
                 f"Trace annotation {i} annotator_kind should be CODE"
             )
             assert anno["metadata"] == metadata[i], (
@@ -2220,7 +2249,7 @@ class TestClientForSessionAnnotations:
 
         # Verify the annotation exists and has the expected values
         assert anno["name"] == annotation_name
-        assert anno["annotatorKind"] == "CODE"
+        assert anno["annotatorKind"] == "EXTERNAL"
         assert anno["label"] == label
         assert anno["score"] == score
         assert anno["explanation"] == explanation
@@ -2388,7 +2417,7 @@ class TestClientForSessionAnnotations:
             no_wait=sync,
         )
         assert anno1["name"] == annotation_names[0]
-        assert anno1["annotatorKind"] == "CODE"
+        assert anno1["annotatorKind"] == "EXTERNAL"
         assert anno1["label"] == labels[0]
         assert anno1["score"] == scores[0]
         assert anno1["explanation"] == explanations[0]
@@ -2417,7 +2446,7 @@ class TestClientForSessionAnnotations:
                 no_wait=sync,
             )
             assert anno2["name"] == annotation_names[1]
-            assert anno2["annotatorKind"] == "CODE"
+            assert anno2["annotatorKind"] == "EXTERNAL"
             assert anno2["label"] == labels[1]
             assert anno2["score"] == scores[1]
             assert anno2["explanation"] == explanations[1]
@@ -2633,7 +2662,9 @@ class TestClientForSessionAnnotations:
         assert anno["label"] is None, "Annotation label should be None"
         assert anno["explanation"] is None, "Annotation explanation should be None"
         assert anno["source"] == "API", "Annotation source should be API"
-        assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"
+        assert anno["annotatorKind"] == "EXTERNAL", (
+            "Annotation annotator_kind should be EXTERNAL (re-stamped from LLM)"
+        )
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
@@ -2722,7 +2753,7 @@ class TestClientForSessionAnnotations:
         assert anno["label"] is None, "DataFrame annotation label should be None"
         assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
         assert anno["source"] == "API", "DataFrame annotation source should be API"
-        assert anno["annotatorKind"] == "CODE", "DataFrame annotation annotator_kind should be CODE"
+        assert anno["annotatorKind"] == "EXTERNAL", "DataFrame annotation annotator_kind should be CODE"
 
     async def test_burst_session_annotations_with_unique_identifiers(
         self,
@@ -2822,7 +2853,7 @@ class TestClientForSessionAnnotations:
                 f"Session annotation {i} name should match input"
             )
             assert anno["source"] == "API", f"Session annotation {i} source should be API"
-            assert anno["annotatorKind"] == "CODE", (
+            assert anno["annotatorKind"] == "EXTERNAL", (
                 f"Session annotation {i} annotator_kind should be CODE"
             )
             assert anno["metadata"] == metadata[i], (
@@ -3281,7 +3312,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == span_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == span_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(span_annotator_kind)
         assert anno["metadata"] == span_anno_metadatas[-1]
 
         # Retain the gid for the UPSERT test
@@ -3299,7 +3330,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == span_eval_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"  # Evaluation annotator kind is always "LLM"
+        assert anno["annotatorKind"] == "EXTERNAL"  # client LLM claims are re-stamped
 
         # Retain the gid for the UPSERT test
         span_eval_gid = anno["id"]
@@ -3316,7 +3347,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == trace_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == trace_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(trace_annotator_kind)
         assert anno["metadata"] == trace_anno_metadatas[-1]
 
         # Retain the gid for the UPSERT test
@@ -3334,7 +3365,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == session_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == session_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(session_annotator_kind)
         assert anno["metadata"] == session_anno_metadatas[-1]
 
         # Retain the gid for the UPSERT test
@@ -3352,7 +3383,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == trace_eval_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"  # Evaluation annotator kind is always "LLM"
+        assert anno["annotatorKind"] == "EXTERNAL"  # client LLM claims are re-stamped
 
         # Retain the gid for the UPSERT test
         trace_eval_gid = anno["id"]
@@ -3382,7 +3413,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == document_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == document_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(document_annotator_kind)
         assert anno["metadata"] == document_anno_metadatas[-1]
         assert anno["documentPosition"] == document_position
 
@@ -3520,7 +3551,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == span_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == new_span_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(new_span_annotator_kind)
         assert anno["metadata"] == new_span_anno_metadata
         assert anno["id"] == span_anno_gid
 
@@ -3535,7 +3566,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == span_eval_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"  # Evaluation annotator kind is always "LLM"
+        assert anno["annotatorKind"] == "EXTERNAL"  # client LLM claims are re-stamped
         assert anno["id"] == span_eval_gid
 
         # Old version should no longer exist
@@ -3549,7 +3580,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == trace_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == new_trace_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(new_trace_annotator_kind)
         assert anno["metadata"] == new_trace_anno_metadata
         assert anno["id"] == trace_anno_gid
 
@@ -3564,7 +3595,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == session_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == new_session_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(new_session_annotator_kind)
         assert anno["metadata"] == new_session_anno_metadata
         assert anno["id"] == session_anno_gid
 
@@ -3584,7 +3615,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == document_annotation_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == new_document_annotator_kind
+        assert anno["annotatorKind"] == _expected_stored_annotator_kind(new_document_annotator_kind)
         assert anno["metadata"] == new_document_anno_metadata
         assert anno["documentPosition"] == document_position
         assert anno["id"] == document_anno_gid
@@ -3603,7 +3634,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == trace_eval_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"  # Evaluation annotator kind is always "LLM"
+        assert anno["annotatorKind"] == "EXTERNAL"  # client LLM claims are re-stamped
         assert anno["id"] == trace_eval_gid
 
         # Old version should no longer exist
@@ -3617,7 +3648,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
         assert anno["name"] == doc_eval_name
         assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"  # Evaluation annotator kind is always "LLM"
+        assert anno["annotatorKind"] == "EXTERNAL"  # client LLM claims are re-stamped
         assert anno["documentPosition"] == document_position
 
         # Old version should no longer exist

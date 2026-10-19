@@ -9,7 +9,9 @@ export function AnnotatorKindToken(props: { kind: AnnotatorKind }) {
       color={
         kind === "HUMAN"
           ? "var(--global-color-blue-500)"
-          : "var(--global-color-orange-500)"
+          : kind === "EXTERNAL"
+            ? "var(--global-color-purple-500)"
+            : "var(--global-color-orange-500)"
       }
     >
       {kind}

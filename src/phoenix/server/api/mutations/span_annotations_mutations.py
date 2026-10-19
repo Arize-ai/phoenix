@@ -6,6 +6,7 @@ from strawberry import UNSET, Info
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.server.annotator_provenance import resolve_external_annotator_kind
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -91,7 +92,10 @@ class SpanAnnotationMutationMixin:
                     "label": annotation_input.label,
                     "score": annotation_input.score,
                     "explanation": annotation_input.explanation,
-                    "annotator_kind": annotation_input.annotator_kind.value,
+                    # LLM/CODE are server-derived kinds; a client cannot claim them.
+                    "annotator_kind": resolve_external_annotator_kind(
+                        annotation_input.annotator_kind.value
+                    ),
                     "metadata_": annotation_input.metadata,
                     "identifier": resolved_identifier,
                     "source": annotation_input.source.value,
@@ -113,7 +117,10 @@ class SpanAnnotationMutationMixin:
                     existing_annotation.score = annotation_input.score
                     existing_annotation.explanation = annotation_input.explanation
                     existing_annotation.metadata_ = cast(dict[str, Any], annotation_input.metadata)
-                    existing_annotation.annotator_kind = annotation_input.annotator_kind.value
+                    # LLM/CODE are server-derived kinds; a client cannot claim them.
+                    existing_annotation.annotator_kind = resolve_external_annotator_kind(
+                        annotation_input.annotator_kind.value
+                    )
                     existing_annotation.source = annotation_input.source.value
                     existing_annotation.user_id = user_id
                     session.add(existing_annotation)
@@ -185,7 +192,9 @@ class SpanAnnotationMutationMixin:
                     "label": None,
                     "score": None,
                     "explanation": note_input.note,
-                    "annotator_kind": note_input.annotator_kind.value,
+                    "annotator_kind": resolve_external_annotator_kind(
+                        note_input.annotator_kind.value
+                    ),
                     "metadata_": {},
                     "identifier": (
                         note_input.identifier
@@ -274,7 +283,10 @@ class SpanAnnotationMutationMixin:
                 if patch.name:
                     span_annotation.name = patch.name
                 if patch.annotator_kind:
-                    span_annotation.annotator_kind = patch.annotator_kind.value
+                    # LLM/CODE are server-derived kinds; a client cannot claim them.
+                    span_annotation.annotator_kind = resolve_external_annotator_kind(
+                        patch.annotator_kind.value
+                    )
                 if patch.label is not UNSET:
                     span_annotation.label = patch.label
                 if patch.score is not UNSET:

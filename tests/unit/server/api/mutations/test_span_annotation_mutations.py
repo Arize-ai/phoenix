@@ -384,12 +384,16 @@ class TestSpanNoteMutations:
     }
     """
 
-    @pytest.mark.parametrize("annotator_kind", ["HUMAN", "LLM", "CODE"])
+    @pytest.mark.parametrize(
+        "annotator_kind, expected_stored_kind",
+        [("HUMAN", "HUMAN"), ("LLM", "EXTERNAL"), ("CODE", "EXTERNAL")],
+    )
     @pytest.mark.parametrize("source", ["APP", "API"])
     async def test_create_by_node_and_otel_id_preserves_note_semantics(
         self,
         source: str,
         annotator_kind: str,
+        expected_stored_kind: str,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
     ) -> None:
@@ -433,7 +437,7 @@ class TestSpanNoteMutations:
         assert all(note["name"] == "note" for note in notes)
         assert all(note["label"] is None for note in notes)
         assert all(note["score"] is None for note in notes)
-        assert all(note["annotatorKind"] == annotator_kind for note in notes)
+        assert all(note["annotatorKind"] == expected_stored_kind for note in notes)
         assert all(note["metadata"] == {} for note in notes)
         assert all(note["source"] == source for note in notes)
         assert notes[0]["identifier"].startswith("px-span-note:")
@@ -450,7 +454,7 @@ class TestSpanNoteMutations:
         assert [note.span_rowid for note in stored_notes] == [first_span.id, second_span.id]
         assert all(note.user_id is None for note in stored_notes)
         assert all(note.source == source for note in stored_notes)
-        assert all(note.annotator_kind == annotator_kind for note in stored_notes)
+        assert all(note.annotator_kind == expected_stored_kind for note in stored_notes)
 
     async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
         self,
@@ -604,7 +608,9 @@ class TestSpanNoteMutations:
             )
         assert len(notes) == 3
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
-        assert [note.annotator_kind for note in notes if note.identifier == "coding"] == ["LLM"]
+        assert [note.annotator_kind for note in notes if note.identifier == "coding"] == [
+            "EXTERNAL"
+        ]
         assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
 
     @pytest.mark.parametrize(

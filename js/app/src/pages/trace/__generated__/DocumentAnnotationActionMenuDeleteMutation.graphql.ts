@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<877d47436077ad4ef9e07e71a289d78a>>
+ * @generated SignedSource<<774198e14cb2c67ddd90bf9ee8795fb3>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "EXTERNAL" | "HUMAN" | "LLM";
 export type DeleteAnnotationsInput = {
   annotationIds: ReadonlyArray<string>;
 };

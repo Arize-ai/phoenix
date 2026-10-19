@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<674400daff6f33721ae562e1c4b84a63>>
+ * @generated SignedSource<<fbf0aa88db4d070ccdc4175d332dfea3>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "EXTERNAL" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type TraceAnnotationSummaryGroup$data = {
   readonly summaryTraceAnnotationSummaries: ReadonlyArray<{

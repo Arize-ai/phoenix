@@ -270,7 +270,7 @@ class TestProjectSessionAnnotationMutations:
             "projectSessionAnnotation"
         ]
         assert created_llm_annotation["name"] == "llm_annotation"
-        assert created_llm_annotation["annotatorKind"] == "LLM"
+        assert created_llm_annotation["annotatorKind"] == "EXTERNAL"
         assert created_llm_annotation["label"] == "LLM_LABEL"
         assert created_llm_annotation["score"] == 0.85
         assert created_llm_annotation["source"] == "API"
@@ -297,7 +297,7 @@ class TestProjectSessionAnnotationMutations:
             "projectSessionAnnotation"
         ]
         assert created_code_annotation["name"] == "code_annotation"
-        assert created_code_annotation["annotatorKind"] == "CODE"
+        assert created_code_annotation["annotatorKind"] == "EXTERNAL"
         assert created_code_annotation["label"] == "CODE_GENERATED"
         assert created_code_annotation["score"] == 0.92
         assert created_code_annotation["source"] == "APP"
@@ -348,7 +348,7 @@ class TestProjectSessionAnnotationMutations:
         assert created_label_only_annotation["label"] == "LABEL_ONLY_TEST"
         assert created_label_only_annotation["score"] is None
         assert created_label_only_annotation["explanation"] is None
-        assert created_label_only_annotation["annotatorKind"] == "LLM"
+        assert created_label_only_annotation["annotatorKind"] == "EXTERNAL"
 
         # A8. Create with only explanation (no score/label)
         explanation_only_create_input = {
@@ -377,7 +377,7 @@ class TestProjectSessionAnnotationMutations:
         )
         assert created_explanation_only_annotation["score"] is None
         assert created_explanation_only_annotation["label"] is None
-        assert created_explanation_only_annotation["annotatorKind"] == "CODE"
+        assert created_explanation_only_annotation["annotatorKind"] == "EXTERNAL"
 
         # A9. Test identifier trimming behavior (whitespace should be stripped)
         padded_identifier_input = {
@@ -793,13 +793,13 @@ class TestProjectSessionAnnotationMutations:
         assert updated_null_explanation_annotation["label"] == "EXPLANATION_NULL_TEST"
         assert updated_null_explanation_annotation["name"] == "explanation_set_to_null"
 
-        # B11. Test enum field update: annotatorKind (HUMAN → LLM)
+        # B11. Test enum field update: annotatorKind (HUMAN → LLM; re-stamped to EXTERNAL)
         annotator_kind_input = {
             "input": {
                 "source": "APP",
                 "id": created_basic_annotation["id"],
                 "name": "annotator_kind_test",
-                "annotatorKind": "LLM",  # Change from HUMAN to LLM
+                "annotatorKind": "LLM",  # Change from HUMAN to LLM; stored as EXTERNAL
                 "label": "ANNOTATOR_KIND_TEST",  # Provide label to satisfy validation
                 "metadata": {},
             }
@@ -815,7 +815,7 @@ class TestProjectSessionAnnotationMutations:
             "updateProjectSessionAnnotations"
         ]["projectSessionAnnotation"]
         assert updated_annotator_kind_annotation["id"] == created_basic_annotation["id"]
-        assert updated_annotator_kind_annotation["annotatorKind"] == "LLM"
+        assert updated_annotator_kind_annotation["annotatorKind"] == "EXTERNAL"
         assert updated_annotator_kind_annotation["label"] == "ANNOTATOR_KIND_TEST"
         assert updated_annotator_kind_annotation["name"] == "annotator_kind_test"
 
@@ -869,7 +869,7 @@ class TestProjectSessionAnnotationMutations:
             "updateProjectSessionAnnotations"
         ]["projectSessionAnnotation"]
         assert updated_code_annotator_annotation["id"] == updated_source_annotation["id"]
-        assert updated_code_annotator_annotation["annotatorKind"] == "CODE"
+        assert updated_code_annotator_annotation["annotatorKind"] == "EXTERNAL"
         assert updated_code_annotator_annotation["score"] == 0.88
         assert updated_code_annotator_annotation["name"] == "code_annotator_test"
 
@@ -903,7 +903,7 @@ class TestProjectSessionAnnotationMutations:
         )
         assert updated_identifier_immutable_annotation["name"] == "identifier_immutability_test"
         assert updated_identifier_immutable_annotation["label"] == "IDENTIFIER_IMMUTABLE_TEST"
-        assert updated_identifier_immutable_annotation["annotatorKind"] == "LLM"
+        assert updated_identifier_immutable_annotation["annotatorKind"] == "EXTERNAL"
         # CRITICAL: Identifier should remain unchanged despite the update
         assert updated_identifier_immutable_annotation["identifier"] == "padded_identifier"
 
@@ -940,7 +940,7 @@ class TestProjectSessionAnnotationMutations:
             updated_field_trimming_annotation["explanation"]
             == "This updated explanation also has padding"
         )  # Trimmed
-        assert updated_field_trimming_annotation["annotatorKind"] == "LLM"
+        assert updated_field_trimming_annotation["annotatorKind"] == "EXTERNAL"
         assert updated_field_trimming_annotation["source"] == "APP"
 
         # ============================================================================
@@ -1058,12 +1058,16 @@ class TestProjectSessionNoteMutations:
     }
     """
 
-    @pytest.mark.parametrize("annotator_kind", ["HUMAN", "LLM", "CODE"])
+    @pytest.mark.parametrize(
+        "annotator_kind, expected_stored_kind",
+        [("HUMAN", "HUMAN"), ("LLM", "EXTERNAL"), ("CODE", "EXTERNAL")],
+    )
     @pytest.mark.parametrize("source", ["APP", "API"])
     async def test_create_by_node_and_session_id_preserves_note_semantics(
         self,
         source: str,
         annotator_kind: str,
+        expected_stored_kind: str,
         project_session_data: models.ProjectSession,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -1098,7 +1102,7 @@ class TestProjectSessionNoteMutations:
         assert all(note["name"] == "note" for note in notes)
         assert all(note["label"] is None for note in notes)
         assert all(note["score"] is None for note in notes)
-        assert all(note["annotatorKind"] == annotator_kind for note in notes)
+        assert all(note["annotatorKind"] == expected_stored_kind for note in notes)
         assert all(note["metadata"] == {} for note in notes)
         assert all(note["source"] == source for note in notes)
         assert notes[0]["identifier"].startswith("px-session-note:")
@@ -1116,7 +1120,7 @@ class TestProjectSessionNoteMutations:
         assert all(note.project_session_id == project_session_data.id for note in stored_notes)
         assert all(note.user_id is None for note in stored_notes)
         assert all(note.source == source for note in stored_notes)
-        assert all(note.annotator_kind == annotator_kind for note in stored_notes)
+        assert all(note.annotator_kind == expected_stored_kind for note in stored_notes)
 
     async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
         self,
@@ -1276,7 +1280,9 @@ class TestProjectSessionNoteMutations:
             )
         assert len(notes) == 3
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
-        assert [note.annotator_kind for note in notes if note.identifier == "coding"] == ["LLM"]
+        assert [note.annotator_kind for note in notes if note.identifier == "coding"] == [
+            "EXTERNAL"
+        ]
         assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
 
     @pytest.mark.parametrize(

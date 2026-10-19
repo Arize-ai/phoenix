@@ -10,6 +10,7 @@ from typing_extensions import Self
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.server.annotator_provenance import resolve_external_annotator_kind
 from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentRunAnnotationInsertEvent
@@ -31,8 +32,15 @@ class ExperimentEvaluationResult(V1RoutesBaseModel):
 class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     experiment_run_id: str = Field(description="The ID of the experiment run being evaluated")
     name: str = Field(description="The name of the evaluation")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
-        description="The kind of annotator used for the evaluation"
+    annotator_kind: Literal["LLM", "CODE", "HUMAN", "EXTERNAL"] = Field(
+        description=(
+            "The kind of annotator used for the evaluation. Values 'LLM' and "
+            "'CODE' are reserved for evaluations produced by Phoenix's own "
+            "server-side evaluators (the experiment runner); client-supplied "
+            "evaluations carrying those kinds are re-stamped to 'EXTERNAL' "
+            "before they are persisted. Use 'EXTERNAL' for evaluations "
+            "computed outside the server."
+        )
     )
     start_time: IsoDatetime = Field(description="The start time of the evaluation in ISO format")
     end_time: IsoDatetime = Field(description="The end time of the evaluation in ISO format")
@@ -87,7 +95,11 @@ async def upsert_experiment_evaluation(
             status_code=404,
         )
     name = request_body.name
-    annotator_kind = request_body.annotator_kind
+    # annotator_kind is a claim about who produced the evaluation; only the
+    # in-process experiment runner may persist LLM/CODE (it writes via the
+    # database, never through this route). Re-stamp client claims so stored
+    # LLM/CODE rows are exactly the server's own evaluator output.
+    annotator_kind = resolve_external_annotator_kind(request_body.annotator_kind)
     result = request_body.result
     label = result.label if result else None
     score = result.score if result else None

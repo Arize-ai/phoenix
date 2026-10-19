@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df5cd6fcc8a23bedafc3a3f9149e3ed6>>
+ * @generated SignedSource<<dd90e9b65b498ab275c6dac420834bac>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSource = "API" | "APP";
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "EXTERNAL" | "HUMAN" | "LLM";
 export type CreateSpanAnnotationInput = {
   annotatorKind: AnnotatorKind;
   explanation?: string | null;

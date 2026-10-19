@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7c69aaed7453cac2f9a15b660ba29ec4>>
+ * @generated SignedSource<<8f85f86c35042cb4e5bc0c967f9861f9>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "CODE" | "EXTERNAL" | "HUMAN" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentCompareTable_comparisons$data = {

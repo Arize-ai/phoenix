@@ -651,7 +651,7 @@ CREATE TABLE document_annotations (
     CONSTRAINT uq_document_annotations_name_span_rowid_document_pos_identifier
         UNIQUE (name, span_rowid, document_position, identifier),
     CONSTRAINT "ck_document_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'EXTERNAL')),
     CONSTRAINT "ck_document_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_document_annotations_span_rowid_spans
         FOREIGN KEY (span_rowid)
@@ -930,7 +930,7 @@ CREATE TABLE experiment_run_annotations (
     name VARCHAR NOT NULL,
     annotator_kind VARCHAR NOT NULL
         CONSTRAINT "ck_experiment_run_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'EXTERNAL')),
     label VARCHAR,
     score FLOAT,
     explanation VARCHAR,
@@ -1236,7 +1236,7 @@ CREATE TABLE project_session_annotations (
     metadata JSONB NOT NULL,
     annotator_kind VARCHAR NOT NULL
         CONSTRAINT "ck_project_session_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'EXTERNAL')),
     user_id INTEGER,
     identifier VARCHAR DEFAULT '' NOT NULL,
     source VARCHAR NOT NULL
@@ -1609,7 +1609,7 @@ CREATE TABLE span_annotations (
     CONSTRAINT uq_span_annotations_name_span_rowid_identifier
         UNIQUE (name, span_rowid, identifier),
     CONSTRAINT "ck_span_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'EXTERNAL')),
     CONSTRAINT "ck_span_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_span_annotations_span_rowid_spans
         FOREIGN KEY (span_rowid)
@@ -1662,7 +1662,7 @@ CREATE TABLE trace_annotations (
     CONSTRAINT uq_trace_annotations_name_trace_rowid_identifier
         UNIQUE (name, trace_rowid, identifier),
     CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'EXTERNAL')),
     CONSTRAINT "ck_trace_annotations_`valid_source`" CHECK (source IN ('API', 'APP')),
     CONSTRAINT fk_trace_annotations_trace_rowid_traces
         FOREIGN KEY (trace_rowid)

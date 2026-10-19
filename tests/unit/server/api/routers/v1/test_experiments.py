@@ -168,7 +168,9 @@ async def test_experiments_api(
     assert annotation.pop("score") == 0.5
     assert annotation.pop("explanation") == "some explanation"
     assert annotation.pop("metadata") == {"some": "metadata"}
-    assert annotation.pop("annotator_kind") == "LLM"
+    # the client submitted annotator_kind="LLM", but external write paths
+    # re-stamp LLM/CODE claims to EXTERNAL
+    assert annotation.pop("annotator_kind") == "EXTERNAL"
     assert annotation.pop("trace_id") == "placeholder-id"
     assert annotation.pop("error") == "an error message, if applicable"
     assert isinstance(annotation.pop("start_time"), str)
@@ -208,7 +210,7 @@ async def test_experiments_api(
     assert row.pop(f"{annotation_prefix}_score") == 0.5
     assert row.pop(f"{annotation_prefix}_explanation") == "some explanation"
     assert json.loads(row.pop(f"{annotation_prefix}_metadata")) == {"some": "metadata"}
-    assert row.pop(f"{annotation_prefix}_annotator_kind") == "LLM"
+    assert row.pop(f"{annotation_prefix}_annotator_kind") == "EXTERNAL"
     assert row.pop(f"{annotation_prefix}_trace_id") == "placeholder-id"
     assert row.pop(f"{annotation_prefix}_error") == "an error message, if applicable"
     assert isinstance(row.pop(f"{annotation_prefix}_start_time"), str)

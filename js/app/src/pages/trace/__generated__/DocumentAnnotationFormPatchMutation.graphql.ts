@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ac18dd291d864bb84499fb87f6a10a4f>>
+ * @generated SignedSource<<490fe3c6f0f01051cf83192186650dda>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type AnnotationSource = "API" | "APP";
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "EXTERNAL" | "HUMAN" | "LLM";
 export type PatchAnnotationInput = {
   annotationId: string;
   annotatorKind?: AnnotatorKind | null;

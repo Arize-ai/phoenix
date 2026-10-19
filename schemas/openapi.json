@@ -860,7 +860,8 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "EXTERNAL"
                   ],
                   "type": "string"
                 },
@@ -1209,7 +1210,8 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "EXTERNAL"
                   ],
                   "type": "string"
                 },
@@ -1558,7 +1560,8 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "EXTERNAL"
                   ],
                   "type": "string"
                 },
@@ -19200,10 +19203,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "description": "The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "result": {
             "anyOf": [
@@ -19266,10 +19270,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "description": "The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "result": {
             "anyOf": [
@@ -19907,10 +19912,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "description": "The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "result": {
             "anyOf": [
@@ -19973,10 +19979,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "description": "The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "result": {
             "anyOf": [
@@ -20088,10 +20095,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "description": "The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "result": {
             "anyOf": [
@@ -21047,10 +21055,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "description": "The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "result": {
             "anyOf": [
@@ -21113,10 +21122,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
+            "description": "The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "result": {
             "anyOf": [
@@ -21878,10 +21888,11 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "EXTERNAL"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the evaluation"
+            "description": "The kind of annotator used for the evaluation. Values 'LLM' and 'CODE' are reserved for evaluations produced by Phoenix's own server-side evaluators (the experiment runner); client-supplied evaluations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server."
           },
           "start_time": {
             "type": "string",

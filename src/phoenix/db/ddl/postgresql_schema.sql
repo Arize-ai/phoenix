@@ -677,7 +677,8 @@ CREATE TABLE public.document_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'EXTERNAL'::character varying
         ])::text[]))),
     CONSTRAINT "ck_document_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1008,7 +1009,8 @@ CREATE TABLE public.experiment_run_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'EXTERNAL'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_run_annotations_experiment_run_id_experiment_runs
         FOREIGN KEY (experiment_run_id)
@@ -1327,7 +1329,8 @@ CREATE TABLE public.project_session_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'EXTERNAL'::character varying
         ])::text[]))),
     CONSTRAINT "ck_project_session_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1724,7 +1727,8 @@ CREATE TABLE public.span_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'EXTERNAL'::character varying
         ])::text[]))),
     CONSTRAINT "ck_span_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1788,7 +1792,8 @@ CREATE TABLE public.trace_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'EXTERNAL'::character varying
         ])::text[]))),
     CONSTRAINT "ck_trace_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[

@@ -8,6 +8,7 @@ from strawberry import UNSET, Info
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.annotator_provenance import resolve_external_annotator_kind
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -82,7 +83,10 @@ class DocumentAnnotationMutationMixin:
                     "label": (label.strip() or None) if label else None,
                     "score": annotation_input.score,
                     "explanation": (explanation.strip() or None) if explanation else None,
-                    "annotator_kind": annotation_input.annotator_kind.value,
+                    # LLM/CODE are server-derived kinds; a client cannot claim them.
+                    "annotator_kind": resolve_external_annotator_kind(
+                        annotation_input.annotator_kind.value
+                    ),
                     "metadata_": metadata,
                     "identifier": resolved_identifier,
                     "source": annotation_input.source.value,
@@ -214,7 +218,10 @@ class DocumentAnnotationMutationMixin:
                 if patch.name and (name := patch.name.strip()):
                     document_annotation.name = name
                 if patch.annotator_kind:
-                    document_annotation.annotator_kind = patch.annotator_kind.value
+                    # LLM/CODE are server-derived kinds; a client cannot claim them.
+                    document_annotation.annotator_kind = resolve_external_annotator_kind(
+                        patch.annotator_kind.value
+                    )
                 if patch.label is not UNSET:
                     document_annotation.label = (
                         (patch.label.strip() or None) if patch.label else None

@@ -9,6 +9,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.server.annotator_provenance import resolve_external_annotator_kind
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
@@ -85,7 +86,10 @@ class ProjectSessionAnnotationMutationMixin:
                     label=input.label,
                     score=input.score,
                     explanation=input.explanation,
-                    annotator_kind=input.annotator_kind.value,
+                    # LLM/CODE are server-derived kinds; a client cannot claim them.
+                    annotator_kind=resolve_external_annotator_kind(
+                        input.annotator_kind.value
+                    ),
                     metadata_=input.metadata,
                     identifier=identifier,
                     source=input.source.value,
@@ -122,7 +126,9 @@ class ProjectSessionAnnotationMutationMixin:
                     "label": None,
                     "score": None,
                     "explanation": note_input.note,
-                    "annotator_kind": note_input.annotator_kind.value,
+                    "annotator_kind": resolve_external_annotator_kind(
+                        note_input.annotator_kind.value
+                    ),
                     "metadata_": {},
                     "identifier": (
                         note_input.identifier
@@ -189,7 +195,10 @@ class ProjectSessionAnnotationMutationMixin:
             anno.label = input.label
             anno.score = input.score
             anno.explanation = input.explanation
-            anno.annotator_kind = input.annotator_kind.value
+            # LLM/CODE are server-derived kinds; a client cannot claim them.
+            anno.annotator_kind = resolve_external_annotator_kind(
+                input.annotator_kind.value
+            )
             anno.metadata_ = cast(dict[str, Any], input.metadata)
             anno.source = input.source.value
 

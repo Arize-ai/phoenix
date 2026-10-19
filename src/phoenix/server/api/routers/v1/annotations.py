@@ -13,6 +13,7 @@ from strawberry.relay import GlobalID
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.annotator_provenance import resolve_external_annotator_kind
 from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.types.ProjectSessionAnnotation import (
     ProjectSessionAnnotation as SessionAnnotationNodeType,
@@ -61,8 +62,15 @@ class AnnotationResult(V1RoutesBaseModel):
 
 class AnnotationData(V1RoutesBaseModel):
     name: str = Field(description="The name of the annotation")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
-        description="The kind of annotator used for the annotation"
+    annotator_kind: Literal["LLM", "CODE", "HUMAN", "EXTERNAL"] = Field(
+        description=(
+            "The kind of annotator used for the annotation. Values 'LLM' and "
+            "'CODE' are reserved for annotations produced by Phoenix's own "
+            "server-side evaluators; client-supplied annotations carrying "
+            "those kinds are re-stamped to 'EXTERNAL' before they are "
+            "persisted. Use 'EXTERNAL' for evaluations computed outside the "
+            "server."
+        )
     )
     result: Optional[AnnotationResult] = Field(
         default=None, description="The result of the annotation"
@@ -88,7 +96,7 @@ class SpanAnnotationData(AnnotationData):
             self.span_id,
             models.SpanAnnotation(
                 name=self.name,
-                annotator_kind=self.annotator_kind,
+                annotator_kind=resolve_external_annotator_kind(self.annotator_kind),
                 score=self.result.score if self.result else None,
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
@@ -122,7 +130,7 @@ class SpanDocumentAnnotationData(AnnotationData):
             self.document_position,
             models.DocumentAnnotation(
                 name=self.name,
-                annotator_kind=self.annotator_kind,
+                annotator_kind=resolve_external_annotator_kind(self.annotator_kind),
                 document_position=self.document_position,
                 score=self.result.score if self.result else None,
                 label=self.result.label if self.result else None,
@@ -152,7 +160,7 @@ class TraceAnnotationData(AnnotationData):
             self.trace_id,
             models.TraceAnnotation(
                 name=self.name,
-                annotator_kind=self.annotator_kind,
+                annotator_kind=resolve_external_annotator_kind(self.annotator_kind),
                 score=self.result.score if self.result else None,
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
@@ -181,7 +189,7 @@ class SessionAnnotationData(AnnotationData):
             self.session_id,
             models.ProjectSessionAnnotation(
                 name=self.name,
-                annotator_kind=self.annotator_kind,
+                annotator_kind=resolve_external_annotator_kind(self.annotator_kind),
                 score=self.result.score if self.result else None,
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
@@ -920,7 +928,7 @@ async def delete_span_annotations(
         Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
     ] = None,
     annotator_kind: Annotated[
-        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Optional[Literal["LLM", "CODE", "HUMAN", "EXTERNAL"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
     start_time: Annotated[
@@ -1007,7 +1015,7 @@ async def delete_trace_annotations(
         Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
     ] = None,
     annotator_kind: Annotated[
-        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Optional[Literal["LLM", "CODE", "HUMAN", "EXTERNAL"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
     start_time: Annotated[
@@ -1092,7 +1100,7 @@ async def delete_session_annotations(
         Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
     ] = None,
     annotator_kind: Annotated[
-        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Optional[Literal["LLM", "CODE", "HUMAN", "EXTERNAL"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
     start_time: Annotated[

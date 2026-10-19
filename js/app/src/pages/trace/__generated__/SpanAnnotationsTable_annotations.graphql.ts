@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<76913078a9c1126585e8d4d7085056f8>>
+ * @generated SignedSource<<09b59c53569f66671b0f0a455c7368b5>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotationSource = "API" | "APP";
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "EXTERNAL" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type SpanAnnotationsTable_annotations$data = {
   readonly id: string;

@@ -5493,10 +5493,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5527,10 +5527,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5859,10 +5859,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5893,10 +5893,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5953,10 +5953,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6375,10 +6375,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6409,10 +6409,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the annotation
+             * @description The kind of annotator used for the annotation. Values 'LLM' and 'CODE' are reserved for annotations produced by Phoenix's own server-side evaluators; client-supplied annotations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6730,10 +6730,10 @@ export interface components {
             name: string;
             /**
              * Annotator Kind
-             * @description The kind of annotator used for the evaluation
+             * @description The kind of annotator used for the evaluation. Values 'LLM' and 'CODE' are reserved for evaluations produced by Phoenix's own server-side evaluators (the experiment runner); client-supplied evaluations carrying those kinds are re-stamped to 'EXTERNAL' before they are persisted. Use 'EXTERNAL' for evaluations computed outside the server.
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "EXTERNAL";
             /**
              * Start Time
              * Format: date-time
@@ -7942,7 +7942,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "EXTERNAL") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8066,7 +8066,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "EXTERNAL") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8190,7 +8190,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "EXTERNAL") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
