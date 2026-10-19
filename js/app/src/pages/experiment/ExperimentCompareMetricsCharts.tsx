@@ -1,5 +1,6 @@
 import { Suspense, useCallback } from "react";
 
+import { View } from "@phoenix/components";
 import {
   ChartPanelStrip,
   ChartPanelStripSkeleton,
