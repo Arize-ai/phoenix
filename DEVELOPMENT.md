@@ -137,9 +137,9 @@ inference is performed.
 
 | Dataset | Source | Examples |
 | --- | --- | --- |
-| `phoenix-datagen-jevbench-hard` | [JevBench public hard](https://github.com/fstandhartinger/jevbench/blob/main/datasets/public/hard.jsonl) | 111 |
-| `phoenix-datagen-typed-decisions` | [Typed Decisions](https://huggingface.co/datasets/LocalLLaMA/typed-decisions), configuration `all`, split `test` | 400, with five questions per example |
-| `phoenix-datagen-boolq` | [BoolQ](https://huggingface.co/datasets/google/boolq), split `validation` | 3,270 |
+| `px-datagen-jevbench-hard` | [JevBench public hard](https://github.com/fstandhartinger/jevbench/blob/main/datasets/public/hard.jsonl) | 111 |
+| `px-datagen-typed-decisions` | [Typed Decisions](https://huggingface.co/datasets/LocalLLaMA/typed-decisions), configuration `all`, split `test` | 400, with five questions per example |
+| `px-datagen-boolq` | [BoolQ](https://huggingface.co/datasets/google/boolq), split `validation` | 3,270 |
 
 Typed Decisions examples are assigned to splits using `metadata.workflow`:
 `agent_trace_observability`, `customer_service`, `invoice_processing`, and
@@ -147,8 +147,8 @@ Typed Decisions examples are assigned to splits using `metadata.workflow`:
 populate these memberships.
 
 Datagen also seeds a separate 100-example dataset for each workflow, appending
-the split name to `phoenix-datagen-typed-decisions`, for example
-`phoenix-datagen-typed-decisions-customer_service`. The combined dataset retains
+the split name to `px-datagen-typed-decisions`, for example
+`px-datagen-typed-decisions-customer_service`. The combined dataset retains
 all 400 examples and all four splits. Both startup seeding and
 `phoenix datagen seed --source typed-decisions` refresh all five datasets.
 

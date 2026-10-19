@@ -153,7 +153,7 @@ def test_seed_loads_cached_sources_with_stable_metadata_and_timeout(tmp_path: Pa
     assert first == client.datasets.create_dataset.call_args
     assert first.kwargs["timeout"] == 120
     assert first.kwargs["examples"][0]["metadata"]["source_revision"] == source.revision
-    assert first.kwargs["name"] == "phoenix-datagen-jevbench-hard"
+    assert first.kwargs["name"] == "px-datagen-jevbench-hard"
 
 
 def test_seed_creates_combined_and_workflow_datasets(tmp_path: Path) -> None:
@@ -182,7 +182,7 @@ def test_seed_creates_combined_and_workflow_datasets(tmp_path: Path) -> None:
     first = list(client.datasets.create_dataset.call_args_list)
     assert len(first) == 5
     datasets = {call.kwargs["name"]: call.kwargs["examples"] for call in first}
-    name = "phoenix-datagen-typed-decisions"
+    name = "px-datagen-typed-decisions"
     examples = datasets[name]
     assert len(examples) == 5
     assert [example["splits"] for example in examples] == [

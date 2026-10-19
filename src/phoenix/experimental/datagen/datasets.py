@@ -298,7 +298,7 @@ def seed_datasets(
         for suffix, subset in sorted(groups.items()):
             datasets.append(
                 client.datasets.create_dataset(
-                    name=f"phoenix-datagen-{source.name}{suffix}",
+                    name=f"px-datagen-{source.name}{suffix}",
                     examples=subset,
                     dataset_description=(
                         f"Datagen-owned development fixture. Source: {source.url} "

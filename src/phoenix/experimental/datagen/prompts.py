@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from phoenix.client import Client
     from phoenix.client.resources.datasets import Dataset
 
-_DATASET_PREFIX = "phoenix-datagen-typed-decisions-"
+_DATASET_PREFIX = "px-datagen-typed-decisions-"
 _MODEL = "gpt-6-luna"
 _TOOL_NAME = "record_decisions"
 _SYSTEM = """Evaluate the supplied state against every question defined by the tool.

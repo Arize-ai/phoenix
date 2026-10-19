@@ -33,7 +33,7 @@ def _questions() -> dict[str, Any]:
 
 def _dataset(workflow: str) -> MagicMock:
     dataset = MagicMock()
-    dataset.name = f"phoenix-datagen-typed-decisions-{workflow}"
+    dataset.name = f"px-datagen-typed-decisions-{workflow}"
     dataset.examples = [
         {
             "input": {"state": {"id": index}, "questions": _questions()},
@@ -85,9 +85,9 @@ def test_seed_creates_only_workflow_prompts_and_skips_unchanged_versions() -> No
     ]
     datasets = [_dataset(workflow) for workflow in workflows]
     combined = MagicMock()
-    combined.name = "phoenix-datagen-typed-decisions"
+    combined.name = "px-datagen-typed-decisions"
     unrelated = MagicMock()
-    unrelated.name = "phoenix-datagen-boolq"
+    unrelated.name = "px-datagen-boolq"
     stored: dict[str, PromptVersion] = {}
 
     def get(*, prompt_identifier: str) -> PromptVersion:
