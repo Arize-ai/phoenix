@@ -2,7 +2,13 @@ from typing import Any
 
 import pytest
 
-from phoenix.db.types.decisions import DecisionInput, DecisionState, ObjectState, TextState
+from phoenix.db.types.decisions import (
+    DecisionInput,
+    DecisionState,
+    InputState,
+    ObjectState,
+    TextState,
+)
 from phoenix.server.api.helpers.decision_versions import render_state, validate_inputs
 
 
@@ -70,6 +76,7 @@ def test_f_string_renders_structured_inputs_as_json() -> None:
         (_inputs("a"), _text("  "), "The state template cannot be empty"),
         (_inputs("a"), _text("{{a}} {{b}} {{c.d}}"), "uses undeclared inputs: b, c"),
         (_inputs("a"), _text("{{#a}}"), "The state template is invalid"),
+        (_inputs("a"), InputState(type="input", name="b"), "uses an undeclared input: b"),
     ],
 )
 def test_invalid_inputs_and_state_are_rejected(
@@ -77,6 +84,15 @@ def test_invalid_inputs_and_state_are_rejected(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         validate_inputs(inputs, state)
+
+
+def test_input_state_is_one_value_unchanged() -> None:
+    """Not wrapped in an object and not rendered as text: the value is the state."""
+    state = {"agent": {"autonomy": "checkpointed"}, "constraints": ["Spend under $50"]}
+    rendered = render_state(
+        _inputs("state"), InputState(type="input", name="state"), {"state": state}
+    )
+    assert rendered == state
 
 
 def test_declared_inputs_need_not_all_appear_in_the_template() -> None:

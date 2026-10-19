@@ -44,7 +44,17 @@ class TextState(DBBaseModel):
     template_format: Literal["MUSTACHE", "F_STRING"]
 
 
-DecisionState = Annotated[Union[ObjectState, TextState], Field(discriminator="type")]
+class InputState(DBBaseModel):
+    """Send one input's value as the state, unchanged: text, a JSON object, or an array.
+
+    For a caller, or a benchmark, that already has its whole state as one value.
+    """
+
+    type: Literal["input"]
+    name: str
+
+
+DecisionState = Annotated[Union[ObjectState, TextState, InputState], Field(discriminator="type")]
 
 
 class PredicateCriteria(DBBaseModel):

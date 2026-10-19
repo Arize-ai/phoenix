@@ -11,6 +11,7 @@ from phoenix.db.types.decisions import (
     DecisionInput,
     DecisionQuestion,
     DecisionState,
+    InputState,
     ObjectState,
     PredicateCriteria,
     PredicateQuestion,
@@ -149,16 +150,22 @@ class TextStateInput:
     one_of=True,
     description=(
         "How the state sent to the model is built from the inputs. Exactly one must be set: "
-        "`object: true` sends the inputs object itself, `text` renders a template."
+        "`object: true` sends the inputs object itself, `text` renders a template, and "
+        "`input` sends one input's value unchanged."
     ),
 )
 class DecisionStateInput:
     object: Optional[bool] = UNSET
     text: Optional[TextStateInput] = UNSET
+    input: Optional[str] = strawberry.field(
+        default=UNSET, description="The name of the input whose value is the state."
+    )
 
     def to_orm(self) -> DecisionState:
         if self.object is not UNSET:
             return ObjectState(type="object")
         if self.text:
             return self.text.to_orm()
+        if self.input is not UNSET and self.input is not None:
+            return InputState(type="input", name=self.input)
         raise ValueError("DecisionStateInput: no field is set")

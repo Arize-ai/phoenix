@@ -1693,11 +1693,14 @@ type DecisionResult {
 }
 
 """
-How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template.
+How the state sent to the model is built from the inputs. Exactly one must be set: `object: true` sends the inputs object itself, `text` renders a template, and `input` sends one input's value unchanged.
 """
 input DecisionStateInput @oneOf {
   object: Boolean
   text: TextStateInput
+
+  """The name of the input whose value is the state."""
+  input: String
 }
 
 enum DecisionTemplateFormat {

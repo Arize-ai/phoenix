@@ -160,6 +160,7 @@ The state sent to the model is built from those inputs:
 |---|---|---|
 | `object` | Exactly the declared inputs, as a JSON object. This is TypeSafe's native form: structured values stay structured, and nothing is templated. OpenAI receives it serialized as text. | Launch |
 | `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters. It may only reference declared inputs, checked on write. An object, array, boolean, or null renders as JSON when named on its own; Mustache dotted paths and sections still read into it. | Launch |
+| `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | Built |
 | `messages` | A message list, for OpenAI's message-style `input` and for images. | With assets |
 
 There is no JSON template. Reshaping data belongs in the app or in the

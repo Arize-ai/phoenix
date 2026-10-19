@@ -13,6 +13,7 @@ from phoenix.db.types.decisions import (
     DecisionInput,
     DecisionQuestion,
     DecisionState,
+    InputState,
     ObjectState,
     ScaleQuestion,
 )
@@ -78,6 +79,10 @@ def validate_inputs(inputs: Sequence[DecisionInput], state: DecisionState) -> No
         names.add(input.name)
     if isinstance(state, ObjectState):
         return
+    if isinstance(state, InputState):
+        if state.name not in names:
+            raise ValueError(f"The state uses an undeclared input: {state.name}")
+        return
     if not state.template.strip():
         raise ValueError("The state template cannot be empty")
     formatter = get_template_formatter(PromptTemplateFormat(state.template_format))
@@ -108,6 +113,8 @@ def render_state(
         raise ValueError(f"Undeclared inputs: {', '.join(undeclared)}")
     if isinstance(state, ObjectState):
         return {name: values[name] for name in names}
+    if isinstance(state, InputState):
+        return values[state.name]
     formatter = get_template_formatter(PromptTemplateFormat(state.template_format))
     try:
         return formatter.format(
