@@ -22,6 +22,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONEditor, CodeEditorFieldWrapper } from "@phoenix/components/code";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -29,6 +30,11 @@ import type { DecisionActionsDeleteMutation } from "./__generated__/DecisionActi
 import type { DecisionActionsDeleteTagMutation } from "./__generated__/DecisionActionsDeleteTagMutation.graphql";
 import type { DecisionActionsPatchMutation } from "./__generated__/DecisionActionsPatchMutation.graphql";
 import type { DecisionActionsSetTagMutation } from "./__generated__/DecisionActionsSetTagMutation.graphql";
+
+/** The server's own message, not Relay's envelope around it. */
+function readMutationError(error: Error): string {
+  return getErrorMessagesFromRelayMutationError(error)?.[0] ?? error.message;
+}
 
 export function DeleteDecisionButton({
   decisionId,
@@ -99,7 +105,7 @@ export function DeleteDecisionButton({
                           setIsOpen(false);
                           onDeleted();
                         },
-                        onError: (error) => setError(error.message),
+                        onError: (error) => setError(readMutationError(error)),
                       })
                     }
                   >
@@ -195,7 +201,7 @@ export function EditDecisionButton({
                       setIsOpen(false);
                       onSaved();
                     },
-                    onError: (error) => setError(error.message),
+                    onError: (error) => setError(readMutationError(error)),
                   });
                 }}
               >
@@ -302,7 +308,7 @@ export function SetDecisionTagButton({
                       setIsOpen(false);
                       onSaved();
                     },
-                    onError: (error) => setError(error.message),
+                    onError: (error) => setError(readMutationError(error)),
                   });
                 }}
               >
@@ -401,7 +407,7 @@ export function DeleteDecisionTagButton({
                           setIsOpen(false);
                           onDeleted();
                         },
-                        onError: (error) => setError(error.message),
+                        onError: (error) => setError(readMutationError(error)),
                       })
                     }
                   >

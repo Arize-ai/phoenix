@@ -168,7 +168,9 @@ function SaveDecisionForm({
     handleSubmit,
     formState: { isDirty, isValid },
   } = useForm<SaveDecisionFormValues>({
-    values: {
+    // Defaults, not `values`: picking a decision while typing must not reset
+    // the description and tags already entered.
+    defaultValues: {
       name: selectedDecision?.name ?? loadedDecision?.name ?? "",
       description: "",
       tags: loadedDecision?.tag ? [loadedDecision.tag] : [],

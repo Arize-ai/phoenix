@@ -6,6 +6,7 @@ import type {
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
   buildDefaultPolicy,
+  fitQuestionProjection,
   getQuestionProjectionName,
   normalizePolicy,
   policyOutputToInput,
@@ -72,23 +73,26 @@ export function toDecisionJudgeView(
 
 /**
  * Drops override entries for questions the version does not declare, or that
- * are a different kind there. An empty override is null (inherit everything).
+ * are a different kind there, and scores for choices it no longer offers. An
+ * empty override is null (inherit everything).
  */
 export function pruneBindingOverride(
   override: DecisionProjectionPolicyValue | null | undefined,
   questions: readonly DecisionQuestionDefinition[]
 ): DecisionProjectionPolicyValue | null {
-  const typeByName = new Map(questions.map((q) => [q.name, q.type]));
-  const kept = (override?.questions ?? []).filter((question) => {
-    const type = typeByName.get(getQuestionProjectionName(question));
-    return (
-      type != null &&
-      ("predicate" in question
-        ? type === "predicate"
-        : "choice" in question
-          ? type === "choice"
-          : type === "scale")
+  const definitionByName = new Map(questions.map((q) => [q.name, q]));
+  const kept = (override?.questions ?? []).flatMap((question) => {
+    const definition = definitionByName.get(
+      getQuestionProjectionName(question)
     );
+    const isSameKind =
+      definition != null &&
+      ("predicate" in question
+        ? definition.type === "predicate"
+        : "choice" in question
+          ? definition.type === "choice"
+          : definition.type === "scale");
+    return isSameKind ? [fitQuestionProjection(definition, question)] : [];
   });
   return kept.length > 0 ? { questions: kept } : null;
 }
