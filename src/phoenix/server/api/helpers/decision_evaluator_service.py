@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 
@@ -106,7 +107,7 @@ async def create_decision_evaluator(
             session.add(evaluator)
             await session.flush()
             await session.refresh(evaluator)
-    except IntegrityError as error:
+    except (IntegrityError, SQLiteIntegrityError) as error:
         raise await _name_taken(context, input.name) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
@@ -235,7 +236,7 @@ async def patch_decision_evaluator(
                 evaluator.description = patch.description
             await session.flush()
             await session.refresh(evaluator)
-    except IntegrityError as error:
+    except (IntegrityError, SQLiteIntegrityError) as error:
         if patch.name is not UNSET and patch.name is not None:
             raise await _name_taken(context, patch.name) from error
         raise Conflict("The decision evaluator could not be updated") from error
@@ -329,7 +330,7 @@ async def create_dataset_decision_binding(
             )
             session.add(binding)
             await session.flush()
-    except IntegrityError as error:
+    except (IntegrityError, SQLiteIntegrityError) as error:
         raise await _dataset_binding_name_taken(context, dataset_id, input.name) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error

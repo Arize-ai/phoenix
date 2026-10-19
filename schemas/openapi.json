@@ -3570,7 +3570,8 @@
                   "enum": [
                     "llm",
                     "code",
-                    "builtin"
+                    "builtin",
+                    "decision"
                   ],
                   "type": "string"
                 },
@@ -3681,13 +3682,17 @@
                   },
                   {
                     "$ref": "#/components/schemas/CreateCodeEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateDecisionEvaluatorRequest"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
                     "llm": "#/components/schemas/CreateLLMEvaluatorRequest",
-                    "code": "#/components/schemas/CreateCodeEvaluatorRequest"
+                    "code": "#/components/schemas/CreateCodeEvaluatorRequest",
+                    "decision": "#/components/schemas/CreateDecisionEvaluatorRequest"
                   }
                 },
                 "title": "Body"
@@ -3850,13 +3855,17 @@
                   },
                   {
                     "$ref": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PatchDecisionEvaluatorRequest"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
                     "llm": "#/components/schemas/PatchLLMEvaluatorRequest",
-                    "code": "#/components/schemas/PatchCodeEvaluatorRequest"
+                    "code": "#/components/schemas/PatchCodeEvaluatorRequest",
+                    "decision": "#/components/schemas/PatchDecisionEvaluatorRequest"
                   }
                 },
                 "title": "Body"
@@ -13282,6 +13291,30 @@
         "title": "ChatRequestCredential",
         "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
       },
+      "ChoiceProjection": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "choice",
+            "title": "Type",
+            "default": "choice"
+          },
+          "scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Scores"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection",
+            "default": "NONE"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ChoiceProjection"
+      },
       "CodeEvaluatorDefinition": {
         "properties": {
           "type": {
@@ -14100,6 +14133,16 @@
           "input_mapping": {
             "$ref": "#/components/schemas/InputMapping"
           },
+          "projection_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionProjectionPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "description": {
             "anyOf": [
               {
@@ -14265,6 +14308,44 @@
           "data"
         ],
         "title": "CreateDatasetSplitResponseBody"
+      },
+      "CreateDecisionEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "decision",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "decision_version_id": {
+            "type": "string",
+            "title": "Decision Version Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "projection_policy": {
+            "$ref": "#/components/schemas/DecisionProjectionPolicy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "decision_version_id"
+        ],
+        "title": "CreateDecisionEvaluatorRequest"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -15143,9 +15224,20 @@
             "enum": [
               "llm",
               "code",
-              "builtin"
+              "builtin",
+              "decision"
             ],
             "title": "Evaluator Type"
+          },
+          "projection_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionProjectionPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "trace_project_id": {
             "type": "string",
@@ -15541,6 +15633,124 @@
           "example_count"
         ],
         "title": "DatasetWithExampleCount"
+      },
+      "DecisionEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "decision",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "decision_id": {
+            "type": "string",
+            "title": "Decision Id"
+          },
+          "decision_version_id": {
+            "type": "string",
+            "title": "Decision Version Id"
+          },
+          "decision_version_tag_id": {
+            "type": "string",
+            "title": "Decision Version Tag Id"
+          },
+          "projection_policy": {
+            "$ref": "#/components/schemas/DecisionProjectionPolicy"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "decision_id",
+          "decision_version_id",
+          "decision_version_tag_id",
+          "projection_policy",
+          "output_configs"
+        ],
+        "title": "DecisionEvaluatorDefinition"
+      },
+      "DecisionProjectionPolicy": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "questions": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PredicateProjection"
+                },
+                {
+                  "$ref": "#/components/schemas/ChoiceProjection"
+                },
+                {
+                  "$ref": "#/components/schemas/ScaleProjection"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "choice": "#/components/schemas/ChoiceProjection",
+                  "predicate": "#/components/schemas/PredicateProjection",
+                  "scale": "#/components/schemas/ScaleProjection"
+                }
+              }
+            },
+            "type": "object",
+            "title": "Questions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DecisionProjectionPolicy"
       },
       "DeleteAnnotationConfigResponseBody": {
         "properties": {
@@ -15958,6 +16168,9 @@
               },
               {
                 "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionEvaluatorDefinition"
               }
             ],
             "title": "Data",
@@ -15966,6 +16179,7 @@
               "mapping": {
                 "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
                 "code": "#/components/schemas/CodeEvaluatorDefinition",
+                "decision": "#/components/schemas/DecisionEvaluatorDefinition",
                 "llm": "#/components/schemas/LLMEvaluatorDefinition"
               }
             }
@@ -15990,6 +16204,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
+                },
+                {
+                  "$ref": "#/components/schemas/DecisionEvaluatorDefinition"
                 }
               ],
               "discriminator": {
@@ -15997,6 +16214,7 @@
                 "mapping": {
                   "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
                   "code": "#/components/schemas/CodeEvaluatorDefinition",
+                  "decision": "#/components/schemas/DecisionEvaluatorDefinition",
                   "llm": "#/components/schemas/LLMEvaluatorDefinition"
                 }
               }
@@ -19027,6 +19245,16 @@
       },
       "PatchDatasetEvaluatorRequest": {
         "properties": {
+          "projection_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionProjectionPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "$ref": "#/components/schemas/Identifier"
           },
@@ -19084,6 +19312,42 @@
         "type": "object",
         "minProperties": 1,
         "title": "PatchDatasetEvaluatorRequest"
+      },
+      "PatchDecisionEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "decision",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "decision_version_id": {
+            "type": "string",
+            "title": "Decision Version Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "projection_policy": {
+            "$ref": "#/components/schemas/DecisionProjectionPolicy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PatchDecisionEvaluatorRequest"
       },
       "PatchLLMEvaluatorRequest": {
         "properties": {
@@ -19732,6 +19996,30 @@
           "type"
         ],
         "title": "PlaygroundUIContext"
+      },
+      "PredicateProjection": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "predicate",
+            "title": "Type",
+            "default": "predicate"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "default": 0.5
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection",
+            "default": "NONE"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PredicateProjection"
       },
       "Project": {
         "properties": {
@@ -22353,6 +22641,28 @@
           "next_cursor"
         ],
         "title": "SandboxConfigsResponseBody"
+      },
+      "ScaleProjection": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "scale",
+            "title": "Type",
+            "default": "scale"
+          },
+          "include_label": {
+            "type": "boolean",
+            "title": "Include Label",
+            "default": false
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection",
+            "default": "NONE"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ScaleProjection"
       },
       "SecretKeyValue": {
         "properties": {

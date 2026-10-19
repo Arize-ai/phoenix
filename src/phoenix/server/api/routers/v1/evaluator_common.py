@@ -57,10 +57,10 @@ def output_configs_to_db(configs: Sequence[EvaluatorOutputConfig]) -> list[Outpu
     return stored
 
 
-def output_configs_from_db(configs: list[AnnotationConfigType]) -> list[EvaluatorOutputConfig]:
+def output_configs_from_db(configs: Sequence[AnnotationConfigType]) -> list[EvaluatorOutputConfig]:
     """Convert stored output configurations to their REST representation."""
     result: list[EvaluatorOutputConfig] = []
-    for config in as_output_configs(configs):
+    for config in as_output_configs(list(configs)):
         data = config.model_dump()
         if isinstance(config, FreeformOutputConfig):
             thresholds = data.pop("thresholds")

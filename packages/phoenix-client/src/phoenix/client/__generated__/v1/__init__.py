@@ -538,6 +538,12 @@ class PlaygroundPromptTaskUIContext(TypedDict):
     kind: NotRequired[Literal["prompt"]]
 
 
+class PredicateProjection(TypedDict):
+    type: Literal["predicate"]
+    threshold: NotRequired[float]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
+
+
 class Project(TypedDict):
     name: str
     id: str
@@ -881,6 +887,12 @@ class SandboxConfig(TypedDict):
 class SandboxConfigsResponseBody(TypedDict):
     data: Sequence[SandboxConfig]
     next_cursor: Optional[str]
+
+
+class ScaleProjection(TypedDict):
+    type: Literal["scale"]
+    include_label: NotRequired[bool]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
 
 
 class SecretKeyValue(TypedDict):
@@ -1594,6 +1606,12 @@ class ChatCompletionUsage(TypedDict):
     prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
 
 
+class ChoiceProjection(TypedDict):
+    type: Literal["choice"]
+    scores: NotRequired[Mapping[str, float]]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
+
+
 class ContinuousAnnotationConfigData(TypedDict):
     type: Literal["CONTINUOUS"]
     name: str
@@ -1706,6 +1724,13 @@ class DatasetExample(TypedDict):
     metadata: Mapping[str, Any]
     updated_at: str
     source: NotRequired[DatasetExampleSource]
+
+
+class DecisionProjectionPolicy(TypedDict):
+    schema_version: NotRequired[Literal[1]]
+    questions: NotRequired[
+        Mapping[str, Union[PredicateProjection, ChoiceProjection, ScaleProjection]]
+    ]
 
 
 class DynamicToolApprovalRequestedPart(TypedDict):
@@ -1887,6 +1912,7 @@ class PatchCodeEvaluatorRequest(TypedDict):
 
 
 class PatchDatasetEvaluatorRequest(TypedDict):
+    projection_policy: NotRequired[DecisionProjectionPolicy]
     name: NotRequired[str]
     input_mapping: NotRequired[InputMapping]
     description: NotRequired[str]
@@ -1899,6 +1925,14 @@ class PatchDatasetEvaluatorRequest(TypedDict):
             ]
         ]
     ]
+
+
+class PatchDecisionEvaluatorRequest(TypedDict):
+    type: Literal["decision"]
+    name: NotRequired[str]
+    decision_version_id: NotRequired[str]
+    description: NotRequired[str]
+    projection_policy: NotRequired[DecisionProjectionPolicy]
 
 
 class PatchLLMEvaluatorRequest(TypedDict):
@@ -2309,6 +2343,7 @@ class CreateDatasetEvaluatorRequest(TypedDict):
     name: str
     evaluator_id: str
     input_mapping: InputMapping
+    projection_policy: NotRequired[DecisionProjectionPolicy]
     description: NotRequired[str]
     output_configs: NotRequired[
         Sequence[
@@ -2319,6 +2354,14 @@ class CreateDatasetEvaluatorRequest(TypedDict):
             ]
         ]
     ]
+
+
+class CreateDecisionEvaluatorRequest(TypedDict):
+    type: Literal["decision"]
+    name: str
+    decision_version_id: str
+    description: NotRequired[str]
+    projection_policy: NotRequired[DecisionProjectionPolicy]
 
 
 class CreateLLMEvaluatorRequest(TypedDict):
@@ -2337,7 +2380,7 @@ class DatasetEvaluator(TypedDict):
     id: str
     dataset_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin"]
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
     trace_project_id: str
     name: str
     input_mapping: InputMapping
@@ -2351,6 +2394,7 @@ class DatasetEvaluator(TypedDict):
             ]
         ]
     ]
+    projection_policy: NotRequired[DecisionProjectionPolicy]
 
 
 class DatasetEvaluatorResponseBody(TypedDict):
@@ -2360,6 +2404,24 @@ class DatasetEvaluatorResponseBody(TypedDict):
 class DatasetEvaluatorsResponseBody(TypedDict):
     data: Sequence[DatasetEvaluator]
     next_cursor: Optional[str]
+
+
+class DecisionEvaluatorDefinition(TypedDict):
+    type: Literal["decision"]
+    id: str
+    name: str
+    description: Optional[str]
+    decision_id: str
+    decision_version_id: str
+    decision_version_tag_id: str
+    projection_policy: DecisionProjectionPolicy
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
 
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
@@ -2535,12 +2597,22 @@ class PromptMessage(TypedDict):
 
 
 class EvaluatorDefinitionResponseBody(TypedDict):
-    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
+    data: Union[
+        CodeEvaluatorDefinition,
+        LLMEvaluatorDefinition,
+        BuiltInEvaluatorDefinition,
+        DecisionEvaluatorDefinition,
+    ]
 
 
 class EvaluatorDefinitionsResponseBody(TypedDict):
     data: Sequence[
-        Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
+        Union[
+            CodeEvaluatorDefinition,
+            LLMEvaluatorDefinition,
+            BuiltInEvaluatorDefinition,
+            DecisionEvaluatorDefinition,
+        ]
     ]
     next_cursor: Optional[str]
 

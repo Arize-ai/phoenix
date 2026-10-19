@@ -2758,6 +2758,20 @@ export interface components {
              */
             value: string;
         };
+        /** ChoiceProjection */
+        ChoiceProjection: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "choice";
+            /** Scores */
+            scores?: {
+                [key: string]: number;
+            };
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
+        };
         /** CodeEvaluatorDefinition */
         CodeEvaluatorDefinition: {
             /**
@@ -3021,6 +3035,7 @@ export interface components {
              */
             evaluator_id: string;
             input_mapping: components["schemas"]["InputMapping"];
+            projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             /**
              * Description
              * @description Binding override. Null inherits the shared description.
@@ -3087,6 +3102,20 @@ export interface components {
         /** CreateDatasetSplitResponseBody */
         CreateDatasetSplitResponseBody: {
             data: components["schemas"]["DatasetSplit"];
+        };
+        /** CreateDecisionEvaluatorRequest */
+        CreateDecisionEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            name: components["schemas"]["Identifier"];
+            /** Decision Version Id */
+            decision_version_id: string;
+            /** Description */
+            description?: string | null;
+            projection_policy?: components["schemas"]["DecisionProjectionPolicy"];
         };
         /**
          * CreateExperimentRequestBody
@@ -3398,7 +3427,7 @@ export interface components {
              * @description The SDK used to communicate with the custom provider.
              * @enum {string}
              */
-            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock" | "typesafe";
             /**
              * Created At
              * Format: date-time
@@ -3476,7 +3505,8 @@ export interface components {
              * Evaluator Type
              * @enum {string}
              */
-            evaluator_type: "llm" | "code" | "builtin";
+            evaluator_type: "llm" | "code" | "builtin" | "decision";
+            projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             /** Trace Project Id */
             trace_project_id: string;
             name: components["schemas"]["Identifier"];
@@ -3625,6 +3655,41 @@ export interface components {
             updated_at: string;
             /** Example Count */
             example_count: number;
+        };
+        /** DecisionEvaluatorDefinition */
+        DecisionEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            /** Decision Id */
+            decision_id: string;
+            /** Decision Version Id */
+            decision_version_id: string;
+            /** Decision Version Tag Id */
+            decision_version_tag_id: string;
+            projection_policy: components["schemas"]["DecisionProjectionPolicy"];
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
+        /** DecisionProjectionPolicy */
+        DecisionProjectionPolicy: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version?: 1;
+            /** Questions */
+            questions?: {
+                [key: string]: components["schemas"]["PredicateProjection"] | components["schemas"]["ChoiceProjection"] | components["schemas"]["ScaleProjection"];
+            };
         };
         /** DeleteAnnotationConfigResponseBody */
         DeleteAnnotationConfigResponseBody: {
@@ -3788,12 +3853,12 @@ export interface components {
         /** EvaluatorDefinitionResponseBody */
         EvaluatorDefinitionResponseBody: {
             /** Data */
-            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"];
+            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"] | components["schemas"]["DecisionEvaluatorDefinition"];
         };
         /** EvaluatorDefinitionsResponseBody */
         EvaluatorDefinitionsResponseBody: {
             /** Data */
-            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"])[];
+            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"] | components["schemas"]["DecisionEvaluatorDefinition"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -4949,6 +5014,7 @@ export interface components {
         };
         /** PatchDatasetEvaluatorRequest */
         PatchDatasetEvaluatorRequest: {
+            projection_policy?: components["schemas"]["DecisionProjectionPolicy"] | null;
             name?: components["schemas"]["Identifier"];
             input_mapping?: components["schemas"]["InputMapping"];
             /**
@@ -4961,6 +5027,20 @@ export interface components {
              * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
+        /** PatchDecisionEvaluatorRequest */
+        PatchDecisionEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            name?: components["schemas"]["Identifier"];
+            /** Decision Version Id */
+            decision_version_id?: string;
+            /** Description */
+            description?: string | null;
+            projection_policy?: components["schemas"]["DecisionProjectionPolicy"];
         };
         /** PatchLLMEvaluatorRequest */
         PatchLLMEvaluatorRequest: {
@@ -5209,6 +5289,21 @@ export interface components {
             instances?: components["schemas"]["PlaygroundInstanceUIContext"][];
             /** Evaluators */
             evaluators?: components["schemas"]["PlaygroundEvaluatorUIContext"][];
+        };
+        /** PredicateProjection */
+        PredicateProjection: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "predicate";
+            /**
+             * Threshold
+             * @default 0.5
+             */
+            threshold?: number;
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
         };
         /** Project */
         Project: {
@@ -6242,6 +6337,21 @@ export interface components {
             data: components["schemas"]["SandboxConfig"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** ScaleProjection */
+        ScaleProjection: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "scale";
+            /**
+             * Include Label
+             * @default false
+             */
+            include_label?: boolean;
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
         };
         /**
          * SecretKeyValue
@@ -10323,7 +10433,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Return one kind only. */
-                type?: ("llm" | "code" | "builtin") | null;
+                type?: ("llm" | "code" | "builtin" | "decision") | null;
                 /** @description Return the evaluator with this name. */
                 name?: string | null;
                 cursor?: string | null;
@@ -10373,7 +10483,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateLLMEvaluatorRequest"] | components["schemas"]["CreateCodeEvaluatorRequest"];
+                "application/json": components["schemas"]["CreateLLMEvaluatorRequest"] | components["schemas"]["CreateCodeEvaluatorRequest"] | components["schemas"]["CreateDecisionEvaluatorRequest"];
             };
         };
         responses: {
@@ -10540,7 +10650,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PatchLLMEvaluatorRequest"] | components["schemas"]["PatchCodeEvaluatorRequest"];
+                "application/json": components["schemas"]["PatchLLMEvaluatorRequest"] | components["schemas"]["PatchCodeEvaluatorRequest"] | components["schemas"]["PatchDecisionEvaluatorRequest"];
             };
         };
         responses: {

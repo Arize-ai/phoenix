@@ -1,0 +1,88 @@
+"""REST lifecycle and binding contracts for native decision judges."""
+
+import httpx
+from strawberry.relay import GlobalID
+
+from tests.unit.graphql import AsyncGraphQLClient
+from tests.unit.server.api.mutations.test_saved_decision_mutations import create
+
+
+async def test_decision_evaluator_and_binding_lifecycle(
+    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    decision = await create(gql_client)
+    response = await httpx_client.post(
+        "v1/evaluators",
+        json={
+            "type": "decision",
+            "name": "native-judge",
+            "decision_version_id": decision["version"]["id"],
+        },
+    )
+    assert response.status_code == 201, response.text
+    evaluator = response.json()["data"]
+    evaluator_id = evaluator["id"]
+    assert evaluator["type"] == "decision"
+    assert evaluator["decision_version_id"] == decision["version"]["id"]
+    assert [config["name"] for config in evaluator["output_configs"]] == ["urgent", "team"]
+    response = await httpx_client.get("v1/evaluators", params={"type": "decision"})
+    assert response.status_code == 200
+    assert [value["id"] for value in response.json()["data"]] == [evaluator_id]
+    route = f"v1/evaluators/{evaluator_id}"
+    response = await httpx_client.patch(
+        route,
+        json={
+            "type": "decision",
+            "projection_policy": {
+                "questions": {"urgent": {"type": "predicate", "threshold": 0.75}}
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["projection_policy"]["questions"]["urgent"]["threshold"] == 0.75
+    dataset_route = f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators"
+    response = await httpx_client.post(
+        dataset_route,
+        json={
+            "name": "judge",
+            "evaluator_id": evaluator_id,
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
+            "projection_policy": {"questions": {"urgent": {"type": "predicate", "threshold": 0.9}}},
+        },
+    )
+    assert response.status_code == 201, response.text
+    binding = response.json()["data"]
+    assert binding["evaluator_type"] == "decision"
+    assert binding["projection_policy"]["questions"]["urgent"]["threshold"] == 0.9
+    response = await httpx_client.patch(
+        f"v1/dataset_evaluators/{binding['id']}", json={"projection_policy": None}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"].get("projection_policy") is None
+    assert (await httpx_client.delete(route)).status_code == 409
+    response = await httpx_client.delete(
+        dataset_route, params={"dataset_evaluator_id": binding["id"]}
+    )
+    assert response.status_code == 204, response.text
+    assert (await httpx_client.get(route)).status_code == 200
+    assert (await httpx_client.delete(route)).status_code == 204
+    assert (await httpx_client.get(route)).status_code == 404
+
+
+async def test_unbound_judge_can_be_deleted(
+    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    decision = await create(gql_client)
+    body = {
+        "type": "decision",
+        "name": "native-judge",
+        "decision_version_id": decision["version"]["id"],
+    }
+    response = await httpx_client.post("v1/evaluators", json=body)
+    assert response.status_code == 201, response.text
+    evaluator_id = response.json()["data"]["id"]
+    assert (await httpx_client.post("v1/evaluators", json=body)).status_code == 409
+    assert (await httpx_client.delete(f"v1/evaluators/{evaluator_id}")).status_code == 204

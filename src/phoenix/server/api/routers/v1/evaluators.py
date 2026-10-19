@@ -15,10 +15,12 @@ from phoenix.db.helpers import (
     latest_code_evaluator_versions_by_evaluator_id,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.db.types.decision_evaluators import DecisionProjectionPolicy
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers import decision_evaluator_service as decision_service
 from phoenix.server.api.helpers import evaluator_service as service
 from phoenix.server.api.helpers.evaluator_prompt_source import (
     FromPromptVersion,
@@ -49,17 +51,19 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.authorization import is_not_locked
 
-EvaluatorType = Literal["llm", "code", "builtin"]
+EvaluatorType = Literal["llm", "code", "builtin", "decision"]
 
 _EVALUATOR_KIND_BY_TYPE: Mapping[EvaluatorType, models.EvaluatorKind] = {
     "llm": "LLM",
     "code": "CODE",
     "builtin": "BUILTIN",
+    "decision": "DECISION",
 }
 _TYPENAME_BY_KIND: Mapping[models.EvaluatorKind, str] = {
     "LLM": "LLMEvaluator",
     "CODE": "CodeEvaluator",
     "BUILTIN": "BuiltInEvaluator",
+    "DECISION": "DecisionEvaluator",
 }
 
 
@@ -140,6 +144,22 @@ class PatchCodeEvaluatorRequest(EvaluatorRequest):
     output_configs: list[EvaluatorOutputConfig] = Field(default=UNDEFINED, min_length=1)
 
 
+class CreateDecisionEvaluatorRequest(EvaluatorRequest):
+    type: Literal["decision"]
+    name: Identifier
+    decision_version_id: str
+    description: Optional[str] = None
+    projection_policy: DecisionProjectionPolicy = Field(default_factory=DecisionProjectionPolicy)
+
+
+class PatchDecisionEvaluatorRequest(EvaluatorRequest):
+    type: Literal["decision"]
+    name: Identifier = Field(default=UNDEFINED)
+    decision_version_id: str = Field(default=UNDEFINED)
+    description: Optional[str] = Field(default=UNDEFINED)
+    projection_policy: DecisionProjectionPolicy = Field(default=UNDEFINED)
+
+
 class CodeEvaluatorVersionRequest(EvaluatorRequest):
     source_code: str
     expected_current_version_id: Optional[str] = Field(
@@ -215,8 +235,41 @@ class BuiltInEvaluatorDefinition(V1RoutesBaseModel):
     output_configs: list[EvaluatorOutputConfig]
 
 
+class DecisionEvaluatorDefinition(V1RoutesBaseModel):
+    type: Literal["decision"]
+    id: str
+    name: Identifier
+    description: Optional[str]
+    decision_id: str
+    decision_version_id: str
+    decision_version_tag_id: str
+    projection_policy: DecisionProjectionPolicy
+    output_configs: list[EvaluatorOutputConfig]
+
+
+def _decision_evaluator_definition(
+    evaluator_id: str, row: models.DecisionEvaluator
+) -> DecisionEvaluatorDefinition:
+    return DecisionEvaluatorDefinition(
+        type="decision",
+        id=evaluator_id,
+        name=row.name,
+        description=row.description,
+        decision_id=encode_global_id("Decision", row.decision_id),
+        decision_version_id=encode_global_id("DecisionVersion", row.selected_version.id),
+        decision_version_tag_id=encode_global_id("DecisionVersionTag", row.decision_version_tag_id),
+        projection_policy=DecisionProjectionPolicy.model_validate(row.projection_policy),
+        output_configs=output_configs_from_db(row.output_configs),
+    )
+
+
 EvaluatorDefinition = Annotated[
-    Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition],
+    Union[
+        CodeEvaluatorDefinition,
+        LLMEvaluatorDefinition,
+        BuiltInEvaluatorDefinition,
+        DecisionEvaluatorDefinition,
+    ],
     Field(discriminator="type"),
 ]
 
@@ -338,6 +391,11 @@ async def _evaluator_definition(session: AsyncSession, evaluator_id: str) -> Eva
             raise NotFound(f"Evaluator not found: {evaluator_id}")
         row, version = pair
         return _code_evaluator_definition(evaluator_id, row, version)
+    if global_id.type_name == "DecisionEvaluator":
+        decision_row = await decision_service.get_decision_evaluator(
+            session, decode_global_id(evaluator_id, "DecisionEvaluator")
+        )
+        return _decision_evaluator_definition(evaluator_id, decision_row)
     row_id = decode_global_id(evaluator_id, "LLMEvaluator")
     llm = await session.get(models.LLMEvaluator, row_id)
     if llm is None:
@@ -436,10 +494,29 @@ async def _evaluator_definitions_page(
             ).all()
         }
 
+    decision_ids = [row_id for row_id, kind in rows if kind == "DECISION"]
+    decision_by_id = (
+        {
+            row.id: row
+            for row in await session.scalars(
+                select(models.DecisionEvaluator).where(
+                    models.DecisionEvaluator.id.in_(decision_ids)
+                )
+            )
+        }
+        if decision_ids
+        else {}
+    )
+
     definitions: list[EvaluatorDefinition] = []
     for row_id, kind in rows:
         evaluator_id = encode_global_id(_TYPENAME_BY_KIND[kind], row_id)
-        if kind == "CODE":
+        if kind == "DECISION":
+            decision_row = decision_by_id.get(row_id)
+            if decision_row is None:
+                raise NotFound(f"Evaluator not found: {evaluator_id}")
+            definitions.append(_decision_evaluator_definition(evaluator_id, decision_row))
+        elif kind == "CODE":
             code_row = code_by_id.get(row_id)
             if code_row is None:
                 raise NotFound(f"Evaluator not found: {evaluator_id}")
@@ -527,7 +604,10 @@ async def get_evaluators(
 async def create_evaluator(
     request: Request,
     body: Annotated[
-        Union[CreateLLMEvaluatorRequest, CreateCodeEvaluatorRequest], Field(discriminator="type")
+        Union[
+            CreateLLMEvaluatorRequest, CreateCodeEvaluatorRequest, CreateDecisionEvaluatorRequest
+        ],
+        Field(discriminator="type"),
     ],
 ) -> EvaluatorDefinitionResponseBody:
     """Create an evaluator definition that nothing binds yet.
@@ -537,6 +617,21 @@ async def create_evaluator(
     `already_exists`, whose `existing_id` names the evaluator holding it.
     """
     with evaluator_api_errors():
+        if isinstance(body, CreateDecisionEvaluatorRequest):
+            decision_row = await decision_service.create_decision_evaluator(
+                evaluator_service_context(request),
+                decision_service.CreateDecisionEvaluatorInput(
+                    name=body.name,
+                    decision_version_id=parse_global_id(body.decision_version_id),
+                    description=body.description,
+                    projection_policy=body.projection_policy.model_dump(mode="json"),
+                ),
+            )
+            return EvaluatorDefinitionResponseBody(
+                data=await _written_definition(
+                    request, encode_global_id("DecisionEvaluator", decision_row.id)
+                )
+            )
         if isinstance(body, CreateLLMEvaluatorRequest):
             llm = await service.create_llm_evaluator(
                 evaluator_service_context(request),
@@ -601,7 +696,8 @@ async def patch_evaluator(
     request: Request,
     evaluator_id: str,
     body: Annotated[
-        Union[PatchLLMEvaluatorRequest, PatchCodeEvaluatorRequest], Field(discriminator="type")
+        Union[PatchLLMEvaluatorRequest, PatchCodeEvaluatorRequest, PatchDecisionEvaluatorRequest],
+        Field(discriminator="type"),
     ],
 ) -> EvaluatorDefinitionResponseBody:
     """Edit a definition; the change applies to every binding that references it.
@@ -615,9 +711,21 @@ async def patch_evaluator(
         if not fields:
             raise BadRequest("At least one field must be provided")
         values = {name: getattr(body, name) for name in fields}
-        if "output_configs" in fields:
+        if "output_configs" in fields and isinstance(
+            body, (PatchLLMEvaluatorRequest, PatchCodeEvaluatorRequest)
+        ):
             values["output_configs"] = output_configs_to_db(body.output_configs)
-        if isinstance(body, PatchCodeEvaluatorRequest):
+        if isinstance(body, PatchDecisionEvaluatorRequest):
+            if "decision_version_id" in fields:
+                values["decision_version_id"] = parse_global_id(body.decision_version_id)
+            if "projection_policy" in fields:
+                values["projection_policy"] = body.projection_policy.model_dump(mode="json")
+            await decision_service.patch_decision_evaluator(
+                evaluator_service_context(request),
+                parse_global_id(evaluator_id),
+                decision_service.DecisionEvaluatorPatch(**values),
+            )
+        elif isinstance(body, PatchCodeEvaluatorRequest):
             if "sandbox_config_id" in fields and body.sandbox_config_id is not None:
                 values["sandbox_config_id"] = parse_global_id(body.sandbox_config_id)
             await service.patch_code_evaluator(
@@ -656,7 +764,9 @@ async def delete_evaluator(request: Request, evaluator_id: str) -> Response:
     with evaluator_api_errors():
         global_id = parse_global_id(evaluator_id)
         context = evaluator_service_context(request)
-        if global_id.type_name == "CodeEvaluator":
+        if global_id.type_name == "DecisionEvaluator":
+            await decision_service.delete_decision_evaluator(context, global_id)
+        elif global_id.type_name == "CodeEvaluator":
             await service.delete_code_evaluator(context, global_id)
         elif global_id.type_name == "LLMEvaluator":
             await service.delete_llm_evaluator(context, global_id)
