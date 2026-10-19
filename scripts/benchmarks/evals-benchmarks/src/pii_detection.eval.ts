@@ -19,7 +19,8 @@ import * as px from "@arizeai/phoenix-client/vitest";
 import { createPiiDetectionEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 type PiiLabel = "pii_detected" | "no_pii_detected";
 
@@ -42,8 +43,9 @@ const records = readFileSync(fixturePath, "utf-8")
   .split("\n")
   .map((line) => JSON.parse(line) as NemotronRecord);
 
-const evaluator = createPiiDetectionEvaluator({
-  model: evalModel,
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "pii_detection",
+  createEvaluator: createPiiDetectionEvaluator,
 });
 
 const cases = records.map((record) => ({
@@ -74,7 +76,7 @@ px.describe(
           row.metadata?.locale
         )}] ${String(row.metadata?.domain)} (${String(row.metadata?.uid)})`,
       async ({ input, expected }) => {
-        const result = await evaluator.evaluate(input);
+        const result = await evaluate(input);
         px.logOutput(result);
         px.logAnnotation({
           name: "pii_detection",

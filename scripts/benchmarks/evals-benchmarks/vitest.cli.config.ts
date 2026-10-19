@@ -1,0 +1,13 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    include: [
+      "src/cli/**/*.test.ts",
+      "src/formats/**/*.test.ts",
+      "src/prompts/**/*.test.ts",
+      "src/sweep/**/*.test.ts",
+      "src/resolveEvalModel.test.ts",
+    ],
+  },
+});

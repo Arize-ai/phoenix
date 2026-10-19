@@ -3,6 +3,7 @@ packages:
   - packages/*
   - examples/apps/*
   - benchmarks/*
+  - ../scripts/benchmarks/evals-benchmarks
 
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:

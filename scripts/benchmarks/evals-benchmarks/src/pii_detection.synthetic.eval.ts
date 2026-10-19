@@ -17,7 +17,8 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 type PiiLabel = "pii_detected" | "no_pii_detected";
 
@@ -27,7 +28,10 @@ type Example = {
 };
 
 const labels = createLabelAccumulator();
-const evaluator = createPiiDetectionEvaluator({ model: evalModel });
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "pii_detection.synthetic",
+  createEvaluator: createPiiDetectionEvaluator,
+});
 
 const examplesByCategory: Record<string, Example[]> = {
   user_visible_identifiers: [
@@ -285,7 +289,7 @@ px.describe(
           row.metadata?.index
         )}`,
       async ({ input, expected }) => {
-        const result = await evaluator.evaluate(input);
+        const result = await evaluate(input);
         px.logOutput(result);
         px.logAnnotation({
           name: "pii_detection",

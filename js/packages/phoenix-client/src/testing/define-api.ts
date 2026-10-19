@@ -12,9 +12,11 @@ import {
  * Declare Phoenix eval test suites.
  *
  * Drop-in replacement for the test runner's own `describe`. The suite name
- * doubles as the dataset and experiment name on the Phoenix server, and the
- * optional {@link SuiteConfig} controls dataset naming, repetitions, dry-run
- * mode, and CI acceptance criteria.
+ * doubles as the dataset name (and, unless overridden, the experiment name)
+ * on the Phoenix server. {@link SuiteConfig.experimentName} or
+ * `PHOENIX_EXPERIMENT_NAME` can name the experiment independently so variants
+ * share a dataset. The optional {@link SuiteConfig} also controls dataset
+ * naming, repetitions, dry-run mode, and CI acceptance criteria.
  *
  * @example
  * ```ts
@@ -31,7 +33,7 @@ export interface PhoenixDescribe {
   /**
    * Declare a Phoenix eval test suite.
    *
-   * @param name - Suite name; doubles as the dataset / experiment name on Phoenix.
+   * @param name - Suite name; used as the dataset name (and default experiment name) on Phoenix.
    * @param fn - Suite body that declares its `test` / `it` cases.
    * @param config - Optional suite-level config (dataset name, repetitions, dry-run, acceptance criteria).
    */
@@ -40,7 +42,7 @@ export interface PhoenixDescribe {
    * Run only this suite, skipping all sibling suites
    * (matches the runner's `describe.only`).
    *
-   * @param name - Suite name; doubles as the dataset / experiment name on Phoenix.
+   * @param name - Suite name; used as the dataset name (and default experiment name) on Phoenix.
    * @param fn - Suite body that declares its `test` / `it` cases.
    * @param config - Optional suite-level config.
    */
@@ -49,7 +51,7 @@ export interface PhoenixDescribe {
    * Skip this suite entirely (matches the runner's `describe.skip`). No dataset
    * or experiment is created on Phoenix.
    *
-   * @param name - Suite name; doubles as the dataset / experiment name on Phoenix.
+   * @param name - Suite name; used as the dataset name (and default experiment name) on Phoenix.
    * @param fn - Suite body (not executed).
    * @param config - Optional suite-level config.
    */

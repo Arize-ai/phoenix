@@ -8,10 +8,14 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 const labels = createLabelAccumulator();
-const evaluator = createUserFrictionEvaluator({ model: evalModel });
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "user_friction",
+  createEvaluator: createUserFrictionEvaluator,
+});
 
 type UserFrictionLabel = "friction" | "no_friction";
 type Example = {
@@ -286,7 +290,7 @@ px.describe(
     px.test.each(cases)(
       (row) => `[${String(row.metadata?.category)}] ${row.input.userMessage}`,
       async ({ input, expected }) => {
-        const result = await evaluator.evaluate(input);
+        const result = await evaluate(input);
         px.logOutput(result);
         px.logAnnotation({
           name: "user_friction",

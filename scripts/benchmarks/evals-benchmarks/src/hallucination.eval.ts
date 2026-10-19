@@ -8,10 +8,14 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 const labels = createLabelAccumulator();
-const evaluator = createHallucinationEvaluator({ model: evalModel });
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "hallucination",
+  createEvaluator: createHallucinationEvaluator,
+});
 
 type HallucinationLabel = "hallucinated" | "grounded";
 type Example = {
@@ -294,7 +298,7 @@ px.describe(
       (row) =>
         `[${String(row.metadata?.category)}] ${row.input.output.slice(0, 60)}`,
       async ({ input, expected }) => {
-        const result = await evaluator.evaluate(input);
+        const result = await evaluate(input);
         px.logOutput(result);
         px.logAnnotation({
           name: "hallucination",

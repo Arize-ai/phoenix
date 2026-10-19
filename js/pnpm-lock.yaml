@@ -152,6 +152,40 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.6.5)(typescript@7.0.2))(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
+  ../scripts/benchmarks/evals-benchmarks:
+    dependencies:
+      '@ai-sdk/anthropic':
+        specifier: ^3.0.111
+        version: 3.0.129(zod@4.6.5)
+      '@ai-sdk/google':
+        specifier: ^3.0.119
+        version: 3.0.135(zod@4.6.5)
+      '@ai-sdk/openai':
+        specifier: ^3.0.125
+        version: 3.0.125(zod@4.6.5)
+      '@arizeai/phoenix-client':
+        specifier: workspace:*
+        version: link:../../../js/packages/phoenix-client
+      '@arizeai/phoenix-evals':
+        specifier: workspace:*
+        version: link:../../../js/packages/phoenix-evals
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.6.5)(typescript@7.0.2))(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+
   app:
     dependencies:
       '@ai-sdk/openai-compatible':
@@ -530,34 +564,6 @@ importers:
       vitest-canvas-mock:
         specifier: ^1.2.0
         version: 1.2.0(vitest@5.0.3)
-
-  benchmarks/evals-benchmarks:
-    dependencies:
-      '@ai-sdk/openai':
-        specifier: ^3.0.125
-        version: 3.0.125(zod@4.6.5)
-      '@arizeai/phoenix-client':
-        specifier: workspace:*
-        version: link:../../packages/phoenix-client
-      '@arizeai/phoenix-evals':
-        specifier: workspace:*
-        version: link:../../packages/phoenix-evals
-    devDependencies:
-      '@types/node':
-        specifier: ^26.6.5
-        version: 26.6.5
-      dotenv:
-        specifier: ^17.4.2
-        version: 17.4.2
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.0.3
-        version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.6.5)(typescript@7.0.2))(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   examples/apps/ai-sdk-agent:
     dependencies:
@@ -1327,6 +1333,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/google@3.0.135':
+    resolution: {integrity: sha512-iz75FLJNBzWKhP7ToildSmrblH+0wuoSXMZiuX+A3+kCBZaGEfVdDre97HAEQ68BLKuJB0ucaCvZZUD5UeH9CA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/google@4.0.27':
     resolution: {integrity: sha512-u44UuLypwwHqEaHPRV1iZ1N+xO9dCKzQX6L2DtPPxvlsSdSzNobUBz8oaDv6NzC35qYSb6JFs7TG1Tz2Nxlg/Q==}
     engines: {node: '>=22'}
@@ -1409,6 +1421,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider-utils@4.0.61':
+    resolution: {integrity: sha512-spROQutwsgm9ezXdoKP5PUPuHnNqMnuFqjioihmYDMJaaJnknYiEXYctH9hL4NJjaHuQBIl4ageCNsIZrQ+yCg==}
+    engines: {node: '>=18.17'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@5.0.13':
     resolution: {integrity: sha512-fScDJMDnTbx32kLDQqp0MvPjvwkgiwvlBxlmIg7XW5PbS91LG6JjH3PQG+34oMFglqfpQA355e24OdGj5PPoDw==}
     engines: {node: '>=22'}
@@ -1451,6 +1469,10 @@ packages:
 
   '@ai-sdk/provider@3.0.18':
     resolution: {integrity: sha512-IpefF5ssZVOZCD4Wu7zxt6PwZoGT2HLVjxpJ10Bjx6EAmRfLYJPjyrfxb0RYDlwvXnDb9nkQ7Do/oJVDuRFzew==}
+    engines: {node: '>=18'}
+
+  '@ai-sdk/provider@3.0.19':
+    resolution: {integrity: sha512-5lWq7zSfRaU5ylDESn3sDQjgGl2AI1vjZKO/6JY3aFW70ct4zcP1kN+ZUYOuTXr28fVsYbyu2YFhddLdIgQFZQ==}
     engines: {node: '>=18'}
 
   '@ai-sdk/provider@4.0.17':
@@ -10199,6 +10221,12 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.6.5
 
+  '@ai-sdk/google@3.0.135(zod@4.6.5)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.19
+      '@ai-sdk/provider-utils': 4.0.61(zod@4.6.5)
+      zod: 4.6.5
+
   '@ai-sdk/google@4.0.27(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.4
@@ -10295,6 +10323,14 @@ snapshots:
       undici: 6.29.0
       zod: 4.6.5
 
+  '@ai-sdk/provider-utils@4.0.61(zod@4.6.5)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.19
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.1
+      undici: 6.29.0
+      zod: 4.6.5
+
   '@ai-sdk/provider-utils@5.0.13(zod@4.6.5)':
     dependencies:
       '@ai-sdk/provider': 4.0.4
@@ -10345,6 +10381,10 @@ snapshots:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@3.0.18':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@3.0.19':
     dependencies:
       json-schema: 0.4.0
 

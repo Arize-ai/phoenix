@@ -14,14 +14,16 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 // Ground-truth vs predicted labels across cases, scored by the trailing
 // aggregate-metrics test.
 const labels = createLabelAccumulator();
 
-const concisenessEvaluator = createConcisenessEvaluator({
-  model: evalModel,
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "conciseness",
+  createEvaluator: createConcisenessEvaluator,
 });
 
 // Examples designed to test the boundary conditions of the conciseness rubric
@@ -286,7 +288,7 @@ px.describe(
       (row) =>
         `[${String(row.metadata?.category)}] ${String(row.input.question)}`,
       async ({ input, expected }) => {
-        const result = await concisenessEvaluator.evaluate({
+        const result = await evaluate({
           input: input.question,
           output: input.answer,
         });

@@ -224,8 +224,10 @@ export type AcceptanceResult = AcceptanceCriterion & AcceptanceResultFields;
 
 /** Suite-level configuration accepted by `describe()`. */
 export interface SuiteConfig {
-  /** Override the dataset / experiment name used for the suite. */
+  /** Override the dataset name used for the suite. */
   datasetName?: string;
+  /** Override the experiment name used for the suite. */
+  experimentName?: string;
   /** Description for the dataset and experiment. */
   description?: string;
   /** Suite-level metadata applied to every run in this experiment. */
