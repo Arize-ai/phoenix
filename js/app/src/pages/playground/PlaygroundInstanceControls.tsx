@@ -24,6 +24,7 @@ export function PlaygroundInstanceModelControls({
   instanceId,
   disableEphemeralRouting,
   supportsDecisionModels,
+  decisionModelsDisabledReason,
 }: {
   instanceId: number;
   /**
@@ -32,6 +33,7 @@ export function PlaygroundInstanceModelControls({
    */
   disableEphemeralRouting?: boolean;
   supportsDecisionModels?: boolean;
+  decisionModelsDisabledReason?: string;
 }) {
   const isDecision = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === instanceId)?.model.modelType === "DECISION"
@@ -50,7 +52,7 @@ export function PlaygroundInstanceModelControls({
         {!isDecision ? <InvocationParameterSpecsSync instanceId={instanceId} /> : null}
       </Suspense>
       <CompositeField>
-        <PlaygroundModelMenu playgroundInstanceId={instanceId} supportsDecisionModels={supportsDecisionModels} />
+        <PlaygroundModelMenu playgroundInstanceId={instanceId} supportsDecisionModels={supportsDecisionModels} decisionModelsDisabledReason={decisionModelsDisabledReason} />
         {!isDecision ? <ModelParametersConfigButton
           playgroundInstanceId={instanceId}
           disableEphemeralRouting={disableEphemeralRouting}
