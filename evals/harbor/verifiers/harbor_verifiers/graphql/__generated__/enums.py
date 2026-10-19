@@ -18,6 +18,7 @@ class EvaluatorKind(str, Enum):
     LLM = "LLM"
     CODE = "CODE"
     BUILTIN = "BUILTIN"
+    DECISION = "DECISION"
 
 
 class GenerativeProviderKey(str, Enum):

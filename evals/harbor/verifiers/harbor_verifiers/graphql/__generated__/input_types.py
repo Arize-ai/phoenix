@@ -83,6 +83,9 @@ class ContinuousAnnotationConfigInput(BaseModel):
 
 
 class EvaluatorDefinitionInput(BaseModel):
+    decision_evaluator_id: Optional[str] = Field(
+        alias="decisionEvaluatorId", default=None
+    )
     built_in_evaluator_id: Optional[str] = Field(
         alias="builtInEvaluatorId", default=None
     )
@@ -104,6 +107,10 @@ class EvaluatorPreviewItemInput(BaseModel):
     evaluator: "EvaluatorDefinitionInput"
     context: Any
     input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
+    dataset_evaluator_id: Optional[str] = Field(
+        alias="datasetEvaluatorId", default=None
+    )
+    "Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name with the binding's scoring override, as an experiment would. Requires `evaluator.decisionEvaluatorId` to name the binding's judge. Omit to preview the judge on its own, under its own name and policy."
     apply_online_evaluation_limits: bool = Field(
         alias="applyOnlineEvaluationLimits", default=False
     )
