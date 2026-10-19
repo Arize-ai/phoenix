@@ -525,11 +525,8 @@ const inputsViewCSS = css`
     border: 1px solid var(--global-border-color-default);
     border-radius: var(--global-rounding-small);
   }
-  // Framed like the list it stands in for, so the section keeps its shape.
   .inputs-view__empty {
     padding: var(--global-dimension-size-300) var(--global-dimension-size-200);
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-small);
   }
   .inputs-view__item {
     display: grid;
