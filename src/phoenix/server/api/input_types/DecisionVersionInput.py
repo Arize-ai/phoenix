@@ -1,11 +1,13 @@
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import strawberry
 from strawberry import UNSET
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db.types.decisions import (
+    DECISION_SCHEMA_VERSION,
     ChoiceOption,
     ChoiceQuestion,
     DecisionInput,
@@ -20,6 +22,10 @@ from phoenix.db.types.decisions import (
     TextState,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+if TYPE_CHECKING:
+    from phoenix.db import models
 
 
 @strawberry.input(description="What counts as true and as false; either may be omitted.")
@@ -169,3 +175,75 @@ class DecisionStateInput:
         if self.input is not UNSET and self.input is not None:
             return InputState(type="input", name=self.input)
         raise ValueError("DecisionStateInput: no field is set")
+
+
+@strawberry.input(
+    description="A decision version to save: its inputs, state, questions, and the model that "
+    "answers. Saved versions are immutable; saving again adds a version."
+)
+class DecisionVersionInput:
+    inputs: list[DecisionInputDefinitionInput]
+    state: DecisionStateInput
+    questions: list[DecisionQuestionInput]
+    model_provider: GenerativeProviderKey = strawberry.field(
+        description="The provider whose decision API answers; it must offer decision models. "
+        "For a custom provider, the API its SDK speaks (OPENAI or TYPESAFE)."
+    )
+    model_name: str
+    custom_provider_id: Optional[GlobalID] = strawberry.field(
+        default=None,
+        description="Run on this custom provider instead of the built-in one.",
+    )
+    description: Optional[str] = None
+    metadata: Optional[JSON] = None
+
+    def to_orm(self, *, user_id: Optional[int]) -> "models.DecisionVersion":
+        """An unsaved version, checked against the write-time rules a run uses.
+
+        The caller assigns the decision and checks the custom provider in its transaction.
+
+        Raises:
+            BadRequest: The inputs, state, or questions break a rule, the model name is
+                empty, or the provider offers no decision models.
+        """
+        from phoenix.db import models
+        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
+        from phoenix.server.api.helpers.decision_versions import (
+            validate_inputs,
+            validate_questions,
+        )
+        from phoenix.server.api.types.GenerativeModelCustomProvider import (
+            GenerativeModelCustomProvider,
+        )
+        from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+        if self.model_provider not in DECISION_CLIENTS:
+            raise BadRequest(f"{self.model_provider.value} does not offer decision models.")
+        if not self.model_name.strip():
+            raise BadRequest("A decision model name is required.")
+        if self.metadata is not None and not isinstance(self.metadata, dict):
+            raise BadRequest("metadata must be an object")
+        try:
+            inputs = [definition.to_orm() for definition in self.inputs]
+            state = self.state.to_orm()
+            questions = [question.to_orm() for question in self.questions]
+            validate_inputs(inputs, state)
+            validate_questions(questions)
+        except ValueError as error:
+            raise BadRequest(str(error)) from error
+        return models.DecisionVersion(
+            description=self.description,
+            user_id=user_id,
+            schema_version=DECISION_SCHEMA_VERSION,
+            inputs=inputs,
+            state=state,
+            questions=questions,
+            model_provider=self.model_provider.to_model_provider(),
+            model_name=self.model_name.strip(),
+            custom_provider_id=from_global_id_with_expected_type(
+                self.custom_provider_id, GenerativeModelCustomProvider.__name__
+            )
+            if self.custom_provider_id is not None
+            else None,
+            metadata_=dict(self.metadata or {}),
+        )

@@ -90,6 +90,7 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
+from phoenix.server.api.types.Decision import Decision, DecisionVersion, DecisionVersionTag
 from phoenix.server.api.types.EvaluationQueue import EvaluationQueue
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
@@ -1193,6 +1194,12 @@ class Query:
             return PromptLabel(id=node_id)
         elif type_name == PromptVersionTag.__name__:
             return PromptVersionTag(id=node_id)
+        elif type_name in (
+            Decision.__name__,
+            DecisionVersion.__name__,
+            DecisionVersionTag.__name__,
+        ):
+            return await _decision_node(info, type_name, node_id, id)
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
@@ -1233,6 +1240,34 @@ class Query:
         if isinstance(user, UnauthenticatedUser):
             return None
         return User(id=int(user.identity))
+
+    @strawberry.field(description="Saved decisions, newest first.")  # type: ignore
+    async def decisions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Decision]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db.read() as session:
+            decisions = (
+                await session.scalars(
+                    select(models.Decision).order_by(
+                        models.Decision.created_at.desc(), models.Decision.id.desc()
+                    )
+                )
+            ).all()
+        return connection_from_list(
+            data=[Decision(id=decision.id, db_record=decision) for decision in decisions],
+            args=args,
+        )
 
     @strawberry.field
     async def prompts(
@@ -2144,3 +2179,19 @@ def _comparison_count_expression(
         ),
         0,
     )
+
+
+async def _decision_node(
+    info: Info[Context, None], type_name: str, node_id: int, global_id: strawberry.ID
+) -> Node:
+    """A saved decision, version, or tag by its row ID."""
+    async with info.context.db.read() as session:
+        if type_name == Decision.__name__:
+            if decision := await session.get(models.Decision, node_id):
+                return Decision(id=decision.id, db_record=decision)
+        elif type_name == DecisionVersion.__name__:
+            if version := await session.get(models.DecisionVersion, node_id):
+                return DecisionVersion(id=version.id, db_record=version)
+        elif tag := await session.get(models.DecisionVersionTag, node_id):
+            return DecisionVersionTag(id=tag.id, db_record=tag)
+    raise NotFound(f"Unknown {type_name}: {global_id}")

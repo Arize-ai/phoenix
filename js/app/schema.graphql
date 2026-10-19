@@ -1026,6 +1026,25 @@ input CreateDatasetSplitWithExamplesInput {
   exampleIds: [ID!]!
 }
 
+input CreateDecisionInput {
+  name: Identifier!
+  description: String = null
+  metadata: JSON = null
+  version: DecisionVersionInput!
+  tags: [CreateDecisionVersionTagInput!] = null
+}
+
+input CreateDecisionVersionInput {
+  decisionId: ID!
+  version: DecisionVersionInput!
+  tags: [CreateDecisionVersionTagInput!] = null
+}
+
+input CreateDecisionVersionTagInput {
+  name: Identifier!
+  description: String = null
+}
+
 input CreateDocumentAnnotationInput {
   spanId: ID!
   documentPosition: Int!
@@ -1654,6 +1673,28 @@ type DbTableStats {
   numBytes: Float!
 }
 
+"""
+A saved decision: a named typed function, versioned, that apps fetch by tag.
+"""
+type Decision implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+
+  """A version by ID or by tag; the latest version when neither is given."""
+  version(versionId: ID = null, tagName: Identifier = null): DecisionVersion!
+  versionCount: Int!
+  versionTags: [DecisionVersionTag!]!
+
+  """The decision's versions, newest first."""
+  versions(first: Int = 50, last: Int, after: String, before: String): DecisionVersionConnection!
+}
+
 """One answer, in Phoenix's vocabulary whatever the provider."""
 interface DecisionAnswer {
   """The name of the question this answers."""
@@ -1672,10 +1713,28 @@ type DecisionChoiceQuestion {
   choices: [DecisionChoiceOption!]!
 }
 
+"""A connection to a list of items."""
+type DecisionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionEdge!]!
+}
+
 """Where a decision runs."""
 input DecisionConnectionInput @oneOf {
   builtIn: BuiltInDecisionConnectionInput
   customProvider: CustomProviderDecisionConnectionInput
+}
+
+"""An edge in a connection."""
+type DecisionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Decision!
 }
 
 """One named input a decision's state is built from."""
@@ -1849,6 +1908,87 @@ type DecisionUsage {
   outputTokens: Int
 }
 
+"""
+An immutable version of a decision: its inputs, how the state is built from them, its questions, and the model that answers.
+"""
+type DecisionVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  decisionId: ID!
+  description: String
+
+  """How the inputs, state, and questions are read."""
+  schemaVersion: Int!
+  inputs: [DecisionInputDefinition!]!
+  state: DecisionState!
+  questions: [DecisionQuestion!]!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  metadata: JSON!
+  createdAt: DateTime!
+  user: User
+
+  """The custom provider this version runs on, if any."""
+  customProvider: GenerativeModelCustomProvider
+
+  """The tags pointing at this version."""
+  tags: [DecisionVersionTag!]!
+}
+
+"""A connection to a list of items."""
+type DecisionVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type DecisionVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DecisionVersion!
+}
+
+"""
+A decision version to save: its inputs, state, questions, and the model that answers. Saved versions are immutable; saving again adds a version.
+"""
+input DecisionVersionInput {
+  inputs: [DecisionInputDefinitionInput!]!
+  state: DecisionStateInput!
+  questions: [DecisionQuestionInput!]!
+
+  """
+  The provider whose decision API answers; it must offer decision models. For a custom provider, the API its SDK speaks (OPENAI or TYPESAFE).
+  """
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+
+  """Run on this custom provider instead of the built-in one."""
+  customProviderId: ID = null
+  description: String = null
+  metadata: JSON = null
+}
+
+"""A movable name for one of a decision's versions."""
+type DecisionVersionTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  decisionVersionId: ID!
+  user: User
+}
+
+type DecisionVersionTagMutationPayload {
+  decisionVersionTag: DecisionVersionTag
+  decision: Decision!
+  query: Query!
+}
+
 type DecryptedSecret {
   value: RedactedString!
 }
@@ -1928,6 +2068,18 @@ input DeleteDatasetSplitInput {
 type DeleteDatasetSplitsMutationPayload {
   datasetSplits: [DatasetSplit!]!
   query: Query!
+}
+
+input DeleteDecisionInput {
+  decisionId: ID!
+}
+
+type DeleteDecisionMutationPayload {
+  query: Query!
+}
+
+input DeleteDecisionVersionTagInput {
+  decisionVersionTagId: ID!
 }
 
 input DeleteExperimentsInput {
@@ -3618,6 +3770,12 @@ type Mutation {
   patchPrompt(input: PatchPromptInput!): Prompt!
   deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
+  createDecision(input: CreateDecisionInput!): Decision!
+  createDecisionVersion(input: CreateDecisionVersionInput!): Decision!
+  patchDecision(input: PatchDecisionInput!): Decision!
+  deleteDecision(input: DeleteDecisionInput!): DeleteDecisionMutationPayload!
+  setDecisionVersionTag(input: SetDecisionVersionTagInput!): DecisionVersionTagMutationPayload!
+  deleteDecisionVersionTag(input: DeleteDecisionVersionTagInput!): DecisionVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
@@ -3815,6 +3973,12 @@ input PatchDatasetSplitInput {
   name: String
   description: String
   color: String
+  metadata: JSON
+}
+
+input PatchDecisionInput {
+  decisionId: ID!
+  description: String
   metadata: JSON
 }
 
@@ -5146,6 +5310,9 @@ type Query {
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   node(id: ID!): Node!
   viewer: User
+
+  """Saved decisions, newest first."""
+  decisions(first: Int = 50, last: Int, after: String, before: String): DecisionConnection!
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
 
   """
@@ -5598,6 +5765,12 @@ input SetDatasetLabelsInput {
 type SetDatasetLabelsMutationPayload {
   query: Query!
   dataset: Dataset!
+}
+
+input SetDecisionVersionTagInput {
+  decisionVersionId: ID!
+  name: Identifier!
+  description: String = null
 }
 
 type SetExperimentBaselinePayload {
