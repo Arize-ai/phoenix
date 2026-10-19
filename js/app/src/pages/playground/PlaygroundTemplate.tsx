@@ -23,6 +23,7 @@ import { PromptMenu } from "@phoenix/pages/playground/PromptMenu";
 import { TaskMenu } from "@phoenix/pages/playground/TaskMenu";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
+import { PlaygroundDecisionTemplate } from "./PlaygroundDecisionTemplate";
 import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
@@ -95,6 +96,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   const { disablePromptMenu, disablePromptSave, disableAlphabeticIndex } =
     props;
+  const isDecision = instance.model.modelType === "DECISION";
 
   return (
     <>
@@ -117,10 +119,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           ) : null}
           {disablePromptMenu ? null : props.taskMenu ? (
             <TaskMenu instanceId={instanceId} />
-          ) : (
+          ) : !isDecision ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
-          )}
-          {!disablePromptSave ? (
+          ) : null}
+          {!disablePromptSave && !isDecision ? (
             <SaveButton instanceId={instanceId} dirty={dirty} />
           ) : null}
         </Flex>
@@ -128,6 +130,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           <PlaygroundInstanceModelControls
             instanceId={instanceId}
             disableEphemeralRouting={props.disableEphemeralRouting}
+            supportsDecisionModels={props.supportsDecisionModels}
           />
           {instances.length > 1 ? (
             <PlaygroundInstanceDeleteButton instanceId={instanceId} />
@@ -135,7 +138,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         </Flex>
       </Flex>
       <View paddingY="size-100">
-        {instance.template.__type === "chat" ? (
+        {isDecision ? (
+          <PlaygroundDecisionTemplate {...props} />
+        ) : instance.template.__type === "chat" ? (
           <Suspense>
             <PlaygroundChatTemplate {...props} />
           </Suspense>

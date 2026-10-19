@@ -119,6 +119,7 @@ export type PlaygroundError = {
 };
 
 export type ModelConfig = {
+  modelType?: "LLM" | "DECISION";
   provider: ModelProvider;
   modelName: string | null;
   baseUrl?: string | null;
@@ -374,6 +375,19 @@ export type PlaygroundInstanceExperiment = {
  * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {
+  /** Preserve chat configuration while the decision editor is active. */
+  llmModel?: ModelConfig;
+  decision?: {
+    state: string;
+    stateFormat: "text" | "json";
+    questions: Array<{
+      id: string;
+      name: string;
+      type: "choice" | "noul" | "score";
+      instructions: string;
+      criteria: string;
+    }>;
+  };
   /**
    * An ID to uniquely identify the instance
    */
@@ -544,6 +558,7 @@ export type PlaygroundStateByDatasetId = z.infer<
 >;
 
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
+  defaultModelType?: "LLM" | "DECISION";
   modelConfigByProvider: ModelConfigByProvider;
   datasetId?: string | null;
   stateByDatasetId?: PlaygroundStateByDatasetId;
