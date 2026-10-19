@@ -15,6 +15,8 @@ from pydantic import ConfigDict, Field, RootModel
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
 from phoenix.db.types.db_helper_types import DBBaseModel
+from phoenix.db.types.decision_evaluators import DecisionProjectionPolicy
+from phoenix.db.types.decisions import DecisionInput, DecisionQuestion, DecisionState
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
@@ -38,6 +40,8 @@ class EvaluatorSource(DBBaseModel):
 
     evaluator_id: int | None = None
     prompt_version_id: int | None = None
+    decision_id: int | None = None
+    decision_version_id: int | None = None
     dataset_evaluator_id: int | None = None
     project_evaluator_id: int | None = None
 
@@ -114,12 +118,39 @@ class BuiltInEvaluatorDefinition(DBBaseModel):
     builtin_evaluator_id: int
 
 
+class InlineDecisionEvaluatorDefinition(DBBaseModel):
+    """An immutable decision judge, including effective scoring and connection identity."""
+
+    model_config = ConfigDict(frozen=True)
+    type: Literal["inline_decision_evaluator"]
+    schema_version: Literal[1] = 1
+    decision_schema_version: Literal[1] = 1
+    name: str
+    description: str | None = None
+    inputs: list[DecisionInput]
+    state: DecisionState
+    questions: list[DecisionQuestion]
+    model_provider: ModelProvider
+    model_name: str
+    custom_provider_id: int | None = None
+    projection_policy: DecisionProjectionPolicy = Field(default_factory=DecisionProjectionPolicy)
+    source: EvaluatorSource | None = None
+
+
+class StoredDecisionEvaluatorDefinition(DBBaseModel):
+    type: Literal["decision_evaluator"]
+    decision_evaluator_id: int
+    source: EvaluatorSource | None = None
+
+
 EvaluatorDefinition = Annotated[
     Union[
         InlineLLMEvaluatorDefinition,
         InlineCodeEvaluatorDefinition,
         StoredCodeEvaluatorDefinition,
         BuiltInEvaluatorDefinition,
+        InlineDecisionEvaluatorDefinition,
+        StoredDecisionEvaluatorDefinition,
     ],
     Field(discriminator="type"),
 ]
@@ -129,8 +160,14 @@ class EvaluatorDefinitionRootModel(RootModel[EvaluatorDefinition]):
     root: EvaluatorDefinition
 
 
-def evaluator_kind_of(definition: EvaluatorDefinition) -> Literal["LLM", "CODE", "BUILTIN"]:
+def evaluator_kind_of(
+    definition: EvaluatorDefinition,
+) -> Literal["LLM", "CODE", "BUILTIN", "DECISION"]:
     """The kind of evaluator a definition builds, as stored in ``evaluators.kind``."""
+    if isinstance(
+        definition, (InlineDecisionEvaluatorDefinition, StoredDecisionEvaluatorDefinition)
+    ):
+        return "DECISION"
     if isinstance(definition, InlineLLMEvaluatorDefinition):
         return "LLM"
     if isinstance(definition, (InlineCodeEvaluatorDefinition, StoredCodeEvaluatorDefinition)):

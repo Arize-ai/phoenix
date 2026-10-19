@@ -197,7 +197,7 @@ def render_values_w_union(
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
-EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
+EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN", "DECISION"]
 SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
@@ -2101,6 +2101,9 @@ class ExperimentJob(HasId):
         nullable=False,
     )
 
+    decision_evaluator_snapshots: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON_, nullable=False, default=list, server_default="[]"
+    )
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",
         passive_deletes="all",
@@ -2306,7 +2309,7 @@ class ExperimentEvaluatorTask(ExperimentJob):
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     evaluator_kind: Mapped[EvaluatorKind] = mapped_column(
         CheckConstraint(
-            "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')",
+            "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')",
             name="valid_evaluator_kind",
         ),
         nullable=False,
@@ -3479,7 +3482,9 @@ class SpanCostDetail(HasId):
 class Evaluator(HasId):
     __tablename__ = "evaluators"
     kind: Mapped[EvaluatorKind] = mapped_column(
-        CheckConstraint("kind IN ('LLM', 'CODE', 'BUILTIN')", name="valid_evaluator_kind"),
+        CheckConstraint(
+            "kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')", name="valid_evaluator_kind"
+        ),
         nullable=False,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
@@ -3506,6 +3511,54 @@ class Evaluator(HasId):
     }
 
     __table_args__ = (UniqueConstraint("kind", "id"),)
+
+
+class DecisionEvaluator(Evaluator):
+    __tablename__ = "decision_evaluators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[Literal["DECISION"]] = mapped_column(
+        CheckConstraint("kind = 'DECISION'", name="valid_evaluator_kind"),
+        server_default="DECISION",
+        nullable=False,
+    )
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="RESTRICT"), index=True
+    )
+    decision_version_tag_id: Mapped[int] = mapped_column(
+        ForeignKey("decision_version_tags.id", ondelete="RESTRICT"), index=True, unique=True
+    )
+    projection_policy: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    selected_version: Mapped["DecisionVersion"] = relationship(
+        "DecisionVersion",
+        secondary="decision_version_tags",
+        primaryjoin="DecisionEvaluator.decision_version_tag_id == DecisionVersionTag.id",
+        secondaryjoin="DecisionVersionTag.decision_version_id == DecisionVersion.id",
+        viewonly=True,
+        uselist=False,
+        lazy="joined",
+    )
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        from phoenix.db.types.decision_evaluators import (
+            DecisionProjectionPolicy,
+            derive_decision_output_configs,
+        )
+
+        return derive_decision_output_configs(
+            self.selected_version.questions,
+            DecisionProjectionPolicy.model_validate(self.projection_policy),
+        )
+
+    __mapper_args__ = {"polymorphic_identity": "DECISION"}
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
+        ),
+    )
 
 
 class LLMEvaluator(Evaluator):
@@ -3748,6 +3801,9 @@ class DatasetEvaluators(HasId):
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
         _OutputConfigOverrideList, nullable=True
+    )
+    decision_projection_policy: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON_, nullable=True
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
