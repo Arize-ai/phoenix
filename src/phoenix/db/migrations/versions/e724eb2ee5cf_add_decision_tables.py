@@ -1,7 +1,7 @@
 """add decision tables
 
 Revision ID: e724eb2ee5cf
-Revises: 3050448199d9
+Revises: f3b8c2d14e70
 Create Date: 2026-10-19 12:00:00.000000
 
 """
@@ -15,9 +15,12 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
 revision: str = "e724eb2ee5cf"
-down_revision: Union[str, None] = "3050448199d9"
+down_revision: Union[str, None] = "f3b8c2d14e70"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+_JOB_TYPES_BEFORE = "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')"
+_JOB_TYPES_AFTER = "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR', 'DECISION')"
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -132,28 +135,66 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-    # SQLite cannot add a column with a foreign key in place, so batch mode rewrites the
-    # table. The inline foreign key takes its name from the naming convention, which
-    # shortens it within PostgreSQL's identifier limit.
-    with op.batch_alter_table("experiment_decision_tasks") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "decision_version_id",
-                _Integer,
-                sa.ForeignKey("decision_versions.id", ondelete="SET NULL"),
-                nullable=True,
-            )
+    # SQLite cannot alter a CHECK constraint in place, so batch mode rewrites the table.
+    with op.batch_alter_table("experiment_jobs") as batch_op:
+        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
+        batch_op.create_check_constraint(
+            constraint_name="valid_type",
+            condition=_JOB_TYPES_AFTER,
         )
-        batch_op.create_index(
-            "ix_experiment_decision_tasks_decision_version_id", ["decision_version_id"]
-        )
+    op.create_table(
+        "experiment_decision_tasks",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "type",
+            sa.String(),
+            sa.CheckConstraint("type = 'DECISION'", name="valid_type"),
+            nullable=False,
+            server_default="DECISION",
+        ),
+        sa.ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+        # Model identity
+        sa.Column("model_provider", sa.String(), nullable=False),
+        sa.Column("model_name", sa.String(), nullable=False),
+        # Provider routing: a custom provider, or a built-in one with an optional endpoint
+        sa.Column(
+            "custom_provider_id",
+            _Integer,
+            sa.ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column("base_url", sa.String(), nullable=True),
+        sa.CheckConstraint(
+            "NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)",
+            name="custom_provider_or_base_url",
+        ),
+        # Inputs, state, question source, references, and scoring settings
+        sa.Column("config", JSON_, nullable=False),
+        sa.Column(
+            "decision_version_id",
+            _Integer,
+            sa.ForeignKey("decision_versions.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
 
 
 def downgrade() -> None:
-    # Dropping the column drops its foreign key too.
-    with op.batch_alter_table("experiment_decision_tasks") as batch_op:
-        batch_op.drop_index("ix_experiment_decision_tasks_decision_version_id")
-        batch_op.drop_column("decision_version_id")
+    # Refuse a downgrade while decision jobs remain, before dropping any decision data.
+    with op.batch_alter_table("experiment_jobs") as batch_op:
+        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
+        batch_op.create_check_constraint(constraint_name="valid_type", condition=_JOB_TYPES_BEFORE)
+    op.drop_table("experiment_decision_tasks")
     op.drop_table("decision_version_tags")
     op.drop_table("decision_versions")
     op.drop_table("decisions")

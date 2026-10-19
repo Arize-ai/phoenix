@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from . import _down, _run_async, _up, _verify_clean_state
 
-_DOWN = "3050448199d9"
+_DOWN = "f3b8c2d14e70"
 _UP = "e724eb2ee5cf"
 
 _VERSION_COLUMNS = (
@@ -71,14 +71,7 @@ async def test_decision_tables_schema(
     for table in ("decisions", "decision_versions", "decision_version_tags"):
         assert not await _run_async(_engine, lambda conn: sa.inspect(conn).has_table(table))
     assert not await _run_async(
-        _engine,
-        lambda conn: (
-            "decision_version_id"
-            in {
-                column["name"]
-                for column in sa.inspect(conn).get_columns("experiment_decision_tasks")
-            }
-        ),
+        _engine, lambda conn: sa.inspect(conn).has_table("experiment_decision_tasks")
     )
 
 

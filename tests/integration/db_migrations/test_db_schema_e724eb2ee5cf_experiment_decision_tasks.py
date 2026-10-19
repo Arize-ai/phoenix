@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from . import _down, _run_async, _up, _verify_clean_state
 
 _DOWN = "f3b8c2d14e70"
-_UP = "3050448199d9"
+_UP = "e724eb2ee5cf"
 
 
 async def test_experiment_decision_tasks_schema(
