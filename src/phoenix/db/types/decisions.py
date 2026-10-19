@@ -16,9 +16,6 @@ from pydantic import Field, RootModel
 
 from phoenix.db.types.db_helper_types import DBBaseModel
 
-DECISION_SCHEMA_VERSION = 1
-"""The shape of the types below. Bump it when their meaning changes."""
-
 
 class DecisionInput(DBBaseModel):
     """One named input a caller passes: the decision's signature."""
@@ -136,7 +133,6 @@ class DecisionTaskConfig(DBBaseModel):
     ``appended_messages_path``.
     """
 
-    schema_version: int = DECISION_SCHEMA_VERSION
     inputs: list[DecisionInput]
     state: DecisionState
     questions: list[DecisionQuestion]

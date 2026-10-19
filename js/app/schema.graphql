@@ -2158,9 +2158,6 @@ type DecisionVersion implements Node {
   id: ID!
   decisionId: ID!
   description: String
-
-  """How the inputs, state, and questions are read."""
-  schemaVersion: Int!
   inputs: [DecisionInputDefinition!]!
   state: DecisionState!
   questions: [DecisionQuestion!]!

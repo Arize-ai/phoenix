@@ -16,7 +16,6 @@ DECISION_FIELDS = """
   version {
     id
     description
-    schemaVersion
     modelProvider
     modelName
     inputs { name }
@@ -153,7 +152,6 @@ async def test_a_decision_is_saved_with_its_first_version_and_tags(
     assert decision["metadata"] == {"owner": "support"}
     assert decision["versionCount"] == 1
     version = decision["version"]
-    assert version["schemaVersion"] == 1
     assert version["modelProvider"] == "TYPESAFE"
     assert version["modelName"] == "tev1"
     assert version["inputs"] == [{"name": "ticket"}]

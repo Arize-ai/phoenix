@@ -116,8 +116,8 @@ that don't apply here.
    set of fixtures.
 2. **New types are additive, and old clients fail clearly.** Questions and
    inputs are JSON discriminated by `type`. Writes are validated strictly. Apps
-   can pin an old `phoenix-client`, so a client that meets a `schema_version`
-   or question type it doesn't know raises a clear "upgrade phoenix-client"
+   can pin an old `phoenix-client`, so a client that meets a question, input,
+   or state type it doesn't know raises a clear "upgrade phoenix-client"
    error. It never drops the question or sends a partial request. A server that
    meets an unknown type (only after a downgrade) fails the read and never
    rewrites the row.
@@ -130,9 +130,10 @@ that don't apply here.
    version, as prompt tasks do.
 6. **No results table.** A run is a `DECISION` span. Evaluator results are
    annotations. Experiments link to spans.
-7. **Version the schema, not just the content.** A `schema_version` on each
-   version row, also returned to clients, lets the JSON's meaning change without
-   a database migration.
+7. **Evolve additively, as prompts do.** An existing field never changes its
+   meaning; a change adds a type or a field. There is no schema version: a
+   format change is a database migration, and a breaking change for clients is
+   a new API version.
 8. **Say each fact once.** Questions define the outputs' schema; nothing else
    restates their names, choices, or levels.
 
@@ -144,7 +145,6 @@ decisions
 
 decision_versions                      -- immutable
   id, decision_id → decisions
-  schema_version   int                 -- how to read inputs and questions
   inputs           JSON                -- the signature: [{name, description?, json_schema?}]
   state            JSON                -- {type: "object"} | {type: "text", template, template_format}
                                        --   | {type: "input", name}; later {type: "messages"}
@@ -314,8 +314,7 @@ REST mirrors the prompt routes:
 - `POST /v1/decisions` (create a decision with its first version, or add a
   version)
 
-Each response carries `schema_version`, `inputs`, `state`, `questions`, and the
-model.
+Each response carries `inputs`, `state`, `questions`, and the model.
 
 `phoenix-client` (Python and TypeScript) adds:
 
@@ -945,8 +944,8 @@ users run. The prompt precedent picked the format with the most use, which is th
 measure to check here too.
 
 Decide before saved decisions ship in a release. Until then, changing it means
-changing code; after, it means migrating stored versions under a new
-`schema_version` ([principle 7](#principles)).
+changing code; after, it means migrating stored versions and a new API version
+for clients ([principle 7](#principles)).
 
 ### Span Contents
 

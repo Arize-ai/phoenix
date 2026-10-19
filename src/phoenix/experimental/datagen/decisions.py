@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from phoenix.client.resources.datasets import Dataset
 
 _VERSION_FIELDS = """
-  id schemaVersion description metadata modelProvider modelName customProvider { id }
+  id description metadata modelProvider modelName customProvider { id }
   inputs { name description jsonSchema }
   state { __typename ... on DecisionInputState { input } ... on DecisionObjectState { object } }
   questions {
@@ -147,7 +147,7 @@ def _find_decision(http: httpx.Client, name: str) -> dict[str, Any] | None:
 
 
 def _same_decision(saved: Mapping[str, Any] | None, desired: Mapping[str, Any]) -> bool:
-    if saved is None or saved["schemaVersion"] != 1:
+    if saved is None:
         return False
     if saved["state"]["__typename"] == "DecisionInputState":
         state = {"input": saved["state"]["input"]}

@@ -70,8 +70,6 @@ async def _version_by_rowid(session: AsyncSession, rowid: int) -> models.Decisio
     version = await session.get(models.DecisionVersion, rowid)
     if version is None:
         raise NotFound(f"Decision version not found: {rowid}")
-    if version.schema_version != 1:
-        raise BadRequest("Unsupported decision schema version")
     return version
 
 

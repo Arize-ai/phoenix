@@ -746,8 +746,7 @@ class _DecisionTaskConfig(TypeDecorator[DecisionTaskConfig]):
     ) -> Optional[dict[str, Any]]:
         if value is None:
             raise ValueError("Decision task config cannot be None")
-        # The version is always written, even when it was left at its default.
-        return {"schema_version": value.schema_version, **value.model_dump()}
+        return value.model_dump()
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
@@ -3243,8 +3242,6 @@ class DecisionVersion(HasId):
         index=True,
         nullable=True,
     )
-    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    """How to read ``inputs``, ``state``, and ``questions``; see ``DECISION_SCHEMA_VERSION``."""
     inputs: Mapped[list[DecisionInput]] = mapped_column(_DecisionInputs, nullable=False)
     state: Mapped[DecisionState] = mapped_column(_DecisionState, nullable=False)
     questions: Mapped[list[DecisionQuestion]] = mapped_column(_DecisionQuestions, nullable=False)

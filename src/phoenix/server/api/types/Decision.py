@@ -110,10 +110,6 @@ class DecisionVersion(Node):
     def description(self) -> Optional[str]:
         return self.db_record.description
 
-    @strawberry.field(description="How the inputs, state, and questions are read.")  # type: ignore[untyped-decorator]
-    def schema_version(self) -> int:
-        return self.db_record.schema_version
-
     @strawberry.field
     def inputs(self) -> list[DecisionInputDefinition]:
         return [to_gql_decision_input(input) for input in self.db_record.inputs]

@@ -282,7 +282,6 @@ async def test_a_run_records_the_saved_version_it_was_copied_from(
         decision = models.Decision(name=Identifier("triage"), metadata_={})
         version = models.DecisionVersion(
             decision=decision,
-            schema_version=1,
             inputs=[],
             state=ObjectState(type="object"),
             questions=[],

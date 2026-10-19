@@ -98,7 +98,6 @@ def upgrade() -> None:
         ),
         sa.Column("description", sa.String, nullable=True),
         _user_id(),
-        sa.Column("schema_version", sa.Integer, nullable=False),
         sa.Column("inputs", JSON_, nullable=False),
         sa.Column("state", JSON_, nullable=False),
         sa.Column("questions", JSON_, nullable=False),

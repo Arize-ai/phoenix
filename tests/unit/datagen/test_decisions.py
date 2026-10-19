@@ -22,7 +22,7 @@ _WORKFLOWS = (
 
 def _saved_version(version: dict[str, Any], version_id: str) -> dict[str, Any]:
     saved = deepcopy(version)
-    saved.update(id=version_id, schemaVersion=1, customProvider=None)
+    saved.update(id=version_id, customProvider=None)
     saved.pop("customProviderId")
     saved["state"] = {"__typename": "DecisionInputState", "input": "state"}
     type_names = {

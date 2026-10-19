@@ -234,7 +234,6 @@ class SavedDecisionMutationMixin:
                             for field in (
                                 "description",
                                 "user_id",
-                                "schema_version",
                                 "inputs",
                                 "state",
                                 "questions",

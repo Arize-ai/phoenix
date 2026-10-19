@@ -1290,7 +1290,6 @@ CREATE TABLE decision_versions (
     decision_id INTEGER NOT NULL,
     description VARCHAR,
     user_id INTEGER,
-    schema_version INTEGER NOT NULL,
     inputs JSONB NOT NULL,
     state JSONB NOT NULL,
     questions JSONB NOT NULL,

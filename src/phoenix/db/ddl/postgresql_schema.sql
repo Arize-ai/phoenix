@@ -1374,7 +1374,6 @@ CREATE TABLE public.decision_versions (
     decision_id BIGINT NOT NULL,
     description VARCHAR,
     user_id BIGINT,
-    schema_version INTEGER NOT NULL,
     inputs JSONB NOT NULL,
     state JSONB NOT NULL,
     questions JSONB NOT NULL,

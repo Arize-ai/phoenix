@@ -21,8 +21,7 @@ _DOWN = "f3b8c2d14e70"
 _UP = "e724eb2ee5cf"
 
 _VERSION_COLUMNS = (
-    "(decision_id, schema_version, inputs, state, questions, model_provider, model_name, "
-    "metadata, created_at)"
+    "(decision_id, inputs, state, questions, model_provider, model_name, metadata, created_at)"
 )
 
 
@@ -100,7 +99,7 @@ def _insert_decision(conn: Connection, name: str) -> int:
 def _insert_version(conn: Connection, decision_id: int) -> int:
     version_id = conn.execute(
         text(
-            f"INSERT INTO decision_versions {_VERSION_COLUMNS} VALUES (:decision_id, 1, "
+            f"INSERT INTO decision_versions {_VERSION_COLUMNS} VALUES (:decision_id, "
             "'[]', '{\"type\": \"object\"}', '[]', 'OLLAMA', 'tev1', '{}', :now) RETURNING id"
         ),
         {"decision_id": decision_id, "now": datetime.now(timezone.utc)},

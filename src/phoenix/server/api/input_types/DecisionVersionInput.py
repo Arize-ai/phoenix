@@ -7,7 +7,6 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db.types.decisions import (
-    DECISION_SCHEMA_VERSION,
     ChoiceOption,
     ChoiceQuestion,
     DecisionInput,
@@ -234,7 +233,6 @@ class DecisionVersionInput:
         return models.DecisionVersion(
             description=self.description,
             user_id=user_id,
-            schema_version=DECISION_SCHEMA_VERSION,
             inputs=inputs,
             state=state,
             questions=questions,
