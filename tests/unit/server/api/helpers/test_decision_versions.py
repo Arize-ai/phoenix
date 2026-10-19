@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 import pytest
@@ -76,6 +77,54 @@ def test_f_string_renders_structured_inputs_as_json() -> None:
         {"ticket": {"body": "Refund?"}, "count": 2},
     )
     assert rendered == 'Ticket: {"body": "Refund?"} (2)'
+
+
+@pytest.mark.parametrize(
+    "template_format,template", [("F_STRING", "{ticket}"), ("MUSTACHE", "{{ticket}}")]
+)
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ({"flag": True, "empty": None}, '{"flag": true, "empty": null}'),
+        ({"a": [True]}, '{"a": [true]}'),
+        ({"a": {"b": None}}, '{"a": {"b": null}}'),
+        ([{"a": False}, None], '[{"a": false}, null]'),
+        ({"s": "é"}, '{"s": "é"}'),
+        (True, "true"),
+        (None, "null"),
+    ],
+)
+def test_structured_inputs_render_as_valid_json_in_both_formats(
+    template_format: str, template: str, value: Any, expected: str
+) -> None:
+    rendered = render_state(_inputs("ticket"), _text(template, template_format), {"ticket": value})
+    assert rendered == expected
+    assert json.loads(rendered) == value
+
+
+@pytest.mark.parametrize(
+    "template_format,template",
+    [
+        ("F_STRING", "{ticket.a} {ticket.a.b} {ticket.n}"),
+        ("MUSTACHE", "{{ticket.a}} {{ticket.a.b}} {{ticket.n}}"),
+    ],
+)
+def test_dotted_paths_render_nested_values_as_json(template_format: str, template: str) -> None:
+    ticket = {"a": {"b": None}, "n": None, "l": [True, {"x": False}]}
+    rendered = render_state(_inputs("ticket"), _text(template, template_format), {"ticket": ticket})
+    assert rendered == '{"b": null} null null'
+
+
+def test_null_renders_as_json_null_in_mustache() -> None:
+    # Intended: structured inputs render as JSON, so None is `null`, not empty.
+    rendered = render_state(_inputs("a"), _text("[{{a}}]"), {"a": None})
+    assert rendered == "[null]"
+
+
+def test_f_string_dotted_paths_are_validated_by_their_root() -> None:
+    validate_inputs(_inputs("ticket"), _text("{ticket.subject} {ticket[0].x}", "F_STRING"))
+    with pytest.raises(ValueError, match="uses undeclared inputs: other"):
+        validate_inputs(_inputs("ticket"), _text("{ticket.subject} {other.x}", "F_STRING"))
 
 
 @pytest.mark.parametrize(
@@ -184,3 +233,12 @@ def test_valid_questions_are_accepted() -> None:
 def test_invalid_questions_are_rejected(questions: list[DecisionQuestion], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         validate_questions(questions)
+
+
+def test_f_string_list_indices_render_as_json() -> None:
+    rendered = render_state(
+        _inputs("ticket"),
+        _text("{ticket[0]} {ticket[1].x} {ticket[2]}", "F_STRING"),
+        {"ticket": [True, {"x": False}, None]},
+    )
+    assert rendered == "true false null"

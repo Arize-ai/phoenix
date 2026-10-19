@@ -152,7 +152,6 @@ decision_versions                      -- immutable
   model_provider, model_name (free text)
   custom_provider_id → generative_model_custom_providers  -- see Models
   description, metadata, user_id, created_at
-  -- duplicates detected with has_identical_content, as prompts do
 
 decision_version_tags
   id, decision_id, decision_version_id, name
@@ -183,7 +182,7 @@ The state sent to the model is built from those inputs:
 | State | Meaning | When |
 |---|---|---|
 | `object` | Exactly the declared inputs, as a JSON object. This is TypeSafe's native form: structured values stay structured, and nothing is templated. OpenAI receives it serialized as text. | Launch |
-| `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters. It may only reference declared inputs, checked on write. An object, array, boolean, or null renders as JSON when named on its own; Mustache dotted paths and sections still read into it. | Launch |
+| `text` | A string template over the inputs, `MUSTACHE` or `F_STRING`, using Phoenix's existing formatters. It may only reference declared inputs, checked on write. An object, array, boolean, or null renders as JSON when named on its own, nested values included; dotted paths (both formats) and Mustache sections still read into it. Names inside a Mustache section aren't checked on write, since they may be the input's own fields. | Launch |
 | `input` | One declared input's value, unchanged: text, an object, or an array. For a caller that already has its whole state as one value, and for benchmarks whose states are objects with keys that vary per example. | Built |
 | `messages` | A message list, for OpenAI's message-style `input` and for images. | With assets |
 

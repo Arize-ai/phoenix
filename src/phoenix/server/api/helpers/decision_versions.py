@@ -88,9 +88,13 @@ def validate_inputs(inputs: Sequence[DecisionInput], state: DecisionState) -> No
         raise ValueError("The state template cannot be empty")
     formatter = get_template_formatter(PromptTemplateFormat(state.template_format))
     try:
-        variables = formatter.parse(state.template)
+        # Root names only: a dotted path such as {ticket.subject} names the input ticket.
+        variables = formatter.parse_with_types(state.template).names()
     except TemplateFormatterError as error:
         raise ValueError(f"The state template is invalid: {error}") from error
+    # TODO: Names inside a Mustache section (e.g. {{#ticket}}{{other}}{{/ticket}}) can
+    # resolve against the section's own fields, so they are not checked here. They could
+    # be once an input declares a json_schema.
     if undeclared := sorted(variables - names):
         raise ValueError(f"The state template uses undeclared inputs: {', '.join(undeclared)}")
 
@@ -120,11 +124,12 @@ def render_state(
         return {name: values[name] for name in names}
     if isinstance(state, InputState):
         return values[state.name]
-    formatter = get_template_formatter(PromptTemplateFormat(state.template_format))
+    template_format = PromptTemplateFormat(state.template_format)
+    formatter = get_template_formatter(template_format)
+    wrap = _json_view if template_format is PromptTemplateFormat.F_STRING else _rendered_as_json
     try:
-        return formatter.format(
-            state.template, **{name: _rendered_as_json(values[name]) for name in names}
-        )
+        # A null input renders as `null` under Mustache too: structured inputs are JSON.
+        return formatter.format(state.template, **{name: wrap(values[name]) for name in names})
     except TemplateFormatterError as error:
         raise ValueError(str(error)) from error
 
@@ -164,6 +169,34 @@ def _rendered_as_json(value: Any) -> Any:
         return _JSONDict({key: _rendered_as_json(item) for key, item in value.items()})
     if isinstance(value, list):
         return _JSONList(_rendered_as_json(item) for item in value)
+    if isinstance(value, bool) or value is None:
+        return _JSONScalar(value)
+    return value
+
+
+class _JSONView:
+    """A dict or list for F-string templates: paths read into it, and every level
+    renders as JSON. Not a dict subclass, so the formatter leaves it unwrapped."""
+
+    def __init__(self, data: Any) -> None:
+        self._data = data
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_") or not isinstance(self._data, dict) or name not in self._data:
+            raise AttributeError(name)
+        return _json_view(self._data[name])
+
+    def __getitem__(self, key: Any) -> Any:
+        return _json_view(self._data[key])
+
+    def __str__(self) -> str:
+        return json.dumps(self._data, ensure_ascii=False)
+
+
+def _json_view(value: Any) -> Any:
+    """Wrap ``value`` so an F-string template renders it as JSON, at any path depth."""
+    if isinstance(value, (dict, list)):
+        return _JSONView(value)
     if isinstance(value, bool) or value is None:
         return _JSONScalar(value)
     return value
