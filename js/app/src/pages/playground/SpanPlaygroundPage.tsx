@@ -34,7 +34,11 @@ export function SpanPlaygroundPage() {
 
   return (
     <Flex direction="column" height={"100%"}>
-      <SpanPlaygroundBanners span={span} parsingErrors={parsingErrors} />
+      <SpanPlaygroundBanners
+        span={span}
+        parsingErrors={parsingErrors}
+        isDecision={playgroundInstance.model.modelType === "DECISION"}
+      />
       <Playground
         // remount the playground when the span changes, resetting all local state, closing dialogs, etc.
         key={span.id}
@@ -48,7 +52,9 @@ export function SpanPlaygroundPage() {
 function SpanPlaygroundBanners({
   span,
   parsingErrors,
+  isDecision = false,
 }: {
+  isDecision?: boolean;
   span: Extract<
     NonNullable<spanPlaygroundPageLoaderQuery$data["span"]>,
     { __typename: "Span" }
@@ -66,7 +72,7 @@ function SpanPlaygroundBanners({
       {showBackBanner && (
         <Alert
           variant="info"
-          title="LLM Span Replay"
+          title={isDecision ? "Decision Span Replay" : "LLM Span Replay"}
           banner
           dismissable
           onDismissClick={() => {
@@ -84,7 +90,7 @@ function SpanPlaygroundBanners({
               Back to Trace
             </Button>
           }
-        >{`Replay and iterate on your LLM call from your ${span.project.name} project`}</Alert>
+        >{`Replay and iterate on your ${isDecision ? "decision request" : "LLM call"} from your ${span.project.name} project`}</Alert>
       )}
       {showParsingErrorsBanner && hasParsingErrors && (
         <Alert
