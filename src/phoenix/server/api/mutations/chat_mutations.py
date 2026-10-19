@@ -46,6 +46,7 @@ initialize_playground_clients()
 @strawberry.type
 class EvaluationResult:
     evaluator_name: str
+    status: Optional[str] = None
     annotation: Optional[ExperimentRunAnnotation] = None
     trace: Optional[Trace] = None
     error: Optional[str] = None
@@ -81,11 +82,13 @@ def _to_evaluation_result(
     if eval_result["error"] is not None:
         return EvaluationResult(
             evaluator_name=evaluator_name,
+            status="error",
             error=eval_result["error"],
             trace=trace,
         )
     return EvaluationResult(
         evaluator_name=evaluator_name,
+        status=eval_result["metadata"].get("decision", {}).get("status", "answered"),
         annotation=_to_annotation(eval_result),
         trace=trace,
     )

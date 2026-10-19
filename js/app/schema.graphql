@@ -990,6 +990,15 @@ input CreateDatasetCodeEvaluatorInput {
   description: String = null
 }
 
+input CreateDatasetDecisionEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput!
+  description: String = null
+  projectionPolicy: JSON = null
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -1031,6 +1040,13 @@ input CreateDatasetSplitWithExamplesInput {
   color: String!
   metadata: JSON
   exampleIds: [ID!]!
+}
+
+input CreateDecisionEvaluatorInput {
+  name: Identifier!
+  decisionVersionId: ID!
+  description: String = null
+  projectionPolicy: JSON = null
 }
 
 input CreateDecisionInput {
@@ -1380,6 +1396,7 @@ type DatasetEvaluator implements Node {
   evaluator: Evaluator!
   description: String
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  decisionProjectionPolicy: JSON
   inputMapping: EvaluatorInputMapping!
   user: User
   project: Project!
@@ -1754,6 +1771,32 @@ type DecisionEdge {
 
   """The item at the end of the edge"""
   node: Decision!
+}
+
+type DecisionEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
+  user: User
+  inputSchema: JSON!
+  projectionPolicy: JSON!
+  decisionVersion: DecisionVersion!
+  decisionVersionTag: DecisionVersionTag!
+}
+
+type DecisionEvaluatorMutationPayload {
+  evaluator: DecisionEvaluator!
+  query: Query!
 }
 
 """The filter key and value for decision connections"""
@@ -2150,6 +2193,14 @@ type DeleteDatasetSplitsMutationPayload {
   query: Query!
 }
 
+input DeleteDecisionEvaluatorInput {
+  evaluatorId: ID!
+}
+
+type DeleteDecisionEvaluatorPayload {
+  query: Query!
+}
+
 input DeleteDecisionInput {
   decisionId: ID!
 }
@@ -2531,6 +2582,7 @@ type EvaluationQueueTarget {
 
 type EvaluationResult {
   evaluatorName: String!
+  status: String
   annotation: ExperimentRunAnnotation
   trace: Trace
   error: String
@@ -2676,6 +2728,7 @@ type EvaluatorConnection {
 }
 
 input EvaluatorDefinitionInput @oneOf {
+  decisionEvaluatorId: ID
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
   codeEvaluatorId: ID
@@ -2756,6 +2809,7 @@ enum EvaluatorKind {
   LLM
   CODE
   BUILTIN
+  DECISION
 }
 
 type EvaluatorLabelCount {
@@ -2826,7 +2880,7 @@ type EvaluatorTaskConfig implements Node {
   definition: EvaluatorTaskDefinition!
 }
 
-union EvaluatorTaskDefinition = InlineLLMEvaluatorDefinition | InlineCodeEvaluatorDefinition | StoredCodeEvaluatorDefinition | BuiltInEvaluatorDefinition
+union EvaluatorTaskDefinition = InlineLLMEvaluatorDefinition | InlineDecisionEvaluatorDefinition | StoredDecisionEvaluatorDefinition | InlineCodeEvaluatorDefinition | StoredCodeEvaluatorDefinition | BuiltInEvaluatorDefinition
 
 input EvaluatorTaskInput {
   evaluator: EvaluatorDefinitionInput!
@@ -2841,6 +2895,8 @@ input EvaluatorTaskInput {
 type EvaluatorTaskSource {
   evaluatorId: ID
   promptVersionId: ID
+  decisionId: ID
+  decisionVersionId: ID
   datasetEvaluatorId: ID
   projectEvaluatorId: ID
 }
@@ -3572,6 +3628,22 @@ input InlineCodeEvaluatorInput {
   description: String = null
 }
 
+type InlineDecisionEvaluatorDefinition {
+  name: String!
+  description: String
+  schemaVersion: Int!
+  decisionSchemaVersion: Int!
+  inputs: [DecisionInputDefinition!]!
+  state: DecisionState!
+  questions: [DecisionQuestion!]!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  customProviderId: ID
+  projectionPolicy: JSON!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  source: EvaluatorTaskSource
+}
+
 type InlineLLMEvaluatorDefinition {
   name: String!
   description: String
@@ -3876,6 +3948,11 @@ type Mutation {
   deleteDecisionLabels(input: DeleteDecisionLabelsInput!): DecisionLabelDeleteMutationPayload!
   setDecisionLabels(input: SetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
   unsetDecisionLabels(input: UnsetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
+  createDecisionEvaluator(input: CreateDecisionEvaluatorInput!): DecisionEvaluatorMutationPayload!
+  patchDecisionEvaluator(input: PatchDecisionEvaluatorInput!): DecisionEvaluatorMutationPayload!
+  deleteDecisionEvaluator(input: DeleteDecisionEvaluatorInput!): DeleteDecisionEvaluatorPayload!
+  createDatasetDecisionEvaluator(input: CreateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  patchDatasetDecisionEvaluator(input: PatchDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
@@ -4046,6 +4123,14 @@ input PatchCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]
 }
 
+input PatchDatasetDecisionEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier
+  description: String
+  inputMapping: EvaluatorInputMappingInput
+  projectionPolicy: JSON
+}
+
 """
 Input to the `patchDatasetExamples` mutation. The operations are applied in order and committed together as one new dataset version, or not at all. Later operations see the effect of earlier ones: replacing a field twice keeps the last value, removing an example discards its replacements, and targeting an example after it was removed is an error.
 """
@@ -4069,6 +4154,14 @@ input PatchDatasetSplitInput {
   description: String
   color: String
   metadata: JSON
+}
+
+input PatchDecisionEvaluatorInput {
+  evaluatorId: ID!
+  name: Identifier
+  description: String
+  decisionVersionId: ID
+  projectionPolicy: JSON
 }
 
 input PatchDecisionInput {
@@ -6275,6 +6368,11 @@ type StopExperimentPayload {
 type StoredCodeEvaluatorDefinition {
   codeEvaluatorId: ID!
   codeEvaluatorVersionId: ID
+  source: EvaluatorTaskSource
+}
+
+type StoredDecisionEvaluatorDefinition {
+  decisionEvaluatorId: ID!
   source: EvaluatorTaskSource
 }
 

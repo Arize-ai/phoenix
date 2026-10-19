@@ -9,6 +9,7 @@ from phoenix.server.api.mutations.chat_mutations import (
 from phoenix.server.api.mutations.dataset_label_mutations import DatasetLabelMutationMixin
 from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
 from phoenix.server.api.mutations.dataset_split_mutations import DatasetSplitMutationMixin
+from phoenix.server.api.mutations.decision_evaluator_mutations import DecisionEvaluatorMutationMixin
 from phoenix.server.api.mutations.decision_label_mutations import DecisionLabelMutationMixin
 from phoenix.server.api.mutations.decision_mutations import DecisionMutationMixin
 from phoenix.server.api.mutations.document_annotations_mutations import (
@@ -68,6 +69,7 @@ class Mutation(
     SavedDecisionMutationMixin,
     PromptLabelMutationMixin,
     DecisionLabelMutationMixin,
+    DecisionEvaluatorMutationMixin,
     SandboxConfigMutationMixin,
     SecretMutationMixin,
     SpanAnnotationMutationMixin,

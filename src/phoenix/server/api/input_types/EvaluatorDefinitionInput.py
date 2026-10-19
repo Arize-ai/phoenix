@@ -13,6 +13,7 @@ from phoenix.db.types.evaluator_definition import (
     InlineLLMEvaluatorDefinition,
     InlineLLMEvaluatorPromptVersion,
     StoredCodeEvaluatorDefinition,
+    StoredDecisionEvaluatorDefinition,
 )
 from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.exceptions import BadRequest
@@ -109,6 +110,7 @@ class InlineCodeEvaluatorInput:
 class EvaluatorDefinitionInput:
     """An evaluator: a stored one by id, or an inline definition."""
 
+    decision_evaluator_id: Optional[GlobalID] = UNSET
     built_in_evaluator_id: Optional[GlobalID] = UNSET
     inline_llm_evaluator: Optional[InlineLLMEvaluatorInput] = UNSET
     code_evaluator_id: Optional[GlobalID] = UNSET
@@ -116,6 +118,13 @@ class EvaluatorDefinitionInput:
 
     def to_definition(self) -> EvaluatorDefinition:
         """The evaluator this input names or drafts, as previews and experiments build it."""
+        if self.decision_evaluator_id:
+            return StoredDecisionEvaluatorDefinition(
+                type="decision_evaluator",
+                decision_evaluator_id=_node_id(
+                    self.decision_evaluator_id, "DecisionEvaluator", "decision evaluator"
+                ),
+            )
         if built_in_evaluator_id := self.built_in_evaluator_id:
             return BuiltInEvaluatorDefinition(
                 type="builtin_evaluator",

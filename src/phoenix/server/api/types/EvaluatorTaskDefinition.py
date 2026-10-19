@@ -9,14 +9,24 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import strawberry
 from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.db.types import evaluator_definition as definition_types
 from phoenix.db.types.annotation_configs import OutputConfigType
+from phoenix.db.types.decision_evaluators import derive_decision_output_configs
 from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.DecisionDefinition import (
+    DecisionInputDefinition,
+    DecisionQuestion,
+    DecisionState,
+    to_gql_decision_input,
+    to_gql_decision_question,
+    to_gql_decision_state,
+)
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluatorOutputConfig,
     _to_gql_output_config,
@@ -50,6 +60,8 @@ def _global_id(type_name: str, rowid: Optional[int]) -> Optional[GlobalID]:
 class EvaluatorTaskSource:
     evaluator_id: Optional[GlobalID]
     prompt_version_id: Optional[GlobalID]
+    decision_id: Optional[GlobalID]
+    decision_version_id: Optional[GlobalID]
     dataset_evaluator_id: Optional[GlobalID]
     project_evaluator_id: Optional[GlobalID]
 
@@ -62,6 +74,8 @@ def _to_gql_source(
     return EvaluatorTaskSource(
         evaluator_id=_global_id(evaluator_type_name, source.evaluator_id),
         prompt_version_id=_global_id("PromptVersion", source.prompt_version_id),
+        decision_id=_global_id("Decision", source.decision_id),
+        decision_version_id=_global_id("DecisionVersion", source.decision_version_id),
         dataset_evaluator_id=_global_id("DatasetEvaluator", source.dataset_evaluator_id),
         project_evaluator_id=_global_id("ProjectEvaluator", source.project_evaluator_id),
     )
@@ -201,6 +215,64 @@ class StoredCodeEvaluatorDefinition:
 
 
 @strawberry.type
+class InlineDecisionEvaluatorDefinition:
+    """A native decision judge frozen with its effective scoring settings."""
+
+    name: str
+    description: Optional[str]
+    schema_version: int
+    decision_schema_version: int
+    inputs: list[DecisionInputDefinition]
+    state: DecisionState
+    questions: list[DecisionQuestion]
+    model_provider: GenerativeProviderKey
+    model_name: str
+    custom_provider_id: Optional[GlobalID]
+    projection_policy: JSON
+    output_configs: list[BuiltInEvaluatorOutputConfig]
+    source: Optional[EvaluatorTaskSource]
+
+    @classmethod
+    def from_orm(
+        cls, obj: definition_types.InlineDecisionEvaluatorDefinition, evaluator_id: int
+    ) -> "InlineDecisionEvaluatorDefinition":
+        return cls(
+            name=obj.name,
+            description=obj.description,
+            schema_version=obj.schema_version,
+            decision_schema_version=obj.decision_schema_version,
+            inputs=[to_gql_decision_input(value) for value in obj.inputs],
+            state=to_gql_decision_state(obj.state),
+            questions=[to_gql_decision_question(value) for value in obj.questions],
+            model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
+            model_name=obj.model_name,
+            custom_provider_id=_global_id("GenerativeModelCustomProvider", obj.custom_provider_id),
+            projection_policy=JSON(obj.projection_policy.model_dump(mode="json")),
+            output_configs=_to_gql_output_configs(
+                derive_decision_output_configs(obj.questions, obj.projection_policy), evaluator_id
+            ),
+            source=_to_gql_source(obj.source, "DecisionEvaluator"),
+        )
+
+
+@strawberry.type
+class StoredDecisionEvaluatorDefinition:
+    """A saved native decision judge selected for an evaluator preview."""
+
+    decision_evaluator_id: GlobalID
+    source: Optional[EvaluatorTaskSource]
+
+    @classmethod
+    def from_orm(
+        cls, obj: definition_types.StoredDecisionEvaluatorDefinition
+    ) -> "StoredDecisionEvaluatorDefinition":
+        return cls(
+            decision_evaluator_id=GlobalID("DecisionEvaluator", str(obj.decision_evaluator_id)),
+            source=_to_gql_source(obj.source, "DecisionEvaluator"),
+        )
+
+
+@strawberry.type
 class BuiltInEvaluatorDefinition:
     """One of Phoenix's built-in evaluators."""
 
@@ -218,6 +290,8 @@ class BuiltInEvaluatorDefinition:
 EvaluatorTaskDefinition = Annotated[
     Union[
         InlineLLMEvaluatorDefinition,
+        InlineDecisionEvaluatorDefinition,
+        StoredDecisionEvaluatorDefinition,
         InlineCodeEvaluatorDefinition,
         StoredCodeEvaluatorDefinition,
         BuiltInEvaluatorDefinition,
@@ -237,4 +311,8 @@ def to_gql_evaluator_task_definition(
         return StoredCodeEvaluatorDefinition.from_orm(definition)
     if isinstance(definition, definition_types.BuiltInEvaluatorDefinition):
         return BuiltInEvaluatorDefinition.from_orm(definition)
+    if isinstance(definition, definition_types.InlineDecisionEvaluatorDefinition):
+        return InlineDecisionEvaluatorDefinition.from_orm(definition, evaluator_id)
+    if isinstance(definition, definition_types.StoredDecisionEvaluatorDefinition):
+        return StoredDecisionEvaluatorDefinition.from_orm(definition)
     assert_never(definition)
