@@ -8,6 +8,7 @@ import {
   JSONViewProvider,
   JSONViewToolbar,
 } from "@phoenix/components/code";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import {
   EVALUATOR_METADATA_SLOT,
   materializeEvaluatorContext,
@@ -18,7 +19,10 @@ import {
   EVALUATOR_SLOT_NAMES,
   type EvaluatorSlotName,
 } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
-import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { unwrapSingleStringValue } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import {
@@ -35,8 +39,8 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
  * What each declared variable resolves to on one record. An evaluator that
- * declares no variables yet is checked against the record's own top-level
- * keys, so the preview has something to show before the prompt does.
+ * declares no variables has nothing to check: it is not handed the record's
+ * fields on their behalf, so none are listed for it.
  *
  * The one place this is derived: the row's missing count, the inspector's
  * list, and the dock's counter all read it.
@@ -52,15 +56,11 @@ export function getRecordMappingDiagnostics({
   declaredVariables: readonly string[];
   requiredVariables?: readonly string[];
 }): ProjectEvaluatorMappingDiagnostic[] {
-  const variables =
-    declaredVariables.length === 0 && isStringKeyedObject(context)
-      ? Object.keys(context)
-      : [...declaredVariables];
   return getProjectEvaluatorMappingDiagnostics({
     context,
     pathMapping: inputMapping.pathMapping,
     literalMapping: inputMapping.literalMapping,
-    variables,
+    variables: [...declaredVariables],
     requiredVariables: requiredVariables && [...requiredVariables],
   });
 }
@@ -313,6 +313,9 @@ export function EvaluatorInputsView({
     requiredVariables,
   });
   const bindings = sortFailingFirst(getEvaluatorVariableBindings(inputs));
+  const isPromptEvaluator = useEvaluatorStore(
+    (state) => state.evaluator.kind === "LLM"
+  );
   const readableContext = useMemo(
     () => toReadableContext(context, recordKind),
     [context, recordKind]
@@ -337,9 +340,17 @@ export function EvaluatorInputsView({
             ))}
           </ul>
         ) : (
-          <Text size="S" color="text-500">
-            The evaluator declares no variables yet.
-          </Text>
+          <div className="inputs-view__empty">
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="genericAdd" />}
+              title="No variables"
+              description={
+                isPromptEvaluator
+                  ? `Use a variable in the prompt to pass the evaluator data from this ${recordKind}.`
+                  : `Add a parameter to the evaluator's function to pass it data from this ${recordKind}.`
+              }
+            />
+          </div>
         )}
       </section>
       <JSONViewProvider
@@ -511,6 +522,12 @@ const inputsViewCSS = css`
     margin: 0;
     padding: 0;
     list-style: none;
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-small);
+  }
+  // Framed like the list it stands in for, so the section keeps its shape.
+  .inputs-view__empty {
+    padding: var(--global-dimension-size-300) var(--global-dimension-size-200);
     border: 1px solid var(--global-border-color-default);
     border-radius: var(--global-rounding-small);
   }

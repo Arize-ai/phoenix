@@ -10,10 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
+import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import {
   EvaluatorInputsView,
   getEvaluatorRecordInputs,
+  getRecordMappingDiagnostics,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
 import { ProjectEvaluatorRecordTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
@@ -26,6 +28,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
+import { DEFAULT_LLM_EVALUATOR_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 describe("the evaluator inputs", () => {
   let container: HTMLDivElement;
@@ -108,16 +111,28 @@ describe("the evaluator inputs", () => {
 
   async function renderInputsView({
     variables,
+    evaluatorKind = "LLM",
     ...props
   }: Omit<ComponentProps<typeof EvaluatorInputsView>, "isSampleContext"> & {
     variables: string[];
+    evaluatorKind?: "LLM" | "CODE";
   }) {
     await act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
-          <EvaluatorInputVariablesContext.Provider value={variables}>
-            <EvaluatorInputsView {...props} isSampleContext={false} />
-          </EvaluatorInputVariablesContext.Provider>
+          <EvaluatorStoreProvider
+            initialState={{
+              ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+              evaluator: {
+                ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
+                kind: evaluatorKind,
+              },
+            }}
+          >
+            <EvaluatorInputVariablesContext.Provider value={variables}>
+              <EvaluatorInputsView {...props} isSampleContext={false} />
+            </EvaluatorInputVariablesContext.Provider>
+          </EvaluatorStoreProvider>
         </ThemeProvider>
       );
     });
@@ -254,6 +269,51 @@ describe("the evaluator inputs", () => {
         (item) => item.querySelector(".inputs-view__variable")?.textContent
       )
     ).toEqual(["{{reference}}", "{{context}}", "{{input}}", "{{output}}"]);
+  });
+
+  it("shows an empty state rather than the record's fields when nothing is declared", async () => {
+    await renderInputsView({
+      variables: [],
+      context: getSampleSpanEvaluationContext().context,
+      recordKind: "span",
+      inputMapping: { pathMapping: {}, literalMapping: {} },
+    });
+    // input, output, and metadata are not listed on the prompt's behalf.
+    expect(items()).toHaveLength(0);
+    const empty = container.querySelector(".inputs-view__empty");
+    expect(empty?.textContent).toContain("No variables");
+    expect(empty?.textContent).toContain(
+      "Use a variable in the prompt to pass the evaluator data from this span."
+    );
+    // The record's data is still there to map from.
+    expect(
+      container.querySelectorAll(".json-table__key").length
+    ).toBeGreaterThan(0);
+  });
+
+  it("words the empty state for a code evaluator's parameters", async () => {
+    await renderInputsView({
+      variables: [],
+      evaluatorKind: "CODE",
+      context: getSampleTraceEvaluationContext().context,
+      recordKind: "trace",
+      inputMapping: { pathMapping: {}, literalMapping: {} },
+    });
+    expect(
+      container.querySelector(".inputs-view__empty")?.textContent
+    ).toContain(
+      "Add a parameter to the evaluator's function to pass it data from this trace."
+    );
+  });
+
+  it("counts nothing missing on a record when nothing is declared", () => {
+    expect(
+      getRecordMappingDiagnostics({
+        context: getSampleSpanEvaluationContext().context,
+        inputMapping: { pathMapping: {}, literalMapping: {} },
+        declaredVariables: [],
+      })
+    ).toEqual([]);
   });
 
   it("marks a row whose mapping cannot bind, and disables its test button", async () => {
