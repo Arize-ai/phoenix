@@ -2,6 +2,7 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 
 import {
   buildChatFromDecisionDraft,
+  buildDecisionInput,
   buildDecisionRequest,
   createChoiceOption,
   createDecisionDraft,
@@ -14,6 +15,7 @@ import {
   normalizeDecisionResult,
   parseDecisionImport,
   toDecisionJsonSchema,
+  toDecisionOutput,
   validateDecisionDraft,
 } from "../decisionUtils";
 
@@ -503,6 +505,154 @@ describe("structured output", () => {
         strict: true,
         schema: toDecisionJsonSchema(draft.questions),
       },
+    });
+  });
+});
+
+describe("runDecision input", () => {
+  it("sends plain text state whole, through one input", () => {
+    const input = buildDecisionInput({ draft: createDecisionDraft() });
+    expect(input.inputs).toEqual([{ name: "state" }]);
+    expect(input.state).toEqual({
+      text: { template: "{{state}}", templateFormat: "MUSTACHE" },
+    });
+    expect(input.inputValues).toEqual({
+      state:
+        "I was charged twice for my order. Please refund the duplicate payment.",
+    });
+  });
+
+  it("lets the server render a text state over its template variables", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      state: "Plan: {{plan}}\nTicket: {{ticket}}",
+    };
+    const input = buildDecisionInput({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+      variables: { plan: "pro" },
+    });
+    expect(input.inputs).toEqual([{ name: "plan" }, { name: "ticket" }]);
+    expect(input.state).toEqual({
+      text: { template: draft.state, templateFormat: "MUSTACHE" },
+    });
+    // Every declared input needs a value; an unset variable is sent empty.
+    expect(input.inputValues).toEqual({ plan: "pro", ticket: "" });
+  });
+
+  it("sends a JSON object as an object state, one input per key", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateFormat: "json" as const,
+      state: '{"plan":"pro","events":["refund"]}',
+    };
+    const input = buildDecisionInput({ draft });
+    expect(input.inputs).toEqual([{ name: "plan" }, { name: "events" }]);
+    expect(input.state).toEqual({ object: true });
+    expect(input.inputValues).toEqual({ plan: "pro", events: ["refund"] });
+  });
+
+  it("sends a JSON array whole", () => {
+    const draft = {
+      ...createDecisionDraft(),
+      stateFormat: "json" as const,
+      state: '["refund"]',
+    };
+    expect(buildDecisionInput({ draft }).inputValues).toEqual({
+      state: ["refund"],
+    });
+  });
+
+  it("builds one @oneOf input per question with formatted text", () => {
+    const draft = createDecisionDraft();
+    draft.questions = [
+      createDecisionQuestion({
+        type: "noul",
+        name: "urgent",
+        instructions: "Is {{who}} waiting?",
+        noul: { trueDescription: "Time sensitive", falseDescription: "" },
+      }),
+      createDecisionQuestion({
+        type: "score",
+        name: "severity",
+        instructions: "How severe?",
+        levels: [createScoreLevel("Low"), createScoreLevel("High")],
+      }),
+    ];
+    const input = buildDecisionInput({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+      variables: { who: "the customer" },
+    });
+    expect(input.questions).toEqual([
+      {
+        predicate: {
+          name: "urgent",
+          instructions: "Is the customer waiting?",
+          criteria: { true: "Time sensitive", false: null },
+        },
+      },
+      {
+        scale: {
+          name: "severity",
+          instructions: "How severe?",
+          levels: [
+            { label: "Low", description: null },
+            { label: "High", description: null },
+          ],
+        },
+      },
+    ]);
+  });
+});
+
+describe("runDecision output", () => {
+  it("stores typed answers in the shape the result view reads", () => {
+    const draft = createDecisionDraft();
+    const output = toDecisionOutput({
+      model: "jev-1.13.0",
+      answers: [
+        {
+          __typename: "ChoiceAnswer",
+          name: "department",
+          choice: "billing",
+          confidence: 0.8,
+          choiceProbabilities: [
+            { value: "billing", probability: 0.8 },
+            { value: "technical", probability: 0.2 },
+          ],
+        },
+        {
+          __typename: "ScaleAnswer",
+          name: "severity",
+          expectedLevel: 0.4,
+          confidence: 0.7,
+          levelProbabilities: [
+            { level: 0, probability: 0.6 },
+            { level: 1, probability: 0.4 },
+          ],
+        },
+        { __typename: "RefusalAnswer", name: "spam" },
+      ],
+      usage: { inputTokens: 12, outputTokens: 3 },
+    });
+    const normalized = normalizeDecisionResult({
+      result: JSON.parse(JSON.stringify(output)),
+      draft,
+    });
+    expect(normalized.model).toBe("jev-1.13.0");
+    expect(normalized.usage).toEqual({ input: 12, output: 3 });
+    expect(normalized.answers[0]).toMatchObject({
+      kind: "choice",
+      choice: "billing",
+      confidence: 0.8,
+    });
+    expect(normalized.answers).toContainEqual(
+      expect.objectContaining({ kind: "score", name: "severity", score: 0.4 })
+    );
+    expect(normalized.answers).toContainEqual({
+      kind: "refusal",
+      name: "spam",
     });
   });
 });
