@@ -350,3 +350,52 @@ async def test_a_custom_provider_must_speak_the_versions_api(
         },
     )
     assert "Custom provider not found" in message
+
+
+async def test_clone_preserves_history_and_provenance(gql_client: AsyncGraphQLClient) -> None:
+    source = await create(
+        gql_client,
+        description="Original",
+        metadata={"team": "support"},
+        tags=[{"name": "production"}],
+    )
+    second = await gql_client.execute(
+        CREATE_VERSION,
+        variables={
+            "input": {"decisionId": source["id"], "version": version_input(modelName="tev2")}
+        },
+    )
+    assert second.data and not second.errors, second.errors
+    result = await gql_client.execute(
+        """
+      mutation ($input: CloneDecisionInput!) {
+        cloneDecision(input: $input) {
+          id description metadata versionCount versionTags { name }
+          sourceDecision { id }
+          createdBy { id } updatedBy { id }
+          versions { edges { node { id sequenceNumber modelName previousVersion { id sequenceNumber } } } }
+        }
+      }
+    """,
+        variables={"input": {"decisionId": source["id"], "name": "triage-clone"}},
+    )
+    assert result.data and not result.errors, result.errors
+    clone = result.data["cloneDecision"]
+    assert clone["sourceDecision"] == {"id": source["id"]}
+    assert clone["description"] == "Original"
+    assert clone["metadata"] == {"team": "support"}
+    assert clone["versionCount"] == 2
+    assert clone["versionTags"] == []
+    latest, first = [edge["node"] for edge in clone["versions"]["edges"]]
+    assert latest["sequenceNumber"] == 2
+    assert latest["modelName"] == "tev2"
+    assert latest["previousVersion"] == {"id": first["id"], "sequenceNumber": 1}
+    assert first["previousVersion"] is None
+    assert first["id"] != source["version"]["id"]
+    assert "already exists" in await error_of(
+        gql_client,
+        """
+      mutation ($input: CloneDecisionInput!) { cloneDecision(input: $input) { id } }
+    """,
+        {"decisionId": source["id"], "name": "triage-clone"},
+    )

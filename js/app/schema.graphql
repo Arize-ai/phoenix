@@ -781,6 +781,13 @@ type ClearQueuedEvaluationsPayload {
   project: Project!
 }
 
+input CloneDecisionInput {
+  decisionId: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON
+}
+
 input ClonePromptInput {
   name: Identifier!
   promptId: ID!
@@ -3853,6 +3860,7 @@ type Mutation {
   deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createDecision(input: CreateDecisionInput!): Decision!
+  cloneDecision(input: CloneDecisionInput!): Decision!
   createDecisionVersion(input: CreateDecisionVersionInput!): Decision!
   patchDecision(input: PatchDecisionInput!): Decision!
   deleteDecision(input: DeleteDecisionInput!): DeleteDecisionMutationPayload!

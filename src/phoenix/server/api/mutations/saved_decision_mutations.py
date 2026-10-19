@@ -44,6 +44,14 @@ class CreateDecisionInput:
 
 
 @strawberry.input
+class CloneDecisionInput:
+    decision_id: GlobalID
+    name: Identifier
+    description: Optional[str] = UNSET
+    metadata: Optional[JSON] = UNSET
+
+
+@strawberry.input
 class CreateDecisionVersionInput:
     decision_id: GlobalID
     version: DecisionVersionInput
@@ -190,6 +198,56 @@ class SavedDecisionMutationMixin:
                     description=tag.description,
                     user_id=user_id,
                 )
+        return Decision(id=decision.id, db_record=decision)
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def clone_decision(
+        self, info: Info[Context, None], input: CloneDecisionInput
+    ) -> Decision:
+        """Clone a saved decision and its version history, retaining author provenance."""
+        async with info.context.db() as session:
+            source = await _get_decision(session, input.decision_id)
+            versions = (
+                await session.scalars(
+                    select(models.DecisionVersion)
+                    .where(models.DecisionVersion.decision_id == source.id)
+                    .order_by(models.DecisionVersion.id)
+                )
+            ).all()
+            decision = models.Decision(
+                name=input.name,
+                source_decision_id=source.id,
+                description=source.description if input.description is UNSET else input.description,
+                metadata_=source.metadata_
+                if input.metadata is UNSET
+                else _metadata(input.metadata),
+                user_id=_user_id(info),
+                decision_versions=[
+                    models.DecisionVersion(
+                        **{
+                            field: getattr(version, field)
+                            for field in (
+                                "description",
+                                "user_id",
+                                "schema_version",
+                                "inputs",
+                                "state",
+                                "questions",
+                                "model_provider",
+                                "model_name",
+                                "custom_provider_id",
+                                "metadata_",
+                            )
+                        }
+                    )
+                    for version in versions
+                ],
+            )
+            session.add(decision)
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                raise Conflict(f"A decision named '{input.name}' already exists") from error
         return Decision(id=decision.id, db_record=decision)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
