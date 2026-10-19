@@ -152,7 +152,7 @@ import {
   EvaluatorTaskAgentProvider,
 } from "./evaluators";
 
-import { DECISION_DATASET_BLOCKED_REASON, DECISION_DATASET_SELECT_DISABLED_REASON } from "./constants";
+import { DECISION_DATASET_BLOCKED_REASON, DECISION_DATASET_SELECT_DISABLED_REASON, DECISION_MODEL_CLEARS_DATASET_NOTICE } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -891,9 +891,9 @@ function PlaygroundContent() {
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
                     supportsDecisionModels
-                    decisionModelsDisabledReason={
+                    decisionTabNotice={
                       isDatasetMode
-                        ? "Decision models can't run over a dataset yet. Clear the dataset to add one."
+                        ? DECISION_MODEL_CLEARS_DATASET_NOTICE
                         : undefined
                     }
                   />
