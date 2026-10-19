@@ -293,10 +293,13 @@ class Decision(Node):
     ) -> Optional[DecisionVersion]:
         stmt = select(models.DecisionVersion).where(models.DecisionVersion.decision_id == self.id)
         if version_id:
-            stmt = stmt.where(
-                models.DecisionVersion.id
-                == from_global_id_with_expected_type(version_id, DecisionVersion.__name__)
-            )
+            try:
+                version_rowid = from_global_id_with_expected_type(
+                    version_id, DecisionVersion.__name__
+                )
+            except ValueError:
+                return None
+            stmt = stmt.where(models.DecisionVersion.id == version_rowid)
         elif tag_name:
             stmt = stmt.join(
                 models.DecisionVersionTag,

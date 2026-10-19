@@ -428,3 +428,22 @@ async def test_clone_preserves_history_and_provenance(gql_client: AsyncGraphQLCl
     """,
         {"decisionId": source["id"], "name": "triage-clone"},
     )
+    assert "GenerativeModelCustomProvider" in await error_of(
+        gql_client,
+        CREATE,
+        {
+            "name": "bad-provider-id",
+            "version": version_input(customProviderId=str(GlobalID("Decision", "1"))),
+        },
+    )
+    bad_labels = await gql_client.execute(
+        "query ($labelIds: [ID!]) { decisions(labelIds: $labelIds) { edges { node { id } } } }",
+        variables={"labelIds": [str(GlobalID("Decision", "1"))]},
+    )
+    assert bad_labels.errors and "DecisionLabel" in bad_labels.errors[0].message
+    bad_version = await gql_client.execute(
+        VERSION_BY,
+        variables={"id": source["id"], "versionId": str(GlobalID("Decision", "1"))},
+    )
+    assert bad_version.data and not bad_version.errors, bad_version.errors
+    assert bad_version.data["node"]["version"] is None

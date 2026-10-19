@@ -230,6 +230,13 @@ class DecisionVersionInput:
             questions = [question.to_orm() for question in self.questions]
             validate_inputs(inputs, state)
             validate_questions(questions)
+            custom_provider_id = (
+                from_global_id_with_expected_type(
+                    self.custom_provider_id, GenerativeModelCustomProvider.__name__
+                )
+                if self.custom_provider_id is not None
+                else None
+            )
         except ValueError as error:
             raise BadRequest(str(error)) from error
         return models.DecisionVersion(
@@ -240,10 +247,6 @@ class DecisionVersionInput:
             questions=questions,
             model_provider=self.model_provider.to_model_provider(),
             model_name=self.model_name.strip(),
-            custom_provider_id=from_global_id_with_expected_type(
-                self.custom_provider_id, GenerativeModelCustomProvider.__name__
-            )
-            if self.custom_provider_id is not None
-            else None,
+            custom_provider_id=custom_provider_id,
             metadata_=dict(self.metadata or {}),
         )

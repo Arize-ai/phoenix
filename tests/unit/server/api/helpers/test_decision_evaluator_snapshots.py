@@ -127,3 +127,20 @@ async def test_resume_uses_original_judge_after_source_changes_and_deletion(
         resumed = DecisionEvaluatorSnapshot.model_validate(job.decision_evaluator_snapshots[0])
         assert resumed.definition == original.definition
         assert resumed.input_mapping == original.input_mapping
+        session.expunge(job)
+
+    async with db() as session:
+        persisted_job = await session.get(models.ExperimentJob, experiment.id)
+        assert persisted_job is not None
+        persisted = DecisionEvaluatorSnapshot.model_validate(
+            persisted_job.decision_evaluator_snapshots[0]
+        )
+        assert persisted.project_id == spec.evaluator_project_id
+        _, _, second_specs, _, _ = await runner._load_experiment_config(
+            session,
+            experiment.id,
+            credentials=[
+                GenerativeCredentialInput(env_var_name="TYPESAFE_API_KEY", value=SecretStr("test"))
+            ],
+        )
+        assert second_specs[0].evaluator_project_id == spec.evaluator_project_id

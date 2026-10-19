@@ -3531,6 +3531,7 @@ class ExperimentRunner(DaemonTask):
                 for de, ev in zip(dataset_evaluators, evaluators)
             ]
 
+        snapshots_updated = False
         for snapshot in snapshots:
             evaluator = await build_evaluator_from_definition(
                 definition=snapshot.definition,
@@ -3552,6 +3553,7 @@ class ExperimentRunner(DaemonTask):
                 await session.flush()
                 project_id = project.id
                 snapshot.project_id = project_id
+                snapshots_updated = True
             evaluator_run_specs.append(
                 EvaluatorRunSpec(
                     dataset_evaluator_id=snapshot.dataset_evaluator_id,
@@ -3562,10 +3564,11 @@ class ExperimentRunner(DaemonTask):
                     evaluator_project_id=project_id,
                 )
             )
-        if snapshots:
+        if snapshots_updated:
             experiment_job.decision_evaluator_snapshots = [
                 snapshot.model_dump(mode="json") for snapshot in snapshots
             ]
+            await session.flush()
 
         logger.debug(
             f"Loaded {len(evaluator_run_specs)} evaluator(s) for experiment "

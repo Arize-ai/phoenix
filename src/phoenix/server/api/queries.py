@@ -1280,10 +1280,13 @@ class Query:
             # Cast the Identifier column to String for ilike, as prompts do
             stmt = stmt.where(cast(models.Decision.name, String).ilike(f"%{filter.value}%"))
         if label_ids:
-            ids = [
-                from_global_id_with_expected_type(label_id, "DecisionLabel")
-                for label_id in label_ids
-            ]
+            try:
+                ids = [
+                    from_global_id_with_expected_type(label_id, "DecisionLabel")
+                    for label_id in label_ids
+                ]
+            except ValueError as error:
+                raise BadRequest(str(error)) from error
             stmt = stmt.where(
                 models.Decision.id.in_(
                     select(models.DecisionDecisionLabel.decision_id).where(
