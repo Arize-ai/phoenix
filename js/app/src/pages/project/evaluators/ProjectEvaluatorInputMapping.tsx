@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
-import { Text } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
@@ -29,8 +29,14 @@ import {
 export const ProjectEvaluatorInputMapping = ({
   recordKind,
   requiredVariables,
+  emptyState,
 }: {
   recordKind: ProjectEvaluatorRecordKind;
+  /**
+   * Shown when the evaluator declares no variables. The rows still mount
+   * then: they are what drops a removed variable's mapping from the store.
+   */
+  emptyState?: ReactNode;
   /** Every declared variable when omitted, as for a prompt. */
   requiredVariables?: readonly string[];
 }) => {
@@ -61,11 +67,7 @@ export const ProjectEvaluatorInputMapping = ({
     (state) => state.setFocusedMappingVariable
   );
   if (variables.length === 0) {
-    return (
-      <Text color="text-500" size="S">
-        Add variables to the evaluator to map them here.
-      </Text>
-    );
+    return emptyState ?? null;
   }
   return (
     <div
