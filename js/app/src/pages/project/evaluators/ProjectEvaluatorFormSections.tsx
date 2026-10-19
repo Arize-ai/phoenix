@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Counter,
   Disclosure,
+  DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
@@ -97,9 +98,8 @@ export const ProjectLlmEvaluatorFormSections = (
  * variable has nothing to read, and otherwise starts collapsed to one row so
  * two correctly defaulted fields do not cost the prompt editor a third of
  * the pane. Open, it grows with its rows up to half the panel and scrolls
- * past that; it is not dragged to a size. Its header is set like the section
- * headings above it rather than as a bar of its own, so the dock reads as
- * the form's last section that happens to stay put.
+ * past that; it is not dragged to a size. It is drawn as an accordion item,
+ * the design system's pattern for a section that collapses.
  */
 export const ProjectEvaluatorInputMappingDock = ({
   recordKind,
@@ -129,88 +129,63 @@ export const ProjectEvaluatorInputMappingDock = ({
     evaluatorKind === "prompt" ? "Map Prompt Variables" : "Input Mapping";
   return (
     <div css={mappingDockCSS} data-testid="project-evaluator-mapping-dock">
-      <Disclosure
-        isExpanded={isExpanded}
-        onExpandedChange={setIsExpanded}
-        size="S"
+      {/* A one-item accordion, so the dock is drawn by the design system's
+          own disclosure: its trigger bar, chevron, rule and hover. The group
+          drops the rule a collapsed last item would draw against the footer. */}
+      <DisclosureGroup
+        expandedKeys={isExpanded ? [MAPPING_DOCK_KEY] : []}
+        onExpandedChange={(keys) => setIsExpanded(keys.has(MAPPING_DOCK_KEY))}
       >
-        {/* The chevron trails the title so the title starts on the same
-            left edge as the section headings above, and the body under it. */}
-        <DisclosureTrigger arrowPosition="end">
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <span className="mapping-dock__title">{title}</span>
-            {unboundVariables.length > 0 ? (
-              <Counter variant="danger">{unboundVariables.length}</Counter>
-            ) : null}
-          </Flex>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <div className="mapping-dock__body">
-            {/* The trigger is a button, so the description lives here rather
-                than as a help popover inside it: a button cannot hold one. */}
-            <Text size="S" color="text-500">
-              {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
-            </Text>
-            {/* Keyed so the rows rebuild against the new record kind rather than
-                carrying the previous one's paths forward. */}
-            <ProjectEvaluatorInputMapping
-              key={recordKind}
-              recordKind={recordKind}
-              requiredVariables={requiredVariables}
-            />
-          </div>
-        </DisclosurePanel>
-      </Disclosure>
+        <Disclosure id={MAPPING_DOCK_KEY}>
+          <DisclosureTrigger arrowPosition="end">
+            <Flex direction="row" alignItems="center" gap="size-100">
+              {title}
+              {unboundVariables.length > 0 ? (
+                <Counter variant="danger">{unboundVariables.length}</Counter>
+              ) : null}
+            </Flex>
+          </DisclosureTrigger>
+          <DisclosurePanel>
+            <div className="mapping-dock__body">
+              {/* The trigger is a button, so the description lives here rather
+                  than as a help popover inside it: a button cannot hold one. */}
+              <Text size="S" color="text-500">
+                {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
+              </Text>
+              {/* Keyed so the rows rebuild against the new record kind rather than
+                  carrying the previous one's paths forward. */}
+              <ProjectEvaluatorInputMapping
+                key={recordKind}
+                recordKind={recordKind}
+                requiredVariables={requiredVariables}
+              />
+            </div>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
     </div>
   );
 };
 
+const MAPPING_DOCK_KEY = "mapping";
+
 const mappingDockCSS = css`
-  // The dock is a section of the form like the ones above it, so its title
-  // takes the same level-2 heading scale rather than the disclosure default.
-  .mapping-dock__title {
-    font-size: var(--global-font-size-l);
-    line-height: var(--global-line-height-l);
-    font-weight: 600;
-  }
-  // The dock scrolls as a whole (see EvaluatorForm), so the heading sticks
+  // The dock scrolls as a whole (see EvaluatorForm), so the trigger sticks
   // to its top while the rows pass under it. Scrolling one region rather
   // than the body alone keeps a single scrollbar gutter, the same width as
-  // the form's, beside both the heading and the rows.
+  // the form's, beside both the trigger and the rows.
   .disclosure__trigger {
     position: sticky;
     top: 0;
     z-index: 1;
     background-color: var(--global-background-color-default);
   }
-  // A section heading, not a bar: no rule under it and no tint on hover.
-  // The chevron is the only sign that it toggles. The heading class is part
-  // of the selector because the Disclosure's own trigger rule has the same
-  // specificity as a bare attribute selector here and is inserted later.
-  .disclosure__trigger [slot="trigger"] {
-    border-bottom: none;
-    // The same rhythm as the sections above: a section's worth of space
-    // over the title, and the heading-to-description gap under it.
-    padding: var(--global-dimension-size-200) var(--global-dimension-size-200)
-      var(--global-dimension-size-25);
-    &:hover:not([disabled]) {
-      background-color: transparent;
-    }
-  }
-  // Collapsed there is no description to sit close to, so the title is
-  // centered in its band rather than pressed against the footer.
-  .disclosure:not([data-expanded="true"])
-    .disclosure__trigger
-    [slot="trigger"] {
-    padding-bottom: var(--global-dimension-size-200);
-  }
   .mapping-dock__body {
     display: flex;
     flex-direction: column;
     // Description to fields, as in the sections above.
     gap: var(--global-dimension-size-200);
-    padding: 0 var(--global-dimension-size-200) var(--global-dimension-size-200);
-    box-sizing: border-box;
+    padding: var(--global-dimension-size-200);
   }
 `;
 
