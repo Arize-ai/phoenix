@@ -12,7 +12,7 @@ import {
 } from "@phoenix/components";
 import {
   getOptimizationBounds,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
@@ -238,7 +238,7 @@ function AnnotationMeanScoreView({
           <Flex direction="row" alignItems="center" gap="size-100" flex="none">
             <CellMeanScore
               value={meanScore}
-              positiveOptimization={getPositiveOptimizationFromConfig({
+              optimizationValue={getOptimizationValueFromConfig({
                 config: annotation.config,
                 score: meanScore,
               })}

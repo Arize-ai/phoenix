@@ -12,9 +12,9 @@ const DIRECTIONS = [
 ] satisfies readonly EvaluatorOptimizationDirection[];
 
 const SCORE_STYLES = [
-  { label: "Favorable", score: 0.9, positiveOptimization: true },
-  { label: "Unfavorable", score: 0.1, positiveOptimization: false },
-  { label: "Neutral", score: 0.5, positiveOptimization: null },
+  { label: "Favorable", score: 0.9, optimizationValue: 1 },
+  { label: "Unfavorable", score: 0.1, optimizationValue: -1 },
+  { label: "Neutral", score: 0.5, optimizationValue: null },
 ] as const;
 
 const meta = {
@@ -48,7 +48,7 @@ export const AllStyles: Story = {
         <Text elementType="h3" size="S" weight="heavy">
           Scores
         </Text>
-        {SCORE_STYLES.map(({ label, score, positiveOptimization }) => (
+        {SCORE_STYLES.map(({ label, score, optimizationValue }) => (
           <Flex key={label} direction="row" gap="size-100" alignItems="center">
             <Text size="S" color="text-500">
               {label}
@@ -57,7 +57,7 @@ export const AllStyles: Story = {
               elementType="span"
               fontFamily="mono"
               size="S"
-              positiveOptimization={positiveOptimization}
+              optimizationValue={optimizationValue}
             >
               {score}
             </AnnotationScoreText>
