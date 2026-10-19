@@ -12,7 +12,9 @@
 > and the choices to settle before shipping are in
 > [Forking Decisions](#forking-decisions). This spec assumes apps fetch saved
 > decisions at run time, the way they fetch prompts; that assumption is what
-> justifies a standalone family with tags.
+> justifies a standalone family with tags. Server-side decision evaluators are
+> planned below, with dataset evaluators as the first milestone; they are not
+> implemented by the provider or playground PRs.
 
 ## Summary
 
@@ -34,11 +36,11 @@ in either:
 | | Prompt (chat model) | Decision (decision model) |
 |---|---|---|
 | **Tested**: the regular playground and experiments | Prompt task. Exists. | Decision task. **This spec.** |
-| **Judging**: the evaluator playground and evaluators | LLM evaluator. Exists. | Decision evaluator. [Open idea](#decision-evaluators-open-idea), not planned. |
+| **Judging**: the evaluator playground and evaluators | LLM evaluator. Exists. | Decision evaluator. [Planned](#decision-evaluators), dataset bindings first. |
 
 In the tested role, a decision's answers are the output: what is being
 evaluated, never an evaluation. Evaluators judge them, exactly as they judge a
-prompt's completions. Only in the judging role would answers become evaluations
+prompt's completions. Only in the judging role do answers become evaluations
 (annotations), and that is where problems such as a `box` answer having no
 annotation form belong.
 
@@ -58,6 +60,9 @@ pushes everything uncertain to additive types or to run time.
 - Run decisions in the playground and as experiment tasks over datasets, as
   prompts run.
 - Link app traces back to the decision version that produced them.
+- Run decision models as saved evaluators: dataset bindings and experiment
+  evaluation first, evaluator calibration second, project bindings and online
+  evaluation third.
 - Add question types, input modalities, and providers without migrations.
 - Keep decision models out of every chat code path.
 
@@ -72,8 +77,6 @@ pushes everything uncertain to additive types or to run time.
 - Compatibility shims with the prompt family.
 - Templated questions. Question instructions and criteria are static. A
   reference answer is an input, not part of a question's criteria.
-- Server-side decision evaluators, for now (see
-  [Decision Evaluators](#decision-evaluators-open-idea)).
 - Built-in scoring of decision answers inside the task. Evaluators score runs,
   as they do for prompts.
 
@@ -494,93 +497,237 @@ rather than zero.
 - Subscriptions: `experimentsOverDataset` takes a `decision` task beside
   `prompt` and `evaluator`; see [Experiments](#experiments).
 
-## Decision Evaluators (Open Idea)
+## Decision Evaluators
 
-Not planned and not requested on the server: notes for if decision models are
-ever used as judges there. Nothing in the tested role depends on them.
+**Planned, not implemented.** A decision evaluator uses a decision model as a
+judge. It maps the target's fields into declared inputs, renders the state,
+asks fixed questions in one call, and projects the normalized answers into
+annotations. It shares provider clients with decision tasks, but the two roles
+remain distinct: a task produces answers to evaluate; a judge produces verdicts.
+Built-in metrics that compare decision predictions with references are separate.
 
-### Shape
+### Milestones
 
-It would mirror the LLM evaluator, which is a definition attached through
-bindings:
+1. **Dataset evaluator.** Create a saved judge from a selected decision version,
+   bind it to a dataset, configure input mapping and scoring, preview it, and run
+   it against experiment task outputs. Include the dataset UI, APIs, results,
+   trace links, and evaluation resume. An inline-only or API-only demonstration
+   does not complete this milestone.
+2. **Evaluator calibration.** Draft or load a judge in the evaluator playground,
+   preview it, and run evaluator-as-task experiments against dataset judgments.
+3. **Online evaluation.** Bind the same saved evaluator to project spans, traces,
+   and sessions, with existing scheduling, configuration identity, and result
+   views.
+
+This is delivery order, not reduced scope. Dataset evaluation does not wait for
+app SDK formatters, image inputs, `box`, or online evaluation.
+
+### Definition and Bindings
 
 | | LLM evaluator | Decision evaluator |
 |---|---|---|
 | Table | `Evaluator` subtype, `kind = 'LLM'` | `Evaluator` subtype, `kind = 'DECISION'` |
-| Runs | A prompt (`prompt_id`, `ON DELETE RESTRICT`) | A decision, the same |
-| Version | A prompt version tag the evaluator owns, created with it | A decision version tag it owns, the same |
-| Outputs | Stored on the evaluator: `output_configs`, categorical only, turned into the tool the judge calls | Derived from the version's questions; only their defaults are stored |
-| Explanation | The judge may return one | None: decision models return probabilities, not text |
+| Runs | A prompt (`prompt_id`, `ON DELETE RESTRICT`) | A decision, with deletion restricted |
+| Version | A prompt version tag the evaluator owns | A decision version tag created with the evaluator |
+| Outputs | Stored categorical `output_configs`, turned into tools | Derived from questions plus a stored projection policy |
+| Explanation | The judge may return one | No generated rationale; Phoenix explains terminal refusals |
 | Annotator kind | `LLM` | `LLM` |
 
-Inputs are mapped by the **binding**, never the evaluator, as for LLM evaluators:
-a dataset evaluator (`DatasetEvaluators.input_mapping`, required) or a project
-evaluator (`ProjectEvaluator.input_mapping`, optional) maps example or span
-fields to the declared inputs. One evaluator can then be attached to many
-datasets and projects with different mappings.
+Creating a decision evaluator requires a selected decision version and creates
+its owned tag transactionally. New decision evaluators require a valid pin;
+there is no implicit latest-version fallback. Model, provider, inputs, state,
+and questions come from that version. A version's questions are fixed: bindings
+supply input values, not per-example questions or question templates.
 
-Defaults for the derived outputs (a predicate's threshold, each choice's score,
-the optimization direction) are stored on the decision evaluator, because a
-project binding has no output-config override. A dataset binding can override
-them through its existing `output_configs`, as it can an LLM evaluator's.
+Inputs are mapped by the **binding**, never the saved evaluator. A dataset
+binding maps experiment context into declared inputs through existing JSONPath
+and literal mappings. A project binding does the same for its target context.
+One saved judge can serve several datasets or projects with different mappings.
+Preserve structured input types and reuse decision state rendering; descriptive
+input JSON schemas do not become new runtime coercion or validation rules.
 
-The tag is guarded as an LLM evaluator's is. Creating an LLM evaluator creates
-its own prompt version tag (`helpers/evaluator_service.py`). Moving that tag is
-validated against the evaluator's outputs and every dataset binding's overrides,
-and deleting it is refused (`helpers/prompt_version_tags.py`); the column is
-nullable only for evaluators whose pin was removed, which run the latest
-version. A decision evaluator needs the same guard, more so: its outputs are
-derived from the version's questions, so a version that drops or retypes a
-question an override names, or an input a binding maps, would break the
-binding.
+Store a versioned projection policy on the evaluator for predicate thresholds,
+choice scores, scale-label mode, and optimization direction. Dataset bindings
+may override this policy. Existing generic `output_configs` have no predicate
+threshold field, so they alone cannot express these overrides. Add a typed
+binding policy field and derive effective output configs through one shared
+resolver. Generic output-config overrides must agree with the derived schema;
+they cannot add choices, retype questions, or change scale bounds independently.
 
-### Integration Points
-
-A new evaluator kind is not a drop-in subtype. These places list the kinds by
-hand and each needs a `DECISION` entry:
-
-- CHECK constraints: `evaluators.kind` and
-  `experiment_evaluator_tasks.evaluator_kind` (`models.py`).
-- Polymorphic loads in online evals: `online_eval/sweeper.py`, `producer.py`,
-  and `executor.py`, plus `queries.py`.
-- Online-eval resolution and snapshotting, which branch on the three existing
-  subtypes and skip or expire anything else.
-- The experiment runner's rate limiting and annotator kind, which fall back to
-  "unthrottled" and `CODE` for anything that isn't an `LLMEvaluator`.
-- The kind-keyed lookup tables in the REST routers: `routers/v1/evaluators.py`,
-  `project_evaluators.py`, and `dataset_evaluators.py`.
-- Polymorphic loads of evaluators elsewhere: the dataset evaluator loader the
-  experiment runner uses (`api/evaluators.py`), the dataset's evaluators in
-  GraphQL (`types/Dataset.py`), and the evaluator data loader
-  (`dataloaders/evaluator_by_id.py`).
-
-Decision evaluators write annotations with `annotator_kind = 'LLM'`. The five
-annotation tables only allow `LLM`, `CODE`, and `HUMAN`, and a decision model
-is a model judgment, so no migration is needed there.
+Guard owned-tag deletion and every move, including moves through version
+creation. Validate the proposed version and policy against binding inputs,
+question identities/types, choice values, scale meanings, and overrides. A
+breaking bound change must fail with the affected binding names and require an
+explicit migration or separate evaluator. Compatible changes affect future
+execution snapshots. Keep deletion and concurrent edits consistent with existing
+evaluator services and lock ordering.
 
 ### Answer Mapping
 
-The rest of the evaluator pipeline works on `output_configs`. A decision
-evaluator doesn't store them: it derives one `OutputConfigType` per question
-from the tagged version's questions, then applies the evaluator's defaults and
-any dataset binding's overrides. Annotation
-names then come from `result_annotation_names`, as for every evaluator: one
-question writes under the evaluator's name, several write under
-`{evaluator}.{question}`. Two evaluators that both ask `urgent` don't collide,
-and dataset-level output-config overrides keep working.
+Derive one `OutputConfigType` per question from the selected version, then apply
+the effective projection policy. Annotation names use `result_annotation_names`:
+one question writes under the binding's name, several under
+`{binding}.{question}`. Changing between one and several questions changes
+annotation names and is a breaking bound update, even if an old question remains.
 
 | Answer | Derived output config | Annotation |
 |---|---|---|
-| `predicate` | Continuous, 0–1 | score = probability of true; label = `true` or `false` at a threshold (default 0.5, overridable) |
-| `choice` | Categorical, one value per choice | label = chosen value; score = the value's score from the overrides, or none |
-| `scale` | Continuous, 0 to levels − 1 | score = `expected_level`; no label by default, or the most likely level's `label` if overridden |
-| `refusal` | — | no score or label; the explanation records the refusal |
-| `box` | — | not mappable: a box answer locates something and judges nothing |
+| `predicate` | Continuous, 0–1 | score = probability of true; label = `true` when probability >= threshold, otherwise `false`; default threshold 0.5 |
+| `choice` | Categorical, one value per choice | label = provider's chosen value; score = configured score for that value, otherwise null |
+| `scale` | Continuous, 0 to levels − 1 | score = raw `expected_level`; no label by default, or the most probable level's label when configured |
+| `refusal` | Retains the question's output config | terminal refused outcome with no score or label and a system explanation |
+| `box` | — | unsupported as an evaluator output; reject before invocation |
 
-Optimization direction defaults to `NONE`.
-Confidence and per-option probabilities always go in annotation metadata. Choice
-confidence isn't used as the score: averaging confidence across different
-classes measures how sure the model was, not how good the output is.
+Thresholds must be finite and in [0,1]. Choice score maps may name only declared
+choices; omitted scores stay null and configured scores must be finite. A scale
+label uses the first level on a probability tie. Scale scores remain zero-based,
+not normalized to 0–1. Optimization direction defaults to `NONE`. A predicate's
+label threshold is distinct from a consumer's flag/optimization threshold.
+
+Confidence and full probabilities are retained as metadata. Confidence is not a
+quality score and never replaces a class score. Projection requires no extra
+model call. Editing a threshold does not automatically rewrite historical
+annotations; historical rescoring is a separate workflow.
+
+### Refusals, Errors, and Metadata
+
+A normalized refusal is a terminal outcome for that question. Record no score or
+label, a structured refused status, and the system-generated explanation
+"Decision model refused this question." This is not a model rationale: the
+current normalized `RefusalAnswer` carries no reason. Preserve answered siblings
+and emit exactly one result per question, in definition order.
+
+A refusal has no evaluation error, so resume does not invoke the model again
+solely for that refusal. Exclude refused outcomes from score/label aggregates and
+show answered, refused, and error counts and coverage. Extend categorical result
+validation to permit the explicit refused form; do not generally permit answered
+categorical results without an allowed label. Online publication remains atomic
+for a complete validated result set, which may contain terminal refusals.
+
+Provider failures, timeouts, and invalid responses remain errors. Missing, extra,
+or wrong-type answers fail the invocation under existing adapter validation;
+this feature does not require batch splitting or malformed-answer salvage.
+Retryable provider failures must reach the runner's retry handler. Returning an
+error result with `error_exc` attached is insufficient where the runner records
+that result directly as a failure.
+
+**The exact annotation metadata schema is not settled.** The required content
+is outcome status, question identity/type, normalized answer (including native
+uncertainty), applied projection policy, and provenance: selected decision/version
+when available, requested/resolved model, and non-secret connection identity.
+A versioned `metadata.decision` namespace is proposed, not an agreed field-level
+contract. Finalize required/optional fields, enum values, nesting and versioning
+before implementing persistence or refusal-aware readers. Reconcile the related
+Python evals library proposal explicitly; its rubric normalization and recovery
+planner are not implicitly the server contract. Request usage belongs on the
+DECISION span rather than being repeated per annotation.
+
+### Experiment Snapshots and Resume
+
+Freeze a dataset evaluator's resolved decision definition/version, effective
+projection policy, derived output configs, input mapping, binding name and source
+IDs when attaching it to an experiment. Store a versioned execution snapshot on
+the experiment's evaluator binding. Persist no credentials; resolve them through
+the connection system at execution time. Legacy experiments without a snapshot
+retain their existing semantics rather than claiming reconstructable history.
+
+On start or resume, rebuild the judge from the experiment snapshot, independently
+of live binding membership. Editing or deleting the dataset binding or moving the
+owned tag must not silently change or remove already-snapshotted work.
+
+The existing reconciliation scan identifies successful task runs whose expected
+annotation names are missing or have a non-null error. It then queues each
+incomplete evaluator/run pair once, even if several outputs are missing. Preserve
+that behavior with names from the frozen configs:
+
+- Reuse successful task outputs; evaluation resume does not rerun the task.
+- Skip evaluator/run pairs with every expected terminal result recorded.
+- Missing and errored results are eligible for resume; terminal refusals count
+  as recorded because their evaluation error is null.
+- Persist a multi-question result set together. If an incomplete result set is
+  encountered, invoke the judge once and upsert the resulting set consistently.
+- A provider call may repeat after a crash between its response and result
+  commit. Annotation upserts prevent duplicate result rows, not duplicate calls.
+  Verify trace/result crash consistency: existing attached-evaluator persistence
+  writes traces and annotations in separate transactions.
+
+Evaluator-as-task calibration has a different input context from an attached
+judge. Calibration sees dataset `input`, `output`, and `metadata`. An attached
+judge sees task `output`, dataset `reference`, dataset `input`, and `metadata`.
+Preview and mapping controls must use the actual execution role, not assume the
+same mapping works for both.
+
+### Runtime and Integration Points
+
+Implement one `DecisionEvaluator(BaseEvaluator)` runtime with shared output
+schema derivation and answer projection. Use it from saved-row loaders, previews,
+experiment reconstruction, and online hydration. Provider translation remains in
+`decision_clients.py`; do not reuse the chat evaluator's tool validation.
+
+- **Persistence.** Add the joined evaluator subtype, owned-tag references,
+  projection policy and binding overrides, and experiment snapshots. Extend
+  `evaluators.kind`; milestone 2 also extends
+  `experiment_evaluator_tasks.evaluator_kind`. Existing annotation kinds remain
+  unchanged because model judgments use `LLM`.
+- **Discovery and APIs.** Extend GraphQL types, enums, node resolution, queries,
+  dataset/project fields and dataloaders; evaluator CRUD and binding services;
+  REST discriminator unions, kind-keyed maps and serializers. Generic reads must
+  include the subtype even before every authoring surface is available.
+- **Resolved configs.** Replace assumptions that every evaluator ORM subtype
+  stores `.output_configs` with a shared effective-config resolver, including
+  primary-result selection, distributions, comparisons and result views.
+- **Experiments.** Extend dataset evaluator loading and `EvalWorkItem` first;
+  add inline definitions, provenance and `EvaluatorTaskWorkItem` in milestone 2.
+  Audit rate-limit, retry, timeout and error paths: current LLM-only checks would
+  otherwise leave decision judges unthrottled or mark errors as `CODE`.
+- **Retry ownership.** Use the decision client's rate-limit key and failure
+  classifiers. Disable SDK retries when the runner owns retries, propagate
+  cancellation, and make outbound calls without holding a database session.
+- **Tracing.** Keep an EVALUATOR root with a child DECISION span. The client's
+  current forced detached root must become composable; retain standalone-run
+  behavior and centralized answer validation/accounting. Accept a common OTel
+  tracer so no-op previews work. Preserve failed/cancelled traces and result links.
+- **Connections.** A deleted custom provider must make its saved definition
+  unavailable or be blocked from deletion; never fall back to a built-in host.
+  An execution snapshot freezes the judge configuration, not an external service.
+- **Frontend.** Add evaluator kind/discovery and dataset create/edit/attach flows,
+  mapping, scoring, preview and experiment result details in milestone 1. Reuse
+  decision editors and annotation views without chat/tool assumptions. Show
+  uncertainty, refusal status, coverage and trace links. Calibration and project
+  flows follow in their milestones.
+
+For online evaluation, extend subtype loads in `sweeper`, `producer`, `executor`
+and queries, project binding services, version resolution and hydration. Include
+resolved version, effective policy/configs/mapping, and custom-provider revision
+in the configuration fingerprint. Execute that resolved snapshot rather than
+rereading a moving tag. Extend provider-transient classification and consumer
+timeout categories, which currently special-case `LLM`. Enforce a rendered
+state-and-questions byte cap, including previews that simulate online limits.
+Reuse queue/admission/lease machinery, trace-project routing and evaluator-traffic
+exclusion; a new queue or consumer is unnecessary.
+
+### Completion and Verification
+
+Milestone 1 is complete when users can author a saved decision evaluator, attach
+it to a dataset through UI/API mapping and scoring controls, preview it, run it
+against prompt or decision task outputs, and inspect annotations and traces.
+Evaluation resume must work after task completion and server restart, with frozen
+configuration and explicit refusals. It does not depend on calibration or project
+bindings.
+
+Verify output derivation, threshold/tie behavior, structured mapping, one-call
+multi-question execution, refused siblings, malformed responses, provider retries,
+cancellation, tracing, CRUD/discovery, owned-tag guards, compatible overrides, and
+SQLite/PostgreSQL migrations. Resume tests cover mixed completed/pending judges,
+missing/errored outputs, terminal refusals, incomplete multi-output sets, tag/policy/
+mapping edits, live-binding deletion, and crashes around persistence. Exercise
+existing LLM/CODE/BUILTIN dataset evaluator flows for regressions.
+
+Milestone 2 adds shared inline preview and evaluator-as-task calibration with
+frozen definitions and correct role-specific contexts. Milestone 3 adds all
+project targets, fingerprint/hydration concurrency tests, atomic refusal-aware
+publication, health/result views and protection from recursive evaluator traffic.
+The complete feature includes all three milestones.
 
 ## The Complete Parallel Pipeline
 
@@ -605,10 +752,10 @@ catalog; and decision models kept out of every chat path. The rest, by the
 
 | Stage | Chat today | Decision status | Missing |
 |---|---|---|---|
-| Evaluator definition | `LLMEvaluator`, referring to a prompt and an optional tag | [Open idea](#decision-evaluators-open-idea) | A `DecisionEvaluator` subtype, `DECISION` in every kind CHECK, derived output configs and their defaults |
-| Calibration in the evaluator playground | Evaluator task, inline or saved, compared against expected outputs | Nothing | An inline decision evaluator definition, its rebuild in the runner, its form |
-| Judging experiment runs | Dataset evaluator bindings | Nothing | The evaluation phase running decision evaluators: the decision client's rate limiting, `LLM` annotator kind, binding overrides |
-| Online evals | Project evaluator bindings; the sweeper, producer, and executor | Nothing | Every [integration point](#integration-points) |
+| Evaluator definition | `LLMEvaluator`, referring to a prompt and an optional tag | Planned, milestone 1 | A `DecisionEvaluator` subtype, owned tag, projection policy and derived outputs |
+| Calibration in the evaluator playground | Evaluator task, inline or saved, compared against expected outputs | Planned, milestone 2 | An inline decision evaluator definition, its rebuild in the runner, its form |
+| Judging experiment runs | Dataset evaluator bindings | Planned, milestone 1 | Saved dataset evaluator UI/API, mapping/scoring, execution snapshots, evaluation resume, verdicts and traces |
+| Online evals | Project evaluator bindings; the sweeper, producer, and executor | Planned, milestone 3 | Every [integration point](#runtime-and-integration-points) |
 | Library | `phoenix-evals` `ClassificationEvaluator(llm: LLM)` | Separate work (`llm: LLM \| Decision`) | Outside this spec |
 
 ### Cross-Cutting
@@ -623,15 +770,16 @@ catalog; and decision models kept out of every chat path. The rest, by the
 - **Decisions that block work:**
   - [renaming questions](#open-questions) decides how the UI flags a rename;
     the tables don't depend on it, since a rename is a new version;
-  - answer-to-annotation mapping and `box` block the judging role;
+  - the exact annotation metadata schema blocks judging persistence/readers;
+    `box` is rejected as an evaluator output and does not block other types;
   - assets and images (`messages` state) block image inputs.
 
 ## Build Order
 
-In dependency order. The tested role, steps 1 to 4, puts decision models on the
-same footing as chat models as the thing being tested. The judging role, step
-6, is about as large as everything before it, because each place that lists
-evaluator kinds by hand changes.
+The tested-role work below has its own dependency order. The judging role has
+[three delivery milestones](#milestones), beginning with dataset evaluators; it
+depends on saved decision definitions, not completion of app formatting,
+measurement, assets, or every earlier numbered item.
 
 1. **Runs.** Schema types, validation, the inputs signature, and `runDecision`
    (built); decision experiments shaped like prompt tasks (built on the server);
@@ -648,8 +796,11 @@ evaluator kinds by hand changes.
    metrics and the experiment report.
 5. **Assets, `messages` state, and `box`,** together, once TypeSafe moves them out
    of the danger zone.
-6. **Judging, if pursued.** The decision evaluator definition, calibration in
-   the evaluator playground, dataset bindings, then online evals.
+6. **Judging (planned).** Saved decision evaluators and dataset bindings,
+   including UI, preview, experiment evaluation and resume, first; inline
+   evaluator authoring and calibration second; project bindings and online
+   evaluation third. Shared runtime, derived outputs, projection policy and
+   tracing support the three milestones.
 
 ## Forking Decisions
 
@@ -840,6 +991,11 @@ override could be added later without breaking anything.
   prompt IDs are carried today.
 - **Renaming questions.** Whether a rename should create a new decision, or keep
   the decision and mark earlier runs as answering a different question.
+- **Decision evaluator metadata.** Finalize the field-level, versioned
+  annotation metadata schema, including refusal status and projection provenance,
+  before persistence and readers are implemented. `metadata.decision` remains a
+  proposed namespace; the requirements are in
+  [Refusals, Errors, and Metadata](#refusals-errors-and-metadata).
 - **Evaluator outputs for per-example questions.** An evaluator's output names
   are fixed, while a benchmark's question names vary per example. A code
   evaluator can summarize over all answers; whether built-in metrics need
