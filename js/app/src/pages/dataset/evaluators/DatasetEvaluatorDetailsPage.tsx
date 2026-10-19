@@ -21,6 +21,7 @@ import { Counter } from "@phoenix/components/core/counter";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
+import { EditDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDecisionDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import {
   ConnectedTimeRangeSelector,
@@ -151,17 +152,13 @@ function DatasetEvaluatorDetailsPageContent({
         }
         subTitle={datasetEvaluator.description}
         extra={
-          // Decision evaluators have no edit flow yet; add it by rendering
-          // the decision slideover below and dropping this exclusion.
-          !isDecisionEvaluator && (
-            <Button
-              variant="primary"
-              onPress={() => setIsEditSlideoverOpen(true)}
-              leadingVisual={<Icon svg={<Icons.Edit />} />}
-            >
-              Edit
-            </Button>
-          )
+          <Button
+            variant="primary"
+            onPress={() => setIsEditSlideoverOpen(true)}
+            leadingVisual={<Icon svg={<Icons.Edit />} />}
+          >
+            Edit
+          </Button>
         }
       />
       <Tabs defaultSelectedKey="configuration">
@@ -225,6 +222,15 @@ function DatasetEvaluatorDetailsPageContent({
       </Tabs>
       {isLLMEvaluator && (
         <EditLLMDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluator.id}
+          datasetId={datasetId}
+          isOpen={isEditSlideoverOpen}
+          onOpenChange={setIsEditSlideoverOpen}
+          onUpdate={() => revalidate()}
+        />
+      )}
+      {isDecisionEvaluator && (
+        <EditDecisionDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluator.id}
           datasetId={datasetId}
           isOpen={isEditSlideoverOpen}

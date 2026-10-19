@@ -13,6 +13,7 @@ import {
 } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
+import { EditDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDecisionDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { EvaluatorKind } from "@phoenix/types";
@@ -61,20 +62,17 @@ export function DatasetEvaluatorActionMenu({
               }
             }}
           >
-            {/* TODO: decision evaluators have no edit slideover yet. */}
-            {evaluatorKind !== "DECISION" ? (
-              <MenuItem id={DatasetEvaluatorAction.EDIT}>
-                <Flex
-                  direction="row"
-                  gap="size-75"
-                  justifyContent="start"
-                  alignItems="center"
-                >
-                  <Icon svg={<Icons.Edit2 />} />
-                  <Text>Edit</Text>
-                </Flex>
-              </MenuItem>
-            ) : null}
+            <MenuItem id={DatasetEvaluatorAction.EDIT}>
+              <Flex
+                direction="row"
+                gap="size-75"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.Edit2 />} />
+                <Text>Edit</Text>
+              </Flex>
+            </MenuItem>
             <MenuItem id={DatasetEvaluatorAction.DELETE}>
               <Flex
                 direction="row"
@@ -107,6 +105,14 @@ export function DatasetEvaluatorActionMenu({
         />
       ) : evaluatorKind === "LLM" ? (
         <EditLLMDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluatorId}
+          datasetId={datasetId}
+          isOpen={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          updateConnectionIds={updateConnectionIds}
+        />
+      ) : evaluatorKind === "DECISION" ? (
+        <EditDecisionDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluatorId}
           datasetId={datasetId}
           isOpen={isEditDialogOpen}
