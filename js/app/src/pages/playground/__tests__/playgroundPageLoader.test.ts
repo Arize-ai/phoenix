@@ -70,6 +70,17 @@ describe("playgroundPageLoader", () => {
     fetchDecision.mockReset();
   });
 
+  it("opens a fresh decision draft from the decisions library", async () => {
+    const data = await load("newDecision=true");
+    expect(data?.source).toBe("tested");
+    if (data?.source !== "tested") throw new Error("Expected tested tasks");
+    expect(data.instances).toHaveLength(1);
+    expect(data.instances[0].task.member).toBe("decision");
+    expect(data.instances[0].model.modelType).toBe("DECISION");
+    expect(fetchDecision).not.toHaveBeenCalled();
+    expect(fetchPrompt).not.toHaveBeenCalled();
+  });
+
   it("returns null with no task params", async () => {
     expect(await load("datasetId=D")).toBeNull();
     expect(fetchEvaluator).not.toHaveBeenCalled();

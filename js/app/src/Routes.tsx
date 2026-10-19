@@ -22,6 +22,8 @@ import {
   EVALUATOR_DETAILS_ROUTE_ID,
   EvaluatorTracePage,
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
+import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
+import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
@@ -1030,6 +1032,44 @@ export const appRouteObjects = createRoutesFromElements(
               },
             }}
           />
+        </Route>
+        <Route
+          path="/decisions"
+          handle={{
+            crumb: () => "Decisions",
+            agentRoute: {
+              label: "Decisions",
+              description:
+                "Browse saved decisions, typed questions, models, versions, and tags.",
+            },
+            navigation: {
+              section: "Pages",
+              label: "Decisions",
+              description: "Manage and version decisions",
+              icon: "GitBranch",
+            },
+          }}
+        >
+          <Route index element={<DecisionsPage />} />
+          <Route
+            path=":decisionId"
+            handle={{
+              crumb: () => "Decision",
+              agentRoute: {
+                label: "Decision Details",
+                description:
+                  "Inspect a saved decision, its inputs and questions, version history and tags, or open it in the playground.",
+              },
+            }}
+          >
+            <Route index element={<DecisionPage />} />
+            <Route path="versions" element={<DecisionPage />} />
+            <Route
+              path="versions/:versionId"
+              element={<DecisionPage />}
+              handle={{ crumb: () => "Version" }}
+            />
+          </Route>
         </Route>
         <Route
           path="/prompts"
