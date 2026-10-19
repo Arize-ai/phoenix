@@ -18,8 +18,8 @@ _REJECTS_FORCING = ("claude-fable-5-1", "claude-mythos-5-1", "claude-opus-5-5", 
 
 
 def _response(body: Dict[str, Any]) -> httpx2.Response:
-    if body.get("tool_choice", {}).get("type") in ("tool", "any") and body["model"].startswith(
-        _REJECTS_FORCING
+    if body.get("tool_choice", {}).get("type") in ("tool", "any") and any(
+        model in body["model"] for model in _REJECTS_FORCING
     ):
         return httpx2.Response(
             400,
@@ -77,7 +77,15 @@ def _async_adapter(model: str, requests: List[Dict[str, Any]]) -> AnthropicAdapt
 
 @pytest.mark.parametrize(
     "model",
-    ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1"],
+    [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-fable-5-1",
+        "claude-mythos-5-1",
+        # Bedrock inference profile IDs
+        "us.anthropic.claude-opus-5-5",
+        "global.anthropic.claude-sonnet-5-5",
+    ],
 )
 def test_models_that_reject_forcing_get_auto_tool_choice(model: str) -> None:
     requests: List[Dict[str, Any]] = []
@@ -87,7 +95,9 @@ def test_models_that_reject_forcing_get_auto_tool_choice(model: str) -> None:
     assert requests[0]["tool_choice"] == {"type": "auto"}
 
 
-@pytest.mark.parametrize("model", ["claude-opus-5", "claude-sonnet-5", "claude-haiku-5-5"])
+@pytest.mark.parametrize(
+    "model", ["claude-opus-5", "claude-sonnet-5", "claude-haiku-5-5", "us.anthropic.claude-opus-5"]
+)
 def test_other_models_still_force_the_tool(model: str) -> None:
     requests: List[Dict[str, Any]] = []
     result = _sync_adapter(model, requests).generate_object("q", _SCHEMA)

@@ -16,7 +16,8 @@ from .factories import AnthropicClientWrapper, create_anthropic_client
 logger = logging.getLogger(__name__)
 
 # These models reject a forced `tool_choice` (`{"type": "tool"}` or `{"type": "any"}`) with a 400,
-# so object generation lets them choose the tool instead.
+# so object generation lets them choose the tool instead. Matched as substrings so that Bedrock
+# IDs such as `us.anthropic.claude-opus-5-5` are covered too.
 _MODELS_REJECTING_FORCED_TOOL_CHOICE = (
     "claude-fable-5-1",
     "claude-mythos-5-1",
@@ -245,7 +246,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         raise ValueError("No tool use in response")
 
     def _tool_choice(self) -> Dict[str, Any]:
-        if self.model.startswith(_MODELS_REJECTING_FORCED_TOOL_CHOICE):
+        if any(model in self.model for model in _MODELS_REJECTING_FORCED_TOOL_CHOICE):
             # `auto` lets the model reply without calling the tool; that still raises
             # "No tool use in response" below.
             return {"type": "auto"}
