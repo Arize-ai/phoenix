@@ -20,6 +20,20 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: decision_labels
+-- ----------------------
+CREATE TABLE public.decision_labels (
+    id bigserial NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    color VARCHAR,
+    CONSTRAINT pk_decision_labels PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX ix_decision_labels_name ON public.decision_labels
+    USING btree (name);
+
+
 -- Table: deployment_secret
 -- ------------------------
 CREATE TABLE public.deployment_secret (
@@ -703,6 +717,7 @@ CREATE INDEX ix_datasets_dataset_labels_dataset_label_id ON public.datasets_data
 -- ----------------
 CREATE TABLE public.decisions (
     id bigserial NOT NULL,
+    source_decision_id BIGINT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     metadata JSONB NOT NULL,
@@ -710,6 +725,10 @@ CREATE TABLE public.decisions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_decisions PRIMARY KEY (id),
+    CONSTRAINT fk_decisions_source_decision_id_decisions
+        FOREIGN KEY (source_decision_id)
+        REFERENCES public.decisions (id)
+        ON DELETE SET NULL,
     CONSTRAINT fk_decisions_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES public.users (id)
@@ -718,8 +737,33 @@ CREATE TABLE public.decisions (
 
 CREATE UNIQUE INDEX ix_decisions_name ON public.decisions
     USING btree (name);
+CREATE INDEX ix_decisions_source_decision_id ON public.decisions
+    USING btree (source_decision_id);
 CREATE INDEX ix_decisions_user_id ON public.decisions
     USING btree (user_id);
+
+
+-- Table: decisions_decision_labels
+-- --------------------------------
+CREATE TABLE public.decisions_decision_labels (
+    id bigserial NOT NULL,
+    decision_label_id BIGINT NOT NULL,
+    decision_id BIGINT NOT NULL,
+    CONSTRAINT pk_decisions_decision_labels PRIMARY KEY (id),
+    CONSTRAINT uq_decisions_decision_labels_decision_label_id_decision_id
+        UNIQUE (decision_label_id, decision_id),
+    CONSTRAINT fk_decisions_decision_labels_decision_id_decisions
+        FOREIGN KEY (decision_id)
+        REFERENCES public.decisions (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_decisions_decision_labels_decision_label_id_decision_labels
+        FOREIGN KEY (decision_label_id)
+        REFERENCES public.decision_labels (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_decisions_decision_labels_decision_id ON public.decisions_decision_labels
+    USING btree (decision_id);
 
 
 -- Table: document_annotations
@@ -788,7 +832,8 @@ CREATE TABLE public.evaluators (
         CHECK (((kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'BUILTIN'::character varying
+            'BUILTIN'::character varying,
+            'DECISION'::character varying
         ])::text[]))),
     CONSTRAINT fk_evaluators_user_id_users
         FOREIGN KEY (user_id)
@@ -834,6 +879,7 @@ CREATE TABLE public.dataset_evaluators (
     project_id BIGINT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    decision_projection_policy JSONB,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_dataset_evaluators_dataset_id_name
         UNIQUE (dataset_id, name),
@@ -916,6 +962,7 @@ CREATE TABLE public.experiment_jobs (
     cooldown_until TIMESTAMP WITH TIME ZONE,
     max_concurrency INTEGER NOT NULL DEFAULT 10,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    decision_evaluator_snapshots JSONB NOT NULL DEFAULT '[]'::jsonb,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id
         UNIQUE (type, id),
@@ -975,7 +1022,8 @@ CREATE TABLE public.experiment_evaluator_tasks (
         CHECK (((evaluator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'BUILTIN'::character varying
+            'BUILTIN'::character varying,
+            'DECISION'::character varying
         ])::text[]))),
     CONSTRAINT "ck_experiment_evaluator_tasks_`valid_type`" CHECK (((type)::text = 'EVALUATOR'::text)),
     CONSTRAINT fk_experiment_evaluator_tasks_type_experiment_jobs
@@ -1392,6 +1440,37 @@ CREATE INDEX ix_decision_version_tags_decision_version_id ON public.decision_ver
     USING btree (decision_version_id);
 CREATE INDEX ix_decision_version_tags_user_id ON public.decision_version_tags
     USING btree (user_id);
+
+
+-- Table: decision_evaluators
+-- --------------------------
+CREATE TABLE public.decision_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'DECISION'::character varying,
+    decision_id BIGINT NOT NULL,
+    decision_version_tag_id BIGINT NOT NULL,
+    projection_policy JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_decision_evaluators PRIMARY KEY (id),
+    CONSTRAINT "ck_decision_evaluators_`valid_evaluator_kind`" CHECK (((kind)::text = 'DECISION'::text)),
+    CONSTRAINT fk_decision_evaluators_decision_id_decisions
+        FOREIGN KEY (decision_id)
+        REFERENCES public.decisions (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_decision_evaluators_decision_version_tag_id_decision_f23e
+        FOREIGN KEY (decision_version_tag_id)
+        REFERENCES public.decision_version_tags (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_decision_evaluators_kind_evaluators
+        FOREIGN KEY (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_decision_evaluators_decision_id ON public.decision_evaluators
+    USING btree (decision_id);
+CREATE UNIQUE INDEX ix_decision_evaluators_decision_version_tag_id ON public.decision_evaluators
+    USING btree (decision_version_tag_id);
 
 
 -- Table: experiment_decision_tasks

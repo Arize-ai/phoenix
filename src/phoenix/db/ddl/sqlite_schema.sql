@@ -19,6 +19,19 @@ CREATE TABLE annotation_configs (
 );
 
 
+-- Table: decision_labels
+-- ----------------------
+CREATE TABLE decision_labels (
+    id INTEGER NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    color VARCHAR,
+    CONSTRAINT pk_decision_labels PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX ix_decision_labels_name ON decision_labels (name);
+
+
 -- Table: deployment_secret
 -- ------------------------
 CREATE TABLE deployment_secret (
@@ -680,6 +693,7 @@ CREATE INDEX ix_datasets_dataset_labels_dataset_label_id ON datasets_dataset_lab
 -- ----------------
 CREATE TABLE decisions (
     id INTEGER NOT NULL,
+    source_decision_id INTEGER,
     name VARCHAR NOT NULL,
     description VARCHAR,
     metadata JSONB NOT NULL,
@@ -687,6 +701,10 @@ CREATE TABLE decisions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_decisions PRIMARY KEY (id),
+    CONSTRAINT fk_decisions_source_decision_id_decisions
+        FOREIGN KEY (source_decision_id)
+        REFERENCES decisions (id)
+        ON DELETE SET NULL,
     CONSTRAINT fk_decisions_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES users (id)
@@ -694,7 +712,31 @@ CREATE TABLE decisions (
 );
 
 CREATE UNIQUE INDEX ix_decisions_name ON decisions (name);
+CREATE INDEX ix_decisions_source_decision_id ON decisions (source_decision_id);
 CREATE INDEX ix_decisions_user_id ON decisions (user_id);
+
+
+-- Table: decisions_decision_labels
+-- --------------------------------
+CREATE TABLE decisions_decision_labels (
+    id INTEGER NOT NULL,
+    decision_label_id INTEGER NOT NULL,
+    decision_id INTEGER NOT NULL,
+    CONSTRAINT pk_decisions_decision_labels PRIMARY KEY (id),
+    CONSTRAINT uq_decisions_decision_labels_decision_label_id_decision_id
+        UNIQUE (decision_label_id, decision_id),
+    CONSTRAINT fk_decisions_decision_labels_decision_id_decisions
+        FOREIGN KEY (decision_id)
+        REFERENCES decisions (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_decisions_decision_labels_decision_label_id_decision_labels
+        FOREIGN KEY (decision_label_id)
+        REFERENCES decision_labels (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_decisions_decision_labels_decision_id ON decisions_decision_labels
+    (decision_id);
 
 
 -- Table: document_annotations
@@ -741,14 +783,14 @@ CREATE TABLE evaluators (
     name VARCHAR NOT NULL,
     description VARCHAR,
     metadata JSONB NOT NULL,
-    kind VARCHAR NOT NULL
-        CONSTRAINT "ck_evaluators_`valid_evaluator_kind`"
-        CHECK (kind IN ('LLM', 'CODE', 'BUILTIN')),
+    kind VARCHAR NOT NULL,
     user_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_evaluators_kind_id UNIQUE (kind, id),
     CONSTRAINT uq_evaluators_name UNIQUE (name),
+    CONSTRAINT "ck_evaluators_`valid_evaluator_kind`"
+        CHECK (kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')),
     CONSTRAINT fk_evaluators_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES users (id)
@@ -792,6 +834,7 @@ CREATE TABLE dataset_evaluators (
     project_id INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    decision_projection_policy JSONB,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_dataset_evaluators_dataset_id_name UNIQUE (dataset_id, name),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
@@ -866,6 +909,7 @@ CREATE TABLE experiment_jobs (
     cooldown_until TIMESTAMP,
     max_concurrency INTEGER DEFAULT '10' NOT NULL,
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    decision_evaluator_snapshots JSONB DEFAULT '[]' NOT NULL,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id UNIQUE (type, id),
     CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
@@ -908,13 +952,13 @@ CREATE TABLE experiment_evaluator_tasks (
         CONSTRAINT "ck_experiment_evaluator_tasks_`valid_type`"
         CHECK (type = 'EVALUATOR'),
     name VARCHAR NOT NULL,
-    evaluator_kind VARCHAR NOT NULL
-        CONSTRAINT "ck_experiment_evaluator_tasks_`valid_evaluator_kind`"
-        CHECK (evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')),
+    evaluator_kind VARCHAR NOT NULL,
     definition JSONB NOT NULL,
     input_mapping JSONB NOT NULL,
     output_configs JSONB NOT NULL,
     CONSTRAINT pk_experiment_evaluator_tasks PRIMARY KEY (id),
+    CONSTRAINT "ck_experiment_evaluator_tasks_`valid_evaluator_kind`"
+        CHECK (evaluator_kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')),
     CONSTRAINT fk_experiment_evaluator_tasks_type_experiment_jobs
         FOREIGN KEY (type, id)
         REFERENCES experiment_jobs (type, id)
@@ -1309,11 +1353,44 @@ CREATE INDEX ix_decision_version_tags_decision_version_id ON decision_version_ta
 CREATE INDEX ix_decision_version_tags_user_id ON decision_version_tags (user_id);
 
 
+-- Table: decision_evaluators
+-- --------------------------
+CREATE TABLE decision_evaluators (
+    id INTEGER NOT NULL,
+    kind VARCHAR DEFAULT 'DECISION' NOT NULL
+        CONSTRAINT "ck_decision_evaluators_`valid_evaluator_kind`"
+        CHECK (kind = 'DECISION'),
+    decision_id INTEGER NOT NULL,
+    decision_version_tag_id INTEGER NOT NULL,
+    projection_policy JSONB NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_decision_evaluators PRIMARY KEY (id),
+    CONSTRAINT fk_decision_evaluators_decision_id_decisions
+        FOREIGN KEY (decision_id)
+        REFERENCES decisions (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_decision_evaluators_decision_version_tag_id_decision_version_tags
+        FOREIGN KEY (decision_version_tag_id)
+        REFERENCES decision_version_tags (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_decision_evaluators_kind_evaluators
+        FOREIGN KEY (kind, id)
+        REFERENCES evaluators (kind, id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_decision_evaluators_decision_id ON decision_evaluators (decision_id);
+CREATE UNIQUE INDEX ix_decision_evaluators_decision_version_tag_id ON decision_evaluators
+    (decision_version_tag_id);
+
+
 -- Table: experiment_decision_tasks
 -- --------------------------------
 CREATE TABLE experiment_decision_tasks (
     id INTEGER NOT NULL,
-    type VARCHAR DEFAULT 'DECISION' NOT NULL,
+    type VARCHAR DEFAULT 'DECISION' NOT NULL
+        CONSTRAINT "ck_experiment_decision_tasks_`valid_type`"
+        CHECK (type = 'DECISION'),
     model_provider VARCHAR NOT NULL,
     model_name VARCHAR NOT NULL,
     custom_provider_id INTEGER,
@@ -1323,7 +1400,6 @@ CREATE TABLE experiment_decision_tasks (
     CONSTRAINT pk_experiment_decision_tasks PRIMARY KEY (id),
     CONSTRAINT "ck_experiment_decision_tasks_`custom_provider_or_base_url`"
         CHECK (NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)),
-    CONSTRAINT "ck_experiment_decision_tasks_`valid_type`" CHECK (type = 'DECISION'),
     CONSTRAINT fk_experiment_decision_tasks_custom_provider_id_generative_model_custom_providers
         FOREIGN KEY (custom_provider_id)
         REFERENCES generative_model_custom_providers (id)
