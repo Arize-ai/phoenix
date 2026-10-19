@@ -182,30 +182,29 @@ describe("the evaluator inputs", () => {
     );
   });
 
-  it("marks a path only the server can check as checked at run, not as failing", async () => {
+  it("resolves a wildcard path here, and marks a path that does not parse as failing", async () => {
     await renderInputsView({
       variables: ["input", "output", "metadata", "citations"],
       context: getSampleSpanEvaluationContext().context,
       recordKind: "span",
       inputMapping: {
         pathMapping: {
-          // A wildcard is the server's to resolve, so this side can only
-          // defer — unlike `nope`, which is checked and wrong.
+          // A wildcard is previewed the way the server binds it, so it
+          // resolves here — unlike `nope`, which is checked and wrong, and
+          // the unclosed bracket, which does not parse at all.
           input: "metadata.attributes.llm.input_messages[*].message",
           output: "nope",
-          citations: "metadata.annotations[*]",
+          citations: "metadata.annotations[",
         },
         literalMapping: {},
       },
       requiredVariables: ["input", "output", "metadata", "citations"],
     });
 
-    expect(itemFor("input")?.getAttribute("data-status")).toBe("unverified");
-    expect(itemFor("input")?.textContent).toContain(
-      "metadata.attributes.llm.input_messages[*].message is checked when the evaluator runs"
-    );
-    expect(itemFor("citations")?.getAttribute("data-status")).toBe(
-      "unverified"
+    expect(itemFor("input")?.getAttribute("data-status")).toBe("resolved");
+    expect(itemFor("citations")?.getAttribute("data-status")).toBe("invalid");
+    expect(itemFor("citations")?.textContent).toContain(
+      "metadata.annotations[ is not a valid path"
     );
     expect(itemFor("output")?.getAttribute("data-status")).toBe("missing");
     expect(itemFor("metadata")?.getAttribute("data-status")).toBe("resolved");
