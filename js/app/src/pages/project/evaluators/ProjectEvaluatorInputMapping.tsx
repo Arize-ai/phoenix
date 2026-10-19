@@ -63,6 +63,9 @@ export const ProjectEvaluatorInputMapping = ({
   const literalMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping.literalMapping
   );
+  const setFocusedMappingVariable = useEvaluatorStore(
+    (state) => state.setFocusedMappingVariable
+  );
   if (variables.length === 0) {
     return emptyState ?? null;
   }
@@ -104,7 +107,9 @@ export const ProjectEvaluatorInputMapping = ({
                   ariaLabel={ariaLabel}
                   evaluatorMappingSource={evaluatorMappingSource}
                   recordKind={recordKind}
-                  variableName={variable}
+                  onFocusChange={(isFocused) =>
+                    setFocusedMappingVariable(isFocused ? variable : null)
+                  }
                   placeholder={getEvaluatorInputPlaceholder({
                     variableName: variable,
                     isRequired: requiredVariables?.includes(variable) ?? true,

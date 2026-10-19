@@ -259,12 +259,26 @@ function getBindingStatus(
       color: "warning",
     };
   }
+  if (binding.status === "invalid") {
+    return {
+      label: "Not a valid path",
+      icon: <Icons.CloseCircle />,
+      color: "danger",
+    };
+  }
   return {
     label: "Resolved",
     icon: <Icons.CheckmarkCircle />,
     color: "success",
   };
 }
+
+/** Shown in place of a verdict while the variable's path is still being typed. */
+const TYPING_STATUS: BindingStatus = {
+  label: "Typing",
+  icon: <Icons.Edit />,
+  color: "default",
+};
 
 const SOURCE_TOKEN: Partial<
   Record<EvaluatorVariableBinding["sourceKind"], string>
@@ -316,6 +330,9 @@ export function EvaluatorInputsView({
   const isPromptEvaluator = useEvaluatorStore(
     (state) => state.evaluator.kind === "LLM"
   );
+  const focusedMappingVariable = useEvaluatorStore(
+    (state) => state.focusedMappingVariable ?? null
+  );
   const readableContext = useMemo(
     () => toReadableContext(context, recordKind),
     [context, recordKind]
@@ -336,6 +353,10 @@ export function EvaluatorInputsView({
                 key={binding.variable}
                 binding={binding}
                 recordKind={recordKind}
+                isBeingTyped={
+                  binding.status === "invalid" &&
+                  binding.variable === focusedMappingVariable
+                }
               />
             ))}
           </ul>
@@ -383,18 +404,23 @@ function sortFailingFirst(
   bindings: EvaluatorVariableBinding[]
 ): EvaluatorVariableBinding[] {
   const fails = (binding: EvaluatorVariableBinding) =>
-    binding.status === "missing" ? 0 : 1;
+    binding.status === "missing" || binding.status === "invalid" ? 0 : 1;
   return [...bindings].sort((a, b) => fails(a) - fails(b));
 }
 
 function EvaluatorVariableBindingItem({
   binding,
   recordKind,
+  isBeingTyped,
 }: {
   binding: EvaluatorVariableBinding;
   recordKind: ProjectEvaluatorRecordKind;
+  /** The path field for this variable has focus, so a path that does not parse yet is not flagged. */
+  isBeingTyped: boolean;
 }) {
-  const status = getBindingStatus(binding, recordKind);
+  const status = isBeingTyped
+    ? TYPING_STATUS
+    : getBindingStatus(binding, recordKind);
   const isMissing = binding.status === "missing";
   const token = SOURCE_TOKEN[binding.sourceKind];
   return (
@@ -434,7 +460,14 @@ function EvaluatorVariableBindingItem({
             {`${binding.path} is checked when the evaluator runs`}
           </Text>
         ) : null}
-        {binding.hasValue ? <BindingValue value={binding.value} /> : null}
+        {binding.status === "invalid" && !isBeingTyped ? (
+          <Text size="XS" color="danger">
+            {`${binding.path} is not a valid path`}
+          </Text>
+        ) : null}
+        {binding.hasValue && !isBeingTyped ? (
+          <BindingValue value={binding.value} />
+        ) : null}
       </div>
     </li>
   );

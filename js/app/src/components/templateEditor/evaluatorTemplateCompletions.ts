@@ -15,17 +15,20 @@ import {
 } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import type { EvaluatorPathMember } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
+  appendPathSegment,
   capBrowsedMembers,
   EVALUATOR_ROOT_PATH_PATTERN,
-  getEvaluatorPathCursor,
   getEvaluatorPathMembers,
-  getTypedKey,
-  reachEvaluatorContainerPath,
+  IDEA_COMPLETION_TYPE,
   resolveEvaluatorPath,
   toMemberCompletionType,
   toMemberSection,
   toWholePathValidFor,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import {
+  F_STRING_PATH_SYNTAX,
+  getEvaluatorPathIdeas,
+} from "@phoenix/components/evaluators/evaluatorPathIdeas";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { BARE_IDENTIFIER_PATTERN } from "@phoenix/utils/jsonUtils";
 
@@ -43,6 +46,34 @@ const TEMPLATE_CONTINUATION_SECTION_RANK = 2;
 
 /** What the typeahead keeps matching against as the member name grows. */
 const MEMBER_NAME_PATTERN = /^\w*$/;
+
+/** The names a template format can render, which are not mapping paths. */
+type TemplateNameGrammar = {
+  /** A name being typed: the name before its last dot, then the member after. */
+  cursor: RegExp;
+  /** A member name the format reads after a dot. */
+  member: RegExp;
+};
+
+const MUSTACHE_NAME_GRAMMAR: TemplateNameGrammar = {
+  cursor: /^(?:([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\.)?([A-Za-z_]\w*)?$/,
+  member: BARE_IDENTIFIER_PATTERN,
+};
+
+// The server's f-string formatter refuses an attribute that starts with `_`.
+const F_STRING_NAME_GRAMMAR: TemplateNameGrammar = {
+  cursor: /^(?:([A-Za-z_]\w*(?:\.[A-Za-z]\w*|\[-?\d+\])*)\.)?([A-Za-z_]\w*)?$/,
+  member: /^[A-Za-z]\w*$/,
+};
+
+const TEMPLATE_NAME_SEGMENT_PATTERN = /\[(-?\d+)\]|[^.[\]]+/g;
+
+/** A whole name an f-string can render. */
+const F_STRING_NAME_PATTERN = /^[A-Za-z_]\w*(?:\.[A-Za-z]\w*|\[-?\d+\])*$/;
+
+/** An f-string name followed by a subscript still being typed: `turns[`, `turns[-1`. */
+const F_STRING_OPEN_INDEX_PATTERN =
+  /^([A-Za-z_]\w*(?:\.[A-Za-z]\w*|\[-?\d+\])*)\[(-?\d*)$/;
 
 /**
  * The menu shown inside a template variable while a project evaluator is being
@@ -70,15 +101,28 @@ export function getEvaluatorTemplateCompletions({
     return getBlockCompletions({ evaluationContext, variable });
   }
 
-  const cursor = getEvaluatorPathCursor(variable.text);
+  const grammar =
+    templateFormat === TemplateFormats.Mustache
+      ? MUSTACHE_NAME_GRAMMAR
+      : F_STRING_NAME_GRAMMAR;
+  const openIndex = getOpenIndex({ text: variable.text, templateFormat });
+  if (openIndex !== null) {
+    return getListIndexResult({
+      evaluationContext,
+      from: variable.from,
+      ...openIndex,
+      closingBrackets,
+    });
+  }
+  const cursor = getTemplateNameCursor(variable.text, grammar);
   if (cursor === null) {
     return null;
   }
   const from = variable.from + cursor.from;
-  const typedKey = getTypedKey({ textBeforeCursor: variable.text, cursor });
+  const typedKey = cursor.partial === "" ? null : cursor.partial;
   const section = getSectionItem({ evaluationContext, sectionStack });
 
-  if (cursor.containerPath === "") {
+  if (cursor.containerName === "") {
     // Inside a section the names are the item's own — `messages[0].role`
     // reads as `role` while the block repeats it.
     return section === null
@@ -90,7 +134,9 @@ export function getEvaluatorTemplateCompletions({
           from,
           options: toMemberOptions({
             members: getEvaluatorPathMembers(section.item, ""),
-            levelPath: section.path,
+            levelName: section.path,
+            parentName: "",
+            grammar,
             evaluationContext,
             closingBrackets,
             isBrowsing: cursor.partial === "",
@@ -107,35 +153,48 @@ export function getEvaluatorTemplateCompletions({
   // `metadata` to be read back into.
   const reached =
     section === null
-      ? reachEvaluatorContainerPath({
+      ? reachTemplateContainer({
           source,
-          containerPath: cursor.containerPath,
-          rootPaths: buildEvaluatorContextCandidates(evaluationContext).map(
+          containerName: cursor.containerName,
+          rootNames: buildEvaluatorContextCandidates(evaluationContext).map(
             (candidate) => candidate.label
           ),
         })
       : null;
-  const containerPath = reached ?? cursor.containerPath;
+  const containerName = reached ?? cursor.containerName;
   // A list has no member a dot can name — Mustache reaches its items with a
   // block — so the dot after one offers the block instead of nothing.
-  const container = resolveEvaluatorPath({ source, path: containerPath });
+  const container = resolveEvaluatorPath({
+    source,
+    path: toMappingPath(containerName),
+  });
   if (container.status === "resolved" && Array.isArray(container.value)) {
     return templateFormat === TemplateFormats.Mustache
       ? toBlockResult({
           from: variable.from,
-          path: containerPath,
+          path: containerName,
           value: container.value,
         })
-      : null;
+      : toIndexResult({
+          from: variable.from,
+          listName: containerName,
+          typedIndex: "",
+          evaluationContext,
+          closingBrackets,
+        });
   }
-  const members = getEvaluatorContextMembers({ source, containerPath });
   return toResult({
-    // A row that fills the home back in writes the whole path, so it replaces
+    // A row that fills the home back in writes the whole name, so it replaces
     // what the author wrote rather than extending it.
     from: reached === null ? from : variable.from,
     options: toMemberOptions({
-      members,
-      levelPath: containerPath,
+      members:
+        container.status === "resolved"
+          ? getEvaluatorPathMembers(container.value, "")
+          : [],
+      levelName: containerName,
+      parentName: containerName,
+      grammar,
       evaluationContext,
       closingBrackets,
       isBrowsing: cursor.partial === "",
@@ -218,7 +277,9 @@ function getRootOptions({
  */
 function toMemberOptions({
   members,
-  levelPath,
+  levelName,
+  parentName,
+  grammar,
   evaluationContext,
   closingBrackets,
   isBrowsing,
@@ -226,8 +287,11 @@ function toMemberOptions({
   typedKey,
 }: {
   members: EvaluatorPathMember[];
-  /** The whole path of the level the members belong to. */
-  levelPath: string;
+  /** The whole name of the level the members belong to. */
+  levelName: string;
+  /** The name a row extends when it writes the whole name. */
+  parentName: string;
+  grammar: TemplateNameGrammar;
   evaluationContext: MaterializedEvaluatorContext;
   closingBrackets: string;
   isBrowsing: boolean;
@@ -238,19 +302,18 @@ function toMemberOptions({
 }): Completion[] {
   // A template reads nested properties with a dot, so a member a dot cannot
   // name — an index, a key with a dot of its own — is left out rather than
-  // offered as a path that would render nothing. A whole path has to be
-  // dotted the whole way down.
+  // offered as a name that would render nothing.
   const isAddressable = (member: EvaluatorPathMember) =>
-    !member.isIndex &&
-    BARE_IDENTIFIER_PATTERN.test(member.key) &&
-    (!writesWholePath || !member.path.includes("["));
+    !member.isIndex && grammar.member.test(member.key);
   const addressable = members.filter(isAddressable);
   const shown = capBrowsedMembers({ members: addressable, isBrowsing });
-  const section = toMemberSection(levelPath, TEMPLATE_MEMBER_SECTION_RANK);
+  const section = toMemberSection(levelName, TEMPLATE_MEMBER_SECTION_RANK);
   const options = shown.map((member, index) =>
     toMemberOption({
       member,
-      name: writesWholePath ? member.path : member.key,
+      name: writesWholePath
+        ? joinTemplateName(parentName, member.key)
+        : member.key,
       section,
       boost: 100 - index,
       evaluationContext,
@@ -266,21 +329,20 @@ function toMemberOptions({
     (member) => member.key === typedKey && isStringKeyedObject(member.value)
   );
   if (typed !== undefined) {
+    const typedName = joinTemplateName(parentName, typed.key);
     const below = toMemberSection(
-      typed.path,
+      typedName,
       TEMPLATE_CONTINUATION_SECTION_RANK
     );
     const continued = capBrowsedMembers({
-      members: getEvaluatorPathMembers(typed.value, typed.path).filter(
-        isAddressable
-      ),
+      members: getEvaluatorPathMembers(typed.value, "").filter(isAddressable),
       isBrowsing: true,
     });
     continued.forEach((member, index) => {
       options.push(
         toMemberOption({
           member,
-          name: writesWholePath ? member.path : `${typed.key}.${member.key}`,
+          name: `${writesWholePath ? typedName : typed.key}.${member.key}`,
           section: below,
           boost: 100 - index,
           evaluationContext,
@@ -329,13 +391,16 @@ function getBlockCompletions({
   variable: { from: number; text: string };
 }): CompletionResult | null {
   const blockPrefix = variable.text[0];
-  const cursor = getEvaluatorPathCursor(variable.text.slice(1));
+  const cursor = getTemplateNameCursor(
+    variable.text.slice(1),
+    MUSTACHE_NAME_GRAMMAR
+  );
   if (cursor === null) {
     return null;
   }
 
   const options: Completion[] = [];
-  if (cursor.containerPath === "") {
+  if (cursor.containerName === "") {
     // The same tree the variable menu offers, kept to what a block can wrap.
     for (const candidate of buildEvaluatorContextCandidates(
       evaluationContext
@@ -353,17 +418,16 @@ function getBlockCompletions({
   } else {
     for (const member of getEvaluatorContextMembers({
       source: evaluationContext.values,
-      containerPath: cursor.containerPath,
+      containerPath: toMappingPath(cursor.containerName),
     })) {
-      // Mustache names a block with a dotted path or not at all.
       if (
         Array.isArray(member.value) &&
         !member.isIndex &&
-        !member.path.includes("[")
+        MUSTACHE_NAME_GRAMMAR.member.test(member.key)
       ) {
         options.push(
           toBlockCompletion({
-            path: member.path,
+            path: joinTemplateName(cursor.containerName, member.key),
             blockPrefix,
             detail: toBlockDetail({ blockPrefix, value: member.value }),
           })
@@ -377,6 +441,120 @@ function getBlockCompletions({
   return options.length === 0
     ? null
     : { from: variable.from, options, validFor: /^[#^][\w.]*$/ };
+}
+
+/** A list name and the subscript being typed after it, in an f-string only. */
+function getOpenIndex({
+  text,
+  templateFormat,
+}: {
+  text: string;
+  templateFormat: TemplateFormat;
+}): { listName: string; typedIndex: string } | null {
+  const match =
+    templateFormat === TemplateFormats.FString
+      ? F_STRING_OPEN_INDEX_PATTERN.exec(text)
+      : null;
+  return match === null ? null : { listName: match[1], typedIndex: match[2] };
+}
+
+function getListIndexResult({
+  evaluationContext,
+  from,
+  listName,
+  typedIndex,
+  closingBrackets,
+}: {
+  evaluationContext: MaterializedEvaluatorContext;
+  from: number;
+  listName: string;
+  typedIndex: string;
+  closingBrackets: string;
+}): CompletionResult | null {
+  const source = evaluationContext.values;
+  const reached = reachTemplateContainer({
+    source,
+    containerName: listName,
+    rootNames: buildEvaluatorContextCandidates(evaluationContext).map(
+      (candidate) => candidate.label
+    ),
+  });
+  const name = reached ?? listName;
+  const list = resolveEvaluatorPath({ source, path: toMappingPath(name) });
+  if (list.status !== "resolved" || !Array.isArray(list.value)) {
+    return null;
+  }
+  return toIndexResult({
+    from,
+    listName: name,
+    typedIndex,
+    evaluationContext,
+    closingBrackets,
+  });
+}
+
+/**
+ * The ideas for a list that an f-string can render, and an item typed by
+ * position: `turns[-1]`.
+ */
+function toIndexResult({
+  from,
+  listName,
+  typedIndex,
+  evaluationContext,
+  closingBrackets,
+}: {
+  from: number;
+  listName: string;
+  /** Digits typed inside an open subscript, if any. */
+  typedIndex: string;
+  evaluationContext: MaterializedEvaluatorContext;
+  closingBrackets: string;
+}): CompletionResult | null {
+  const source = evaluationContext.values;
+  const rows = getEvaluatorPathIdeas({
+    recordKind: evaluationContext.recordKind,
+    source,
+    containerPath: toMappingPath(listName),
+    syntax: F_STRING_PATH_SYNTAX,
+  }).flatMap((idea) => {
+    const name = `${listName}${idea.relativePath}`;
+    return idea.status === "resolved" && F_STRING_NAME_PATTERN.test(name)
+      ? [{ name, description: idea.description, value: idea.value }]
+      : [];
+  });
+  const typedName = `${listName}[${Number(typedIndex)}]`;
+  if (
+    /^-?\d+$/.test(typedIndex) &&
+    !rows.some((row) => row.name === typedName)
+  ) {
+    const typed = resolveEvaluatorPath({
+      source,
+      path: toMappingPath(typedName),
+    });
+    if (typed.status === "resolved") {
+      rows.push({ name: typedName, description: "", value: typed.value });
+    }
+  }
+  const section = toMemberSection(listName, TEMPLATE_MEMBER_SECTION_RANK);
+  const options = rows.map(({ name, description, value }, order) => {
+    const preview = toMemberDetail({
+      member: { key: name, path: name, value, isIndex: true },
+      evaluationContext,
+    });
+    return {
+      label: name,
+      type: description ? IDEA_COMPLETION_TYPE : toMemberCompletionType(value),
+      ...(description || preview ? { detail: description || preview } : {}),
+      ...(description && preview ? { info: preview } : {}),
+      section,
+      boost: 99 - order,
+      apply: applyTemplateInsertion(name, closingBrackets),
+    };
+  });
+  // The typed name ends in a dot or an open bracket the labels do not carry,
+  // so the rows are shown as they are rather than matched against it.
+  return options.length === 0 ? null : { from, options, filter: false };
 }
 
 /** Both wrappers for one list, replacing whatever the author dotted into it. */
@@ -437,6 +615,73 @@ function toBlockDetail({
   return blockPrefix === "#" ? `${value.length} items` : "if empty";
 }
 
+type TemplateNameCursor = {
+  /** The name before the last dot; empty at the top level. */
+  containerName: string;
+  partial: string;
+  from: number;
+};
+
+function getTemplateNameCursor(
+  text: string,
+  grammar: TemplateNameGrammar
+): TemplateNameCursor | null {
+  const match = grammar.cursor.exec(text);
+  if (match === null) {
+    return null;
+  }
+  const [, containerName = "", partial = ""] = match;
+  return { containerName, partial, from: text.length - partial.length };
+}
+
+/** The mapping path that reads what a template name reads. */
+function toMappingPath(name: string): string {
+  let path = "";
+  for (const [segment, index] of name.matchAll(TEMPLATE_NAME_SEGMENT_PATTERN)) {
+    path =
+      index === undefined
+        ? appendPathSegment(path, segment, false)
+        : appendPathSegment(path, index, true);
+  }
+  return path;
+}
+
+function joinTemplateName(parentName: string, key: string): string {
+  return parentName === "" ? key : `${parentName}.${key}`;
+}
+
+/**
+ * The name a written container reaches once the home it left out is filled
+ * back in — `attributes` opens `metadata.attributes` — or null when it already
+ * names something.
+ */
+function reachTemplateContainer({
+  source,
+  containerName,
+  rootNames,
+}: {
+  source: Record<string, unknown>;
+  containerName: string;
+  rootNames: readonly string[];
+}): string | null {
+  const resolve = (name: string) =>
+    resolveEvaluatorPath({ source, path: toMappingPath(name) }).status;
+  if (resolve(containerName) !== "unresolved") {
+    return null;
+  }
+  const [head] = containerName.split(/[.[]/, 1);
+  const tail = containerName.slice(head.length);
+  for (const rootName of rootNames) {
+    if (
+      rootName.endsWith(`.${head}`) &&
+      resolve(`${rootName}${tail}`) === "resolved"
+    ) {
+      return `${rootName}${tail}`;
+    }
+  }
+  return null;
+}
+
 /** The item a section repeats over, when the cursor is inside one. */
 function getSectionItem({
   evaluationContext,
@@ -451,7 +696,7 @@ function getSectionItem({
   }
   const resolution = resolveEvaluatorPath({
     source: evaluationContext.values,
-    path: sectionPath,
+    path: toMappingPath(sectionPath),
   });
   if (resolution.status !== "resolved") {
     return null;
