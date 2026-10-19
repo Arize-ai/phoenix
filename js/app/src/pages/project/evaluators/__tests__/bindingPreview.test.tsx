@@ -1,15 +1,16 @@
 /**
  * The inputs view renders what `materializeEvaluatorContext` produces, so this
- * only checks what reaches the table: the key order, the resolved values, and
- * the diagnostics listed above it. What the materialization binds is pinned
+ * only checks what reaches the view: a row per variable with its status,
+ * source and value, and the record's context under a disclosure. What the materialization binds is pinned
  * where it lives.
  */
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
+import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import {
   EvaluatorInputsView,
@@ -26,6 +27,10 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
+import {
+  DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+  type EvaluatorStoreInstance,
+} from "@phoenix/store/evaluatorStore";
 
 describe("the evaluator inputs", () => {
   let container: HTMLDivElement;
@@ -106,151 +111,194 @@ describe("the evaluator inputs", () => {
     expect(values.context).toBe("PINNED TEXT");
   });
 
-  it("lists what fails to bind above the table, in declaration order, and leaves it out of the rows", async () => {
+  /** Renders the view in a store of its own, returned so a test can read it. */
+  async function renderInputsView({
+    variables,
+    ...props
+  }: Omit<ComponentProps<typeof EvaluatorInputsView>, "isSampleContext"> & {
+    variables: string[];
+  }): Promise<EvaluatorStoreInstance> {
+    let store: EvaluatorStoreInstance | undefined;
     await act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
-          <EvaluatorInputVariablesContext.Provider
-            value={["input", "metadata", "any_thing"]}
+          <EvaluatorStoreProvider
+            initialState={DEFAULT_LLM_EVALUATOR_STORE_VALUES}
           >
-            <EvaluatorInputsView
-              context={getSampleTraceEvaluationContext().context}
-              recordKind="trace"
-              inputMapping={{
-                pathMapping: { input: "missing.key", metadata: "nope" },
-                literalMapping: {},
-              }}
-              requiredVariables={["input", "metadata", "any_thing"]}
-              isSampleContext={false}
-            />
-          </EvaluatorInputVariablesContext.Provider>
+            {({ store: created }) => {
+              store = created;
+              return (
+                <EvaluatorInputVariablesContext.Provider value={variables}>
+                  <EvaluatorInputsView {...props} isSampleContext={false} />
+                </EvaluatorInputVariablesContext.Provider>
+              );
+            }}
+          </EvaluatorStoreProvider>
         </ThemeProvider>
       );
     });
+    return store!;
+  }
 
-    const errors = [
-      ...container.querySelectorAll(
-        '.inputs-view__diagnostic[data-variant="error"]'
-      ),
-    ];
-    expect(
-      errors.map((node) => node.querySelector("code")?.textContent)
-    ).toEqual(["input", "metadata", "any_thing"]);
-    expect(
-      errors.map((node) => node.querySelector("span")?.textContent)
-    ).toEqual([
-      "missing.key does not exist on this trace, so evaluation fails",
-      "nope does not exist on this trace, so evaluation fails",
-      "any_thing does not exist on this trace, so evaluation fails",
-    ]);
-    expect(errors[0]?.querySelector('[aria-label="error"]')).not.toBeNull();
-    // The table still lists what did bind; the variables with nothing to
-    // show are not given empty rows.
-    const keys = [...container.querySelectorAll(".json-table__key")].map(
-      (node) => node.textContent
+  const items = () => [...container.querySelectorAll(".inputs-view__item")];
+  const itemFor = (variable: string) =>
+    items().find(
+      (item) =>
+        item.querySelector(".inputs-view__variable")?.textContent ===
+        `{{${variable}}}`
     );
-    expect(keys).toContain("output");
-    expect(keys).not.toContain("input");
-    expect(keys).not.toContain("any_thing");
+
+  it("gives every declared variable a row, in declaration order, and marks what fails to bind", async () => {
+    await renderInputsView({
+      variables: ["input", "metadata", "any_thing"],
+      context: getSampleTraceEvaluationContext().context,
+      recordKind: "trace",
+      inputMapping: {
+        pathMapping: { input: "missing.key", metadata: "nope" },
+        literalMapping: {},
+      },
+      requiredVariables: ["input", "metadata", "any_thing"],
+    });
+
+    expect(
+      items().map(
+        (item) => item.querySelector(".inputs-view__variable")?.textContent
+      )
+    ).toEqual(["{{input}}", "{{metadata}}", "{{any_thing}}"]);
+    expect(items().map((item) => item.getAttribute("data-status"))).toEqual([
+      "missing",
+      "missing",
+      "missing",
+    ]);
+    // A path that reads nothing says so in the shared wording; a variable
+    // with no path at all says there is nothing of its name to fall back to.
+    expect(itemFor("input")?.textContent).toContain(
+      "missing.key does not exist on this trace, so evaluation fails"
+    );
+    expect(itemFor("metadata")?.textContent).toContain(
+      "nope does not exist on this trace, so evaluation fails"
+    );
+    expect(itemFor("any_thing")?.textContent).toContain("Not mapped");
+    expect(itemFor("any_thing")?.textContent).toContain(
+      "Nothing on the trace is named any_thing"
+    );
+    // Each one offers its field in the mapping.
+    for (const item of items()) {
+      expect(item.textContent).toContain("Map in form");
+    }
   });
 
-  it("lists a path only the server can check as a warning, not an error", async () => {
-    await act(async () => {
-      root.render(
-        <ThemeProvider themeMode="light" disableBodyTheme>
-          <EvaluatorInputVariablesContext.Provider
-            value={["input", "output", "metadata", "citations"]}
-          >
-            <EvaluatorInputsView
-              context={getSampleSpanEvaluationContext().context}
-              recordKind="span"
-              inputMapping={{
-                pathMapping: {
-                  // A wildcard is the server's to resolve, so this side can
-                  // only defer — unlike `nope`, which is checked and wrong.
-                  input: "metadata.attributes.llm.input_messages[*].message",
-                  output: "nope",
-                  citations: "metadata.annotations[*]",
-                },
-                literalMapping: {},
-              }}
-              requiredVariables={["input", "output", "metadata", "citations"]}
-              isSampleContext={false}
-            />
-          </EvaluatorInputVariablesContext.Provider>
-        </ThemeProvider>
-      );
+  it("marks a path only the server can check as checked at run, not as failing", async () => {
+    await renderInputsView({
+      variables: ["input", "output", "metadata", "citations"],
+      context: getSampleSpanEvaluationContext().context,
+      recordKind: "span",
+      inputMapping: {
+        pathMapping: {
+          // A wildcard is the server's to resolve, so this side can only
+          // defer — unlike `nope`, which is checked and wrong.
+          input: "metadata.attributes.llm.input_messages[*].message",
+          output: "nope",
+          citations: "metadata.annotations[*]",
+        },
+        literalMapping: {},
+      },
+      requiredVariables: ["input", "output", "metadata", "citations"],
     });
 
-    const warnings = [
-      ...container.querySelectorAll(
-        '.inputs-view__diagnostic[data-variant="warning"]'
-      ),
-    ];
-    expect(
-      warnings.map((node) => node.querySelector("code")?.textContent)
-    ).toEqual(["input", "citations"]);
-    expect(
-      warnings.map((node) => node.querySelector("span")?.textContent)
-    ).toEqual([
-      "metadata.attributes.llm.input_messages[*].message is checked when the evaluator runs",
-      "metadata.annotations[*] is checked when the evaluator runs",
-    ]);
-    expect(
-      [
-        ...container.querySelectorAll(
-          '.inputs-view__diagnostic[data-variant="error"]'
-        ),
-      ].map((node) => node.querySelector("code")?.textContent)
-    ).toEqual(["output"]);
+    expect(itemFor("input")?.getAttribute("data-status")).toBe("unverified");
+    expect(itemFor("input")?.textContent).toContain(
+      "metadata.attributes.llm.input_messages[*].message is checked when the evaluator runs"
+    );
+    expect(itemFor("citations")?.getAttribute("data-status")).toBe(
+      "unverified"
+    );
+    expect(itemFor("output")?.getAttribute("data-status")).toBe("missing");
+    expect(itemFor("metadata")?.getAttribute("data-status")).toBe("resolved");
+    // Only what fails the run offers the mapping.
+    expect(itemFor("input")?.textContent).not.toContain("Map in form");
+    expect(itemFor("output")?.textContent).toContain("Map in form");
     // Nothing here is a banner.
     expect(container.querySelector(".alert__icon-title-wrap")).toBeNull();
   });
 
-  it("renders the bound values as a key/value table whose keys are paths", async () => {
-    await act(async () => {
-      root.render(
-        <ThemeProvider themeMode="light" disableBodyTheme>
-          <EvaluatorInputVariablesContext.Provider
-            value={["input", "output", "reference"]}
-          >
-            <EvaluatorInputsView
-              context={{
-                input: "hello",
-                output: "world",
-                metadata: { name: "chat", attributes: { kind: "LLM" } },
-              }}
-              recordKind="span"
-              inputMapping={{
-                pathMapping: { reference: "output" },
-                literalMapping: {},
-              }}
-              isSampleContext={false}
-            />
-          </EvaluatorInputVariablesContext.Provider>
-        </ThemeProvider>
-      );
+  it("shows each variable's source and value, and the whole record under a disclosure", async () => {
+    await renderInputsView({
+      variables: ["input", "output", "reference"],
+      context: {
+        input: "hello",
+        output: "world",
+        metadata: { name: "chat", attributes: { kind: "LLM" } },
+      },
+      recordKind: "span",
+      inputMapping: {
+        pathMapping: { reference: "output" },
+        literalMapping: {},
+      },
     });
 
+    expect(
+      itemFor("input")?.querySelector(".inputs-view__value")?.textContent
+    ).toBe("hello");
+    expect(itemFor("input")?.textContent).toContain("default");
+    const reference = itemFor("reference");
+    expect(
+      reference?.querySelector(".inputs-view__source code")?.textContent
+    ).toBe("output");
+    expect(reference?.querySelector(".inputs-view__value")?.textContent).toBe(
+      "world"
+    );
+
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '.inputs-view__context [slot="trigger"]'
+    );
+    expect(trigger?.textContent).toContain("All span data");
+    await act(async () => {
+      trigger?.click();
+    });
     const keys = [...container.querySelectorAll(".json-table__key")].map(
       (node) => node.textContent
     );
-    // Metadata keys follow the mapping vocabulary's order, attributes
-    // before the record's own fields, rather than the order they arrived in.
+    // Metadata keys follow the mapping vocabulary's order, attributes before
+    // the record's own fields, rather than the order they arrived in.
     expect(keys).toEqual([
       "input",
       "output",
-      "reference",
       "metadata.attributes.kind",
       "metadata.name",
     ]);
-    const referenceRow = [...container.querySelectorAll("tbody tr")].find(
-      (row) =>
-        row.querySelector(".json-table__key")?.textContent === "reference"
+  });
+
+  it("points the mapping at a variable: hovering marks its field, Map in form asks for it", async () => {
+    const store = await renderInputsView({
+      variables: ["input", "reference"],
+      context: getSampleSpanEvaluationContext().context,
+      recordKind: "span",
+      inputMapping: { pathMapping: {}, literalMapping: {} },
+    });
+
+    const reference = itemFor("reference");
+    await act(async () => {
+      reference?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    });
+    expect(store.getState().highlightedMappingVariable).toBe("reference");
+
+    const mapButton = [...(reference?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent?.includes("Map in form")
     );
-    expect(referenceRow?.querySelector(".json-table__value")?.textContent).toBe(
-      "world"
-    );
+    await act(async () => {
+      mapButton?.click();
+    });
+    expect(store.getState().mappingFocusRequest).toEqual({
+      variable: "reference",
+    });
+
+    await act(async () => {
+      container
+        .querySelector(".inputs-view__list")
+        ?.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+    });
+    expect(store.getState().highlightedMappingVariable).toBeNull();
   });
 
   it("marks a row whose mapping cannot bind, and disables its test button", async () => {

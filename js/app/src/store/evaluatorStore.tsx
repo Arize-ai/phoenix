@@ -67,6 +67,15 @@ export type EvaluatorStoreProps = {
   showPromptPreview: boolean;
   /** The variable whose mapping path is being edited, if any. */
   focusedMappingVariable?: string | null;
+  /**
+   * An input-mapping field another panel has asked to bring into view, such
+   * as the test bench pointing at a variable with nothing to read. It stays
+   * set until the mapping has focused the field, so a mapping that mounts
+   * because of the request still answers it.
+   */
+  mappingFocusRequest?: { variable: string } | null;
+  /** The variable whose mapping another panel is pointing at, if any. */
+  highlightedMappingVariable?: string | null;
 };
 
 export type EvaluatorStoreActions = {
@@ -136,6 +145,12 @@ export type EvaluatorStoreActions = {
   setShowPromptPreview: (showPromptPreview: boolean) => void;
   /** Sets which variable's mapping path is being edited. */
   setFocusedMappingVariable: (focusedMappingVariable: string | null) => void;
+  /** Asks the input mapping to open and focus a variable's field. */
+  requestMappingFocus: (variable: string) => void;
+  /** Called by the mapping once it has focused the requested field. */
+  clearMappingFocusRequest: () => void;
+  /** Marks a variable's mapping field while another panel points at it. */
+  setHighlightedMappingVariable: (variable: string | null) => void;
 
   // Multi-output config CRUD actions
   /** Adds a new output config to the array. */
@@ -657,6 +672,32 @@ export const createEvaluatorStore = (
               { focusedMappingVariable },
               undefined,
               "setFocusedMappingVariable"
+            );
+          },
+          requestMappingFocus(variable) {
+            set(
+              { mappingFocusRequest: { variable } },
+              undefined,
+              "requestMappingFocus"
+            );
+          },
+          clearMappingFocusRequest() {
+            set(
+              { mappingFocusRequest: null },
+              undefined,
+              "clearMappingFocusRequest"
+            );
+          },
+          setHighlightedMappingVariable(highlightedMappingVariable) {
+            if (
+              get().highlightedMappingVariable === highlightedMappingVariable
+            ) {
+              return;
+            }
+            set(
+              { highlightedMappingVariable },
+              undefined,
+              "setHighlightedMappingVariable"
             );
           },
           setIncludeExplanation(includeExplanation) {

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import { Text } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -9,7 +9,6 @@ import { getEvaluatorInputPlaceholder } from "@phoenix/components/evaluators/eva
 import { escapeFieldNameForReactHookForm } from "@phoenix/components/evaluators/fieldNameUtils";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import { useMappingRequests } from "@phoenix/pages/project/evaluators/projectEvaluatorMappingBridge";
 import {
   dropOtherRecordKindPathMappings,
   dropPathsShadowedByLiterals,
@@ -63,33 +62,42 @@ export const ProjectEvaluatorInputMapping = ({
     (state) => state.setFocusedMappingVariable
   );
   const rowsRef = useRef<HTMLDivElement>(null);
-  const [highlightedVariable, setHighlightedVariable] = useState<string | null>(
-    null
+  const highlightedVariable = useEvaluatorStore(
+    (state) => state.highlightedMappingVariable ?? null
   );
   // The test bench asks for a variable's field from the other panel. The
-  // dock has expanded by the time the next frame is drawn, so the field is
-  // focused then rather than now.
-  useMappingRequests((request) => {
-    if (request.kind === "hover") {
-      setHighlightedVariable(request.variable);
-      return;
-    }
-    if (request.kind === "assign") {
-      setValue(
-        `pathMapping.${escapeFieldNameForReactHookForm(request.variable)}`,
-        request.path,
-        { shouldDirty: true, shouldValidate: true }
-      );
-    }
-    const variable = request.variable;
-    requestAnimationFrame(() => {
+  // dock expands on the same request, so the field may not be laid out yet:
+  // it is tried on each frame until it can take focus, then the request is
+  // answered.
+  const focusRequest = useEvaluatorStore(
+    (state) => state.mappingFocusRequest ?? null
+  );
+  const clearMappingFocusRequest = useEvaluatorStore(
+    (state) => state.clearMappingFocusRequest
+  );
+  useEffect(() => {
+    let frame = 0;
+    let attempts = 0;
+    const tryFocus = (variable: string) => {
       const row = rowsRef.current?.querySelector<HTMLElement>(
         `[data-mapping-variable="${CSS.escape(variable)}"]`
       );
-      row?.scrollIntoView({ block: "nearest" });
-      row?.querySelector<HTMLElement>("[contenteditable]")?.focus();
-    });
-  });
+      const field = row?.querySelector<HTMLElement>("[contenteditable]");
+      if (row != null && field != null && row.offsetParent != null) {
+        row.scrollIntoView({ block: "nearest" });
+        field.focus();
+        clearMappingFocusRequest();
+      } else if (++attempts < MAX_FOCUS_ATTEMPTS) {
+        frame = requestAnimationFrame(() => tryFocus(variable));
+      } else {
+        clearMappingFocusRequest();
+      }
+    };
+    if (focusRequest != null) {
+      frame = requestAnimationFrame(() => tryFocus(focusRequest.variable));
+    }
+    return () => cancelAnimationFrame(frame);
+  }, [focusRequest, clearMappingFocusRequest]);
   if (variables.length === 0) {
     return (
       <Text color="text-500" size="S">
@@ -160,6 +168,9 @@ export const ProjectEvaluatorInputMapping = ({
     </div>
   );
 };
+
+/** Frames to wait for a requested field to be laid out before giving up. */
+const MAX_FOCUS_ATTEMPTS = 10;
 
 /** From this many variables the rows may take a second column. */
 const TWO_COLUMN_MIN_VARIABLES = 5;
